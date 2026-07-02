@@ -61,6 +61,38 @@ function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose
     },
   });
 
+  // Build the state-change audit trail from the record's stage timestamps + actor ids.
+  const STAGES: { label: string; at: string; by?: string }[] = [
+    { label: 'Requested', at: 'created_at', by: 'initiated_by' },
+    { label: 'Processing started', at: 'processing_started_at', by: 'processing_started_by' },
+    { label: 'Claimed / dispatched', at: 'dispatched_at', by: 'assigned_cashout_agent_id' },
+    { label: 'Manager approved', at: 'manager_approved_at', by: 'manager_approved_by' },
+    { label: 'COO approved', at: 'coo_approved_at', by: 'coo_approved_by' },
+    { label: 'CFO approved', at: 'cfo_approved_at', by: 'cfo_approved_by' },
+    { label: 'Fin Ops verified', at: 'fin_ops_verified_at', by: 'fin_ops_verified_by' },
+    { label: 'Fin Ops approved', at: 'fin_ops_approved_at', by: 'fin_ops_approved_by' },
+    { label: 'Paid out', at: 'processed_at', by: 'processed_by' },
+  ];
+
+  const events = record
+    ? STAGES
+        .filter(s => record[s.at])
+        .map(s => ({ label: s.label, ts: record[s.at] as string, actorId: s.by ? (record[s.by] as string | null) : null }))
+        .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
+    : [];
+
+  const actorIds = Array.from(new Set(events.map(e => e.actorId).filter(Boolean))) as string[];
+  const { data: actorMap } = useQuery({
+    queryKey: ['merchant-claim-actors', claim?.id, actorIds.join(',')],
+    enabled: !!claim && actorIds.length > 0,
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', actorIds);
+      data?.forEach(p => { map[p.id] = p.full_name || 'Unknown user'; });
+      return map;
+    },
+  });
+
   const beforeStatus = claim?.state === 'completed' ? 'claimed' : 'pending';
   const afterStatus = claim?.status || 'pending';
 
