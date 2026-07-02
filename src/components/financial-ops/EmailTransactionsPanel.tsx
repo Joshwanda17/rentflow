@@ -4075,7 +4075,7 @@ export function EmailTransactionsPanel() {
                 const latestRouteEntry = history[0] ?? null;
                 const outcomeWhen =
                   latestRouteEntry?.created_at
-                  || (isCredited ? credited[0]?.created_at : undefined)
+                  || (isCredited ? credited[0]?.credited_at ?? undefined : undefined)
                   || manualMark?.created_at
                   || null;
                 const outcomeStatus: {
