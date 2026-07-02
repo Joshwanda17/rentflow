@@ -104,6 +104,13 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       try {
         const mod = await queuedImport(factory);
         if (!hasValidDefault(mod)) {
+          // A resolved module with an undefined default is not a transient
+          // network failure — it is almost always a stale/rotated chunk left
+          // over from a previous deploy. Retrying re-reads the same cached
+          // module and fails identically, so recover immediately with a
+          // one-time hard reload to pull fresh assets instead of burning
+          // retries and crashing to the recovery screen.
+          reloadOnceForStaleChunk();
           throw new Error("Invalid lazy module: missing React default export");
         }
         return mod;
