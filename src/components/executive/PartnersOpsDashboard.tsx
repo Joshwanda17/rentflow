@@ -183,7 +183,14 @@ export function PartnersOpsDashboard() {
           <ROIPaymentHistory />
         </div>
       );
-      case 'topups': return <PendingPortfolioTopUps />;
+      case 'topups': return (
+        <div className="space-y-6">
+          {/* Actionable queue: wallet→portfolio transfer requests awaiting Partner Ops approval.
+              Funds only leave the partner's wallet when approved here. */}
+          <PortfolioTopUpVerification />
+          <PendingPortfolioTopUps />
+        </div>
+      );
       case 'activity': return <PartnerFinancialActivity />;
       case 'promissory': return <PromissoryNotesQueue />;
       case 'maturity': return <MaturityRequestsQueue />;
