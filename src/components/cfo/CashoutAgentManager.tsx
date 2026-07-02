@@ -413,6 +413,34 @@ export function CashoutAgentManager() {
     return payouts.filter((p: any) => p.assigned_cashout_agent_id === selectedAgent.id);
   }, [selectedAgent, payouts]);
 
+  // Commission the merchant actually earned on each settled payout — read from
+  // their own wallet ledger legs (`<withdrawal_id>-cashout-commission`) so the
+  // drill-down reconciles 1:1 with what landed in their withdrawable wallet.
+  const { data: commissionByWithdrawal = {} } = useQuery({
+    queryKey: ['cashout-agent-commission-legs', selectedAgent?.agent_id, selectedAgentPayouts.map((p: any) => p.id).join(',')],
+    queryFn: async () => {
+      const map: Record<string, number> = {};
+      if (!selectedAgent?.agent_id) return map;
+      const ids = selectedAgentPayouts.map((p: any) => String(p.id));
+      if (ids.length === 0) return map;
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount, reference_id')
+        .eq('user_id', selectedAgent.agent_id)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_in')
+        .eq('category', 'agent_commission_earned')
+        .in('reference_id', ids.map((id) => `${id}-cashout-commission`));
+      if (error) throw error;
+      for (const l of (data || []) as any[]) {
+        map[String(l.reference_id || '').replace('-cashout-commission', '')] = Number(l.amount || 0);
+      }
+      return map;
+    },
+    enabled: !!selectedAgent?.agent_id && selectedAgentPayouts.length > 0,
+    staleTime: 30_000,
+  });
+
   const selectedAgentStats = selectedAgent ? agentStats.get(selectedAgent.id) || { count: 0, volume: 0, bank: 0, momo: 0, cash: 0, bankCount: 0, momoCount: 0, cashCount: 0, lastAt: null, todayCount: 0 } : null;
 
   const methodBadges = (a: any) => {
