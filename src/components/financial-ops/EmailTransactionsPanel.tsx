@@ -5271,6 +5271,33 @@ export function EmailTransactionsPanel() {
 
       <DedupAuditPanel />
 
+      <AlertDialog open={!!pendingSwipe} onOpenChange={(o) => { if (!o) setPendingSwipe(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingSwipe?.mode === 'credit' ? 'Send to wallet?' : 'Charge wallet?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSwipe?.mode === 'credit'
+                ? `Route this deposit of ${fmtUgx(Number(pendingSwipe?.row.amount ?? 0))} to a user's wallet.`
+                : `Charge ${fmtUgx(Number(pendingSwipe?.row.amount ?? 0))} to a user's wallet for this payout.`}
+              {' '}You'll confirm the recipient and details on the next screen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingSwipe) swipeNavigate(pendingSwipe.row, pendingSwipe.mode);
+                setPendingSwipe(null);
+              }}
+            >
+              {pendingSwipe?.mode === 'credit' ? 'Send to wallet' : 'Charge wallet'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <RouteEmailDepositDialog
         open={!!routingRow}
         onOpenChange={(o) => { if (!o) { setRoutingRow(null); setRoutingSuggestedUser(null); } }}
