@@ -13,6 +13,12 @@ export interface SwipeAction {
   /** Tailwind background class for the revealed action panel. */
   colorClass: string;
   onAction: () => void;
+  /**
+   * Accessible name for the keyboard/screen-reader trigger. Defaults to
+   * `label`, but callers should pass a descriptive string that includes the
+   * amount / counterparty so the action is unambiguous out of visual context.
+   */
+  ariaLabel?: string;
 }
 
 const TRIGGER_THRESHOLD = 88; // px of left-drag needed to fire the action
@@ -95,6 +101,23 @@ export function SwipeableEmailRow({
 
   return (
     <div className="relative overflow-hidden">
+      {/*
+        Keyboard + screen-reader equivalent of the touch swipe. Visually hidden
+        until focused (Tab), then it surfaces as a real button so keyboard and
+        assistive-tech users can trigger the same primary action without a
+        swipe gesture.
+      */}
+      <button
+        type="button"
+        onClick={action.onAction}
+        aria-label={action.ariaLabel ?? action.label}
+        className={`sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:inline-flex focus:items-center focus:gap-1.5 focus:rounded-md focus:px-3 focus:py-2 focus:text-xs focus:font-semibold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-h-11 ${action.colorClass}`}
+      >
+        <span aria-hidden className="inline-flex items-center gap-1.5">
+          {action.icon}
+          {action.label}
+        </span>
+      </button>
       {/* Revealed action panel behind the row. */}
       <div
         aria-hidden
