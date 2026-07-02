@@ -672,11 +672,25 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_sort_debit', debitSort); } catch {} }, [debitSort]);
 
+  // Status filter for the Recent emails list — lets Financial Ops slice the
+  // captured traffic by settlement state without reading each row. Persisted.
+  //   all          → no status filter
+  //   credited     → incoming money already credited or routed to a wallet
+  //   needs_routing→ incoming money not yet credited / routed (triage)
+  //   unparsed     → rows the parser could not read (no amount / not parsed)
+  type StatusFilter = 'all' | 'credited' | 'needs_routing' | 'unparsed';
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = localStorage.getItem('gmail_filter_status') as StatusFilter | null;
+    return v && ['all', 'credited', 'needs_routing', 'unparsed'].includes(v) ? v : 'all';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_status', statusFilter); } catch {} }, [statusFilter]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
   useEffect(() => {
     setCurrentPage(1);
     setInfiniteCount(pageSize);
-  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort]);
+  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter]);
   // Reset the infinite window back to one page whenever the operator switches
   // into infinite mode, so it never starts mid-list.
   useEffect(() => {
@@ -2342,6 +2356,23 @@ export function EmailTransactionsPanel() {
   }, [routingHistory, creditedDeposits, manualMarks]);
 
   /**
+   * Settlement status for a single row, used by the Status filter chips.
+   *   'unparsed'     → the parser could not read the email (no amount / not parsed)
+   *   'needs_routing'→ incoming money not yet credited or routed to a wallet
+   *   'credited'     → incoming money already credited or routed to a wallet
+   *   'other'        → outgoing / charge rows (not a settlement candidate)
+   */
+  const getRowStatus = useCallback((r: GmailTx): 'unparsed' | 'needs_routing' | 'credited' | 'other' => {
+    if (isUnparsedRow(r)) return 'unparsed';
+    if (r.direction !== 'in') return 'other';
+    const isRouted = (routingHistory[r.id] ?? []).length > 0;
+    const credited = creditedDeposits[r.id] ?? [];
+    const manualMark = manualMarks[r.id];
+    const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
+    return isCredited || isRouted ? 'credited' : 'needs_routing';
+  }, [routingHistory, creditedDeposits, manualMarks]);
+
+  /**
    * Compute debit metadata for a single row. Reused in filtering, sorting,
    * and rendering so the breakdown logic is defined in one place.
    */
@@ -2387,6 +2418,7 @@ export function EmailTransactionsPanel() {
       if (directionFilter === 'in' && r.direction !== 'in') return false;
       if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
       if (needsRoutingOnly && !isNeedsRouting(r)) return false;
+      if (statusFilter !== 'all' && getRowStatus(r) !== statusFilter) return false;
       if (matchFilter === 'all') return true;
       const matches = userMatches[r.id] ?? [];
       if (matchFilter === 'reference') return matches.some((u) => u.matched_on.startsWith('reference '));
@@ -2426,7 +2458,7 @@ export function EmailTransactionsPanel() {
       });
     }
     return list;
-  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, debitFilter, debitSort, getDebitMeta]);
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
@@ -3383,6 +3415,83 @@ export function EmailTransactionsPanel() {
           <p className="text-[11px] text-muted-foreground">
             Searches the <strong>full email history</strong> — the date range above is ignored while you type. Combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>); phone numbers work in any format.
           </p>
+          {/* Mobile-friendly quick filters: date, direction & status in one
+              horizontally-scrollable strip so ops can narrow results on a phone
+              without scrolling back up to the full filter panel. */}
+          <div className="sm:hidden -mx-1 overflow-x-auto">
+            <div className="flex items-center gap-1.5 px-1 pb-1 w-max">
+              {([
+                { label: 'Today', days: 1, offset: 0 },
+                { label: '7d', days: 7, offset: 0 },
+                { label: '30d', days: 30, offset: 0 },
+              ] as Array<{ label: string; days: number; offset: number }>).map((p) => {
+                const applyPreset = () => {
+                  const todayKey = dateKeyInTz(new Date(), tz);
+                  const [y, m, d] = todayKey.split('-').map(Number);
+                  const toUtc = Date.UTC(y, m - 1, d) - p.offset * 86_400_000;
+                  const fromUtc = toUtc - (p.days - 1) * 86_400_000;
+                  const fmtKey = (ms: number) => {
+                    const dt = new Date(ms);
+                    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+                  };
+                  setSearchQuery('');
+                  setFromDate(fmtKey(fromUtc));
+                  setToDate(fmtKey(toUtc));
+                };
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={applyPreset}
+                    className="shrink-0 text-[11px] px-2.5 py-1 rounded-full border bg-background hover:bg-muted text-muted-foreground border-border"
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+              <span className="shrink-0 mx-0.5 h-4 w-px bg-border" aria-hidden />
+              {([
+                { key: 'all', label: 'All' },
+                { key: 'in', label: 'In' },
+                { key: 'out', label: 'Out' },
+              ] as Array<{ key: DirectionFilter; label: string }>).map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setDirectionFilter(c.key)}
+                  aria-pressed={directionFilter === c.key}
+                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                    directionFilter === c.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+              <span className="shrink-0 mx-0.5 h-4 w-px bg-border" aria-hidden />
+              {([
+                { key: 'all', label: 'Any' },
+                { key: 'credited', label: 'Credited' },
+                { key: 'needs_routing', label: 'Needs routing' },
+                { key: 'unparsed', label: 'Unparsed' },
+              ] as Array<{ key: StatusFilter; label: string }>).map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setStatusFilter(c.key)}
+                  aria-pressed={statusFilter === c.key}
+                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                    statusFilter === c.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <RecentEmailsLegend />
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
@@ -3460,6 +3569,43 @@ export function EmailTransactionsPanel() {
                         active
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                      }`}
+                    >
+                      {c.label}
+                      <span className={`ml-1.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {(() => {
+            // Status chips — slice the list by settlement state (credited,
+            // still needs routing, or unreadable/unparsed) in one tap. Counts
+            // respect the active date/search/direction filters above.
+            const credited = filteredRows.filter((r) => getRowStatus(r) === 'credited').length;
+            const needs = filteredRows.filter((r) => getRowStatus(r) === 'needs_routing').length;
+            const unparsed = filteredRows.filter((r) => getRowStatus(r) === 'unparsed').length;
+            const chips: Array<{ key: StatusFilter; label: string; count: number; tone: string }> = [
+              { key: 'all', label: 'Any status', count: filteredRows.length, tone: 'bg-primary text-primary-foreground border-primary' },
+              { key: 'credited', label: 'Credited', count: credited, tone: 'bg-emerald-600 text-white border-emerald-600' },
+              { key: 'needs_routing', label: 'Needs routing', count: needs, tone: 'bg-orange-600 text-white border-orange-600' },
+              { key: 'unparsed', label: 'Unparsed', count: unparsed, tone: 'bg-slate-600 text-white border-slate-600' },
+            ];
+            return (
+              <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by status">
+                {chips.map((c) => {
+                  const active = statusFilter === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setStatusFilter(c.key)}
+                      aria-pressed={active}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                        active ? c.tone : 'bg-background hover:bg-muted text-muted-foreground border-border'
                       }`}
                     >
                       {c.label}
