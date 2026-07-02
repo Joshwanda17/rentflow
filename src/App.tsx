@@ -40,6 +40,7 @@ const ProfileCompletionGate = optionalLazyWithRetry(() => import("@/components/o
 const LocationCaptureGate = optionalLazyWithRetry(() => import("@/components/location/LocationCaptureGate"), "LocationCaptureGate");
 const PushNotificationGate = optionalLazyWithRetry(() => import("@/components/notifications/PushNotificationGate"), "PushNotificationGate");
 const SubAgentInviteGate = optionalLazyWithRetry(() => import("@/components/agent/SubAgentInviteGate"), "SubAgentInviteGate");
+const ForceResetPasswordGate = optionalLazyWithRetry(() => import("@/components/auth/ForceResetPasswordGate"), "ForceResetPasswordGate");
 
 // Deferred providers - loaded after first paint
 const CartProvider = lazyWithRetry(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
@@ -618,6 +619,7 @@ const App = () => {
                           <Toaster />
                           <SonnerToaster />
                           <ProfileCompletionGate />
+                          <ForceResetPasswordGate />
                           <LocationCaptureGate />
                           <PushNotificationGate />
                           <SubAgentInviteGate />

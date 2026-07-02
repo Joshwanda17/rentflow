@@ -3,7 +3,7 @@ import {
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
-  ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark
+  ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark, KeyRound
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -40,6 +40,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'OTP / SMS Logs', icon: MessageSquare, id: 'sms-delivery' },
         { label: 'SMS Exceptions', icon: ShieldCheck, id: 'sms-exceptions' },
         { label: 'Security Logs', icon: Lock, id: 'security' },
+        { label: 'Reset Password', icon: KeyRound, id: 'password-reset' },
         { label: 'Developer Tools', icon: Wrench, id: 'tools' },
         { label: 'System Logs', icon: FileText, id: 'system-logs' },
         { label: 'Platform Users', icon: Users, id: 'platform-users', route: '/platform-users' },
