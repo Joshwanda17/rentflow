@@ -131,6 +131,15 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     setMoreSheet(false);
   };
 
+  // Navigation scroll handling — whenever we switch into a tool or sub-view,
+  // reset scroll to the top so the target view (e.g. Merchant Claims) is fully
+  // visible and never left behind a floating widget or half-scrolled overlay.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [activeTool, view]);
+
   // Persist expand/collapse per user across sessions
   useEffect(() => {
     if (userId) setStoredOpen(userId, walletBreakdownOpen);
