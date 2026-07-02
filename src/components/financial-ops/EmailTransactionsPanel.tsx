@@ -3489,6 +3489,30 @@ export function EmailTransactionsPanel() {
               </button>
             )}
           </div>
+          {/* Dedicated depositor-phone filter — instantly narrow to one number
+              in any format (0…, 256…, +256…, bare 7…). */}
+          <div className="relative w-full">
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              inputMode="tel"
+              value={phoneQuery}
+              onChange={(e) => setPhoneQuery(e.target.value)}
+              placeholder="Filter by depositor phone number (e.g. 0783673998)…"
+              aria-label="Filter by depositor phone number"
+              className="h-12 w-full rounded-lg border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
+            />
+            {phoneQuery && (
+              <button
+                type="button"
+                onClick={() => setPhoneQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
+                aria-label="Clear phone filter"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <p className="text-[11px] text-muted-foreground">
             Searches the <strong>full email history</strong> — the date range above is ignored while you type. Combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>); phone numbers work in any format.
           </p>
