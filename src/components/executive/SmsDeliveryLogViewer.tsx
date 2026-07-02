@@ -296,7 +296,7 @@ export function SmsDeliveryLogViewer() {
       {/* Traffic metrics — daily / weekly / monthly */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
         <KPICard
-          title={isPastMonth ? 'Sent Today' : 'Sent Today'}
+          title="Sent Today"
           value={today.total.toLocaleString()}
           icon={CalendarDays}
           color="bg-primary/10 text-primary"
