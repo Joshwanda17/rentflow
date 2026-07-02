@@ -5438,6 +5438,79 @@ export function EmailTransactionsPanel() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <Sheet open={!!historyDrawerRow} onOpenChange={(o) => { if (!o) setHistoryDrawerRow(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <History className="h-4 w-4" /> Status history
+            </SheetTitle>
+            <SheetDescription>
+              {historyDrawerRow
+                ? `Every routing / charging transition for the email from ${historyDrawerRow.from_name || historyDrawerRow.from_email || 'Unknown'}.`
+                : ''}
+            </SheetDescription>
+          </SheetHeader>
+          {(() => {
+            const drawerHistory = historyDrawerRow ? (routingHistory[historyDrawerRow.id] ?? []) : [];
+            if (!drawerHistory.length) {
+              return <p className="mt-6 text-sm text-muted-foreground">No routing or charging transitions recorded yet.</p>;
+            }
+            return (
+              <ol className="mt-6 relative border-l border-border pl-5 space-y-5">
+                {drawerHistory.map((h) => {
+                  const reversal = /revers/i.test(h.reason || '');
+                  const isDebit = h.route === 'withdrawable_debit' || /^DEBIT\b/i.test(h.reason || '');
+                  const busy = !!reverseBusy[h.id];
+                  const routeLabel = reversal
+                    ? 'Reversal'
+                    : isDebit
+                      ? 'Wallet charged'
+                      : h.route === 'operational_float'
+                        ? 'Routed → Operational Float'
+                        : 'Routed → Personal Deposit';
+                  const dotClass = reversal ? 'bg-rose-500' : isDebit ? 'bg-rose-500' : 'bg-violet-500';
+                  return (
+                    <li key={h.id} className="relative">
+                      <span className={`absolute -left-[27px] top-1 h-3 w-3 rounded-full ring-4 ring-background ${dotClass}`} />
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-foreground">{routeLabel}</p>
+                        <span className="font-mono tabular-nums text-sm text-foreground">
+                          UGX {Number(h.amount ?? 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-sm text-foreground">
+                        {reversal ? 'Reversed from ' : 'To '}
+                        <span className="font-medium">{h.target_user_name || 'Unknown user'}</span>
+                        {h.target_user_phone ? <span className="text-muted-foreground"> · {h.target_user_phone}</span> : null}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {h.routed_by_name ? <>By <span className="font-medium text-foreground/80">{h.routed_by_name}</span> · </> : 'By system · '}
+                        {format(new Date(h.created_at), 'MMM d, yyyy · HH:mm')}
+                        {h.sms_sent ? ' · SMS sent' : ''}
+                      </p>
+                      {h.reason && (
+                        <p className="mt-1 text-xs text-muted-foreground/90 whitespace-pre-line break-words">{h.reason}</p>
+                      )}
+                      {!reversal && historyDrawerRow && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => reverseRoutingEntry(historyDrawerRow, h)}
+                          className="mt-2 inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-60"
+                        >
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Undo2 className="h-3 w-3" />}
+                          Reverse this transition
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
+
       <RouteEmailDepositDialog
         open={!!routingRow}
         onOpenChange={(o) => { if (!o) { setRoutingRow(null); setRoutingSuggestedUser(null); } }}
