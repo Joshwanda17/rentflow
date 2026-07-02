@@ -13,7 +13,7 @@ import {
 import { KPICard } from './KPICard';
 import { SmsFailoverAlerts } from './SmsFailoverAlerts';
 import { MessageSquare, Search, Loader2, CheckCircle2, XCircle, Radio, CalendarDays, CalendarRange, Calendar, FileDown } from 'lucide-react';
-import { format, formatDistanceToNow, subDays, startOfWeek, startOfMonth, startOfDay } from 'date-fns';
+import { format, formatDistanceToNow, subDays, startOfWeek, startOfMonth, endOfMonth, startOfDay, subMonths, differenceInCalendarDays } from 'date-fns';
 import { downloadAuditPdf } from '@/lib/pdfAuditReport';
 import { toast } from 'sonner';
 
@@ -68,9 +68,30 @@ export function SmsDeliveryLogViewer() {
   const [providerFilter, setProviderFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [generating, setGenerating] = useState(false);
+  // 'current' = this month; otherwise a 'yyyy-MM' key for a past month.
+  const [monthFilter, setMonthFilter] = useState('current');
+
+  // Build the last 12 months as selectable options.
+  const monthOptions = (() => {
+    const opts: { value: string; label: string }[] = [
+      { value: 'current', label: 'This Month' },
+    ];
+    for (let i = 1; i < 12; i++) {
+      const d = subMonths(new Date(), i);
+      opts.push({ value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') });
+    }
+    return opts;
+  })();
+
+  const isPastMonth = monthFilter !== 'current';
+  const selectedMonthDate = isPastMonth ? new Date(`${monthFilter}-01T00:00:00`) : new Date();
+  const selectedMonthStart = startOfMonth(selectedMonthDate);
+  const selectedMonthEnd = endOfMonth(selectedMonthDate);
+  // How far back the daily rollup must reach to cover the chosen month.
+  const rollupDays = Math.max(90, differenceInCalendarDays(new Date(), selectedMonthStart) + 40);
 
   const { data: logs = [], isLoading } = useQuery({
-    queryKey: ['cto-sms-delivery-log', providerFilter, statusFilter],
+    queryKey: ['cto-sms-delivery-log', providerFilter, statusFilter, monthFilter],
     queryFn: async () => {
       let query = supabase
         .from('sms_delivery_log')
@@ -80,6 +101,11 @@ export function SmsDeliveryLogViewer() {
       if (providerFilter !== 'all') query = query.eq('provider', providerFilter);
       if (statusFilter === 'success') query = query.in('status', ['sent', 'success', 'delivered', 'accepted']);
       if (statusFilter === 'failed') query = query.not('status', 'in', '(sent,success,delivered,accepted)');
+      if (isPastMonth) {
+        query = query
+          .gte('created_at', selectedMonthStart.toISOString())
+          .lte('created_at', selectedMonthEnd.toISOString());
+      }
       const { data, error } = await query;
       if (error) throw error;
       return (data || []) as SmsLog[];
@@ -89,9 +115,9 @@ export function SmsDeliveryLogViewer() {
 
   // Traffic metrics: aggregate server-side (avoids the Data API 1,000-row cap).
   const { data: metrics, isLoading: metricsLoading } = useQuery({
-    queryKey: ['cto-sms-metrics'],
+    queryKey: ['cto-sms-metrics', rollupDays],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_sms_traffic_daily', { p_days: 90 });
+      const { data, error } = await supabase.rpc('get_sms_traffic_daily', { p_days: rollupDays });
       if (error) throw error;
       return ((data || []) as any[]).map((r) => ({
         day: String(r.day),
@@ -110,7 +136,8 @@ export function SmsDeliveryLogViewer() {
   const now = new Date();
   const dayStart = startOfDay(now).getTime();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
-  const monthStart = startOfMonth(now).getTime();
+  const monthStart = selectedMonthStart.getTime();
+  const monthEnd = selectedMonthEnd.getTime();
 
   const countSince = (cutoff: number) => {
     let sent = 0, fail = 0;
@@ -122,15 +149,32 @@ export function SmsDeliveryLogViewer() {
     }
     return { total: sent + fail, sent, fail };
   };
+  const countBetween = (start: number, end: number) => {
+    let sent = 0, fail = 0;
+    for (const r of rows) {
+      const t = startOfDay(new Date(`${r.day}T00:00:00`)).getTime();
+      if (t < startOfDay(new Date(start)).getTime() || t > startOfDay(new Date(end)).getTime()) continue;
+      sent += r.delivered;
+      fail += r.failed;
+    }
+    return { total: sent + fail, sent, fail };
+  };
   const today = countSince(dayStart);
   const thisWeek = countSince(weekStart);
-  const thisMonth = countSince(monthStart);
+  const thisMonth = isPastMonth ? countBetween(monthStart, monthEnd) : countSince(monthStart);
 
-  // Daily traffic chart (last 30 days), delivered vs failed.
+  // Daily traffic chart — last 30 days, or the full selected past month.
   const dailyTraffic = (() => {
     const byDay: Record<string, { delivered: number; failed: number }> = {};
-    for (let i = 29; i >= 0; i--) {
-      byDay[format(subDays(now, i), 'yyyy-MM-dd')] = { delivered: 0, failed: 0 };
+    if (isPastMonth) {
+      const days = differenceInCalendarDays(selectedMonthEnd, selectedMonthStart);
+      for (let i = 0; i <= days; i++) {
+        byDay[format(subDays(selectedMonthEnd, days - i), 'yyyy-MM-dd')] = { delivered: 0, failed: 0 };
+      }
+    } else {
+      for (let i = 29; i >= 0; i--) {
+        byDay[format(subDays(now, i), 'yyyy-MM-dd')] = { delivered: 0, failed: 0 };
+      }
     }
     for (const r of rows) {
       if (!byDay[r.day]) continue;
@@ -235,6 +279,20 @@ export function SmsDeliveryLogViewer() {
 
       <SmsFailoverAlerts />
 
+      {/* Month scope selector */}
+      <div className="flex items-center gap-2">
+        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">Viewing:</span>
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-[170px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {monthOptions.map((m) => (
+              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Traffic metrics — daily / weekly / monthly */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
         <KPICard
@@ -254,7 +312,7 @@ export function SmsDeliveryLogViewer() {
           subtitle={`${thisWeek.sent} delivered · ${thisWeek.fail} failed`}
         />
         <KPICard
-          title="This Month"
+          title={isPastMonth ? format(selectedMonthDate, 'MMMM yyyy') : 'This Month'}
           value={thisMonth.total.toLocaleString()}
           icon={Calendar}
           color="bg-teal-500/10 text-teal-600"
@@ -268,7 +326,7 @@ export function SmsDeliveryLogViewer() {
         <CardHeader className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-primary" /> Daily Traffic (30d)
+              <MessageSquare className="h-4 w-4 text-primary" /> {isPastMonth ? `Daily Traffic — ${format(selectedMonthDate, 'MMM yyyy')}` : 'Daily Traffic (30d)'}
             </CardTitle>
             <Button size="sm" variant="outline" onClick={handleGenerateReport} disabled={generating} className="h-8 text-xs gap-1.5">
               {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
