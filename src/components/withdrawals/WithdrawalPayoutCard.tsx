@@ -278,6 +278,11 @@ export function WithdrawalPayoutCard({
                   <MethodIcon className="h-3 w-3" />
                   {methodLabel}
                 </Badge>
+                {/* What the user is withdrawing — visible before claiming */}
+                <Badge className={`text-xs h-5 px-2 font-semibold border-0 ${purpose.className}`}>
+                  {purpose.label}
+                  {isProxyReason ? ' · on behalf' : ''}
+                </Badge>
                 {/* AWAITING PAYMENT — shown to claiming agent AND to read-only viewers (CFO)
                     so a stuck/sitting claim is always visible, no matter how long ago. */}
                 {isAwaitingPayment && (
