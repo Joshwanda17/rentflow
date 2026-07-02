@@ -286,7 +286,7 @@ export function RoleManagementPanel() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm text-foreground truncate">{u.full_name || 'Unnamed user'}</p>
-                    <p className="text-xs text-muted-foreground truncate">{u.email || u.phone || u.id}</p>
+                    <p className="text-xs text-muted-foreground truncate">{[u.phone, u.email].filter(Boolean).join(' · ') || u.id}</p>
                   </div>
                 </button>
               ))}
@@ -294,7 +294,11 @@ export function RoleManagementPanel() {
           ) : (
             <Card className="p-8 text-center text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Search for a user to manage their roles.</p>
+              <p className="text-sm">
+                {query.trim().length >= 2
+                  ? `No users match "${query.trim()}".`
+                  : 'Start typing a name or phone number to find a user.'}
+              </p>
             </Card>
           )}
         </>
