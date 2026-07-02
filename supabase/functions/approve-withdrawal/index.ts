@@ -2237,7 +2237,13 @@ Deno.serve(async (req) => {
           `We encourage you to log in to your Welile dashboard to monitor your partnership performance, track payouts, and manage your account directly: https://welilereceipts.com/auth\n\n` +
           `Thank you for partnering with Welile Technologies Limited.\n\n` +
           `"Welile is Turning Rent into an Asset."`;
-        sendSMS(partnerProfile.phone, proxySmsMsg).catch((e) =>
+        sendSMS(partnerProfile.phone, proxySmsMsg, {
+          admin,
+          source: "proxy_payout",
+          reference_id: withdrawal_id,
+          recipient_user_id: partnerId,
+          recipient_name: (partnerProfile as any)?.full_name ?? null,
+        }).catch((e) =>
           console.error("[approve-withdrawal] proxy partner SMS failed:", e),
         );
       }
