@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     // Fetch all awaiting_verification top-ups for this portfolio
     const { data: awaitingOps, error: fetchErr } = await supabase
       .from("pending_wallet_operations")
-      .select("id, amount, user_id, transaction_group_id")
+      .select("id, amount, user_id, transaction_group_id, metadata")
       .eq("source_id", portfolio_id)
       .eq("source_table", "investor_portfolios")
       .eq("operation_type", "portfolio_topup")
