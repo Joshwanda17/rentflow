@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { archivePdfBlob } from '@/lib/pdfVault';
 import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawer';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, ShieldQuestion, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet, HelpCircle } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, ShieldQuestion, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet, HelpCircle, Phone } from 'lucide-react';
 import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
@@ -589,6 +589,14 @@ export function EmailTransactionsPanel() {
     typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
   );
   useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+  // Dedicated depositor-phone filter — narrows the list to a single phone
+  // number in any printed format (0…, 256…, +256…, 7…). Matched against the
+  // email counterparty / sender / body and the resolved depositing user's
+  // phone. Persisted so the filter survives a refresh.
+  const [phoneQuery, setPhoneQuery] = useState<string>(() =>
+    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_phone') || '')
+  );
+  useEffect(() => { try { localStorage.setItem('gmail_filter_phone', phoneQuery); } catch {} }, [phoneQuery]);
   // Pagination for the Recent emails list. Page size is user-selectable and
   // persisted; current page resets to 1 whenever any filter changes.
   const [pageSize, setPageSize] = useState<number>(() => {
@@ -703,7 +711,7 @@ export function EmailTransactionsPanel() {
   useEffect(() => {
     setCurrentPage(1);
     setInfiniteCount(pageSize);
-  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter, sortMode]);
+  }, [searchQuery, phoneQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter, sortMode]);
   // Reset the infinite window back to one page whenever the operator switches
   // into infinite mode, so it never starts mid-list.
   useEffect(() => {
@@ -2248,10 +2256,31 @@ export function EmailTransactionsPanel() {
       variants.some((v) => hay.includes(v)),
     );
   };
+  // Dedicated depositor-phone match. Compares the trailing 9 digits (the part
+  // that's stable across 0…, 256…, +256… and bare 7… formats) so a search like
+  // "0783673998" also matches "+256783673998" printed in the email body.
+  const phoneDigits = phoneQuery.replace(/\D/g, '');
+  const phoneNeedle = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : phoneDigits;
+  const phoneActive = phoneNeedle.length >= 6;
+  const matchesPhone = (r: GmailTx): boolean => {
+    if (!phoneActive) return true;
+    const matched = userMatches[r.id] ?? [];
+    const hay = [
+      r.counterparty ?? '',
+      r.from_name ?? '',
+      r.from_email ?? '',
+      r.subject ?? '',
+      r.snippet ?? '',
+      ...matched.map((u) => u.phone ?? ''),
+    ]
+      .join(' ')
+      .replace(/\D/g, '');
+    return hay.includes(phoneNeedle);
+  };
   // `filteredRows` reflects BOTH the date range and the search box, so every
   // downstream consumer (stats, breakdown, chart, exports, list) stays in sync.
-  const filteredRows = dateRows.filter(matchesSearch);
-  const searchActive = searchTokens.length > 0;
+  const filteredRows = dateRows.filter((r) => matchesSearch(r) && matchesPhone(r));
+  const searchActive = searchTokens.length > 0 || phoneActive;
   // Resolve & memoize the channel for every row once per render. Calling
   // deriveChannel with the cache may write back new entries; we flush to
   // localStorage at the end if anything changed.
@@ -3455,6 +3484,30 @@ export function EmailTransactionsPanel() {
                 onClick={() => setSearchQuery('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
                 aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {/* Dedicated depositor-phone filter — instantly narrow to one number
+              in any format (0…, 256…, +256…, bare 7…). */}
+          <div className="relative w-full">
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              inputMode="tel"
+              value={phoneQuery}
+              onChange={(e) => setPhoneQuery(e.target.value)}
+              placeholder="Filter by depositor phone number (e.g. 0783673998)…"
+              aria-label="Filter by depositor phone number"
+              className="h-12 w-full rounded-lg border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
+            />
+            {phoneQuery && (
+              <button
+                type="button"
+                onClick={() => setPhoneQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
+                aria-label="Clear phone filter"
               >
                 <X className="h-4 w-4" />
               </button>
