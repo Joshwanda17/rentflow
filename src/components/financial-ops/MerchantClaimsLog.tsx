@@ -474,6 +474,61 @@ export function MerchantClaimsLog() {
         />
       </div>
 
+      {/* Quick tabs: Claimed (in progress) vs Paid (completed) */}
+      <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+        {([
+          { id: 'all', label: `All (${rows.length})` },
+          { id: 'in_progress', label: `Claimed (${inProgressCount})` },
+          { id: 'completed', label: `Paid (${completedCount})` },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={cn(
+              'flex-1 h-8 rounded-md text-xs font-medium transition-colors',
+              tab === t.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Status + date-range filters */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">Status</Label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {statuses.map(s => (
+                <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">From</Label>
+          <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="h-9" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">To</Label>
+          <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="h-9" />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{filtered.length} {filtered.length === 1 ? 'claim' : 'claims'} shown</span>
+        {hasActiveFilters && (
+          <button onClick={clearFilters} className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
+            <X className="h-3.5 w-3.5" /> Clear filters
+          </button>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading claims…
@@ -481,7 +536,7 @@ export function MerchantClaimsLog() {
       ) : filtered.length === 0 ? (
         <Card className="p-10 text-center text-muted-foreground">
           <HandCoins className="h-10 w-10 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">{search ? 'No claims match your search.' : 'No merchant claims recorded yet.'}</p>
+          <p className="text-sm">{hasActiveFilters ? 'No claims match your filters.' : 'No merchant claims recorded yet.'}</p>
         </Card>
       ) : (
         <div className="space-y-2">
