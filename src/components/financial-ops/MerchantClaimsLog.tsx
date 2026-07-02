@@ -7,8 +7,12 @@ import { Input } from '@/components/ui/input';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 import {
-  Loader2, Search, HandCoins, Clock, CheckCircle2, User, RefreshCw, ArrowRight,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Loader2, Search, HandCoins, Clock, CheckCircle2, User, RefreshCw, ArrowRight, Download, FileText, FileSpreadsheet,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
