@@ -75,7 +75,6 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
   { kind: 'tool', id: 'withdrawal_notif_log', label: 'Withdrawal Notification Log', desc: 'Every merchant withdrawal-alert email — search by recipient, amount & date', icon: Bell },
   { kind: 'tool', id: 'cashout_settlement', label: 'Cash-Out Settlement Timeline', desc: 'Each withdrawal with the merchant principal reimbursement & 0.5% commission in one ledger trail', icon: ArrowRightLeft },
-  { kind: 'tool', id: 'merchant_claims', label: 'Merchant Claims Log', desc: 'Every withdrawal claimed by a merchant (cash-out) agent — in-progress & completed, who claimed it and when', icon: HandCoins },
   { kind: 'tool', id: 'topup_audit', label: 'Top-Up Audit Log', desc: 'Each partnership top-up: fund source, recipient routing & both ledger legs', icon: ScrollText },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
   { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
