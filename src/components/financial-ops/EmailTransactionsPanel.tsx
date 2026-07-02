@@ -2418,6 +2418,7 @@ export function EmailTransactionsPanel() {
       if (directionFilter === 'in' && r.direction !== 'in') return false;
       if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
       if (needsRoutingOnly && !isNeedsRouting(r)) return false;
+      if (statusFilter !== 'all' && getRowStatus(r) !== statusFilter) return false;
       if (matchFilter === 'all') return true;
       const matches = userMatches[r.id] ?? [];
       if (matchFilter === 'reference') return matches.some((u) => u.matched_on.startsWith('reference '));
@@ -2457,7 +2458,7 @@ export function EmailTransactionsPanel() {
       });
     }
     return list;
-  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, debitFilter, debitSort, getDebitMeta]);
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
