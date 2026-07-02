@@ -675,6 +675,12 @@ interface Props {
   canNext?: boolean;
   currentIndex?: number;
   totalCount?: number;
+  /**
+   * Fired after a routing/charging action completes successfully, with the
+   * gmail transaction id of the affected row. Lets the parent list refetch
+   * that row's routing history so the status pill updates without a reload.
+   */
+  onRouted?: (rowId: string) => void;
 }
 
 /**
@@ -683,7 +689,7 @@ interface Props {
  * Operational Float. Routes through the `cfo-direct-credit` edge function so
  * the existing Wallet Routing v2 + ledger rules apply.
  */
-export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser, mode = 'credit', onPrev, onNext, canPrev, canNext, currentIndex, totalCount }: Props) {
+export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser, mode = 'credit', onPrev, onNext, canPrev, canNext, currentIndex, totalCount, onRouted }: Props) {
   const { toast } = useToast();
   const [user, setUser] = useState<PrefilledUser | null>(null);
   const [amount, setAmount] = useState('');
