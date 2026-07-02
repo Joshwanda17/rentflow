@@ -5,7 +5,10 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-  Loader2, Search, HandCoins, Clock, CheckCircle2, User, RefreshCw,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '@/components/ui/sheet';
+import {
+  Loader2, Search, HandCoins, Clock, CheckCircle2, User, RefreshCw, ArrowRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -28,8 +31,123 @@ interface ClaimRow {
 
 const COMPLETED_STATUSES = ['approved', 'fin_ops_approved', 'completed'];
 
+function StatusPill({ status, tone }: { status: string; tone?: 'muted' | 'active' }) {
+  return (
+    <span
+      className={cn(
+        'inline-block px-2 py-0.5 rounded-md text-[11px] font-medium capitalize border',
+        tone === 'active'
+          ? 'bg-success/15 text-success border-success/30'
+          : 'bg-muted text-muted-foreground border-border',
+      )}
+    >
+      {status.replace(/_/g, ' ')}
+    </span>
+  );
+}
+
+function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose: () => void }) {
+  const { data: record, isLoading } = useQuery({
+    queryKey: ['merchant-claim-detail', claim?.id],
+    enabled: !!claim,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .select('*')
+        .eq('id', claim!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Record<string, any> | null;
+    },
+  });
+
+  const beforeStatus = claim?.state === 'completed' ? 'claimed' : 'pending';
+  const afterStatus = claim?.status || 'pending';
+
+  const fields = record
+    ? Object.entries(record).filter(([, v]) => v !== null && v !== '' && typeof v !== 'object')
+    : [];
+
+  return (
+    <Sheet open={!!claim} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        {claim && (
+          <>
+            <SheetHeader>
+              <SheetTitle>{formatUGX(claim.amount)} claim</SheetTitle>
+              <SheetDescription>
+                {claim.merchantName} claimed for {claim.customerName}
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="mt-4 space-y-5">
+              {/* Before / after status */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Status transition
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <StatusPill status={beforeStatus} tone="muted" />
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  <StatusPill status={afterStatus} tone="active" />
+                </div>
+                <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                  {claim.claimedAt && (
+                    <p>Claimed {format(new Date(claim.claimedAt), 'dd MMM yyyy, HH:mm')}</p>
+                  )}
+                  {claim.completedAt && (
+                    <p className="text-success">Paid {format(new Date(claim.completedAt), 'dd MMM yyyy, HH:mm')}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Parties */}
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Merchant agent</p>
+                  <p className="text-sm font-medium mt-0.5">{claim.merchantName}</p>
+                  {claim.merchantPhone && <p className="text-xs text-muted-foreground">{claim.merchantPhone}</p>}
+                </Card>
+                <Card className="p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Customer</p>
+                  <p className="text-sm font-medium mt-0.5">{claim.customerName}</p>
+                  {claim.customerPhone && <p className="text-xs text-muted-foreground">{claim.customerPhone}</p>}
+                </Card>
+              </div>
+
+              {/* Underlying withdrawal record */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Underlying withdrawal record
+                </p>
+                {isLoading ? (
+                  <div className="flex items-center py-6 text-muted-foreground text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading record…
+                  </div>
+                ) : !record ? (
+                  <p className="text-sm text-muted-foreground">Record not found.</p>
+                ) : (
+                  <Card className="divide-y">
+                    {fields.map(([k, v]) => (
+                      <div key={k} className="flex items-start justify-between gap-3 px-3 py-2">
+                        <span className="text-xs text-muted-foreground shrink-0">{k.replace(/_/g, ' ')}</span>
+                        <span className="text-xs text-foreground text-right break-all">{String(v)}</span>
+                      </div>
+                    ))}
+                  </Card>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function MerchantClaimsLog() {
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<ClaimRow | null>(null);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['merchant-claims-log'],
@@ -198,7 +316,11 @@ export function MerchantClaimsLog() {
       ) : (
         <div className="space-y-2">
           {filtered.map(r => (
-            <Card key={`${r.state}-${r.id}`} className="p-3">
+            <Card
+              key={`${r.state}-${r.id}`}
+              className="p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => setSelected(r)}
+            >
               <div className="flex items-start justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -237,6 +359,8 @@ export function MerchantClaimsLog() {
           ))}
         </div>
       )}
+
+      <ClaimDetailDrawer claim={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
