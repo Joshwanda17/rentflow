@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
     }
 
     const phoneKey = phone.slice(-9);
-    const phoneFormats = [`0${phoneKey}`, `256${phoneKey}`];
+    const phoneFormats = [`0${phoneKey}`, `256${phoneKey}`, phoneKey, `+256${phoneKey}`];
 
     // Admin-only direct password reset (no OTP needed)
     if (action === "admin_reset") {
