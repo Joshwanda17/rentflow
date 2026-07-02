@@ -2143,7 +2143,13 @@ Deno.serve(async (req) => {
           .single()
           .then(({ data: logRow }) => {
             const logId = (logRow as any)?.id ?? null;
-            sendSMS(profile.phone, smsMsg)
+            sendSMS(profile.phone, smsMsg, {
+              admin,
+              source: "withdrawal_payout",
+              reference_id: withdrawal_id,
+              recipient_user_id: beneficiaryUserId,
+              recipient_name: (profile as any)?.full_name ?? null,
+            })
               .then((ok) => {
                 if (!ok) sendFallbackReceiptEmail("provider rejected");
                 if (!logId) return;
@@ -2172,7 +2178,13 @@ Deno.serve(async (req) => {
           }, (e) => {
             console.error("[approve-withdrawal] notification log insert failed:", e);
             // Still attempt the SMS even if logging failed.
-            sendSMS(profile.phone, smsMsg)
+            sendSMS(profile.phone, smsMsg, {
+              admin,
+              source: "withdrawal_payout",
+              reference_id: withdrawal_id,
+              recipient_user_id: beneficiaryUserId,
+              recipient_name: (profile as any)?.full_name ?? null,
+            })
               .then((ok) => {
                 if (!ok) sendFallbackReceiptEmail("provider rejected (log insert failed)");
               })
