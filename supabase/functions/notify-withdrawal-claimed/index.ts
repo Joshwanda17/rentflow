@@ -406,7 +406,7 @@ Deno.serve(async (req) => {
       console.warn("[notify-withdrawal-claimed] log insert failed:", e);
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, attempts: smsAttempts, error: smsError, merchant: merchantName }), {
+    return new Response(JSON.stringify({ ok: true, sent, skipped: smsSkipped, attempts: smsAttempts, error: smsError, merchant: merchantName }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
