@@ -206,14 +206,22 @@ export default function Auth() {
       return;
     }
     setOtpLoginLoading(true);
-    const success = await loginOtp.sendOtp(fullNum);
-    setOtpLoginLoading(false);
-    if (success) {
-      setOtpLoginStep('code');
-      setOtpResendCooldown(60);
-      toast({ title: 'Code Sent! 📱', description: 'Check your phone for the 6-digit code' });
-    } else {
-      toast({ title: 'Failed', description: loginOtp.otpError || 'Could not send code', variant: 'destructive' });
+    // Safety net: never let the button spin forever if the request hangs.
+    const safety = setTimeout(() => setOtpLoginLoading(false), 20000);
+    try {
+      const success = await loginOtp.sendOtp(fullNum);
+      if (success) {
+        setOtpLoginStep('code');
+        setOtpResendCooldown(60);
+        toast({ title: 'Code Sent! 📱', description: 'Check your phone for the 6-digit code' });
+      } else {
+        toast({ title: 'Failed', description: loginOtp.otpError || 'Could not send code', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error. Please check your connection and try again.', variant: 'destructive' });
+    } finally {
+      clearTimeout(safety);
+      setOtpLoginLoading(false);
     }
   };
 
@@ -228,12 +236,19 @@ export default function Auth() {
     }
 
     setOtpLoginLoading(true);
+    // Safety net: guarantee the spinner is released even if a network call
+    // never settles (e.g. verifyOtp / fetch hangs on a flaky connection),
+    // otherwise the "Verify & Log In" button stays stuck in a loading state.
+    const safety = setTimeout(() => setOtpLoginLoading(false), 20000);
     try {
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 15000);
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/otp-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify({ phone: fullNum, otp: codeVal }),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(fetchTimeout));
       const data = await response.json();
       if (!response.ok) {
         toast({ title: 'Login Failed', description: data.error || 'Could not verify code', variant: 'destructive' });
@@ -279,8 +294,9 @@ export default function Auth() {
         window.location.href = data.verify_url;
       }
     } catch {
-      toast({ title: 'Error', description: 'Network error. Please check your connection.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Network error or the request timed out. Please check your connection and try again.', variant: 'destructive' });
     } finally {
+      clearTimeout(safety);
       setOtpLoginLoading(false);
     }
   };
