@@ -512,7 +512,7 @@ export function CashoutAgentManager() {
               <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
             ) : (
               selectedAgentPayouts.map((py: any) => (
-                <Card key={py.id}>
+              <Card key={py.id}>
                   <CardContent className="p-3 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -521,6 +521,14 @@ export function CashoutAgentManager() {
                       </div>
                       <p className="font-bold text-sm shrink-0">{formatUGX(py.amount)}</p>
                     </div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
+                      Commission: +{formatUGX((commissionByWithdrawal as Record<string, number>)[String(py.id)] ?? getCashoutCommission(Number(py.amount || 0)))}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
+                      Telecom charge: {formatUGX(getTelecomSendingCharge(Number(py.amount || 0)))}
+                    </Badge>
+                  </div>
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant="secondary" className="text-[10px] gap-1">
