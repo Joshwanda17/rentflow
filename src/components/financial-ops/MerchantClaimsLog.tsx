@@ -147,6 +147,35 @@ function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose
                 </Card>
               </div>
 
+              {/* Audit trail — every claim/payout state change */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Audit trail
+                </p>
+                {isLoading ? (
+                  <div className="flex items-center py-4 text-muted-foreground text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading trail…
+                  </div>
+                ) : events.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No recorded state changes.</p>
+                ) : (
+                  <ol className="relative border-l border-border ml-1.5 space-y-4">
+                    {events.map((e, i) => (
+                      <li key={`${e.label}-${i}`} className="ml-4">
+                        <span className="absolute -left-[5px] mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                        <p className="text-sm font-medium text-foreground">{e.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(e.ts), 'dd MMM yyyy, HH:mm')}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {e.actorId ? `By ${actorMap?.[e.actorId] || 'Resolving…'}` : 'System / automated'}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+
               {/* Underlying withdrawal record */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
