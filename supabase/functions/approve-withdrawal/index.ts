@@ -2288,12 +2288,46 @@ Deno.serve(async (req) => {
       // ── Proxy Partner SMS alert (paid on behalf) ─────────────────────────
       if (isProxyPayout && fundingUserId !== partnerId && partnerProfile?.phone) {
         const refUpper = reference.trim().toUpperCase();
-        const proxySmsMsg =
-          `Your monthly partnership return of UGX ${amount.toLocaleString()} has been successfully withdrawn and paid by your authorized proxy agent on your behalf.\n\n` +
-          `Reference: ${refUpper}\n\n` +
-          `We encourage you to log in to your Welile dashboard to monitor your partnership performance, track payouts, and manage your account directly: https://welilereceipts.com/auth\n\n` +
-          `Thank you for partnering with Welile Technologies Limited.\n\n` +
-          `"Welile is Turning Rent into an Asset."`;
+        // ── Detect what was actually withdrawn ──────────────────────────────
+        // NOT every payout a merchant/proxy agent settles is a partnership
+        // (ROI) return. The confirmation SMS must describe the correct
+        // purpose, otherwise a landlord-float payout, a rent-plan refund or a
+        // plain wallet cash-out gets wrongly announced as "partnership return".
+        // We classify from the request `reason`, which carries the structural
+        // intent set at request time.
+        const _reasonRaw = typeof wr.reason === "string" ? wr.reason : "";
+        const _reason = _reasonRaw.toLowerCase();
+        const _amt = amount.toLocaleString();
+        const _dash = "https://welilereceipts.com/auth";
+        let proxySmsMsg: string;
+        if (_reason.startsWith("landlord float payout") || _reason.includes("landlord float")) {
+          // Merchant paid out an agent's CFO-funded landlord float.
+          proxySmsMsg =
+            `Your landlord payout of UGX ${_amt} has been successfully paid by your authorized Welile agent on your behalf.\n\n` +
+            `Reference: ${refUpper}\n\n` +
+            `Log in to your Welile dashboard to view your payments and account: ${_dash}\n\n` +
+            `Thank you for partnering with Welile Technologies Limited.`;
+        } else if (
+          _reason.includes("portfolio") ||
+          _reason.includes("partnership") ||
+          _reason.includes("roi") ||
+          _reason.includes("return")
+        ) {
+          // Partnership / portfolio (ROI) return.
+          proxySmsMsg =
+            `Your partnership return of UGX ${_amt} has been successfully withdrawn and paid by your authorized proxy agent on your behalf.\n\n` +
+            `Reference: ${refUpper}\n\n` +
+            `We encourage you to log in to your Welile dashboard to monitor your partnership performance, track payouts, and manage your account directly: ${_dash}\n\n` +
+            `Thank you for partnering with Welile Technologies Limited.\n\n` +
+            `"Welile is Turning Rent into an Asset."`;
+        } else {
+          // Any other proxy-settled withdrawal — keep it purpose-neutral.
+          proxySmsMsg =
+            `Your withdrawal of UGX ${_amt} has been successfully paid by your authorized Welile agent on your behalf.\n\n` +
+            `Reference: ${refUpper}\n\n` +
+            `Log in to your Welile dashboard to view your wallet, transactions and account: ${_dash}\n\n` +
+            `Thank you for partnering with Welile Technologies Limited.`;
+        }
         sendSMS(partnerProfile.phone, proxySmsMsg, {
           admin,
           source: "proxy_payout",
