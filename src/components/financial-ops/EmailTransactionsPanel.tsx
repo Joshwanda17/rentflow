@@ -851,6 +851,22 @@ export function EmailTransactionsPanel() {
   const [withdrawalMatches, setWithdrawalMatches] = useState<Record<string, WithdrawalMatch[]>>({});
   const [autoApproving, setAutoApproving] = useState<Record<string, boolean>>({});
 
+  // ── Invite / login SMS delivery status ────────────────────────────────
+  // The gmail poller texts every depositor's phone a link back to the
+  // platform (a "sign up" invite for new numbers, a "log in" nudge for
+  // existing users) and logs each attempt to `sms_delivery_log` with
+  // source='momo_deposit_invite'. We surface that per-row so Financial Ops
+  // can see whether the invite/login SMS was sent or failed for each
+  // extracted deposit. Keyed by gmail_transactions.id.
+  interface InviteSms {
+    status: string;
+    created_at: string;
+    phone: string;
+    message: string | null;
+    error: string | null;
+  }
+  const [inviteSms, setInviteSms] = useState<Record<string, InviteSms>>({});
+
   // Manual channel correction UI. `editingRow` controls the dialog; bumping
   // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
   // take effect immediately on every visible row.
