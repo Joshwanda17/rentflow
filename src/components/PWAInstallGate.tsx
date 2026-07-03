@@ -167,6 +167,40 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     handleInstall();
   }, [handleInstall]);
 
+  // Manual verification: re-check the real standalone state on demand for
+  // browsers where auto-detection missed. If the browser still reports a
+  // non-standalone context, surface a confirm override that trusts the user.
+  const handleVerifyInstalled = useCallback(() => {
+    hapticTap();
+    setVerifyState('checking');
+    const detected =
+      window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+      || localStorage.getItem('welile_pwa_installed') === 'true';
+
+    window.setTimeout(() => {
+      if (detected) {
+        setIsStandalone(true);
+        setInstallResult('accepted');
+        setVerifyState('idle');
+      } else {
+        setVerifyState('not_standalone');
+      }
+    }, 450);
+  }, []);
+
+  const handleConfirmOverride = useCallback(() => {
+    hapticTap();
+    try {
+      localStorage.setItem('welile_pwa_installed', 'true');
+      localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
+    } catch {
+      /* ignore storage errors */
+    }
+    setIsStandalone(true);
+    setInstallResult('accepted');
+  }, []);
+
   // Force installation on EVERY device (desktop + mobile). The gate is shown
   // until the app is actually installed — there is no way to bypass it.
   if (isStandalone) {
