@@ -28,6 +28,7 @@ import { ThresholdAlerts } from '@/components/cfo/ThresholdAlerts';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
+import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
 import { ServiceCentrePayoutApproval } from '@/components/cfo/ServiceCentrePayoutApproval';
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
@@ -135,6 +136,7 @@ export default function CFODashboard() {
 
           {/* Pay to Wallet Tab */}
           <TabsContent value="wallet-payout" className="space-y-6">
+            <MerchantFloatRequestsPanel />
             <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 sm:p-6">
               <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
                 <Wallet className="h-5 w-5 text-primary" />
