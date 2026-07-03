@@ -427,6 +427,19 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
           type: 'warning',
           metadata: { severity: 'critical', support_action_required: true },
         });
+
+        // Notify the user by SMS with the same frozen message (best-effort).
+        try {
+          await supabase.functions.invoke('notify-account-frozen', {
+            body: {
+              user_id: user.id,
+              message:
+                'Your account has been FROZEN for violating platform policies. All transactions are blocked. Contact support on WhatsApp: 0708 257 899',
+            },
+          });
+        } catch (smsErr) {
+          console.error('Freeze SMS failed', smsErr);
+        }
       }
 
       setIsFrozen(newFrozen);
