@@ -132,6 +132,8 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
   const [togglingReinvest, setTogglingReinvest] = useState(false);
   const [localAutoReinvest, setLocalAutoReinvest] = useState<boolean | null>(null);
   const [pendingTopup, setPendingTopup] = useState(0);
+  const [rejectedTopup, setRejectedTopup] = useState<{ amount: number; reason: string; created_at: string } | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!open || !portfolio?.id) { setPendingTopup(0); return; }
@@ -147,6 +149,36 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
       if (cancelled) return;
       const total = (data || []).reduce((s: number, op: any) => s + Number(op.amount || 0), 0);
       setPendingTopup(total);
+    })();
+    return () => { cancelled = true; };
+  }, [open, portfolio?.id]);
+
+  // Fetch the most recent REJECTED top-up so we can surface a visible error
+  // (with reason) and a support-chat link to the partner.
+  useEffect(() => {
+    if (!open || !portfolio?.id) { setRejectedTopup(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('pending_wallet_operations')
+        .select('amount, reviewed_at, created_at, metadata')
+        .eq('source_table', 'investor_portfolios')
+        .eq('operation_type', 'portfolio_topup')
+        .eq('source_id', portfolio.id)
+        .eq('status', 'rejected')
+        .order('reviewed_at', { ascending: false })
+        .limit(1);
+      if (cancelled) return;
+      const op = (data || [])[0] as any;
+      if (op) {
+        setRejectedTopup({
+          amount: Number(op.amount || 0),
+          reason: op.metadata?.rejection_reason || 'No reason provided',
+          created_at: op.reviewed_at || op.created_at,
+        });
+      } else {
+        setRejectedTopup(null);
+      }
     })();
     return () => { cancelled = true; };
   }, [open, portfolio?.id]);
