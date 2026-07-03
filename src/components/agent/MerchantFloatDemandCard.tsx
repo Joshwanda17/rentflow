@@ -9,6 +9,7 @@ import { Gauge, Smartphone, Landmark, Banknote, TrendingUp, AlertTriangle, Check
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
 import { cn } from '@/lib/utils';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { REQUEST_FLOAT_EVENT, type RequestFloatDetail } from '@/components/agent/MerchantFloatRequestCard';
 
 // Same statuses the payout queue treats as "still needs paying".
@@ -23,6 +24,7 @@ interface DemandRow {
   mobile_money_provider: string | null;
   mobile_money_number: string | null;
   reason: string | null;
+  created_at: string;
 }
 
 const CHANNEL_META: Record<DemandChannel, { label: string; icon: typeof Smartphone; tone: string }> = {
@@ -66,7 +68,7 @@ export function MerchantFloatDemandCard() {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('amount, payout_method, mobile_money_provider, mobile_money_number, reason, assigned_cashout_agent_id, dispatched_at')
+        .select('amount, payout_method, mobile_money_provider, mobile_money_number, reason, created_at, assigned_cashout_agent_id, dispatched_at')
         .in('status', DEMAND_STATUSES)
         // Available to pay = unclaimed OR a claim that has already expired.
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`)
@@ -87,6 +89,14 @@ export function MerchantFloatDemandCard() {
     let totalAmount = 0;
     let totalTelecom = 0;
     let count = 0;
+    // Per-day timeline: date key → per-channel + totals.
+    const dayMap = new Map<
+      string,
+      { channels: Record<DemandChannel, number>; total: number; telecom: number; count: number }
+    >();
+    const emptyChannels = (): Record<DemandChannel, number> => ({
+      mtn: 0, airtel: 0, momo_other: 0, bank: 0, cash: 0,
+    });
     for (const r of rows) {
       const amt = Number(r.amount) || 0;
       if (amt <= 0) continue;
@@ -99,6 +109,18 @@ export function MerchantFloatDemandCard() {
       totalAmount += amt;
       totalTelecom += fee;
       count += 1;
+      const dayKey = (r.created_at || '').slice(0, 10);
+      if (dayKey) {
+        let d = dayMap.get(dayKey);
+        if (!d) {
+          d = { channels: emptyChannels(), total: 0, telecom: 0, count: 0 };
+          dayMap.set(dayKey, d);
+        }
+        d.channels[ch] += amt;
+        d.total += amt;
+        d.telecom += fee;
+        d.count += 1;
+      }
     }
     const totalNeeded = totalAmount + totalTelecom;
     const order: DemandChannel[] = ['mtn', 'airtel', 'momo_other', 'bank', 'cash'];
@@ -106,7 +128,20 @@ export function MerchantFloatDemandCard() {
       .map((ch) => ({ ch, ...buckets[ch] }))
       .filter((b) => b.count > 0)
       .sort((a, b) => b.amount - a.amount);
-    return { breakdown, totalAmount, totalTelecom, totalNeeded, count };
+    // Newest day first so the most recent demand is on top.
+    const days = Array.from(dayMap.entries())
+      .map(([date, d]) => ({
+        date,
+        needed: d.total + d.telecom,
+        total: d.total,
+        telecom: d.telecom,
+        count: d.count,
+        channels: order
+          .map((ch) => ({ ch, amount: d.channels[ch] }))
+          .filter((c) => c.amount > 0),
+      }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    return { breakdown, totalAmount, totalTelecom, totalNeeded, count, days };
   }, [rows]);
 
   const shortfall = Math.max(0, forecast.totalNeeded - (floatBalance || 0));
@@ -120,6 +155,22 @@ export function MerchantFloatDemandCard() {
       `Float top-up for ${forecast.count} pending payout${forecast.count === 1 ? '' : 's'} ` +
       `(needs ${formatUGX(forecast.totalNeeded)}). Breakdown — ${lines.join('; ')}.`;
     const detail: RequestFloatDetail = { amount: shortfall, reason };
+    window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
+  };
+
+  const dayLabel = (date: string) => {
+    const d = parseISO(date);
+    if (isToday(d)) return 'Today';
+    if (isYesterday(d)) return 'Yesterday';
+    return format(d, 'EEE, d MMM');
+  };
+
+  const requestFloatForDay = (day: (typeof forecast.days)[number]) => {
+    const lines = day.channels.map((c) => `${CHANNEL_META[c.ch].label}: ${formatUGX(c.amount)}`);
+    const reason =
+      `Float top-up for ${dayLabel(day.date)} — ${day.count} payout${day.count === 1 ? '' : 's'} ` +
+      `(needs ${formatUGX(day.needed)}). Breakdown — ${lines.join('; ')}.`;
+    const detail: RequestFloatDetail = { amount: day.needed, reason };
     window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
   };
 
@@ -242,6 +293,57 @@ export function MerchantFloatDemandCard() {
           );
         })}
       </div>
+
+      {/* Per-day forecast timeline. */}
+      {forecast.days.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Per-day forecast
+          </p>
+          {forecast.days.map((day) => (
+            <div key={day.date} className="rounded-lg border border-border/50 bg-background/40 p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold">{dayLabel(day.date)}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {day.count} payout{day.count === 1 ? '' : 's'}
+                    {day.telecom > 0 && ` · +${formatUGX(day.telecom)} fees`}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <p className="text-xs font-bold tabular-nums text-violet-700 dark:text-violet-300">
+                    {formatUGX(day.needed)}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 px-2 text-[10px]"
+                    onClick={() => requestFloatForDay(day)}
+                  >
+                    <PlusCircle className="h-3 w-3" /> Request
+                  </Button>
+                </div>
+              </div>
+              {/* Channel chips for the day. */}
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {day.channels.map((c) => {
+                  const meta = CHANNEL_META[c.ch];
+                  const Icon = meta.icon;
+                  return (
+                    <span
+                      key={c.ch}
+                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium"
+                    >
+                      <Icon className={cn('h-3 w-3', meta.tone)} />
+                      {meta.label.split(' ')[0]} · {formatUGX(c.amount)}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
         Based on ROI cash-outs, landlord float payouts and commission withdrawals the CFO has released to users' wallets. Request enough float to cover the demand above.
