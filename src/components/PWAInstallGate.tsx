@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type TouchEvent } from 'react';
-import { Download, Share, Smartphone, AlertCircle } from 'lucide-react';
+import { Download, Share, Smartphone, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -16,6 +16,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const [showMenuGuide, setShowMenuGuide] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
+  const [verifyState, setVerifyState] = useState<'idle' | 'checking' | 'not_standalone'>('idle');
   const tapLockRef = useRef(0);
 
   useEffect(() => {
