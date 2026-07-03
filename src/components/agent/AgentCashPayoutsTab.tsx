@@ -917,8 +917,9 @@ export function AgentCashPayoutsTab() {
           reference,
           payment_method: 'cash',
           payout_code: vp.code,
-          // Merchant is fronting cash for this WPO pickup — credit reimbursement
-          // + 0.5% commission + SMS to their withdrawable wallet.
+          // Merchant settles this WPO pickup from COMPANY FLOAT: the principal
+          // is drawn down from their float bucket and only the 0.5% commission
+          // lands in their withdrawable wallet (+ SMS).
           acting_as_merchant: true,
         },
       });
@@ -930,15 +931,13 @@ export function AgentCashPayoutsTab() {
     },
     onSuccess: (data) => {
       const commission = Number(data?.cashout_commission || 0);
-      const reimbursed = Number(data?.merchant_reimbursed || 0);
+      const floatUsed = Number(data?.merchant_float_consumed ?? data?.merchant_reimbursed ?? 0);
       const amt = Number(data?.amount || verifiedPayout?.amount || 0);
       const base = `💰 Cash paid — ${formatUGX(amt)} debited from the customer's withdrawable balance`;
-      const credited = reimbursed + commission;
-      toast.success(
-        credited > 0
-          ? `${base} · ${formatUGX(credited)} added to your withdrawable wallet${reimbursed > 0 ? ` (${formatUGX(reimbursed)} reimbursed + ${formatUGX(commission)} commission)` : ` (0.5% commission)`}`
-          : base,
-      );
+      const parts: string[] = [];
+      if (floatUsed > 0) parts.push(`${formatUGX(floatUsed)} drawn from your float`);
+      if (commission > 0) parts.push(`${formatUGX(commission)} commission added to your withdrawable`);
+      toast.success(parts.length > 0 ? `${base} · ${parts.join(' · ')}` : base);
       setVerifiedPayout(null); setPayoutCode('');
       invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
