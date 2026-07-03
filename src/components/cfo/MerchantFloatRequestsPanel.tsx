@@ -144,15 +144,40 @@ export function MerchantFloatRequestsPanel() {
     if (allocations.length === 0) { toast.info('No allocations to export yet.'); return; }
     setDownloadingStmt(true);
     try {
-      const agentIds = Array.from(new Set(allocations.map((a) => a.agent_id)));
+      // Resolve the selected period. Both bounds are optional; when set they
+      // clamp both the float allocations AND the transactions in the statement.
+      const fromDate = stmtFrom ? new Date(`${stmtFrom}T00:00:00`) : null;
+      const toDate = stmtTo ? new Date(`${stmtTo}T23:59:59.999`) : null;
+      if (fromDate && toDate && fromDate > toDate) {
+        throw new Error('The "from" date must be on or before the "to" date.');
+      }
+      const fromIso = fromDate ? fromDate.toISOString() : null;
+      const toIso = toDate ? toDate.toISOString() : null;
+
+      // Allocations that fall inside the chosen period.
+      const periodAllocations = allocations.filter((a) => {
+        const t = new Date(a.approved_at || a.created_at).getTime();
+        if (fromDate && t < fromDate.getTime()) return false;
+        if (toDate && t > toDate.getTime()) return false;
+        return true;
+      });
+      if (periodAllocations.length === 0) {
+        toast.info('No float allocations in the selected period.');
+        return;
+      }
+
+      const agentIds = Array.from(new Set(periodAllocations.map((a) => a.agent_id)));
 
       // All completed cash-outs settled by these merchant agents (float spent).
-      const { data: wrs, error: wrErr } = await supabase
+      let wq = supabase
         .from('withdrawal_requests')
         .select('id, amount, payout_method, mobile_money_provider, mobile_money_name, processed_at, processed_by')
         .in('processed_by', agentIds)
         .eq('status', 'completed')
-        .not('processed_at', 'is', null)
+        .not('processed_at', 'is', null);
+      if (fromIso) wq = wq.gte('processed_at', fromIso);
+      if (toIso) wq = wq.lte('processed_at', toIso);
+      const { data: wrs, error: wrErr } = await wq
         .order('processed_at', { ascending: false })
         .limit(5000);
       if (wrErr) throw wrErr;
@@ -190,7 +215,7 @@ export function MerchantFloatRequestsPanel() {
 
       const allocByAgent = new Map<string, MerchantFloatAllocationRow[]>();
       const nameByAgent = new Map<string, { name: string; phone?: string }>();
-      for (const a of allocations) {
+      for (const a of periodAllocations) {
         const list = allocByAgent.get(a.agent_id) || [];
         list.push({
           date: a.approved_at || a.created_at,
@@ -217,6 +242,9 @@ export function MerchantFloatRequestsPanel() {
           y.allocations.reduce((s, r) => s + r.amount, 0) - x.allocations.reduce((s, r) => s + r.amount, 0));
 
       const blob = await generateMerchantFloatStatementPdf(entries);
+      const dateRange = fromDate && toDate ? { startDate: fromDate, endDate: toDate } : undefined;
+      // eslint-disable-next-line no-void
+      void dateRange;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
