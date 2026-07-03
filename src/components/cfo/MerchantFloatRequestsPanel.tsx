@@ -111,6 +111,25 @@ export function MerchantFloatRequestsPanel() {
 
   const grandTotal = allocations.reduce((s, a) => s + (Number(a.requested_amount) || 0), 0);
 
+  // ── KPI matrices for the Allocated tab ──
+  const allocCount = allocations.length;
+  const avgAllocation = allocCount ? grandTotal / allocCount : 0;
+  const largestAllocation = allocations.reduce((m, a) => Math.max(m, Number(a.requested_amount) || 0), 0);
+  const last7Total = (() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return allocations.reduce((s, a) => {
+      const t = new Date(a.approved_at || a.created_at).getTime();
+      return t >= cutoff ? s + (Number(a.requested_amount) || 0) : s;
+    }, 0);
+  })();
+
+  // Allocation records sorted by date (toggle newest/oldest).
+  const sortedAllocations = [...allocations].sort((x, y) => {
+    const tx = new Date(x.approved_at || x.created_at).getTime();
+    const ty = new Date(y.approved_at || y.created_at).getTime();
+    return allocSort === 'newest' ? ty - tx : tx - ty;
+  });
+
   const downloadPdf = async () => {
     if (allocations.length === 0) { toast.info('No allocations to export yet.'); return; }
     setDownloading(true);
