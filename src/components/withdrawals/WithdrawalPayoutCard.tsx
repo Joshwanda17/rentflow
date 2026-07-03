@@ -360,10 +360,10 @@ export function WithdrawalPayoutCard({
                     <button
                       type="button"
                       onClick={() => copyToClipboard(momoNumber, 'Number')}
-                      className="mt-1 w-full flex items-center justify-between gap-3 rounded-xl border-2 border-primary/40 bg-background px-3.5 py-2.5 text-left transition-colors hover:bg-primary/10 active:scale-[0.99]"
+                      className="mt-1 w-full flex items-center justify-between gap-2 sm:gap-3 rounded-xl border-2 border-primary/40 bg-background px-3 sm:px-3.5 py-2.5 text-left transition-colors hover:bg-primary/10 active:scale-[0.99]"
                       title="Tap to copy number"
                     >
-                      <span className="font-mono font-extrabold text-2xl leading-none tracking-wide tabular-nums break-all">{momoNumber}</span>
+                      <span className="min-w-0 flex-1 font-mono font-extrabold text-lg sm:text-2xl leading-none tracking-wide tabular-nums break-all">{momoNumber}</span>
                       <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-primary">
                         <Copy className="h-4 w-4" /> Copy
                       </span>
@@ -378,10 +378,10 @@ export function WithdrawalPayoutCard({
                         <button
                           type="button"
                           onClick={() => copyToClipboard(momoRegisteredName, 'Name')}
-                          className="mt-1 w-full flex items-center justify-between gap-3 rounded-xl border-2 border-primary/40 bg-background px-3.5 py-2.5 text-left transition-colors hover:bg-primary/10 active:scale-[0.99]"
+                          className="mt-1 w-full flex items-center justify-between gap-2 sm:gap-3 rounded-xl border-2 border-primary/40 bg-background px-3 sm:px-3.5 py-2.5 text-left transition-colors hover:bg-primary/10 active:scale-[0.99]"
                           title="Tap to copy name"
                         >
-                          <span className="font-extrabold text-lg leading-tight break-words">{momoRegisteredName}</span>
+                          <span className="min-w-0 flex-1 font-extrabold text-base sm:text-lg leading-tight break-words">{momoRegisteredName}</span>
                           <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-primary">
                             <Copy className="h-4 w-4" /> Copy
                           </span>
