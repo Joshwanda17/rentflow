@@ -155,7 +155,6 @@ Deno.serve(async (req) => {
         action_type: "reject_portfolio_topup",
         table_name: "pending_wallet_operations",
         record_id: portfolio_id,
-        reason: rejectReason,
         metadata: { portfolio_code: portfolio.portfolio_code, count: awaitingOps.length, total_amount: totalAmount, op_ids: opIds, rejection_reason: rejectReason },
       });
 
