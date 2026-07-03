@@ -452,14 +452,27 @@ export function MerchantFloatRequestsPanel() {
             ) : (
               <>
                 <p className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocated per merchant agent</p>
+                <p className="-mt-1 text-[10px] text-muted-foreground">Select an agent to download their own float + transactions statement{(stmtFrom || stmtTo) ? ' for the chosen dates' : ''}.</p>
                 {agentTotals.map((b) => (
-                  <div key={b.agent + (b.phone || '')} className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2">
+                  <div key={b.agent_id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-card px-3 py-2">
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{b.agent}</p>
                       {b.phone && <p className="flex items-center gap-1 text-[11px] text-muted-foreground"><Phone className="h-3 w-3" /> {b.phone}</p>}
                       <p className="text-[10px] text-muted-foreground">{b.count} allocation{b.count === 1 ? '' : 's'}</p>
                     </div>
-                    <span className="shrink-0 text-base font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(b.total)}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-base font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(b.total)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        onClick={() => downloadStatementPdf(b.agent_id)}
+                        disabled={downloadingAgent === b.agent_id}
+                      >
+                        {downloadingAgent === b.agent_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                        <span className="hidden sm:inline">Download</span>
+                      </Button>
+                    </div>
                   </div>
                 ))}
 
