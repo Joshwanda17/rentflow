@@ -9,6 +9,7 @@ import { Gauge, Smartphone, Landmark, Banknote, TrendingUp, AlertTriangle, Check
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
 import { cn } from '@/lib/utils';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { REQUEST_FLOAT_EVENT, type RequestFloatDetail } from '@/components/agent/MerchantFloatRequestCard';
 
 // Same statuses the payout queue treats as "still needs paying".
@@ -23,6 +24,7 @@ interface DemandRow {
   mobile_money_provider: string | null;
   mobile_money_number: string | null;
   reason: string | null;
+  created_at: string;
 }
 
 const CHANNEL_META: Record<DemandChannel, { label: string; icon: typeof Smartphone; tone: string }> = {
