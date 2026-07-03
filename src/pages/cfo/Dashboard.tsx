@@ -11,6 +11,7 @@ import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummar
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOOverviewDashboard } from '@/components/cfo/CFOOverviewDashboard';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
+import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
 import { CFOPayoutsShareButton } from '@/components/cfo/CFOPayoutsShareButton';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 
@@ -299,6 +300,19 @@ export default function CFODashboardPage() {
             <CFOAgentOpsFloatSender />
             <AgentFloatManagement />
             <FieldCashExposureCard />
+          </div>
+        );
+      case 'merchant-float':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">🏪 Merchant Float Requests</h1>
+              <p className="text-sm text-muted-foreground">
+                Cash-out merchant agents requesting operational float top-ups. Fund their Float
+                bucket via the Agent Float Allocation category or reject with a reason.
+              </p>
+            </div>
+            <MerchantFloatRequestsPanel />
           </div>
         );
       case 'ledger-health':

@@ -3,7 +3,7 @@ import {
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
-  ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark, KeyRound, SlidersHorizontal
+  ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark, KeyRound, SlidersHorizontal, HandCoins
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -89,6 +89,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Agent Activity', icon: Activity, id: 'agent-activity' },
         { label: 'Agent Rankings', icon: Crown, id: 'agent-rankings' },
         { label: 'Agent Float', icon: Building2, id: 'float-management' },
+        { label: 'Merchant Float Requests', icon: HandCoins, id: 'merchant-float' },
         { label: 'Delivery Tracking', icon: Truck, id: 'delivery-pipeline' },
         { label: 'Cash Check', icon: Scale, id: 'cash-reconciliation' },
         { label: 'Advances', icon: Banknote, id: 'advances' },
