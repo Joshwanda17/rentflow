@@ -56,6 +56,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Send Money', icon: Wallet, id: 'wallet-payout' },
         { label: 'Wallet Activities', icon: ClipboardList, id: 'wallet-activities' },
         { label: 'Platform Impact', icon: Globe, id: 'platform-impact' },
+        { label: 'Merchant Float Requests', icon: HandCoins, id: 'merchant-float' },
       ],
     },
     {
@@ -89,7 +90,6 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Agent Activity', icon: Activity, id: 'agent-activity' },
         { label: 'Agent Rankings', icon: Crown, id: 'agent-rankings' },
         { label: 'Agent Float', icon: Building2, id: 'float-management' },
-        { label: 'Merchant Float Requests', icon: HandCoins, id: 'merchant-float' },
         { label: 'Delivery Tracking', icon: Truck, id: 'delivery-pipeline' },
         { label: 'Cash Check', icon: Scale, id: 'cash-reconciliation' },
         { label: 'Advances', icon: Banknote, id: 'advances' },
