@@ -12,9 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight, Shield, Banknote, Calendar as CalendarIcon, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
-import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
+import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersHorizontal, ArrowUp, ArrowDown, Activity, TrendingUp } from 'lucide-react';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -245,6 +246,59 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     amountMin || amountMax,
   ].filter(Boolean).length;
 
+  // ── Advance performance ────────────────────────────────────────────────
+  // How every advance the agent has taken is actually performing: repayment
+  // progress vs. the schedule, and whether each is on track, behind or done.
+  const performance = useMemo(() => {
+    let borrowed = 0;
+    let repaid = 0;
+    let outstanding = 0;
+    let totalPayableAll = 0;
+    let active = 0;
+    let overdue = 0;
+    let completed = 0;
+    let behind = 0;
+
+    const byId: Record<string, { progress: number; expectedPct: number; onTrack: boolean; isDone: boolean }> = {};
+
+    for (const adv of issuedAdvances as any[]) {
+      const principal = Number(adv.principal || 0);
+      const totalPayable = principal + Number(adv.access_fee || 0) + Number(adv.registration_fee || 0);
+      const paid = Number(adv.totalRepaid || 0);
+      const out = Number(adv.outstanding_balance || 0);
+      const isDone = adv.status === 'completed' || out <= 0;
+      const progress = isDone ? 100 : (totalPayable > 0 ? Math.min(100, Math.round((paid / totalPayable) * 100)) : 0);
+
+      // Expected progress purely from elapsed time within the term.
+      const issued = adv.issued_at ? new Date(adv.issued_at).getTime() : null;
+      const cycle = Math.max(1, Number(adv.cycle_days || 30));
+      let expectedPct = 0;
+      let onTrack = true;
+      if (issued && !isDone) {
+        const daysElapsed = Math.max(0, (Date.now() - issued) / 86_400_000);
+        expectedPct = Math.min(100, Math.round((daysElapsed / cycle) * 100));
+        onTrack = progress >= expectedPct - 10; // 10% grace before flagged "behind"
+      }
+
+      borrowed += principal;
+      repaid += paid;
+      totalPayableAll += totalPayable;
+      if (isDone) {
+        completed++;
+      } else {
+        outstanding += out;
+        if (adv.status === 'overdue') overdue++;
+        else active++;
+        if (!onTrack) behind++;
+      }
+
+      byId[adv.id] = { progress, expectedPct, onTrack, isDone };
+    }
+
+    const overallPct = totalPayableAll > 0 ? Math.min(100, Math.round((repaid / totalPayableAll) * 100)) : 0;
+    return { borrowed, repaid, outstanding, overallPct, active, overdue, completed, behind, byId, count: (issuedAdvances as any[]).length };
+  }, [issuedAdvances]);
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
@@ -328,9 +382,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                 <HistoryIcon className="h-6 w-6 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-foreground">My advance history</p>
+                <p className="text-base font-bold text-foreground">How my advances are performing</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                  See every advance you've ever taken and how each one was paid back.
+                  Track every advance you've taken — repayment progress, what's on track and what's behind.
                 </p>
                 <p className="text-[11px] font-semibold text-primary mt-1">
                   {issuedLoading ? 'Loading…' : `${issuedAdvances.length} advance${issuedAdvances.length === 1 ? '' : 's'} taken`}
@@ -579,6 +633,63 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
         {view === 'history' && (
         <div className="space-y-5">
+          {/* Performance overview — how the advances taken are performing */}
+          {!issuedLoading && performance.count > 0 && (
+            <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-primary/15 p-1.5">
+                    <Activity className="h-4 w-4 text-primary" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground">Advance performance</p>
+                </div>
+                {performance.behind > 0 ? (
+                  <Badge className="text-[10px] font-bold border-0 bg-red-500 text-white gap-1">
+                    <AlertTriangle className="h-3 w-3" /> {performance.behind} behind
+                  </Badge>
+                ) : performance.outstanding > 0 ? (
+                  <Badge className="text-[10px] font-bold border-0 bg-emerald-500 text-white gap-1">
+                    <TrendingUp className="h-3 w-3" /> On track
+                  </Badge>
+                ) : (
+                  <Badge className="text-[10px] font-bold border-0 bg-emerald-500 text-white gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> All repaid
+                  </Badge>
+                )}
+              </div>
+
+              {/* Overall repayment progress */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-semibold">
+                  <span className="text-muted-foreground">Overall repaid</span>
+                  <span className="text-foreground tabular-nums">{performance.overallPct}%</span>
+                </div>
+                <Progress value={performance.overallPct} className="h-2" />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-background/70 py-2">
+                  <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Borrowed</p>
+                  <p className="text-xs font-bold text-foreground tabular-nums">{formatUGX(performance.borrowed)}</p>
+                </div>
+                <div className="rounded-xl bg-background/70 py-2">
+                  <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Repaid</p>
+                  <p className="text-xs font-bold text-emerald-600 tabular-nums">{formatUGX(performance.repaid)}</p>
+                </div>
+                <div className="rounded-xl bg-background/70 py-2">
+                  <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Outstanding</p>
+                  <p className="text-xs font-bold text-amber-600 tabular-nums">{formatUGX(performance.outstanding)}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-4 text-[10px] font-semibold text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> {performance.active} repaying</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> {performance.overdue} overdue</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {performance.completed} repaid</span>
+              </div>
+            </div>
+          )}
+
           {/* Header with filter */}
           <div className="flex items-center justify-between">
             <div>
@@ -815,6 +926,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                 const repaidEntries = (adv.ledger || []).filter((e: any) => Number(e.amount_deducted || 0) > 0);
                 const outstanding = Number(adv.outstanding_balance || 0);
                 const isDone = adv.status === 'completed' || outstanding <= 0;
+                const perf = performance.byId[adv.id];
                 return (
                   <div key={adv.id} className="rounded-2xl border border-border/60 bg-card p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -831,6 +943,35 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                         {isDone ? 'Fully repaid' : adv.status === 'overdue' ? 'Overdue' : 'Repaying'}
                       </Badge>
                     </div>
+
+                    {/* Repayment progress vs schedule */}
+                    {perf && (
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] font-semibold">
+                          <span className="text-muted-foreground">{perf.progress}% repaid</span>
+                          {!isDone && (
+                            perf.onTrack ? (
+                              <span className="flex items-center gap-1 text-emerald-600">
+                                <TrendingUp className="h-3 w-3" /> On track
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-red-500">
+                                <AlertTriangle className="h-3 w-3" /> Behind schedule
+                              </span>
+                            )
+                          )}
+                        </div>
+                        <Progress
+                          value={perf.progress}
+                          className={cn('h-1.5', !isDone && !perf.onTrack && '[&>div]:bg-red-500')}
+                        />
+                        {!isDone && perf.expectedPct > 0 && (
+                          <p className="text-[9px] text-muted-foreground">
+                            Expected {perf.expectedPct}% by now based on the {adv.cycle_days}-day term
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-3 gap-2 mt-3 text-center">
                       <div className="rounded-xl bg-muted/40 py-2">
