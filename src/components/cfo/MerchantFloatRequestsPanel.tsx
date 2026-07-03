@@ -22,6 +22,7 @@ import {
   type MerchantFloatStatementEntry,
   type MerchantFloatTransaction,
 } from '@/lib/merchantFloatAllocationsPdf';
+import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
 
 interface FloatRequestRow {
   id: string;
@@ -212,6 +213,7 @@ export function MerchantFloatRequestsPanel() {
           method: t.mobile_money_provider || t.payout_method || 'Wallet',
           recipient: t.mobile_money_name || undefined,
           commission: commByWr.get(String(t.id)) || 0,
+          telecomCharge: getTelecomSendingCharge(Number(t.amount) || 0),
           reference: String(t.id),
         });
         txByAgent.set(t.processed_by, list);
