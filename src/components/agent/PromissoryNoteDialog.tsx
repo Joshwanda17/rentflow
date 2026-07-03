@@ -24,7 +24,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [amount, setAmount] = useState('');
-  const [contributionType, setContributionType] = useState<'monthly' | 'once_off'>('once_off');
+  const [contributionType, setContributionType] = useState<'monthly' | 'compounding'>('compounding');
   const [deductionDay, setDeductionDay] = useState('1');
 
   const resetForm = () => {
@@ -33,7 +33,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     setPhoneNumber('');
     setEmail('');
     setAmount('');
-    setContributionType('once_off');
+    setContributionType('compounding');
     setDeductionDay('1');
     setCreatedNote(null);
   };
@@ -175,12 +175,12 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs">Type *</Label>
-                <Select value={contributionType} onValueChange={(v: 'monthly' | 'once_off') => setContributionType(v)}>
+                <Select value={contributionType} onValueChange={(v: 'monthly' | 'compounding') => setContributionType(v)}>
                   <SelectTrigger className="mt-0.5 h-9 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="once_off">Once-off</SelectItem>
+                    <SelectItem value="compounding">Compounding</SelectItem>
                     <SelectItem value="monthly">Monthly</SelectItem>
                   </SelectContent>
                 </Select>
