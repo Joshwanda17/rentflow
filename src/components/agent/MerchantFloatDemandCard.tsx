@@ -169,38 +169,32 @@ export function MerchantFloatDemandCard() {
     return { breakdown, totalAmount, totalTelecom, totalNeeded, count, days };
   }, [rows]);
 
-  const shortfall = Math.max(0, forecast.totalNeeded - (floatBalance || 0));
-  const covered = !balanceLoading && shortfall === 0 && forecast.count > 0;
-
-  // Per-channel coverage: float is a single pooled bucket, so we simulate
-  // paying channels in priority order (largest demand first) and mark every
-  // channel that would be left underfunded once the float runs out. This tells
-  // the merchant WHICH destinations (MTN/Airtel/bank/…) will fall short.
-  const channelRisk = useMemo(() => {
-    let remaining = floatBalance || 0;
-    const map: Record<DemandChannel, number> = {
-      mtn: 0, airtel: 0, momo_other: 0, bank: 0, cash: 0,
-    };
-    for (const b of forecast.breakdown) {
-      const need = b.amount + b.telecom;
-      const paid = Math.min(remaining, need);
-      map[b.ch] = Math.max(0, need - paid);
-      remaining -= paid;
-    }
-    return map;
-  }, [forecast.breakdown, floatBalance]);
-
-  const atRiskChannels = forecast.breakdown.filter((b) => (channelRisk[b.ch] || 0) > 0);
-  const needsAttention = atRiskChannels.length > 0;
+  // Network-wide (shared) coordination figures. Fall back gracefully to a
+  // single-agent view (this agent alone) until the RPC resolves.
+  const activeMerchants = Math.max(1, Number(net?.active_merchants ?? 1));
+  const networkFloat = Number(net?.network_float ?? floatBalance ?? 0);
+  const pendingRequested = Number(net?.pending_requested ?? 0);
+  // Remaining true gap for the WHOLE network after subtracting float already
+  // held and float already requested-but-not-yet-funded.
+  const netGap = net
+    ? Number(net.net_gap ?? 0)
+    : Math.max(0, forecast.totalNeeded - (floatBalance || 0));
+  // Fair amount THIS agent should request so the sum across all merchants
+  // matches the gap instead of over-funding it.
+  const fairShare = net ? Number(net.fair_share ?? 0) : netGap;
+  const covered = !balanceLoading && netGap === 0 && forecast.count > 0;
+  const needsAttention = netGap > 0;
 
   const requestFloat = () => {
     const lines = forecast.breakdown.map(
       (b) => `${CHANNEL_META[b.ch].label}: ${b.count}× ${formatUGX(b.amount)}`,
     );
     const reason =
-      `Float top-up for ${forecast.count} pending payout${forecast.count === 1 ? '' : 's'} ` +
-      `(needs ${formatUGX(forecast.totalNeeded)}). Breakdown — ${lines.join('; ')}.`;
-    const detail: RequestFloatDetail = { amount: shortfall, reason };
+      `Fair-share float top-up (1 of ${activeMerchants} merchant agents). ` +
+      `Shared queue needs ${formatUGX(forecast.totalNeeded)}; network already holds ` +
+      `${formatUGX(networkFloat)} float + ${formatUGX(pendingRequested)} requested. ` +
+      `Remaining gap ${formatUGX(netGap)}. Breakdown — ${lines.join('; ')}.`;
+    const detail: RequestFloatDetail = { amount: fairShare, reason };
     window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
   };
 
