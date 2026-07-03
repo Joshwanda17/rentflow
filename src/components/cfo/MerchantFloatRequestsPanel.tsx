@@ -241,10 +241,8 @@ export function MerchantFloatRequestsPanel() {
         .sort((x, y) =>
           y.allocations.reduce((s, r) => s + r.amount, 0) - x.allocations.reduce((s, r) => s + r.amount, 0));
 
-      const blob = await generateMerchantFloatStatementPdf(entries);
       const dateRange = fromDate && toDate ? { startDate: fromDate, endDate: toDate } : undefined;
-      // eslint-disable-next-line no-void
-      void dateRange;
+      const blob = await generateMerchantFloatStatementPdf(entries, new Date(), dateRange);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
