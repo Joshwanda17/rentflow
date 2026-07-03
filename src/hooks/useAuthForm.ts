@@ -347,6 +347,29 @@ export function useAuthForm() {
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
     console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
 
+    // Pre-flight duplicate-phone check. The DB trigger `handle_new_user`
+    // raises `phone_already_registered`, but GoTrue masks any trigger error
+    // as an opaque "Database error while creating new user" (unexpected_failure),
+    // so the raw message never reaches the client. Catch duplicates up front
+    // to give the user an accurate, friendly message instead.
+    try {
+      const last9 = fullPhone.replace(/\D/g, '').slice(-9);
+      if (last9.length === 9) {
+        const { data: existing } = await supabase.rpc('check_phone_exists', { phone_suffix: last9 });
+        if (Array.isArray(existing) && existing.length > 0) {
+          setIsLoading(false);
+          toast({
+            title: 'Phone already registered',
+            description: 'This phone number is already linked to an account. Please sign in instead.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    } catch {
+      // Non-fatal: fall through to signUp; the generic-error mapping below covers it.
+    }
+
     const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
     if (error) {
       setIsLoading(false);
@@ -355,6 +378,12 @@ export function useAuthForm() {
         errorMessage = 'This phone number is already registered. Please sign in instead.';
       } else if (error.message.includes('phone_already_registered')) {
         errorMessage = 'This phone number is already linked to another account. Please sign in instead.';
+      } else if (
+        error.message.toLowerCase().includes('database error') ||
+        (error as { code?: string }).code === 'unexpected_failure'
+      ) {
+        // GoTrue masks trigger exceptions (e.g. duplicate phone) with this generic error.
+        errorMessage = 'This phone number may already be registered. Please try signing in, or use a different number.';
       }
       toast({ title: 'Sign Up Failed', description: errorMessage, variant: 'destructive' });
       return;
