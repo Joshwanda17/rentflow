@@ -177,9 +177,6 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
               </p>
             </div>
             <div className="grid gap-2">
-              <Button onClick={handleSharePDF} className="gap-2 bg-primary hover:bg-primary/90">
-                <FileText className="h-4 w-4" /> Share Branded PDF
-              </Button>
               <Button variant="outline" onClick={handleShareLink} className="gap-2">
                 <Share2 className="h-4 w-4" /> Share Activation Link
               </Button>
