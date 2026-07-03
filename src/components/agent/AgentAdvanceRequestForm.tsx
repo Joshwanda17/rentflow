@@ -246,6 +246,59 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     amountMin || amountMax,
   ].filter(Boolean).length;
 
+  // ── Advance performance ────────────────────────────────────────────────
+  // How every advance the agent has taken is actually performing: repayment
+  // progress vs. the schedule, and whether each is on track, behind or done.
+  const performance = useMemo(() => {
+    let borrowed = 0;
+    let repaid = 0;
+    let outstanding = 0;
+    let totalPayableAll = 0;
+    let active = 0;
+    let overdue = 0;
+    let completed = 0;
+    let behind = 0;
+
+    const byId: Record<string, { progress: number; expectedPct: number; onTrack: boolean; isDone: boolean }> = {};
+
+    for (const adv of issuedAdvances as any[]) {
+      const principal = Number(adv.principal || 0);
+      const totalPayable = principal + Number(adv.access_fee || 0) + Number(adv.registration_fee || 0);
+      const paid = Number(adv.totalRepaid || 0);
+      const out = Number(adv.outstanding_balance || 0);
+      const isDone = adv.status === 'completed' || out <= 0;
+      const progress = isDone ? 100 : (totalPayable > 0 ? Math.min(100, Math.round((paid / totalPayable) * 100)) : 0);
+
+      // Expected progress purely from elapsed time within the term.
+      const issued = adv.issued_at ? new Date(adv.issued_at).getTime() : null;
+      const cycle = Math.max(1, Number(adv.cycle_days || 30));
+      let expectedPct = 0;
+      let onTrack = true;
+      if (issued && !isDone) {
+        const daysElapsed = Math.max(0, (Date.now() - issued) / 86_400_000);
+        expectedPct = Math.min(100, Math.round((daysElapsed / cycle) * 100));
+        onTrack = progress >= expectedPct - 10; // 10% grace before flagged "behind"
+      }
+
+      borrowed += principal;
+      repaid += paid;
+      totalPayableAll += totalPayable;
+      if (isDone) {
+        completed++;
+      } else {
+        outstanding += out;
+        if (adv.status === 'overdue') overdue++;
+        else active++;
+        if (!onTrack) behind++;
+      }
+
+      byId[adv.id] = { progress, expectedPct, onTrack, isDone };
+    }
+
+    const overallPct = totalPayableAll > 0 ? Math.min(100, Math.round((repaid / totalPayableAll) * 100)) : 0;
+    return { borrowed, repaid, outstanding, overallPct, active, overdue, completed, behind, byId, count: (issuedAdvances as any[]).length };
+  }, [issuedAdvances]);
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
