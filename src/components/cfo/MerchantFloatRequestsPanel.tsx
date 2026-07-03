@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Landmark, Loader2, Send, X, Phone, FileDown, History } from 'lucide-react';
+import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -63,6 +63,7 @@ export function MerchantFloatRequestsPanel() {
   const [downloadingAgent, setDownloadingAgent] = useState<string | null>(null);
   const [stmtFrom, setStmtFrom] = useState('');
   const [stmtTo, setStmtTo] = useState('');
+  const [allocSort, setAllocSort] = useState<'newest' | 'oldest'>('newest');
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['cfo-float-requests'],
@@ -109,6 +110,25 @@ export function MerchantFloatRequestsPanel() {
   })();
 
   const grandTotal = allocations.reduce((s, a) => s + (Number(a.requested_amount) || 0), 0);
+
+  // ── KPI matrices for the Allocated tab ──
+  const allocCount = allocations.length;
+  const avgAllocation = allocCount ? grandTotal / allocCount : 0;
+  const largestAllocation = allocations.reduce((m, a) => Math.max(m, Number(a.requested_amount) || 0), 0);
+  const last7Total = (() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return allocations.reduce((s, a) => {
+      const t = new Date(a.approved_at || a.created_at).getTime();
+      return t >= cutoff ? s + (Number(a.requested_amount) || 0) : s;
+    }, 0);
+  })();
+
+  // Allocation records sorted by date (toggle newest/oldest).
+  const sortedAllocations = [...allocations].sort((x, y) => {
+    const tx = new Date(x.approved_at || x.created_at).getTime();
+    const ty = new Date(y.approved_at || y.created_at).getTime();
+    return allocSort === 'newest' ? ty - tx : tx - ty;
+  });
 
   const downloadPdf = async () => {
     if (allocations.length === 0) { toast.info('No allocations to export yet.'); return; }
@@ -442,13 +462,32 @@ export function MerchantFloatRequestsPanel() {
           )
         ) : (
           <>
-            {/* Grand total + per-agent audit summary */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total float allocated</p>
-                <p className="text-xl font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(grandTotal)}</p>
+            {/* KPI matrices */}
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+              <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Total float allocated</p>
+                <p className="text-lg font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(grandTotal)}</p>
               </div>
-              <p className="text-xs text-muted-foreground">{allocations.length} allocation{allocations.length === 1 ? '' : 's'} · {agentTotals.length} agent{agentTotals.length === 1 ? '' : 's'}</p>
+              <div className="rounded-lg border border-border/60 bg-card p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Allocations</p>
+                <p className="text-lg font-bold tabular-nums">{allocCount}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Merchant agents</p>
+                <p className="text-lg font-bold tabular-nums">{agentTotals.length}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Avg / allocation</p>
+                <p className="text-lg font-bold tabular-nums">{formatUGX(avgAllocation)}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Largest allocation</p>
+                <p className="text-lg font-bold tabular-nums">{formatUGX(largestAllocation)}</p>
+              </div>
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Last 7 days</p>
+                <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(last7Total)}</p>
+              </div>
             </div>
 
             {allocLoading ? (
@@ -482,8 +521,18 @@ export function MerchantFloatRequestsPanel() {
                   </div>
                 ))}
 
-                <p className="pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocation records</p>
-                {allocations.map((a) => (
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocation records</p>
+                  <button
+                    type="button"
+                    onClick={() => setAllocSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+                    className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground"
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    {allocSort === 'newest' ? 'Newest first' : 'Oldest first'}
+                  </button>
+                </div>
+                {sortedAllocations.map((a) => (
                   <div key={a.id} className="rounded-lg border border-border/50 bg-card/60 px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-medium">{a.agent?.full_name || 'Merchant agent'}</p>
