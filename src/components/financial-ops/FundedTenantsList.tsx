@@ -96,7 +96,18 @@ type Row = {
   finops_disbursed_by: string | null;
   funder_profile?: { full_name: string | null } | null;
 };
-type DateFilter = 'all' | '7d' | '30d' | 'custom';
+type DateFilter = 'all' | '7d' | '30d' | 'month' | 'custom';
+
+const currentMonthValue = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const monthLabel = (value: string) => {
+  const [y, m] = value.split('-').map(Number);
+  if (!y || !m) return value;
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+};
 
 
 const FUNDED_STATUSES = [
