@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", userData.user.id);
     const allowed = (roles || []).some((r: any) =>
-      ["manager", "super_admin", "coo", "landlord_ops"].includes(r.role),
+      ["manager", "super_admin", "coo", "cto", "ceo", "landlord_ops"].includes(r.role),
     );
     if (!allowed) {
       return new Response(JSON.stringify({ error: "Not authorized" }), {
