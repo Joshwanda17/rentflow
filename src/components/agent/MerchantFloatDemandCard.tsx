@@ -5,7 +5,7 @@ import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Gauge, Smartphone, Landmark, Banknote, TrendingUp, AlertTriangle, CheckCircle2, PlusCircle } from 'lucide-react';
+import { Gauge, Smartphone, Landmark, Banknote, TrendingUp, AlertTriangle, CheckCircle2, PlusCircle, Users } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,16 @@ interface DemandRow {
   mobile_money_number: string | null;
   reason: string | null;
   created_at: string;
+}
+
+interface NetworkStatus {
+  is_merchant: boolean;
+  total_demand: number;
+  network_float: number;
+  pending_requested: number;
+  active_merchants: number;
+  net_gap: number;
+  fair_share: number;
 }
 
 const CHANNEL_META: Record<DemandChannel, { label: string; icon: typeof Smartphone; tone: string }> = {
@@ -75,6 +85,21 @@ export function MerchantFloatDemandCard() {
         .limit(2000);
       if (error) throw error;
       return (data ?? []) as DemandRow[];
+    },
+  });
+
+  // SHARED-POOL COORDINATION. The demand above is a single global queue that
+  // EVERY active merchant agent sees. If each agent requested the full gap the
+  // CFO would over-fund the network many times over. This server RPC returns
+  // the network-wide truth (float already held + float already requested +
+  // active merchant count) so we can show a fair per-agent share to request.
+  const { data: net } = useQuery({
+    queryKey: ['merchant-float-network'],
+    refetchInterval: 30_000,
+    queryFn: async (): Promise<NetworkStatus> => {
+      const { data, error } = await supabase.rpc('get_merchant_float_network_status');
+      if (error) throw error;
+      return (data ?? {}) as unknown as NetworkStatus;
     },
   });
 
@@ -144,38 +169,32 @@ export function MerchantFloatDemandCard() {
     return { breakdown, totalAmount, totalTelecom, totalNeeded, count, days };
   }, [rows]);
 
-  const shortfall = Math.max(0, forecast.totalNeeded - (floatBalance || 0));
-  const covered = !balanceLoading && shortfall === 0 && forecast.count > 0;
-
-  // Per-channel coverage: float is a single pooled bucket, so we simulate
-  // paying channels in priority order (largest demand first) and mark every
-  // channel that would be left underfunded once the float runs out. This tells
-  // the merchant WHICH destinations (MTN/Airtel/bank/…) will fall short.
-  const channelRisk = useMemo(() => {
-    let remaining = floatBalance || 0;
-    const map: Record<DemandChannel, number> = {
-      mtn: 0, airtel: 0, momo_other: 0, bank: 0, cash: 0,
-    };
-    for (const b of forecast.breakdown) {
-      const need = b.amount + b.telecom;
-      const paid = Math.min(remaining, need);
-      map[b.ch] = Math.max(0, need - paid);
-      remaining -= paid;
-    }
-    return map;
-  }, [forecast.breakdown, floatBalance]);
-
-  const atRiskChannels = forecast.breakdown.filter((b) => (channelRisk[b.ch] || 0) > 0);
-  const needsAttention = atRiskChannels.length > 0;
+  // Network-wide (shared) coordination figures. Fall back gracefully to a
+  // single-agent view (this agent alone) until the RPC resolves.
+  const activeMerchants = Math.max(1, Number(net?.active_merchants ?? 1));
+  const networkFloat = Number(net?.network_float ?? floatBalance ?? 0);
+  const pendingRequested = Number(net?.pending_requested ?? 0);
+  // Remaining true gap for the WHOLE network after subtracting float already
+  // held and float already requested-but-not-yet-funded.
+  const netGap = net
+    ? Number(net.net_gap ?? 0)
+    : Math.max(0, forecast.totalNeeded - (floatBalance || 0));
+  // Fair amount THIS agent should request so the sum across all merchants
+  // matches the gap instead of over-funding it.
+  const fairShare = net ? Number(net.fair_share ?? 0) : netGap;
+  const covered = !balanceLoading && netGap === 0 && forecast.count > 0;
+  const needsAttention = netGap > 0;
 
   const requestFloat = () => {
     const lines = forecast.breakdown.map(
       (b) => `${CHANNEL_META[b.ch].label}: ${b.count}× ${formatUGX(b.amount)}`,
     );
     const reason =
-      `Float top-up for ${forecast.count} pending payout${forecast.count === 1 ? '' : 's'} ` +
-      `(needs ${formatUGX(forecast.totalNeeded)}). Breakdown — ${lines.join('; ')}.`;
-    const detail: RequestFloatDetail = { amount: shortfall, reason };
+      `Fair-share float top-up (1 of ${activeMerchants} merchant agents). ` +
+      `Shared queue needs ${formatUGX(forecast.totalNeeded)}; network already holds ` +
+      `${formatUGX(networkFloat)} float + ${formatUGX(pendingRequested)} requested. ` +
+      `Remaining gap ${formatUGX(netGap)}. Breakdown — ${lines.join('; ')}.`;
+    const detail: RequestFloatDetail = { amount: fairShare, reason };
     window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
   };
 
@@ -187,11 +206,13 @@ export function MerchantFloatDemandCard() {
   };
 
   const requestFloatForDay = (day: (typeof forecast.days)[number]) => {
+    const dayShare = Math.ceil(day.needed / activeMerchants);
     const lines = day.channels.map((c) => `${CHANNEL_META[c.ch].label}: ${formatUGX(c.amount)}`);
     const reason =
-      `Float top-up for ${dayLabel(day.date)} — ${day.count} payout${day.count === 1 ? '' : 's'} ` +
-      `(needs ${formatUGX(day.needed)}). Breakdown — ${lines.join('; ')}.`;
-    const detail: RequestFloatDetail = { amount: day.needed, reason };
+      `Fair-share float top-up for ${dayLabel(day.date)} (1 of ${activeMerchants} merchant agents) — ` +
+      `${day.count} payout${day.count === 1 ? '' : 's'}, day demand ${formatUGX(day.needed)}. ` +
+      `Breakdown — ${lines.join('; ')}.`;
+    const detail: RequestFloatDetail = { amount: dayShare, reason };
     window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
   };
 
@@ -243,26 +264,27 @@ export function MerchantFloatDemandCard() {
         )}
       </div>
 
-      {/* Low-float alert banner — which channels will fall short. */}
+      {/* Shared-pool low-float alert — network is under-funded for the queue. */}
       {needsAttention && (
         <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <div className="min-w-0 text-[11px] leading-snug text-amber-800 dark:text-amber-300">
             <p className="font-semibold">
-              Low float — {atRiskChannels.length} channel{atRiskChannels.length === 1 ? '' : 's'} at risk
+              Network float short by {formatUGX(netGap)}
             </p>
             <p className="text-amber-700/90 dark:text-amber-400/90">
-              {atRiskChannels
-                .map((b) => `${CHANNEL_META[b.ch].label} short by ${formatUGX(channelRisk[b.ch])}`)
-                .join(' · ')}
+              Shared across {activeMerchants} merchant agent{activeMerchants === 1 ? '' : 's'}. Request only your fair share so the CFO isn't over-funded.
             </p>
           </div>
         </div>
       )}
 
-      {/* Headline: total float needed to clear the queue. */}
+      {/* Headline: total float needed to clear the SHARED queue. */}
       <div className="mt-2">
-        <p className="text-[11px] text-muted-foreground">Float needed to pay everyone now</p>
+        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Users className="h-3 w-3" /> Shared queue · {activeMerchants} merchant agent{activeMerchants === 1 ? '' : 's'}
+        </p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">Float needed to pay everyone now</p>
         <p className="text-2xl font-bold leading-tight tabular-nums text-violet-700 dark:text-violet-300">
           {formatUGX(forecast.totalNeeded)}
         </p>
@@ -271,53 +293,49 @@ export function MerchantFloatDemandCard() {
         </p>
       </div>
 
-      {/* Coverage: current float vs shortfall to request. */}
-      <div className="mt-2 grid grid-cols-2 gap-2">
+      {/* Network coverage: already held + already requested vs remaining gap. */}
+      <div className="mt-2 grid grid-cols-3 gap-2">
         <div className="rounded-lg border border-border/60 bg-background/40 p-2">
-          <p className="text-[10px] text-muted-foreground">Your float now</p>
-          <p className="text-sm font-semibold tabular-nums">{formatUGX(floatBalance)}</p>
+          <p className="text-[10px] text-muted-foreground">Network float</p>
+          <p className="text-sm font-semibold tabular-nums">{formatUGX(networkFloat)}</p>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-background/40 p-2">
+          <p className="text-[10px] text-muted-foreground">Already requested</p>
+          <p className="text-sm font-semibold tabular-nums">{formatUGX(pendingRequested)}</p>
         </div>
         <div
           className={cn(
             'rounded-lg border p-2',
-            covered
-              ? 'border-emerald-500/30 bg-emerald-500/5'
-              : 'border-amber-500/30 bg-amber-500/5',
+            covered ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5',
           )}
         >
-          <p className="text-[10px] text-muted-foreground">
-            {covered ? 'Coverage' : 'Request from CFO'}
-          </p>
+          <p className="text-[10px] text-muted-foreground">Remaining gap</p>
           <p
             className={cn(
               'flex items-center gap-1 text-sm font-semibold tabular-nums',
               covered ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400',
             )}
           >
-            {covered ? (
-              <>
-                <CheckCircle2 className="h-3.5 w-3.5" /> Fully covered
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-3.5 w-3.5" /> {formatUGX(shortfall)}
-              </>
-            )}
+            {covered ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+            {formatUGX(netGap)}
           </p>
         </div>
       </div>
 
-      {/* Request the shortfall straight from the CFO, pre-filled. */}
-      {shortfall > 0 && (
-        <Button
-          size="sm"
-          className="mt-2 w-full gap-1.5"
-          onClick={requestFloat}
-        >
+      {/* Your fair share — prevents every agent requesting the whole gap. */}
+      <p className="mt-1 text-[10px] text-muted-foreground">
+        Your float now: <span className="font-medium text-foreground">{formatUGX(floatBalance)}</span>
+      </p>
+      {covered ? (
+        <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Network is fully funded — no float request needed right now.
+        </p>
+      ) : fairShare > 0 ? (
+        <Button size="sm" className="mt-2 w-full gap-1.5" onClick={requestFloat}>
           <PlusCircle className="h-4 w-4" />
-          Request {formatUGX(shortfall)} float from CFO
+          Request your fair share · {formatUGX(fairShare)}
         </Button>
-      )}
+      ) : null}
 
       {/* Per-channel breakdown. */}
       <div className="mt-3 space-y-1.5">
@@ -327,29 +345,18 @@ export function MerchantFloatDemandCard() {
         {forecast.breakdown.map((b) => {
           const meta = CHANNEL_META[b.ch];
           const Icon = meta.icon;
-          const uncovered = channelRisk[b.ch] || 0;
-          const atRisk = uncovered > 0;
           return (
             <div
               key={b.ch}
-              className={cn(
-                'flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5',
-                atRisk ? 'border-amber-500/40 bg-amber-500/5' : 'border-border/50 bg-background/40',
-              )}
+              className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-background/40 px-2.5 py-1.5"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <Icon className={cn('h-4 w-4 shrink-0', meta.tone)} />
                 <div className="min-w-0">
-                  <p className="flex items-center gap-1 truncate text-xs font-medium">
-                    {meta.label}
-                    {atRisk && <AlertTriangle className="h-3 w-3 shrink-0 text-amber-600" />}
-                  </p>
+                  <p className="truncate text-xs font-medium">{meta.label}</p>
                   <p className="text-[10px] text-muted-foreground">
                     {b.count} request{b.count === 1 ? '' : 's'}
                     {b.telecom > 0 && ` · +${formatUGX(b.telecom)} fees`}
-                    {atRisk && (
-                      <span className="font-medium text-amber-700 dark:text-amber-400"> · short {formatUGX(uncovered)}</span>
-                    )}
                   </p>
                 </div>
               </div>

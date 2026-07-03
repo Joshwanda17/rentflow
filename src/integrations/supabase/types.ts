@@ -21247,6 +21247,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_merchant_float_network_status: { Args: never; Returns: Json }
       get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
       get_my_ai_id_summary: { Args: never; Returns: Json }
       get_my_listing_block: { Args: never; Returns: Json }
