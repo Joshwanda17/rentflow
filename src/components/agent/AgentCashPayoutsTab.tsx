@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
 import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
+import { MerchantWithdrawableCard } from '@/components/agent/MerchantWithdrawableCard';
 
 // Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
 const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
@@ -1053,6 +1054,10 @@ export function AgentCashPayoutsTab() {
 
       {/* Available float — request appears when float is low */}
       <MerchantFloatRequestCard />
+
+      {/* Withdrawable wallet — the 0.5% commission earned on every payout
+          lands here and can be cashed out by the merchant agent. */}
+      <MerchantWithdrawableCard />
 
       {/* Today's payouts */}
       <section className="space-y-3">
