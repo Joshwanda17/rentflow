@@ -84,7 +84,9 @@ export function MerchantFloatRequestCard() {
 
   const hasPending = requests.some((r) => r.status === 'pending');
   const isLow = !balanceLoading && floatBalance < LOW_FLOAT_THRESHOLD;
-  const showRequest = isLow || hasPending;
+  // `open` is included so an externally-fired request event (Float Demand
+  // Forecast) can surface the dialog even when float isn't low.
+  const showRequest = isLow || hasPending || open;
 
   const submit = useMutation({
     mutationFn: async () => {
