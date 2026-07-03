@@ -633,6 +633,63 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
         {view === 'history' && (
         <div className="space-y-5">
+          {/* Performance overview — how the advances taken are performing */}
+          {!issuedLoading && performance.count > 0 && (
+            <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-primary/15 p-1.5">
+                    <Activity className="h-4 w-4 text-primary" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground">Advance performance</p>
+                </div>
+                {performance.behind > 0 ? (
+                  <Badge className="text-[10px] font-bold border-0 bg-red-500 text-white gap-1">
+                    <AlertTriangle className="h-3 w-3" /> {performance.behind} behind
+                  </Badge>
+                ) : performance.outstanding > 0 ? (
+                  <Badge className="text-[10px] font-bold border-0 bg-emerald-500 text-white gap-1">
+                    <TrendingUp className="h-3 w-3" /> On track
+                  </Badge>
+                ) : (
+                  <Badge className="text-[10px] font-bold border-0 bg-emerald-500 text-white gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> All repaid
+                  </Badge>
+                )}
+              </div>
+
+              {/* Overall repayment progress */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-semibold">
+                  <span className="text-muted-foreground">Overall repaid</span>
+                  <span className="text-foreground tabular-nums">{performance.overallPct}%</span>
+                </div>
+                <Progress value={performance.overallPct} className="h-2" />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-background/70 py-2">
+                  <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Borrowed</p>
+                  <p className="text-xs font-bold text-foreground tabular-nums">{formatUGX(performance.borrowed)}</p>
+                </div>
+                <div className="rounded-xl bg-background/70 py-2">
+                  <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Repaid</p>
+                  <p className="text-xs font-bold text-emerald-600 tabular-nums">{formatUGX(performance.repaid)}</p>
+                </div>
+                <div className="rounded-xl bg-background/70 py-2">
+                  <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Outstanding</p>
+                  <p className="text-xs font-bold text-amber-600 tabular-nums">{formatUGX(performance.outstanding)}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-4 text-[10px] font-semibold text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> {performance.active} repaying</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> {performance.overdue} overdue</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {performance.completed} repaid</span>
+              </div>
+            </div>
+          )}
+
           {/* Header with filter */}
           <div className="flex items-center justify-between">
             <div>
