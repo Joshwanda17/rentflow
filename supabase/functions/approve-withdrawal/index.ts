@@ -2046,6 +2046,23 @@ Deno.serve(async (req) => {
           console.error("[approve-withdrawal] cashout commission SMS exception:", e);
         }
       }
+
+      // ── Web push: notify merchant agent that commission was earned ──
+      if (cashoutCommission > 0) {
+        fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+          body: JSON.stringify({
+            userIds: [user.id],
+            payload: {
+              title: "💰 Commission Earned",
+              body: `You earned UGX ${cashoutCommission.toLocaleString()} (0.5%) for processing a UGX ${amount.toLocaleString()} payout. Added to your withdrawable wallet.`,
+              type: "merchant_commission",
+              url: "/dashboard/agent",
+            },
+          }),
+        }).catch((e) => console.error("[approve-withdrawal] commission push failed:", e));
+      }
     }
 
     const notifyUserIds = [...new Set([fundingUserId, beneficiaryUserId].filter((value): value is string => Boolean(value)))];
