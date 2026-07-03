@@ -1671,7 +1671,7 @@ export function AgentCashPayoutsTab() {
                               <MethodIcon className="h-4 w-4" />
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate text-base font-bold leading-tight">{name}</p>
+                              <p className="text-base font-bold leading-tight break-words">{name}</p>
                               {isLandlordPayout && (
                                 <span className="mt-0.5 inline-flex items-center rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
                                   Landlord Payout
@@ -1685,7 +1685,7 @@ export function AgentCashPayoutsTab() {
                             </div>
                           </div>
                           <div className="shrink-0 text-right">
-                            <p className="text-lg font-bold tabular-nums leading-tight text-foreground">{formatUGX(w.amount)}</p>
+                            <p className="whitespace-nowrap text-base sm:text-lg font-bold tabular-nums leading-tight text-foreground">{formatUGX(w.amount)}</p>
                           </div>
                         </div>
                         <Button
