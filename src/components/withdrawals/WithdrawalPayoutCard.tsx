@@ -262,9 +262,9 @@ export function WithdrawalPayoutCard({
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="w-full text-left p-4 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors rounded-t-2xl"
+            className="w-full text-left p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-muted/40 transition-colors rounded-t-2xl"
           >
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 w-full">
               <p className="font-bold text-lg truncate leading-tight">{recipientName}</p>
               {/* Payout target at a glance — visible before claiming/expanding */}
               {isMoMo && (
@@ -274,29 +274,33 @@ export function WithdrawalPayoutCard({
                 </p>
               )}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                <Badge variant="secondary" className="text-xs gap-1 h-5 px-2">
-                  <MethodIcon className="h-3 w-3" />
-                  {methodLabel}
+                <Badge variant="secondary" className="text-xs gap-1 h-5 px-2 max-w-full">
+                  <MethodIcon className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{methodLabel}</span>
                 </Badge>
                 {/* What the user is withdrawing — visible before claiming */}
-                <Badge className={`text-xs h-5 px-2 font-semibold border-0 ${purpose.className}`}>
-                  {purpose.label}
-                  {isProxyReason ? ' · on behalf' : ''}
+                <Badge className={`text-xs h-5 px-2 font-semibold border-0 max-w-full ${purpose.className}`}>
+                  <span className="truncate">
+                    {purpose.label}
+                    {isProxyReason ? ' · on behalf' : ''}
+                  </span>
                 </Badge>
                 {/* AWAITING PAYMENT — shown to claiming agent AND to read-only viewers (CFO)
                     so a stuck/sitting claim is always visible, no matter how long ago. */}
                 {isAwaitingPayment && (
                   <Badge
-                    className={`text-xs h-5 px-2 gap-1 ${
+                    className={`text-xs h-5 px-2 gap-1 max-w-full ${
                       isStale
                         ? 'bg-destructive text-destructive-foreground hover:bg-destructive'
                         : 'bg-warning text-warning-foreground hover:bg-warning'
                     }`}
                   >
-                    <Clock className="h-3 w-3" />
-                    {isStale && claimedMinutesAgo !== null
-                      ? `AWAITING PAYMENT · ${claimedMinutesAgo}m`
-                      : 'AWAITING PAYMENT'}
+                    <Clock className="h-3 w-3 shrink-0" />
+                    <span className="truncate">
+                      {isStale && claimedMinutesAgo !== null
+                        ? `AWAITING PAYMENT · ${claimedMinutesAgo}m`
+                        : 'AWAITING PAYMENT'}
+                    </span>
                   </Badge>
                 )}
                 {isClaimedByOther && !readOnly && (
@@ -306,8 +310,8 @@ export function WithdrawalPayoutCard({
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex flex-col items-end">
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="flex flex-col items-start sm:items-end">
                 <p className="font-bold text-xl text-primary tabular-nums leading-tight">{formatUGX(withdrawal.amount)}</p>
                 {!isClaimed && !isClaimedByOther && agentEarning > 0 && (
                   <span className="inline-flex items-center gap-1 mt-0.5 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-bold text-success tabular-nums">
@@ -315,7 +319,7 @@ export function WithdrawalPayoutCard({
                   </span>
                 )}
               </div>
-              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
             </div>
           </button>
         </CollapsibleTrigger>
