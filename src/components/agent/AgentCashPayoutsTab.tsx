@@ -1611,7 +1611,6 @@ export function AgentCashPayoutsTab() {
                   const name = isLandlordPayout
                     ? (w.mobile_money_name || 'Landlord')
                     : (w.profiles?.full_name || 'Unknown');
-                  const phone = getRecipientPhone(w);
                   return (
                     <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
                       <CardContent className="p-4 space-y-3.5">
