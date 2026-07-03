@@ -32,7 +32,7 @@ const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo
 const CLAIM_WINDOW_MINUTES = 15;
 const CLAIM_WINDOW_MS = CLAIM_WINDOW_MINUTES * 60 * 1000;
 
-type PayoutChannel = 'momo' | 'cash';
+type PayoutChannel = 'momo' | 'cash' | 'bank';
 
 const normalizePayoutMethod = (value?: string | null) =>
   String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -41,7 +41,12 @@ const getPayoutChannel = (withdrawal: any): PayoutChannel => {
   const method = normalizePayoutMethod(withdrawal?.payout_method);
   const flatMethod = method.replace(/_/g, '');
 
-  if (['cash', 'cash_pickup', 'cashpickup', 'agent_cash', 'agentcash', 'payout_code', 'payoutcode', 'bank_transfer', 'banktransfer', 'bank', 'bank_account', 'bankaccount'].includes(method) || ['cashpickup', 'agentcash', 'payoutcode', 'banktransfer', 'bankaccount'].includes(flatMethod)) {
+  // Bank first — keep it a distinct channel from generic cash pickups.
+  if (['bank_transfer', 'banktransfer', 'bank', 'bank_account', 'bankaccount'].includes(method) || flatMethod.includes('bank')) {
+    return 'bank';
+  }
+
+  if (['cash', 'cash_pickup', 'cashpickup', 'agent_cash', 'agentcash', 'payout_code', 'payoutcode'].includes(method) || ['cashpickup', 'agentcash', 'payoutcode'].includes(flatMethod)) {
     return 'cash';
   }
 
