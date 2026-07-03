@@ -180,6 +180,12 @@ export function FundedTenantsList() {
           if (c) r.country = c;
         });
       }
+      // Platform is Uganda-based (UGX). When no country is stored on the
+      // landlord profile or rent request, attribute the payout to Uganda so
+      // the country breakdown reflects the real amounts instead of all zeros.
+      list.forEach((r) => {
+        r.country = r.country?.trim() || 'Uganda';
+      });
       return list;
     },
     refetchInterval: 60_000,
