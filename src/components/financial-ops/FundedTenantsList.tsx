@@ -109,6 +109,19 @@ const monthLabel = (value: string) => {
   return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 };
 
+// Rolling list of the last 24 months (newest first) for the month dropdown.
+const MONTH_OPTIONS: { value: string; label: string }[] = (() => {
+  const out: { value: string; label: string }[] = [];
+  const d = new Date();
+  d.setDate(1);
+  for (let i = 0; i < 24; i++) {
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    out.push({ value, label: monthLabel(value) });
+    d.setMonth(d.getMonth() - 1);
+  }
+  return out;
+})();
+
 
 const FUNDED_STATUSES = [
   'pending_finops_disbursement',
@@ -679,12 +692,19 @@ export function FundedTenantsList() {
           </SelectContent>
         </Select>
         {dateFilter === 'month' && (
-          <Input
-            type="month"
+          <Select
             value={monthValue}
-            onChange={(e) => { setMonthValue(e.target.value || currentMonthValue()); setCountryFilter('all'); setRegionFilter(null); }}
-            className="h-8 w-[150px] text-xs"
-          />
+            onValueChange={(v) => { setMonthValue(v || currentMonthValue()); setCountryFilter('all'); setRegionFilter(null); }}
+          >
+            <SelectTrigger className="h-8 text-xs w-[170px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {MONTH_OPTIONS.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         {dateFilter === 'custom' && (
           <div className="inline-flex items-center gap-1.5">
