@@ -833,6 +833,18 @@ export function FundedTenantsList() {
 
       {drilldown && (
         <Card className="p-3 sm:p-4 border-primary/30 bg-primary/5">
+          {drilldown.type === 'country' && (
+            <div className="mb-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5">
+              <p className="text-sm leading-snug">
+                In <span className="font-semibold">{periodLabel}</span>, in{' '}
+                <span className="font-semibold">{drilldown.name}</span> we paid out{' '}
+                <span className="font-bold text-primary">{formatUGX(drilldown.total)}</span> to{' '}
+                <span className="font-semibold">{drilldown.tenantCount} tenants</span> across{' '}
+                <span className="font-semibold">{drilldown.landlordCount} landlords</span>
+                {' '}({drilldown.payoutCount} payouts).
+              </p>
+            </div>
+          )}
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 text-sm font-semibold">
@@ -868,7 +880,35 @@ export function FundedTenantsList() {
               ))}
             </div>
           )}
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          {drilldown.type === 'country' && drilldown.tenants.length > 0 && (
+            <div className="mt-3">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold mb-1.5">
+                Tenants paid ({drilldown.tenants.length})
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {drilldown.tenants.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setDrill({ tenantId: t.id, agentId: null, landlordId: null, tab: 'tenant' })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-background hover:bg-muted transition"
+                    title={`${t.payouts} payouts · ${formatUGX(t.total)}`}
+                  >
+                    <User className="h-3 w-3 text-primary" />
+                    <span className="font-medium truncate max-w-[160px]">{t.name}</span>
+                    <span className="text-muted-foreground">{formatUGX(t.total)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="mt-3">
+            {drilldown.type === 'country' && (
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold mb-1.5">
+                Landlords paid ({drilldown.landlords.length})
+              </div>
+            )}
+          <div className="flex flex-wrap gap-1.5">
             {drilldown.landlords.map((l) => (
               <button
                 key={l.id || l.name}
@@ -891,6 +931,7 @@ export function FundedTenantsList() {
                 </span>
               </button>
             ))}
+          </div>
           </div>
         </Card>
       )}
