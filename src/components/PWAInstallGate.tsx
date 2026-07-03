@@ -168,7 +168,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           Install Welile App
         </h1>
         <p className="text-muted-foreground text-center text-sm mb-8 leading-relaxed">
-          For the best experience, install Welile on your device. It's fast, works offline, and feels like a native app.
+          Welile now runs as an installed app. Please install it on this device to continue — it's fast, secure, works offline, and feels like a native app.
         </p>
 
         <button
@@ -193,7 +193,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           onClick={handleSkip}
           className="mt-4 text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
         >
-          Continue in browser
+          Continue in browser for now
         </button>
 
         {!promptReady && !isIOS && !showMenuGuide && (
