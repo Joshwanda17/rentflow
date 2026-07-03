@@ -58,6 +58,12 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  // Transaction-history filters (menu view)
+  const [txSearch, setTxSearch] = useState('');
+  const [txDateFrom, setTxDateFrom] = useState<Date | undefined>(undefined);
+  const [txDateTo, setTxDateTo] = useState<Date | undefined>(undefined);
+  const [txType, setTxType] = useState<'all' | 'in' | 'out'>('all');
+
   // Load persisted sort on mount
   useEffect(() => {
     try {
