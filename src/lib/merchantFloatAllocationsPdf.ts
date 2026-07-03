@@ -33,6 +33,7 @@ export interface MerchantFloatTransaction {
   method?: string;
   recipient?: string;
   commission?: number;
+  reference?: string;
 }
 
 /** Everything about one merchant agent: float received + float spent. */
@@ -326,9 +327,10 @@ export async function generateMerchantFloatStatementPdf(
       y += 10;
     } else {
       autoTable(doc, {
-        head: [['Date', 'Recipient', 'Method', 'Commission', 'Amount']],
+        head: [['Date', 'Reference', 'Recipient', 'Method', 'Commission', 'Amount']],
         body: entry.transactions.map((t) => [
           typeof t.date === 'string' ? t.date : format(t.date, 'dd MMM yyyy, HH:mm'),
+          t.reference || '—',
           t.recipient || '—',
           t.method || '—',
           t.commission ? fmtUGX(Number(t.commission)) : '—',
@@ -341,11 +343,12 @@ export async function generateMerchantFloatStatementPdf(
         headStyles: { fillColor: THEME_PRIMARY, textColor: 255, fontSize: 7.5, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: THEME_STRIPE },
         columnStyles: {
-          0: { cellWidth: 34 },
-          1: { cellWidth: 'auto' },
-          2: { cellWidth: 26 },
-          3: { halign: 'right', cellWidth: 28 },
-          4: { halign: 'right', fontStyle: 'bold', cellWidth: 30 },
+          0: { cellWidth: 30 },
+          1: { cellWidth: 32, fontSize: 6.8 },
+          2: { cellWidth: 'auto' },
+          3: { cellWidth: 22 },
+          4: { halign: 'right', cellWidth: 26 },
+          5: { halign: 'right', fontStyle: 'bold', cellWidth: 28 },
         },
       });
       y = ((doc as any).lastAutoTable?.finalY || y) + 10;
