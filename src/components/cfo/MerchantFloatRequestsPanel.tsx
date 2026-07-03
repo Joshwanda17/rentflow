@@ -10,10 +10,15 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Landmark, Loader2, Send, X, Phone } from 'lucide-react';
+import { Landmark, Loader2, Send, X, Phone, FileDown, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import {
+  generateMerchantFloatAllocationsPdf,
+  type MerchantFloatAllocationRow,
+  type MerchantFloatAgentBreakdown,
+} from '@/lib/merchantFloatAllocationsPdf';
 
 interface FloatRequestRow {
   id: string;
@@ -22,6 +27,17 @@ interface FloatRequestRow {
   reason: string | null;
   status: string;
   created_at: string;
+  agent?: { id: string; full_name: string | null; phone: string | null } | null;
+}
+
+interface AllocationRow {
+  id: string;
+  agent_id: string;
+  requested_amount: number;
+  reason: string | null;
+  approved_at: string | null;
+  created_at: string;
+  approver?: { full_name: string | null } | null;
   agent?: { id: string; full_name: string | null; phone: string | null } | null;
 }
 
@@ -37,6 +53,8 @@ export function MerchantFloatRequestsPanel() {
   const [mode, setMode] = useState<'fund' | 'reject' | null>(null);
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [tab, setTab] = useState<'pending' | 'allocated'>('pending');
+  const [downloading, setDownloading] = useState(false);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['cfo-float-requests'],
@@ -51,6 +69,67 @@ export function MerchantFloatRequestsPanel() {
     },
     refetchInterval: 30_000,
   });
+
+  // Approved allocations — the audit trail of what the CFO has sent each merchant.
+  const { data: allocations = [], isLoading: allocLoading } = useQuery({
+    queryKey: ['cfo-float-allocations'],
+    queryFn: async (): Promise<AllocationRow[]> => {
+      const { data, error } = await supabase
+        .from('float_requests')
+        .select('id, agent_id, requested_amount, reason, approved_at, created_at, agent:profiles!float_requests_agent_id_fkey(id, full_name, phone), approver:profiles!float_requests_approved_by_fkey(full_name)')
+        .eq('status', 'approved')
+        .order('approved_at', { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []) as any as AllocationRow[];
+    },
+    refetchInterval: 60_000,
+  });
+
+  // Per-agent totals for the audit summary.
+  const agentTotals = (() => {
+    const map = new Map<string, MerchantFloatAgentBreakdown>();
+    for (const a of allocations) {
+      const key = a.agent_id;
+      const name = a.agent?.full_name || 'Merchant agent';
+      const cur = map.get(key) || { agent: name, phone: a.agent?.phone || undefined, count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += Number(a.requested_amount) || 0;
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((x, y) => y.total - x.total);
+  })();
+
+  const grandTotal = allocations.reduce((s, a) => s + (Number(a.requested_amount) || 0), 0);
+
+  const downloadPdf = async () => {
+    if (allocations.length === 0) { toast.info('No allocations to export yet.'); return; }
+    setDownloading(true);
+    try {
+      const rows: MerchantFloatAllocationRow[] = allocations.map((a) => ({
+        date: a.approved_at || a.created_at,
+        agent: a.agent?.full_name || 'Merchant agent',
+        phone: a.agent?.phone || undefined,
+        amount: Number(a.requested_amount) || 0,
+        reason: a.reason || undefined,
+        approvedBy: a.approver?.full_name || undefined,
+      }));
+      const blob = await generateMerchantFloatAllocationsPdf(rows, agentTotals);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `merchant-float-allocations-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      toast.success('PDF downloaded');
+    } catch (e: any) {
+      toast.error(e.message || 'Could not generate PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const openFund = (r: FloatRequestRow) => {
     setActive(r);
