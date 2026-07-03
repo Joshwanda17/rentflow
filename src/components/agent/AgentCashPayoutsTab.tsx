@@ -1614,9 +1614,10 @@ export function AgentCashPayoutsTab() {
                   </div>
                 )}
                 {items.map((w: any) => {
-                  const isMoMo = getPayoutChannel(w) === 'momo';
-                  const MethodIcon = isMoMo ? Smartphone : Banknote;
-                  const methodLabel = isMoMo ? 'Mobile Money' : 'Cash';
+                  const channel = getPayoutChannel(w);
+                  const isMoMo = channel === 'momo';
+                  const MethodIcon = channel === 'momo' ? Smartphone : channel === 'bank' ? Landmark : Banknote;
+                  const methodLabel = channel === 'momo' ? 'Mobile Money' : channel === 'bank' ? 'Bank Transfer' : 'Cash';
                   const isLandlordPayout =
                     typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
                   const name = isLandlordPayout
