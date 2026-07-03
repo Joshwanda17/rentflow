@@ -1334,13 +1334,15 @@ Deno.serve(async (req) => {
     // CFO/treasury pre-loaded into their float bucket — they no longer front
     // their own cash for a withdrawable reimbursement. Block the claim up-front
     // (before any debit) if the merchant does not hold enough float, so we
-    // never process a payout the merchant can't cover.
+    // never process a payout the merchant can't cover. This also applies when
+    // the merchant is cashing out their own wallet: the user's withdrawable
+    // balance is reduced by the normal withdrawal leg, and the physical company
+    // cash/float they dispensed must still leave the merchant float bucket.
     let merchantFloatAvailable = 0;
     if (
       actingAsMerchant &&
       !isProxyPayout &&
       !poolFunded &&
-      user.id !== fundingUserId &&
       amount > 0
     ) {
       const { data: merchantWallet } = await admin
@@ -1933,13 +1935,13 @@ Deno.serve(async (req) => {
     // ever lands in the merchant's withdrawable. Float sufficiency was already
     // verified up-front; the DB non-negative constraint is the hard backstop.
     // Only for standard cash payouts settled by a cashout agent — never for
-    // proxy/pool payouts, and never when the merchant is the requester.
+    // proxy/pool payouts. Even when the merchant is the requester, company
+    // float was the cash source and must be consumed.
     let merchantFloatConsumed = 0;
     if (
       actingAsMerchant &&
       !isProxyPayout &&
       !poolFunded &&
-      user.id !== fundingUserId &&
       amount > 0
     ) {
       try {
