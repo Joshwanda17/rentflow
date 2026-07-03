@@ -966,7 +966,16 @@ Deno.serve(async (req) => {
         `[approve-withdrawal] force_requester_debit=true — debiting requester ${wr.user_id} ` +
         `(bypassing proxy auto-routing) for system MoMo auto-approval`
       );
-    } else if (!isProxyPayout) {
+    } else if (!isProxyPayout && !actingAsMerchant) {
+      // NOTE: skipped when `actingAsMerchant` is true. Under the Float model a
+      // merchant dispenses the physical cash from THEIR OWN float bucket, so
+      // that float is the sole funding source — we must NOT re-route the
+      // funding debit onto some other proxy agent's wallet. Re-routing here
+      // would (a) debit the wrong party and (b) set isProxyPayout=true, which
+      // silently skips the merchant-float-consume block below, leaving the
+      // merchant's float untouched. For merchant-settled cash-outs we keep
+      // fundingUserId = the requester (their withdrawable liability is
+      // discharged) and let the float consume debit the merchant's float.
       const { data: partnerAssignment } = await admin
         .from("proxy_agent_assignments")
         .select("agent_id, is_managed_account, created_at")
