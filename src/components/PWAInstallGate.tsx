@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type TouchEvent } from 'react';
-import { Download, Share, Smartphone, AlertCircle } from 'lucide-react';
+import { Download, Share, Smartphone, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -16,6 +16,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const [showMenuGuide, setShowMenuGuide] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
+  const [verifyState, setVerifyState] = useState<'idle' | 'checking' | 'not_standalone'>('idle');
   const tapLockRef = useRef(0);
 
   useEffect(() => {
@@ -166,6 +167,40 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     handleInstall();
   }, [handleInstall]);
 
+  // Manual verification: re-check the real standalone state on demand for
+  // browsers where auto-detection missed. If the browser still reports a
+  // non-standalone context, surface a confirm override that trusts the user.
+  const handleVerifyInstalled = useCallback(() => {
+    hapticTap();
+    setVerifyState('checking');
+    const detected =
+      window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+      || localStorage.getItem('welile_pwa_installed') === 'true';
+
+    window.setTimeout(() => {
+      if (detected) {
+        setIsStandalone(true);
+        setInstallResult('accepted');
+        setVerifyState('idle');
+      } else {
+        setVerifyState('not_standalone');
+      }
+    }, 450);
+  }, []);
+
+  const handleConfirmOverride = useCallback(() => {
+    hapticTap();
+    try {
+      localStorage.setItem('welile_pwa_installed', 'true');
+      localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
+    } catch {
+      /* ignore storage errors */
+    }
+    setIsStandalone(true);
+    setInstallResult('accepted');
+  }, []);
+
   // Force installation on EVERY device (desktop + mobile). The gate is shown
   // until the app is actually installed — there is no way to bypass it.
   if (isStandalone) {
@@ -221,6 +256,54 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
             If your phone does not open the install popup, tap again to see manual install steps.
           </p>
         )}
+
+        <button
+          type="button"
+          onClick={handleVerifyInstalled}
+          disabled={verifyState === 'checking'}
+          className={cn(
+            'mt-4 w-full flex items-center justify-center gap-2 h-12 rounded-2xl font-semibold text-sm transition-all',
+            'border border-border bg-card text-foreground',
+            'hover:bg-muted active:scale-[0.98]',
+            verifyState === 'checking' && 'opacity-70 cursor-wait'
+          )}
+          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+        >
+          {verifyState === 'checking'
+            ? <RefreshCw className="h-4 w-4 animate-spin" />
+            : <CheckCircle2 className="h-4 w-4" />}
+          {verifyState === 'checking' ? 'Checking…' : "I've installed the app"}
+        </button>
+
+        <AnimatePresence>
+          {verifyState === 'not_standalone' && (
+            <motion.div
+              className="mt-4 w-full"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-warning shrink-0" />
+                  <p className="font-semibold text-foreground text-sm">Still opened in the browser</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  For the best experience, close this tab and open <strong>Welile</strong> from your
+                  home screen or app list. If you're sure it's already installed, confirm below to continue.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleConfirmOverride}
+                  className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Yes, I've already installed it — continue
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {installResult === 'dismissed' && !showMenuGuide && (
