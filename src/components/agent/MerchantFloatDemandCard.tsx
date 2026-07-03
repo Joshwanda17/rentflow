@@ -89,6 +89,14 @@ export function MerchantFloatDemandCard() {
     let totalAmount = 0;
     let totalTelecom = 0;
     let count = 0;
+    // Per-day timeline: date key → per-channel + totals.
+    const dayMap = new Map<
+      string,
+      { channels: Record<DemandChannel, number>; total: number; telecom: number; count: number }
+    >();
+    const emptyChannels = (): Record<DemandChannel, number> => ({
+      mtn: 0, airtel: 0, momo_other: 0, bank: 0, cash: 0,
+    });
     for (const r of rows) {
       const amt = Number(r.amount) || 0;
       if (amt <= 0) continue;
@@ -101,6 +109,18 @@ export function MerchantFloatDemandCard() {
       totalAmount += amt;
       totalTelecom += fee;
       count += 1;
+      const dayKey = (r.created_at || '').slice(0, 10);
+      if (dayKey) {
+        let d = dayMap.get(dayKey);
+        if (!d) {
+          d = { channels: emptyChannels(), total: 0, telecom: 0, count: 0 };
+          dayMap.set(dayKey, d);
+        }
+        d.channels[ch] += amt;
+        d.total += amt;
+        d.telecom += fee;
+        d.count += 1;
+      }
     }
     const totalNeeded = totalAmount + totalTelecom;
     const order: DemandChannel[] = ['mtn', 'airtel', 'momo_other', 'bank', 'cash'];
@@ -108,7 +128,20 @@ export function MerchantFloatDemandCard() {
       .map((ch) => ({ ch, ...buckets[ch] }))
       .filter((b) => b.count > 0)
       .sort((a, b) => b.amount - a.amount);
-    return { breakdown, totalAmount, totalTelecom, totalNeeded, count };
+    // Newest day first so the most recent demand is on top.
+    const days = Array.from(dayMap.entries())
+      .map(([date, d]) => ({
+        date,
+        needed: d.total + d.telecom,
+        total: d.total,
+        telecom: d.telecom,
+        count: d.count,
+        channels: order
+          .map((ch) => ({ ch, amount: d.channels[ch] }))
+          .filter((c) => c.amount > 0),
+      }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    return { breakdown, totalAmount, totalTelecom, totalNeeded, count, days };
   }, [rows]);
 
   const shortfall = Math.max(0, forecast.totalNeeded - (floatBalance || 0));
