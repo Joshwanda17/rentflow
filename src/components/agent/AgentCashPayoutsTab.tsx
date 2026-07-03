@@ -19,7 +19,7 @@ import { format, startOfMonth, subDays } from 'date-fns';
 import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
-  CalendarIcon, X, ArrowUp, ArrowDown, SlidersHorizontal, ArrowUpDown,
+  CalendarIcon, X, ArrowUp, ArrowDown, SlidersHorizontal, ArrowUpDown, Landmark,
   ChevronLeft, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -32,7 +32,7 @@ const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo
 const CLAIM_WINDOW_MINUTES = 15;
 const CLAIM_WINDOW_MS = CLAIM_WINDOW_MINUTES * 60 * 1000;
 
-type PayoutChannel = 'momo' | 'cash';
+type PayoutChannel = 'momo' | 'cash' | 'bank';
 
 const normalizePayoutMethod = (value?: string | null) =>
   String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -41,7 +41,12 @@ const getPayoutChannel = (withdrawal: any): PayoutChannel => {
   const method = normalizePayoutMethod(withdrawal?.payout_method);
   const flatMethod = method.replace(/_/g, '');
 
-  if (['cash', 'cash_pickup', 'cashpickup', 'agent_cash', 'agentcash', 'payout_code', 'payoutcode', 'bank_transfer', 'banktransfer', 'bank', 'bank_account', 'bankaccount'].includes(method) || ['cashpickup', 'agentcash', 'payoutcode', 'banktransfer', 'bankaccount'].includes(flatMethod)) {
+  // Bank first — keep it a distinct channel from generic cash pickups.
+  if (['bank_transfer', 'banktransfer', 'bank', 'bank_account', 'bankaccount'].includes(method) || flatMethod.includes('bank')) {
+    return 'bank';
+  }
+
+  if (['cash', 'cash_pickup', 'cashpickup', 'agent_cash', 'agentcash', 'payout_code', 'payoutcode'].includes(method) || ['cashpickup', 'agentcash', 'payoutcode'].includes(flatMethod)) {
     return 'cash';
   }
 
@@ -92,7 +97,7 @@ interface QueueFilterOpts {
   maxAmount: number | null;
   fromIso: string | null;
   toIso: string | null;
-  channel: 'all' | 'momo' | 'cash';
+  channel: 'all' | 'momo' | 'cash' | 'bank';
   searchUserIds: string[] | null;
   searchTerm: string;
 }
@@ -127,8 +132,10 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
   // Channel (MoMo vs Cash).
   if (o.channel === 'momo') {
     q = q.or('payout_method.ilike.*momo*,payout_method.ilike.*mobile*,payout_method.ilike.*mtn*,payout_method.ilike.*airtel*,mobile_money_number.not.is.null,mobile_money_provider.not.is.null');
+  } else if (o.channel === 'bank') {
+    q = q.ilike('payout_method', '%bank%');
   } else if (o.channel === 'cash') {
-    q = q.or('payout_method.ilike.*cash*,payout_method.ilike.*bank*,payout_method.ilike.*pickup*');
+    q = q.or('payout_method.ilike.*cash*,payout_method.ilike.*pickup*');
   }
 
   // Merchant / provider.
@@ -264,7 +271,7 @@ export function AgentCashPayoutsTab() {
   const [queueSort, setQueueSort] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc' | 'status'>('date_desc');
 
   // Channel tab + server-side pagination state for the Pending Queue.
-  const [channelTab, setChannelTab] = useState<'all' | 'momo' | 'cash'>('all');
+  const [channelTab, setChannelTab] = useState<'all' | 'momo' | 'cash' | 'bank'>('all');
   const [page, setPage] = useState(0);
 
   // Debounce the search box so we don't fire a query on every keystroke.
@@ -416,13 +423,13 @@ export function AgentCashPayoutsTab() {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
         minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(),
       };
-      const mk = (channel: 'all' | 'momo' | 'cash') =>
+      const mk = (channel: 'all' | 'momo' | 'cash' | 'bank') =>
         applyQueueFilters(
           supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }),
           { ...base, channel },
         ).then((r: any) => r.count || 0);
-      const [all, momo, cash] = await Promise.all([mk('all'), mk('momo'), mk('cash')]);
-      return { all, momo, cash };
+      const [all, momo, cash, bank] = await Promise.all([mk('all'), mk('momo'), mk('cash'), mk('bank')]);
+      return { all, momo, cash, bank };
     },
     enabled: !!isCashoutAgent,
     staleTime: 15_000,
@@ -974,7 +981,7 @@ export function AgentCashPayoutsTab() {
   // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
   const pageRows: any[] = queuePage?.rows ?? [];
   const pageCount = queuePage?.count ?? 0;
-  const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0 };
+  const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
   const filteredPending = channelCounts.all;
 
@@ -1567,7 +1574,7 @@ export function AgentCashPayoutsTab() {
           )}
         </div>
 
-        <Tabs value={channelTab} onValueChange={(v) => setChannelTab(v as 'all' | 'momo' | 'cash')}>
+        <Tabs value={channelTab} onValueChange={(v) => setChannelTab(v as 'all' | 'momo' | 'cash' | 'bank')}>
         <TabsList className="w-full h-12 p-1">
           <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm h-10">
             <Wallet className="h-4 w-4" /> All
@@ -1581,9 +1588,13 @@ export function AgentCashPayoutsTab() {
             <Banknote className="h-4 w-4" /> Cash
             {channelCounts.cash > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.cash}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="bank" className="flex-1 gap-1.5 text-sm h-10">
+            <Landmark className="h-4 w-4" /> Bank
+            {channelCounts.bank > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.bank}</Badge>}
+          </TabsTrigger>
         </TabsList>
 
-        {(['all', 'momo', 'cash'] as const).map(tab => {
+        {(['all', 'momo', 'cash', 'bank'] as const).map(tab => {
           // Only the active tab fetches; the page query is keyed by `channelTab`.
           const items = tab === channelTab ? pageRows : [];
           const emptyMsg = queueFiltersActive
@@ -1603,9 +1614,10 @@ export function AgentCashPayoutsTab() {
                   </div>
                 )}
                 {items.map((w: any) => {
-                  const isMoMo = getPayoutChannel(w) === 'momo';
-                  const MethodIcon = isMoMo ? Smartphone : Banknote;
-                  const methodLabel = isMoMo ? 'Mobile Money' : 'Cash';
+                  const channel = getPayoutChannel(w);
+                  const isMoMo = channel === 'momo';
+                  const MethodIcon = channel === 'momo' ? Smartphone : channel === 'bank' ? Landmark : Banknote;
+                  const methodLabel = channel === 'momo' ? 'Mobile Money' : channel === 'bank' ? 'Bank Transfer' : 'Cash';
                   const isLandlordPayout =
                     typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
                   const name = isLandlordPayout
