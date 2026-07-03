@@ -536,6 +536,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     return true;
   };
 
+  // Merchant Agents are locked to the Home tab. If the active tab ever lands on
+  // an operational section (e.g. it was set before the role resolved), snap back.
+  useEffect(() => {
+    if (isMerchant && activeTab !== 'home') {
+      setSlideDirection(null);
+      setActiveTab('home');
+    }
+  }, [isMerchant, activeTab]);
+
   // Live "updated …" indicator for the Merchant Payouts earnings total.
   // Re-render every 15s so the relative timestamp stays fresh.
   const [nowTick, setNowTick] = useState(Date.now());
