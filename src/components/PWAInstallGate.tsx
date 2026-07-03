@@ -16,7 +16,6 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const [showMenuGuide, setShowMenuGuide] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
-  const [skipped, setSkipped] = useState(false);
   const tapLockRef = useRef(0);
 
   useEffect(() => {
