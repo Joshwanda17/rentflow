@@ -2125,25 +2125,31 @@ Deno.serve(async (req) => {
 
       const balanceLine =
         newBalance !== null
-          ? ` New wallet balance: UGX ${Math.round(newBalance).toLocaleString()}`
+          ? ` New wallet balance: UGX ${Math.round(newBalance).toLocaleString()}.`
           : "";
 
-      // When a genuine merchant agent settled this payout, name them in the
-      // receipt so the withdrawing user knows exactly who processed it.
+      // When a genuine merchant agent settled this payout, identify them by
+      // phone number in the receipt so the withdrawing user knows exactly who
+      // processed it (and can reach them if needed).
       let merchantLine = "";
       let merchantName: string | null = null;
+      let merchantPhone: string | null = null;
       if (actingAsMerchant) {
         try {
           const { data: mp } = await admin
             .from("profiles")
-            .select("full_name")
+            .select("full_name, phone")
             .eq("id", user.id)
             .maybeSingle();
           const mName = (mp as any)?.full_name?.trim();
+          const mPhone = (mp as any)?.phone?.toString().trim();
           if (mName) {
             merchantName = mName;
-            merchantLine = ` Processed by Welile merchant agent ${mName}.`;
           }
+          if (mPhone) merchantPhone = mPhone;
+          merchantLine = merchantPhone
+            ? ` Processed by a Welile merchant agent (${merchantPhone}).`
+            : ` Processed by a Welile merchant agent.`;
         } catch (e) {
           console.error("[approve-withdrawal] merchant name fetch for SMS failed (non-fatal):", e);
         }
@@ -2151,11 +2157,12 @@ Deno.serve(async (req) => {
 
       const smsMsg =
         `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
-        `APPROVED & PAID via ${payment_method}. ${proofLabel}:${refUpper}.` +
+        `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
         `${merchantLine}` +
-        `${balanceLine} ` +
-        `\n\nAccess your dashboard to view your wallet, transactions, and account details:\n` +
-        `https://welilereceipts.com/ZQhyGb`;
+        `${balanceLine}` +
+        `\n\nView your wallet, transactions, and account details:\n` +
+        `https://welilereceipts.com/ZQhyGb` +
+        `\n\nNeed help? Call or WhatsApp: +256777607640`;
 
       // In-app notification center entry so the user sees the approval update
       // (merchant agent name + remaining wallet balance) without relying on SMS.
