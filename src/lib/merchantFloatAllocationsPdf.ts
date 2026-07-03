@@ -26,6 +26,23 @@ export interface MerchantFloatDateRange {
   endDate: Date;
 }
 
+/** A single cash-out the merchant settled from their float bucket. */
+export interface MerchantFloatTransaction {
+  date: string | Date;
+  amount: number;
+  method?: string;
+  recipient?: string;
+  commission?: number;
+}
+
+/** Everything about one merchant agent: float received + float spent. */
+export interface MerchantFloatStatementEntry {
+  agent: string;
+  phone?: string;
+  allocations: MerchantFloatAllocationRow[];
+  transactions: MerchantFloatTransaction[];
+}
+
 const fmtUGX = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
 
@@ -168,6 +185,172 @@ export async function generateMerchantFloatAllocationsPdf(
       5: { halign: 'right', fontStyle: 'bold', cellWidth: 26 },
     },
   });
+
+  // ── Footer ──
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    const ph = doc.internal.pageSize.getHeight();
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Powered by Welile — confidential treasury report', margin, ph - 6);
+    doc.text(`Page ${p} / ${pageCount}`, pageWidth - margin, ph - 6, { align: 'right' });
+  }
+
+  return doc.output('blob');
+}
+
+/**
+ * Per-merchant statement: for every agent, the float the CFO allocated AND the
+ * transactions (customer cash-outs) that agent settled from that float. One
+ * section per agent so treasury can reconcile money in vs money out per person.
+ */
+export async function generateMerchantFloatStatementPdf(
+  entries: MerchantFloatStatementEntry[],
+  generatedAt: Date = new Date(),
+  dateRange?: MerchantFloatDateRange,
+): Promise<Blob> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTableMod: any = await import('jspdf-autotable');
+  const autoTable = autoTableMod.default || autoTableMod;
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 12;
+
+  const logo = await loadLogoBase64();
+
+  // ── Header band ──
+  doc.setFillColor(...THEME_PRIMARY);
+  doc.rect(0, 0, pageWidth, 30, 'F');
+  if (logo) {
+    try { doc.addImage(logo, 'PNG', margin, 7, 16, 16); } catch { /* ignore */ }
+  }
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text('Merchant Float Statement', logo ? margin + 20 : margin, 14);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`Generated ${format(generatedAt, 'dd MMM yyyy, HH:mm')}`, logo ? margin + 20 : margin, 21);
+
+  let y = 40;
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  if (dateRange) {
+    doc.text(
+      `Period: ${format(dateRange.startDate, 'dd MMM yyyy')} – ${format(dateRange.endDate, 'dd MMM yyyy')}`,
+      margin,
+      y,
+    );
+    y += 5;
+  }
+
+  const grandAllocated = entries.reduce((s, e) => s + e.allocations.reduce((a, r) => a + (Number(r.amount) || 0), 0), 0);
+  const grandSpent = entries.reduce((s, e) => s + e.transactions.reduce((a, t) => a + (Number(t.amount) || 0), 0), 0);
+  doc.text(`${entries.length} merchant agent${entries.length === 1 ? '' : 's'}`, margin, y);
+  doc.text(`Allocated: ${fmtUGX(grandAllocated)}   |   Spent: ${fmtUGX(grandSpent)}`, pageWidth - margin, y, { align: 'right' });
+  y += 6;
+
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  for (const entry of entries) {
+    if (y > pageHeight - 60) { doc.addPage(); y = 20; }
+
+    const allocated = entry.allocations.reduce((a, r) => a + (Number(r.amount) || 0), 0);
+    const spent = entry.transactions.reduce((a, t) => a + (Number(t.amount) || 0), 0);
+
+    // Agent heading band
+    doc.setFillColor(...THEME_PRIMARY_DARK);
+    doc.rect(margin, y, pageWidth - margin * 2, 9, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(`${entry.agent}${entry.phone ? '  ·  ' + entry.phone : ''}`, margin + 2, y + 6);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.text(`In ${fmtUGX(allocated)}  /  Out ${fmtUGX(spent)}`, pageWidth - margin - 2, y + 6, { align: 'right' });
+    y += 12;
+
+    // Float allocated to this agent
+    doc.setTextColor(...THEME_PRIMARY_DARK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Float allocated', margin, y);
+    y += 2;
+    if (entry.allocations.length === 0) {
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('No allocations in this period.', margin, y + 4);
+      y += 8;
+    } else {
+      autoTable(doc, {
+        head: [['Date', 'Reason', 'Approved by', 'Amount']],
+        body: entry.allocations.map((r) => [
+          typeof r.date === 'string' ? r.date : format(r.date, 'dd MMM yyyy, HH:mm'),
+          r.reason || '—',
+          r.approvedBy || '—',
+          fmtUGX(Number(r.amount) || 0),
+        ]),
+        startY: y + 2,
+        margin: { left: margin, right: margin },
+        tableWidth: pageWidth - margin * 2,
+        styles: { fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak', valign: 'middle' },
+        headStyles: { fillColor: THEME_PRIMARY_DARK, textColor: 255, fontSize: 7.5, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: THEME_STRIPE },
+        columnStyles: {
+          0: { cellWidth: 34 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 34 },
+          3: { halign: 'right', fontStyle: 'bold', cellWidth: 30 },
+        },
+      });
+      y = ((doc as any).lastAutoTable?.finalY || y) + 6;
+    }
+
+    if (y > pageHeight - 40) { doc.addPage(); y = 20; }
+
+    // Transactions settled from this agent's float
+    doc.setTextColor(...THEME_PRIMARY_DARK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Transactions paid from float', margin, y);
+    y += 2;
+    if (entry.transactions.length === 0) {
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('No cash-outs settled from float in this period.', margin, y + 4);
+      y += 10;
+    } else {
+      autoTable(doc, {
+        head: [['Date', 'Recipient', 'Method', 'Commission', 'Amount']],
+        body: entry.transactions.map((t) => [
+          typeof t.date === 'string' ? t.date : format(t.date, 'dd MMM yyyy, HH:mm'),
+          t.recipient || '—',
+          t.method || '—',
+          t.commission ? fmtUGX(Number(t.commission)) : '—',
+          fmtUGX(Number(t.amount) || 0),
+        ]),
+        startY: y + 2,
+        margin: { left: margin, right: margin },
+        tableWidth: pageWidth - margin * 2,
+        styles: { fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak', valign: 'middle' },
+        headStyles: { fillColor: THEME_PRIMARY, textColor: 255, fontSize: 7.5, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: THEME_STRIPE },
+        columnStyles: {
+          0: { cellWidth: 34 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 26 },
+          3: { halign: 'right', cellWidth: 28 },
+          4: { halign: 'right', fontStyle: 'bold', cellWidth: 30 },
+        },
+      });
+      y = ((doc as any).lastAutoTable?.finalY || y) + 10;
+    }
+  }
 
   // ── Footer ──
   const pageCount = (doc as any).internal.getNumberOfPages();
