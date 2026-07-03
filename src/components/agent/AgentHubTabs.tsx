@@ -20,7 +20,14 @@ const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
 ];
 
 export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubTabsProps) {
-  const visibleTabs = restricted ? tabs.filter((t) => t.id !== 'tenants') : tabs;
+  // Merchant Agents are locked to the Home tab only — all operational tabs are hidden.
+  const visibleTabs = restricted ? tabs.filter((t) => t.id === 'home') : tabs;
+  const colsClass =
+    visibleTabs.length === 1
+      ? 'grid-cols-1'
+      : visibleTabs.length === 4
+        ? 'grid-cols-4'
+        : 'grid-cols-5';
   return (
     <div
       className="sticky z-20 -mx-4 px-4 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40"
@@ -29,7 +36,7 @@ export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubT
       aria-label="Agent hub sections"
     >
       <div
-        className={cn('grid gap-1 p-1 rounded-2xl bg-muted/60', restricted ? 'grid-cols-4' : 'grid-cols-5')}
+        className={cn('grid gap-1 p-1 rounded-2xl bg-muted/60', colsClass)}
       >
         {visibleTabs.map((t) => {
           const isActive = active === t.id;
