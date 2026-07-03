@@ -59,6 +59,7 @@ export function MerchantFloatRequestsPanel() {
   const [tab, setTab] = useState<'pending' | 'allocated'>('pending');
   const [downloading, setDownloading] = useState(false);
   const [downloadingStmt, setDownloadingStmt] = useState(false);
+  const [downloadingAgent, setDownloadingAgent] = useState<string | null>(null);
   const [stmtFrom, setStmtFrom] = useState('');
   const [stmtTo, setStmtTo] = useState('');
 
@@ -94,11 +95,11 @@ export function MerchantFloatRequestsPanel() {
 
   // Per-agent totals for the audit summary.
   const agentTotals = (() => {
-    const map = new Map<string, MerchantFloatAgentBreakdown>();
+    const map = new Map<string, MerchantFloatAgentBreakdown & { agent_id: string }>();
     for (const a of allocations) {
       const key = a.agent_id;
       const name = a.agent?.full_name || 'Merchant agent';
-      const cur = map.get(key) || { agent: name, phone: a.agent?.phone || undefined, count: 0, total: 0 };
+      const cur = map.get(key) || { agent_id: key, agent: name, phone: a.agent?.phone || undefined, count: 0, total: 0 };
       cur.count += 1;
       cur.total += Number(a.requested_amount) || 0;
       map.set(key, cur);
@@ -140,9 +141,9 @@ export function MerchantFloatRequestsPanel() {
   // Combined statement: per merchant agent, the float allocated AND the
   // transactions they settled from that float. Fetched on demand at click time
   // so we never load the (potentially large) payout history until asked.
-  const downloadStatementPdf = async () => {
+  const downloadStatementPdf = async (onlyAgentId?: string) => {
     if (allocations.length === 0) { toast.info('No allocations to export yet.'); return; }
-    setDownloadingStmt(true);
+    if (onlyAgentId) setDownloadingAgent(onlyAgentId); else setDownloadingStmt(true);
     try {
       // Resolve the selected period. Both bounds are optional; when set they
       // clamp both the float allocations AND the transactions in the statement.
@@ -154,15 +155,17 @@ export function MerchantFloatRequestsPanel() {
       const fromIso = fromDate ? fromDate.toISOString() : null;
       const toIso = toDate ? toDate.toISOString() : null;
 
-      // Allocations that fall inside the chosen period.
+      // Allocations that fall inside the chosen period (and, if a single agent
+      // was selected, only that agent's records for a clean per-agent report).
       const periodAllocations = allocations.filter((a) => {
+        if (onlyAgentId && a.agent_id !== onlyAgentId) return false;
         const t = new Date(a.approved_at || a.created_at).getTime();
         if (fromDate && t < fromDate.getTime()) return false;
         if (toDate && t > toDate.getTime()) return false;
         return true;
       });
       if (periodAllocations.length === 0) {
-        toast.info('No float allocations in the selected period.');
+        toast.info(onlyAgentId ? 'No float allocations for this agent in the selected period.' : 'No float allocations in the selected period.');
         return;
       }
 
@@ -246,7 +249,10 @@ export function MerchantFloatRequestsPanel() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `merchant-float-statement${stmtFrom ? `-${stmtFrom}` : ''}${stmtTo ? `-to-${stmtTo}` : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const agentSlug = onlyAgentId
+        ? '-' + (nameByAgent.get(onlyAgentId)?.name || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)
+        : '';
+      link.download = `merchant-float-statement${agentSlug}${stmtFrom ? `-${stmtFrom}` : ''}${stmtTo ? `-to-${stmtTo}` : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -256,6 +262,7 @@ export function MerchantFloatRequestsPanel() {
       toast.error(e.message || 'Could not generate statement PDF');
     } finally {
       setDownloadingStmt(false);
+      setDownloadingAgent(null);
     }
   };
 
@@ -390,8 +397,8 @@ export function MerchantFloatRequestsPanel() {
               <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadPdf} disabled={downloading || allocations.length === 0}>
                 {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Allocations PDF
               </Button>
-              <Button size="sm" className="gap-1.5" onClick={downloadStatementPdf} disabled={downloadingStmt || allocations.length === 0}>
-                {downloadingStmt ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Float + transactions PDF
+              <Button size="sm" className="gap-1.5" onClick={() => downloadStatementPdf()} disabled={downloadingStmt || allocations.length === 0}>
+                {downloadingStmt ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} All agents PDF
               </Button>
             </div>
           )}
@@ -448,14 +455,27 @@ export function MerchantFloatRequestsPanel() {
             ) : (
               <>
                 <p className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocated per merchant agent</p>
+                <p className="-mt-1 text-[10px] text-muted-foreground">Select an agent to download their own float + transactions statement{(stmtFrom || stmtTo) ? ' for the chosen dates' : ''}.</p>
                 {agentTotals.map((b) => (
-                  <div key={b.agent + (b.phone || '')} className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2">
+                  <div key={b.agent_id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-card px-3 py-2">
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{b.agent}</p>
                       {b.phone && <p className="flex items-center gap-1 text-[11px] text-muted-foreground"><Phone className="h-3 w-3" /> {b.phone}</p>}
                       <p className="text-[10px] text-muted-foreground">{b.count} allocation{b.count === 1 ? '' : 's'}</p>
                     </div>
-                    <span className="shrink-0 text-base font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(b.total)}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-base font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(b.total)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        onClick={() => downloadStatementPdf(b.agent_id)}
+                        disabled={downloadingAgent === b.agent_id}
+                      >
+                        {downloadingAgent === b.agent_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                        <span className="hidden sm:inline">Download</span>
+                      </Button>
+                    </div>
                   </div>
                 ))}
 
