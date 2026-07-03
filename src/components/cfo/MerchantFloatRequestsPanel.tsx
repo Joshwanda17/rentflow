@@ -521,8 +521,18 @@ export function MerchantFloatRequestsPanel() {
                   </div>
                 ))}
 
-                <p className="pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocation records</p>
-                {allocations.map((a) => (
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocation records</p>
+                  <button
+                    type="button"
+                    onClick={() => setAllocSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+                    className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:text-foreground"
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    {allocSort === 'newest' ? 'Newest first' : 'Oldest first'}
+                  </button>
+                </div>
+                {sortedAllocations.map((a) => (
                   <div key={a.id} className="rounded-lg border border-border/50 bg-card/60 px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-medium">{a.agent?.full_name || 'Merchant agent'}</p>
