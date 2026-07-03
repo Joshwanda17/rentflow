@@ -279,9 +279,12 @@ export function MerchantFloatDemandCard() {
         </div>
       )}
 
-      {/* Headline: total float needed to clear the queue. */}
+      {/* Headline: total float needed to clear the SHARED queue. */}
       <div className="mt-2">
-        <p className="text-[11px] text-muted-foreground">Float needed to pay everyone now</p>
+        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Users className="h-3 w-3" /> Shared queue · {activeMerchants} merchant agent{activeMerchants === 1 ? '' : 's'}
+        </p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">Float needed to pay everyone now</p>
         <p className="text-2xl font-bold leading-tight tabular-nums text-violet-700 dark:text-violet-300">
           {formatUGX(forecast.totalNeeded)}
         </p>
@@ -290,53 +293,49 @@ export function MerchantFloatDemandCard() {
         </p>
       </div>
 
-      {/* Coverage: current float vs shortfall to request. */}
-      <div className="mt-2 grid grid-cols-2 gap-2">
+      {/* Network coverage: already held + already requested vs remaining gap. */}
+      <div className="mt-2 grid grid-cols-3 gap-2">
         <div className="rounded-lg border border-border/60 bg-background/40 p-2">
-          <p className="text-[10px] text-muted-foreground">Your float now</p>
-          <p className="text-sm font-semibold tabular-nums">{formatUGX(floatBalance)}</p>
+          <p className="text-[10px] text-muted-foreground">Network float</p>
+          <p className="text-sm font-semibold tabular-nums">{formatUGX(networkFloat)}</p>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-background/40 p-2">
+          <p className="text-[10px] text-muted-foreground">Already requested</p>
+          <p className="text-sm font-semibold tabular-nums">{formatUGX(pendingRequested)}</p>
         </div>
         <div
           className={cn(
             'rounded-lg border p-2',
-            covered
-              ? 'border-emerald-500/30 bg-emerald-500/5'
-              : 'border-amber-500/30 bg-amber-500/5',
+            covered ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5',
           )}
         >
-          <p className="text-[10px] text-muted-foreground">
-            {covered ? 'Coverage' : 'Request from CFO'}
-          </p>
+          <p className="text-[10px] text-muted-foreground">Remaining gap</p>
           <p
             className={cn(
               'flex items-center gap-1 text-sm font-semibold tabular-nums',
               covered ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400',
             )}
           >
-            {covered ? (
-              <>
-                <CheckCircle2 className="h-3.5 w-3.5" /> Fully covered
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-3.5 w-3.5" /> {formatUGX(shortfall)}
-              </>
-            )}
+            {covered ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+            {formatUGX(netGap)}
           </p>
         </div>
       </div>
 
-      {/* Request the shortfall straight from the CFO, pre-filled. */}
-      {shortfall > 0 && (
-        <Button
-          size="sm"
-          className="mt-2 w-full gap-1.5"
-          onClick={requestFloat}
-        >
+      {/* Your fair share — prevents every agent requesting the whole gap. */}
+      <p className="mt-1 text-[10px] text-muted-foreground">
+        Your float now: <span className="font-medium text-foreground">{formatUGX(floatBalance)}</span>
+      </p>
+      {covered ? (
+        <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Network is fully funded — no float request needed right now.
+        </p>
+      ) : fairShare > 0 ? (
+        <Button size="sm" className="mt-2 w-full gap-1.5" onClick={requestFloat}>
           <PlusCircle className="h-4 w-4" />
-          Request {formatUGX(shortfall)} float from CFO
+          Request your fair share · {formatUGX(fairShare)}
         </Button>
-      )}
+      ) : null}
 
       {/* Per-channel breakdown. */}
       <div className="mt-3 space-y-1.5">
