@@ -96,7 +96,18 @@ type Row = {
   finops_disbursed_by: string | null;
   funder_profile?: { full_name: string | null } | null;
 };
-type DateFilter = 'all' | '7d' | '30d' | 'custom';
+type DateFilter = 'all' | '7d' | '30d' | 'month' | 'custom';
+
+const currentMonthValue = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const monthLabel = (value: string) => {
+  const [y, m] = value.split('-').map(Number);
+  if (!y || !m) return value;
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+};
 
 
 const FUNDED_STATUSES = [
@@ -120,6 +131,7 @@ export function FundedTenantsList() {
   const [exportCols, setExportCols] = useState<PayoutColumnKey[]>(DEFAULT_PAYOUT_COLUMNS);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDays, setCustomDays] = useState<number>(14);
+  const [monthValue, setMonthValue] = useState<string>(currentMonthValue());
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<string | null>(null);
   const [drill, setDrill] = useState<{
@@ -194,13 +206,20 @@ export function FundedTenantsList() {
 
   const dateFiltered = useMemo(() => {
     if (dateFilter === 'all') return rows;
+    if (dateFilter === 'month') {
+      const [y, m] = monthValue.split('-').map(Number);
+      return rows.filter((r) => {
+        const d = new Date(r.finops_disbursed_at ?? r.created_at);
+        return d.getFullYear() === y && d.getMonth() === m - 1;
+      });
+    }
     const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
     return rows.filter((r) => {
       const ts = new Date(r.finops_disbursed_at ?? r.created_at).getTime();
       return ts >= cutoff;
     });
-  }, [rows, dateFilter, customDays]);
+  }, [rows, dateFilter, customDays, monthValue]);
 
   const countryStats = useMemo(() => {
     const m = new Map<string, { count: number; total: number }>();
@@ -243,10 +262,18 @@ export function FundedTenantsList() {
       const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
       const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
       const tenants = new Set<string>();
+      const tenantMap = new Map<string, { id: string; name: string; phone: string; payouts: number; total: number }>();
       let total = 0;
       rows.forEach((r) => {
         total += Number(r.amount || 0);
         if (r.tenant_id) tenants.add(r.tenant_id);
+        if (r.tenant_id) {
+          const tk = r.tenant_id;
+          const tc = tenantMap.get(tk) ?? { id: tk, name: r.tenant_profile?.full_name ?? 'Unallocated tenant', phone: r.landlord_phone ?? '', payouts: 0, total: 0 };
+          tc.payouts += 1;
+          tc.total += Number(r.amount || 0);
+          tenantMap.set(tk, tc);
+        }
         const key = r.landlord_id || r.landlord_name || 'unknown';
         const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
         cur.payouts += 1;
@@ -262,6 +289,7 @@ export function FundedTenantsList() {
         payoutCount: rows.length,
         total,
         landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        tenants: Array.from(tenantMap.values()).sort((a, b) => b.total - a.total),
         countryStats: [] as { country: string; count: number; total: number }[],
       };
     }
@@ -294,6 +322,7 @@ export function FundedTenantsList() {
         payoutCount: rows.length,
         total,
         landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        tenants: [] as { id: string; name: string; phone: string; payouts: number; total: number }[],
         countryStats: Array.from(countryMap.entries()).map(([country, v]) => ({ country, ...v })).sort((a, b) => b.total - a.total),
       };
     }
@@ -349,11 +378,21 @@ export function FundedTenantsList() {
     const parts: string[] = [];
     if (dateFilter === '7d') parts.push('last 7 days');
     else if (dateFilter === '30d') parts.push('last 30 days');
+    else if (dateFilter === 'month') parts.push(monthLabel(monthValue));
     else if (dateFilter === 'custom') parts.push(`last ${Math.max(1, customDays || 1)} days`);
     if (regionFilter) parts.push(regionFilter);
     else if (countryFilter !== 'all') parts.push(countryFilter);
     return parts.join(' · ');
-  }, [dateFilter, customDays, countryFilter, regionFilter]);
+  }, [dateFilter, customDays, monthValue, countryFilter, regionFilter]);
+
+  // Human-readable time period for the summary sentence.
+  const periodLabel = useMemo(() => {
+    if (dateFilter === 'month') return monthLabel(monthValue);
+    if (dateFilter === '7d') return 'the last 7 days';
+    if (dateFilter === '30d') return 'the last 30 days';
+    if (dateFilter === 'custom') return `the last ${Math.max(1, customDays || 1)} days`;
+    return 'all time';
+  }, [dateFilter, monthValue, customDays]);
 
   const scopeSlug = useMemo(() => {
     const slug = (s: string) =>
@@ -361,12 +400,13 @@ export function FundedTenantsList() {
     const parts: string[] = [];
     if (dateFilter === '7d') parts.push('last-7d');
     else if (dateFilter === '30d') parts.push('last-30d');
+    else if (dateFilter === 'month') parts.push(monthValue);
     else if (dateFilter === 'custom') parts.push(`last-${Math.max(1, customDays || 1)}d`);
     else parts.push('all-time');
     if (regionFilter) parts.push(slug(regionFilter));
     else if (countryFilter !== 'all') parts.push(slug(countryFilter));
     return parts.join('-');
-  }, [dateFilter, customDays, countryFilter, regionFilter]);
+  }, [dateFilter, customDays, monthValue, countryFilter, regionFilter]);
 
   const handleBulkPdf = async () => {
     if (!filtered.length) return;
@@ -634,9 +674,18 @@ export function FundedTenantsList() {
             <SelectItem value="all">All time</SelectItem>
             <SelectItem value="7d">Last 7 days</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="month">Specific month</SelectItem>
             <SelectItem value="custom">Custom…</SelectItem>
           </SelectContent>
         </Select>
+        {dateFilter === 'month' && (
+          <Input
+            type="month"
+            value={monthValue}
+            onChange={(e) => { setMonthValue(e.target.value || currentMonthValue()); setCountryFilter('all'); setRegionFilter(null); }}
+            className="h-8 w-[150px] text-xs"
+          />
+        )}
         {dateFilter === 'custom' && (
           <div className="inline-flex items-center gap-1.5">
             <Input
@@ -658,7 +707,7 @@ export function FundedTenantsList() {
             <Globe2 className="h-3.5 w-3.5" /> Countries funded
             {dateFilter !== 'all' && (
               <span className="normal-case font-normal text-muted-foreground">
-                · {dateFilter === '7d' ? 'last 7 days' : dateFilter === '30d' ? 'last 30 days' : `last ${customDays} days`}
+                · {periodLabel}
               </span>
             )}
           </div>
@@ -784,6 +833,18 @@ export function FundedTenantsList() {
 
       {drilldown && (
         <Card className="p-3 sm:p-4 border-primary/30 bg-primary/5">
+          {drilldown.type === 'country' && (
+            <div className="mb-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5">
+              <p className="text-sm leading-snug">
+                In <span className="font-semibold">{periodLabel}</span>, in{' '}
+                <span className="font-semibold">{drilldown.name}</span> we paid out{' '}
+                <span className="font-bold text-primary">{formatUGX(drilldown.total)}</span> to{' '}
+                <span className="font-semibold">{drilldown.tenantCount} tenants</span> across{' '}
+                <span className="font-semibold">{drilldown.landlordCount} landlords</span>
+                {' '}({drilldown.payoutCount} payouts).
+              </p>
+            </div>
+          )}
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 text-sm font-semibold">
@@ -819,7 +880,35 @@ export function FundedTenantsList() {
               ))}
             </div>
           )}
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          {drilldown.type === 'country' && drilldown.tenants.length > 0 && (
+            <div className="mt-3">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold mb-1.5">
+                Tenants paid ({drilldown.tenants.length})
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {drilldown.tenants.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setDrill({ tenantId: t.id, agentId: null, landlordId: null, tab: 'tenant' })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-background hover:bg-muted transition"
+                    title={`${t.payouts} payouts · ${formatUGX(t.total)}`}
+                  >
+                    <User className="h-3 w-3 text-primary" />
+                    <span className="font-medium truncate max-w-[160px]">{t.name}</span>
+                    <span className="text-muted-foreground">{formatUGX(t.total)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="mt-3">
+            {drilldown.type === 'country' && (
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold mb-1.5">
+                Landlords paid ({drilldown.landlords.length})
+              </div>
+            )}
+          <div className="flex flex-wrap gap-1.5">
             {drilldown.landlords.map((l) => (
               <button
                 key={l.id || l.name}
@@ -842,6 +931,7 @@ export function FundedTenantsList() {
                 </span>
               </button>
             ))}
+          </div>
           </div>
         </Card>
       )}
