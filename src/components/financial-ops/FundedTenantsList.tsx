@@ -262,10 +262,18 @@ export function FundedTenantsList() {
       const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
       const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
       const tenants = new Set<string>();
+      const tenantMap = new Map<string, { id: string; name: string; phone: string; payouts: number; total: number }>();
       let total = 0;
       rows.forEach((r) => {
         total += Number(r.amount || 0);
         if (r.tenant_id) tenants.add(r.tenant_id);
+        if (r.tenant_id) {
+          const tk = r.tenant_id;
+          const tc = tenantMap.get(tk) ?? { id: tk, name: r.tenant_profile?.full_name ?? 'Unallocated tenant', phone: r.landlord_phone ?? '', payouts: 0, total: 0 };
+          tc.payouts += 1;
+          tc.total += Number(r.amount || 0);
+          tenantMap.set(tk, tc);
+        }
         const key = r.landlord_id || r.landlord_name || 'unknown';
         const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
         cur.payouts += 1;
@@ -281,6 +289,7 @@ export function FundedTenantsList() {
         payoutCount: rows.length,
         total,
         landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        tenants: Array.from(tenantMap.values()).sort((a, b) => b.total - a.total),
         countryStats: [] as { country: string; count: number; total: number }[],
       };
     }
@@ -313,6 +322,7 @@ export function FundedTenantsList() {
         payoutCount: rows.length,
         total,
         landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        tenants: [] as { id: string; name: string; phone: string; payouts: number; total: number }[],
         countryStats: Array.from(countryMap.entries()).map(([country, v]) => ({ country, ...v })).sort((a, b) => b.total - a.total),
       };
     }
