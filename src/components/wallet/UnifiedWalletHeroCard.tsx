@@ -116,14 +116,14 @@ export function UnifiedWalletHeroCard({
             onClick={handleOpenWallet}
             className="w-full text-left active:scale-[0.98] transition-transform"
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Float section */}
-              <div className="bg-primary-foreground/15 rounded-xl p-3">
+              <div className="bg-primary-foreground/15 rounded-xl p-3 min-w-0">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <PiggyBank className="h-3 w-3 text-primary-foreground/50" />
                   <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Float</p>
                 </div>
-                <p className="text-lg font-black tracking-tight leading-none text-primary-foreground">
+                <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
                   {formatAmount(floatBalance ?? 0)}
                 </p>
                 <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">Tenant collections · Pay Rent</p>
@@ -132,12 +132,12 @@ export function UnifiedWalletHeroCard({
               {/* Withdrawable section — STRICT ledger-backed value only.
                   Must NEVER display commissionBalance here: commission is
                   earnings history, not necessarily currently withdrawable. */}
-              <div className="bg-primary-foreground/15 rounded-xl p-3">
+              <div className="bg-primary-foreground/15 rounded-xl p-3 min-w-0">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Coins className="h-3 w-3 text-emerald-400/70" />
                   <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-emerald-300/70">Withdrawable</p>
                 </div>
-                <p className="text-lg font-black tracking-tight leading-none text-primary-foreground">
+                <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
                   {formatAmount(withdrawableBalance ?? 0)}
                 </p>
                 <p className="text-[9px] text-emerald-300/50 mt-1 font-medium">
