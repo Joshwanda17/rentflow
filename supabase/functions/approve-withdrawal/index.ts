@@ -2586,7 +2586,8 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
-        merchant_reimbursed: merchantReimbursed,
+        merchant_reimbursed: merchantFloatConsumed,
+        merchant_float_consumed: merchantFloatConsumed,
         settled_available: settledAvailable,
       }),
       {
