@@ -109,6 +109,19 @@ const monthLabel = (value: string) => {
   return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 };
 
+// Rolling list of the last 24 months (newest first) for the month dropdown.
+const MONTH_OPTIONS: { value: string; label: string }[] = (() => {
+  const out: { value: string; label: string }[] = [];
+  const d = new Date();
+  d.setDate(1);
+  for (let i = 0; i < 24; i++) {
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    out.push({ value, label: monthLabel(value) });
+    d.setMonth(d.getMonth() - 1);
+  }
+  return out;
+})();
+
 
 const FUNDED_STATUSES = [
   'pending_finops_disbursement',
