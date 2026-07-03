@@ -1066,9 +1066,6 @@ export function AgentCashPayoutsTab() {
             <Coins className="h-4 w-4 text-emerald-600" />
             Commission Earned · 0.5% per payout
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Paid instantly into your withdrawable wallet for every payout you confirm.
-          </p>
           {/* Date range filter */}
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <Popover>
