@@ -850,14 +850,12 @@ export function AgentCashPayoutsTab() {
     },
     onSuccess: (data) => {
       const commission = Number(data?.cashout_commission || 0);
-      const reimbursed = Number(data?.merchant_reimbursed || 0);
+      const floatUsed = Number(data?.merchant_float_consumed ?? data?.merchant_reimbursed ?? 0);
       const baseMsg = `✅ Payout completed — ${formatUGX(data?.amount || 0)} sent`;
-      const credited = reimbursed + commission;
-      toast.success(
-        credited > 0
-          ? `${baseMsg} · ${formatUGX(credited)} added to your withdrawable wallet${reimbursed > 0 ? ` (${formatUGX(reimbursed)} reimbursed + ${formatUGX(commission)} commission)` : ` (0.5% commission)`}`
-          : baseMsg,
-      );
+      const parts: string[] = [];
+      if (floatUsed > 0) parts.push(`${formatUGX(floatUsed)} drawn from your float`);
+      if (commission > 0) parts.push(`${formatUGX(commission)} commission added to your withdrawable`);
+      toast.success(parts.length > 0 ? `${baseMsg} · ${parts.join(' · ')}` : baseMsg);
       invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
