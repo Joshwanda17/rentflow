@@ -215,9 +215,34 @@ export function MerchantFloatRequestsPanel() {
         <p className="text-sm text-muted-foreground">
           Merchant agents request more operational float here. Fund a request to send it straight to their Float bucket under <span className="font-semibold text-foreground">Agent Float Allocation</span>.
         </p>
+        {/* Tabs: pending queue vs allocated audit trail */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5">
+            <button
+              type="button"
+              onClick={() => setTab('pending')}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${tab === 'pending' ? 'bg-sky-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Pending {requests.length > 0 && `(${requests.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('allocated')}
+              className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold transition ${tab === 'allocated' ? 'bg-sky-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <History className="h-3.5 w-3.5" /> Allocated
+            </button>
+          </div>
+          {tab === 'allocated' && (
+            <Button size="sm" variant="outline" className="ml-auto gap-1.5" onClick={downloadPdf} disabled={downloading || allocations.length === 0}>
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Download PDF
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-2.5">
-        {isLoading ? (
+        {tab === 'pending' ? (
+          isLoading ? (
           <p className="text-sm text-muted-foreground">Loading requests…</p>
         ) : requests.length === 0 ? (
           <p className="text-sm text-muted-foreground">No pending float requests.</p>
@@ -247,6 +272,53 @@ export function MerchantFloatRequestsPanel() {
               </div>
             </div>
           ))
+          )
+        ) : (
+          <>
+            {/* Grand total + per-agent audit summary */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total float allocated</p>
+                <p className="text-xl font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(grandTotal)}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">{allocations.length} allocation{allocations.length === 1 ? '' : 's'} · {agentTotals.length} agent{agentTotals.length === 1 ? '' : 's'}</p>
+            </div>
+
+            {allocLoading ? (
+              <p className="text-sm text-muted-foreground">Loading allocations…</p>
+            ) : allocations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No float has been allocated yet.</p>
+            ) : (
+              <>
+                <p className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocated per merchant agent</p>
+                {agentTotals.map((b) => (
+                  <div key={b.agent + (b.phone || '')} className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{b.agent}</p>
+                      {b.phone && <p className="flex items-center gap-1 text-[11px] text-muted-foreground"><Phone className="h-3 w-3" /> {b.phone}</p>}
+                      <p className="text-[10px] text-muted-foreground">{b.count} allocation{b.count === 1 ? '' : 's'}</p>
+                    </div>
+                    <span className="shrink-0 text-base font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(b.total)}</span>
+                  </div>
+                ))}
+
+                <p className="pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocation records</p>
+                {allocations.map((a) => (
+                  <div key={a.id} className="rounded-lg border border-border/50 bg-card/60 px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-medium">{a.agent?.full_name || 'Merchant agent'}</p>
+                      <span className="shrink-0 text-sm font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(Number(a.requested_amount))}</span>
+                    </div>
+                    {a.reason && <p className="truncate text-xs text-muted-foreground">{a.reason}</p>}
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(a.approved_at || a.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {a.approver?.full_name ? ` · by ${a.approver.full_name}` : ''}
+                    </p>
+                  </div>
+                ))}
+              </>
+            )}
+          </>
         )}
       </CardContent>
 
