@@ -205,16 +205,23 @@ export function CashoutAgentManager() {
         .in('status', ['pending', 'requested', 'approved', 'manager_approved', 'cfo_approved']);
       if (countError) throw countError;
       if ((count || 0) > 0) {
-        throw new Error(`Cannot delete: ${count} active payout claim${count === 1 ? '' : 's'} still routed to this merchant. Reassign or complete them first.`);
+        throw new Error(`Cannot remove: ${count} active payout claim${count === 1 ? '' : 's'} still routed to this merchant. Reassign or complete them first.`);
       }
-      const { error } = await supabase.from('cashout_agents').delete().eq('id', agent.id);
+      // Soft-remove: keep the record and all history intact, only strip the
+      // Merchant Agent role by deactivating the cashout_agents row. Merchant
+      // status is derived solely from is_active (see useIsMerchantAgent).
+      const { error } = await supabase
+        .from('cashout_agents')
+        .update({ is_active: false })
+        .eq('id', agent.id);
       if (error) throw error;
       await supabase.from('audit_logs').insert({
         user_id: user!.id,
-        action_type: 'cfo_merchant_agent_deleted',
+        action_type: 'cfo_merchant_agent_role_removed',
         table_name: 'cashout_agents',
         record_id: agent.id,
         metadata: {
+          soft_removed: true,
           agent_name: agent.profiles?.full_name || agent.agent_id,
           label: agent.label,
           handles_cash: agent.handles_cash,
@@ -225,16 +232,17 @@ export function CashoutAgentManager() {
       });
     },
     onSuccess: () => {
-      toast({ title: '🗑️ Merchant Agent deleted', description: 'Record permanently removed.' });
+      toast({ title: '✅ Merchant role removed', description: 'The user keeps all their records — they are just no longer a Merchant Agent.' });
       qc.invalidateQueries({ queryKey: ['merchant-agents'] });
       qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims'] });
       qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims-rows'] });
+      qc.invalidateQueries({ queryKey: ['is-merchant-agent'] });
       if (selectedAgent && deleteAgent && selectedAgent.id === deleteAgent.id) {
         setSelectedAgent(null);
       }
       setDeleteAgent(null);
     },
-    onError: (e: any) => toast({ title: 'Delete failed', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Could not remove merchant role', description: e.message, variant: 'destructive' }),
   });
 
   // Release all stuck claims still routed to a merchant — unassigns them so the
