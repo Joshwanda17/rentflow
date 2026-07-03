@@ -178,6 +178,7 @@ export function MerchantFloatRequestsPanel() {
     onSuccess: () => {
       toast.success('Float sent to agent wallet');
       qc.invalidateQueries({ queryKey: ['cfo-float-requests'] });
+      qc.invalidateQueries({ queryKey: ['cfo-float-allocations'] });
       close();
     },
     onError: (e: any) => toast.error(e.message || 'Failed to send float'),
