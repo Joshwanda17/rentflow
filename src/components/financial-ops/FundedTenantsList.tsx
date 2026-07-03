@@ -77,9 +77,11 @@ const AFRICAN_COUNTRY_SET = new Set(AFRICA_REGIONS.flatMap((r) => r.countries));
 
 type Row = {
   id: string;
+  source_type?: 'payout' | 'allocation';
+  source_id?: string;
   agent_id: string;
   tenant_id: string | null;
-  landlord_id: string;
+  landlord_id: string | null;
   landlord_name: string;
   landlord_phone: string;
   mobile_money_provider: string;
@@ -94,9 +96,14 @@ type Row = {
   agent_profile?: { full_name: string | null; phone: string | null } | null;
   tenant_profile?: { full_name: string | null } | null;
   finops_disbursed_by: string | null;
+  allocation_applied_id?: string | null;
+  paid_out_amount?: number | null;
+  remaining_amount?: number | null;
   funder_profile?: { full_name: string | null } | null;
 };
 type DateFilter = 'all' | '7d' | '30d' | 'month' | 'custom';
+
+type DateRange = { start: Date; end: Date | null };
 
 const currentMonthValue = () => {
   const d = new Date();
@@ -131,6 +138,42 @@ const FUNDED_STATUSES = [
   'disbursed',
 ] as const;
 
+// Agent-landlord payouts are often completed by merchant agents just after
+// month-end even though the operational funding run belongs to the closing
+// month. Include the month-close grace window by default so the June report
+// matches Finance's operational total instead of only strict calendar-day rows.
+const MONTH_CLOSE_GRACE_DAYS = 7;
+
+const monthRangeForUganda = (value: string): DateRange | null => {
+  const [y, m] = value.split('-').map(Number);
+  if (!y || !m) return null;
+  // Reports are Uganda-first: month boundaries are Kampala time (UTC+3),
+  // not the browser/server local timezone.
+  return {
+    start: new Date(Date.UTC(y, m - 1, 1, -3, 0, 0, 0)),
+    end: new Date(Date.UTC(y, m, 1, -3, 0, 0, 0)),
+  };
+};
+
+const getEffectiveDate = (r: Row) => new Date(r.finops_disbursed_at ?? r.created_at);
+
+const addDays = (d: Date, days: number) => new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
+
+const isMonthLateSettlement = (r: Row, monthValue: string) => {
+  const month = monthRangeForUganda(monthValue);
+  if (!month?.end) return false;
+  const t = getEffectiveDate(r).getTime();
+  return t >= month.end.getTime() && t < addDays(month.end, MONTH_CLOSE_GRACE_DAYS).getTime();
+};
+
+const inRange = (iso: string | null | undefined, range: DateRange | null) => {
+  if (!range || !iso) return true;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return false;
+  if (t < range.start.getTime()) return false;
+  return !range.end || t < range.end.getTime();
+};
+
 function formatUGX(n: number) {
   return `UGX ${Number(n).toLocaleString()}`;
 }
@@ -160,10 +203,15 @@ export function FundedTenantsList() {
       // Compute the effective server-side date window so totals reflect ALL
       // payouts in the period — not just the 200 most-recent rows. The effective
       // payout date is finops_disbursed_at when present, else created_at.
-      let range: { start: Date; end: Date | null } | null = null;
+      let range: DateRange | null = null;
       if (dateFilter === 'month') {
-        const [y, m] = monthValue.split('-').map(Number);
-        if (y && m) range = { start: new Date(y, m - 1, 1), end: new Date(y, m, 1) };
+        const month = monthRangeForUganda(monthValue);
+        if (month?.end) {
+          range = {
+            start: month.start,
+            end: addDays(month.end, MONTH_CLOSE_GRACE_DAYS),
+          };
+        }
       } else if (dateFilter !== 'all') {
         const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
         range = { start: new Date(Date.now() - days * 24 * 60 * 60 * 1000), end: null };
@@ -257,19 +305,33 @@ export function FundedTenantsList() {
   const dateFiltered = useMemo(() => {
     if (dateFilter === 'all') return rows;
     if (dateFilter === 'month') {
-      const [y, m] = monthValue.split('-').map(Number);
-      return rows.filter((r) => {
-        const d = new Date(r.finops_disbursed_at ?? r.created_at);
-        return d.getFullYear() === y && d.getMonth() === m - 1;
-      });
+      const month = monthRangeForUganda(monthValue);
+      const range = month?.end
+        ? { start: month.start, end: addDays(month.end, MONTH_CLOSE_GRACE_DAYS) }
+        : null;
+      return rows.filter((r) => inRange((r.finops_disbursed_at ?? r.created_at), range));
     }
     const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
     return rows.filter((r) => {
-      const ts = new Date(r.finops_disbursed_at ?? r.created_at).getTime();
+      const ts = getEffectiveDate(r).getTime();
       return ts >= cutoff;
     });
   }, [rows, dateFilter, customDays, monthValue]);
+
+  const lateSettlementStats = useMemo(() => {
+    if (dateFilter !== 'month') return { count: 0, total: 0 };
+    return dateFiltered.reduce(
+      (acc, r) => {
+        if (isMonthLateSettlement(r, monthValue)) {
+          acc.count += 1;
+          acc.total += Number(r.amount || 0);
+        }
+        return acc;
+      },
+      { count: 0, total: 0 },
+    );
+  }, [dateFiltered, dateFilter, monthValue]);
 
   const countryStats = useMemo(() => {
     const m = new Map<string, { count: number; total: number }>();
@@ -310,7 +372,7 @@ export function FundedTenantsList() {
   const drilldown = useMemo(() => {
     if (countryFilter !== 'all') {
       const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
-      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const landlords = new Map<string, { id: string | null; name: string; tenants: Set<string>; payouts: number; total: number }>();
       const tenants = new Set<string>();
       const tenantMap = new Map<string, { id: string; name: string; phone: string; payouts: number; total: number }>();
       let total = 0;
@@ -346,7 +408,7 @@ export function FundedTenantsList() {
     if (regionFilter) {
       const regionCountries = new Set(AFRICA_REGIONS.find((g) => g.region === regionFilter)?.countries || []);
       const rows = dateFiltered.filter((r) => regionCountries.has(r.country?.trim() || ''));
-      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const landlords = new Map<string, { id: string | null; name: string; tenants: Set<string>; payouts: number; total: number }>();
       const tenants = new Set<string>();
       const countryMap = new Map<string, { count: number; total: number }>();
       let total = 0;
@@ -428,7 +490,7 @@ export function FundedTenantsList() {
     const parts: string[] = [];
     if (dateFilter === '7d') parts.push('last 7 days');
     else if (dateFilter === '30d') parts.push('last 30 days');
-    else if (dateFilter === 'month') parts.push(monthLabel(monthValue));
+    else if (dateFilter === 'month') parts.push(`${monthLabel(monthValue)} + month-close settlements`);
     else if (dateFilter === 'custom') parts.push(`last ${Math.max(1, customDays || 1)} days`);
     if (regionFilter) parts.push(regionFilter);
     else if (countryFilter !== 'all') parts.push(countryFilter);
@@ -437,7 +499,7 @@ export function FundedTenantsList() {
 
   // Human-readable time period for the summary sentence.
   const periodLabel = useMemo(() => {
-    if (dateFilter === 'month') return monthLabel(monthValue);
+    if (dateFilter === 'month') return `${monthLabel(monthValue)} including month-close settlements`;
     if (dateFilter === '7d') return 'the last 7 days';
     if (dateFilter === '30d') return 'the last 30 days';
     if (dateFilter === 'custom') return `the last ${Math.max(1, customDays || 1)} days`;
@@ -758,6 +820,13 @@ export function FundedTenantsList() {
         )}
       </div>
 
+      {dateFilter === 'month' && lateSettlementStats.count > 0 && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Month report includes {lateSettlementStats.count} month-close settlements worth{' '}
+          <span className="font-bold">{formatUGX(lateSettlementStats.total)}</span> that were paid shortly after month end but belong to this operational payout cycle.
+        </div>
+      )}
+
       {countryStats.length > 0 && (
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
@@ -1071,6 +1140,11 @@ export function FundedTenantsList() {
                     ) : (
                       <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
                         Awaiting receipt
+                      </Badge>
+                    )}
+                    {dateFilter === 'month' && isMonthLateSettlement(r, monthValue) && (
+                      <Badge className="text-[10px] bg-amber-100 text-amber-800 border-amber-200">
+                        Month-close settlement
                       </Badge>
                     )}
                   </div>
