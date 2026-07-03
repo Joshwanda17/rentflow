@@ -727,6 +727,7 @@ export function AgentCashPayoutsTab() {
         if (newRow?.processed_by === user?.id && newRow?.status === 'completed') {
           qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
           qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
+          qc.invalidateQueries({ queryKey: ['cashout-agent-lifetime-commission'] });
           qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
         }
         if (payload.eventType === 'INSERT') {
@@ -874,6 +875,7 @@ export function AgentCashPayoutsTab() {
       invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-lifetime-commission'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -957,6 +959,7 @@ export function AgentCashPayoutsTab() {
       invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-lifetime-commission'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
     },
     onError: (e: any) => toast.error(e.message),
