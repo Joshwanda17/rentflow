@@ -127,6 +127,25 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
   const [downloading, setDownloading] = useState(false);
   const [togglingReinvest, setTogglingReinvest] = useState(false);
   const [localAutoReinvest, setLocalAutoReinvest] = useState<boolean | null>(null);
+  const [pendingTopup, setPendingTopup] = useState(0);
+
+  useEffect(() => {
+    if (!open || !portfolio?.id) { setPendingTopup(0); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('pending_wallet_operations')
+        .select('amount')
+        .eq('source_table', 'investor_portfolios')
+        .eq('operation_type', 'portfolio_topup')
+        .eq('source_id', portfolio.id)
+        .in('status', ['approved', 'awaiting_verification']);
+      if (cancelled) return;
+      const total = (data || []).reduce((s: number, op: any) => s + Number(op.amount || 0), 0);
+      setPendingTopup(total);
+    })();
+    return () => { cancelled = true; };
+  }, [open, portfolio?.id]);
 
   if (!portfolio) return null;
   const amount = Number(portfolio.investment_amount);
