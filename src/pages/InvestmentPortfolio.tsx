@@ -316,7 +316,7 @@ export default function InvestmentPortfolio() {
                             <span className="text-xs">{getStatusEmoji(account.status)}</span>
                             {(account.pendingTopup ?? 0) > 0 && (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-warning/15 border border-warning/20 text-[10px] font-bold text-warning shrink-0">
-                                ⏳ +{formatAmount(account.pendingTopup!)} pending
+                                ⏳ {formatAmount(account.pendingTopup!)} being added
                               </span>
                             )}
                           </div>
@@ -328,6 +328,16 @@ export default function InvestmentPortfolio() {
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-1" />
                   </div>
+
+                  {/* Human-readable pending top-up note */}
+                  {(account.pendingTopup ?? 0) > 0 && (
+                    <div className="flex items-start gap-2 mb-3 rounded-xl bg-warning/10 border border-warning/20 p-2.5">
+                      <span className="text-sm leading-none mt-0.5">⏳</span>
+                      <p className="text-[11px] leading-snug text-foreground/80">
+                        <span className="font-bold text-warning">{formatAmount(account.pendingTopup!)}</span> top-up is on the way. It will be added to this portfolio&apos;s balance right after your next returns payout, so it starts earning too.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Balance — Big & Bold */}
                   <div className="bg-muted/30 rounded-xl p-3 mb-3">
