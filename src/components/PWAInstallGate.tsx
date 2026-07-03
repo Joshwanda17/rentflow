@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { usePWAInstall, globalDeferredPrompt } from '@/hooks/usePWAInstall';
+import { detectStandalone, isInIframe, isPreviewHost, markInstalled } from '@/lib/pwaStandalone';
 import welileLogo from '@/assets/welile-logo.png';
 
 export default function PWAInstallGate({ children }: { children: React.ReactNode }) {
@@ -20,27 +21,12 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const tapLockRef = useRef(0);
 
   useEffect(() => {
-    const inIframe = (() => {
-      try {
-        return window.self !== window.top;
-      } catch {
-        return true;
-      }
-    })();
-
-    const isPreview = window.location.hostname.includes('id-preview--')
-      || window.location.hostname.includes('lovableproject.com')
-      || window.location.hostname === 'localhost';
-
-    if (inIframe || isPreview) {
+    if (isInIframe() || isPreviewHost()) {
       setIsStandalone(true);
       return;
     }
 
-    const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
-      || localStorage.getItem('welile_pwa_installed') === 'true';
-    setIsStandalone(standalone);
+    setIsStandalone(detectStandalone());
 
     // HARD LOCK: there is no "continue in browser" escape hatch anymore. Every
     // user on every device must install Welile before reaching the dashboard.
@@ -67,22 +53,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   // launched, or display-mode flips), drop the gate without waiting for a
   // reload. Covers browsers where `appinstalled` is unreliable or delayed.
   useEffect(() => {
-    const inIframe = (() => {
-      try {
-        return window.self !== window.top;
-      } catch {
-        return true;
-      }
-    })();
-    const isPreview = window.location.hostname.includes('id-preview--')
-      || window.location.hostname.includes('lovableproject.com')
-      || window.location.hostname === 'localhost';
-    if (inIframe || isPreview) return;
-
-    const detectStandalone = () =>
-      window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
-      || localStorage.getItem('welile_pwa_installed') === 'true';
+    if (isInIframe() || isPreviewHost()) return;
 
     const recheck = () => {
       if (detectStandalone()) {
@@ -91,24 +62,37 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
       }
     };
 
-    const mq = window.matchMedia('(display-mode: standalone)');
+    // Watch every display-mode that can indicate an installed launch.
+    const queries = [
+      '(display-mode: standalone)',
+      '(display-mode: fullscreen)',
+      '(display-mode: minimal-ui)',
+      '(display-mode: window-controls-overlay)',
+    ];
     const onMediaChange = () => recheck();
-    // addEventListener is the modern API; addListener is the Safari fallback.
-    if (mq.addEventListener) mq.addEventListener('change', onMediaChange);
-    else mq.addListener?.(onMediaChange);
+    const mqls = queries.map((q) => window.matchMedia(q));
+    mqls.forEach((mq) => {
+      // addEventListener is the modern API; addListener is the Safari fallback.
+      if (mq.addEventListener) mq.addEventListener('change', onMediaChange);
+      else mq.addListener?.(onMediaChange);
+    });
 
     document.addEventListener('visibilitychange', recheck);
     window.addEventListener('focus', recheck);
+    window.addEventListener('pageshow', recheck);
 
     // Fast poll for a short window right after an install attempt so the gate
     // disappears within a fraction of a second even without an event.
     const interval = window.setInterval(recheck, 800);
 
     return () => {
-      if (mq.removeEventListener) mq.removeEventListener('change', onMediaChange);
-      else mq.removeListener?.(onMediaChange);
+      mqls.forEach((mq) => {
+        if (mq.removeEventListener) mq.removeEventListener('change', onMediaChange);
+        else mq.removeListener?.(onMediaChange);
+      });
       document.removeEventListener('visibilitychange', recheck);
       window.removeEventListener('focus', recheck);
+      window.removeEventListener('pageshow', recheck);
       window.clearInterval(interval);
     };
   }, []);
