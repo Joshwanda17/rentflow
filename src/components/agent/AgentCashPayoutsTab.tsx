@@ -1066,6 +1066,9 @@ export function AgentCashPayoutsTab() {
         </div>
       </section>
 
+      {/* Float balance + requisition to CFO */}
+      <MerchantFloatRequestCard />
+
       {/* Commission breakdown — totals by date for all approved payouts */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
         <CardHeader className="pb-3">
