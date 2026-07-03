@@ -1611,7 +1611,6 @@ export function AgentCashPayoutsTab() {
                   const name = isLandlordPayout
                     ? (w.mobile_money_name || 'Landlord')
                     : (w.profiles?.full_name || 'Unknown');
-                  const phone = getRecipientPhone(w);
                   return (
                     <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
                       <CardContent className="p-4 space-y-3.5">
@@ -1634,7 +1633,7 @@ export function AgentCashPayoutsTab() {
                               )}
                               <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <Phone className="h-3.5 w-3.5" />
-                                <span className="font-mono">{phone}</span>
+                                <span className="font-mono italic">Hidden until claimed</span>
                               </p>
                               <p className="mt-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">{methodLabel} · pending</p>
                             </div>
