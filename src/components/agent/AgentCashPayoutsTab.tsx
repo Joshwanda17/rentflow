@@ -1574,7 +1574,7 @@ export function AgentCashPayoutsTab() {
           )}
         </div>
 
-        <Tabs value={channelTab} onValueChange={(v) => setChannelTab(v as 'all' | 'momo' | 'cash')}>
+        <Tabs value={channelTab} onValueChange={(v) => setChannelTab(v as 'all' | 'momo' | 'cash' | 'bank')}>
         <TabsList className="w-full h-12 p-1">
           <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm h-10">
             <Wallet className="h-4 w-4" /> All
@@ -1588,9 +1588,13 @@ export function AgentCashPayoutsTab() {
             <Banknote className="h-4 w-4" /> Cash
             {channelCounts.cash > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.cash}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="bank" className="flex-1 gap-1.5 text-sm h-10">
+            <Landmark className="h-4 w-4" /> Bank
+            {channelCounts.bank > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.bank}</Badge>}
+          </TabsTrigger>
         </TabsList>
 
-        {(['all', 'momo', 'cash'] as const).map(tab => {
+        {(['all', 'momo', 'cash', 'bank'] as const).map(tab => {
           // Only the active tab fetches; the page query is keyed by `channelTab`.
           const items = tab === channelTab ? pageRows : [];
           const emptyMsg = queueFiltersActive
