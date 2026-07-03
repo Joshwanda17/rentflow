@@ -382,9 +382,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                 <HistoryIcon className="h-6 w-6 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-foreground">My advance history</p>
+                <p className="text-base font-bold text-foreground">How my advances are performing</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                  See every advance you've ever taken and how each one was paid back.
+                  Track every advance you've taken — repayment progress, what's on track and what's behind.
                 </p>
                 <p className="text-[11px] font-semibold text-primary mt-1">
                   {issuedLoading ? 'Loading…' : `${issuedAdvances.length} advance${issuedAdvances.length === 1 ? '' : 's'} taken`}
