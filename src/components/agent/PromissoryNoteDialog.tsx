@@ -9,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { generatePromissoryNotePDF } from '@/lib/promissoryNotePdf';
 
 interface PromissoryNoteDialogProps {
   open: boolean;
@@ -88,53 +87,6 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     }
   };
 
-  const handleSharePDF = async () => {
-    if (!createdNote) return;
-    try {
-      toast.info('Generating PDF...');
-      const { createShortLink } = await import('@/lib/createShortLink');
-      const userId = (await import('@/integrations/supabase/client')).supabase.auth.getUser().then(r => r.data.user?.id);
-      let activationLink = `${getPublicOrigin()}/activate?token=${createdNote.activation_token}`;
-      try {
-        const uid = await userId;
-        if (uid) {
-          activationLink = await createShortLink(uid, '/activate', { token: createdNote.activation_token });
-        }
-      } catch {}
-      const pdfBlob = await generatePromissoryNotePDF({
-        partnerName,
-        amount: Number(amount),
-        contributionType,
-        deductionDay: contributionType === 'monthly' ? Number(deductionDay) : undefined,
-        activationLink,
-        createdAt: createdNote.created_at,
-        email: email.trim() || undefined,
-        whatsappNumber: whatsappNumber.trim() || undefined,
-        phoneNumber: phoneNumber.trim() || undefined,
-      });
-
-      const file = new File([pdfBlob], `Welile_Note_${partnerName.replace(/\s+/g, '_')}.pdf`, { type: 'application/pdf' });
-
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: 'Welile Investment Promissory Note',
-          text: `🤝 Hi ${partnerName}, here is your Welile Investment Promissory Note. Activate your account and start earning 15% returns!`,
-          files: [file],
-        });
-      } else {
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success('PDF downloaded!');
-      }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') toast.error('Failed to generate PDF');
-    }
-  };
-
   const handleShareLink = async () => {
     if (!createdNote) return;
     let activationLink = `${getPublicOrigin()}/activate?token=${createdNote.activation_token}`;
@@ -177,9 +129,6 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
               </p>
             </div>
             <div className="grid gap-2">
-              <Button onClick={handleSharePDF} className="gap-2 bg-primary hover:bg-primary/90">
-                <FileText className="h-4 w-4" /> Share Branded PDF
-              </Button>
               <Button variant="outline" onClick={handleShareLink} className="gap-2">
                 <Share2 className="h-4 w-4" /> Share Activation Link
               </Button>
