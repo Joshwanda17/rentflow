@@ -1171,8 +1171,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
         )}
 
-        {/* === TENANTS TAB === Clean tenant list with big tap targets */}
-        {activeTab === 'tenants' && (
+        {/* === TENANTS TAB === Clean tenant list with big tap targets.
+            Never rendered for Merchant Agents (tenant operations disabled). */}
+        {activeTab === 'tenants' && !isMerchant && (
           <div className={cn("space-y-4 pb-24", tabAnimClass)}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">My Tenants</h2>
