@@ -27,6 +27,16 @@ interface DemandRow {
   created_at: string;
 }
 
+interface NetworkStatus {
+  is_merchant: boolean;
+  total_demand: number;
+  network_float: number;
+  pending_requested: number;
+  active_merchants: number;
+  net_gap: number;
+  fair_share: number;
+}
+
 const CHANNEL_META: Record<DemandChannel, { label: string; icon: typeof Smartphone; tone: string }> = {
   mtn: { label: 'MTN MoMo', icon: Smartphone, tone: 'text-amber-600' },
   airtel: { label: 'Airtel Money', icon: Smartphone, tone: 'text-red-600' },
