@@ -418,7 +418,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // lazily inside the swipe callbacks because `isCashoutAgent` resolves later.
   const getTabOrder = (): AgentHubTab[] =>
     isCashoutAgent
-      ? ['home', 'money', 'grow', 'subagents']
+      ? ['home']
       : ['home', 'money', 'tenants', 'grow', 'subagents'];
   const swipeHandlers = useHorizontalSwipe({
     onSwipeLeft: () => {
@@ -535,6 +535,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     import('sonner').then(({ toast }) => toast.error(MERCHANT_RESTRICTION_MESSAGE));
     return true;
   };
+
+  // Merchant Agents are locked to the Home tab. If the active tab ever lands on
+  // an operational section (e.g. it was set before the role resolved), snap back.
+  useEffect(() => {
+    if (isMerchant && activeTab !== 'home') {
+      setSlideDirection(null);
+      setActiveTab('home');
+    }
+  }, [isMerchant, activeTab]);
 
   // Live "updated …" indicator for the Merchant Payouts earnings total.
   // Re-render every 15s so the relative timestamp stays fresh.
@@ -842,6 +851,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             active={activeTab}
             restricted={isMerchant}
             onChange={(tab) => {
+              // Merchant Agents are locked to Home only.
+              if (isMerchant && tab !== 'home') { guardMerchant(); return; }
               // Tapping the "Sub Agents" icon opens the full team analytics page
               // rather than the inline panel.
               if (tab === 'subagents') { navigate('/sub-agents'); return; }
