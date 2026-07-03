@@ -1320,6 +1320,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Merchant-agent FLOAT pre-check (Float model, 2026) ────────────────
+    // Merchant agents settle customer cash-outs from COMPANY FLOAT that the
+    // CFO/treasury pre-loaded into their float bucket — they no longer front
+    // their own cash for a withdrawable reimbursement. Block the claim up-front
+    // (before any debit) if the merchant does not hold enough float, so we
+    // never process a payout the merchant can't cover.
+    let merchantFloatAvailable = 0;
+    if (
+      actingAsMerchant &&
+      !isProxyPayout &&
+      !poolFunded &&
+      user.id !== fundingUserId &&
+      amount > 0
+    ) {
+      const { data: merchantWallet } = await admin
+        .from("wallets")
+        .select("float_balance")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      merchantFloatAvailable = Number((merchantWallet as any)?.float_balance ?? 0);
+      if (merchantFloatAvailable < amount) {
+        const floatMsg =
+          `Insufficient merchant float. You hold UGX ${Math.round(merchantFloatAvailable).toLocaleString()} ` +
+          `but this payout needs UGX ${amount.toLocaleString()}. Ask the CFO/treasury to top up your float before claiming.`;
+        await auditFailedWithdrawalAttempt(floatMsg, "INSUFFICIENT_MERCHANT_FLOAT");
+        await releaseClaim();
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: floatMsg,
+            code: "INSUFFICIENT_MERCHANT_FLOAT",
+            float_available: Math.round(merchantFloatAvailable),
+            requested: amount,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Get beneficiary profile for audit / notifications
     const { data: profile } = await admin
       .from("profiles")
@@ -1876,16 +1915,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Merchant-agent principal reimbursement ───────────────────────────
-    // A merchant agent pays the withdrawing user out of their OWN MTN/Airtel
-    // float when settling a cash payout. Welile therefore reimburses the
-    // merchant by crediting the EXACT payout amount into the merchant's own
-    // withdrawable wallet (company funds out → merchant wallet in). Net effect
-    // across both ledger transactions: the principal moves from the
-    // withdrawing user's withdrawable bucket into the merchant's withdrawable
-    // bucket. Only for standard cash payouts settled by a cashout agent — never
-    // for proxy/pool payouts, and never when the merchant is the requester.
-    let merchantReimbursed = 0;
+    // ── Merchant-agent FLOAT consumption (Float model, 2026) ─────────────
+    // Merchant agents no longer front their own cash for a withdrawable
+    // reimbursement. They hold COMPANY FLOAT (pre-loaded by CFO/treasury) and
+    // every cash payout they settle draws the principal DOWN from their float
+    // bucket. Net effect: the withdrawing user's withdrawable liability is
+    // discharged against the company float the merchant was holding — nothing
+    // ever lands in the merchant's withdrawable. Float sufficiency was already
+    // verified up-front; the DB non-negative constraint is the hard backstop.
+    // Only for standard cash payouts settled by a cashout agent — never for
+    // proxy/pool payouts, and never when the merchant is the requester.
+    let merchantFloatConsumed = 0;
     if (
       actingAsMerchant &&
       !isProxyPayout &&
@@ -1895,33 +1935,33 @@ Deno.serve(async (req) => {
     ) {
       try {
         const txDate = new Date().toISOString();
-        const { error: reimbErr } = await admin.rpc("create_ledger_transaction", {
+        const { error: floatErr } = await admin.rpc("create_ledger_transaction", {
           entries: [
             {
-              user_id: user.id, ledger_scope: "platform", direction: "cash_out",
-              amount, category: "wallet_withdrawal",
+              user_id: user.id, ledger_scope: "wallet", direction: "cash_out",
+              amount, category: "agent_float_settlement",
+              recipient_type: "operational_wallet", wallet_bucket: "float",
               source_table: "withdrawal_requests", source_id: withdrawal_id,
-              description: `Merchant cash-out reimbursement (principal) for withdrawal ${withdrawal_id}`,
-              currency: "UGX", reference_id: `${withdrawal_id}-merchant-reimbursement`, transaction_date: txDate,
+              description: `Company float used to settle customer cash-out ${withdrawal_id}`,
+              currency: "UGX", reference_id: `${withdrawal_id}-merchant-float-consume`, transaction_date: txDate,
             },
             {
-              user_id: user.id, ledger_scope: "wallet", direction: "cash_in",
-              amount, category: "wallet_withdrawal",
-              recipient_type: "user", wallet_bucket: "withdrawable",
+              user_id: user.id, ledger_scope: "platform", direction: "cash_in",
+              amount, category: "agent_float_settlement",
               source_table: "withdrawal_requests", source_id: withdrawal_id,
-              description: `Reimbursement for cash you paid the customer (withdrawal ${withdrawal_id})`,
-              currency: "UGX", reference_id: `${withdrawal_id}-merchant-reimbursement`, transaction_date: txDate,
+              description: `Merchant float settled to customer for withdrawal ${withdrawal_id}`,
+              currency: "UGX", reference_id: `${withdrawal_id}-merchant-float-consume`, transaction_date: txDate,
             },
           ],
-          idempotency_key: `approve-withdrawal-merchant-reimbursement-${withdrawal_id}`,
+          idempotency_key: `approve-withdrawal-merchant-float-consume-${withdrawal_id}`,
         });
-        if (reimbErr) {
-          console.error("[approve-withdrawal] Merchant reimbursement RPC error:", reimbErr);
+        if (floatErr) {
+          console.error("[approve-withdrawal] Merchant float consume RPC error:", floatErr);
         } else {
-          merchantReimbursed = amount;
+          merchantFloatConsumed = amount;
         }
       } catch (e) {
-        console.error("[approve-withdrawal] Merchant reimbursement exception:", e);
+        console.error("[approve-withdrawal] Merchant float consume exception:", e);
       }
     }
 
@@ -2546,7 +2586,8 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
-        merchant_reimbursed: merchantReimbursed,
+        merchant_reimbursed: merchantFloatConsumed,
+        merchant_float_consumed: merchantFloatConsumed,
         settled_available: settledAvailable,
       }),
       {
