@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from '@/components/ui/dialog';
-import { Landmark, Loader2, PlusCircle, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Landmark, Loader2, PlusCircle, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -26,19 +26,14 @@ interface FloatRequestRow {
   approved_at: string | null;
 }
 
-const STATUS_META: Record<string, { label: string; icon: typeof Clock; className: string }> = {
-  pending: { label: 'Awaiting CFO', icon: Clock, className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30' },
-  approved: { label: 'Float sent', icon: CheckCircle2, className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' },
-  fulfilled: { label: 'Float sent', icon: CheckCircle2, className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' },
-  rejected: { label: 'Rejected', icon: XCircle, className: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30' },
-};
+const LOW_FLOAT_THRESHOLD = 100_000;
 
 /**
- * Merchant-agent float requisition card.
- * A merchant agent pays cash-outs from their FLOAT bucket. When that float
- * runs low they raise a requisition here — it lands in the CFO's "Pay to
- * Wallet" queue, where the CFO fulfils it using the "Agent Float Allocation"
- * category (recipient_type = operational_wallet → Float bucket).
+ * Compact single "Available Float" card. A merchant agent pays cash-outs from
+ * their FLOAT bucket. When that float drops below UGX 100,000 a "Request float"
+ * button appears — it lands in the CFO's "Pay to Wallet" queue, where the CFO
+ * fulfils it using the "Agent Float Allocation" category
+ * (recipient_type = operational_wallet → Float bucket).
  */
 export function MerchantFloatRequestCard() {
   const { user } = useAuth();
@@ -66,6 +61,8 @@ export function MerchantFloatRequestCard() {
   });
 
   const hasPending = requests.some((r) => r.status === 'pending');
+  const isLow = !balanceLoading && floatBalance < LOW_FLOAT_THRESHOLD;
+  const showRequest = isLow || hasPending;
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -93,26 +90,46 @@ export function MerchantFloatRequestCard() {
   });
 
   return (
-    <Card className="rounded-2xl border-sky-500/20 bg-gradient-to-br from-sky-500/5 to-transparent">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          <Landmark className="h-4 w-4 text-sky-600" />
-          Operational Float
-        </CardTitle>
-        <div className="mt-1 flex items-end justify-between gap-3">
-          <div>
-            <p className="text-[11px] text-muted-foreground">Available to pay cash-outs</p>
-            <p className="text-2xl font-bold tabular-nums text-sky-700 dark:text-sky-400">
-              {balanceLoading ? '—' : formatUGX(floatBalance)}
-            </p>
-          </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5" disabled={hasPending}>
-                <PlusCircle className="h-4 w-4" />
-                {hasPending ? 'Request pending' : 'Request float'}
-              </Button>
-            </DialogTrigger>
+    <Card
+      className={cn(
+        'flex items-center justify-between gap-3 rounded-2xl border p-3.5',
+        isLow
+          ? 'border-amber-500/30 bg-amber-500/5'
+          : 'border-sky-500/20 bg-gradient-to-br from-sky-500/5 to-transparent',
+      )}
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <Landmark className="h-3.5 w-3.5 text-sky-600" /> Available Float
+        </div>
+        <p
+          className={cn(
+            'mt-1 text-2xl font-bold leading-tight tabular-nums',
+            isLow ? 'text-amber-700 dark:text-amber-400' : 'text-sky-700 dark:text-sky-400',
+          )}
+        >
+          {balanceLoading ? '—' : formatUGX(floatBalance)}
+        </p>
+        {isLow && (
+          <p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="h-3 w-3" /> Low float — request a top-up to keep paying
+          </p>
+        )}
+        {hasPending && (
+          <Badge variant="outline" className="mt-1 gap-1 border-amber-500/30 bg-amber-500/15 text-[10px] text-amber-700 dark:text-amber-400">
+            <Clock className="h-3 w-3" /> Request awaiting CFO
+          </Badge>
+        )}
+      </div>
+
+      {showRequest && (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="shrink-0 gap-1.5" disabled={hasPending}>
+              <PlusCircle className="h-4 w-4" />
+              {hasPending ? 'Pending' : 'Request float'}
+            </Button>
+          </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -154,38 +171,8 @@ export function MerchantFloatRequestCard() {
                 </Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {isLoading ? (
-          <p className="text-xs text-muted-foreground">Loading your requests…</p>
-        ) : requests.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No float requests yet.</p>
-        ) : (
-          requests.map((r) => {
-            const meta = STATUS_META[r.status] ?? STATUS_META.pending;
-            const Icon = meta.icon;
-            return (
-              <div key={r.id} className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-card/50 p-2.5">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold tabular-nums">{formatUGX(Number(r.requested_amount))}</p>
-                  {r.reason && <p className="truncate text-[11px] text-muted-foreground">{r.reason}</p>}
-                  {r.status === 'rejected' && r.rejection_reason && (
-                    <p className="text-[11px] text-red-600 dark:text-red-400">Reason: {r.rejection_reason}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(r.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-                <Badge variant="outline" className={cn('shrink-0 gap-1 text-[10px]', meta.className)}>
-                  <Icon className="h-3 w-3" /> {meta.label}
-                </Badge>
-              </div>
-            );
-          })
-        )}
-      </CardContent>
+        </Dialog>
+      )}
     </Card>
   );
 }
