@@ -68,7 +68,7 @@ export function MerchantFloatDemandCard() {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('amount, payout_method, mobile_money_provider, mobile_money_number, reason, assigned_cashout_agent_id, dispatched_at')
+        .select('amount, payout_method, mobile_money_provider, mobile_money_number, reason, created_at, assigned_cashout_agent_id, dispatched_at')
         .in('status', DEMAND_STATUSES)
         // Available to pay = unclaimed OR a claim that has already expired.
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`)
