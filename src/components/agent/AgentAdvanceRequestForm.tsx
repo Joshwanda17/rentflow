@@ -521,8 +521,85 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                     <p className="text-[11px] text-muted-foreground mt-0.5">Every advance received & repayment</p>
                   </div>
                 </div>
+
+                {/* Filters: search, type, date range */}
+                <div className="space-y-2 mb-3">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={txSearch}
+                      onChange={(e) => setTxSearch(e.target.value)}
+                      placeholder="Search amount, date or type…"
+                      className="h-9 pl-8 pr-8 text-xs"
+                    />
+                    {txSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setTxSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(['all', 'in', 'out'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTxType(t)}
+                        className={cn(
+                          'rounded-full px-3 py-1 text-[11px] font-semibold transition-colors',
+                          txType === t ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {t === 'all' ? 'All' : t === 'in' ? 'Cash in' : 'Cash out'}
+                      </button>
+                    ))}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn('h-7 gap-1 text-[11px] px-2', !txDateFrom && 'text-muted-foreground')}>
+                          <CalendarIcon className="h-3 w-3" />
+                          {txDateFrom ? format(txDateFrom, 'dd MMM') : 'From'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={txDateFrom} onSelect={setTxDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn('h-7 gap-1 text-[11px] px-2', !txDateTo && 'text-muted-foreground')}>
+                          <CalendarIcon className="h-3 w-3" />
+                          {txDateTo ? format(txDateTo, 'dd MMM') : 'To'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={txDateTo} onSelect={setTxDateTo} initialFocus className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                    {txFilterActive && (
+                      <button
+                        type="button"
+                        onClick={() => { setTxSearch(''); setTxDateFrom(undefined); setTxDateTo(undefined); setTxType('all'); }}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" /> Clear
+                      </button>
+                    )}
+                  </div>
+                  {txFilterActive && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Showing {filteredTxHistory.length} of {txHistory.length} transactions
+                    </p>
+                  )}
+                </div>
+
+                {filteredTxHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No transactions match your filters.</p>
+                ) : (
                 <div className="divide-y divide-border/50">
-                  {txHistory.map((tx) => (
+                  {filteredTxHistory.map((tx) => (
                     <div key={tx.key} className="flex items-center gap-3 py-2.5">
                       <div className={cn(
                         'rounded-full p-1.5 shrink-0',
@@ -548,6 +625,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             )}
 
