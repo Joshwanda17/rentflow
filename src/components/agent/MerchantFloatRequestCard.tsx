@@ -44,7 +44,7 @@ export function MerchantFloatRequestCard() {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [] } = useQuery({
     queryKey: ['my-float-requests', user?.id],
     enabled: !!user?.id,
     queryFn: async (): Promise<FloatRequestRow[]> => {
