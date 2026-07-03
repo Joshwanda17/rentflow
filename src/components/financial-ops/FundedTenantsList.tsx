@@ -169,35 +169,44 @@ export function FundedTenantsList() {
         range = { start: new Date(Date.now() - days * 24 * 60 * 60 * 1000), end: null };
       }
 
-      let query = supabase
-        .from('landlord_payouts')
-        .select(
-          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_disbursed_by, finops_momo_reference, external_reference, created_at, rent_request_id',
-        )
-        .in('status', FUNDED_STATUSES as unknown as string[]);
-
-      if (range) {
-        const s = range.start.toISOString();
-        if (range.end) {
-          const e = range.end.toISOString();
-          query = query.or(
-            `and(finops_disbursed_at.gte.${s},finops_disbursed_at.lt.${e}),and(finops_disbursed_at.is.null,created_at.gte.${s},created_at.lt.${e})`,
-          );
-        } else {
-          query = query.or(
-            `finops_disbursed_at.gte.${s},and(finops_disbursed_at.is.null,created_at.gte.${s})`,
-          );
+      const buildQuery = () => {
+        let q = supabase
+          .from('landlord_payouts')
+          .select(
+            'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_disbursed_by, finops_momo_reference, external_reference, created_at, rent_request_id',
+          )
+          .in('status', FUNDED_STATUSES as unknown as string[]);
+        if (range) {
+          const s = range.start.toISOString();
+          if (range.end) {
+            const e = range.end.toISOString();
+            q = q.or(
+              `and(finops_disbursed_at.gte.${s},finops_disbursed_at.lt.${e}),and(finops_disbursed_at.is.null,created_at.gte.${s},created_at.lt.${e})`,
+            );
+          } else {
+            q = q.or(
+              `finops_disbursed_at.gte.${s},and(finops_disbursed_at.is.null,created_at.gte.${s})`,
+            );
+          }
         }
-      }
+        return q;
+      };
 
-      // Order by creation so payouts an agent made "today/yesterday" (which
-      // are still `pending_merchant_payout` with a null finops_disbursed_at)
-      // are never pushed past the row limit by older, already-settled rows.
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(2000);
-      if (error) throw error;
-      const list = (data ?? []) as Row[];
+      // Paginate through the ENTIRE result set (no 2000-row cap) so PDF/Excel
+      // exports capture every payout in the period. Order by creation so payouts
+      // an agent made "today/yesterday" (still `pending_merchant_payout` with a
+      // null finops_disbursed_at) surface first.
+      const PAGE = 1000;
+      const list: Row[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await buildQuery()
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const chunk = (data ?? []) as Row[];
+        list.push(...chunk);
+        if (chunk.length < PAGE) break;
+      }
 
       const ids = Array.from(
         new Set([
