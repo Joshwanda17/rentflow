@@ -373,6 +373,70 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
         {/* Landing menu — two clear, simple choices */}
         {view === 'menu' && (
           <div className="space-y-3">
+            {/* My advance snapshot — the agent's own current advance details,
+                visible immediately when they open the advance page. */}
+            {!issuedLoading && performance.count > 0 && (
+              <div className="rounded-2xl border border-border/60 bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-xl bg-primary/10 p-2">
+                      <Banknote className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground leading-none">My advance</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">Your own advance details</p>
+                    </div>
+                  </div>
+                  {performance.behind > 0 ? (
+                    <Badge variant="destructive" className="gap-1 text-[10px]">
+                      <AlertTriangle className="h-3 w-3" /> {performance.behind} behind
+                    </Badge>
+                  ) : performance.outstanding > 0 ? (
+                    <Badge className="gap-1 text-[10px] bg-emerald-600">On track</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3" /> All repaid
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl bg-muted/40 py-2">
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Borrowed</p>
+                    <p className="text-xs font-bold text-foreground tabular-nums mt-0.5">{formatUGX(performance.borrowed)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/40 py-2">
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Repaid</p>
+                    <p className="text-xs font-bold text-emerald-600 tabular-nums mt-0.5">{formatUGX(performance.repaid)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/40 py-2">
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Outstanding</p>
+                    <p className="text-xs font-bold text-amber-600 tabular-nums mt-0.5">{formatUGX(performance.outstanding)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Repayment progress</span>
+                  <span className="text-foreground tabular-nums">{performance.overallPct}%</span>
+                </div>
+                <Progress value={performance.overallPct} className="h-2 mt-1" />
+
+                <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> {performance.active} repaying</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> {performance.overdue} overdue</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {performance.completed} repaid</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setView('history')}
+                  className="mt-3 w-full text-center text-[11px] font-semibold text-primary"
+                >
+                  See full breakdown →
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setView('history')}
