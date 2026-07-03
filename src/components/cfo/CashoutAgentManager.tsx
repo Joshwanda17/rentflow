@@ -1008,26 +1008,27 @@ function DeleteMerchantConfirm({
     <AlertDialog open={!!deleteAgent} onOpenChange={v => { if (!v && !isPending && !isReleasing) setDeleteAgent(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Merchant Agent?</AlertDialogTitle>
+          <AlertDialogTitle>Remove Merchant Agent role?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will <span className="font-semibold text-destructive">permanently remove</span>{' '}
-            <span className="font-semibold text-foreground">{deleteAgent?.profiles?.full_name || 'this merchant'}</span>{' '}
-            from the payout execution network. Their completed payout history is preserved in audit logs,
-            but they will no longer appear in routing or assignment.
+            This removes the Merchant Agent role from{' '}
+            <span className="font-semibold text-foreground">{deleteAgent?.profiles?.full_name || 'this merchant'}</span>.{' '}
+            Their account and <span className="font-semibold text-foreground">all their records stay in the system</span> —
+            they simply stop being a Merchant Agent and no longer appear in payout routing or assignment.
+            You can re-add them as a Merchant Agent later.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {blocked && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
             <p className="text-sm font-semibold text-destructive flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
-              {pendingInfo!.count} active claim{pendingInfo!.count === 1 ? '' : 's'} blocking deletion
+              {pendingInfo!.count} active claim{pendingInfo!.count === 1 ? '' : 's'} blocking removal
             </p>
             <p className="text-xs text-muted-foreground">
               {oldestDays > 0
                 ? `Oldest is ${oldestDays} day${oldestDays === 1 ? '' : 's'} old. `
                 : ''}
               Release them to return the payout{pendingInfo!.count === 1 ? '' : 's'} to the open pool so any other
-              Merchant Agent can pick {pendingInfo!.count === 1 ? 'it' : 'them'} up — then retry deletion.
+              Merchant Agent can pick {pendingInfo!.count === 1 ? 'it' : 'them'} up — then retry removal.
             </p>
             <Button
               variant="outline"
@@ -1049,7 +1050,7 @@ function DeleteMerchantConfirm({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-            Delete Permanently
+            Remove role
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
