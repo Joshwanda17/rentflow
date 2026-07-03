@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight, Shield, Banknote, Calendar as CalendarIcon, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersHorizontal, ArrowUp, ArrowDown, Activity, TrendingUp } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -57,6 +58,12 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const SORT_STORAGE_KEY = 'agent-advance-sort';
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Transaction-history filters (menu view)
+  const [txSearch, setTxSearch] = useState('');
+  const [txDateFrom, setTxDateFrom] = useState<Date | undefined>(undefined);
+  const [txDateTo, setTxDateTo] = useState<Date | undefined>(undefined);
+  const [txType, setTxType] = useState<'all' | 'in' | 'out'>('all');
 
   // Load persisted sort on mount
   useEffect(() => {
@@ -341,6 +348,29 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     return rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [issuedAdvances]);
 
+  // Apply search / date-range / type filters to the transaction history.
+  const filteredTxHistory = useMemo(() => {
+    const q = txSearch.trim().toLowerCase();
+    return txHistory.filter((tx) => {
+      if (txType !== 'all' && tx.type !== txType) return false;
+      const d = new Date(tx.date);
+      if (txDateFrom && d < startOfDay(txDateFrom)) return false;
+      if (txDateTo && d > endOfDay(txDateTo)) return false;
+      if (q) {
+        const haystack = [
+          tx.label,
+          tx.type === 'in' ? 'received cash in' : 'repayment cash out',
+          String(tx.amount),
+          format(d, 'dd MMM yyyy'),
+        ].join(' ').toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [txHistory, txSearch, txDateFrom, txDateTo, txType]);
+
+  const txFilterActive = !!(txSearch.trim() || txDateFrom || txDateTo || txType !== 'all');
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
@@ -491,8 +521,85 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                     <p className="text-[11px] text-muted-foreground mt-0.5">Every advance received & repayment</p>
                   </div>
                 </div>
+
+                {/* Filters: search, type, date range */}
+                <div className="space-y-2 mb-3">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={txSearch}
+                      onChange={(e) => setTxSearch(e.target.value)}
+                      placeholder="Search amount, date or type…"
+                      className="h-9 pl-8 pr-8 text-xs"
+                    />
+                    {txSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setTxSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(['all', 'in', 'out'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTxType(t)}
+                        className={cn(
+                          'rounded-full px-3 py-1 text-[11px] font-semibold transition-colors',
+                          txType === t ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {t === 'all' ? 'All' : t === 'in' ? 'Cash in' : 'Cash out'}
+                      </button>
+                    ))}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn('h-7 gap-1 text-[11px] px-2', !txDateFrom && 'text-muted-foreground')}>
+                          <CalendarIcon className="h-3 w-3" />
+                          {txDateFrom ? format(txDateFrom, 'dd MMM') : 'From'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={txDateFrom} onSelect={setTxDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn('h-7 gap-1 text-[11px] px-2', !txDateTo && 'text-muted-foreground')}>
+                          <CalendarIcon className="h-3 w-3" />
+                          {txDateTo ? format(txDateTo, 'dd MMM') : 'To'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={txDateTo} onSelect={setTxDateTo} initialFocus className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                    {txFilterActive && (
+                      <button
+                        type="button"
+                        onClick={() => { setTxSearch(''); setTxDateFrom(undefined); setTxDateTo(undefined); setTxType('all'); }}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" /> Clear
+                      </button>
+                    )}
+                  </div>
+                  {txFilterActive && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Showing {filteredTxHistory.length} of {txHistory.length} transactions
+                    </p>
+                  )}
+                </div>
+
+                {filteredTxHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No transactions match your filters.</p>
+                ) : (
                 <div className="divide-y divide-border/50">
-                  {txHistory.map((tx) => (
+                  {filteredTxHistory.map((tx) => (
                     <div key={tx.key} className="flex items-center gap-3 py-2.5">
                       <div className={cn(
                         'rounded-full p-1.5 shrink-0',
@@ -518,6 +625,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             )}
 
