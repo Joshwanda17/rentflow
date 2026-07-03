@@ -851,6 +851,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             active={activeTab}
             restricted={isMerchant}
             onChange={(tab) => {
+              // Merchant Agents are locked to Home only.
+              if (isMerchant && tab !== 'home') { guardMerchant(); return; }
               // Tapping the "Sub Agents" icon opens the full team analytics page
               // rather than the inline panel.
               if (tab === 'subagents') { navigate('/sub-agents'); return; }
