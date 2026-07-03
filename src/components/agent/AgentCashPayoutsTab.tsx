@@ -1006,16 +1006,18 @@ export function AgentCashPayoutsTab() {
       {myActiveClaims.length > 0 && (
         <Card ref={claimedSectionRef} className="border-2 border-amber-500/60 bg-amber-500/10 rounded-2xl shadow-lg ring-2 ring-amber-500/20 scroll-mt-4">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold uppercase tracking-wide flex items-center gap-2 text-amber-700 dark:text-amber-400">
-              <UserCheck className="h-4 w-4" />
-              Claimed by you · {myActiveClaims.length}
+            <CardTitle className="text-sm font-bold uppercase tracking-wide flex flex-wrap items-center gap-x-2 gap-y-1.5 text-amber-700 dark:text-amber-400">
+              <span className="inline-flex items-center gap-2">
+                <UserCheck className="h-4 w-4 shrink-0" />
+                Claimed by you · {myActiveClaims.length}
+              </span>
               <Badge className={cn(
-                'ml-auto h-5 px-2 gap-1 text-[11px] text-white',
+                'ml-auto h-5 px-2 gap-1 text-[11px] text-white normal-case tracking-normal whitespace-nowrap shrink-0',
                 activeClaimRemainingMs <= 60_000
                   ? 'bg-red-600 hover:bg-red-600 animate-pulse'
                   : 'bg-amber-500 hover:bg-amber-500',
               )}>
-                <Clock className="h-3 w-3" /> {activeClaimCountdown} left to confirm
+                <Clock className="h-3 w-3 shrink-0" /> {activeClaimCountdown} left to confirm
               </Badge>
             </CardTitle>
             <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
