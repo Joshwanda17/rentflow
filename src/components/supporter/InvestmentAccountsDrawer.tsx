@@ -370,6 +370,37 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
             )}
           </div>
 
+          {/* Rejected top-up notice — funds returned to wallet + support chat link */}
+          {rejectedTopup && (
+            <div className="p-4 rounded-2xl bg-destructive/5 border border-destructive/30 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-destructive">Top-up of {formatUGX(rejectedTopup.amount)} was rejected</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Reason: <span className="font-semibold text-foreground">{rejectedTopup.reason}</span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    The money has been returned to your wallet. If you need help, contact support below.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full h-10 gap-2 text-xs font-semibold border-destructive/40 text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  const userName = user?.user_metadata?.full_name || 'a Welile partner';
+                  const portfolioId = portfolio.portfolio_code || portfolio.id;
+                  const msg = `Hi, am ${userName}, my portfolio of (${portfolioId}) was rejected because of ${rejectedTopup.reason}.`;
+                  window.open(`https://wa.me/${SUPPORT_CHAT_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+                }}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Chat support · +{SUPPORT_CHAT_NUMBER}
+              </Button>
+            </div>
+          )}
+
           {/* Key Metrics */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-4 rounded-xl bg-muted/50 border border-border/60">
