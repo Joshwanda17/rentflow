@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle2, XCircle, ShieldCheck, Clock, Briefcase } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -29,6 +31,7 @@ export function PortfolioTopUpVerification() {
   const queryClient = useQueryClient();
   const [processing, setProcessing] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ portfolio_id: string; action: 'approve' | 'reject'; group: GroupedTopUp } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['awaiting-verification-topups'],
@@ -92,11 +95,11 @@ export function PortfolioTopUpVerification() {
     refetchInterval: 60_000,
   });
 
-  async function handleAction(portfolioId: string, action: 'approve' | 'reject') {
+  async function handleAction(portfolioId: string, action: 'approve' | 'reject', reason?: string) {
     setProcessing(portfolioId);
     try {
       const { data, error } = await supabase.functions.invoke('approve-portfolio-topup', {
-        body: { portfolio_id: portfolioId, action },
+        body: { portfolio_id: portfolioId, action, reason },
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -107,7 +110,7 @@ export function PortfolioTopUpVerification() {
         });
       } else {
         toast.success('Top-up rejected', {
-          description: `${data.count} top-up(s) rejected. No funds were moved.`,
+          description: `${data.count} top-up(s) rejected. Funds returned to the partner's wallet.`,
         });
       }
 
@@ -117,6 +120,7 @@ export function PortfolioTopUpVerification() {
     } finally {
       setProcessing(null);
       setConfirmAction(null);
+      setRejectReason('');
     }
   }
 
@@ -223,7 +227,7 @@ export function PortfolioTopUpVerification() {
       ))}
 
       {/* Confirm dialog */}
-      <AlertDialog open={!!confirmAction} onOpenChange={open => { if (!open) setConfirmAction(null); }}>
+      <AlertDialog open={!!confirmAction} onOpenChange={open => { if (!open) { setConfirmAction(null); setRejectReason(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -232,14 +236,29 @@ export function PortfolioTopUpVerification() {
             <AlertDialogDescription>
               {confirmAction?.action === 'approve'
                 ? `This will add ${formatUGX(confirmAction.group.total)} to "${confirmAction.group.account_name || confirmAction.group.portfolio_code}" and create ledger entries. This action is irreversible.`
-                : `This will reject ${confirmAction?.group.ops.length} deposit(s) totaling ${formatUGX(confirmAction?.group.total || 0)}. No funds will be moved.`
+                : `This will reject ${confirmAction?.group.ops.length} deposit(s) totaling ${formatUGX(confirmAction?.group.total || 0)}. The funds stay in the partner's wallet and they will see your reason in their portfolio.`
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmAction?.action === 'reject' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="reject-reason" className="text-xs font-medium">Reason for rejection (shown to the partner)</Label>
+              <Textarea
+                id="reject-reason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Amount does not match the deposit we received"
+                className="min-h-[80px] text-sm"
+                maxLength={500}
+              />
+              <p className="text-[10px] text-muted-foreground">Minimum 5 characters.</p>
+            </div>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setRejectReason('')}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => confirmAction && handleAction(confirmAction.portfolio_id, confirmAction.action)}
+              disabled={confirmAction?.action === 'reject' && rejectReason.trim().length < 5}
+              onClick={() => confirmAction && handleAction(confirmAction.portfolio_id, confirmAction.action, rejectReason.trim())}
               className={confirmAction?.action === 'reject' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
             >
               {confirmAction?.action === 'approve' ? 'Approve & Apply Funds' : 'Reject Top-Up'}

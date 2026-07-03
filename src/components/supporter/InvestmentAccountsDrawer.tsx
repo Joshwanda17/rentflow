@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import {
   Loader2, PiggyBank, TrendingUp, Briefcase, Wallet, Sparkles,
   ArrowDownToLine, ChevronRight, ArrowUpRight, RefreshCw, Calendar, Clock, Hash,
-  Pencil, Check, X, Download, Share2, FileText
+  Pencil, Check, X, Download, Share2, FileText, AlertTriangle, MessageCircle
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDateOnlyForDisplay, extractDateOnly, dateOnlyToLocalDate } from '@/lib/portfolioDates';
@@ -22,9 +22,13 @@ import { hapticTap } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { FundAccountDialog } from './FundAccountDialog';
 import { useWallet } from '@/hooks/useWallet';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { downloadPortfolioPdf, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { differenceInCalendarDays } from 'date-fns';
+
+/** Support line that handles rejected portfolio top-ups (WhatsApp chat). */
+const SUPPORT_CHAT_NUMBER = '256777607640';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'destructive' | 'muted'; dot: string }> = {
   active: { label: 'Active', variant: 'success', dot: 'bg-success animate-pulse' },
@@ -128,6 +132,8 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
   const [togglingReinvest, setTogglingReinvest] = useState(false);
   const [localAutoReinvest, setLocalAutoReinvest] = useState<boolean | null>(null);
   const [pendingTopup, setPendingTopup] = useState(0);
+  const [rejectedTopup, setRejectedTopup] = useState<{ amount: number; reason: string; created_at: string } | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!open || !portfolio?.id) { setPendingTopup(0); return; }
@@ -143,6 +149,36 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
       if (cancelled) return;
       const total = (data || []).reduce((s: number, op: any) => s + Number(op.amount || 0), 0);
       setPendingTopup(total);
+    })();
+    return () => { cancelled = true; };
+  }, [open, portfolio?.id]);
+
+  // Fetch the most recent REJECTED top-up so we can surface a visible error
+  // (with reason) and a support-chat link to the partner.
+  useEffect(() => {
+    if (!open || !portfolio?.id) { setRejectedTopup(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('pending_wallet_operations')
+        .select('amount, reviewed_at, created_at, metadata')
+        .eq('source_table', 'investor_portfolios')
+        .eq('operation_type', 'portfolio_topup')
+        .eq('source_id', portfolio.id)
+        .eq('status', 'rejected')
+        .order('reviewed_at', { ascending: false })
+        .limit(1);
+      if (cancelled) return;
+      const op = (data || [])[0] as any;
+      if (op) {
+        setRejectedTopup({
+          amount: Number(op.amount || 0),
+          reason: op.metadata?.rejection_reason || 'No reason provided',
+          created_at: op.reviewed_at || op.created_at,
+        });
+      } else {
+        setRejectedTopup(null);
+      }
     })();
     return () => { cancelled = true; };
   }, [open, portfolio?.id]);
@@ -333,6 +369,37 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
               </p>
             )}
           </div>
+
+          {/* Rejected top-up notice — funds returned to wallet + support chat link */}
+          {rejectedTopup && (
+            <div className="p-4 rounded-2xl bg-destructive/5 border border-destructive/30 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-destructive">Top-up of {formatUGX(rejectedTopup.amount)} was rejected</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Reason: <span className="font-semibold text-foreground">{rejectedTopup.reason}</span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    The money has been returned to your wallet. If you need help, contact support below.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full h-10 gap-2 text-xs font-semibold border-destructive/40 text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  const userName = user?.user_metadata?.full_name || 'a Welile partner';
+                  const portfolioId = portfolio.portfolio_code || portfolio.id;
+                  const msg = `Hi, am ${userName}, my portfolio of (${portfolioId}) was rejected because of ${rejectedTopup.reason}.`;
+                  window.open(`https://wa.me/${SUPPORT_CHAT_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+                }}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Chat support · +{SUPPORT_CHAT_NUMBER}
+              </Button>
+            </div>
+          )}
 
           {/* Key Metrics */}
           <div className="grid grid-cols-2 gap-3">
