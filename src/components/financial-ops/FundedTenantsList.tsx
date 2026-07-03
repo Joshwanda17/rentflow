@@ -155,19 +155,47 @@ export function FundedTenantsList() {
   } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['finops-funded-landlord-payouts'],
+    queryKey: ['finops-funded-landlord-payouts', dateFilter, monthValue, customDays],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Compute the effective server-side date window so totals reflect ALL
+      // payouts in the period — not just the 200 most-recent rows. The effective
+      // payout date is finops_disbursed_at when present, else created_at.
+      let range: { start: Date; end: Date | null } | null = null;
+      if (dateFilter === 'month') {
+        const [y, m] = monthValue.split('-').map(Number);
+        if (y && m) range = { start: new Date(y, m - 1, 1), end: new Date(y, m, 1) };
+      } else if (dateFilter !== 'all') {
+        const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
+        range = { start: new Date(Date.now() - days * 24 * 60 * 60 * 1000), end: null };
+      }
+
+      let query = supabase
         .from('landlord_payouts')
         .select(
           'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_disbursed_by, finops_momo_reference, external_reference, created_at, rent_request_id',
         )
-        .in('status', FUNDED_STATUSES as unknown as string[])
-        // Order by creation so payouts an agent made "today/yesterday" (which
-        // are still `pending_merchant_payout` with a null finops_disbursed_at)
-        // are never pushed past the row limit by older, already-settled rows.
+        .in('status', FUNDED_STATUSES as unknown as string[]);
+
+      if (range) {
+        const s = range.start.toISOString();
+        if (range.end) {
+          const e = range.end.toISOString();
+          query = query.or(
+            `and(finops_disbursed_at.gte.${s},finops_disbursed_at.lt.${e}),and(finops_disbursed_at.is.null,created_at.gte.${s},created_at.lt.${e})`,
+          );
+        } else {
+          query = query.or(
+            `finops_disbursed_at.gte.${s},and(finops_disbursed_at.is.null,created_at.gte.${s})`,
+          );
+        }
+      }
+
+      // Order by creation so payouts an agent made "today/yesterday" (which
+      // are still `pending_merchant_payout` with a null finops_disbursed_at)
+      // are never pushed past the row limit by older, already-settled rows.
+      const { data, error } = await query
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(2000);
       if (error) throw error;
       const list = (data ?? []) as Row[];
 
