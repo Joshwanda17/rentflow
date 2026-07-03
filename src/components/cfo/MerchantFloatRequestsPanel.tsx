@@ -394,7 +394,7 @@ export function MerchantFloatRequestsPanel() {
               <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadPdf} disabled={downloading || allocations.length === 0}>
                 {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Allocations PDF
               </Button>
-              <Button size="sm" className="gap-1.5" onClick={downloadStatementPdf} disabled={downloadingStmt || allocations.length === 0}>
+              <Button size="sm" className="gap-1.5" onClick={() => downloadStatementPdf()} disabled={downloadingStmt || allocations.length === 0}>
                 {downloadingStmt ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} All agents PDF
               </Button>
             </div>
