@@ -9,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { generatePromissoryNotePDF } from '@/lib/promissoryNotePdf';
 
 interface PromissoryNoteDialogProps {
   open: boolean;
