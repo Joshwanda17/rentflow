@@ -1054,6 +1054,10 @@ export function AgentCashPayoutsTab() {
       {/* Available float — request appears when float is low */}
       <MerchantFloatRequestCard />
 
+      {/* Withdrawable wallet — the 0.5% commission earned on every payout
+          lands here and can be cashed out by the merchant agent. */}
+      <MerchantWithdrawableCard />
+
       {/* Today's payouts */}
       <section className="space-y-3">
         <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Payouts</h2>
