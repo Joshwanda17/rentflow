@@ -111,17 +111,30 @@ export function CTOAgentFreezePanel() {
           p_scope: scope,
         });
         if (error) throw error;
-        // Fire SMS notification (best-effort).
+        // Notify the agent by SMS and surface whether it actually went out.
+        let smsSent = false;
+        let smsNote = '';
         try {
-          await supabase.functions.invoke('notify-agent-frozen', {
-            body: { agent_id: selected.agent_id },
-          });
-        } catch {
-          /* SMS best-effort */
+          const { data: smsRes, error: smsErr } = await supabase.functions.invoke(
+            'notify-agent-frozen',
+            { body: { agent_id: selected.agent_id } },
+          );
+          if (smsErr) throw smsErr;
+          smsSent = !!(smsRes as any)?.sms_sent;
+          if (!smsSent && (smsRes as any)?.phone_present === false) {
+            smsNote = 'Agent has no phone on file — no SMS sent.';
+          } else if (!smsSent) {
+            smsNote = 'SMS could not be delivered — try again.';
+          }
+        } catch (smsErr: any) {
+          smsNote = 'SMS failed to send — the freeze is still applied.';
         }
-        toast.success(
-          scope === 'all' ? 'Agent frozen — all activity blocked' : 'Agent blocked from posting houses',
-        );
+        const base = scope === 'all' ? 'Agent frozen — all activity blocked' : 'Agent blocked from posting houses';
+        if (smsSent) {
+          toast.success(`${base}. Agent notified by SMS.`);
+        } else {
+          toast.warning(base, { description: smsNote || 'Agent could not be notified by SMS.' });
+        }
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await (supabase as any).rpc('unblock_agent_listing', {

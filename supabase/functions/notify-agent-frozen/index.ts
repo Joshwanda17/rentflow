@@ -121,12 +121,20 @@ Deno.serve(async (req) => {
     const untilStr = until.toLocaleDateString("en-GB", {
       day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Kampala",
     });
+    const daysLeft = Math.max(
+      1,
+      Math.ceil((until.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+    );
+    const scopeAll = (block.freeze_scope || "listing") === "all";
 
     let sent = false;
     if (phone) {
+      const activityLine = scopeAll
+        ? `You cannot list houses or carry out any agent activities until ${untilStr} (about ${daysLeft} day${daysLeft === 1 ? "" : "s"}).`
+        : `You cannot list houses until ${untilStr} (about ${daysLeft} day${daysLeft === 1 ? "" : "s"}).`;
       const msg =
         `WELILE: Hi ${name}, your account has been BLOCKED. ` +
-        `You cannot list houses or carry out any agent activities until ${untilStr} (about 8 days). ` +
+        `${activityLine} ` +
         `Reason: ${block.reason}. ` +
         `Need help? Call or WhatsApp: +256777607640`;
       sent = await sendSMS(phone, msg);
