@@ -372,7 +372,7 @@ export function FundedTenantsList() {
   const drilldown = useMemo(() => {
     if (countryFilter !== 'all') {
       const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
-      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const landlords = new Map<string, { id: string | null; name: string; tenants: Set<string>; payouts: number; total: number }>();
       const tenants = new Set<string>();
       const tenantMap = new Map<string, { id: string; name: string; phone: string; payouts: number; total: number }>();
       let total = 0;
@@ -408,7 +408,7 @@ export function FundedTenantsList() {
     if (regionFilter) {
       const regionCountries = new Set(AFRICA_REGIONS.find((g) => g.region === regionFilter)?.countries || []);
       const rows = dateFiltered.filter((r) => regionCountries.has(r.country?.trim() || ''));
-      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const landlords = new Map<string, { id: string | null; name: string; tenants: Set<string>; payouts: number; total: number }>();
       const tenants = new Set<string>();
       const countryMap = new Map<string, { count: number; total: number }>();
       let total = 0;
