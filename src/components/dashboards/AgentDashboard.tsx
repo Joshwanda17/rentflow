@@ -1657,5 +1657,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentAdvanceRequestForm open={advanceRequestOpen} onOpenChange={setAdvanceRequestOpen} />
 
     </div>
+    </AgentFrozenGate>
   );
 }
