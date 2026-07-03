@@ -95,11 +95,11 @@ export function MerchantFloatRequestsPanel() {
 
   // Per-agent totals for the audit summary.
   const agentTotals = (() => {
-    const map = new Map<string, MerchantFloatAgentBreakdown>();
+    const map = new Map<string, MerchantFloatAgentBreakdown & { agent_id: string }>();
     for (const a of allocations) {
       const key = a.agent_id;
       const name = a.agent?.full_name || 'Merchant agent';
-      const cur = map.get(key) || { agent: name, phone: a.agent?.phone || undefined, count: 0, total: 0 };
+      const cur = map.get(key) || { agent_id: key, agent: name, phone: a.agent?.phone || undefined, count: 0, total: 0 };
       cur.count += 1;
       cur.total += Number(a.requested_amount) || 0;
       map.set(key, cur);
@@ -395,7 +395,7 @@ export function MerchantFloatRequestsPanel() {
                 {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Allocations PDF
               </Button>
               <Button size="sm" className="gap-1.5" onClick={downloadStatementPdf} disabled={downloadingStmt || allocations.length === 0}>
-                {downloadingStmt ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Float + transactions PDF
+                {downloadingStmt ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} All agents PDF
               </Button>
             </div>
           )}
