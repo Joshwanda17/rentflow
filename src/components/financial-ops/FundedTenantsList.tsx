@@ -609,6 +609,17 @@ export function FundedTenantsList() {
           <FileSpreadsheet className="h-3.5 w-3.5" />
           Excel
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 gap-1.5"
+          onClick={handleSummaryPdf}
+          disabled={!filtered.length || !!bulk}
+          title={`Download a country & region breakdown of the ${filtered.length} visible payouts with real amounts and totals`}
+        >
+          <FileDown className="h-3.5 w-3.5" />
+          Summary PDF
+        </Button>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
