@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { portfolio_id, action } = body;
+    const rejectReason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 500) : "";
 
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!portfolio_id || !UUID_RE.test(portfolio_id)) {
@@ -74,6 +75,14 @@ Deno.serve(async (req) => {
 
     if (!action || !["approve", "reject"].includes(action)) {
       return new Response(JSON.stringify({ error: "action must be 'approve' or 'reject'" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rejections MUST carry a human-readable reason — it is shown to the partner
+    // in their portfolio and pre-filled into their support chat message.
+    if (action === "reject" && rejectReason.length < 5) {
+      return new Response(JSON.stringify({ error: "A rejection reason of at least 5 characters is required." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
