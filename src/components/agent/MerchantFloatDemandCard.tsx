@@ -205,6 +205,18 @@ export function MerchantFloatDemandCard() {
         </div>
       </div>
 
+      {/* Request the shortfall straight from the CFO, pre-filled. */}
+      {shortfall > 0 && (
+        <Button
+          size="sm"
+          className="mt-2 w-full gap-1.5"
+          onClick={requestFloat}
+        >
+          <PlusCircle className="h-4 w-4" />
+          Request {formatUGX(shortfall)} float from CFO
+        </Button>
+      )}
+
       {/* Per-channel breakdown. */}
       <div className="mt-3 space-y-1.5">
         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
