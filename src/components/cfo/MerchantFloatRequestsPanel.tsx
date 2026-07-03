@@ -363,6 +363,30 @@ export function MerchantFloatRequestsPanel() {
           </div>
           {tab === 'allocated' && (
             <div className="ml-auto flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="date"
+                  aria-label="Statement from date"
+                  value={stmtFrom}
+                  max={stmtTo || undefined}
+                  onChange={(e) => setStmtFrom(e.target.value)}
+                  className="h-8 w-[9.5rem] text-xs"
+                />
+                <span className="text-xs text-muted-foreground">→</span>
+                <Input
+                  type="date"
+                  aria-label="Statement to date"
+                  value={stmtTo}
+                  min={stmtFrom || undefined}
+                  onChange={(e) => setStmtTo(e.target.value)}
+                  className="h-8 w-[9.5rem] text-xs"
+                />
+                {(stmtFrom || stmtTo) && (
+                  <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => { setStmtFrom(''); setStmtTo(''); }}>
+                    Clear
+                  </Button>
+                )}
+              </div>
               <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadPdf} disabled={downloading || allocations.length === 0}>
                 {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Allocations PDF
               </Button>
