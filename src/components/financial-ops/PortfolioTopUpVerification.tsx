@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle2, XCircle, ShieldCheck, Clock, Briefcase } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -29,6 +31,7 @@ export function PortfolioTopUpVerification() {
   const queryClient = useQueryClient();
   const [processing, setProcessing] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ portfolio_id: string; action: 'approve' | 'reject'; group: GroupedTopUp } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['awaiting-verification-topups'],
@@ -92,11 +95,11 @@ export function PortfolioTopUpVerification() {
     refetchInterval: 60_000,
   });
 
-  async function handleAction(portfolioId: string, action: 'approve' | 'reject') {
+  async function handleAction(portfolioId: string, action: 'approve' | 'reject', reason?: string) {
     setProcessing(portfolioId);
     try {
       const { data, error } = await supabase.functions.invoke('approve-portfolio-topup', {
-        body: { portfolio_id: portfolioId, action },
+        body: { portfolio_id: portfolioId, action, reason },
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -107,7 +110,7 @@ export function PortfolioTopUpVerification() {
         });
       } else {
         toast.success('Top-up rejected', {
-          description: `${data.count} top-up(s) rejected. No funds were moved.`,
+          description: `${data.count} top-up(s) rejected. Funds returned to the partner's wallet.`,
         });
       }
 
@@ -117,6 +120,7 @@ export function PortfolioTopUpVerification() {
     } finally {
       setProcessing(null);
       setConfirmAction(null);
+      setRejectReason('');
     }
   }
 
