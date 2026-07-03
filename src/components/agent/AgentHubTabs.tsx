@@ -7,6 +7,8 @@ export type AgentHubTab = 'home' | 'money' | 'tenants' | 'grow' | 'subagents';
 interface AgentHubTabsProps {
   active: AgentHubTab;
   onChange: (tab: AgentHubTab) => void;
+  /** When true, hides operational (tenant) sections for Merchant Agents. */
+  restricted?: boolean;
 }
 
 const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
@@ -17,7 +19,8 @@ const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
   { id: 'subagents', icon: UsersRound, label: 'Sub Agents' },
 ];
 
-export function AgentHubTabs({ active, onChange }: AgentHubTabsProps) {
+export function AgentHubTabs({ active, onChange, restricted = false }: AgentHubTabsProps) {
+  const visibleTabs = restricted ? tabs.filter((t) => t.id !== 'tenants') : tabs;
   return (
     <div
       className="sticky z-20 -mx-4 px-4 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40"
@@ -25,8 +28,10 @@ export function AgentHubTabs({ active, onChange }: AgentHubTabsProps) {
       role="tablist"
       aria-label="Agent hub sections"
     >
-      <div className="grid grid-cols-5 gap-1 p-1 rounded-2xl bg-muted/60">
-        {tabs.map((t) => {
+      <div
+        className={cn('grid gap-1 p-1 rounded-2xl bg-muted/60', restricted ? 'grid-cols-4' : 'grid-cols-5')}
+      >
+        {visibleTabs.map((t) => {
           const isActive = active === t.id;
           return (
             <button

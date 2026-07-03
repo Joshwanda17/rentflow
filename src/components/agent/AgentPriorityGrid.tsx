@@ -27,9 +27,14 @@ interface Props {
   onOpenFieldCollect: () => void;
   onOpenNewTenant: () => void;
   onOpenListHouse: () => void;
+  /**
+   * Merchant Agents are payout-only: hide Collect Rent / Add Tenant / List House
+   * and keep just the Wallet tile.
+   */
+  restricted?: boolean;
 }
 
-export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenFieldCollect, onOpenNewTenant, onOpenListHouse }: Props) {
+export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenFieldCollect, onOpenNewTenant, onOpenListHouse, restricted = false }: Props) {
   useProfile(); // keep hook to preserve profile prefetch behaviour
 
   // Field Collect live state (mirrors FieldCollectCard logic)
@@ -85,7 +90,8 @@ export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenF
         sub="My money · tap to open"
       />
 
-      {/* 2. Collect Rent — biggest daily action */}
+      {/* 2. Collect Rent — biggest daily action (hidden for Merchant Agents) */}
+      {!restricted && (
       <PriorityTile
         onClick={() => { hapticTap(); onOpenFieldCollect(); }}
         icon={<HandCoins className="h-6 w-6" strokeWidth={2.2} />}
@@ -109,8 +115,10 @@ export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenF
             : null
         }
       />
+      )}
 
-      {/* 3. Add Tenant — rent request */}
+      {/* 3. Add Tenant — rent request (hidden for Merchant Agents) */}
+      {!restricted && (
       <PriorityTile
         onClick={() => { hapticTap(); onOpenNewTenant(); }}
         icon={<UserPlus className="h-6 w-6" strokeWidth={2.2} />}
@@ -119,8 +127,10 @@ export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenF
         valueLabel="New tenant"
         sub="Start a rent request"
       />
+      )}
 
-      {/* 4. List House — open empty house listing flow */}
+      {/* 4. List House — open empty house listing flow (hidden for Merchant Agents) */}
+      {!restricted && (
       <PriorityTile
         onClick={() => { hapticTap(); onOpenListHouse(); }}
         icon={
@@ -137,6 +147,7 @@ export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenF
         title="List an empty house"
         highlight
       />
+      )}
     </div>
   );
 }

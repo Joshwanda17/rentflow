@@ -88,6 +88,11 @@ interface AgentMenuDrawerProps {
   onDownloadTenantForm?: () => void;
   onOpenRentPoster?: () => void;
   isFinancialAgent?: boolean;
+  /**
+   * Merchant Agents (cash-out only) must not access tenant / landlord / house
+   * operations. When true, those menu entries are removed entirely.
+   */
+  restricted?: boolean;
 }
 
 interface MenuItem {
@@ -148,6 +153,7 @@ export function AgentMenuDrawer({
   onDownloadTenantForm,
   onOpenRentPoster,
   isFinancialAgent = false,
+  restricted = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('money');
@@ -287,7 +293,26 @@ export function AgentMenuDrawer({
     },
   ];
 
-  const activeCat = categories.find(c => c.id === activeCategory) || categories[0];
+  // Merchant Agents are payout-only. Strip every tenant / landlord / house
+  // operational entry so they cannot be reached via the menu drawer.
+  const MERCHANT_BLOCKED_LABELS = new Set<string>([
+    // Tenant operations
+    'Pay Rent', 'Top Up Wallet', 'Issue Receipt', 'Share Tenant Form', 'Tenant Reg Form',
+    'Register User', 'My Tenants', 'Rent Requests', 'Saved Rent Drafts', 'Schedules', 'Post Rent',
+    // Landlord operations
+    'Share Landlord Signup', 'Landlord Reg Form', 'My Landlords', 'Landlord Map',
+    'Manage Property', 'Managed Props',
+    // House listing
+    'List House', 'My Listings',
+  ]);
+  const visibleCategories = restricted
+    ? categories
+        .map((c) => ({ ...c, items: c.items.filter((i) => !MERCHANT_BLOCKED_LABELS.has(i.label)) }))
+        .filter((c) => c.items.length > 0)
+    : categories;
+
+  const activeCat =
+    visibleCategories.find((c) => c.id === activeCategory) || visibleCategories[0];
 
   // Flat, cross-category search — type once, jump anywhere. The single biggest
   // win for agents who manage lots of borrowers and can't remember which tab
@@ -295,7 +320,7 @@ export function AgentMenuDrawer({
   const query = search.trim().toLowerCase();
   const searching = query.length > 0;
   const searchResults = searching
-    ? categories.flatMap((cat) =>
+    ? visibleCategories.flatMap((cat) =>
         cat.items.map((item) => ({ item, catLabel: cat.label })),
       ).filter(({ item }) =>
         item.label.toLowerCase().includes(query) ||
@@ -385,7 +410,7 @@ export function AgentMenuDrawer({
             {!searching && (
             <div className="px-3 pb-3">
               <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                {categories.map((cat) => {
+                {visibleCategories.map((cat) => {
                   const isActive = cat.id === activeCategory;
                   const CatIcon = cat.icon;
                   return (
