@@ -503,10 +503,6 @@ export function WithdrawalPayoutCard({
                     <span>Confirming payment… please wait</span>
                   </div>
                 )}
-                <div className="rounded-lg bg-warning/10 border border-warning/30 px-3 py-2.5 text-sm font-semibold text-warning flex items-start gap-1.5">
-                  <Clock className="h-4 w-4 mt-0.5 shrink-0" />
-                  <span>NOT PAID YET — execute the payout via <strong>{methodLabel}</strong> first, then enter the {isBank ? 'bank reference / TID' : isMoMo ? 'MoMo Transaction ID' : 'payout code shared by the user'} and press <strong>Confirm Paid</strong>.</span>
-                </div>
                 <p className="text-sm font-semibold text-primary flex items-start gap-1.5">
                   <ArrowRight className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>{isBank ? 'Send bank transfer to the account above, then enter the bank reference / TID' : isMoMo ? 'Send MoMo to the number above, then enter the TID from your confirmation SMS' : 'Coordinate with the user by phone, hand over cash, then enter the payout code they share'}</span>
