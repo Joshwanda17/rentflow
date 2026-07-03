@@ -11,6 +11,7 @@ import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './Landlor
 import {
   buildBulkPayoutsPdfBlob,
   buildBulkCardsPdfBlob,
+  buildFundedSummaryPdfBlob,
   downloadBlob,
   exportPayoutsXlsx,
   PAYOUT_COLUMNS,
@@ -180,6 +181,12 @@ export function FundedTenantsList() {
           if (c) r.country = c;
         });
       }
+      // Platform is Uganda-based (UGX). When no country is stored on the
+      // landlord profile or rent request, attribute the payout to Uganda so
+      // the country breakdown reflects the real amounts instead of all zeros.
+      list.forEach((r) => {
+        r.country = r.country?.trim() || 'Uganda';
+      });
       return list;
     },
     refetchInterval: 60_000,
@@ -406,6 +413,42 @@ export function FundedTenantsList() {
     }
   };
 
+  const handleSummaryPdf = async () => {
+    if (!filtered.length) return;
+    try {
+      // Build region + country breakdown from the currently visible rows.
+      const countryMap = new Map<string, { count: number; total: number }>();
+      const regionMap = new Map<string, { count: number; total: number }>();
+      filtered.forEach((r) => {
+        const c = r.country?.trim() || 'Unknown';
+        const cm = countryMap.get(c) ?? { count: 0, total: 0 };
+        cm.count += 1; cm.total += Number(r.amount || 0);
+        countryMap.set(c, cm);
+        const group = AFRICA_REGIONS.find((g) => g.countries.includes(c));
+        const region = group?.region ?? 'Other';
+        const rm = regionMap.get(region) ?? { count: 0, total: 0 };
+        rm.count += 1; rm.total += Number(r.amount || 0);
+        regionMap.set(region, rm);
+      });
+      const toSorted = (m: Map<string, { count: number; total: number }>) =>
+        Array.from(m.entries())
+          .map(([name, v]) => ({ name, ...v }))
+          .sort((a, b) => b.total - a.total);
+      const blob = await buildFundedSummaryPdfBlob({
+        regionStats: toSorted(regionMap),
+        countryStats: toSorted(countryMap),
+        payoutCount: filtered.length,
+        grandTotal: totalAmount,
+        scopeLabel: scopeLabel || undefined,
+      });
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadBlob(blob, `welile-funded-landlord-summary-${stamp}-${scopeSlug}.pdf`);
+      toast.success('Exported funded payouts summary to PDF');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to build summary PDF');
+    }
+  };
+
   const toggleCol = (key: PayoutColumnKey) => {
     setExportCols((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
@@ -565,6 +608,17 @@ export function FundedTenantsList() {
         >
           <FileSpreadsheet className="h-3.5 w-3.5" />
           Excel
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 gap-1.5"
+          onClick={handleSummaryPdf}
+          disabled={!filtered.length || !!bulk}
+          title={`Download a country & region breakdown of the ${filtered.length} visible payouts with real amounts and totals`}
+        >
+          <FileDown className="h-3.5 w-3.5" />
+          Summary PDF
         </Button>
       </div>
 

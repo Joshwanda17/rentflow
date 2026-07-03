@@ -373,3 +373,109 @@ export function downloadBlob(blob: Blob, filename: string) {
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+// ───────────────────────────────────────────────────────────
+// Summary PDF — a printable breakdown of funded landlord payouts
+// grouped by region and country, with real counts + amounts and a
+// grand total. Distinct from the per-payout list/card exports.
+// ───────────────────────────────────────────────────────────
+export interface FundedSummaryStat {
+  name: string;
+  count: number;
+  total: number;
+}
+
+export async function buildFundedSummaryPdfBlob(params: {
+  regionStats: FundedSummaryStat[];
+  countryStats: FundedSummaryStat[];
+  payoutCount: number;
+  grandTotal: number;
+  scopeLabel?: string;
+}): Promise<Blob> {
+  const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+
+  const margin = PDF_MARGIN_MM;
+  const pageW = A4_PAGE_MM.width;
+  const pageH = A4_PAGE_MM.height;
+  const generatedAt = new Date().toLocaleString('en-UG');
+  const scope = params.scopeLabel ? ` · ${params.scopeLabel}` : '';
+
+  const drawChrome = () => {
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Welile — Funded Landlord Payouts (Summary)', margin, margin + 6);
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(
+      `Generated: ${generatedAt}  ·  ${params.payoutCount} payouts  ·  ${formatUGX(params.grandTotal)}${scope}`,
+      margin,
+      margin + 12,
+    );
+    pdf.setTextColor(0, 0, 0);
+
+    const footerY = pageH - margin - PDF_FOOTER_MM + 6;
+    pdf.setDrawColor(220, 220, 220);
+    pdf.setLineWidth(0.2);
+    pdf.line(margin, footerY - 4, pageW - margin, footerY - 4);
+    pdf.setFontSize(8);
+    pdf.setTextColor(80, 80, 80);
+    pdf.text('Internal Welile payout reconciliation report · welilereceipts.com', margin, footerY);
+    pdf.text(`Page ${pdf.getNumberOfPages()}`, pageW - margin, footerY, { align: 'right' });
+    pdf.setTextColor(0, 0, 0);
+  };
+
+  const commonOpts = {
+    margin: {
+      left: margin,
+      right: margin,
+      top: margin + PDF_HEADER_MM,
+      bottom: PDF_FOOTER_MM + margin,
+    },
+    styles: { fontSize: 9, cellPadding: 2.5, overflow: 'linebreak' as const, valign: 'middle' as const },
+    headStyles: { fillColor: [122, 0, 204] as [number, number, number], textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold' as const },
+    footStyles: { fillColor: [240, 235, 250] as [number, number, number], textColor: [0, 0, 0] as [number, number, number], fontStyle: 'bold' as const },
+    alternateRowStyles: { fillColor: [248, 246, 252] as [number, number, number] },
+    columnStyles: {
+      1: { halign: 'right' as const, cellWidth: 30 },
+      2: { halign: 'right' as const, cellWidth: 45, fontStyle: 'bold' as const },
+    },
+    didDrawPage: drawChrome,
+  };
+
+  const regions = params.regionStats.filter((r) => r.count > 0);
+  if (regions.length) {
+    autoTable(pdf, {
+      head: [['Region', 'Payouts', 'Amount']],
+      body: regions.map((r) => [r.name, String(r.count), formatUGX(r.total)]),
+      foot: [['Total', String(params.payoutCount), formatUGX(params.grandTotal)]],
+      showFoot: 'lastPage',
+      startY: margin + PDF_HEADER_MM,
+      ...commonOpts,
+    });
+  }
+
+  const countries = params.countryStats.filter((c) => c.count > 0);
+  if (countries.length) {
+    const prevY = (pdf as any).lastAutoTable?.finalY ?? margin + PDF_HEADER_MM;
+    autoTable(pdf, {
+      head: [['Country', 'Payouts', 'Amount']],
+      body: countries.map((c) => [c.name, String(c.count), formatUGX(c.total)]),
+      foot: [['Total', String(params.payoutCount), formatUGX(params.grandTotal)]],
+      showFoot: 'lastPage',
+      startY: regions.length ? prevY + 8 : margin + PDF_HEADER_MM,
+      ...commonOpts,
+    });
+  }
+
+  if (!regions.length && !countries.length) {
+    drawChrome();
+    pdf.setFontSize(11);
+    pdf.text('No funded payouts in the selected scope.', margin, margin + PDF_HEADER_MM + 10);
+  }
+
+  return pdf.output('blob');
+}
