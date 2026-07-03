@@ -383,11 +383,53 @@ export function PromissoryNotesQueue() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Danger zone: delete with audit trail */}
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => { setDeleteReason(''); setDeleteTarget(selectedNote); }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Promissory Note
+                </Button>
               </div>
             );
           })()}
         </SheetContent>
       </Sheet>
+
+      {/* Delete confirmation with mandatory reason */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleting) { setDeleteTarget(null); setDeleteReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete promissory note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes {deleteTarget?.partner_name}'s promissory note. A reason is required and this action is recorded in the audit trail against your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="delete-reason">Reason for deletion (min 10 characters)</Label>
+            <Textarea
+              id="delete-reason"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. Duplicate entry created in error by agent"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting || deleteReason.trim().length < 10}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting…' : 'Delete & Log'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
