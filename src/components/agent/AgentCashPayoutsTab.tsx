@@ -1052,6 +1052,9 @@ export function AgentCashPayoutsTab() {
         </Card>
       )}
 
+      {/* Available float — request appears when float is low */}
+      <MerchantFloatRequestCard />
+
       {/* Today's payouts */}
       <section className="space-y-3">
         <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Payouts</h2>
@@ -1066,9 +1069,6 @@ export function AgentCashPayoutsTab() {
           </div>
         </div>
       </section>
-
-      {/* Float balance + requisition to CFO */}
-      <MerchantFloatRequestCard />
 
       {/* Commission breakdown — totals by date for all approved payouts */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
