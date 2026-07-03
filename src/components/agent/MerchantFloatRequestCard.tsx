@@ -78,9 +78,21 @@ export function MerchantFloatRequestCard() {
         status: 'pending',
       });
       if (error) throw error;
+      return { amt, reason: reason.trim() };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       toast.success('Float request sent to the CFO');
+      // Web push to the CFO(s) so they can fund the requisition promptly.
+      supabase.functions
+        .invoke('notify-cfo-float-request', {
+          body: {
+            agentName:
+              (user?.user_metadata as any)?.full_name ?? (user as any)?.full_name ?? undefined,
+            amount: result?.amt,
+            reason: result?.reason,
+          },
+        })
+        .catch((e) => console.error('notify-cfo-float-request failed:', e));
       setOpen(false);
       setAmount('');
       setReason('');
