@@ -112,6 +112,17 @@ export function MerchantFloatDemandCard() {
   const shortfall = Math.max(0, forecast.totalNeeded - (floatBalance || 0));
   const covered = !balanceLoading && shortfall === 0 && forecast.count > 0;
 
+  const requestFloat = () => {
+    const lines = forecast.breakdown.map(
+      (b) => `${CHANNEL_META[b.ch].label}: ${b.count}× ${formatUGX(b.amount)}`,
+    );
+    const reason =
+      `Float top-up for ${forecast.count} pending payout${forecast.count === 1 ? '' : 's'} ` +
+      `(needs ${formatUGX(forecast.totalNeeded)}). Breakdown — ${lines.join('; ')}.`;
+    const detail: RequestFloatDetail = { amount: shortfall, reason };
+    window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
+  };
+
   if (isLoading || balanceLoading) {
     return (
       <Card className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-transparent p-3.5">
