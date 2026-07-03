@@ -11,6 +11,7 @@ import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './Landlor
 import {
   buildBulkPayoutsPdfBlob,
   buildBulkCardsPdfBlob,
+  buildFundedSummaryPdfBlob,
   downloadBlob,
   exportPayoutsXlsx,
   PAYOUT_COLUMNS,
