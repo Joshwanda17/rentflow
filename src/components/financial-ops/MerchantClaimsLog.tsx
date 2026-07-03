@@ -309,31 +309,48 @@ export function MerchantClaimsLog() {
         if (a.agent_id) { byUserId.set(a.agent_id, info); agentUserIds.push(a.agent_id); }
       });
 
+      // Paginated fetch helper — PostgREST caps a single response at 1000 rows,
+      // so we page through until exhausted to get GENUINE counts (no silent cap).
+      const PAGE = 1000;
+      const fetchAll = async (
+        build: (from: number, to: number) => any,
+      ): Promise<any[]> => {
+        const out: any[] = [];
+        for (let from = 0; ; from += PAGE) {
+          const { data: page, error } = await build(from, from + PAGE - 1);
+          if (error) throw error;
+          const rows = page || [];
+          out.push(...rows);
+          if (rows.length < PAGE) break;
+          // Safety valve against runaway loops.
+          if (out.length >= 50_000) break;
+        }
+        return out;
+      };
+
       // 2. In-progress claims — currently assigned to a merchant agent.
-      const inProgressReq = supabase
-        .from('withdrawal_requests')
-        .select('id, user_id, amount, status, payout_method, dispatched_at, assigned_cashout_agent_id, created_at')
-        .not('assigned_cashout_agent_id', 'is', null)
-        .order('dispatched_at', { ascending: false })
-        .limit(300);
-
       // 3. Completed claims — settled by a merchant agent's own MoMo/cash.
-      const completedReq = agentUserIds.length
-        ? supabase
+      const [inProg, completed] = await Promise.all([
+        fetchAll((from, to) =>
+          supabase
             .from('withdrawal_requests')
-            .select('id, user_id, amount, status, payout_method, dispatched_at, processed_at, processed_by, created_at')
-            .in('processed_by', agentUserIds)
-            .in('status', COMPLETED_STATUSES)
-            .order('processed_at', { ascending: false })
-            .limit(500)
-        : Promise.resolve({ data: [], error: null } as any);
-
-      const [inProgRes, completedRes] = await Promise.all([inProgressReq, completedReq]);
-      if (inProgRes.error) throw inProgRes.error;
-      if (completedRes.error) throw completedRes.error;
-
-      const inProg = inProgRes.data || [];
-      const completed = completedRes.data || [];
+            .select('id, user_id, amount, status, payout_method, dispatched_at, assigned_cashout_agent_id, created_at')
+            .not('assigned_cashout_agent_id', 'is', null)
+            .order('dispatched_at', { ascending: false })
+            .range(from, to),
+        ),
+        agentUserIds.length
+          ? fetchAll((from, to) =>
+              supabase
+                .from('withdrawal_requests')
+                .select('id, user_id, amount, status, payout_method, dispatched_at, processed_at, processed_by, created_at')
+                .in('processed_by', agentUserIds)
+                .in('status', COMPLETED_STATUSES)
+                .order('processed_at', { ascending: false })
+                .range(from, to),
+            )
+          : Promise.resolve([] as any[]),
+      ]);
 
       // 4. Customer (beneficiary) names.
       const custIds = Array.from(new Set(
