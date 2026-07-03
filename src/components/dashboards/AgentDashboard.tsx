@@ -1342,6 +1342,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
+        restricted={isMerchant}
         onRegisterUser={handleRegisterUser}
         onDeposit={handleDeposit}
         onPostRentRequest={() => setRentRequestOpen(true)}
