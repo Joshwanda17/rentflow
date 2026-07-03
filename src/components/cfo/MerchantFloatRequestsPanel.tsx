@@ -18,6 +18,9 @@ import {
   generateMerchantFloatAllocationsPdf,
   type MerchantFloatAllocationRow,
   type MerchantFloatAgentBreakdown,
+  generateMerchantFloatStatementPdf,
+  type MerchantFloatStatementEntry,
+  type MerchantFloatTransaction,
 } from '@/lib/merchantFloatAllocationsPdf';
 
 interface FloatRequestRow {
@@ -55,6 +58,7 @@ export function MerchantFloatRequestsPanel() {
   const [note, setNote] = useState('');
   const [tab, setTab] = useState<'pending' | 'allocated'>('pending');
   const [downloading, setDownloading] = useState(false);
+  const [downloadingStmt, setDownloadingStmt] = useState(false);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['cfo-float-requests'],
@@ -128,6 +132,102 @@ export function MerchantFloatRequestsPanel() {
       toast.error(e.message || 'Could not generate PDF');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // Combined statement: per merchant agent, the float allocated AND the
+  // transactions they settled from that float. Fetched on demand at click time
+  // so we never load the (potentially large) payout history until asked.
+  const downloadStatementPdf = async () => {
+    if (allocations.length === 0) { toast.info('No allocations to export yet.'); return; }
+    setDownloadingStmt(true);
+    try {
+      const agentIds = Array.from(new Set(allocations.map((a) => a.agent_id)));
+
+      // All completed cash-outs settled by these merchant agents (float spent).
+      const { data: wrs, error: wrErr } = await supabase
+        .from('withdrawal_requests')
+        .select('id, amount, payout_method, mobile_money_provider, mobile_money_name, processed_at, processed_by')
+        .in('processed_by', agentIds)
+        .eq('status', 'completed')
+        .not('processed_at', 'is', null)
+        .order('processed_at', { ascending: false })
+        .limit(5000);
+      if (wrErr) throw wrErr;
+      const txns = (wrs ?? []) as any[];
+
+      // Commission legs earned on those payouts, keyed by withdrawal id.
+      const commByWr = new Map<string, number>();
+      const wrIds = txns.map((t) => String(t.id));
+      for (let i = 0; i < wrIds.length; i += 400) {
+        const chunk = wrIds.slice(i, i + 400);
+        const { data: legs } = await supabase
+          .from('general_ledger')
+          .select('amount, reference_id')
+          .eq('ledger_scope', 'wallet')
+          .eq('direction', 'cash_in')
+          .in('reference_id', chunk.map((id) => `${id}-cashout-commission`));
+        for (const l of (legs ?? []) as any[]) {
+          const ref = String(l.reference_id || '').replace('-cashout-commission', '');
+          commByWr.set(ref, Number(l.amount || 0));
+        }
+      }
+
+      const txByAgent = new Map<string, MerchantFloatTransaction[]>();
+      for (const t of txns) {
+        const list = txByAgent.get(t.processed_by) || [];
+        list.push({
+          date: t.processed_at,
+          amount: Number(t.amount) || 0,
+          method: t.mobile_money_provider || t.payout_method || 'Wallet',
+          recipient: t.mobile_money_name || undefined,
+          commission: commByWr.get(String(t.id)) || 0,
+        });
+        txByAgent.set(t.processed_by, list);
+      }
+
+      const allocByAgent = new Map<string, MerchantFloatAllocationRow[]>();
+      const nameByAgent = new Map<string, { name: string; phone?: string }>();
+      for (const a of allocations) {
+        const list = allocByAgent.get(a.agent_id) || [];
+        list.push({
+          date: a.approved_at || a.created_at,
+          agent: a.agent?.full_name || 'Merchant agent',
+          phone: a.agent?.phone || undefined,
+          amount: Number(a.requested_amount) || 0,
+          reason: a.reason || undefined,
+          approvedBy: a.approver?.full_name || undefined,
+        });
+        allocByAgent.set(a.agent_id, list);
+        if (!nameByAgent.has(a.agent_id)) {
+          nameByAgent.set(a.agent_id, { name: a.agent?.full_name || 'Merchant agent', phone: a.agent?.phone || undefined });
+        }
+      }
+
+      const entries: MerchantFloatStatementEntry[] = agentIds
+        .map((id) => ({
+          agent: nameByAgent.get(id)?.name || 'Merchant agent',
+          phone: nameByAgent.get(id)?.phone,
+          allocations: allocByAgent.get(id) || [],
+          transactions: txByAgent.get(id) || [],
+        }))
+        .sort((x, y) =>
+          y.allocations.reduce((s, r) => s + r.amount, 0) - x.allocations.reduce((s, r) => s + r.amount, 0));
+
+      const blob = await generateMerchantFloatStatementPdf(entries);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `merchant-float-statement-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      toast.success('Statement PDF downloaded');
+    } catch (e: any) {
+      toast.error(e.message || 'Could not generate statement PDF');
+    } finally {
+      setDownloadingStmt(false);
     }
   };
 
@@ -234,9 +334,14 @@ export function MerchantFloatRequestsPanel() {
             </button>
           </div>
           {tab === 'allocated' && (
-            <Button size="sm" variant="outline" className="ml-auto gap-1.5" onClick={downloadPdf} disabled={downloading || allocations.length === 0}>
-              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Download PDF
-            </Button>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadPdf} disabled={downloading || allocations.length === 0}>
+                {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Allocations PDF
+              </Button>
+              <Button size="sm" className="gap-1.5" onClick={downloadStatementPdf} disabled={downloadingStmt || allocations.length === 0}>
+                {downloadingStmt ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} Float + transactions PDF
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
