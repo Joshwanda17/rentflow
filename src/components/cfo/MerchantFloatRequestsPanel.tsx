@@ -59,6 +59,8 @@ export function MerchantFloatRequestsPanel() {
   const [tab, setTab] = useState<'pending' | 'allocated'>('pending');
   const [downloading, setDownloading] = useState(false);
   const [downloadingStmt, setDownloadingStmt] = useState(false);
+  const [stmtFrom, setStmtFrom] = useState('');
+  const [stmtTo, setStmtTo] = useState('');
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['cfo-float-requests'],
