@@ -246,7 +246,7 @@ export function MerchantFloatRequestsPanel() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `merchant-float-statement-${new Date().toISOString().slice(0, 10)}.pdf`;
+      link.download = `merchant-float-statement${stmtFrom ? `-${stmtFrom}` : ''}${stmtTo ? `-to-${stmtTo}` : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
