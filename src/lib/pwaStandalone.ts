@@ -22,7 +22,6 @@ export function isPreviewHost(): boolean {
     h.includes('id-preview--') ||
     h.includes('preview--') ||
     h.includes('lovableproject.com') ||
-    h.includes('lovable.app') === false && false || // placeholder to keep list explicit
     h === 'localhost' ||
     h === '127.0.0.1'
   );
