@@ -418,7 +418,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // lazily inside the swipe callbacks because `isCashoutAgent` resolves later.
   const getTabOrder = (): AgentHubTab[] =>
     isCashoutAgent
-      ? ['home', 'money', 'grow', 'subagents']
+      ? ['home']
       : ['home', 'money', 'tenants', 'grow', 'subagents'];
   const swipeHandlers = useHorizontalSwipe({
     onSwipeLeft: () => {
