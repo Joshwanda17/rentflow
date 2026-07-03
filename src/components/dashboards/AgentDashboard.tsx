@@ -414,18 +414,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   // Horizontal swipe → switch hub tabs (mobile gesture)
   // Merchant Agents don't get a "tenants" tab, so it's excluded from the swipe
-  // order to keep left/right gestures aligned with the visible tabs.
-  const TAB_ORDER: AgentHubTab[] = isMerchant
-    ? ['home', 'money', 'grow', 'subagents']
-    : ['home', 'money', 'tenants', 'grow', 'subagents'];
+  // order to keep left/right gestures aligned with the visible tabs. Computed
+  // lazily inside the swipe callbacks because `isCashoutAgent` resolves later.
+  const getTabOrder = (): AgentHubTab[] =>
+    isCashoutAgent
+      ? ['home', 'money', 'grow', 'subagents']
+      : ['home', 'money', 'tenants', 'grow', 'subagents'];
   const swipeHandlers = useHorizontalSwipe({
     onSwipeLeft: () => {
-      const i = TAB_ORDER.indexOf(activeTab);
-      if (i < TAB_ORDER.length - 1) { hapticTap(); setSlideDirection('left'); setActiveTab(TAB_ORDER[i + 1]); }
+      const order = getTabOrder();
+      const i = order.indexOf(activeTab);
+      if (i < order.length - 1) { hapticTap(); setSlideDirection('left'); setActiveTab(order[i + 1]); }
     },
     onSwipeRight: () => {
-      const i = TAB_ORDER.indexOf(activeTab);
-      if (i > 0) { hapticTap(); setSlideDirection('right'); setActiveTab(TAB_ORDER[i - 1]); }
+      const order = getTabOrder();
+      const i = order.indexOf(activeTab);
+      if (i > 0) { hapticTap(); setSlideDirection('right'); setActiveTab(order[i - 1]); }
     },
   });
 
