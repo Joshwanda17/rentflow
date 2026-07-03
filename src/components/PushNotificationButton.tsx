@@ -93,7 +93,7 @@ export function PushNotificationButton({ className }: { className?: string }) {
             p256dh,
             auth,
           },
-          { onConflict: "endpoint" },
+          { onConflict: "user_id,endpoint" },
         );
 
       if (error) throw error;

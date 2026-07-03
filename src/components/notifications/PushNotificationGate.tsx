@@ -122,7 +122,7 @@ export function PushNotificationGate() {
             p256dh,
             auth,
           },
-          { onConflict: "endpoint" },
+          { onConflict: "user_id,endpoint" },
         );
       if (error) throw error;
 

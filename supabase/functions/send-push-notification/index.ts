@@ -189,7 +189,7 @@ async function createVapidJwt(audience: string): Promise<string> {
 async function sendPushToSubscription(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: PushPayload
-): Promise<boolean> {
+): Promise<{ ok: boolean; gone: boolean }> {
   try {
     const endpoint = new URL(subscription.endpoint);
     const audience = `${endpoint.protocol}//${endpoint.host}`;
@@ -221,13 +221,16 @@ async function sendPushToSubscription(
 
     if (!response.ok) {
       console.error(`Push failed for ${subscription.endpoint}: ${response.status}`);
-      return false;
+      // Only 404/410 mean the endpoint is permanently gone (unsubscribed /
+      // expired). Every other status (401, 429, 5xx, timeouts) is transient —
+      // keep the subscription so we don't wipe valid devices on a bad send.
+      return { ok: false, gone: response.status === 404 || response.status === 410 };
     }
 
-    return true;
+    return { ok: true, gone: false };
   } catch (error) {
     console.error('Error sending push:', error);
-    return false;
+    return { ok: false, gone: false };
   }
 }
 
@@ -286,14 +289,17 @@ serve(async (req) => {
       subscriptions.map(sub => sendPushToSubscription(sub, payload))
     );
 
-    const successful = results.filter(r => r.status === 'fulfilled' && r.value).length;
+    const successful = results.filter(
+      r => r.status === 'fulfilled' && r.value.ok,
+    ).length;
     const failed = results.length - successful;
 
-    // Clean up failed subscriptions (expired endpoints)
-    const failedSubs = subscriptions.filter((_, i) => 
-      results[i].status === 'rejected' || 
-      (results[i].status === 'fulfilled' && !(results[i] as PromiseFulfilledResult<boolean>).value)
-    );
+    // Clean up ONLY permanently-gone endpoints (404/410). Transient failures
+    // keep their subscription so a single bad send never wipes a live device.
+    const failedSubs = subscriptions.filter((_, i) => {
+      const r = results[i];
+      return r.status === 'fulfilled' && r.value.gone;
+    });
 
     if (failedSubs.length > 0) {
       await supabase
