@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +28,13 @@ interface FloatRequestRow {
 
 const LOW_FLOAT_THRESHOLD = 100_000;
 
+/** Event other merchant cards fire to open + pre-fill this request form. */
+export const REQUEST_FLOAT_EVENT = 'merchant:request-float';
+export interface RequestFloatDetail {
+  amount?: number;
+  reason?: string;
+}
+
 /**
  * Compact single "Available Float" card. A merchant agent pays cash-outs from
  * their FLOAT bucket. When that float drops below UGX 100,000 a "Request float"
@@ -43,6 +50,21 @@ export function MerchantFloatRequestCard() {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+
+  // Allow other cards (e.g. the Float Demand Forecast) to open this form
+  // pre-filled with a suggested shortfall amount and channel breakdown.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<RequestFloatDetail>).detail || {};
+      if (typeof detail.amount === 'number' && detail.amount > 0) {
+        setAmount(String(Math.round(detail.amount)));
+      }
+      if (detail.reason) setReason(detail.reason);
+      setOpen(true);
+    };
+    window.addEventListener(REQUEST_FLOAT_EVENT, handler as EventListener);
+    return () => window.removeEventListener(REQUEST_FLOAT_EVENT, handler as EventListener);
+  }, []);
 
   const { data: requests = [] } = useQuery({
     queryKey: ['my-float-requests', user?.id],
@@ -62,7 +84,9 @@ export function MerchantFloatRequestCard() {
 
   const hasPending = requests.some((r) => r.status === 'pending');
   const isLow = !balanceLoading && floatBalance < LOW_FLOAT_THRESHOLD;
-  const showRequest = isLow || hasPending;
+  // `open` is included so an externally-fired request event (Float Demand
+  // Forecast) can surface the dialog even when float isn't low.
+  const showRequest = isLow || hasPending || open;
 
   const submit = useMutation({
     mutationFn: async () => {

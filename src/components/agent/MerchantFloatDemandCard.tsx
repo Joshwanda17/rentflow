@@ -4,10 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Gauge, Smartphone, Landmark, Banknote, TrendingUp, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Gauge, Smartphone, Landmark, Banknote, TrendingUp, AlertTriangle, CheckCircle2, PlusCircle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
 import { cn } from '@/lib/utils';
+import { REQUEST_FLOAT_EVENT, type RequestFloatDetail } from '@/components/agent/MerchantFloatRequestCard';
 
 // Same statuses the payout queue treats as "still needs paying".
 const DEMAND_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
@@ -110,6 +112,17 @@ export function MerchantFloatDemandCard() {
   const shortfall = Math.max(0, forecast.totalNeeded - (floatBalance || 0));
   const covered = !balanceLoading && shortfall === 0 && forecast.count > 0;
 
+  const requestFloat = () => {
+    const lines = forecast.breakdown.map(
+      (b) => `${CHANNEL_META[b.ch].label}: ${b.count}× ${formatUGX(b.amount)}`,
+    );
+    const reason =
+      `Float top-up for ${forecast.count} pending payout${forecast.count === 1 ? '' : 's'} ` +
+      `(needs ${formatUGX(forecast.totalNeeded)}). Breakdown — ${lines.join('; ')}.`;
+    const detail: RequestFloatDetail = { amount: shortfall, reason };
+    window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
+  };
+
   if (isLoading || balanceLoading) {
     return (
       <Card className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-transparent p-3.5">
@@ -191,6 +204,18 @@ export function MerchantFloatDemandCard() {
           </p>
         </div>
       </div>
+
+      {/* Request the shortfall straight from the CFO, pre-filled. */}
+      {shortfall > 0 && (
+        <Button
+          size="sm"
+          className="mt-2 w-full gap-1.5"
+          onClick={requestFloat}
+        >
+          <PlusCircle className="h-4 w-4" />
+          Request {formatUGX(shortfall)} float from CFO
+        </Button>
+      )}
 
       {/* Per-channel breakdown. */}
       <div className="mt-3 space-y-1.5">
