@@ -249,7 +249,10 @@ export function MerchantFloatRequestsPanel() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `merchant-float-statement${stmtFrom ? `-${stmtFrom}` : ''}${stmtTo ? `-to-${stmtTo}` : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const agentSlug = onlyAgentId
+        ? '-' + (nameByAgent.get(onlyAgentId)?.name || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)
+        : '';
+      link.download = `merchant-float-statement${agentSlug}${stmtFrom ? `-${stmtFrom}` : ''}${stmtTo ? `-to-${stmtTo}` : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
