@@ -42,10 +42,20 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
       || localStorage.getItem('welile_pwa_installed') === 'true';
     setIsStandalone(standalone);
 
-    // Respect a prior "continue in browser" choice so users are never locked out.
-    if (localStorage.getItem('welile_install_skipped') === 'true') {
-      setSkipped(true);
+    // "Continue in browser" is now session-only: the gate re-appears on every
+    // new visit/device until the app is actually installed. We deliberately do
+    // NOT persist the skip to localStorage so installation is enforced on every
+    // device — while still leaving a per-session escape hatch so a browser that
+    // genuinely cannot install (e.g. locked-down desktop) never hard-locks out.
+    try {
+      if (sessionStorage.getItem('welile_install_skipped') === 'true') {
+        setSkipped(true);
+      }
+    } catch {
+      /* ignore storage errors */
     }
+    // Migrate away any old permanent skip so returning users are nagged again.
+    try { localStorage.removeItem('welile_install_skipped'); } catch { /* noop */ }
 
     const ua = navigator.userAgent;
     const iOS = /iPad|iPhone|iPod/.test(ua) && !(window as Window & { MSStream?: unknown }).MSStream;
@@ -119,17 +129,18 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const handleSkip = useCallback(() => {
     hapticTap();
     try {
-      localStorage.setItem('welile_install_skipped', 'true');
+      // Session-only: cleared when the tab/app is closed, so the install gate
+      // returns on the next visit until Welile is installed.
+      sessionStorage.setItem('welile_install_skipped', 'true');
     } catch {
       /* ignore storage errors */
     }
     setSkipped(true);
   }, []);
 
-  // Desktop browsers pass through (install is optional there). On phones the gate
-  // is offered but never blocking — users can always continue in the browser.
-  const isMobile = isIOS || isAndroid;
-  if (isStandalone || !isMobile || skipped) {
+  // Force installation on EVERY device (desktop + mobile). The gate is shown
+  // until the app is installed, or the user takes the session-only escape hatch.
+  if (isStandalone || skipped) {
     return <>{children}</>;
   }
 
