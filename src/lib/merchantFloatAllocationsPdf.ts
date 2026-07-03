@@ -1,5 +1,6 @@
 import welileLogoUrl from '@/assets/welile-logo.png';
 import { format } from 'date-fns';
+import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
 
 const THEME_PRIMARY: [number, number, number] = [2, 132, 199]; // sky-600
 const THEME_PRIMARY_DARK: [number, number, number] = [3, 105, 161]; // sky-700
@@ -33,6 +34,9 @@ export interface MerchantFloatTransaction {
   method?: string;
   recipient?: string;
   commission?: number;
+  /** Telecom sending charge levied on this payout. Falls back to the
+   *  published tier for the amount when not supplied. */
+  telecomCharge?: number;
   reference?: string;
 }
 
@@ -45,7 +49,7 @@ export interface MerchantFloatStatementEntry {
 }
 
 const fmtUGX = (n: number) =>
-  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
+  `UGX ${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(Number(n) || 0))}`;
 
 async function loadLogoBase64(): Promise<string | null> {
   try {
