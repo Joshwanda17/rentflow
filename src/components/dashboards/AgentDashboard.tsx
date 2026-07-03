@@ -155,6 +155,7 @@ import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentR
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
+import { MERCHANT_RESTRICTION_MESSAGE } from '@/hooks/useIsMerchantAgent';
 import { AgentTenantInlineList } from '@/components/agent/AgentTenantInlineList';
 import { AgentCapacityShareInline } from '@/components/agent/AgentCapacityShareInline';
 import { AgentDailyCardEmailPrompt } from '@/components/agent/AgentDailyCardEmailPrompt';
@@ -412,15 +413,23 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, []);
 
   // Horizontal swipe → switch hub tabs (mobile gesture)
-  const TAB_ORDER: AgentHubTab[] = ['home', 'money', 'tenants', 'grow', 'subagents'];
+  // Merchant Agents don't get a "tenants" tab, so it's excluded from the swipe
+  // order to keep left/right gestures aligned with the visible tabs. Computed
+  // lazily inside the swipe callbacks because `isCashoutAgent` resolves later.
+  const getTabOrder = (): AgentHubTab[] =>
+    isCashoutAgent
+      ? ['home', 'money', 'grow', 'subagents']
+      : ['home', 'money', 'tenants', 'grow', 'subagents'];
   const swipeHandlers = useHorizontalSwipe({
     onSwipeLeft: () => {
-      const i = TAB_ORDER.indexOf(activeTab);
-      if (i < TAB_ORDER.length - 1) { hapticTap(); setSlideDirection('left'); setActiveTab(TAB_ORDER[i + 1]); }
+      const order = getTabOrder();
+      const i = order.indexOf(activeTab);
+      if (i < order.length - 1) { hapticTap(); setSlideDirection('left'); setActiveTab(order[i + 1]); }
     },
     onSwipeRight: () => {
-      const i = TAB_ORDER.indexOf(activeTab);
-      if (i > 0) { hapticTap(); setSlideDirection('right'); setActiveTab(TAB_ORDER[i - 1]); }
+      const order = getTabOrder();
+      const i = order.indexOf(activeTab);
+      if (i > 0) { hapticTap(); setSlideDirection('right'); setActiveTab(order[i - 1]); }
     },
   });
 
@@ -512,6 +521,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const dismissMerchantOnboard = () => {
     try { localStorage.setItem(merchantOnboardKey, '1'); } catch { /* ignore */ }
     setShowMerchantOnboard(false);
+  };
+
+  // ── Merchant Agent restriction ───────────────────────────────────────────
+  // A Merchant Agent (active row in `cashout_agents`) is SOLELY a payout
+  // operator. They must NOT perform tenant operations (invite / pay / repay /
+  // post rent requests), landlord operations (payouts / registration) or list
+  // empty houses. `isMerchant` hides those surfaces; `guardMerchant()` blocks
+  // any action that still gets triggered and shows a friendly explanation.
+  const isMerchant = !!isCashoutAgent;
+  const guardMerchant = () => {
+    if (!isMerchant) return false;
+    import('sonner').then(({ toast }) => toast.error(MERCHANT_RESTRICTION_MESSAGE));
+    return true;
   };
 
   // Live "updated …" indicator for the Merchant Payouts earnings total.
@@ -818,6 +840,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background border-b border-border/40">
           <AgentHubTabs
             active={activeTab}
+            restricted={isMerchant}
             onChange={(tab) => {
               // Tapping the "Sub Agents" icon opens the full team analytics page
               // rather than the inline panel.
@@ -845,8 +868,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * "Grow" button via AgentMenuDrawer so no functionality is lost.
              */}
 
-            {/* 0) PROMO — prominent weekly landlord registration drive */}
-            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setListHouseFromPromo(true); setListHouseOpen(true); }} />
+            {/* 0) PROMO — prominent weekly landlord registration drive.
+                Hidden for Merchant Agents (landlord operations are disabled). */}
+            {!isMerchant && (
+              <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setListHouseFromPromo(true); setListHouseOpen(true); }} />
+            )}
 
             {/* 0b) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
             {isCashoutAgent && showMerchantOnboard && (
@@ -912,10 +938,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <AgentPriorityGrid
               agentId={user.id}
               withdrawable={realWithdrawableBalance}
+              restricted={isMerchant}
               onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
-              onOpenFieldCollect={() => setFieldCollectOpen(true)}
-              onOpenNewTenant={() => setRentRequestOpen(true)}
-              onOpenListHouse={() => { hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
+              onOpenFieldCollect={() => { if (guardMerchant()) return; setFieldCollectOpen(true); }}
+              onOpenNewTenant={() => { if (guardMerchant()) return; setRentRequestOpen(true); }}
+              onOpenListHouse={() => { if (guardMerchant()) return; hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
             />
 
             {/* 2) Today's collected total — single most useful at-a-glance number */}
@@ -1048,7 +1075,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                     bg: 'bg-primary/10',
                     onClick: () => { hapticTap(); setAdvanceRequestOpen(true); },
                   },
-                ].map((c) => {
+                ].filter((c) => !(isMerchant && c.key === 'landlord')).map((c) => {
                   const Icon = c.icon;
                   return (
                     <button
@@ -1092,6 +1119,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <AgentMyAdvancesCard />
             <AgentRiskExposureCard />
             <EarnedSinceLastWithdrawalCard />
+            {!isMerchant && (
             <AgentLandlordFloatCard
               onPayLandlord={() => { hapticTap(); setFloatAllocationsOpen(true); }}
               onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
@@ -1099,6 +1127,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
               onOpenOtpAudit={() => { hapticTap(); setOtpAuditOpen(true); }}
             />
+            )}
             <button
               onClick={() => { hapticTap(); setBusinessAdvanceOpen(true); }}
               className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 ring-1 ring-primary/30 active:scale-[0.98] transition-all touch-manipulation"
@@ -1150,8 +1179,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
         )}
 
-        {/* === TENANTS TAB === Clean tenant list with big tap targets */}
-        {activeTab === 'tenants' && (
+        {/* === TENANTS TAB === Clean tenant list with big tap targets.
+            Never rendered for Merchant Agents (tenant operations disabled). */}
+        {activeTab === 'tenants' && !isMerchant && (
           <div className={cn("space-y-4 pb-24", tabAnimClass)}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">My Tenants</h2>
@@ -1312,6 +1342,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
+        restricted={isMerchant}
         onRegisterUser={handleRegisterUser}
         onDeposit={handleDeposit}
         onPostRentRequest={() => setRentRequestOpen(true)}
