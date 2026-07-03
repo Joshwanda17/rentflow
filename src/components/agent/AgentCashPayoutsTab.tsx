@@ -201,9 +201,10 @@ export function AgentCashPayoutsTab() {
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
   const [consoleOpen, setConsoleOpen] = useState(false);
 
-  // Date range filter for the commission breakdown.
-  const [rangeFrom, setRangeFrom] = useState<Date | undefined>(undefined);
-  const [rangeTo, setRangeTo] = useState<Date | undefined>(undefined);
+  // Date range filter for the commission breakdown. Defaults to "today" so the
+  // card shows the volume processed and payout count for the current day.
+  const [rangeFrom, setRangeFrom] = useState<Date | undefined>(() => new Date());
+  const [rangeTo, setRangeTo] = useState<Date | undefined>(() => new Date());
   const fromKey = rangeFrom ? format(rangeFrom, 'yyyy-MM-dd') : '';
   const toKey = rangeTo ? format(rangeTo, 'yyyy-MM-dd') : '';
 
