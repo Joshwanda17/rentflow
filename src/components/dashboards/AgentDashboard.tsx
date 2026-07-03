@@ -1067,7 +1067,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                     bg: 'bg-primary/10',
                     onClick: () => { hapticTap(); setAdvanceRequestOpen(true); },
                   },
-                ].map((c) => {
+                ].filter((c) => !(isMerchant && c.key === 'landlord')).map((c) => {
                   const Icon = c.icon;
                   return (
                     <button
