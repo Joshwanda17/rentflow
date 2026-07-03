@@ -206,13 +206,20 @@ export function FundedTenantsList() {
 
   const dateFiltered = useMemo(() => {
     if (dateFilter === 'all') return rows;
+    if (dateFilter === 'month') {
+      const [y, m] = monthValue.split('-').map(Number);
+      return rows.filter((r) => {
+        const d = new Date(r.finops_disbursed_at ?? r.created_at);
+        return d.getFullYear() === y && d.getMonth() === m - 1;
+      });
+    }
     const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
     return rows.filter((r) => {
       const ts = new Date(r.finops_disbursed_at ?? r.created_at).getTime();
       return ts >= cutoff;
     });
-  }, [rows, dateFilter, customDays]);
+  }, [rows, dateFilter, customDays, monthValue]);
 
   const countryStats = useMemo(() => {
     const m = new Map<string, { count: number; total: number }>();
