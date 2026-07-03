@@ -248,6 +248,11 @@ export default function CFODashboard() {
             <CFOAgentRequisitions />
           </TabsContent>
 
+          {/* Advances Tab */}
+          <TabsContent value="advances" className="space-y-6">
+            <AgentAdvancesOutstandingPanel />
+          </TabsContent>
+
           {/* Collections Tab */}
           <TabsContent value="collections" className="space-y-6">
             <RentCollectionsFeed />
