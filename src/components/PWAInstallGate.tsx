@@ -257,6 +257,54 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           </p>
         )}
 
+        <button
+          type="button"
+          onClick={handleVerifyInstalled}
+          disabled={verifyState === 'checking'}
+          className={cn(
+            'mt-4 w-full flex items-center justify-center gap-2 h-12 rounded-2xl font-semibold text-sm transition-all',
+            'border border-border bg-card text-foreground',
+            'hover:bg-muted active:scale-[0.98]',
+            verifyState === 'checking' && 'opacity-70 cursor-wait'
+          )}
+          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+        >
+          {verifyState === 'checking'
+            ? <RefreshCw className="h-4 w-4 animate-spin" />
+            : <CheckCircle2 className="h-4 w-4" />}
+          {verifyState === 'checking' ? 'Checking…' : "I've installed the app"}
+        </button>
+
+        <AnimatePresence>
+          {verifyState === 'not_standalone' && (
+            <motion.div
+              className="mt-4 w-full"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-warning shrink-0" />
+                  <p className="font-semibold text-foreground text-sm">Still opened in the browser</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  For the best experience, close this tab and open <strong>Welile</strong> from your
+                  home screen or app list. If you're sure it's already installed, confirm below to continue.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleConfirmOverride}
+                  className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Yes, I've already installed it — continue
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {installResult === 'dismissed' && !showMenuGuide && (
             <motion.p
