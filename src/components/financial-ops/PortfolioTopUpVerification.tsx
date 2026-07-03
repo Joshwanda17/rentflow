@@ -227,7 +227,7 @@ export function PortfolioTopUpVerification() {
       ))}
 
       {/* Confirm dialog */}
-      <AlertDialog open={!!confirmAction} onOpenChange={open => { if (!open) setConfirmAction(null); }}>
+      <AlertDialog open={!!confirmAction} onOpenChange={open => { if (!open) { setConfirmAction(null); setRejectReason(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -236,14 +236,29 @@ export function PortfolioTopUpVerification() {
             <AlertDialogDescription>
               {confirmAction?.action === 'approve'
                 ? `This will add ${formatUGX(confirmAction.group.total)} to "${confirmAction.group.account_name || confirmAction.group.portfolio_code}" and create ledger entries. This action is irreversible.`
-                : `This will reject ${confirmAction?.group.ops.length} deposit(s) totaling ${formatUGX(confirmAction?.group.total || 0)}. No funds will be moved.`
+                : `This will reject ${confirmAction?.group.ops.length} deposit(s) totaling ${formatUGX(confirmAction?.group.total || 0)}. The funds stay in the partner's wallet and they will see your reason in their portfolio.`
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmAction?.action === 'reject' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="reject-reason" className="text-xs font-medium">Reason for rejection (shown to the partner)</Label>
+              <Textarea
+                id="reject-reason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Amount does not match the deposit we received"
+                className="min-h-[80px] text-sm"
+                maxLength={500}
+              />
+              <p className="text-[10px] text-muted-foreground">Minimum 5 characters.</p>
+            </div>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setRejectReason('')}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => confirmAction && handleAction(confirmAction.portfolio_id, confirmAction.action)}
+              disabled={confirmAction?.action === 'reject' && rejectReason.trim().length < 5}
+              onClick={() => confirmAction && handleAction(confirmAction.portfolio_id, confirmAction.action, rejectReason.trim())}
               className={confirmAction?.action === 'reject' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
             >
               {confirmAction?.action === 'approve' ? 'Approve & Apply Funds' : 'Reject Top-Up'}
