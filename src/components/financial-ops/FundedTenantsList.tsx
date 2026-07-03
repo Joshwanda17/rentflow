@@ -378,11 +378,21 @@ export function FundedTenantsList() {
     const parts: string[] = [];
     if (dateFilter === '7d') parts.push('last 7 days');
     else if (dateFilter === '30d') parts.push('last 30 days');
+    else if (dateFilter === 'month') parts.push(monthLabel(monthValue));
     else if (dateFilter === 'custom') parts.push(`last ${Math.max(1, customDays || 1)} days`);
     if (regionFilter) parts.push(regionFilter);
     else if (countryFilter !== 'all') parts.push(countryFilter);
     return parts.join(' · ');
-  }, [dateFilter, customDays, countryFilter, regionFilter]);
+  }, [dateFilter, customDays, monthValue, countryFilter, regionFilter]);
+
+  // Human-readable time period for the summary sentence.
+  const periodLabel = useMemo(() => {
+    if (dateFilter === 'month') return monthLabel(monthValue);
+    if (dateFilter === '7d') return 'the last 7 days';
+    if (dateFilter === '30d') return 'the last 30 days';
+    if (dateFilter === 'custom') return `the last ${Math.max(1, customDays || 1)} days`;
+    return 'all time';
+  }, [dateFilter, monthValue, customDays]);
 
   const scopeSlug = useMemo(() => {
     const slug = (s: string) =>
@@ -390,12 +400,13 @@ export function FundedTenantsList() {
     const parts: string[] = [];
     if (dateFilter === '7d') parts.push('last-7d');
     else if (dateFilter === '30d') parts.push('last-30d');
+    else if (dateFilter === 'month') parts.push(monthValue);
     else if (dateFilter === 'custom') parts.push(`last-${Math.max(1, customDays || 1)}d`);
     else parts.push('all-time');
     if (regionFilter) parts.push(slug(regionFilter));
     else if (countryFilter !== 'all') parts.push(slug(countryFilter));
     return parts.join('-');
-  }, [dateFilter, customDays, countryFilter, regionFilter]);
+  }, [dateFilter, customDays, monthValue, countryFilter, regionFilter]);
 
   const handleBulkPdf = async () => {
     if (!filtered.length) return;
