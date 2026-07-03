@@ -334,8 +334,8 @@ const services = [
       },
       {
         icon: Trophy,
-        title: "Monthly Leaderboard Prizes - Up to UGX 30,000!",
-        description: "Top 3 referrers every month win BONUS rewards: 1st = UGX 30,000, 2nd = UGX 20,000, 3rd = UGX 10,000. Could be YOU!",
+        title: "Monthly Leaderboard Prizes - Up to UGX 3,000!",
+        description: "Top 3 referrers every month win BONUS rewards: 1st = UGX 3,000, 2nd = UGX 2,000, 3rd = UGX 1,000. Could be YOU!",
         color: "bg-amber-500/10 text-amber-500",
         highlight: true,
         tag: "MONTHLY CONTEST"
