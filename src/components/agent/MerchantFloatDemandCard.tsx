@@ -206,11 +206,13 @@ export function MerchantFloatDemandCard() {
   };
 
   const requestFloatForDay = (day: (typeof forecast.days)[number]) => {
+    const dayShare = Math.ceil(day.needed / activeMerchants);
     const lines = day.channels.map((c) => `${CHANNEL_META[c.ch].label}: ${formatUGX(c.amount)}`);
     const reason =
-      `Float top-up for ${dayLabel(day.date)} — ${day.count} payout${day.count === 1 ? '' : 's'} ` +
-      `(needs ${formatUGX(day.needed)}). Breakdown — ${lines.join('; ')}.`;
-    const detail: RequestFloatDetail = { amount: day.needed, reason };
+      `Fair-share float top-up for ${dayLabel(day.date)} (1 of ${activeMerchants} merchant agents) — ` +
+      `${day.count} payout${day.count === 1 ? '' : 's'}, day demand ${formatUGX(day.needed)}. ` +
+      `Breakdown — ${lines.join('; ')}.`;
+    const detail: RequestFloatDetail = { amount: dayShare, reason };
     window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
   };
 
