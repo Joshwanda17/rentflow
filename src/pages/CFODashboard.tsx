@@ -38,6 +38,7 @@ import { CFOPartnerInvestments } from '@/components/cfo/CFOPartnerInvestments';
 import { CronJobsHealthPanel } from '@/components/cfo/CronJobsHealthPanel';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
+import { AgentAdvancesOutstandingPanel } from '@/components/cfo/AgentAdvancesOutstandingPanel';
 export default function CFODashboard() {
   const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
@@ -76,6 +77,7 @@ export default function CFODashboard() {
     { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'payouts', label: 'Rent Payouts', icon: Banknote },
     { id: 'requisitions', label: 'Financial Agents', icon: FileText },
+    { id: 'advances', label: 'Advances', icon: HandCoins },
     { id: 'statements', label: 'Statements', icon: BookOpen },
     { id: 'solvency', label: 'Solvency', icon: Shield },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
@@ -244,6 +246,11 @@ export default function CFODashboard() {
           {/* Requisitions Tab */}
           <TabsContent value="requisitions" className="space-y-6">
             <CFOAgentRequisitions />
+          </TabsContent>
+
+          {/* Advances Tab */}
+          <TabsContent value="advances" className="space-y-6">
+            <AgentAdvancesOutstandingPanel />
           </TabsContent>
 
           {/* Collections Tab */}
