@@ -264,18 +264,16 @@ export function MerchantFloatDemandCard() {
         )}
       </div>
 
-      {/* Low-float alert banner — which channels will fall short. */}
+      {/* Shared-pool low-float alert — network is under-funded for the queue. */}
       {needsAttention && (
         <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <div className="min-w-0 text-[11px] leading-snug text-amber-800 dark:text-amber-300">
             <p className="font-semibold">
-              Low float — {atRiskChannels.length} channel{atRiskChannels.length === 1 ? '' : 's'} at risk
+              Network float short by {formatUGX(netGap)}
             </p>
             <p className="text-amber-700/90 dark:text-amber-400/90">
-              {atRiskChannels
-                .map((b) => `${CHANNEL_META[b.ch].label} short by ${formatUGX(channelRisk[b.ch])}`)
-                .join(' · ')}
+              Shared across {activeMerchants} merchant agent{activeMerchants === 1 ? '' : 's'}. Request only your fair share so the CFO isn't over-funded.
             </p>
           </div>
         </div>
