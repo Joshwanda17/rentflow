@@ -1,6 +1,6 @@
 import {
   BarChart3, Banknote, Wallet, Home, ShieldCheck, BookOpen,
-  TrendingUp, ClipboardList, Receipt, Landmark,
+  TrendingUp, ClipboardList, Receipt, Landmark, HandCoins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -24,6 +24,7 @@ const ACTIONS: Action[] = [
   { id: 'rent-payouts', label: 'Rent Payouts', icon: Banknote, group: 'approvals' },
   { id: 'landlord-payout-float', label: 'Landlord Float', icon: Home, group: 'approvals' },
   { id: 'withdrawals', label: 'Withdrawals', icon: Wallet, group: 'approvals' },
+  { id: 'merchant-float', label: 'Merchant Float', icon: HandCoins, group: 'approvals' },
   { id: 'unfunding-approvals', label: 'Mark-Not-Funded', icon: ShieldCheck, group: 'approvals' },
   { id: 'already-funded-landlords', label: 'Funded Landlords', icon: Landmark, group: 'approvals' },
   // Reports
