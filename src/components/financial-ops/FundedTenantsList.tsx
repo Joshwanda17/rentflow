@@ -674,9 +674,18 @@ export function FundedTenantsList() {
             <SelectItem value="all">All time</SelectItem>
             <SelectItem value="7d">Last 7 days</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="month">Specific month</SelectItem>
             <SelectItem value="custom">Custom…</SelectItem>
           </SelectContent>
         </Select>
+        {dateFilter === 'month' && (
+          <Input
+            type="month"
+            value={monthValue}
+            onChange={(e) => { setMonthValue(e.target.value || currentMonthValue()); setCountryFilter('all'); setRegionFilter(null); }}
+            className="h-8 w-[150px] text-xs"
+          />
+        )}
         {dateFilter === 'custom' && (
           <div className="inline-flex items-center gap-1.5">
             <Input
