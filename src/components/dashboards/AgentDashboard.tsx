@@ -74,6 +74,7 @@ import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/co
 
 
 import { hapticTap } from '@/lib/haptics';
+import AgentFrozenGate from '@/components/agent/AgentFrozenGate';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
 import { AgentRejectedLandlordsPanel } from '@/components/agent/AgentRejectedLandlordsPanel';
@@ -682,6 +683,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const quickActions = [] as any[];
 
   return (
+    <AgentFrozenGate>
     <div className="agent-dashboard-shell h-[100dvh] bg-background flex flex-col overflow-hidden">
       <OfflineBanner />
       <PendingDraftsBanner />
