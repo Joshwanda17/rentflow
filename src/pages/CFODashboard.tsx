@@ -72,6 +72,7 @@ export default function CFODashboard() {
   const tabs = [
     { id: 'overview', label: 'Pending Approvals', icon: Bell },
     { id: 'wallet-payout', label: 'Pay to Wallet', icon: Wallet },
+    { id: 'merchant-float', label: 'Merchant Float', icon: HandCoins },
     { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'payouts', label: 'Rent Payouts', icon: Banknote },
     { id: 'requisitions', label: 'Financial Agents', icon: FileText },
@@ -136,7 +137,6 @@ export default function CFODashboard() {
 
           {/* Pay to Wallet Tab */}
           <TabsContent value="wallet-payout" className="space-y-6">
-            <MerchantFloatRequestsPanel />
             <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 sm:p-6">
               <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
                 <Wallet className="h-5 w-5 text-primary" />
@@ -147,6 +147,11 @@ export default function CFODashboard() {
               </p>
               <DirectCreditTool />
             </div>
+          </TabsContent>
+
+          {/* Merchant Float Requisitions Tab */}
+          <TabsContent value="merchant-float" className="space-y-6">
+            <MerchantFloatRequestsPanel />
           </TabsContent>
 
           {/* ROI Requests Tab */}
