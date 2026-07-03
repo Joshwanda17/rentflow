@@ -97,7 +97,7 @@ interface QueueFilterOpts {
   maxAmount: number | null;
   fromIso: string | null;
   toIso: string | null;
-  channel: 'all' | 'momo' | 'cash';
+  channel: 'all' | 'momo' | 'cash' | 'bank';
   searchUserIds: string[] | null;
   searchTerm: string;
 }
@@ -132,8 +132,10 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
   // Channel (MoMo vs Cash).
   if (o.channel === 'momo') {
     q = q.or('payout_method.ilike.*momo*,payout_method.ilike.*mobile*,payout_method.ilike.*mtn*,payout_method.ilike.*airtel*,mobile_money_number.not.is.null,mobile_money_provider.not.is.null');
+  } else if (o.channel === 'bank') {
+    q = q.ilike('payout_method', '%bank%');
   } else if (o.channel === 'cash') {
-    q = q.or('payout_method.ilike.*cash*,payout_method.ilike.*bank*,payout_method.ilike.*pickup*');
+    q = q.or('payout_method.ilike.*cash*,payout_method.ilike.*pickup*');
   }
 
   // Merchant / provider.
