@@ -2108,7 +2108,7 @@ Deno.serve(async (req) => {
       let proofLabel = "Transaction ID";
       if (pm.includes("bank")) proofLabel = "Bank deposit reference";
       else if (pm.includes("cash")) proofLabel = "Cash receipt";
-      else if (pm.includes("mtn") || pm.includes("airtel") || pm.includes("momo") || pm.includes("mobile")) proofLabel = "Mobile Money transaction ID";
+      else if (pm.includes("mtn") || pm.includes("airtel") || pm.includes("momo") || pm.includes("mobile")) proofLabel = "Mobile Money Transaction ID";
 
       // Fetch the user's NEW withdrawable balance (post-debit) so the SMS can
       // show the wallet change. Strict ledger-backed RPC — never inflated.
