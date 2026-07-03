@@ -2879,6 +2879,7 @@ export type Database = {
           blocked_by: string | null
           blocked_until: string
           created_at: string
+          freeze_scope: string
           id: string
           reason: string
           rejection_count: number | null
@@ -2894,6 +2895,7 @@ export type Database = {
           blocked_by?: string | null
           blocked_until: string
           created_at?: string
+          freeze_scope?: string
           id?: string
           reason: string
           rejection_count?: number | null
@@ -2909,6 +2911,7 @@ export type Database = {
           blocked_by?: string | null
           blocked_until?: string
           created_at?: string
+          freeze_scope?: string
           id?: string
           reason?: string
           rejection_count?: number | null
@@ -20077,7 +20080,12 @@ export type Database = {
       }
       begin_wallet_accrual_lock: { Args: never; Returns: undefined }
       block_agent_listing: {
-        Args: { p_agent_id: string; p_days?: number; p_reason: string }
+        Args: {
+          p_agent_id: string
+          p_days?: number
+          p_reason: string
+          p_scope?: string
+        }
         Returns: Json
       }
       build_funder_reference: {
@@ -21661,6 +21669,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      is_agent_frozen: { Args: { p_agent_id: string }; Returns: boolean }
       is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
