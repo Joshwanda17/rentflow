@@ -4,10 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Gauge, Smartphone, Landmark, Banknote, TrendingUp, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
 import { cn } from '@/lib/utils';
+import { REQUEST_FLOAT_EVENT, type RequestFloatDetail } from '@/components/agent/MerchantFloatRequestCard';
 
 // Same statuses the payout queue treats as "still needs paying".
 const DEMAND_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
