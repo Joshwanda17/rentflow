@@ -20365,6 +20365,18 @@ export type Database = {
           schedule: string
         }[]
       }
+      cto_search_agents: {
+        Args: { p_query?: string }
+        Returns: {
+          agent_id: string
+          blocked_until: string
+          freeze_scope: string
+          full_name: string
+          is_frozen: boolean
+          phone: string
+          reason: string
+        }[]
+      }
       decrement_rent_requested: {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
