@@ -128,14 +128,6 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onTopUp }: { port
                 <Sparkles className="h-4 w-4" />
                 Top Up
               </Button>
-              <Button
-                variant="outline"
-                className="flex-1 h-11 font-semibold gap-2 border-primary/30"
-                disabled
-              >
-                <ArrowDownToLine className="h-4 w-4" />
-                Withdraw
-              </Button>
             </div>
           )}
 
