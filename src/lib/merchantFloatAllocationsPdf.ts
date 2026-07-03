@@ -254,8 +254,11 @@ export async function generateMerchantFloatStatementPdf(
 
   const grandAllocated = entries.reduce((s, e) => s + e.allocations.reduce((a, r) => a + (Number(r.amount) || 0), 0), 0);
   const grandSpent = entries.reduce((s, e) => s + e.transactions.reduce((a, t) => a + (Number(t.amount) || 0), 0), 0);
+  const telecomOf = (t: MerchantFloatTransaction) =>
+    t.telecomCharge != null ? Number(t.telecomCharge) || 0 : getTelecomSendingCharge(Number(t.amount) || 0);
+  const grandTelecom = entries.reduce((s, e) => s + e.transactions.reduce((a, t) => a + telecomOf(t), 0), 0);
   doc.text(`${entries.length} merchant agent${entries.length === 1 ? '' : 's'}`, margin, y);
-  doc.text(`Allocated: ${fmtUGX(grandAllocated)}   |   Spent: ${fmtUGX(grandSpent)}`, pageWidth - margin, y, { align: 'right' });
+  doc.text(`Allocated: ${fmtUGX(grandAllocated)}   |   Spent: ${fmtUGX(grandSpent)}   |   Telecom: ${fmtUGX(grandTelecom)}`, pageWidth - margin, y, { align: 'right' });
   y += 6;
 
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -265,6 +268,7 @@ export async function generateMerchantFloatStatementPdf(
 
     const allocated = entry.allocations.reduce((a, r) => a + (Number(r.amount) || 0), 0);
     const spent = entry.transactions.reduce((a, t) => a + (Number(t.amount) || 0), 0);
+    const telecomTotal = entry.transactions.reduce((a, t) => a + telecomOf(t), 0);
 
     // Agent heading band
     doc.setFillColor(...THEME_PRIMARY_DARK);
@@ -275,7 +279,7 @@ export async function generateMerchantFloatStatementPdf(
     doc.text(`${entry.agent}${entry.phone ? '  ·  ' + entry.phone : ''}`, margin + 2, y + 6);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
-    doc.text(`In ${fmtUGX(allocated)}  /  Out ${fmtUGX(spent)}`, pageWidth - margin - 2, y + 6, { align: 'right' });
+    doc.text(`In ${fmtUGX(allocated)}  /  Out ${fmtUGX(spent)}  /  Telecom ${fmtUGX(telecomTotal)}`, pageWidth - margin - 2, y + 6, { align: 'right' });
     y += 12;
 
     // Float allocated to this agent
@@ -331,12 +335,13 @@ export async function generateMerchantFloatStatementPdf(
       y += 10;
     } else {
       autoTable(doc, {
-        head: [['Date', 'Reference', 'Recipient', 'Method', 'Commission', 'Amount']],
+        head: [['Date', 'Reference', 'Recipient', 'Method', 'Telecom charge', 'Commission', 'Amount']],
         body: entry.transactions.map((t) => [
           typeof t.date === 'string' ? t.date : format(t.date, 'dd MMM yyyy, HH:mm'),
           t.reference || '—',
           t.recipient || '—',
           t.method || '—',
+          fmtUGX(telecomOf(t)),
           t.commission ? fmtUGX(Number(t.commission)) : '—',
           fmtUGX(Number(t.amount) || 0),
         ]),
@@ -347,12 +352,13 @@ export async function generateMerchantFloatStatementPdf(
         headStyles: { fillColor: THEME_PRIMARY, textColor: 255, fontSize: 7.5, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: THEME_STRIPE },
         columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 32, fontSize: 6.8 },
+          0: { cellWidth: 26 },
+          1: { cellWidth: 28, fontSize: 6.8 },
           2: { cellWidth: 'auto' },
-          3: { cellWidth: 22 },
-          4: { halign: 'right', cellWidth: 26 },
-          5: { halign: 'right', fontStyle: 'bold', cellWidth: 28 },
+          3: { cellWidth: 20 },
+          4: { halign: 'right', cellWidth: 24 },
+          5: { halign: 'right', cellWidth: 24 },
+          6: { halign: 'right', fontStyle: 'bold', cellWidth: 26 },
         },
       });
       y = ((doc as any).lastAutoTable?.finalY || y) + 10;
