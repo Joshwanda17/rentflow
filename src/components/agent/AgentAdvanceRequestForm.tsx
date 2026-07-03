@@ -347,6 +347,29 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     return rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [issuedAdvances]);
 
+  // Apply search / date-range / type filters to the transaction history.
+  const filteredTxHistory = useMemo(() => {
+    const q = txSearch.trim().toLowerCase();
+    return txHistory.filter((tx) => {
+      if (txType !== 'all' && tx.type !== txType) return false;
+      const d = new Date(tx.date);
+      if (txDateFrom && d < startOfDay(txDateFrom)) return false;
+      if (txDateTo && d > endOfDay(txDateTo)) return false;
+      if (q) {
+        const haystack = [
+          tx.label,
+          tx.type === 'in' ? 'received cash in' : 'repayment cash out',
+          String(tx.amount),
+          format(d, 'dd MMM yyyy'),
+        ].join(' ').toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [txHistory, txSearch, txDateFrom, txDateTo, txType]);
+
+  const txFilterActive = !!(txSearch.trim() || txDateFrom || txDateTo || txType !== 'all');
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
