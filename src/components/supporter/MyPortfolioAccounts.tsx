@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, PiggyBank, TrendingUp, Briefcase, Wallet, Sparkles, ArrowDownToLine, ChevronRight, ArrowUpRight } from 'lucide-react';
+import { Loader2, PiggyBank, TrendingUp, Briefcase, Wallet, Sparkles, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { useMyAngelShares } from '@/hooks/useMyAngelShares';
