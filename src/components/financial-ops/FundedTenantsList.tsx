@@ -77,9 +77,11 @@ const AFRICAN_COUNTRY_SET = new Set(AFRICA_REGIONS.flatMap((r) => r.countries));
 
 type Row = {
   id: string;
+  source_type?: 'payout' | 'allocation';
+  source_id?: string;
   agent_id: string;
   tenant_id: string | null;
-  landlord_id: string;
+  landlord_id: string | null;
   landlord_name: string;
   landlord_phone: string;
   mobile_money_provider: string;
@@ -94,9 +96,14 @@ type Row = {
   agent_profile?: { full_name: string | null; phone: string | null } | null;
   tenant_profile?: { full_name: string | null } | null;
   finops_disbursed_by: string | null;
+  allocation_applied_id?: string | null;
+  paid_out_amount?: number | null;
+  remaining_amount?: number | null;
   funder_profile?: { full_name: string | null } | null;
 };
 type DateFilter = 'all' | '7d' | '30d' | 'month' | 'custom';
+
+type DateRange = { start: Date; end: Date | null };
 
 const currentMonthValue = () => {
   const d = new Date();
@@ -130,6 +137,27 @@ const FUNDED_STATUSES = [
   'completed',
   'disbursed',
 ] as const;
+
+const monthRangeForUganda = (value: string): DateRange | null => {
+  const [y, m] = value.split('-').map(Number);
+  if (!y || !m) return null;
+  // Reports are Uganda-first: month boundaries are Kampala time (UTC+3),
+  // not the browser/server local timezone.
+  return {
+    start: new Date(Date.UTC(y, m - 1, 1, -3, 0, 0, 0)),
+    end: new Date(Date.UTC(y, m, 1, -3, 0, 0, 0)),
+  };
+};
+
+const getEffectiveDate = (r: Row) => new Date(r.finops_disbursed_at ?? r.created_at);
+
+const inRange = (iso: string | null | undefined, range: DateRange | null) => {
+  if (!range || !iso) return true;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return false;
+  if (t < range.start.getTime()) return false;
+  return !range.end || t < range.end.getTime();
+};
 
 function formatUGX(n: number) {
   return `UGX ${Number(n).toLocaleString()}`;
