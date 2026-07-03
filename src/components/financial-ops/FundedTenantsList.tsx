@@ -679,12 +679,19 @@ export function FundedTenantsList() {
           </SelectContent>
         </Select>
         {dateFilter === 'month' && (
-          <Input
-            type="month"
+          <Select
             value={monthValue}
-            onChange={(e) => { setMonthValue(e.target.value || currentMonthValue()); setCountryFilter('all'); setRegionFilter(null); }}
-            className="h-8 w-[150px] text-xs"
-          />
+            onValueChange={(v) => { setMonthValue(v || currentMonthValue()); setCountryFilter('all'); setRegionFilter(null); }}
+          >
+            <SelectTrigger className="h-8 text-xs w-[170px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {MONTH_OPTIONS.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         {dateFilter === 'custom' && (
           <div className="inline-flex items-center gap-1.5">
