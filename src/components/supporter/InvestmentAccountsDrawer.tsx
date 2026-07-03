@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import {
   Loader2, PiggyBank, TrendingUp, Briefcase, Wallet, Sparkles,
   ArrowDownToLine, ChevronRight, ArrowUpRight, RefreshCw, Calendar, Clock, Hash,
-  Pencil, Check, X, Download, Share2, FileText
+  Pencil, Check, X, Download, Share2, FileText, AlertTriangle, MessageCircle
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDateOnlyForDisplay, extractDateOnly, dateOnlyToLocalDate } from '@/lib/portfolioDates';
@@ -22,9 +22,13 @@ import { hapticTap } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { FundAccountDialog } from './FundAccountDialog';
 import { useWallet } from '@/hooks/useWallet';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { downloadPortfolioPdf, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { differenceInCalendarDays } from 'date-fns';
+
+/** Support line that handles rejected portfolio top-ups (WhatsApp chat). */
+const SUPPORT_CHAT_NUMBER = '256777607640';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'destructive' | 'muted'; dot: string }> = {
   active: { label: 'Active', variant: 'success', dot: 'bg-success animate-pulse' },
