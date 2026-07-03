@@ -158,6 +158,22 @@ export function MerchantFloatDemandCard() {
     window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
   };
 
+  const dayLabel = (date: string) => {
+    const d = parseISO(date);
+    if (isToday(d)) return 'Today';
+    if (isYesterday(d)) return 'Yesterday';
+    return format(d, 'EEE, d MMM');
+  };
+
+  const requestFloatForDay = (day: (typeof forecast.days)[number]) => {
+    const lines = day.channels.map((c) => `${CHANNEL_META[c.ch].label}: ${formatUGX(c.amount)}`);
+    const reason =
+      `Float top-up for ${dayLabel(day.date)} — ${day.count} payout${day.count === 1 ? '' : 's'} ` +
+      `(needs ${formatUGX(day.needed)}). Breakdown — ${lines.join('; ')}.`;
+    const detail: RequestFloatDetail = { amount: day.needed, reason };
+    window.dispatchEvent(new CustomEvent(REQUEST_FLOAT_EVENT, { detail }));
+  };
+
   if (isLoading || balanceLoading) {
     return (
       <Card className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-transparent p-3.5">
