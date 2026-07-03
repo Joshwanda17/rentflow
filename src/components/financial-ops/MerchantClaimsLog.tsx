@@ -358,11 +358,15 @@ export function MerchantClaimsLog() {
       ));
       const custMap = new Map<string, { name: string; phone: string | null }>();
       if (custIds.length) {
-        const { data: profs } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', custIds);
-        profs?.forEach(p => custMap.set(p.id, { name: p.full_name || 'Customer', phone: p.phone || null }));
+        // Chunk the id list so a large batch never overflows the URL / .in() cap.
+        for (let i = 0; i < custIds.length; i += 200) {
+          const chunk = custIds.slice(i, i + 200);
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', chunk);
+          profs?.forEach(p => custMap.set(p.id, { name: p.full_name || 'Customer', phone: p.phone || null }));
+        }
       }
 
       const rows: ClaimRow[] = [];
