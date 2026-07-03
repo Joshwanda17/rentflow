@@ -546,8 +546,21 @@ export function AgentCashPayoutsTab() {
         .eq('direction', 'cash_in')
         .eq('category', 'agent_commission_earned')
         .like('reference_id', '%-cashout-commission');
-      if (fromKey) q = q.gte('transaction_date', fromKey);
-      if (toKey) q = q.lte('transaction_date', toKey);
+      // transaction_date is a timestamptz — filter on full-day ISO boundaries so
+      // same-day payouts are included (a bare yyyy-MM-dd upper bound truncates to
+      // midnight and would exclude everything that happened during the day).
+      if (rangeFrom) {
+        const fromIso = new Date(
+          rangeFrom.getFullYear(), rangeFrom.getMonth(), rangeFrom.getDate(),
+        ).toISOString();
+        q = q.gte('transaction_date', fromIso);
+      }
+      if (rangeTo) {
+        const toIso = new Date(
+          rangeTo.getFullYear(), rangeTo.getMonth(), rangeTo.getDate(), 23, 59, 59, 999,
+        ).toISOString();
+        q = q.lte('transaction_date', toIso);
+      }
       const { data, error } = await q.order('transaction_date', { ascending: false });
       if (error) throw error;
 
