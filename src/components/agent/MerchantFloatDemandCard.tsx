@@ -147,6 +147,27 @@ export function MerchantFloatDemandCard() {
   const shortfall = Math.max(0, forecast.totalNeeded - (floatBalance || 0));
   const covered = !balanceLoading && shortfall === 0 && forecast.count > 0;
 
+  // Per-channel coverage: float is a single pooled bucket, so we simulate
+  // paying channels in priority order (largest demand first) and mark every
+  // channel that would be left underfunded once the float runs out. This tells
+  // the merchant WHICH destinations (MTN/Airtel/bank/…) will fall short.
+  const channelRisk = useMemo(() => {
+    let remaining = floatBalance || 0;
+    const map: Record<DemandChannel, number> = {
+      mtn: 0, airtel: 0, momo_other: 0, bank: 0, cash: 0,
+    };
+    for (const b of forecast.breakdown) {
+      const need = b.amount + b.telecom;
+      const paid = Math.min(remaining, need);
+      map[b.ch] = Math.max(0, need - paid);
+      remaining -= paid;
+    }
+    return map;
+  }, [forecast.breakdown, floatBalance]);
+
+  const atRiskChannels = forecast.breakdown.filter((b) => (channelRisk[b.ch] || 0) > 0);
+  const needsAttention = atRiskChannels.length > 0;
+
   const requestFloat = () => {
     const lines = forecast.breakdown.map(
       (b) => `${CHANNEL_META[b.ch].label}: ${b.count}× ${formatUGX(b.amount)}`,
@@ -199,15 +220,45 @@ export function MerchantFloatDemandCard() {
   }
 
   return (
-    <Card className="rounded-2xl border border-violet-500/25 bg-gradient-to-br from-violet-500/10 to-transparent p-3.5">
+    <Card
+      className={cn(
+        'rounded-2xl border p-3.5',
+        needsAttention
+          ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-transparent'
+          : 'border-violet-500/25 bg-gradient-to-br from-violet-500/10 to-transparent',
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           <Gauge className="h-3.5 w-3.5 text-violet-600" /> Float demand forecast
         </div>
-        <Badge variant="outline" className="gap-1 border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-700 dark:text-violet-300">
-          <TrendingUp className="h-3 w-3" /> {forecast.count} payout{forecast.count === 1 ? '' : 's'} waiting
-        </Badge>
+        {needsAttention ? (
+          <Badge variant="outline" className="gap-1 border-amber-500/40 bg-amber-500/15 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="h-3 w-3" /> Needs attention
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="gap-1 border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-700 dark:text-violet-300">
+            <TrendingUp className="h-3 w-3" /> {forecast.count} payout{forecast.count === 1 ? '' : 's'} waiting
+          </Badge>
+        )}
       </div>
+
+      {/* Low-float alert banner — which channels will fall short. */}
+      {needsAttention && (
+        <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <div className="min-w-0 text-[11px] leading-snug text-amber-800 dark:text-amber-300">
+            <p className="font-semibold">
+              Low float — {atRiskChannels.length} channel{atRiskChannels.length === 1 ? '' : 's'} at risk
+            </p>
+            <p className="text-amber-700/90 dark:text-amber-400/90">
+              {atRiskChannels
+                .map((b) => `${CHANNEL_META[b.ch].label} short by ${formatUGX(channelRisk[b.ch])}`)
+                .join(' · ')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Headline: total float needed to clear the queue. */}
       <div className="mt-2">
@@ -276,15 +327,29 @@ export function MerchantFloatDemandCard() {
         {forecast.breakdown.map((b) => {
           const meta = CHANNEL_META[b.ch];
           const Icon = meta.icon;
+          const uncovered = channelRisk[b.ch] || 0;
+          const atRisk = uncovered > 0;
           return (
-            <div key={b.ch} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-background/40 px-2.5 py-1.5">
+            <div
+              key={b.ch}
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5',
+                atRisk ? 'border-amber-500/40 bg-amber-500/5' : 'border-border/50 bg-background/40',
+              )}
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <Icon className={cn('h-4 w-4 shrink-0', meta.tone)} />
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium">{meta.label}</p>
+                  <p className="flex items-center gap-1 truncate text-xs font-medium">
+                    {meta.label}
+                    {atRisk && <AlertTriangle className="h-3 w-3 shrink-0 text-amber-600" />}
+                  </p>
                   <p className="text-[10px] text-muted-foreground">
                     {b.count} request{b.count === 1 ? '' : 's'}
                     {b.telecom > 0 && ` · +${formatUGX(b.telecom)} fees`}
+                    {atRisk && (
+                      <span className="font-medium text-amber-700 dark:text-amber-400"> · short {formatUGX(uncovered)}</span>
+                    )}
                   </p>
                 </div>
               </div>
