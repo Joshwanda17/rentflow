@@ -138,6 +138,12 @@ const FUNDED_STATUSES = [
   'disbursed',
 ] as const;
 
+// Agent-landlord payouts are often completed by merchant agents just after
+// month-end even though the operational funding run belongs to the closing
+// month. Include the month-close grace window by default so the June report
+// matches Finance's operational total instead of only strict calendar-day rows.
+const MONTH_CLOSE_GRACE_DAYS = 7;
+
 const monthRangeForUganda = (value: string): DateRange | null => {
   const [y, m] = value.split('-').map(Number);
   if (!y || !m) return null;
@@ -150,6 +156,15 @@ const monthRangeForUganda = (value: string): DateRange | null => {
 };
 
 const getEffectiveDate = (r: Row) => new Date(r.finops_disbursed_at ?? r.created_at);
+
+const addDays = (d: Date, days: number) => new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
+
+const isMonthLateSettlement = (r: Row, monthValue: string) => {
+  const month = monthRangeForUganda(monthValue);
+  if (!month?.end) return false;
+  const t = getEffectiveDate(r).getTime();
+  return t >= month.end.getTime() && t < addDays(month.end, MONTH_CLOSE_GRACE_DAYS).getTime();
+};
 
 const inRange = (iso: string | null | undefined, range: DateRange | null) => {
   if (!range || !iso) return true;
@@ -188,10 +203,15 @@ export function FundedTenantsList() {
       // Compute the effective server-side date window so totals reflect ALL
       // payouts in the period — not just the 200 most-recent rows. The effective
       // payout date is finops_disbursed_at when present, else created_at.
-      let range: { start: Date; end: Date | null } | null = null;
+      let range: DateRange | null = null;
       if (dateFilter === 'month') {
-        const [y, m] = monthValue.split('-').map(Number);
-        if (y && m) range = { start: new Date(y, m - 1, 1), end: new Date(y, m, 1) };
+        const month = monthRangeForUganda(monthValue);
+        if (month?.end) {
+          range = {
+            start: month.start,
+            end: addDays(month.end, MONTH_CLOSE_GRACE_DAYS),
+          };
+        }
       } else if (dateFilter !== 'all') {
         const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
         range = { start: new Date(Date.now() - days * 24 * 60 * 60 * 1000), end: null };
@@ -285,19 +305,33 @@ export function FundedTenantsList() {
   const dateFiltered = useMemo(() => {
     if (dateFilter === 'all') return rows;
     if (dateFilter === 'month') {
-      const [y, m] = monthValue.split('-').map(Number);
-      return rows.filter((r) => {
-        const d = new Date(r.finops_disbursed_at ?? r.created_at);
-        return d.getFullYear() === y && d.getMonth() === m - 1;
-      });
+      const month = monthRangeForUganda(monthValue);
+      const range = month?.end
+        ? { start: month.start, end: addDays(month.end, MONTH_CLOSE_GRACE_DAYS) }
+        : null;
+      return rows.filter((r) => inRange((r.finops_disbursed_at ?? r.created_at), range));
     }
     const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
     return rows.filter((r) => {
-      const ts = new Date(r.finops_disbursed_at ?? r.created_at).getTime();
+      const ts = getEffectiveDate(r).getTime();
       return ts >= cutoff;
     });
   }, [rows, dateFilter, customDays, monthValue]);
+
+  const lateSettlementStats = useMemo(() => {
+    if (dateFilter !== 'month') return { count: 0, total: 0 };
+    return dateFiltered.reduce(
+      (acc, r) => {
+        if (isMonthLateSettlement(r, monthValue)) {
+          acc.count += 1;
+          acc.total += Number(r.amount || 0);
+        }
+        return acc;
+      },
+      { count: 0, total: 0 },
+    );
+  }, [dateFiltered, dateFilter, monthValue]);
 
   const countryStats = useMemo(() => {
     const m = new Map<string, { count: number; total: number }>();
