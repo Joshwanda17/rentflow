@@ -271,7 +271,7 @@ export function AgentCashPayoutsTab() {
   const [queueSort, setQueueSort] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc' | 'status'>('date_desc');
 
   // Channel tab + server-side pagination state for the Pending Queue.
-  const [channelTab, setChannelTab] = useState<'all' | 'momo' | 'cash'>('all');
+  const [channelTab, setChannelTab] = useState<'all' | 'momo' | 'cash' | 'bank'>('all');
   const [page, setPage] = useState(0);
 
   // Debounce the search box so we don't fire a query on every keystroke.
@@ -981,7 +981,7 @@ export function AgentCashPayoutsTab() {
   // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
   const pageRows: any[] = queuePage?.rows ?? [];
   const pageCount = queuePage?.count ?? 0;
-  const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0 };
+  const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0, bank: 0 };
   const totalPending = availableTotal;
   const filteredPending = channelCounts.all;
 
