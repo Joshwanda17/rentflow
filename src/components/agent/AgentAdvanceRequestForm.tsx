@@ -926,6 +926,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                 const repaidEntries = (adv.ledger || []).filter((e: any) => Number(e.amount_deducted || 0) > 0);
                 const outstanding = Number(adv.outstanding_balance || 0);
                 const isDone = adv.status === 'completed' || outstanding <= 0;
+                const perf = performance.byId[adv.id];
                 return (
                   <div key={adv.id} className="rounded-2xl border border-border/60 bg-card p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -942,6 +943,35 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                         {isDone ? 'Fully repaid' : adv.status === 'overdue' ? 'Overdue' : 'Repaying'}
                       </Badge>
                     </div>
+
+                    {/* Repayment progress vs schedule */}
+                    {perf && (
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] font-semibold">
+                          <span className="text-muted-foreground">{perf.progress}% repaid</span>
+                          {!isDone && (
+                            perf.onTrack ? (
+                              <span className="flex items-center gap-1 text-emerald-600">
+                                <TrendingUp className="h-3 w-3" /> On track
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-red-500">
+                                <AlertTriangle className="h-3 w-3" /> Behind schedule
+                              </span>
+                            )
+                          )}
+                        </div>
+                        <Progress
+                          value={perf.progress}
+                          className={cn('h-1.5', !isDone && !perf.onTrack && '[&>div]:bg-red-500')}
+                        />
+                        {!isDone && perf.expectedPct > 0 && (
+                          <p className="text-[9px] text-muted-foreground">
+                            Expected {perf.expectedPct}% by now based on the {adv.cycle_days}-day term
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-3 gap-2 mt-3 text-center">
                       <div className="rounded-xl bg-muted/40 py-2">
