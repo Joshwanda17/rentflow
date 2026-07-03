@@ -423,13 +423,13 @@ export function AgentCashPayoutsTab() {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
         minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(),
       };
-      const mk = (channel: 'all' | 'momo' | 'cash') =>
+      const mk = (channel: 'all' | 'momo' | 'cash' | 'bank') =>
         applyQueueFilters(
           supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }),
           { ...base, channel },
         ).then((r: any) => r.count || 0);
-      const [all, momo, cash] = await Promise.all([mk('all'), mk('momo'), mk('cash')]);
-      return { all, momo, cash };
+      const [all, momo, cash, bank] = await Promise.all([mk('all'), mk('momo'), mk('cash'), mk('bank')]);
+      return { all, momo, cash, bank };
     },
     enabled: !!isCashoutAgent,
     staleTime: 15_000,
