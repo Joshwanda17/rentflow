@@ -2128,6 +2128,18 @@ Deno.serve(async (req) => {
           ? ` New wallet balance: UGX ${Math.round(newBalance).toLocaleString()}.`
           : "";
 
+      // For bank transfers, include the destination bank name and account
+      // number so the user can reconcile the payout against their bank record.
+      let bankLine = "";
+      if (pm.includes("bank")) {
+        const bankName = String((wr as any).bank_name || "").trim();
+        const bankAcct = String((wr as any).bank_account_number || "").trim();
+        const parts: string[] = [];
+        if (bankName) parts.push(bankName);
+        if (bankAcct) parts.push(`A/C ${bankAcct}`);
+        if (parts.length) bankLine = ` Bank details: ${parts.join(" - ")}.`;
+      }
+
       // When a genuine merchant agent settled this payout, identify them by
       // phone number in the receipt so the withdrawing user knows exactly who
       // processed it (and can reach them if needed).
@@ -2158,6 +2170,7 @@ Deno.serve(async (req) => {
       const smsMsg =
         `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
         `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
+        `${bankLine}` +
         `${merchantLine}` +
         `${balanceLine}` +
         `\n\nView your wallet, transactions, and account details:\n` +
