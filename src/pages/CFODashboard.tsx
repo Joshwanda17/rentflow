@@ -77,6 +77,7 @@ export default function CFODashboard() {
     { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'payouts', label: 'Rent Payouts', icon: Banknote },
     { id: 'requisitions', label: 'Financial Agents', icon: FileText },
+    { id: 'advances', label: 'Advances', icon: HandCoins },
     { id: 'statements', label: 'Statements', icon: BookOpen },
     { id: 'solvency', label: 'Solvency', icon: Shield },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
