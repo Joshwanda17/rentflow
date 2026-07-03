@@ -157,10 +157,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const handleVerifyInstalled = useCallback(() => {
     hapticTap();
     setVerifyState('checking');
-    const detected =
-      window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
-      || localStorage.getItem('welile_pwa_installed') === 'true';
+    const detected = detectStandalone();
 
     window.setTimeout(() => {
       if (detected) {
@@ -175,12 +172,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
 
   const handleConfirmOverride = useCallback(() => {
     hapticTap();
-    try {
-      localStorage.setItem('welile_pwa_installed', 'true');
-      localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
-    } catch {
-      /* ignore storage errors */
-    }
+    markInstalled();
     setIsStandalone(true);
     setInstallResult('accepted');
   }, []);
