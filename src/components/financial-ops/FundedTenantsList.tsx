@@ -490,7 +490,7 @@ export function FundedTenantsList() {
     const parts: string[] = [];
     if (dateFilter === '7d') parts.push('last 7 days');
     else if (dateFilter === '30d') parts.push('last 30 days');
-    else if (dateFilter === 'month') parts.push(monthLabel(monthValue));
+    else if (dateFilter === 'month') parts.push(`${monthLabel(monthValue)} + month-close settlements`);
     else if (dateFilter === 'custom') parts.push(`last ${Math.max(1, customDays || 1)} days`);
     if (regionFilter) parts.push(regionFilter);
     else if (countryFilter !== 'all') parts.push(countryFilter);
@@ -499,7 +499,7 @@ export function FundedTenantsList() {
 
   // Human-readable time period for the summary sentence.
   const periodLabel = useMemo(() => {
-    if (dateFilter === 'month') return monthLabel(monthValue);
+    if (dateFilter === 'month') return `${monthLabel(monthValue)} including month-close settlements`;
     if (dateFilter === '7d') return 'the last 7 days';
     if (dateFilter === '30d') return 'the last 30 days';
     if (dateFilter === 'custom') return `the last ${Math.max(1, customDays || 1)} days`;
@@ -820,6 +820,13 @@ export function FundedTenantsList() {
         )}
       </div>
 
+      {dateFilter === 'month' && lateSettlementStats.count > 0 && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Month report includes {lateSettlementStats.count} month-close settlements worth{' '}
+          <span className="font-bold">{formatUGX(lateSettlementStats.total)}</span> that were paid shortly after month end but belong to this operational payout cycle.
+        </div>
+      )}
+
       {countryStats.length > 0 && (
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
@@ -1133,6 +1140,11 @@ export function FundedTenantsList() {
                     ) : (
                       <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
                         Awaiting receipt
+                      </Badge>
+                    )}
+                    {dateFilter === 'month' && isMonthLateSettlement(r, monthValue) && (
+                      <Badge className="text-[10px] bg-amber-100 text-amber-800 border-amber-200">
+                        Month-close settlement
                       </Badge>
                     )}
                   </div>
