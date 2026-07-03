@@ -205,16 +205,23 @@ export function CashoutAgentManager() {
         .in('status', ['pending', 'requested', 'approved', 'manager_approved', 'cfo_approved']);
       if (countError) throw countError;
       if ((count || 0) > 0) {
-        throw new Error(`Cannot delete: ${count} active payout claim${count === 1 ? '' : 's'} still routed to this merchant. Reassign or complete them first.`);
+        throw new Error(`Cannot remove: ${count} active payout claim${count === 1 ? '' : 's'} still routed to this merchant. Reassign or complete them first.`);
       }
-      const { error } = await supabase.from('cashout_agents').delete().eq('id', agent.id);
+      // Soft-remove: keep the record and all history intact, only strip the
+      // Merchant Agent role by deactivating the cashout_agents row. Merchant
+      // status is derived solely from is_active (see useIsMerchantAgent).
+      const { error } = await supabase
+        .from('cashout_agents')
+        .update({ is_active: false })
+        .eq('id', agent.id);
       if (error) throw error;
       await supabase.from('audit_logs').insert({
         user_id: user!.id,
-        action_type: 'cfo_merchant_agent_deleted',
+        action_type: 'cfo_merchant_agent_role_removed',
         table_name: 'cashout_agents',
         record_id: agent.id,
         metadata: {
+          soft_removed: true,
           agent_name: agent.profiles?.full_name || agent.agent_id,
           label: agent.label,
           handles_cash: agent.handles_cash,
@@ -225,16 +232,17 @@ export function CashoutAgentManager() {
       });
     },
     onSuccess: () => {
-      toast({ title: '🗑️ Merchant Agent deleted', description: 'Record permanently removed.' });
+      toast({ title: '✅ Merchant role removed', description: 'The user keeps all their records — they are just no longer a Merchant Agent.' });
       qc.invalidateQueries({ queryKey: ['merchant-agents'] });
       qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims'] });
       qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims-rows'] });
+      qc.invalidateQueries({ queryKey: ['is-merchant-agent'] });
       if (selectedAgent && deleteAgent && selectedAgent.id === deleteAgent.id) {
         setSelectedAgent(null);
       }
       setDeleteAgent(null);
     },
-    onError: (e: any) => toast({ title: 'Delete failed', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Could not remove merchant role', description: e.message, variant: 'destructive' }),
   });
 
   // Release all stuck claims still routed to a merchant — unassigns them so the
@@ -1000,26 +1008,27 @@ function DeleteMerchantConfirm({
     <AlertDialog open={!!deleteAgent} onOpenChange={v => { if (!v && !isPending && !isReleasing) setDeleteAgent(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Merchant Agent?</AlertDialogTitle>
+          <AlertDialogTitle>Remove Merchant Agent role?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will <span className="font-semibold text-destructive">permanently remove</span>{' '}
-            <span className="font-semibold text-foreground">{deleteAgent?.profiles?.full_name || 'this merchant'}</span>{' '}
-            from the payout execution network. Their completed payout history is preserved in audit logs,
-            but they will no longer appear in routing or assignment.
+            This removes the Merchant Agent role from{' '}
+            <span className="font-semibold text-foreground">{deleteAgent?.profiles?.full_name || 'this merchant'}</span>.{' '}
+            Their account and <span className="font-semibold text-foreground">all their records stay in the system</span> —
+            they simply stop being a Merchant Agent and no longer appear in payout routing or assignment.
+            You can re-add them as a Merchant Agent later.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {blocked && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
             <p className="text-sm font-semibold text-destructive flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
-              {pendingInfo!.count} active claim{pendingInfo!.count === 1 ? '' : 's'} blocking deletion
+              {pendingInfo!.count} active claim{pendingInfo!.count === 1 ? '' : 's'} blocking removal
             </p>
             <p className="text-xs text-muted-foreground">
               {oldestDays > 0
                 ? `Oldest is ${oldestDays} day${oldestDays === 1 ? '' : 's'} old. `
                 : ''}
               Release them to return the payout{pendingInfo!.count === 1 ? '' : 's'} to the open pool so any other
-              Merchant Agent can pick {pendingInfo!.count === 1 ? 'it' : 'them'} up — then retry deletion.
+              Merchant Agent can pick {pendingInfo!.count === 1 ? 'it' : 'them'} up — then retry removal.
             </p>
             <Button
               variant="outline"
@@ -1041,7 +1050,7 @@ function DeleteMerchantConfirm({
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-            Delete Permanently
+            Remove role
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
