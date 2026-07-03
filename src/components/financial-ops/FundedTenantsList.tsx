@@ -707,7 +707,7 @@ export function FundedTenantsList() {
             <Globe2 className="h-3.5 w-3.5" /> Countries funded
             {dateFilter !== 'all' && (
               <span className="normal-case font-normal text-muted-foreground">
-                · {dateFilter === '7d' ? 'last 7 days' : dateFilter === '30d' ? 'last 30 days' : `last ${customDays} days`}
+                · {periodLabel}
               </span>
             )}
           </div>
