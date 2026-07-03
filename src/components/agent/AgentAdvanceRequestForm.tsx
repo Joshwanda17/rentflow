@@ -299,6 +299,48 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     return { borrowed, repaid, outstanding, overallPct, active, overdue, completed, behind, byId, count: (issuedAdvances as any[]).length };
   }, [issuedAdvances]);
 
+  // ── Full transaction history ────────────────────────────────────────────
+  // Every cash-in (advance received) and cash-out (repayment deducted) line,
+  // flattened from every advance's repayment ledger, newest first.
+  const txHistory = useMemo(() => {
+    const rows: {
+      key: string;
+      date: string;
+      type: 'in' | 'out';
+      label: string;
+      amount: number;
+      balance: number | null;
+    }[] = [];
+    for (const adv of issuedAdvances as any[]) {
+      // Cash-in: the advance principal disbursed to the agent.
+      if (adv.issued_at) {
+        rows.push({
+          key: `${adv.id}-issue`,
+          date: adv.issued_at,
+          type: 'in',
+          label: 'Advance received',
+          amount: Number(adv.principal || 0),
+          balance: null,
+        });
+      }
+      // Cash-out: each daily repayment deducted from the wallet.
+      for (const e of (adv.ledger || []) as any[]) {
+        const deducted = Number(e.amount_deducted || 0);
+        if (deducted > 0) {
+          rows.push({
+            key: `${adv.id}-${e.date}`,
+            date: e.date,
+            type: 'out',
+            label: 'Repayment deducted',
+            amount: deducted,
+            balance: e.closing_balance != null ? Number(e.closing_balance) : null,
+          });
+        }
+      }
+    }
+    return rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [issuedAdvances]);
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
