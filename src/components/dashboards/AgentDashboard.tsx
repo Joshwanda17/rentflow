@@ -1111,6 +1111,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <AgentMyAdvancesCard />
             <AgentRiskExposureCard />
             <EarnedSinceLastWithdrawalCard />
+            {!isMerchant && (
             <AgentLandlordFloatCard
               onPayLandlord={() => { hapticTap(); setFloatAllocationsOpen(true); }}
               onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
@@ -1118,6 +1119,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
               onOpenOtpAudit={() => { hapticTap(); setOtpAuditOpen(true); }}
             />
+            )}
             <button
               onClick={() => { hapticTap(); setBusinessAdvanceOpen(true); }}
               className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 ring-1 ring-primary/30 active:scale-[0.98] transition-all touch-manipulation"
