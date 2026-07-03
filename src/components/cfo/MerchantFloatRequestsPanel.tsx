@@ -59,6 +59,7 @@ export function MerchantFloatRequestsPanel() {
   const [tab, setTab] = useState<'pending' | 'allocated'>('pending');
   const [downloading, setDownloading] = useState(false);
   const [downloadingStmt, setDownloadingStmt] = useState(false);
+  const [downloadingAgent, setDownloadingAgent] = useState<string | null>(null);
   const [stmtFrom, setStmtFrom] = useState('');
   const [stmtTo, setStmtTo] = useState('');
 
@@ -140,9 +141,9 @@ export function MerchantFloatRequestsPanel() {
   // Combined statement: per merchant agent, the float allocated AND the
   // transactions they settled from that float. Fetched on demand at click time
   // so we never load the (potentially large) payout history until asked.
-  const downloadStatementPdf = async () => {
+  const downloadStatementPdf = async (onlyAgentId?: string) => {
     if (allocations.length === 0) { toast.info('No allocations to export yet.'); return; }
-    setDownloadingStmt(true);
+    if (onlyAgentId) setDownloadingAgent(onlyAgentId); else setDownloadingStmt(true);
     try {
       // Resolve the selected period. Both bounds are optional; when set they
       // clamp both the float allocations AND the transactions in the statement.
@@ -154,15 +155,17 @@ export function MerchantFloatRequestsPanel() {
       const fromIso = fromDate ? fromDate.toISOString() : null;
       const toIso = toDate ? toDate.toISOString() : null;
 
-      // Allocations that fall inside the chosen period.
+      // Allocations that fall inside the chosen period (and, if a single agent
+      // was selected, only that agent's records for a clean per-agent report).
       const periodAllocations = allocations.filter((a) => {
+        if (onlyAgentId && a.agent_id !== onlyAgentId) return false;
         const t = new Date(a.approved_at || a.created_at).getTime();
         if (fromDate && t < fromDate.getTime()) return false;
         if (toDate && t > toDate.getTime()) return false;
         return true;
       });
       if (periodAllocations.length === 0) {
-        toast.info('No float allocations in the selected period.');
+        toast.info(onlyAgentId ? 'No float allocations for this agent in the selected period.' : 'No float allocations in the selected period.');
         return;
       }
 
@@ -256,6 +259,7 @@ export function MerchantFloatRequestsPanel() {
       toast.error(e.message || 'Could not generate statement PDF');
     } finally {
       setDownloadingStmt(false);
+      setDownloadingAgent(null);
     }
   };
 
