@@ -72,7 +72,7 @@ export function MerchantFloatRequestsPanel() {
       if (!Number.isFinite(amt) || amt < 1) throw new Error('Enter a valid amount.');
       if (note.trim().length < 10) throw new Error('Reason must be at least 10 characters.');
 
-      const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
+      const res = await supabase.functions.invoke('cfo-direct-credit', {
         body: {
           target_user_id: active.agent_id,
           amount: amt,
@@ -86,8 +86,9 @@ export function MerchantFloatRequestsPanel() {
           manual_credit: true,
         },
       });
-      if (error) throw new Error(await extractEdgeFunctionError(error, 'Could not send float'));
-      if (data?.error) throw new Error(data.error);
+      if (res.error || res.data?.error) {
+        throw new Error(await extractEdgeFunctionError(res, 'Could not send float'));
+      }
 
       const { error: updErr } = await supabase
         .from('float_requests')
