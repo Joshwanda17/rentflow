@@ -18,6 +18,7 @@ import ExtractSchemaCard from '@/components/cto/ExtractSchemaCard';
 import ExportUsersWithHashesCard from '@/components/cto/ExportUsersWithHashesCard';
 import { CTOPasswordResetPanel } from '@/components/cto/CTOPasswordResetPanel';
 import PlatformControlsPanel from '@/components/cto/PlatformControlsPanel';
+import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -37,6 +38,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   }
   if (activeTab === 'platform-controls') {
     return <PlatformControlsPanel />;
+  }
+  if (activeTab === 'agent-freeze') {
+    return <CTOAgentFreezePanel />;
   }
 
   // Real: active users in last 7 days
