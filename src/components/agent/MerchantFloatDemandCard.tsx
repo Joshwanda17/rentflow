@@ -327,15 +327,29 @@ export function MerchantFloatDemandCard() {
         {forecast.breakdown.map((b) => {
           const meta = CHANNEL_META[b.ch];
           const Icon = meta.icon;
+          const uncovered = channelRisk[b.ch] || 0;
+          const atRisk = uncovered > 0;
           return (
-            <div key={b.ch} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-background/40 px-2.5 py-1.5">
+            <div
+              key={b.ch}
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5',
+                atRisk ? 'border-amber-500/40 bg-amber-500/5' : 'border-border/50 bg-background/40',
+              )}
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <Icon className={cn('h-4 w-4 shrink-0', meta.tone)} />
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium">{meta.label}</p>
+                  <p className="flex items-center gap-1 truncate text-xs font-medium">
+                    {meta.label}
+                    {atRisk && <AlertTriangle className="h-3 w-3 shrink-0 text-amber-600" />}
+                  </p>
                   <p className="text-[10px] text-muted-foreground">
                     {b.count} request{b.count === 1 ? '' : 's'}
                     {b.telecom > 0 && ` · +${formatUGX(b.telecom)} fees`}
+                    {atRisk && (
+                      <span className="font-medium text-amber-700 dark:text-amber-400"> · short {formatUGX(uncovered)}</span>
+                    )}
                   </p>
                 </div>
               </div>
