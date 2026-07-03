@@ -44,6 +44,7 @@ export function useSavedPayoutMethods() {
       const { data, error } = await supabase
         .from('saved_payout_methods' as never)
         .select('*')
+        .eq('user_id', userId as string)
         .order('is_default', { ascending: false })
         .order('last_used_at', { ascending: false, nullsFirst: false });
       if (error) throw error;
