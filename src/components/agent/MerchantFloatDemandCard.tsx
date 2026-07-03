@@ -78,6 +78,21 @@ export function MerchantFloatDemandCard() {
     },
   });
 
+  // SHARED-POOL COORDINATION. The demand above is a single global queue that
+  // EVERY active merchant agent sees. If each agent requested the full gap the
+  // CFO would over-fund the network many times over. This server RPC returns
+  // the network-wide truth (float already held + float already requested +
+  // active merchant count) so we can show a fair per-agent share to request.
+  const { data: net } = useQuery({
+    queryKey: ['merchant-float-network'],
+    refetchInterval: 30_000,
+    queryFn: async (): Promise<NetworkStatus> => {
+      const { data, error } = await supabase.rpc('get_merchant_float_network_status');
+      if (error) throw error;
+      return (data ?? {}) as unknown as NetworkStatus;
+    },
+  });
+
   const forecast = useMemo(() => {
     const buckets: Record<DemandChannel, { count: number; amount: number; telecom: number }> = {
       mtn: { count: 0, amount: 0, telecom: 0 },
