@@ -309,7 +309,15 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
         <div className="space-y-4 px-5 pb-5">
           {/* Total Value Hero */}
           <div className="p-5 rounded-2xl bg-primary/5 border border-primary/20">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Total Value</p>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Value</p>
+              {pendingTopup > 0 && (
+                <Badge variant="warning" size="sm" className="gap-1">
+                  <Clock className="h-3 w-3" />
+                  +{formatUGX(pendingTopup)} being added
+                </Badge>
+              )}
+            </div>
             <div className="flex items-baseline gap-2">
               <p className="text-3xl font-black">{formatUGX(totalValue)}</p>
               {totalEarned > 0 && (
@@ -319,6 +327,11 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
                 </span>
               )}
             </div>
+            {pendingTopup > 0 && (
+              <p className="text-[11px] text-muted-foreground mt-1.5">
+                Your top-up of <span className="font-bold text-warning">{formatUGX(pendingTopup)}</span> is pending and will be added right after your next returns payout.
+              </p>
+            )}
           </div>
 
           {/* Key Metrics */}
