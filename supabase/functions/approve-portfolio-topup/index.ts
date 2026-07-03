@@ -130,9 +130,18 @@ Deno.serve(async (req) => {
 
     // ── REJECT ──
     if (action === "reject") {
+      // Money never left the partner's wallet in the request-only flow, so
+      // marking these rejected effectively returns the funds to the wallet
+      // (they were never debited). We stamp the reason so the partner can see
+      // exactly why their transfer was declined.
       const { error: rejectErr } = await supabase
         .from("pending_wallet_operations")
-        .update({ status: "rejected", reviewed_at: now, reviewed_by: user.id })
+        .update({
+          status: "rejected",
+          reviewed_at: now,
+          reviewed_by: user.id,
+          metadata: { rejection_reason: rejectReason, rejected_by: user.id, rejected_at: now, funds_returned_to_wallet: true },
+        })
         .in("id", opIds);
 
       if (rejectErr) {
@@ -146,7 +155,8 @@ Deno.serve(async (req) => {
         action_type: "reject_portfolio_topup",
         table_name: "pending_wallet_operations",
         record_id: portfolio_id,
-        metadata: { portfolio_code: portfolio.portfolio_code, count: awaitingOps.length, total_amount: totalAmount, op_ids: opIds },
+        reason: rejectReason,
+        metadata: { portfolio_code: portfolio.portfolio_code, count: awaitingOps.length, total_amount: totalAmount, op_ids: opIds, rejection_reason: rejectReason },
       });
 
       if (partnerId) {
@@ -155,11 +165,30 @@ Deno.serve(async (req) => {
           total_amount: totalAmount,
           portfolio_code: portfolio.portfolio_code,
           rejected_by: user.id,
+          rejection_reason: rejectReason,
         });
       }
 
+      // Notify the partner (fire-and-forget) that their transfer was declined
+      // and the funds remain in their wallet.
+      if (partnerId) {
+        fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+          body: JSON.stringify({
+            userIds: [partnerId],
+            payload: {
+              title: "❌ Portfolio Top-Up Declined",
+              body: `Your UGX ${totalAmount.toLocaleString()} transfer to ${accountLabel} was declined: ${rejectReason}. The funds remain in your wallet.`,
+              url: "/dashboard/funder",
+              type: "warning",
+            },
+          }),
+        }).catch(() => {});
+      }
+
       return new Response(JSON.stringify({
-        success: true, action: "rejected", count: awaitingOps.length, total_amount: totalAmount,
+        success: true, action: "rejected", count: awaitingOps.length, total_amount: totalAmount, reason: rejectReason,
       }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
