@@ -462,13 +462,32 @@ export function MerchantFloatRequestsPanel() {
           )
         ) : (
           <>
-            {/* Grand total + per-agent audit summary */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total float allocated</p>
-                <p className="text-xl font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(grandTotal)}</p>
+            {/* KPI matrices */}
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+              <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Total float allocated</p>
+                <p className="text-lg font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(grandTotal)}</p>
               </div>
-              <p className="text-xs text-muted-foreground">{allocations.length} allocation{allocations.length === 1 ? '' : 's'} · {agentTotals.length} agent{agentTotals.length === 1 ? '' : 's'}</p>
+              <div className="rounded-lg border border-border/60 bg-card p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Allocations</p>
+                <p className="text-lg font-bold tabular-nums">{allocCount}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Merchant agents</p>
+                <p className="text-lg font-bold tabular-nums">{agentTotals.length}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Avg / allocation</p>
+                <p className="text-lg font-bold tabular-nums">{formatUGX(avgAllocation)}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Largest allocation</p>
+                <p className="text-lg font-bold tabular-nums">{formatUGX(largestAllocation)}</p>
+              </div>
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Last 7 days</p>
+                <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(last7Total)}</p>
+              </div>
             </div>
 
             {allocLoading ? (
