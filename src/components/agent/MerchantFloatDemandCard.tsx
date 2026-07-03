@@ -294,6 +294,57 @@ export function MerchantFloatDemandCard() {
         })}
       </div>
 
+      {/* Per-day forecast timeline. */}
+      {forecast.days.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Per-day forecast
+          </p>
+          {forecast.days.map((day) => (
+            <div key={day.date} className="rounded-lg border border-border/50 bg-background/40 p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold">{dayLabel(day.date)}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {day.count} payout{day.count === 1 ? '' : 's'}
+                    {day.telecom > 0 && ` · +${formatUGX(day.telecom)} fees`}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <p className="text-xs font-bold tabular-nums text-violet-700 dark:text-violet-300">
+                    {formatUGX(day.needed)}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 px-2 text-[10px]"
+                    onClick={() => requestFloatForDay(day)}
+                  >
+                    <PlusCircle className="h-3 w-3" /> Request
+                  </Button>
+                </div>
+              </div>
+              {/* Channel chips for the day. */}
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {day.channels.map((c) => {
+                  const meta = CHANNEL_META[c.ch];
+                  const Icon = meta.icon;
+                  return (
+                    <span
+                      key={c.ch}
+                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-medium"
+                    >
+                      <Icon className={cn('h-3 w-3', meta.tone)} />
+                      {meta.label.split(' ')[0]} · {formatUGX(c.amount)}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
         Based on ROI cash-outs, landlord float payouts and commission withdrawals the CFO has released to users' wallets. Request enough float to cover the demand above.
       </p>
