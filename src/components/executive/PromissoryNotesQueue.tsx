@@ -1,19 +1,88 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CompactAmount } from '@/components/ui/CompactAmount';
+import { toast } from 'sonner';
 
 export function PromissoryNotesQueue() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedNote, setSelectedNote] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const reason = deleteReason.trim();
+    if (reason.length < 10) {
+      toast.error('Please provide a reason of at least 10 characters.');
+      return;
+    }
+    setDeleting(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const actorId = userData?.user?.id;
+
+      // Record the deletion in the audit trail BEFORE removing the record
+      const { error: auditError } = await supabase.from('audit_logs').insert({
+        user_id: actorId,
+        action_type: 'delete',
+        action: 'delete_promissory_note',
+        table_name: 'promissory_notes',
+        record_id: String(deleteTarget.id),
+        metadata: {
+          reason,
+          partner_name: deleteTarget.partner_name,
+          whatsapp_number: deleteTarget.whatsapp_number,
+          amount: deleteTarget.amount,
+          total_collected: deleteTarget.total_collected,
+          status: deleteTarget.status,
+          agent_id: deleteTarget.agent_id,
+          agent_name: deleteTarget.agent_name,
+          deleted_at: new Date().toISOString(),
+        },
+      });
+      if (auditError) throw auditError;
+
+      const { error: delError } = await supabase
+        .from('promissory_notes')
+        .delete()
+        .eq('id', deleteTarget.id);
+      if (delError) throw delError;
+
+      toast.success('Promissory note deleted and logged.');
+      setDeleteTarget(null);
+      setDeleteReason('');
+      setSelectedNote(null);
+      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete promissory note.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const { data: notes = [], isLoading } = useQuery({
     queryKey: ['promissory-notes-queue'],
@@ -314,11 +383,53 @@ export function PromissoryNotesQueue() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Danger zone: delete with audit trail */}
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => { setDeleteReason(''); setDeleteTarget(selectedNote); }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Promissory Note
+                </Button>
               </div>
             );
           })()}
         </SheetContent>
       </Sheet>
+
+      {/* Delete confirmation with mandatory reason */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleting) { setDeleteTarget(null); setDeleteReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete promissory note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes {deleteTarget?.partner_name}'s promissory note. A reason is required and this action is recorded in the audit trail against your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="delete-reason">Reason for deletion (min 10 characters)</Label>
+            <Textarea
+              id="delete-reason"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. Duplicate entry created in error by agent"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting || deleteReason.trim().length < 10}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting…' : 'Delete & Log'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
