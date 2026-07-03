@@ -131,6 +131,7 @@ export function FundedTenantsList() {
   const [exportCols, setExportCols] = useState<PayoutColumnKey[]>(DEFAULT_PAYOUT_COLUMNS);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDays, setCustomDays] = useState<number>(14);
+  const [monthValue, setMonthValue] = useState<string>(currentMonthValue());
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<string | null>(null);
   const [drill, setDrill] = useState<{
