@@ -177,12 +177,14 @@ export function SystemLogsViewer() {
       // wiped every resolved name. Only query valid UUIDs.
       const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
       const allIds = [...new Set([...userIds, ...recordIds])].filter(id => UUID_RE.test(id));
-      const { data: profiles } = allIds.length
-        ? await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', allIds)
-        : { data: [] };
+      let profiles: { id: string; full_name: string | null }[] = [];
+      if (allIds.length) {
+        const { data: profileRows } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', allIds);
+        profiles = profileRows ?? [];
+      }
 
       const nameMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
 
