@@ -9,7 +9,6 @@ import {
   Building2, CreditCard, User, Hash, Users, Landmark, Wallet, ChevronDown, Smartphone,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { signUp } from '@/hooks/auth/authOperations';
 import { useAuth as useRealAuth } from '@/hooks/useAuth';
 import { buildPartnerReference } from '@/lib/partnerReference';
 import { numberToWords } from '@/lib/numberToWords';
@@ -29,24 +28,36 @@ const registerUser = async (payload: {
   referrerId?: string;
 }): Promise<{ status: string; data: { user: any; userId: string; hasSession: boolean } }> => {
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
-  const { data, error } = await signUp(
-    payload.email,
-    payload.password,
-    fullName,
-    payload.phone,
-    'supporter',
-    'funder-onboarding',
-    payload.referrerId,
-  );
+  // Funder onboarding is vetted through /partner-onboarding, so it must not use
+  // the public auth sign-up call (that sends the misleading confirmation email).
+  // Create a pre-confirmed account server-side, then sign in once so the contract
+  // pipeline below can write the agreement and send the single intended email.
+  const { data, error } = await supabase.functions.invoke('create-funder-onboarding-account', {
+    body: {
+      email: payload.email,
+      password: payload.password,
+      fullName,
+      phone: payload.phone,
+      referrerId: payload.referrerId || null,
+    },
+  });
   if (error) throw error;
-  // IMPORTANT: read the id straight from the signUp response — when email
-  // confirmation is required, `supabase.auth.getUser()` returns no user (there's
-  // no session yet), which previously left `userId` empty and silently skipped
-  // the entire partnership-agreement email pipeline.
-  const userId = data?.user?.id ?? '';
-  const hasSession = !!data?.session;
-  const newUser = data?.user ?? { email: payload.email };
-  return { status: 'success', data: { user: newUser, userId, hasSession } };
+  if (!data?.userId) throw new Error(data?.error || 'Failed to create funder account');
+
+  const signInResult = await supabase.auth.signInWithPassword({
+    email: payload.email,
+    password: payload.password,
+  });
+  if (signInResult.error) throw signInResult.error;
+
+  return {
+    status: 'success',
+    data: {
+      user: signInResult.data.user ?? data.user ?? { email: payload.email },
+      userId: data.userId,
+      hasSession: !!signInResult.data.session,
+    },
+  };
 };
 const useCurrency = () => ({ symbol: 'UGX', code: 'UGX' });
 const formatCurrencyCompact = (val: number, currency: { symbol: string }) => {
@@ -1227,26 +1238,6 @@ export default function FunderOnboarding() {
         });
 
         const newUserId = signupResult?.data?.userId ?? '';
-
-        // Funders are vetted in /partner-onboarding, so email confirmation is not
-        // required here. When confirmation IS enabled, `signUp` returns no session,
-        // which would block the RLS-gated partner_agreements write + the
-        // generate-partner-agreement email invoke (the "proper" email). Pre-confirm
-        // the just-created account server-side, then sign in so the pipeline below
-        // runs with a valid session and the agreement email sends reliably.
-        if (newUserId && !signupResult?.data?.hasSession) {
-          try {
-            await supabase.functions.invoke('funder-confirm-account', {
-              body: { userId: newUserId },
-            });
-            await supabase.auth.signInWithPassword({
-              email: cleanEmail,
-              password: form.password,
-            });
-          } catch (e) {
-            console.warn('funder confirm / sign-in failed (non-blocking):', e);
-          }
-        }
 
         // Persist the funder's address + national ID on their profile (non-blocking).
         if (newUserId && (cleanAddress || cleanNationalId)) {
