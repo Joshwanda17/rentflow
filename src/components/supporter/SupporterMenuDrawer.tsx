@@ -117,7 +117,7 @@ export function SupporterMenuDrawer({
     {
       title: 'Investments',
       items: [
-        { icon: CreditCard, label: 'Add Investment', description: 'Fund via Mobile Money', onClick: onAddInvestment },
+        { icon: CreditCard, label: 'Support Tenant', description: 'Fund via Mobile Money', onClick: onAddInvestment },
         { icon: TrendingUp, label: 'ROI Analytics', description: 'Earnings & projections', path: '/supporter-earnings' },
         { icon: History, label: 'Reinvestment History', description: 'Compounding growth timeline', path: '/reinvestment-history' },
         { icon: Calculator, label: 'ROI Calculator', description: 'Project your returns', onClick: onOpenCalculator },
