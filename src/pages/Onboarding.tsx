@@ -1226,9 +1226,28 @@ export default function FunderOnboarding() {
           referrerId: referrerId || undefined,
         });
 
-        // Fire-and-forget the partner_account_created email — don't block the
-        // success modal on email delivery.
-        const newUserId = signupResult?.data?.user?.id ?? '';
+        const newUserId = signupResult?.data?.userId ?? '';
+
+        // Funders are vetted in /partner-onboarding, so email confirmation is not
+        // required here. When confirmation IS enabled, `signUp` returns no session,
+        // which would block the RLS-gated partner_agreements write + the
+        // generate-partner-agreement email invoke (the "proper" email). Pre-confirm
+        // the just-created account server-side, then sign in so the pipeline below
+        // runs with a valid session and the agreement email sends reliably.
+        if (newUserId && !signupResult?.data?.hasSession) {
+          try {
+            await supabase.functions.invoke('funder-confirm-account', {
+              body: { userId: newUserId },
+            });
+            await supabase.auth.signInWithPassword({
+              email: cleanEmail,
+              password: form.password,
+            });
+          } catch (e) {
+            console.warn('funder confirm / sign-in failed (non-blocking):', e);
+          }
+        }
+
         // Persist the funder's address + national ID on their profile (non-blocking).
         if (newUserId && (cleanAddress || cleanNationalId)) {
           const profilePatch: Record<string, string> = {};
