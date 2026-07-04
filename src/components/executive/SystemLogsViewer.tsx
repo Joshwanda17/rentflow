@@ -171,11 +171,18 @@ export function SystemLogsViewer() {
 
       const userIds = [...new Set(data.map(l => l.user_id).filter(Boolean))] as string[];
       const recordIds = [...new Set(data.map(l => l.record_id).filter(Boolean))] as string[];
-      const allIds = [...new Set([...userIds, ...recordIds])];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', allIds);
+      // record_id is a free-form text column and often holds non-UUID values
+      // (e.g. "WIP2602283615"). Mixing those into an .in() against the UUID
+      // profiles.id column makes the whole query error out, which previously
+      // wiped every resolved name. Only query valid UUIDs.
+      const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+      const allIds = [...new Set([...userIds, ...recordIds])].filter(id => UUID_RE.test(id));
+      const { data: profiles } = allIds.length
+        ? await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', allIds)
+        : { data: [] };
 
       const nameMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
 
