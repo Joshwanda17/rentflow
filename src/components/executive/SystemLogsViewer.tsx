@@ -417,9 +417,8 @@ export function SystemLogsViewer() {
                 const summary = summaryParts.join(' · ') || '—';
 
                 return (
-                  <>
+                  <React.Fragment key={log.id}>
                     <TableRow
-                      key={log.id}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => setExpandedId(isExpanded ? null : log.id)}
                     >
@@ -439,7 +438,7 @@ export function SystemLogsViewer() {
                       <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">{summary}</TableCell>
                     </TableRow>
                     {isExpanded && <ExpandedRow key={`${log.id}-detail`} log={log} />}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </TableBody>
