@@ -27,9 +27,9 @@ const registerUser = async (payload: {
   phone: string;
   role: string;
   referrerId?: string;
-}): Promise<{ status: string; data: { access_token: string; user: any } }> => {
+}): Promise<{ status: string; data: { user: any; userId: string; hasSession: boolean } }> => {
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
-  const { error } = await signUp(
+  const { data, error } = await signUp(
     payload.email,
     payload.password,
     fullName,
@@ -39,14 +39,14 @@ const registerUser = async (payload: {
     payload.referrerId,
   );
   if (error) throw error;
-  // The auth state listener in useRealAuth will pick up the session automatically.
-  // Pull the freshly-created user (id needed for the deterministic partner reference).
-  let newUser: any = { email: payload.email };
-  try {
-    const { data: u } = await supabase.auth.getUser();
-    if (u?.user) newUser = u.user;
-  } catch { /* non-fatal */ }
-  return { status: 'success', data: { access_token: '', user: newUser } };
+  // IMPORTANT: read the id straight from the signUp response — when email
+  // confirmation is required, `supabase.auth.getUser()` returns no user (there's
+  // no session yet), which previously left `userId` empty and silently skipped
+  // the entire partnership-agreement email pipeline.
+  const userId = data?.user?.id ?? '';
+  const hasSession = !!data?.session;
+  const newUser = data?.user ?? { email: payload.email };
+  return { status: 'success', data: { user: newUser, userId, hasSession } };
 };
 const useCurrency = () => ({ symbol: 'UGX', code: 'UGX' });
 const formatCurrencyCompact = (val: number, currency: { symbol: string }) => {
@@ -1226,9 +1226,28 @@ export default function FunderOnboarding() {
           referrerId: referrerId || undefined,
         });
 
-        // Fire-and-forget the partner_account_created email — don't block the
-        // success modal on email delivery.
-        const newUserId = signupResult?.data?.user?.id ?? '';
+        const newUserId = signupResult?.data?.userId ?? '';
+
+        // Funders are vetted in /partner-onboarding, so email confirmation is not
+        // required here. When confirmation IS enabled, `signUp` returns no session,
+        // which would block the RLS-gated partner_agreements write + the
+        // generate-partner-agreement email invoke (the "proper" email). Pre-confirm
+        // the just-created account server-side, then sign in so the pipeline below
+        // runs with a valid session and the agreement email sends reliably.
+        if (newUserId && !signupResult?.data?.hasSession) {
+          try {
+            await supabase.functions.invoke('funder-confirm-account', {
+              body: { userId: newUserId },
+            });
+            await supabase.auth.signInWithPassword({
+              email: cleanEmail,
+              password: form.password,
+            });
+          } catch (e) {
+            console.warn('funder confirm / sign-in failed (non-blocking):', e);
+          }
+        }
+
         // Persist the funder's address + national ID on their profile (non-blocking).
         if (newUserId && (cleanAddress || cleanNationalId)) {
           const profilePatch: Record<string, string> = {};
