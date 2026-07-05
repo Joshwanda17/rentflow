@@ -277,6 +277,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [view, setView] = useState<'list' | 'map'>('list');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  // Bottom sentinel — when it scrolls into view we ask for the next page.
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
