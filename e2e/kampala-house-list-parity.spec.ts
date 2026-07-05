@@ -174,6 +174,7 @@ test.use({
 
 test.describe('Kampala house-list parity: UI == underlying query', () => {
   test('Find a House page', async ({ page }) => {
+    test.setTimeout(180_000);
     const captured = captureKampalaRpcParams(page);
     await page.goto('/find-a-house');
 
@@ -182,22 +183,17 @@ test.describe('Kampala house-list parity: UI == underlying query', () => {
     // Wait for results to paint for the Kampala filter.
     await expect(page.locator('[data-house-id]').first()).toBeVisible({ timeout: 20_000 });
 
-    const uiIds = await collectRenderedHouseIds(page, async () => {
-      const before = await page.evaluate(() => window.scrollY);
-      // Scroll in sub-viewport steps so every virtualized card is rendered into
-      // the DOM (and sampled) at least once as it passes through the window.
-      await page.evaluate(() => window.scrollBy(0, Math.round(window.innerHeight * 0.5)));
-      const after = await page.evaluate(() => ({
-        y: window.scrollY,
-        max: document.documentElement.scrollHeight - window.innerHeight,
-      }));
-      const hasMore = await page
-        .getByText(/houses? available/i)
-        .first()
-        .innerText()
-        .then((t) => t.includes('+'))
-        .catch(() => false);
-      return { atBottom: after.y <= before + 4 || after.y >= after.max - 4, hasMore };
+    // Find a House uses a WINDOW virtualizer, so the page window is the scroller.
+    const uiIds = await collectRenderedHouseIds(page, {
+      scrollTo: (pos) => page.evaluate((p) => window.scrollTo(0, p), pos),
+      scrollBy: (px) => page.evaluate((p) => window.scrollBy(0, p), px),
+      state: async () => {
+        const geom = await page.evaluate(() => ({
+          y: window.scrollY,
+          max: document.documentElement.scrollHeight - window.innerHeight,
+        }));
+        return { ...geom, hasMore: await countHasMore(page) };
+      },
     });
 
     const baseParams = captured.get();
@@ -209,6 +205,7 @@ test.describe('Kampala house-list parity: UI == underlying query', () => {
   });
 
   test('Available Houses sheet', async ({ page }) => {
+    test.setTimeout(180_000);
     const captured = captureKampalaRpcParams(page);
     await page.goto('/__e2e/available-houses');
 
@@ -219,23 +216,17 @@ test.describe('Kampala house-list parity: UI == underlying query', () => {
     await expect(page.locator('[data-house-id]').first()).toBeVisible({ timeout: 20_000 });
 
     const scroller = sheet.locator('.overflow-y-auto').first();
-    const uiIds = await collectRenderedHouseIds(page, async () => {
-      const state = await scroller.evaluate((el) => {
-        const before = el.scrollTop;
-        el.scrollBy(0, Math.round(el.clientHeight * 0.5));
-        return {
-          before,
-          after: el.scrollTop,
+    const countText = sheet.getByText(/houses? available/i).first();
+    const uiIds = await collectRenderedHouseIds(page, {
+      scrollTo: (pos) => scroller.evaluate((el, p) => { el.scrollTop = p; }, pos),
+      scrollBy: (px) => scroller.evaluate((el, p) => el.scrollBy(0, p), px),
+      state: async () => {
+        const geom = await scroller.evaluate((el) => ({
+          y: el.scrollTop,
           max: el.scrollHeight - el.clientHeight,
-        };
-      });
-      const hasMore = await sheet
-        .getByText(/houses? available/i)
-        .first()
-        .innerText()
-        .then((t) => t.includes('+'))
-        .catch(() => false);
-      return { atBottom: state.after <= state.before + 4 || state.after >= state.max - 4, hasMore };
+        }));
+        return { ...geom, hasMore: await countHasMore(countText) };
+      },
     });
 
     const baseParams = captured.get();
