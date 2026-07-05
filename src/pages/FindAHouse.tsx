@@ -649,6 +649,18 @@ export default function FindAHouse() {
     enabled: hasSharedLocation || !geo.loading,
   });
 
+  // Exact listed-house counts (verified + not-yet-verified) for the active
+  // filter set — replaces the loaded-rows "24+" counter that undervalued us.
+  const listingCounts = useHouseListingCount({
+    region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
+    district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+    subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+    village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+    maxDailyRate: maxDaily !== 'all' ? Number(maxDaily) : undefined,
+    search: debouncedSearch.trim() || undefined,
+  });
+
   // Infinite scroll: a bottom sentinel loads the next page as it nears the
   // viewport. `loadMore` self-guards against overlapping/finished requests.
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
