@@ -20540,6 +20540,7 @@ export type Database = {
           radius_km?: number
           region_filter?: string
           result_limit?: number
+          result_offset?: number
           user_lat: number
           user_lng: number
         }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface HouseListing {
@@ -181,16 +181,37 @@ interface UseNearbyHousesOptions {
   region?: string;
   limit?: number;
   enabled?: boolean;
+  /**
+   * When true, fetch EVERY matching listing by paging through the source
+   * instead of relying on a single fixed cap. Results stream in page-by-page,
+   * ordered by GPS distance. Use this for full browse views (tenant/funder
+   * "Available Houses"). Leave off for bounded previews that intentionally show
+   * a small number (they pass `limit`).
+   */
+  paginate?: boolean;
+  /** Rows fetched per page when `paginate` is true. Defaults to 500. */
+  pageSize?: number;
+  /** Hard safety ceiling so a runaway dataset can't fetch unbounded. Defaults to 20000. */
+  maxResults?: number;
 }
 
 /**
  * Hook for spatial nearby house search using PostGIS.
- * Falls back to regular query if no GPS coordinates.
+ *
+ * Falls back to a regular query when there are no GPS coordinates (or if the
+ * spatial RPC is unavailable). When `paginate` is true it pages through the
+ * ENTIRE matching result set — GPS-distance ordered — so browse views never
+ * silently truncate at a fixed cap. Pages are appended as they arrive; the
+ * first page clears the loading state so the UI paints quickly while the rest
+ * loads in the background.
  */
 export function useNearbyHouses(options: UseNearbyHousesOptions) {
   const [listings, setListings] = useState<HouseListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Cancels stale in-flight pagination when the query params change.
+  const runIdRef = useRef(0);
 
   const fetchNearby = useCallback(async () => {
     if (options.enabled === false) {
@@ -198,68 +219,121 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
       return;
     }
 
+    const runId = ++runIdRef.current;
     setLoading(true);
+    setLoadingMore(false);
     setError(null);
 
     try {
-      let usedRpc = false;
+      const paginate = options.paginate === true;
+      const hasGps = !!(options.latitude && options.longitude);
+      const maxResults = options.maxResults && options.maxResults > 0 ? options.maxResults : 20000;
+      const pageSize = paginate
+        ? (options.pageSize && options.pageSize > 0 ? options.pageSize : 500)
+        : (options.limit || 50);
 
-      // If we have GPS, try the spatial RPC first
-      if (options.latitude && options.longitude) {
-        const { data, error: rpcError } = await supabase.rpc('find_nearby_houses', {
-          user_lat: options.latitude,
-          user_lng: options.longitude,
-          radius_km: options.radiusKm || 50,
-          category_filter: options.category || null,
-          region_filter: options.region || null,
-          result_limit: options.limit || 50,
-        });
+      // Try the spatial RPC first when we have GPS; if the very first page
+      // errors we fall back to the plain query for the whole run.
+      let useRpc = hasGps;
+      const accumulated: HouseListing[] = [];
+      let offset = 0;
+      let firstPageDone = false;
 
-        if (!rpcError && data) {
-          const rows = (((data as any[]) || []) as HouseListing[]).filter(listingHasRealPhoto);
-          const enriched = await enrichWithAgentInfo(rows);
-          setListings(enriched);
-          usedRpc = true;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const remaining = maxResults - accumulated.length;
+        if (remaining <= 0) break;
+        const wantLimit = paginate ? Math.min(pageSize, remaining) : pageSize;
+
+        let pageRaw: any[] = [];
+        if (useRpc) {
+          const { data, error: rpcError } = await supabase.rpc('find_nearby_houses', {
+            user_lat: options.latitude,
+            user_lng: options.longitude,
+            radius_km: options.radiusKm || 50,
+            category_filter: options.category || null,
+            region_filter: options.region || null,
+            result_limit: wantLimit,
+            result_offset: offset,
+          });
+          if (rpcError) {
+            // RPC unavailable — restart from scratch using the fallback query.
+            if (offset === 0) { useRpc = false; continue; }
+            throw rpcError;
+          }
+          pageRaw = (data as any[]) || [];
+        } else {
+          let query = supabase
+            .from('house_listings')
+            .select('*')
+            .eq('status', 'available')
+            .eq('verified', true)
+            .eq('is_hidden', false)
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: true })
+            .range(offset, offset + wantLimit - 1);
+          if (options.region) query = query.ilike('region', `%${options.region}%`);
+          if (options.category) query = query.eq('house_category', options.category);
+          const { data, error: fetchError } = await query;
+          if (fetchError) throw fetchError;
+          pageRaw = (data as any[]) || [];
         }
-        // If RPC fails (e.g. PostGIS not available), fall through to regular query
+
+        // Stale run (params changed mid-flight) — abandon without touching state.
+        if (runId !== runIdRef.current) return;
+
+        // Public/marketplace views only show houses with real photos. Filter for
+        // display, but base pagination on the RAW page size so photo-less rows
+        // don't make us stop early.
+        const filtered = (pageRaw as HouseListing[]).filter(listingHasRealPhoto);
+        const enriched = await enrichWithAgentInfo(filtered);
+        if (runId !== runIdRef.current) return;
+
+        accumulated.push(...enriched);
+        setListings([...accumulated]);
+
+        // First page rendered — let the UI paint while the rest streams in.
+        if (!firstPageDone) {
+          firstPageDone = true;
+          setLoading(false);
+          setLoadingMore(true);
+        }
+
+        offset += pageRaw.length;
+        const exhausted = pageRaw.length < wantLimit;
+        if (!paginate || exhausted) break;
       }
 
-      if (!usedRpc) {
-        // Fallback: regular query
-        let query = supabase
-          .from('house_listings')
-          .select('*')
-          .eq('status', 'available')
-          .eq('verified', true)
-          .eq('is_hidden', false)
-          .order('created_at', { ascending: false })
-          .limit(options.limit || 50);
-
-        if (options.region) {
-          query = query.ilike('region', `%${options.region}%`);
-        }
-        if (options.category) {
-          query = query.eq('house_category', options.category);
-        }
-
-        const { data, error: fetchError } = await query;
-        if (fetchError) throw fetchError;
-        const rows = (((data as any[]) || []) as HouseListing[]).filter(listingHasRealPhoto);
-        const enriched = await enrichWithAgentInfo(rows);
-        setListings(enriched);
+      if (runId === runIdRef.current) {
+        // Guarantees state settles even when zero pages were returned.
+        setListings([...accumulated]);
       }
     } catch (err: any) {
-      setError(err.message);
+      if (runId === runIdRef.current) setError(err.message);
     } finally {
-      setLoading(false);
+      if (runId === runIdRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
-  }, [options.latitude, options.longitude, options.radiusKm, options.category, options.region, options.limit, options.enabled]);
+  }, [
+    options.latitude,
+    options.longitude,
+    options.radiusKm,
+    options.category,
+    options.region,
+    options.limit,
+    options.enabled,
+    options.paginate,
+    options.pageSize,
+    options.maxResults,
+  ]);
 
   useEffect(() => {
     fetchNearby();
   }, [fetchNearby]);
 
-  return { listings, loading, error, refresh: fetchNearby };
+  return { listings, loading, loadingMore, error, refresh: fetchNearby };
 }
 
 /**
