@@ -640,7 +640,7 @@ export default function FindAHouse() {
     radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
-    limit: 500,
+    limit: 1500,
     enabled: hasSharedLocation || !geo.loading,
   });
 
