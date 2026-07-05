@@ -530,6 +530,18 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
       setLoading(false);
       setLoadingMore(false);
       setHasMore(!cached.exhausted);
+      // Rebuild the seen-id set so further loadMore() calls still dedupe.
+      seenIdsRef.current = new Set(cached.listings.map((l) => l.id).filter(Boolean) as string[]);
+      metricsRef.current = {
+        ...emptyMetrics(),
+        filterKey: key,
+        totalRows: cached.listings.length,
+        cacheHit: true,
+        source: cached.useRpc ? 'rpc' : 'fallback',
+        complete: cached.exhausted,
+      };
+      setMetrics({ ...metricsRef.current });
+      pgLog('cache hit', { filterKey: key, rows: cached.listings.length, complete: cached.exhausted });
       return;
     }
 
@@ -539,6 +551,10 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setLoading(true);
     setLoadingMore(false);
     setHasMore(false);
+    seenIdsRef.current = new Set();
+    metricsRef.current = { ...emptyMetrics(), filterKey: key, source: hasGps ? 'rpc' : 'fallback' };
+    setMetrics({ ...metricsRef.current });
+    pgLog('run start', { filterKey: key, hasGps, pageSize, paginate });
     fetchPage(runId, true);
   }, [fetchPage, options.enabled]);
 
