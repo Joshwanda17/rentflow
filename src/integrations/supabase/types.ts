@@ -20566,9 +20566,11 @@ export type Database = {
           platform_fee: number
           region: string
           status: string
+          sub_county: string
           title: string
           total_monthly_cost: number
           verified: boolean
+          village: string
         }[]
       }
       force_approve_rejected_rent_request: {
