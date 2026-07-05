@@ -378,6 +378,12 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
+  // Pagination diagnostics overlay — off by default. Enable in any environment:
+  //   localStorage.setItem('welile-debug-pagination','1')
+  const showPaginationDebug = (() => {
+    try { return localStorage.getItem('welile-debug-pagination') === '1'; } catch { return false; }
+  })();
+
   // Virtualized rendering: we fetch EVERY matching listing (can be 10,000+), but
   // only the cards in/near the viewport are ever mounted into the DOM, so the
   // sheet stays fast on low-end phones regardless of dataset size.
