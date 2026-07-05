@@ -631,7 +631,7 @@ export default function FindAHouse() {
     }
   }, [geo.city, geo.loading, geoDefaultApplied, sharedRegion]);
 
-  const { listings, loading } = useNearbyHouses({
+  const { listings, loading, loadingMore } = useNearbyHouses({
     latitude: effectiveLat,
     longitude: effectiveLng,
     // "All Regions" must show every house across the whole country (not just
@@ -640,7 +640,8 @@ export default function FindAHouse() {
     radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
-    limit: 1500,
+    // Page through EVERY matching listing — no fixed cap.
+    paginate: true,
     enabled: hasSharedLocation || !geo.loading,
   });
 
