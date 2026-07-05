@@ -64,7 +64,7 @@ export function isValidUgandaPhone(raw: string | null | undefined): boolean {
 
 /** Zod schema for forms — transforms to E.164 digits on success. */
 export const ugandaPhoneSchema = z
-  .string({ required_error: 'Phone number is required' })
+  .string({ message: 'Phone number is required' })
   .trim()
   .min(1, 'Phone number is required')
   .max(20, 'Phone number is too long')
