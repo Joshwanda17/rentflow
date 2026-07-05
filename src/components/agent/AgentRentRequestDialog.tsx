@@ -2082,6 +2082,30 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     toast.success(`Using ${m.full_name || 'existing tenant'}'s record`);
   }, []);
 
+  // Renew an already-registered tenant: pull their details, switch to the
+  // outstanding-balance flow and prefill the balance they still owe so the
+  // agent continues the existing tenancy instead of creating a duplicate.
+  const renewExistingTenant = useCallback(async (m: ExistingTenantMatch) => {
+    if (m.full_name) setTenantName(formatNameInput(m.full_name));
+    if (m.phone) setTenantPhone(formatPhoneInput(m.phone));
+    if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
+    setIncomeType('outstanding');
+    setStep('details');
+    try {
+      const { data, error } = await supabase.rpc('get_tenant_rent_summary' as any, {
+        p_tenant_id: m.id,
+      });
+      if (!error) {
+        const row: any = Array.isArray(data) ? data[0] : data;
+        const owed = Number(row?.outstanding_balance) || 0;
+        if (owed > 0) setOutstandingBalance(String(Math.round(owed)));
+      }
+    } catch {
+      // Non-fatal — agent can type the balance manually.
+    }
+    toast.success(`Renewing ${m.full_name || 'this tenant'} — continue their plan`);
+  }, []);
+
 
   const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
     if (!user || !tenantPhoto) return null;
