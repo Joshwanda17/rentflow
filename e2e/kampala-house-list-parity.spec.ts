@@ -201,7 +201,12 @@ test.describe('Kampala house-list parity: UI == underlying query', () => {
     const faCount = page.locator('#house-list').getByText(/houses? available/i).first();
     const uiIds = await collectRenderedHouseIds(page, {
       scrollTo: (pos) => page.evaluate((p) => window.scrollTo(0, p), pos),
-      scrollBy: (px) => page.evaluate((p) => window.scrollBy(0, p), px),
+      // Real wheel events reliably trip the infinite-scroll IntersectionObserver
+      // that plain window.scrollBy sometimes fails to fire in headless Chromium.
+      scrollBy: async (px) => {
+        await page.mouse.move(640, 400);
+        await page.mouse.wheel(0, px);
+      },
       state: async () => {
         const geom = await page.evaluate(() => ({
           y: window.scrollY,
