@@ -12,12 +12,29 @@ import { roleToSlug } from '@/lib/roleRoutes';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
+// Attribution: where did this signup originate? Sanitised to a short slug so
+// only safe, comparable values (e.g. `chatgpt`, `claude`, `internship`) land in
+// `profiles.signup_source`. Powers connector conversion tracking.
+const SIGNUP_SOURCE_KEY = 'welile_signup_source';
+function sanitizeSignupSource(raw: string | null | undefined): string | null {
+  const cleaned = (raw ?? '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+  return cleaned || null;
+}
+
 export function useAuthForm() {
   const [searchParams, setSearchParams] = useSearchParams();
   const referralId = searchParams.get('ref');
   const becomeRole = searchParams.get('become');
   const rawRole = searchParams.get('role');
   const preSelectedRole = rawRole && VALID_SIGNUP_ROLES.includes(rawRole as any) ? rawRole : null;
+
+  // Connector/campaign attribution (e.g. `?signup_source=chatgpt`). Persist it
+  // so it survives role selection and OAuth redirects before the account exists.
+  const signupSourceParam = sanitizeSignupSource(searchParams.get('signup_source') || searchParams.get('source'));
+  const [signupSourceState, setSignupSourceState] = useState<string | null>(() => {
+    if (signupSourceParam) return signupSourceParam;
+    try { return localStorage.getItem(SIGNUP_SOURCE_KEY); } catch { return null; }
+  });
 
   const [referrerIdState, setReferrerIdState] = useState<string | null>(() => {
     if (referralId) return referralId;
@@ -75,6 +92,10 @@ export function useAuthForm() {
       localStorage.setItem('referral_agent_id', referralId);
       setReferrerIdState(referralId);
     }
+    if (signupSourceParam) {
+      try { localStorage.setItem(SIGNUP_SOURCE_KEY, signupSourceParam); } catch { /* ignore */ }
+      setSignupSourceState(signupSourceParam);
+    }
     if (becomeRole) {
       localStorage.setItem('become_role', becomeRole);
     }
@@ -87,13 +108,34 @@ export function useAuthForm() {
       newParams.delete('role');
       setSearchParams(newParams, { replace: true });
     }
-  }, [referralId, becomeRole, preSelectedRole, rawRole]);
+  }, [referralId, signupSourceParam, becomeRole, preSelectedRole, rawRole]);
 
   // Redirect on auth — wait briefly for roles to load before deciding
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!user) return;
     localStorage.setItem('welile_had_session', 'true');
+
+    // Best-effort attribution backfill for social sign-ups (Google/Apple), which
+    // don't carry our signup metadata. Only sets `signup_source` when it's still
+    // empty so we never overwrite an existing attribution (e.g. funder-onboarding).
+    (async () => {
+      let stored: string | null = null;
+      try { stored = localStorage.getItem(SIGNUP_SOURCE_KEY); } catch { /* ignore */ }
+      const source = sanitizeSignupSource(stored);
+      if (!source) return;
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('signup_source')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (prof && !prof.signup_source) {
+          await supabase.from('profiles').update({ signup_source: source }).eq('id', user.id);
+        }
+        localStorage.removeItem(SIGNUP_SOURCE_KEY);
+      } catch { /* non-fatal */ }
+    })();
 
     // If roles already loaded, navigate immediately
     if (roles.length > 0) {
@@ -370,7 +412,8 @@ export function useAuthForm() {
       // Non-fatal: fall through to signUp; the generic-error mapping below covers it.
     }
 
-    const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
+    const storedSignupSource = signupSourceState || sanitizeSignupSource((() => { try { return localStorage.getItem(SIGNUP_SOURCE_KEY); } catch { return null; } })());
+    const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined, storedSignupSource || undefined);
     if (error) {
       setIsLoading(false);
       let errorMessage = error.message;
@@ -394,6 +437,9 @@ export function useAuthForm() {
       description: 'Welcome to Welile',
     });
     saveLocationInBackground();
+    // Attribution captured in signup metadata — clear the stored source so it
+    // can't leak onto a later, unrelated signup on the same device.
+    try { localStorage.removeItem(SIGNUP_SOURCE_KEY); } catch { /* ignore */ }
 
     // If auto-confirm did not return a session, sign the user in immediately
     // so the auth-state redirect hooks fire and send them to the dashboard.

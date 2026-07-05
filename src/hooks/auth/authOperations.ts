@@ -50,17 +50,30 @@ export async function signUp(
   return { data: signUpData, error: error as Error | null };
 }
 
-export async function signUpWithoutRole(email: string, password: string, fullName: string, phone: string, referrerId?: string, intendedRole?: string) {
+export async function signUpWithoutRole(email: string, password: string, fullName: string, phone: string, referrerId?: string, intendedRole?: string, signupSource?: string) {
   const redirectUrl = `${window.location.origin}/`;
-  const { data, error } = await supabase.auth.signUp({
+  const data: Record<string, unknown> = {
+    full_name: fullName,
+    phone,
+    referrer_id: referrerId || null,
+    intended_role: intendedRole || null,
+  };
+  // Only include `signup_source` when it is a non-empty string so the Postgres
+  // `handle_new_user` trigger persists it verbatim into `profiles.signup_source`
+  // (it NULLIFs empty strings). This is what powers connector attribution,
+  // e.g. `signup_source=chatgpt` from the public MCP "how Welile works" tool.
+  const trimmedSource = (signupSource ?? '').trim();
+  if (trimmedSource) {
+    data.signup_source = trimmedSource;
+    // eslint-disable-next-line no-console
+    console.log('[signUpWithoutRole] attribution →', { signup_source: trimmedSource });
+  }
+  const { data: signUpData, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      emailRedirectTo: redirectUrl,
-      data: { full_name: fullName, phone, referrer_id: referrerId || null, intended_role: intendedRole || null },
-    },
+    options: { emailRedirectTo: redirectUrl, data },
   });
-  return { data, error: error as Error | null };
+  return { data: signUpData, error: error as Error | null };
 }
 
 export async function signIn(email: string, password: string) {
