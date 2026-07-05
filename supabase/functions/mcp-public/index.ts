@@ -8,6 +8,34 @@ import { defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 // src/lib/mcp-public/tools/how-welile-works.ts
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z } from "npm:zod@^4.4.3";
+
+// src/lib/mcp-public/links.ts
+var SIGNUP_BASE = "https://welilereceipts.com/auth";
+var SIGNUP_ROLES = ["tenant", "agent", "landlord", "supporter"];
+var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function buildSignupLinks(opts) {
+  const source = (opts?.source ?? "chatgpt").trim() || "chatgpt";
+  const params = new URLSearchParams({ signup: "1", signup_source: source });
+  if (opts?.role && SIGNUP_ROLES.includes(opts.role)) params.set("role", opts.role);
+  const signupUrl = `${SIGNUP_BASE}?${params.toString()}`;
+  let referralUrl = null;
+  const ref = (opts?.referralCode ?? "").trim();
+  if (ref && UUID_RE.test(ref)) {
+    const refParams = new URLSearchParams(params);
+    refParams.set("ref", ref.toLowerCase());
+    referralUrl = `${SIGNUP_BASE}?${refParams.toString()}`;
+  }
+  return { signupUrl, referralUrl };
+}
+
+// src/lib/mcp-public/tools/how-welile-works.ts
+var GUIDED_PROMPTS = [
+  "Check my rent access",
+  "See agent commissions",
+  "See supporter Returns",
+  "Get guaranteed rent as a landlord",
+  "Check my Welile Trust Score"
+];
 var FAQS = [
   {
     q: "What is Welile?",
@@ -72,18 +100,23 @@ var how_welile_works_default = defineTool({
       (f) => f.q.toLowerCase().includes(term) || f.tags.some((t) => t.includes(term) || term.includes(t))
     ) : FAQS;
     const faqs = matched.length > 0 ? matched : FAQS;
-    const { signupUrl, referralUrl } = buildLinks(referral_code);
+    const { signupUrl, referralUrl } = buildSignupLinks({ referralCode: referral_code });
     const faqText = faqs.map((f) => `Q: ${f.q}
 A: ${f.a}`).join("\n\n");
+    const promptText = `Try asking:
+${GUIDED_PROMPTS.map((p) => `\u2022 ${p}`).join("\n")}`;
     const linkText = referralUrl ? `Sign up: ${signupUrl}
 Referral signup link: ${referralUrl}` : `Sign up: ${signupUrl}`;
     return {
       content: [{ type: "text", text: `${faqText}
 
 ---
+${promptText}
+
 ${linkText}` }],
       structuredContent: {
         faqs: faqs.map(({ q, a }) => ({ question: q, answer: a })),
+        guided_prompts: GUIDED_PROMPTS,
         signup_url: signupUrl,
         referral_url: referralUrl,
         currency: "UGX"

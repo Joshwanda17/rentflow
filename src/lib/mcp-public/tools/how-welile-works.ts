@@ -90,17 +90,19 @@ export default defineTool({
       : FAQS;
     const faqs = matched.length > 0 ? matched : FAQS;
 
-    const { signupUrl, referralUrl } = buildLinks(referral_code);
+    const { signupUrl, referralUrl } = buildSignupLinks({ referralCode: referral_code });
 
     const faqText = faqs.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n");
+    const promptText = `Try asking:\n${GUIDED_PROMPTS.map((p) => `• ${p}`).join("\n")}`;
     const linkText = referralUrl
       ? `Sign up: ${signupUrl}\nReferral signup link: ${referralUrl}`
       : `Sign up: ${signupUrl}`;
 
     return {
-      content: [{ type: "text", text: `${faqText}\n\n---\n${linkText}` }],
+      content: [{ type: "text", text: `${faqText}\n\n---\n${promptText}\n\n${linkText}` }],
       structuredContent: {
         faqs: faqs.map(({ q, a }) => ({ question: q, answer: a })),
+        guided_prompts: GUIDED_PROMPTS,
         signup_url: signupUrl,
         referral_url: referralUrl,
         currency: "UGX",
