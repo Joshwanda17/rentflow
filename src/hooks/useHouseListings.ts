@@ -245,6 +245,79 @@ export function clearNearbyHousesCache() {
 }
 
 /**
+ * Diagnostics for a paginated GPS house search. Exposed from `useNearbyHouses`
+ * and logged to the console (see `paginationDebugEnabled`) so slow or incomplete
+ * queries are quick to spot: how many pages we fetched, how many rows the source
+ * returned vs. how many we actually show, whether the spatial RPC or the plain
+ * fallback answered, timing, and any duplicate rows the paginator returned.
+ */
+export interface NearbyMetrics {
+  /** The filter-set cache key this run belongs to. */
+  filterKey: string;
+  /** Number of source pages fetched this run (0 when served purely from cache). */
+  pagesFetched: number;
+  /** Raw rows returned by the source before the photo filter / dedupe. */
+  rawRowsFetched: number;
+  /** Distinct rows actually shown (after photo filter + dedupe). */
+  totalRows: number;
+  /** Rows dropped because a later page repeated an id from an earlier page. */
+  duplicatesDetected: number;
+  /** Rows dropped because they had no real photo. */
+  photolessFiltered: number;
+  /** Whether this run was restored from the in-memory cache. */
+  cacheHit: boolean;
+  /** Which data path answered: the PostGIS RPC or the plain fallback query. */
+  source: 'rpc' | 'fallback';
+  /** Time to the first page's rows (ms). */
+  firstPageMs: number | null;
+  /** Duration of the most recent page fetch (ms). */
+  lastPageMs: number | null;
+  /** Cumulative fetch time across all pages this run (ms). */
+  totalMs: number;
+  /** True once the source is exhausted (no more pages). */
+  complete: boolean;
+}
+
+function emptyMetrics(): NearbyMetrics {
+  return {
+    filterKey: '',
+    pagesFetched: 0,
+    rawRowsFetched: 0,
+    totalRows: 0,
+    duplicatesDetected: 0,
+    photolessFiltered: 0,
+    cacheHit: false,
+    source: 'rpc',
+    firstPageMs: null,
+    lastPageMs: null,
+    totalMs: 0,
+    complete: false,
+  };
+}
+
+/**
+ * Pagination logging is on automatically in dev, and can be toggled in any
+ * environment (e.g. production debugging) with:
+ *   localStorage.setItem('welile-debug-pagination', '1')
+ */
+function paginationDebugEnabled(): boolean {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('welile-debug-pagination') === '1') return true;
+  } catch { /* ignore */ }
+  try {
+    return !!import.meta.env?.DEV;
+  } catch {
+    return false;
+  }
+}
+
+function pgLog(event: string, data: Record<string, unknown>) {
+  if (!paginationDebugEnabled()) return;
+  // eslint-disable-next-line no-console
+  console.info(`[house-pagination] ${event}`, data);
+}
+
+/**
  * Hook for spatial nearby house search using PostGIS.
  *
  * Falls back to a regular query when there are no GPS coordinates (or if the
