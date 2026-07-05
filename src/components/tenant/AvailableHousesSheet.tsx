@@ -620,7 +620,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
+                {filtered.length}
+                {hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
               {/* Virtualized card list — only viewport cards are mounted. */}
@@ -644,6 +645,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   );
                 })}
               </div>
+              {/* Infinite-scroll sentinel — triggers loading the next page. */}
+              {hasMore && <div ref={sentinelRef} className="h-1 w-full" aria-hidden="true" />}
               {loadingMore && (
                 <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
                   <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
