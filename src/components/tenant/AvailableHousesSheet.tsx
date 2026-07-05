@@ -295,7 +295,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
-    limit: 500,
+    limit: 1500,
     enabled: open && !geo.loading,
   });
 
