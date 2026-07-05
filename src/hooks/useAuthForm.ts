@@ -416,6 +416,9 @@ export function useAuthForm() {
       description: 'Welcome to Welile',
     });
     saveLocationInBackground();
+    // Attribution captured in signup metadata — clear the stored source so it
+    // can't leak onto a later, unrelated signup on the same device.
+    try { localStorage.removeItem(SIGNUP_SOURCE_KEY); } catch { /* ignore */ }
 
     // If auto-confirm did not return a session, sign the user in immediately
     // so the auth-state redirect hooks fire and send them to the dashboard.
