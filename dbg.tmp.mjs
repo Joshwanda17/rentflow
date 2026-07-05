@@ -1,0 +1,16 @@
+import { chromium } from '@playwright/test';
+const b = await chromium.launch({ headless: true, executablePath: process.env.PW_CHROMIUM_EXEC });
+const page = await b.newPage();
+const reqs = [];
+page.on('request', r => { if (r.url().includes('/rest/v1/')) reqs.push(r.method()+' '+r.url()); });
+await page.route('**/rest/v1/profiles*', r => r.fulfill({ status:200, contentType:'application/json', body: JSON.stringify([{id:'11111111-1111-1111-1111-111111111111', full_name:'Jane Existing Tenant', phone:'0700000001', national_id:'CM99001122334', avatar_url:null}]) }));
+await page.route('**/rest/v1/rpc/get_tenant_rent_summary*', r => r.fulfill({ status:200, contentType:'application/json', body: JSON.stringify([{tenant_id:'11111111-1111-1111-1111-111111111111', outstanding_balance:450000, total_obligation:600000, total_repaid:150000, active_plan_count:1, latest_request_id:'x', latest_status:'repaying', latest_registration_type:'standard', latest_daily_repayment:15000, latest_created_at:'2026-06-01T10:00:00Z', previous_agent_id:'y', previous_agent_name:'Peter Previous Agent', previous_agent_phone:'0782000111'}]) }));
+const errs=[]; page.on('console', m=>{ if(m.type()==='error') errs.push(m.text()); });
+await page.goto('http://localhost:8080/__e2e/existing-tenant-notice', { waitUntil:'networkidle' });
+await page.fill('[data-testid="tenant-phone-input"]', '0700000001');
+await page.waitForTimeout(2500);
+console.log('REST reqs:', JSON.stringify(reqs, null, 1));
+console.log('ERRORS:', errs.slice(0,5));
+const txt = await page.locator('[data-testid="e2e-existing-tenant-notice-harness"]').innerText();
+console.log('HARNESS TEXT:\n', txt);
+await b.close();
