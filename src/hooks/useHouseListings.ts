@@ -209,44 +209,45 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
   const [listings, setListings] = useState<HouseListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Cancels stale in-flight pagination when the query params change.
+  // Cancels stale in-flight requests when the query params change.
   const runIdRef = useRef(0);
+  // Cursor state for lazy (infinite-scroll) pagination. Lives in a ref so
+  // `loadMore` can be called repeatedly without re-creating the callback.
+  const cursorRef = useRef<{
+    offset: number;
+    useRpc: boolean;
+    exhausted: boolean;
+    loading: boolean;
+    accumulated: HouseListing[];
+  }>({ offset: 0, useRpc: false, exhausted: true, loading: false, accumulated: [] });
 
-  const fetchNearby = useCallback(async () => {
-    if (options.enabled === false) {
-      setLoading(false);
-      return;
-    }
+  const paginate = options.paginate === true;
+  const maxResults = options.maxResults && options.maxResults > 0 ? options.maxResults : 20000;
+  const pageSize = paginate
+    ? (options.pageSize && options.pageSize > 0 ? options.pageSize : 24)
+    : (options.limit || 50);
 
-    const runId = ++runIdRef.current;
-    setLoading(true);
-    setLoadingMore(false);
-    setError(null);
+  // Fetch a single page at the current cursor and append it. Handles the
+  // spatial RPC → plain query fallback and stale-run cancellation.
+  const fetchPage = useCallback(async (runId: number, isFirst: boolean) => {
+    const st = cursorRef.current;
+    if (st.exhausted || st.loading) return;
+    st.loading = true;
+    if (isFirst) setLoading(true); else setLoadingMore(true);
 
     try {
-      const paginate = options.paginate === true;
-      const hasGps = !!(options.latitude && options.longitude);
-      const maxResults = options.maxResults && options.maxResults > 0 ? options.maxResults : 20000;
-      const pageSize = paginate
-        ? (options.pageSize && options.pageSize > 0 ? options.pageSize : 500)
-        : (options.limit || 50);
+      const remaining = maxResults - st.accumulated.length;
+      if (remaining <= 0) {
+        st.exhausted = true;
+        setHasMore(false);
+        return;
+      }
+      const wantLimit = Math.min(pageSize, remaining);
 
-      // Try the spatial RPC first when we have GPS; if the very first page
-      // errors we fall back to the plain query for the whole run.
-      let useRpc = hasGps;
-      const accumulated: HouseListing[] = [];
-      let offset = 0;
-      let firstPageDone = false;
-
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const remaining = maxResults - accumulated.length;
-        if (remaining <= 0) break;
-        const wantLimit = paginate ? Math.min(pageSize, remaining) : pageSize;
-
-        let pageRaw: any[] = [];
-        if (useRpc) {
+      const fetchRaw = async (): Promise<any[]> => {
+        if (st.useRpc) {
           const { data, error: rpcError } = await supabase.rpc('find_nearby_houses', {
             user_lat: options.latitude,
             user_lng: options.longitude,
@@ -254,63 +255,52 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
             category_filter: options.category || null,
             region_filter: options.region || null,
             result_limit: wantLimit,
-            result_offset: offset,
+            result_offset: st.offset,
           });
           if (rpcError) {
-            // RPC unavailable — restart from scratch using the fallback query.
-            if (offset === 0) { useRpc = false; continue; }
+            // RPC unavailable — switch to the plain query for the rest of the run.
+            if (st.offset === 0) { st.useRpc = false; return fetchRaw(); }
             throw rpcError;
           }
-          pageRaw = (data as any[]) || [];
-        } else {
-          let query = supabase
-            .from('house_listings')
-            .select('*')
-            .eq('status', 'available')
-            .eq('verified', true)
-            .eq('is_hidden', false)
-            .order('created_at', { ascending: false })
-            .order('id', { ascending: true })
-            .range(offset, offset + wantLimit - 1);
-          if (options.region) query = query.ilike('region', `%${options.region}%`);
-          if (options.category) query = query.eq('house_category', options.category);
-          const { data, error: fetchError } = await query;
-          if (fetchError) throw fetchError;
-          pageRaw = (data as any[]) || [];
+          return (data as any[]) || [];
         }
+        let query = supabase
+          .from('house_listings')
+          .select('*')
+          .eq('status', 'available')
+          .eq('verified', true)
+          .eq('is_hidden', false)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(st.offset, st.offset + wantLimit - 1);
+        if (options.region) query = query.ilike('region', `%${options.region}%`);
+        if (options.category) query = query.eq('house_category', options.category);
+        const { data, error: fetchError } = await query;
+        if (fetchError) throw fetchError;
+        return (data as any[]) || [];
+      };
 
-        // Stale run (params changed mid-flight) — abandon without touching state.
-        if (runId !== runIdRef.current) return;
+      const pageRaw = await fetchRaw();
+      // Stale run (params changed mid-flight) — abandon without touching state.
+      if (runId !== runIdRef.current) return;
 
-        // Public/marketplace views only show houses with real photos. Filter for
-        // display, but base pagination on the RAW page size so photo-less rows
-        // don't make us stop early.
-        const filtered = (pageRaw as HouseListing[]).filter(listingHasRealPhoto);
-        const enriched = await enrichWithAgentInfo(filtered);
-        if (runId !== runIdRef.current) return;
+      // Public/marketplace views only show houses with real photos. Filter for
+      // display, but advance the cursor by the RAW page size so photo-less rows
+      // don't make us stop early.
+      const filteredPage = (pageRaw as HouseListing[]).filter(listingHasRealPhoto);
+      const enriched = await enrichWithAgentInfo(filteredPage);
+      if (runId !== runIdRef.current) return;
 
-        accumulated.push(...enriched);
-        setListings([...accumulated]);
-
-        // First page rendered — let the UI paint while the rest streams in.
-        if (!firstPageDone) {
-          firstPageDone = true;
-          setLoading(false);
-          setLoadingMore(true);
-        }
-
-        offset += pageRaw.length;
-        const exhausted = pageRaw.length < wantLimit;
-        if (!paginate || exhausted) break;
-      }
-
-      if (runId === runIdRef.current) {
-        // Guarantees state settles even when zero pages were returned.
-        setListings([...accumulated]);
-      }
+      st.accumulated = [...st.accumulated, ...enriched];
+      st.offset += pageRaw.length;
+      // In non-paginate mode we only ever fetch one page.
+      st.exhausted = !paginate || pageRaw.length < wantLimit;
+      setListings([...st.accumulated]);
+      setHasMore(!st.exhausted);
     } catch (err: any) {
       if (runId === runIdRef.current) setError(err.message);
     } finally {
+      st.loading = false;
       if (runId === runIdRef.current) {
         setLoading(false);
         setLoadingMore(false);
@@ -322,18 +312,50 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     options.radiusKm,
     options.category,
     options.region,
-    options.limit,
-    options.enabled,
-    options.paginate,
-    options.pageSize,
-    options.maxResults,
+    paginate,
+    pageSize,
+    maxResults,
   ]);
 
+  // (Re)start from the first page whenever the query params change.
   useEffect(() => {
-    fetchNearby();
-  }, [fetchNearby]);
+    if (options.enabled === false) {
+      setLoading(false);
+      setLoadingMore(false);
+      setHasMore(false);
+      return;
+    }
+    const runId = ++runIdRef.current;
+    const hasGps = !!(options.latitude && options.longitude);
+    cursorRef.current = { offset: 0, useRpc: hasGps, exhausted: false, loading: false, accumulated: [] };
+    setListings([]);
+    setError(null);
+    setLoading(true);
+    setLoadingMore(false);
+    setHasMore(false);
+    fetchPage(runId, true);
+  }, [fetchPage, options.enabled]);
 
-  return { listings, loading, loadingMore, error, refresh: fetchNearby };
+  // Load the next page on demand (called when the user nears the bottom).
+  const loadMore = useCallback(() => {
+    const st = cursorRef.current;
+    if (st.loading || st.exhausted) return;
+    fetchPage(runIdRef.current, false);
+  }, [fetchPage]);
+
+  const refresh = useCallback(() => {
+    const runId = ++runIdRef.current;
+    const hasGps = !!(options.latitude && options.longitude);
+    cursorRef.current = { offset: 0, useRpc: hasGps, exhausted: false, loading: false, accumulated: [] };
+    setListings([]);
+    setError(null);
+    setLoading(true);
+    setLoadingMore(false);
+    setHasMore(false);
+    fetchPage(runId, true);
+  }, [fetchPage, options.latitude, options.longitude]);
+
+  return { listings, loading, loadingMore, hasMore, loadMore, error, refresh };
 }
 
 /**
