@@ -605,20 +605,27 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
-              {visible.map((listing, idx) => (
-                <HouseCard
-                  key={listing.id}
-                  listing={listing}
-                  highlighted={idx === 0 && searchText.trim().length > 0}
-                />
-              ))}
-              {/* Sentinel: mounts more cards as it scrolls into view. */}
-              {renderCount < filtered.length && (
-                <div ref={sentinelRef} className="flex items-center justify-center py-4 text-xs text-muted-foreground">
-                  <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
-                  <span className="ml-2">Showing {visible.length} of {filtered.length}…</span>
-                </div>
-              )}
+              {/* Virtualized card list — only viewport cards are mounted. */}
+              <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+                {virtualizer.getVirtualItems().map((vi) => {
+                  const listing = filtered[vi.index];
+                  if (!listing) return null;
+                  return (
+                    <div
+                      key={vi.key}
+                      data-index={vi.index}
+                      ref={virtualizer.measureElement}
+                      className="absolute left-0 top-0 w-full"
+                      style={{ transform: `translateY(${vi.start}px)` }}
+                    >
+                      <HouseCard
+                        listing={listing}
+                        highlighted={vi.index === 0 && searchText.trim().length > 0}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
               {loadingMore && (
                 <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
                   <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
