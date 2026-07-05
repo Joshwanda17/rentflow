@@ -116,6 +116,27 @@ export function useAuthForm() {
     if (!user) return;
     localStorage.setItem('welile_had_session', 'true');
 
+    // Best-effort attribution backfill for social sign-ups (Google/Apple), which
+    // don't carry our signup metadata. Only sets `signup_source` when it's still
+    // empty so we never overwrite an existing attribution (e.g. funder-onboarding).
+    (async () => {
+      let stored: string | null = null;
+      try { stored = localStorage.getItem(SIGNUP_SOURCE_KEY); } catch { /* ignore */ }
+      const source = sanitizeSignupSource(stored);
+      if (!source) return;
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('signup_source')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (prof && !prof.signup_source) {
+          await supabase.from('profiles').update({ signup_source: source }).eq('id', user.id);
+        }
+        localStorage.removeItem(SIGNUP_SOURCE_KEY);
+      } catch { /* non-fatal */ }
+    })();
+
     // If roles already loaded, navigate immediately
     if (roles.length > 0) {
       if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
