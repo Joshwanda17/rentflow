@@ -640,11 +640,23 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </div>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground">
-                {filtered.length}
-                {hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available
-                {hasGPS ? ' · sorted by distance' : ''}
-              </p>
+              <HouseListingCount
+                className="text-xs text-muted-foreground"
+                counts={listingCounts}
+                loadedCount={filtered.length}
+                locationLabel={
+                  selectedVillage !== 'all'
+                    ? `in ${selectedVillage}`
+                    : selectedSubCounty !== 'all'
+                      ? `in ${selectedSubCounty}`
+                      : selectedDistrict !== 'all'
+                        ? `in ${selectedDistrict}`
+                        : selectedRegion !== 'All Regions'
+                          ? `in ${selectedRegion}`
+                          : undefined
+                }
+                suffix={hasGPS ? 'sorted by distance' : undefined}
+              />
               {showPaginationDebug && (
                 <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/40 px-3 py-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
                   <div>src={metrics.source} · pages={metrics.pagesFetched} · cache={metrics.cacheHit ? 'hit' : 'miss'} · {metrics.complete ? 'complete' : 'more'}</div>
