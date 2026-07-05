@@ -1,10 +1,17 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { buildSignupLinks } from "../links";
 
-const SIGNUP_BASE = "https://welilereceipts.com/auth";
-
-// Strict RFC-4122 UUID (referral codes are the referrer's user id).
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Guided prompts an assistant can suggest to move a prospective user from a
+// read-only question toward creating an account. Kept in sync with the
+// `explore_welile` tool intents.
+const GUIDED_PROMPTS = [
+  "Check my rent access",
+  "See agent commissions",
+  "See supporter Returns",
+  "Get guaranteed rent as a landlord",
+  "Check my Welile Trust Score",
+];
 
 const FAQS: { q: string; a: string; tags: string[] }[] = [
   {
@@ -42,16 +49,17 @@ const FAQS: { q: string; a: string; tags: string[] }[] = [
     a: "Yes, creating an account is free. You only ever deal in UGX, and you can start as a tenant, agent, landlord, or Supporter.",
     tags: ["free", "cost", "join", "signup", "price"],
   },
+  {
+    q: "How do I check what I personally qualify for?",
+    a: "Personal figures — your rent access, wallet balance, commissions, or Returns — are shown once you create a free account and sign in. Ask 'check my rent access' or 'see agent commissions' to get started, and I'll share the right signup link.",
+    tags: ["check", "qualify", "balance", "personal", "account", "my"],
+  },
+  {
+    q: "Is my money safe and what currency is used?",
+    a: "Welile operates strictly in Ugandan Shillings (UGX). Every balance, Rent Plan, commission, and Return is recorded in UGX, and your account activity is tied to your verified identity.",
+    tags: ["safe", "security", "currency", "ugx", "money"],
+  },
 ];
-
-function buildLinks(referralCode?: string) {
-  const signupUrl = `${SIGNUP_BASE}?signup=1&signup_source=chatgpt`;
-  let referralUrl: string | null = null;
-  if (referralCode && UUID_RE.test(referralCode)) {
-    referralUrl = `${SIGNUP_BASE}?signup=1&signup_source=chatgpt&ref=${referralCode.toLowerCase()}`;
-  }
-  return { signupUrl, referralUrl };
-}
 
 export default defineTool({
   name: "how_welile_works",
@@ -82,17 +90,19 @@ export default defineTool({
       : FAQS;
     const faqs = matched.length > 0 ? matched : FAQS;
 
-    const { signupUrl, referralUrl } = buildLinks(referral_code);
+    const { signupUrl, referralUrl } = buildSignupLinks({ referralCode: referral_code });
 
     const faqText = faqs.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n");
+    const promptText = `Try asking:\n${GUIDED_PROMPTS.map((p) => `• ${p}`).join("\n")}`;
     const linkText = referralUrl
       ? `Sign up: ${signupUrl}\nReferral signup link: ${referralUrl}`
       : `Sign up: ${signupUrl}`;
 
     return {
-      content: [{ type: "text", text: `${faqText}\n\n---\n${linkText}` }],
+      content: [{ type: "text", text: `${faqText}\n\n---\n${promptText}\n\n${linkText}` }],
       structuredContent: {
         faqs: faqs.map(({ q, a }) => ({ question: q, answer: a })),
+        guided_prompts: GUIDED_PROMPTS,
         signup_url: signupUrl,
         referral_url: referralUrl,
         currency: "UGX",
