@@ -344,6 +344,11 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     loading: boolean;
     accumulated: HouseListing[];
   }>({ offset: 0, useRpc: false, exhausted: true, loading: false, accumulated: [] });
+  // Pagination diagnostics for the current filter set. `seenIdsRef` powers both
+  // duplicate detection and dedupe of rows the paginator may repeat.
+  const metricsRef = useRef<NearbyMetrics>(emptyMetrics());
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const [metrics, setMetrics] = useState<NearbyMetrics>(metricsRef.current);
 
   const paginate = options.paginate === true;
   const maxResults = options.maxResults && options.maxResults > 0 ? options.maxResults : 20000;
