@@ -661,10 +661,13 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               {/* Infinite-scroll sentinel — triggers loading the next page. */}
               {hasMore && <div ref={sentinelRef} className="h-1 w-full" aria-hidden="true" />}
               {loadingMore && (
-                <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
-                  <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
-                  Loading more houses…
-                </div>
+                <LoadMoreProgress
+                  loadedCount={filtered.length}
+                  pagesFetched={metrics.pagesFetched}
+                  hasMore={hasMore}
+                  skeletonCount={2}
+                  skeletonClassName="h-40 w-full rounded-2xl"
+                />
               )}
             </>
           )}
