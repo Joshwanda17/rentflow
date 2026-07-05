@@ -76,7 +76,7 @@ test('shows outstanding balance + previous agent and Renew works', async ({ page
 
   // The notice reveals the already-registered tenant.
   await expect(page.getByText(/already on Welile/i)).toBeVisible();
-  await expect(page.getByText(new RegExp(TENANT_NAME, 'i'))).toBeVisible();
+  await expect(page.getByText(new RegExp(TENANT_NAME, 'i')).first()).toBeVisible();
 
   // Outstanding balance is shown prominently (UGX 450,000).
   await expect(page.getByText(/Outstanding Balance/i)).toBeVisible();
@@ -84,7 +84,7 @@ test('shows outstanding balance + previous agent and Renew works', async ({ page
 
   // Previous agent details are shown.
   await expect(page.getByText(/Previous agent:/i)).toBeVisible();
-  await expect(page.getByText(new RegExp(PREV_AGENT_NAME, 'i'))).toBeVisible();
+  await expect(page.getByText(new RegExp(PREV_AGENT_NAME, 'i')).first()).toBeVisible();
 
   // Renew button is present and functional.
   const renewBtn = page.getByRole('button', { name: /Renew/i });
