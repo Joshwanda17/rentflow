@@ -12,12 +12,29 @@ import { roleToSlug } from '@/lib/roleRoutes';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
+// Attribution: where did this signup originate? Sanitised to a short slug so
+// only safe, comparable values (e.g. `chatgpt`, `claude`, `internship`) land in
+// `profiles.signup_source`. Powers connector conversion tracking.
+const SIGNUP_SOURCE_KEY = 'welile_signup_source';
+function sanitizeSignupSource(raw: string | null | undefined): string | null {
+  const cleaned = (raw ?? '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+  return cleaned || null;
+}
+
 export function useAuthForm() {
   const [searchParams, setSearchParams] = useSearchParams();
   const referralId = searchParams.get('ref');
   const becomeRole = searchParams.get('become');
   const rawRole = searchParams.get('role');
   const preSelectedRole = rawRole && VALID_SIGNUP_ROLES.includes(rawRole as any) ? rawRole : null;
+
+  // Connector/campaign attribution (e.g. `?signup_source=chatgpt`). Persist it
+  // so it survives role selection and OAuth redirects before the account exists.
+  const signupSourceParam = sanitizeSignupSource(searchParams.get('signup_source') || searchParams.get('source'));
+  const [signupSourceState, setSignupSourceState] = useState<string | null>(() => {
+    if (signupSourceParam) return signupSourceParam;
+    try { return localStorage.getItem(SIGNUP_SOURCE_KEY); } catch { return null; }
+  });
 
   const [referrerIdState, setReferrerIdState] = useState<string | null>(() => {
     if (referralId) return referralId;
