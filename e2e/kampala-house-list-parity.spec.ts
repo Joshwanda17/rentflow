@@ -111,9 +111,19 @@ async function collectRenderedHouseIds(
 /** Open the shadcn region <Select> and choose "Kampala". */
 async function selectKampalaRegion(page: Page, root = page.locator('body')) {
   // The region trigger is the combobox showing the current region ("All Regions").
-  const trigger = root.getByRole('combobox').filter({ hasText: /All Regions|Region|Central|Kampala/ }).first();
+  const trigger = root
+    .getByRole('combobox')
+    .filter({ hasText: /All Regions|Region|Central|Eastern|Northern|Western|Kampala/ })
+    .first();
+  // Reverse-geocoding the granted Kampala coordinates can auto-select Kampala
+  // already — in that case selecting it again is a no-op that flakily detaches
+  // the option mid-click, so skip when it's the current value.
+  const current = (await trigger.innerText().catch(() => '')).trim();
+  if (/kampala/i.test(current)) return;
   await trigger.click();
-  await page.getByRole('option', { name: 'Kampala', exact: true }).click();
+  const option = page.getByRole('option', { name: 'Kampala', exact: true });
+  await option.click();
+  await option.waitFor({ state: 'hidden' }).catch(() => {});
 }
 
 test.use({
