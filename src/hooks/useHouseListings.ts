@@ -384,6 +384,27 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     }
     const runId = ++runIdRef.current;
     const hasGps = !!(options.latitude && options.longitude);
+
+    // Cache hit: restore the previously fetched pages + cursor without any
+    // network calls. `loadMore` then continues from the cached offset.
+    const key = nearbyCacheKey(options, paginate, pageSize);
+    const cached = NEARBY_CACHE.get(key);
+    if (cached && Date.now() - cached.ts < NEARBY_CACHE_TTL) {
+      cursorRef.current = {
+        offset: cached.offset,
+        useRpc: cached.useRpc,
+        exhausted: cached.exhausted,
+        loading: false,
+        accumulated: cached.listings,
+      };
+      setListings(cached.listings);
+      setError(null);
+      setLoading(false);
+      setLoadingMore(false);
+      setHasMore(!cached.exhausted);
+      return;
+    }
+
     cursorRef.current = { offset: 0, useRpc: hasGps, exhausted: false, loading: false, accumulated: [] };
     setListings([]);
     setError(null);
@@ -403,6 +424,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
   const refresh = useCallback(() => {
     const runId = ++runIdRef.current;
     const hasGps = !!(options.latitude && options.longitude);
+    // Force a fresh fetch: drop this filter set's cached pages first.
+    NEARBY_CACHE.delete(nearbyCacheKey(options, paginate, pageSize));
     cursorRef.current = { offset: 0, useRpc: hasGps, exhausted: false, loading: false, accumulated: [] };
     setListings([]);
     setError(null);
@@ -410,7 +433,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setLoadingMore(false);
     setHasMore(false);
     fetchPage(runId, true);
-  }, [fetchPage, options.latitude, options.longitude]);
+  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, paginate, pageSize]);
 
   return { listings, loading, loadingMore, hasMore, loadMore, error, refresh };
 }
