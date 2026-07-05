@@ -631,7 +631,7 @@ export default function FindAHouse() {
     }
   }, [geo.city, geo.loading, geoDefaultApplied, sharedRegion]);
 
-  const { listings, loading, loadingMore, hasMore, loadMore } = useNearbyHouses({
+  const { listings, loading, loadingMore, hasMore, loadMore, metrics } = useNearbyHouses({
     latitude: effectiveLat,
     longitude: effectiveLng,
     // "All Regions" must show every house across the whole country (not just
@@ -1095,10 +1095,13 @@ export default function FindAHouse() {
               {/* Infinite-scroll sentinel + status. */}
               {hasMore && <div ref={loadMoreSentinelRef} className="h-1 w-full" aria-hidden="true" />}
               {loadingMore && (
-                <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
-                  <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
-                  Loading more houses…
-                </div>
+                <LoadMoreProgress
+                  loadedCount={filtered.length}
+                  pagesFetched={metrics.pagesFetched}
+                  hasMore={hasMore}
+                  skeletonCount={2}
+                  skeletonClassName="h-48 w-full rounded-2xl"
+                />
               )}
             </>
           )}
