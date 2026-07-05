@@ -125,13 +125,133 @@ ${linkText}` }],
   }
 });
 
+// src/lib/mcp-public/tools/explore-welile.ts
+import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z2 } from "npm:zod@^4.4.3";
+var FEATURES = [
+  {
+    intent: "rent_access",
+    prompt: "Check my rent access",
+    role: "tenant",
+    headline: "Access rent with a flexible Rent Plan",
+    explanation: "As a tenant you can get help paying rent through a Rent Plan and repay in small, regular UGX amounts that fit your income. To see the amount you qualify for, you create a free account and complete verification (national ID and residence) \u2014 an agent or landlord then connects you to a Rent Plan.",
+    next_step: "Create a free tenant account to check your personal rent access and start a Rent Plan."
+  },
+  {
+    intent: "agent_commissions",
+    prompt: "See agent commissions",
+    role: "agent",
+    headline: "Earn commission as a field agent",
+    explanation: "Agents register tenants, list houses, and collect rent in the field. You earn commission in UGX on the collections and placements you make, tracked in a wallet you can withdraw from. Your exact earnings and wallet balance are shown once you sign in.",
+    next_step: "Create a free agent account to see your commission wallet and start earning."
+  },
+  {
+    intent: "supporter_returns",
+    prompt: "See supporter Returns",
+    role: "supporter",
+    headline: "Support tenants and earn Returns",
+    explanation: "As a Supporter your funds help tenants access rent, and you earn periodic Returns in UGX. Rates and terms are shown in the app when you sign up. (Terminology: Supporter, not lender; Returns, not interest.)",
+    next_step: "Create a free Supporter account to view current Returns and start supporting tenants."
+  },
+  {
+    intent: "landlord_payouts",
+    prompt: "Get guaranteed rent as a landlord",
+    role: "landlord",
+    headline: "Guaranteed, on-time rent for landlords",
+    explanation: "Landlords list their houses and receive guaranteed, on-time rent in UGX instead of chasing tenants each month. Welile handles collection through its agent network.",
+    next_step: "Create a free landlord account to list a house and receive guaranteed rent."
+  },
+  {
+    intent: "trust_score",
+    prompt: "Check my Welile Trust Score",
+    headline: "Build a Welile Trust Score",
+    explanation: "Every user builds a Welile Trust Score \u2014 a reliability identity based on real behaviour like on-time payments and verification. A higher score unlocks better access over time. Your personal score appears once you sign in.",
+    next_step: "Create a free account to start building your Welile Trust Score."
+  }
+];
+function matchFeature(intent) {
+  const term = (intent ?? "").trim().toLowerCase();
+  if (!term) return null;
+  return FEATURES.find((f) => f.intent === term) ?? FEATURES.find(
+    (f) => f.prompt.toLowerCase().includes(term) || f.headline.toLowerCase().includes(term) || term.includes(f.intent.split("_")[0])
+  ) ?? null;
+}
+var explore_welile_default = defineTool2({
+  name: "explore_welile",
+  title: "Explore Welile (guided prompts)",
+  description: "Answer a prospective user's read-only question about what Welile can do for them (e.g. 'check my rent access', 'see agent commissions', 'supporter Returns', 'landlord payouts', 'Trust Score') and return a role-targeted free signup link so they can act. No sign-in required. Amounts in UGX. If no intent is given, returns the full list of guided prompts to suggest.",
+  inputSchema: {
+    intent: z2.string().describe(
+      "The user's goal. One of: rent_access, agent_commissions, supporter_returns, landlord_payouts, trust_score \u2014 or free text like 'check my rent access'. Omit to list all guided prompts."
+    ).optional(),
+    referral_code: z2.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: ({ intent, referral_code }) => {
+    const feature = matchFeature(intent);
+    if (feature) {
+      const { signupUrl: signupUrl2, referralUrl } = buildSignupLinks({
+        referralCode: referral_code,
+        role: feature.role
+      });
+      const linkText = referralUrl ? `Sign up: ${signupUrl2}
+Referral signup link: ${referralUrl}` : `Sign up: ${signupUrl2}`;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${feature.headline}
+
+${feature.explanation}
+
+Next step: ${feature.next_step}
+
+${linkText}`
+          }
+        ],
+        structuredContent: {
+          intent: feature.intent,
+          headline: feature.headline,
+          explanation: feature.explanation,
+          next_step: feature.next_step,
+          role: feature.role ?? null,
+          signup_url: signupUrl2,
+          referral_url: referralUrl,
+          currency: "UGX"
+        }
+      };
+    }
+    const prompts = FEATURES.map((f) => {
+      const { signupUrl: signupUrl2 } = buildSignupLinks({ referralCode: referral_code, role: f.role });
+      return {
+        prompt: f.prompt,
+        intent: f.intent,
+        headline: f.headline,
+        role: f.role ?? null,
+        signup_url: signupUrl2
+      };
+    });
+    const menuText = [
+      "Ask about any of these to get started with Welile (UGX):",
+      ...prompts.map((p) => `\u2022 ${p.prompt}`)
+    ].join("\n");
+    const { signupUrl } = buildSignupLinks({ referralCode: referral_code });
+    return {
+      content: [{ type: "text", text: `${menuText}
+
+Or sign up now: ${signupUrl}` }],
+      structuredContent: { guided_prompts: prompts, signup_url: signupUrl, currency: "UGX" }
+    };
+  }
+});
+
 // src/lib/mcp-public/index.ts
 var mcp_public_default = defineMcp({
   name: "welile-public-mcp",
   title: "Welile Receipts \u2014 Get Started",
   version: "0.1.0",
-  instructions: "Public information about Welile Receipts for prospective users. Use `how_welile_works` to explain the platform (tenants, agents, landlords, Supporters) and return a free signup link \u2014 no account required. All amounts are in UGX.",
-  tools: [how_welile_works_default]
+  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
+  tools: [how_welile_works_default, explore_welile_default]
 });
 
 // lovable-mcp-supabase-entry.ts
