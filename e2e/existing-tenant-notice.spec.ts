@@ -66,7 +66,7 @@ async function stubPlatform(page) {
 
 test.beforeEach(async ({ page }) => {
   await stubPlatform(page);
-  await page.goto(HARNESS);
+  await page.goto(HARNESS, { waitUntil: 'networkidle' });
   await expect(page.getByTestId('e2e-existing-tenant-notice-harness')).toBeVisible();
 });
 
