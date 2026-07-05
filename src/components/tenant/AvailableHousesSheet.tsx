@@ -398,6 +398,22 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText]);
 
+  // Infinite scroll: load the next page automatically when the bottom sentinel
+  // approaches the viewport. `loadMore` self-guards against overlapping/finished
+  // requests, so it's safe to call on every intersection.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { root: resultsRef.current, rootMargin: '600px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loadMore, view]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
