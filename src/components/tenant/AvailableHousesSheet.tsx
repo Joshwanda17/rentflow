@@ -285,7 +285,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     }
   }, [geo.city, geo.loading, geoDefaultApplied]);
 
-  const { listings, loading } = useNearbyHouses({
+  const { listings, loading, loadingMore } = useNearbyHouses({
     latitude: geo.latitude,
     longitude: geo.longitude,
     // "All Regions" must show every house across the whole country (not just
@@ -295,7 +295,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
-    limit: 1500,
+    // Page through EVERY matching listing — no fixed cap.
+    paginate: true,
     enabled: open && !geo.loading,
   });
 
