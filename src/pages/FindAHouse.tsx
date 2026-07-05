@@ -17,7 +17,8 @@ import {
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import HouseRatingBadge from '@/components/house/HouseRatingBadge';
-import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
+import { useNearbyHouses, useHouseListingCount, HouseListing } from '@/hooks/useHouseListings';
+import { HouseListingCount } from '@/components/tenant/HouseListingCount';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
