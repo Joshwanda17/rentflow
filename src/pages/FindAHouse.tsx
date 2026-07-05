@@ -1036,6 +1036,7 @@ export default function FindAHouse() {
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">
                   {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
+                  {loadingMore ? ' · loading more…' : ''}
                 </p>
                 <Button
                   variant={showMap ? 'default' : 'outline'}
