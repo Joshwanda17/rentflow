@@ -32,6 +32,9 @@ const PhoneContactActionsHarness = lazyWithRetry(
 const AvailableHousesHarness = lazyWithRetry(
   () => import("@/pages/__e2e/AvailableHousesHarness"),
 );
+const ExistingTenantNoticeHarness = lazyWithRetry(
+  () => import("@/pages/__e2e/ExistingTenantNoticeHarness"),
+);
 
 // Deferred language — not needed for first paint
 const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
