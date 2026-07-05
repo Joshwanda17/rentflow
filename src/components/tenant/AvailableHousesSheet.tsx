@@ -288,7 +288,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     }
   }, [geo.city, geo.loading, geoDefaultApplied]);
 
-  const { listings, loading, loadingMore, hasMore, loadMore } = useNearbyHouses({
+  const { listings, loading, loadingMore, hasMore, loadMore, metrics } = useNearbyHouses({
     latitude: geo.latitude,
     longitude: geo.longitude,
     // "All Regions" must show every house across the whole country (not just
@@ -377,6 +377,12 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   }, [listings, searchText, selectedDistrict, selectedSubCounty, selectedVillage]);
 
   const hasGPS = !!(geo.latitude && geo.longitude);
+
+  // Pagination diagnostics overlay — off by default. Enable in any environment:
+  //   localStorage.setItem('welile-debug-pagination','1')
+  const showPaginationDebug = (() => {
+    try { return localStorage.getItem('welile-debug-pagination') === '1'; } catch { return false; }
+  })();
 
   // Virtualized rendering: we fetch EVERY matching listing (can be 10,000+), but
   // only the cards in/near the viewport are ever mounted into the DOM, so the
@@ -624,6 +630,13 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 {hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
+              {showPaginationDebug && (
+                <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/40 px-3 py-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
+                  <div>src={metrics.source} · pages={metrics.pagesFetched} · cache={metrics.cacheHit ? 'hit' : 'miss'} · {metrics.complete ? 'complete' : 'more'}</div>
+                  <div>rows shown={metrics.totalRows} · raw fetched={metrics.rawRowsFetched} · dups={metrics.duplicatesDetected} · no-photo={metrics.photolessFiltered}</div>
+                  <div>firstPage={metrics.firstPageMs ?? '—'}ms · lastPage={metrics.lastPageMs ?? '—'}ms · total={metrics.totalMs}ms</div>
+                </div>
+              )}
               {/* Virtualized card list — only viewport cards are mounted. */}
               <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
                 {virtualizer.getVirtualItems().map((vi) => {

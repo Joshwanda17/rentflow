@@ -245,6 +245,79 @@ export function clearNearbyHousesCache() {
 }
 
 /**
+ * Diagnostics for a paginated GPS house search. Exposed from `useNearbyHouses`
+ * and logged to the console (see `paginationDebugEnabled`) so slow or incomplete
+ * queries are quick to spot: how many pages we fetched, how many rows the source
+ * returned vs. how many we actually show, whether the spatial RPC or the plain
+ * fallback answered, timing, and any duplicate rows the paginator returned.
+ */
+export interface NearbyMetrics {
+  /** The filter-set cache key this run belongs to. */
+  filterKey: string;
+  /** Number of source pages fetched this run (0 when served purely from cache). */
+  pagesFetched: number;
+  /** Raw rows returned by the source before the photo filter / dedupe. */
+  rawRowsFetched: number;
+  /** Distinct rows actually shown (after photo filter + dedupe). */
+  totalRows: number;
+  /** Rows dropped because a later page repeated an id from an earlier page. */
+  duplicatesDetected: number;
+  /** Rows dropped because they had no real photo. */
+  photolessFiltered: number;
+  /** Whether this run was restored from the in-memory cache. */
+  cacheHit: boolean;
+  /** Which data path answered: the PostGIS RPC or the plain fallback query. */
+  source: 'rpc' | 'fallback';
+  /** Time to the first page's rows (ms). */
+  firstPageMs: number | null;
+  /** Duration of the most recent page fetch (ms). */
+  lastPageMs: number | null;
+  /** Cumulative fetch time across all pages this run (ms). */
+  totalMs: number;
+  /** True once the source is exhausted (no more pages). */
+  complete: boolean;
+}
+
+function emptyMetrics(): NearbyMetrics {
+  return {
+    filterKey: '',
+    pagesFetched: 0,
+    rawRowsFetched: 0,
+    totalRows: 0,
+    duplicatesDetected: 0,
+    photolessFiltered: 0,
+    cacheHit: false,
+    source: 'rpc',
+    firstPageMs: null,
+    lastPageMs: null,
+    totalMs: 0,
+    complete: false,
+  };
+}
+
+/**
+ * Pagination logging is on automatically in dev, and can be toggled in any
+ * environment (e.g. production debugging) with:
+ *   localStorage.setItem('welile-debug-pagination', '1')
+ */
+function paginationDebugEnabled(): boolean {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('welile-debug-pagination') === '1') return true;
+  } catch { /* ignore */ }
+  try {
+    return !!import.meta.env?.DEV;
+  } catch {
+    return false;
+  }
+}
+
+function pgLog(event: string, data: Record<string, unknown>) {
+  if (!paginationDebugEnabled()) return;
+  // eslint-disable-next-line no-console
+  console.info(`[house-pagination] ${event}`, data);
+}
+
+/**
  * Hook for spatial nearby house search using PostGIS.
  *
  * Falls back to a regular query when there are no GPS coordinates (or if the
@@ -271,6 +344,11 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     loading: boolean;
     accumulated: HouseListing[];
   }>({ offset: 0, useRpc: false, exhausted: true, loading: false, accumulated: [] });
+  // Pagination diagnostics for the current filter set. `seenIdsRef` powers both
+  // duplicate detection and dedupe of rows the paginator may repeat.
+  const metricsRef = useRef<NearbyMetrics>(emptyMetrics());
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const [metrics, setMetrics] = useState<NearbyMetrics>(metricsRef.current);
 
   const paginate = options.paginate === true;
   const maxResults = options.maxResults && options.maxResults > 0 ? options.maxResults : 20000;
@@ -285,12 +363,17 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     if (st.exhausted || st.loading) return;
     st.loading = true;
     if (isFirst) setLoading(true); else setLoadingMore(true);
+    const pageStart = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const key = nearbyCacheKey(options, paginate, pageSize);
 
     try {
       const remaining = maxResults - st.accumulated.length;
       if (remaining <= 0) {
         st.exhausted = true;
         setHasMore(false);
+        const m = metricsRef.current;
+        m.complete = true;
+        setMetrics({ ...m });
         return;
       }
       const wantLimit = Math.min(pageSize, remaining);
@@ -340,12 +423,54 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
       const enriched = await enrichWithAgentInfo(filteredPage);
       if (runId !== runIdRef.current) return;
 
-      st.accumulated = [...st.accumulated, ...enriched];
+      // Duplicate detection + dedupe: a shifting/large result set can re-return a
+      // row across page boundaries. We drop repeats (so React keys never collide)
+      // and count them so incomplete/overlapping GPS queries are easy to spot.
+      let dupCount = 0;
+      const pageUnique: HouseListing[] = [];
+      for (const l of enriched) {
+        if (l.id && seenIdsRef.current.has(l.id)) { dupCount++; continue; }
+        if (l.id) seenIdsRef.current.add(l.id);
+        pageUnique.push(l);
+      }
+      st.accumulated = [...st.accumulated, ...pageUnique];
       st.offset += pageRaw.length;
       // In non-paginate mode we only ever fetch one page.
       st.exhausted = !paginate || pageRaw.length < wantLimit;
       setListings([...st.accumulated]);
       setHasMore(!st.exhausted);
+
+      // Update + emit pagination metrics.
+      const pageMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - pageStart);
+      const m = metricsRef.current;
+      m.filterKey = key;
+      m.pagesFetched += 1;
+      m.rawRowsFetched += pageRaw.length;
+      m.totalRows = st.accumulated.length;
+      m.duplicatesDetected += dupCount;
+      m.photolessFiltered += pageRaw.length - filteredPage.length;
+      m.source = st.useRpc ? 'rpc' : 'fallback';
+      m.cacheHit = false;
+      m.lastPageMs = pageMs;
+      m.totalMs += pageMs;
+      if (isFirst || m.firstPageMs == null) m.firstPageMs = pageMs;
+      m.complete = st.exhausted;
+      setMetrics({ ...m });
+      pgLog(st.exhausted ? 'run complete' : 'page fetched', {
+        filterKey: key,
+        page: m.pagesFetched,
+        source: m.source,
+        pageRows: pageRaw.length,
+        newRows: pageUnique.length,
+        dupsThisPage: dupCount,
+        photolessThisPage: pageRaw.length - filteredPage.length,
+        totalRows: m.totalRows,
+        totalDuplicates: m.duplicatesDetected,
+        pageMs,
+        totalMs: m.totalMs,
+        complete: st.exhausted,
+      });
+
       // Write-through cache so re-opening this filter set restores instantly.
       writeNearbyCache(nearbyCacheKey(options, paginate, pageSize), {
         listings: st.accumulated,
@@ -355,7 +480,10 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         ts: Date.now(),
       });
     } catch (err: any) {
-      if (runId === runIdRef.current) setError(err.message);
+      if (runId === runIdRef.current) {
+        setError(err.message);
+        pgLog('page error', { filterKey: key, page: metricsRef.current.pagesFetched + 1, error: err?.message });
+      }
     } finally {
       st.loading = false;
       if (runId === runIdRef.current) {
@@ -402,6 +530,18 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
       setLoading(false);
       setLoadingMore(false);
       setHasMore(!cached.exhausted);
+      // Rebuild the seen-id set so further loadMore() calls still dedupe.
+      seenIdsRef.current = new Set(cached.listings.map((l) => l.id).filter(Boolean) as string[]);
+      metricsRef.current = {
+        ...emptyMetrics(),
+        filterKey: key,
+        totalRows: cached.listings.length,
+        cacheHit: true,
+        source: cached.useRpc ? 'rpc' : 'fallback',
+        complete: cached.exhausted,
+      };
+      setMetrics({ ...metricsRef.current });
+      pgLog('cache hit', { filterKey: key, rows: cached.listings.length, complete: cached.exhausted });
       return;
     }
 
@@ -411,6 +551,10 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setLoading(true);
     setLoadingMore(false);
     setHasMore(false);
+    seenIdsRef.current = new Set();
+    metricsRef.current = { ...emptyMetrics(), filterKey: key, source: hasGps ? 'rpc' : 'fallback' };
+    setMetrics({ ...metricsRef.current });
+    pgLog('run start', { filterKey: key, hasGps, pageSize, paginate });
     fetchPage(runId, true);
   }, [fetchPage, options.enabled]);
 
@@ -425,17 +569,22 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     const runId = ++runIdRef.current;
     const hasGps = !!(options.latitude && options.longitude);
     // Force a fresh fetch: drop this filter set's cached pages first.
-    NEARBY_CACHE.delete(nearbyCacheKey(options, paginate, pageSize));
+    const key = nearbyCacheKey(options, paginate, pageSize);
+    NEARBY_CACHE.delete(key);
     cursorRef.current = { offset: 0, useRpc: hasGps, exhausted: false, loading: false, accumulated: [] };
     setListings([]);
     setError(null);
     setLoading(true);
     setLoadingMore(false);
     setHasMore(false);
+    seenIdsRef.current = new Set();
+    metricsRef.current = { ...emptyMetrics(), filterKey: key, source: hasGps ? 'rpc' : 'fallback' };
+    setMetrics({ ...metricsRef.current });
+    pgLog('refresh', { filterKey: key });
     fetchPage(runId, true);
   }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, paginate, pageSize]);
 
-  return { listings, loading, loadingMore, hasMore, loadMore, error, refresh };
+  return { listings, loading, loadingMore, hasMore, loadMore, error, refresh, metrics };
 }
 
 /**
