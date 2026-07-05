@@ -363,12 +363,17 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     if (st.exhausted || st.loading) return;
     st.loading = true;
     if (isFirst) setLoading(true); else setLoadingMore(true);
+    const pageStart = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const key = nearbyCacheKey(options, paginate, pageSize);
 
     try {
       const remaining = maxResults - st.accumulated.length;
       if (remaining <= 0) {
         st.exhausted = true;
         setHasMore(false);
+        const m = metricsRef.current;
+        m.complete = true;
+        setMetrics({ ...m });
         return;
       }
       const wantLimit = Math.min(pageSize, remaining);
@@ -418,12 +423,54 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
       const enriched = await enrichWithAgentInfo(filteredPage);
       if (runId !== runIdRef.current) return;
 
-      st.accumulated = [...st.accumulated, ...enriched];
+      // Duplicate detection + dedupe: a shifting/large result set can re-return a
+      // row across page boundaries. We drop repeats (so React keys never collide)
+      // and count them so incomplete/overlapping GPS queries are easy to spot.
+      let dupCount = 0;
+      const pageUnique: HouseListing[] = [];
+      for (const l of enriched) {
+        if (l.id && seenIdsRef.current.has(l.id)) { dupCount++; continue; }
+        if (l.id) seenIdsRef.current.add(l.id);
+        pageUnique.push(l);
+      }
+      st.accumulated = [...st.accumulated, ...pageUnique];
       st.offset += pageRaw.length;
       // In non-paginate mode we only ever fetch one page.
       st.exhausted = !paginate || pageRaw.length < wantLimit;
       setListings([...st.accumulated]);
       setHasMore(!st.exhausted);
+
+      // Update + emit pagination metrics.
+      const pageMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - pageStart);
+      const m = metricsRef.current;
+      m.filterKey = key;
+      m.pagesFetched += 1;
+      m.rawRowsFetched += pageRaw.length;
+      m.totalRows = st.accumulated.length;
+      m.duplicatesDetected += dupCount;
+      m.photolessFiltered += pageRaw.length - filteredPage.length;
+      m.source = st.useRpc ? 'rpc' : 'fallback';
+      m.cacheHit = false;
+      m.lastPageMs = pageMs;
+      m.totalMs += pageMs;
+      if (isFirst || m.firstPageMs == null) m.firstPageMs = pageMs;
+      m.complete = st.exhausted;
+      setMetrics({ ...m });
+      pgLog(st.exhausted ? 'run complete' : 'page fetched', {
+        filterKey: key,
+        page: m.pagesFetched,
+        source: m.source,
+        pageRows: pageRaw.length,
+        newRows: pageUnique.length,
+        dupsThisPage: dupCount,
+        photolessThisPage: pageRaw.length - filteredPage.length,
+        totalRows: m.totalRows,
+        totalDuplicates: m.duplicatesDetected,
+        pageMs,
+        totalMs: m.totalMs,
+        complete: st.exhausted,
+      });
+
       // Write-through cache so re-opening this filter set restores instantly.
       writeNearbyCache(nearbyCacheKey(options, paginate, pageSize), {
         listings: st.accumulated,
@@ -433,7 +480,10 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         ts: Date.now(),
       });
     } catch (err: any) {
-      if (runId === runIdRef.current) setError(err.message);
+      if (runId === runIdRef.current) {
+        setError(err.message);
+        pgLog('page error', { filterKey: key, page: metricsRef.current.pagesFetched + 1, error: err?.message });
+      }
     } finally {
       st.loading = false;
       if (runId === runIdRef.current) {
