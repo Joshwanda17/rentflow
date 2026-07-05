@@ -3769,6 +3769,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           match={existingTenantByPhone}
                           checking={checkingTenantPhone}
                           onUse={useExistingTenantMatch}
+                          onRenew={renewExistingTenant}
                         />
                       </div>
                     </div>
