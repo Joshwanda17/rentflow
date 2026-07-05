@@ -8,8 +8,6 @@ import { defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 // src/lib/mcp-public/tools/how-welile-works.ts
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z } from "npm:zod@^4.4.3";
-var SIGNUP_BASE = "https://welilereceipts.com/auth";
-var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var FAQS = [
   {
     q: "What is Welile?",
@@ -45,16 +43,18 @@ var FAQS = [
     q: "Is Welile free to join?",
     a: "Yes, creating an account is free. You only ever deal in UGX, and you can start as a tenant, agent, landlord, or Supporter.",
     tags: ["free", "cost", "join", "signup", "price"]
+  },
+  {
+    q: "How do I check what I personally qualify for?",
+    a: "Personal figures \u2014 your rent access, wallet balance, commissions, or Returns \u2014 are shown once you create a free account and sign in. Ask 'check my rent access' or 'see agent commissions' to get started, and I'll share the right signup link.",
+    tags: ["check", "qualify", "balance", "personal", "account", "my"]
+  },
+  {
+    q: "Is my money safe and what currency is used?",
+    a: "Welile operates strictly in Ugandan Shillings (UGX). Every balance, Rent Plan, commission, and Return is recorded in UGX, and your account activity is tied to your verified identity.",
+    tags: ["safe", "security", "currency", "ugx", "money"]
   }
 ];
-function buildLinks(referralCode) {
-  const signupUrl = `${SIGNUP_BASE}?signup=1&signup_source=chatgpt`;
-  let referralUrl = null;
-  if (referralCode && UUID_RE.test(referralCode)) {
-    referralUrl = `${SIGNUP_BASE}?signup=1&signup_source=chatgpt&ref=${referralCode.toLowerCase()}`;
-  }
-  return { signupUrl, referralUrl };
-}
 var how_welile_works_default = defineTool({
   name: "how_welile_works",
   title: "How Welile works",
