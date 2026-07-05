@@ -383,8 +383,8 @@ export default function HouseDetail() {
         )}
       </Helmet>
       <div className="min-h-screen bg-background pb-28">
-        {/* ── Funder breadcrumb + consistent back button ── */}
-        {fromFunder && (
+        {/* ── "Back to search results" bar + breadcrumb ── */}
+        {(fromFunder || cameFromFilteredList) && (
           <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b border-border">
             <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
               <button
@@ -392,23 +392,27 @@ export default function HouseDetail() {
                 className="flex items-center gap-1.5 text-sm font-semibold text-foreground rounded-lg px-2 py-1 -ml-2 hover:bg-accent/50 active:scale-95 transition-all touch-manipulation shrink-0"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                {cameFromFilteredList ? 'Back to search results' : 'Back'}
               </button>
               <Breadcrumb className="min-w-0">
                 <BreadcrumbList className="flex-nowrap">
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link to="/dashboard/funder">Dashboard</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
+                  {fromFunder && (
+                    <>
+                      <BreadcrumbItem>
+                        <BreadcrumbLink asChild>
+                          <Link to="/dashboard/funder">Dashboard</Link>
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator />
+                    </>
+                  )}
                   <BreadcrumbItem>
                     <BreadcrumbLink asChild>
                       <Link
                         to={filteredListTo}
                         state={{ from: 'funder', listSearch }}
                       >
-                        {cameFromFilteredList ? 'Filtered houses' : 'Houses'}
+                        {cameFromFilteredList ? 'Search results' : 'Houses'}
                       </Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
@@ -509,7 +513,9 @@ export default function HouseDetail() {
 
           {/* Floating top controls */}
           <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-4 pt-safe-top py-3">
-            <button onClick={() => navigate(-1)}
+            <button
+              onClick={() => (cameFromFilteredList || fromFunder ? goToFilteredList() : navigate(-1))}
+              aria-label={cameFromFilteredList ? 'Back to search results' : 'Go back'}
               className="bg-background/80 backdrop-blur-sm text-foreground rounded-full p-2.5 shadow-lg active:scale-95 transition-transform">
               <ArrowLeft className="h-5 w-5" />
             </button>
