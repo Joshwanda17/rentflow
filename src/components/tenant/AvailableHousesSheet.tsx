@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { Input } from '@/components/ui/input';
