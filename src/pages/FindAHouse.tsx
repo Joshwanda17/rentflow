@@ -631,7 +631,7 @@ export default function FindAHouse() {
     }
   }, [geo.city, geo.loading, geoDefaultApplied, sharedRegion]);
 
-  const { listings, loading, loadingMore } = useNearbyHouses({
+  const { listings, loading, loadingMore, hasMore, loadMore } = useNearbyHouses({
     latitude: effectiveLat,
     longitude: effectiveLng,
     // "All Regions" must show every house across the whole country (not just
