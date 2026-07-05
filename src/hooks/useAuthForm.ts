@@ -92,6 +92,10 @@ export function useAuthForm() {
       localStorage.setItem('referral_agent_id', referralId);
       setReferrerIdState(referralId);
     }
+    if (signupSourceParam) {
+      try { localStorage.setItem(SIGNUP_SOURCE_KEY, signupSourceParam); } catch { /* ignore */ }
+      setSignupSourceState(signupSourceParam);
+    }
     if (becomeRole) {
       localStorage.setItem('become_role', becomeRole);
     }
@@ -104,7 +108,7 @@ export function useAuthForm() {
       newParams.delete('role');
       setSearchParams(newParams, { replace: true });
     }
-  }, [referralId, becomeRole, preSelectedRole, rawRole]);
+  }, [referralId, signupSourceParam, becomeRole, preSelectedRole, rawRole]);
 
   // Redirect on auth — wait briefly for roles to load before deciding
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
