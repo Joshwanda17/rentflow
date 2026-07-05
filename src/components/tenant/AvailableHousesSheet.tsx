@@ -19,6 +19,7 @@ import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { regionLabel } from '@/lib/ugandaDistricts';
 import { HousesMapView } from '@/components/tenant/HousesMapView';
+import { LoadMoreProgress } from '@/components/tenant/LoadMoreProgress';
 import { useNavigate } from 'react-router-dom';
 
 interface AvailableHousesSheetProps {
