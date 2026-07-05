@@ -21519,6 +21519,24 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_tenant_rent_summary: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          active_plan_count: number
+          latest_created_at: string
+          latest_daily_repayment: number
+          latest_registration_type: string
+          latest_request_id: string
+          latest_status: string
+          outstanding_balance: number
+          previous_agent_id: string
+          previous_agent_name: string
+          previous_agent_phone: string
+          tenant_id: string
+          total_obligation: number
+          total_repaid: number
+        }[]
+      }
       get_tenants_at_leaf:
         | {
             Args: {
