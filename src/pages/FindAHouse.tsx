@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadMoreProgress } from '@/components/tenant/LoadMoreProgress';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
