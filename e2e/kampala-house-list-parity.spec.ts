@@ -88,14 +88,14 @@ async function collectRenderedHouseIds(
 ): Promise<Set<string>> {
   const ids = new Set<string>();
   let stableRounds = 0;
-  for (let i = 0; i < 120; i++) {
+  for (let i = 0; i < 240; i++) {
     const visible = await page.$$eval('[data-house-id]', (els) =>
       els.map((e) => e.getAttribute('data-house-id')).filter(Boolean) as string[],
     );
     const before = ids.size;
     visible.forEach((id) => ids.add(id));
     const { atBottom, hasMore } = await scrollStep();
-    await page.waitForTimeout(350); // let the next page load + virtualizer remount
+    await page.waitForTimeout(250); // let the next page load + virtualizer remount
     // Stop once we've reached the bottom, nothing more is loading, and no new
     // ids have appeared for a couple of rounds.
     if (atBottom && !hasMore && ids.size === before) {
@@ -134,7 +134,9 @@ test.describe('Kampala house-list parity: UI == underlying query', () => {
 
     const uiIds = await collectRenderedHouseIds(page, async () => {
       const before = await page.evaluate(() => window.scrollY);
-      await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+      // Scroll in sub-viewport steps so every virtualized card is rendered into
+      // the DOM (and sampled) at least once as it passes through the window.
+      await page.evaluate(() => window.scrollBy(0, Math.round(window.innerHeight * 0.5)));
       const after = await page.evaluate(() => ({
         y: window.scrollY,
         max: document.documentElement.scrollHeight - window.innerHeight,
