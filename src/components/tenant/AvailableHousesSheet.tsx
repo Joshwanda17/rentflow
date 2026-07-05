@@ -591,6 +591,12 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   highlighted={idx === 0 && searchText.trim().length > 0}
                 />
               ))}
+              {loadingMore && (
+                <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
+                  Loading more houses…
+                </div>
+              )}
             </>
           )}
         </div>
