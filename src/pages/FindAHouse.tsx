@@ -12,7 +12,7 @@ import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
   SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight,
-  Map as MapIcon, List as ListIcon, Route, Footprints
+  Map as MapIcon, List as ListIcon, Route, Footprints, ArrowLeft
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -861,9 +861,18 @@ export default function FindAHouse() {
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Home className="h-5 w-5 text-primary" />
-              <h1 className="font-bold text-lg">
+            <div className="flex items-center gap-2 min-w-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+                aria-label="Go back"
+                className="shrink-0 -ml-2 h-9 w-9"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Home className="h-5 w-5 text-primary shrink-0" />
+              <h1 className="font-bold text-lg truncate">
                 {hasGPS && geo.city ? `Houses Near ${geo.city}` : 'Find a House'}
               </h1>
             </div>
