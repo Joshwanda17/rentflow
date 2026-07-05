@@ -630,6 +630,13 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 {hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
+              {showPaginationDebug && (
+                <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/40 px-3 py-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
+                  <div>src={metrics.source} · pages={metrics.pagesFetched} · cache={metrics.cacheHit ? 'hit' : 'miss'} · {metrics.complete ? 'complete' : 'more'}</div>
+                  <div>rows shown={metrics.totalRows} · raw fetched={metrics.rawRowsFetched} · dups={metrics.duplicatesDetected} · no-photo={metrics.photolessFiltered}</div>
+                  <div>firstPage={metrics.firstPageMs ?? '—'}ms · lastPage={metrics.lastPageMs ?? '—'}ms · total={metrics.totalMs}ms</div>
+                </div>
+              )}
               {/* Virtualized card list — only viewport cards are mounted. */}
               <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
                 {virtualizer.getVirtualItems().map((vi) => {
