@@ -169,6 +169,7 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       data-house-card=""
+      data-house-id={listing.id}
       aria-current={highlighted ? 'true' : undefined}
       className={
         'rounded-2xl border bg-card overflow-hidden transition-shadow ' +

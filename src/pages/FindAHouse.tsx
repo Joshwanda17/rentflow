@@ -256,6 +256,8 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
     <motion.article
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
+      data-house-card=""
+      data-house-id={listing.id}
       className="rounded-3xl border border-border/60 bg-card overflow-hidden shadow-xl shadow-foreground/5 flex flex-col md:flex-row"
       itemScope itemType="https://schema.org/Accommodation"
     >
