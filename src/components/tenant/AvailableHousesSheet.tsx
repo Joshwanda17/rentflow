@@ -616,13 +616,20 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
-              {filtered.map((listing, idx) => (
+              {visible.map((listing, idx) => (
                 <HouseCard
                   key={listing.id}
                   listing={listing}
                   highlighted={idx === 0 && searchText.trim().length > 0}
                 />
               ))}
+              {/* Sentinel: mounts more cards as it scrolls into view. */}
+              {renderCount < filtered.length && (
+                <div ref={sentinelRef} className="flex items-center justify-center py-4 text-xs text-muted-foreground">
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
+                  <span className="ml-2">Showing {visible.length} of {filtered.length}…</span>
+                </div>
+              )}
               {loadingMore && (
                 <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
                   <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
