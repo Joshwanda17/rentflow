@@ -269,6 +269,9 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [searchText, setSearchText] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedDistrict, setSelectedDistrict] = useState('all');
+  const [selectedSubCounty, setSelectedSubCounty] = useState('all');
+  const [selectedVillage, setSelectedVillage] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -285,23 +288,89 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const { listings, loading } = useNearbyHouses({
     latitude: geo.latitude,
     longitude: geo.longitude,
-    radiusKm: selectedRegion !== 'All Regions' ? 200 : 50,
+    // "All Regions" must show every house across the whole country (not just
+    // houses near the user's GPS), so we pass a country-sized radius. A specific
+    // region stays at 200km around the user. Houses are still ordered by the
+    // real GPS distance the agent captured at listing time.
+    radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
-    limit: 100,
+    limit: 500,
     enabled: open && !geo.loading,
   });
 
+  // Selecting a broader area resets the narrower ones so we never keep a stale
+  // district/sub-county/village that no longer belongs to the new selection.
+  const handleRegionChange = (value: string) => {
+    setSelectedRegion(value);
+    setSelectedDistrict('all');
+    setSelectedSubCounty('all');
+    setSelectedVillage('all');
+  };
+  const handleDistrictChange = (value: string) => {
+    setSelectedDistrict(value);
+    setSelectedSubCounty('all');
+    setSelectedVillage('all');
+  };
+  const handleSubCountyChange = (value: string) => {
+    setSelectedSubCounty(value);
+    setSelectedVillage('all');
+  };
+
+  // Distinct GPS-captured location options derived from the loaded listings,
+  // cascading from the current district/sub-county selection. Only areas that
+  // actually have houses are offered.
+  const districtOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => { const v = (l.district || '').trim(); if (v) set.add(v); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings]);
+
+  const subCountyOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => {
+      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
+      const v = (l.sub_county || '').trim();
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings, selectedDistrict]);
+
+  const villageOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => {
+      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
+      if (selectedSubCounty !== 'all' && (l.sub_county || '').trim() !== selectedSubCounty) return;
+      const v = (l.village || '').trim();
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings, selectedDistrict, selectedSubCounty]);
+
   const filtered = useMemo(() => {
-    if (!searchText.trim()) return listings;
-    const q = searchText.toLowerCase();
-    return listings.filter(l =>
-      l.region.toLowerCase().includes(q) ||
-      l.address.toLowerCase().includes(q) ||
-      (l.district || '').toLowerCase().includes(q) ||
-      l.title.toLowerCase().includes(q)
-    );
-  }, [listings, searchText]);
+    let result = listings;
+    if (selectedDistrict !== 'all') {
+      result = result.filter(l => (l.district || '').trim() === selectedDistrict);
+    }
+    if (selectedSubCounty !== 'all') {
+      result = result.filter(l => (l.sub_county || '').trim() === selectedSubCounty);
+    }
+    if (selectedVillage !== 'all') {
+      result = result.filter(l => (l.village || '').trim() === selectedVillage);
+    }
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      result = result.filter(l =>
+        l.region.toLowerCase().includes(q) ||
+        l.address.toLowerCase().includes(q) ||
+        (l.district || '').toLowerCase().includes(q) ||
+        (l.sub_county || '').toLowerCase().includes(q) ||
+        (l.village || '').toLowerCase().includes(q) ||
+        l.title.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [listings, searchText, selectedDistrict, selectedSubCounty, selectedVillage]);
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
