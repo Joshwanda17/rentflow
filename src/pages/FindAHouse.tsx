@@ -645,6 +645,22 @@ export default function FindAHouse() {
     enabled: hasSharedLocation || !geo.loading,
   });
 
+  // Infinite scroll: a bottom sentinel loads the next page as it nears the
+  // viewport. `loadMore` self-guards against overlapping/finished requests.
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = loadMoreSentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: '800px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loadMore]);
+
   const filtered = useMemo(() => {
     let result = [...listings];
     if (selectedDistrict !== 'all') {
