@@ -276,6 +276,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [view, setView] = useState<'list' | 'map'>('list');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  // Windowed rendering: even though we fetch EVERY matching listing (could be
+  // 10,000+), we only mount a growing slice into the DOM so low-end phones stay
+  // smooth. The slice grows as the user scrolls toward the bottom.
+  const [renderCount, setRenderCount] = useState(30);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
