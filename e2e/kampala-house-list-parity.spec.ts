@@ -198,6 +198,7 @@ test.describe('Kampala house-list parity: UI == underlying query', () => {
     await expect(page.locator('[data-house-id]').first()).toBeVisible({ timeout: 20_000 });
 
     // Find a House uses a WINDOW virtualizer, so the page window is the scroller.
+    const faCount = page.locator('#house-list').getByText(/houses? available/i).first();
     const uiIds = await collectRenderedHouseIds(page, {
       scrollTo: (pos) => page.evaluate((p) => window.scrollTo(0, p), pos),
       scrollBy: (px) => page.evaluate((p) => window.scrollBy(0, p), px),
@@ -206,7 +207,7 @@ test.describe('Kampala house-list parity: UI == underlying query', () => {
           y: window.scrollY,
           max: document.documentElement.scrollHeight - window.innerHeight,
         }));
-        return { ...geom, hasMore: await countHasMore(page) };
+        return { ...geom, hasMore: await countHasMore(faCount) };
       },
     });
 
