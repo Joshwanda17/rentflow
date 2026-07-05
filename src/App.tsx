@@ -380,6 +380,16 @@ function AppRoutes() {
               }
             />
           )}
+          {import.meta.env.DEV && (
+            <Route
+              path="/__e2e/existing-tenant-notice"
+              element={
+                <Suspense fallback={null}>
+                  <ExistingTenantNoticeHarness />
+                </Suspense>
+              }
+            />
+          )}
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/transactions" element={<TransactionHistory />} />
           <Route path="/financial-statement" element={<FinancialStatement />} />
