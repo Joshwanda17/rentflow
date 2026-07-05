@@ -380,6 +380,33 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
+  // Reset the render window whenever the result set changes (new filters, new
+  // search, region switch) and scroll back to the top so the user sees the most
+  // relevant (nearest) houses first.
+  useEffect(() => {
+    setRenderCount(30);
+    resultsRef.current?.scrollTo({ top: 0 });
+  }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText]);
+
+  // Grow the render window as the sentinel near the bottom scrolls into view.
+  // This keeps the DOM small no matter how many houses match (scales to 10k+).
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setRenderCount((c) => Math.min(c + 30, filtered.length));
+        }
+      },
+      { root: resultsRef.current, rootMargin: '800px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [filtered.length, view]);
+
+  const visible = useMemo(() => filtered.slice(0, renderCount), [filtered, renderCount]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
