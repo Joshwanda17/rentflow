@@ -78,34 +78,74 @@ async function fetchUnderlyingQueryIds(page: Page, baseParams: RpcParams): Promi
 }
 
 /**
- * Scroll a virtualized list to completion, collecting every rendered house id.
- * `scrollStep` scrolls one viewport (window for Find a House, the sheet's own
- * scroll container for the Available Houses sheet).
+ * A minimal scroll surface abstraction so the same collection routine drives
+ * either window scrolling (Find a House) or an inner scroll container (the
+ * Available Houses sheet).
  */
-async function collectRenderedHouseIds(
-  page: Page,
-  scrollStep: () => Promise<{ atBottom: boolean; hasMore: boolean }>,
-): Promise<Set<string>> {
-  const ids = new Set<string>();
-  let stableRounds = 0;
-  for (let i = 0; i < 240; i++) {
-    const visible = await page.$$eval('[data-house-id]', (els) =>
-      els.map((e) => e.getAttribute('data-house-id')).filter(Boolean) as string[],
-    );
-    const before = ids.size;
-    visible.forEach((id) => ids.add(id));
-    const { atBottom, hasMore } = await scrollStep();
-    await page.waitForTimeout(250); // let the next page load + virtualizer remount
-    // Stop once we've reached the bottom, nothing more is loading, and no new
-    // ids have appeared for a couple of rounds.
-    if (atBottom && !hasMore && ids.size === before) {
-      stableRounds++;
-      if (stableRounds >= 2) break;
+interface ScrollController {
+  scrollTo: (pos: number) => Promise<void>;
+  scrollBy: (px: number) => Promise<void>;
+  /** Current position, max scrollable offset, and whether more pages remain. */
+  state: () => Promise<{ y: number; max: number; hasMore: boolean }>;
+}
+
+async function readVisibleIds(page: Page): Promise<string[]> {
+  return page.$$eval('[data-house-id]', (els) =>
+    els.map((e) => e.getAttribute('data-house-id')).filter(Boolean) as string[],
+  );
+}
+
+/**
+ * Fully load then scrape a virtualized list, returning EVERY rendered house id.
+ *
+ * Phase 1 pages the infinite-scroll list to completion (jump to the bottom until
+ * no "+" remains in the count and the scroll height stops growing). Phase 2
+ * scrolls from the top in small overlapping steps so every virtualized card is
+ * mounted into the DOM — and sampled — at least once as it passes the viewport.
+ */
+async function collectRenderedHouseIds(page: Page, ctrl: ScrollController): Promise<Set<string>> {
+  // Phase 1 — load all pages.
+  await ctrl.scrollTo(0);
+  let lastMax = -1;
+  let stable = 0;
+  for (let i = 0; i < 200; i++) {
+    const s = await ctrl.state();
+    await ctrl.scrollBy(Math.max(s.max, 1000)); // jump to the bottom to trip loadMore
+    await page.waitForTimeout(300);
+    const s2 = await ctrl.state();
+    if (!s2.hasMore && Math.abs(s2.max - lastMax) < 4) {
+      stable++;
+      if (stable >= 2) break;
     } else {
-      stableRounds = 0;
+      stable = 0;
     }
+    lastMax = s2.max;
+  }
+
+  // Phase 2 — scrape top-to-bottom in small steps.
+  const ids = new Set<string>();
+  await ctrl.scrollTo(0);
+  await page.waitForTimeout(150);
+  for (let i = 0; i < 500; i++) {
+    (await readVisibleIds(page)).forEach((id) => ids.add(id));
+    const s = await ctrl.state();
+    if (s.y >= s.max - 4) {
+      (await readVisibleIds(page)).forEach((id) => ids.add(id));
+      break;
+    }
+    await ctrl.scrollBy(300);
+    await page.waitForTimeout(120);
   }
   return ids;
+}
+
+/** Whether the "N+ houses available" count still advertises more pages. */
+async function countHasMore(scope: ReturnType<Page['getByText']> | Page): Promise<boolean> {
+  const locator = 'getByText' in scope ? scope.getByText(/houses? available/i).first() : scope;
+  return (locator as any)
+    .innerText()
+    .then((t: string) => t.includes('+'))
+    .catch(() => false);
 }
 
 /** Open the shadcn region <Select> and choose "Kampala". */
