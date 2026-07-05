@@ -391,7 +391,8 @@ export function useAuthForm() {
       // Non-fatal: fall through to signUp; the generic-error mapping below covers it.
     }
 
-    const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
+    const storedSignupSource = signupSourceState || sanitizeSignupSource((() => { try { return localStorage.getItem(SIGNUP_SOURCE_KEY); } catch { return null; } })());
+    const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined, storedSignupSource || undefined);
     if (error) {
       setIsLoading(false);
       let errorMessage = error.message;
