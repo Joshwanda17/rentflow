@@ -1075,10 +1075,23 @@ export default function FindAHouse() {
           ) : (
             <>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  {filtered.length}{hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
-                  {loadingMore ? ' · loading more…' : ''}
-                </p>
+                <HouseListingCount
+                  className="text-xs text-muted-foreground"
+                  counts={listingCounts}
+                  loadedCount={filtered.length}
+                  locationLabel={
+                    selectedVillage !== 'all'
+                      ? `in ${selectedVillage}`
+                      : selectedSubCounty !== 'all'
+                        ? `in ${selectedSubCounty}`
+                        : selectedDistrict !== 'all'
+                          ? `in ${selectedDistrict}`
+                          : selectedRegion !== 'All Regions'
+                            ? `in ${selectedRegion}`
+                            : undefined
+                  }
+                  suffix={`${sortLabel.toLowerCase()}${loadingMore ? ' · loading more…' : ''}`}
+                />
                 <Button
                   variant={showMap ? 'default' : 'outline'}
                   size="sm"
