@@ -619,3 +619,140 @@ export function calculateDailyRentalRate(monthlyRent: number) {
     dailyRate,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Exact listing counts per filtered location
+// ---------------------------------------------------------------------------
+
+export interface HouseListingCountOptions {
+  /** Region/city term chosen in the top-level dropdown (broad ILIKE match). */
+  region?: string;
+  /** Exact district selected in the cascading filter. */
+  district?: string;
+  /** Exact sub-county/area selected in the cascading filter. */
+  subCounty?: string;
+  /** Exact village selected in the cascading filter. */
+  village?: string;
+  /** house_category filter. */
+  category?: string;
+  /** Cap on daily_rate. */
+  maxDailyRate?: number;
+  /** Free-text search term (matches title/region/district/address). */
+  search?: string;
+  enabled?: boolean;
+}
+
+export interface HouseListingCounts {
+  /** Approved/verified listings live in the public marketplace. */
+  verified: number;
+  /** Listed but awaiting Landlord Ops verification. */
+  unverified: number;
+  /** verified + unverified. */
+  total: number;
+  loading: boolean;
+  error: string | null;
+}
+
+const escapeOr = (s: string) => s.replace(/[,()]/g, ' ').trim();
+
+/**
+ * Returns the EXACT number of listed houses matching the active location/filter
+ * set, split into verified (public marketplace) and not-yet-verified (pending
+ * approval). Uses cheap `count: 'exact', head: true` queries — no rows are
+ * fetched — so it stays accurate no matter how many pages the list has loaded.
+ * This replaces the misleading "24+" counter that only reflected loaded rows.
+ */
+export function useHouseListingCount(options: HouseListingCountOptions): HouseListingCounts {
+  const {
+    region,
+    district,
+    subCounty,
+    village,
+    category,
+    maxDailyRate,
+    search,
+    enabled = true,
+  } = options;
+
+  const [counts, setCounts] = useState<{ verified: number; unverified: number }>({
+    verified: 0,
+    unverified: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+
+    const buildQuery = (verified: boolean) => {
+      let q = supabase
+        .from('house_listings')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'available')
+        .eq('is_hidden', false)
+        .eq('verified', verified);
+
+      const term = region && region.trim() && region !== 'All Regions' ? escapeOr(region) : '';
+      if (term) {
+        q = q.or(
+          [
+            `region.ilike.%${term}%`,
+            `district.ilike.%${term}%`,
+            `sub_county.ilike.%${term}%`,
+            `village.ilike.%${term}%`,
+            `address.ilike.%${term}%`,
+          ].join(','),
+        );
+      }
+      if (district && district !== 'all') q = q.eq('district', district);
+      if (subCounty && subCounty !== 'all') q = q.eq('sub_county', subCounty);
+      if (village && village !== 'all') q = q.eq('village', village);
+      if (category && category !== 'all') q = q.eq('house_category', category);
+      if (maxDailyRate) q = q.lte('daily_rate', maxDailyRate);
+      const s = search && search.trim() ? escapeOr(search) : '';
+      if (s) {
+        q = q.or(
+          [
+            `title.ilike.%${s}%`,
+            `region.ilike.%${s}%`,
+            `district.ilike.%${s}%`,
+            `address.ilike.%${s}%`,
+          ].join(','),
+        );
+      }
+      return q;
+    };
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [ver, unver] = await Promise.all([buildQuery(true), buildQuery(false)]);
+        if (cancelled) return;
+        if (ver.error) throw ver.error;
+        if (unver.error) throw unver.error;
+        setCounts({ verified: ver.count || 0, unverified: unver.count || 0 });
+      } catch (err: any) {
+        if (!cancelled) setError(err?.message || 'Failed to count listings');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [region, district, subCounty, village, category, maxDailyRate, search, enabled]);
+
+  return {
+    verified: counts.verified,
+    unverified: counts.unverified,
+    total: counts.verified + counts.unverified,
+    loading,
+    error,
+  };
+}

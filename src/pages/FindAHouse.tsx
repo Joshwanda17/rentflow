@@ -17,7 +17,8 @@ import {
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import HouseRatingBadge from '@/components/house/HouseRatingBadge';
-import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
+import { useNearbyHouses, useHouseListingCount, HouseListing } from '@/hooks/useHouseListings';
+import { HouseListingCount } from '@/components/tenant/HouseListingCount';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
@@ -648,6 +649,18 @@ export default function FindAHouse() {
     enabled: hasSharedLocation || !geo.loading,
   });
 
+  // Exact listed-house counts (verified + not-yet-verified) for the active
+  // filter set — replaces the loaded-rows "24+" counter that undervalued us.
+  const listingCounts = useHouseListingCount({
+    region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
+    district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+    subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+    village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+    maxDailyRate: maxDaily !== 'all' ? Number(maxDaily) : undefined,
+    search: debouncedSearch.trim() || undefined,
+  });
+
   // Infinite scroll: a bottom sentinel loads the next page as it nears the
   // viewport. `loadMore` self-guards against overlapping/finished requests.
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -1062,10 +1075,23 @@ export default function FindAHouse() {
           ) : (
             <>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  {filtered.length}{hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
-                  {loadingMore ? ' · loading more…' : ''}
-                </p>
+                <HouseListingCount
+                  className="text-xs text-muted-foreground"
+                  counts={listingCounts}
+                  loadedCount={filtered.length}
+                  locationLabel={
+                    selectedVillage !== 'all'
+                      ? `in ${selectedVillage}`
+                      : selectedSubCounty !== 'all'
+                        ? `in ${selectedSubCounty}`
+                        : selectedDistrict !== 'all'
+                          ? `in ${selectedDistrict}`
+                          : selectedRegion !== 'All Regions'
+                            ? `in ${selectedRegion}`
+                            : undefined
+                  }
+                  suffix={`${sortLabel.toLowerCase()}${loadingMore ? ' · loading more…' : ''}`}
+                />
                 <Button
                   variant={showMap ? 'default' : 'outline'}
                   size="sm"

@@ -11,7 +11,8 @@ import { AgentContactBar } from '@/components/tenant/AgentContactBar';
 import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { ShareNearbyHousesButton } from '@/components/tenant/ShareNearbyHousesButton';
-import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
+import { useNearbyHouses, useHouseListingCount, HouseListing } from '@/hooks/useHouseListings';
+import { HouseListingCount } from '@/components/tenant/HouseListingCount';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
@@ -303,6 +304,18 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     // Page through EVERY matching listing — no fixed cap.
     paginate: true,
     enabled: open && !geo.loading,
+  });
+
+  // Exact listed-house counts (verified + not-yet-verified) for the active
+  // filter set — replaces the loaded-rows "24+" counter.
+  const listingCounts = useHouseListingCount({
+    region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
+    district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+    subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+    village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+    search: searchText.trim() || undefined,
+    enabled: open,
   });
 
   // Selecting a broader area resets the narrower ones so we never keep a stale
@@ -627,11 +640,23 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </div>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground">
-                {filtered.length}
-                {hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available
-                {hasGPS ? ' · sorted by distance' : ''}
-              </p>
+              <HouseListingCount
+                className="text-xs text-muted-foreground"
+                counts={listingCounts}
+                loadedCount={filtered.length}
+                locationLabel={
+                  selectedVillage !== 'all'
+                    ? `in ${selectedVillage}`
+                    : selectedSubCounty !== 'all'
+                      ? `in ${selectedSubCounty}`
+                      : selectedDistrict !== 'all'
+                        ? `in ${selectedDistrict}`
+                        : selectedRegion !== 'All Regions'
+                          ? `in ${selectedRegion}`
+                          : undefined
+                }
+                suffix={hasGPS ? 'sorted by distance' : undefined}
+              />
               {showPaginationDebug && (
                 <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/40 px-3 py-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
                   <div>src={metrics.source} · pages={metrics.pagesFetched} · cache={metrics.cacheHit ? 'hit' : 'miss'} · {metrics.complete ? 'complete' : 'more'}</div>
