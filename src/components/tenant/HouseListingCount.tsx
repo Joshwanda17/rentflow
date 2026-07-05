@@ -43,16 +43,26 @@ export function HouseListingCount({
   const where = locationLabel ? ` ${locationLabel}` : '';
 
   return (
-    <div className={className}>
-      <span className="font-semibold text-foreground">{fmt(total)}</span>{' '}
+    <div className={className} data-testid="house-listing-count">
+      <span className="font-semibold text-foreground" data-testid="house-count-total">
+        {fmt(total)}
+      </span>{' '}
       house{total !== 1 ? 's' : ''} listed{where}
       <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 ml-1 align-middle">
-        <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
+        <span
+          className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400"
+          data-testid="house-count-verified"
+          data-count={verified}
+        >
           <ShieldCheck className="h-3 w-3" aria-hidden="true" />
           {fmt(verified)} verified
         </span>
         {unverified > 0 && (
-          <span className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-500">
+          <span
+            className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-500"
+            data-testid="house-count-pending"
+            data-count={unverified}
+          >
             <Clock className="h-3 w-3" aria-hidden="true" />
             {fmt(unverified)} pending verification
           </span>
