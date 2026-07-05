@@ -346,6 +346,14 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
       st.exhausted = !paginate || pageRaw.length < wantLimit;
       setListings([...st.accumulated]);
       setHasMore(!st.exhausted);
+      // Write-through cache so re-opening this filter set restores instantly.
+      writeNearbyCache(nearbyCacheKey(options, paginate, pageSize), {
+        listings: st.accumulated,
+        offset: st.offset,
+        useRpc: st.useRpc,
+        exhausted: st.exhausted,
+        ts: Date.now(),
+      });
     } catch (err: any) {
       if (runId === runIdRef.current) setError(err.message);
     } finally {
