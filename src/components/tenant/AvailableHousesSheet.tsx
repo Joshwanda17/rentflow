@@ -550,8 +550,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   ))}
                 </SelectContent>
               </Select>
-            )}
-          </div>
+            </div>
+          )}
         </SheetHeader>
 
         {view === 'map' ? (
