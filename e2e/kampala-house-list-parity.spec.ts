@@ -155,15 +155,29 @@ async function selectKampalaRegion(page: Page, root = page.locator('body')) {
     .getByRole('combobox')
     .filter({ hasText: /All Regions|Region|Central|Eastern|Northern|Western|Kampala/ })
     .first();
+  // Let reverse-geocoding of the granted coordinates settle first, otherwise it
+  // can flip the region to Kampala mid-interaction and detach the open dropdown.
+  await page.waitForTimeout(2500);
   // Reverse-geocoding the granted Kampala coordinates can auto-select Kampala
   // already — in that case selecting it again is a no-op that flakily detaches
   // the option mid-click, so skip when it's the current value.
   const current = (await trigger.innerText().catch(() => '')).trim();
   if (/kampala/i.test(current)) return;
-  await trigger.click();
-  const option = page.getByRole('option', { name: 'Kampala', exact: true });
-  await option.click();
-  await option.waitFor({ state: 'hidden' }).catch(() => {});
+  // Retry to absorb any late re-render that detaches the option mid-click.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const now = (await trigger.innerText().catch(() => '')).trim();
+    if (/kampala/i.test(now)) return;
+    await trigger.click();
+    const option = page.getByRole('option', { name: 'Kampala', exact: true });
+    try {
+      await option.click({ timeout: 5_000 });
+      await option.waitFor({ state: 'hidden' }).catch(() => {});
+      return;
+    } catch {
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(500);
+    }
+  }
 }
 
 test.use({
