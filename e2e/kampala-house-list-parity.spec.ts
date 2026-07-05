@@ -106,20 +106,27 @@ async function readVisibleIds(page: Page): Promise<string[]> {
 async function collectRenderedHouseIds(page: Page, ctrl: ScrollController): Promise<Set<string>> {
   // Phase 1 — load all pages.
   await ctrl.scrollTo(0);
-  let lastMax = -1;
+  // Track the actual number of loaded cards; keep paging until it stops growing.
+  let lastCount = -1;
   let stable = 0;
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 300; i++) {
     const s = await ctrl.state();
-    await ctrl.scrollBy(Math.max(s.max, 1000)); // jump to the bottom to trip loadMore
-    await page.waitForTimeout(300);
+    // Nudge up a little then jump to the bottom — re-arms the infinite-scroll
+    // IntersectionObserver so the next page reliably loads in headless Chromium.
+    await ctrl.scrollBy(-400);
+    await ctrl.scrollBy(Math.max(s.max, 1500) + 800);
+    await page.waitForTimeout(450);
+    const count = (await readVisibleIds(page)).length; // mounted window, not total
     const s2 = await ctrl.state();
-    if (!s2.hasMore && Math.abs(s2.max - lastMax) < 4) {
+    const loaded = Math.round((s2.max) ); // proxy — height grows with total rows
+    if (!s2.hasMore && loaded === lastCount) {
       stable++;
-      if (stable >= 2) break;
+      if (stable >= 3) break;
     } else {
       stable = 0;
     }
-    lastMax = s2.max;
+    lastCount = loaded;
+    void count;
   }
 
   // Phase 2 — scrape top-to-bottom in small steps.
