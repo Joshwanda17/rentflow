@@ -463,7 +463,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           </form>
 
           <div className="flex gap-2">
-            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+            <Select value={selectedRegion} onValueChange={handleRegionChange}>
               <SelectTrigger className="flex-1 h-9 text-xs">
                 <SelectValue placeholder="Region" />
               </SelectTrigger>
@@ -483,13 +483,16 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 ))}
               </SelectContent>
             </Select>
-            {(searchText.trim().length > 0 || selectedRegion !== 'All Regions' || selectedCategory !== 'all') && (
+            {(searchText.trim().length > 0 || selectedRegion !== 'All Regions' || selectedCategory !== 'all' || selectedDistrict !== 'all' || selectedSubCounty !== 'all' || selectedVillage !== 'all') && (
               <button
                 type="button"
                 onClick={() => {
                   setSearchText('');
                   setSelectedRegion('All Regions');
                   setSelectedCategory('all');
+                  setSelectedDistrict('all');
+                  setSelectedSubCounty('all');
+                  setSelectedVillage('all');
                   // Keep keyboard focus usable by returning it to the primary control.
                   requestAnimationFrame(() => searchInputRef.current?.focus());
                 }}
@@ -498,6 +501,55 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               >
                 <X className="h-3.5 w-3.5" /> Clear
               </button>
+            )}
+          </div>
+
+          {/* Exact GPS-captured location filters (from the agent's listing).
+              Only shown when houses expose these fields, cascading region →
+              district → sub-county → village so tenants can drill to a precise area. */}
+          {(districtOptions.length > 0 || subCountyOptions.length > 0 || villageOptions.length > 0) && (
+            <div className="flex gap-2">
+              <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
+                <SelectTrigger className="flex-1 h-9 text-xs">
+                  <SelectValue placeholder="District" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Districts</SelectItem>
+                  {districtOptions.map(d => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={selectedSubCounty}
+                onValueChange={handleSubCountyChange}
+                disabled={subCountyOptions.length === 0}
+              >
+                <SelectTrigger className="flex-1 h-9 text-xs">
+                  <SelectValue placeholder="Sub-county" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sub-counties</SelectItem>
+                  {subCountyOptions.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={selectedVillage}
+                onValueChange={setSelectedVillage}
+                disabled={villageOptions.length === 0}
+              >
+                <SelectTrigger className="flex-1 h-9 text-xs">
+                  <SelectValue placeholder="Village" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Villages</SelectItem>
+                  {villageOptions.map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
         </SheetHeader>
