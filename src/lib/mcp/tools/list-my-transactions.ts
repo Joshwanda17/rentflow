@@ -30,7 +30,7 @@ export default defineTool({
     // User-facing ledger filter (memory rule): exclude admin corrections.
     const { data, error } = await supabaseForUser(ctx)
       .from("general_ledger")
-      .select("id, created_at, category, entry_type, amount, description, wallet_bucket")
+      .select("id, created_at, category, direction, amount, description, wallet_bucket")
       .eq("user_id", ctx.getUserId())
       .neq("classification", "admin_correction")
       .neq("category", "system_balance_correction")
@@ -41,7 +41,7 @@ export default defineTool({
     const summary = rows
       .map(
         (r) =>
-          `${new Date(r.created_at as string).toISOString().slice(0, 10)} · ${r.category} · ${r.entry_type} UGX ${Number(r.amount).toLocaleString()}`,
+          `${new Date(r.created_at as string).toISOString().slice(0, 10)} · ${r.category} · ${r.direction} UGX ${Number(r.amount).toLocaleString()}`,
       )
       .join("\n");
     return {
