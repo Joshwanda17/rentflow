@@ -196,6 +196,55 @@ interface UseNearbyHousesOptions {
 }
 
 /**
+ * In-memory cache of paginated nearby-house results, keyed by the exact filter
+ * set (rounded GPS + radius + category + region + page size). Re-opening the
+ * sheet or returning to a previously-viewed filter combo restores the already
+ * fetched pages + cursor instantly instead of re-hitting the RPC page by page.
+ *
+ * This lives at module scope so it survives component unmount/remount (e.g.
+ * closing and re-opening the Available Houses sheet) within the same session.
+ */
+interface NearbyCacheEntry {
+  listings: HouseListing[];
+  offset: number;
+  useRpc: boolean;
+  exhausted: boolean;
+  ts: number;
+}
+const NEARBY_CACHE = new Map<string, NearbyCacheEntry>();
+const NEARBY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const NEARBY_CACHE_MAX = 24; // cap distinct filter sets kept in memory
+
+function nearbyCacheKey(o: UseNearbyHousesOptions, paginate: boolean, pageSize: number): string {
+  // Round GPS to ~3 decimals (~110m) so tiny location jitter reuses the cache.
+  const r = (n: number | null | undefined) => (n == null ? 'x' : n.toFixed(3));
+  return [
+    r(o.latitude),
+    r(o.longitude),
+    o.radiusKm || 50,
+    o.category || '',
+    o.region || '',
+    paginate ? 1 : 0,
+    pageSize,
+  ].join('|');
+}
+
+function writeNearbyCache(key: string, entry: NearbyCacheEntry) {
+  NEARBY_CACHE.set(key, entry);
+  // Evict the oldest entries when we exceed the cap (Map preserves insert order,
+  // and re-setting an existing key keeps its original position, so refresh by ts).
+  if (NEARBY_CACHE.size > NEARBY_CACHE_MAX) {
+    const oldest = [...NEARBY_CACHE.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+    if (oldest) NEARBY_CACHE.delete(oldest[0]);
+  }
+}
+
+/** Clear cached nearby-house pages. Call after listing data changes materially. */
+export function clearNearbyHousesCache() {
+  NEARBY_CACHE.clear();
+}
+
+/**
  * Hook for spatial nearby house search using PostGIS.
  *
  * Falls back to a regular query when there are no GPS coordinates (or if the
@@ -297,6 +346,14 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
       st.exhausted = !paginate || pageRaw.length < wantLimit;
       setListings([...st.accumulated]);
       setHasMore(!st.exhausted);
+      // Write-through cache so re-opening this filter set restores instantly.
+      writeNearbyCache(nearbyCacheKey(options, paginate, pageSize), {
+        listings: st.accumulated,
+        offset: st.offset,
+        useRpc: st.useRpc,
+        exhausted: st.exhausted,
+        ts: Date.now(),
+      });
     } catch (err: any) {
       if (runId === runIdRef.current) setError(err.message);
     } finally {
@@ -327,6 +384,27 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     }
     const runId = ++runIdRef.current;
     const hasGps = !!(options.latitude && options.longitude);
+
+    // Cache hit: restore the previously fetched pages + cursor without any
+    // network calls. `loadMore` then continues from the cached offset.
+    const key = nearbyCacheKey(options, paginate, pageSize);
+    const cached = NEARBY_CACHE.get(key);
+    if (cached && Date.now() - cached.ts < NEARBY_CACHE_TTL) {
+      cursorRef.current = {
+        offset: cached.offset,
+        useRpc: cached.useRpc,
+        exhausted: cached.exhausted,
+        loading: false,
+        accumulated: cached.listings,
+      };
+      setListings(cached.listings);
+      setError(null);
+      setLoading(false);
+      setLoadingMore(false);
+      setHasMore(!cached.exhausted);
+      return;
+    }
+
     cursorRef.current = { offset: 0, useRpc: hasGps, exhausted: false, loading: false, accumulated: [] };
     setListings([]);
     setError(null);
@@ -346,6 +424,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
   const refresh = useCallback(() => {
     const runId = ++runIdRef.current;
     const hasGps = !!(options.latitude && options.longitude);
+    // Force a fresh fetch: drop this filter set's cached pages first.
+    NEARBY_CACHE.delete(nearbyCacheKey(options, paginate, pageSize));
     cursorRef.current = { offset: 0, useRpc: hasGps, exhausted: false, loading: false, accumulated: [] };
     setListings([]);
     setError(null);
@@ -353,7 +433,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setLoadingMore(false);
     setHasMore(false);
     fetchPage(runId, true);
-  }, [fetchPage, options.latitude, options.longitude]);
+  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, paginate, pageSize]);
 
   return { listings, loading, loadingMore, hasMore, loadMore, error, refresh };
 }
