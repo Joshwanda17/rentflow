@@ -631,7 +631,7 @@ export default function FindAHouse() {
     }
   }, [geo.city, geo.loading, geoDefaultApplied, sharedRegion]);
 
-  const { listings, loading, loadingMore } = useNearbyHouses({
+  const { listings, loading, loadingMore, hasMore, loadMore } = useNearbyHouses({
     latitude: effectiveLat,
     longitude: effectiveLng,
     // "All Regions" must show every house across the whole country (not just
@@ -644,6 +644,22 @@ export default function FindAHouse() {
     paginate: true,
     enabled: hasSharedLocation || !geo.loading,
   });
+
+  // Infinite scroll: a bottom sentinel loads the next page as it nears the
+  // viewport. `loadMore` self-guards against overlapping/finished requests.
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = loadMoreSentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: '800px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loadMore]);
 
   const filtered = useMemo(() => {
     let result = [...listings];
@@ -1035,7 +1051,7 @@ export default function FindAHouse() {
             <>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">
-                  {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
+                  {filtered.length}{hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
                   {loadingMore ? ' · loading more…' : ''}
                 </p>
                 <Button
@@ -1075,6 +1091,14 @@ export default function FindAHouse() {
                 </div>
               ) : (
                 <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
+              )}
+              {/* Infinite-scroll sentinel + status. */}
+              {hasMore && <div ref={loadMoreSentinelRef} className="h-1 w-full" aria-hidden="true" />}
+              {loadingMore && (
+                <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
+                  Loading more houses…
+                </div>
               )}
             </>
           )}

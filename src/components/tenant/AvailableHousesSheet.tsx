@@ -277,6 +277,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [view, setView] = useState<'list' | 'map'>('list');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  // Bottom sentinel — when it scrolls into view we ask for the next page.
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
@@ -286,7 +288,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     }
   }, [geo.city, geo.loading, geoDefaultApplied]);
 
-  const { listings, loading, loadingMore } = useNearbyHouses({
+  const { listings, loading, loadingMore, hasMore, loadMore } = useNearbyHouses({
     latitude: geo.latitude,
     longitude: geo.longitude,
     // "All Regions" must show every house across the whole country (not just
@@ -395,6 +397,22 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     virtualizer.scrollToOffset(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText]);
+
+  // Infinite scroll: load the next page automatically when the bottom sentinel
+  // approaches the viewport. `loadMore` self-guards against overlapping/finished
+  // requests, so it's safe to call on every intersection.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { root: resultsRef.current, rootMargin: '600px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loadMore, view]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -602,7 +620,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
+                {filtered.length}
+                {hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
               {/* Virtualized card list — only viewport cards are mounted. */}
@@ -626,6 +645,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   );
                 })}
               </div>
+              {/* Infinite-scroll sentinel — triggers loading the next page. */}
+              {hasMore && <div ref={sentinelRef} className="h-1 w-full" aria-hidden="true" />}
               {loadingMore && (
                 <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
                   <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
