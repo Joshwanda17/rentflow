@@ -77,7 +77,6 @@ export default defineTool({
       ? FAQS.filter(
           (f) =>
             f.q.toLowerCase().includes(term) ||
-            f.a.toLowerCase().includes(term) ||
             f.tags.some((t) => t.includes(term) || term.includes(t)),
         )
       : FAQS;

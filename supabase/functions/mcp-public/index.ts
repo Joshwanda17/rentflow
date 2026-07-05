@@ -69,7 +69,7 @@ var how_welile_works_default = defineTool({
   handler: ({ topic, referral_code }) => {
     const term = (topic ?? "").trim().toLowerCase();
     const matched = term ? FAQS.filter(
-      (f) => f.q.toLowerCase().includes(term) || f.a.toLowerCase().includes(term) || f.tags.some((t) => t.includes(term) || term.includes(t))
+      (f) => f.q.toLowerCase().includes(term) || f.tags.some((t) => t.includes(term) || term.includes(t))
     ) : FAQS;
     const faqs = matched.length > 0 ? matched : FAQS;
     const { signupUrl, referralUrl } = buildLinks(referral_code);
