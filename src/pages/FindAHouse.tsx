@@ -1051,7 +1051,7 @@ export default function FindAHouse() {
             <>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">
-                  {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
+                  {filtered.length}{hasMore ? '+' : ''} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
                   {loadingMore ? ' · loading more…' : ''}
                 </p>
                 <Button
@@ -1091,6 +1091,14 @@ export default function FindAHouse() {
                 </div>
               ) : (
                 <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
+              )}
+              {/* Infinite-scroll sentinel + status. */}
+              {hasMore && <div ref={loadMoreSentinelRef} className="h-1 w-full" aria-hidden="true" />}
+              {loadingMore && (
+                <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 border-t-transparent animate-spin" />
+                  Loading more houses…
+                </div>
               )}
             </>
           )}
