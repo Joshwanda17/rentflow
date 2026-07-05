@@ -569,17 +569,22 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     const runId = ++runIdRef.current;
     const hasGps = !!(options.latitude && options.longitude);
     // Force a fresh fetch: drop this filter set's cached pages first.
-    NEARBY_CACHE.delete(nearbyCacheKey(options, paginate, pageSize));
+    const key = nearbyCacheKey(options, paginate, pageSize);
+    NEARBY_CACHE.delete(key);
     cursorRef.current = { offset: 0, useRpc: hasGps, exhausted: false, loading: false, accumulated: [] };
     setListings([]);
     setError(null);
     setLoading(true);
     setLoadingMore(false);
     setHasMore(false);
+    seenIdsRef.current = new Set();
+    metricsRef.current = { ...emptyMetrics(), filterKey: key, source: hasGps ? 'rpc' : 'fallback' };
+    setMetrics({ ...metricsRef.current });
+    pgLog('refresh', { filterKey: key });
     fetchPage(runId, true);
   }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, paginate, pageSize]);
 
-  return { listings, loading, loadingMore, hasMore, loadMore, error, refresh };
+  return { listings, loading, loadingMore, hasMore, loadMore, error, refresh, metrics };
 }
 
 /**
