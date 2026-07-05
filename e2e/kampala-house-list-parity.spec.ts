@@ -172,7 +172,7 @@ test.describe('Kampala house-list parity: UI == underlying query', () => {
     const uiIds = await collectRenderedHouseIds(page, async () => {
       const state = await scroller.evaluate((el) => {
         const before = el.scrollTop;
-        el.scrollBy(0, el.clientHeight);
+        el.scrollBy(0, Math.round(el.clientHeight * 0.5));
         return {
           before,
           after: el.scrollTop,
