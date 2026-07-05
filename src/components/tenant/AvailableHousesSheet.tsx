@@ -306,6 +306,18 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     enabled: open && !geo.loading,
   });
 
+  // Exact listed-house counts (verified + not-yet-verified) for the active
+  // filter set — replaces the loaded-rows "24+" counter.
+  const listingCounts = useHouseListingCount({
+    region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
+    district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+    subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+    village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+    search: searchText.trim() || undefined,
+    enabled: open,
+  });
+
   // Selecting a broader area resets the narrower ones so we never keep a stale
   // district/sub-county/village that no longer belongs to the new selection.
   const handleRegionChange = (value: string) => {
