@@ -405,7 +405,21 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           .order('created_at', { ascending: false })
           .order('id', { ascending: true })
           .range(st.offset, st.offset + wantLimit - 1);
-        if (options.region) query = query.ilike('region', `%${options.region}%`);
+        if (options.region) {
+          // The location filter may be a broad region ("Central") OR a
+          // city/district/village ("Kampala", "Wakiso"). Match any of the
+          // location columns so picking a district doesn't return zero houses.
+          const term = options.region.replace(/[%,()]/g, ' ').trim();
+          query = query.or(
+            [
+              `region.ilike.%${term}%`,
+              `district.ilike.%${term}%`,
+              `sub_county.ilike.%${term}%`,
+              `village.ilike.%${term}%`,
+              `address.ilike.%${term}%`,
+            ].join(','),
+          );
+        }
         if (options.category) query = query.eq('house_category', options.category);
         const { data, error: fetchError } = await query;
         if (fetchError) throw fetchError;
