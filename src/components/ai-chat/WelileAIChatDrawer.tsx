@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useWelileAI } from '@/hooks/useWelileAI';
 import ReactMarkdown from 'react-markdown';
 import ShareWelileAIBanner from './ShareWelileAIBanner';
+import { ROLE_LANDINGS, buildRoleSignupHref, type AiRole } from './roleLanding';
 
 const EarningPredictionCard = lazy(() => import('@/components/ai-chat/EarningPredictionCard'));
 
@@ -18,10 +19,21 @@ const SUGGESTIONS = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Deep-link role scope (from /ai?role=...). Tailors onboarding content. */
+  initialRole?: AiRole;
+  /** Attribution source carried from the deep link (signup_source). */
+  signupSource?: string | null;
+  /** Referral code carried from the deep link (ref). */
+  referralCode?: string | null;
 }
 
-export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
+export default function WelileAIChatDrawer({ open, onOpenChange, initialRole, signupSource, referralCode }: Props) {
   const { messages, isLoading, sendMessage, clearHistory, cancelStream } = useWelileAI();
+  const landing = initialRole ? ROLE_LANDINGS[initialRole] : null;
+  const roleSuggestions = landing?.suggestions ?? SUGGESTIONS;
+  const roleSignupHref = landing
+    ? buildRoleSignupHref(landing.role, { source: signupSource, ref: referralCode })
+    : null;
   const [input, setInput] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
