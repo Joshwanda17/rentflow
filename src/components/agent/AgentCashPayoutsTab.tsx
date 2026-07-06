@@ -27,6 +27,7 @@ import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
 import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
 import { MerchantWithdrawableCard } from '@/components/agent/MerchantWithdrawableCard';
+import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
 
 // Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
 const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
@@ -1011,6 +1012,7 @@ export function AgentCashPayoutsTab() {
   const rangeEnd = Math.min(pageCount, page * PAGE_SIZE + pageRows.length);
 
   return (
+    <MerchantAgreementGate>
     <div className="space-y-5">
       {/* My Active Claims — pinned to the very top so a request YOU claimed is
           always clearly separated from the rest of the queue and can't be missed. */}
@@ -1725,6 +1727,7 @@ export function AgentCashPayoutsTab() {
         </Tabs>
       </section>
     </div>
+    </MerchantAgreementGate>
   );
 }
 

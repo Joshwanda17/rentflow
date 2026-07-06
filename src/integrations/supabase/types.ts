@@ -10998,6 +10998,45 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_agreement_acceptance: {
+        Row: {
+          accepted_at: string
+          agent_id: string
+          agreement_version: string
+          created_at: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          merchant_name: string | null
+          merchant_phone: string | null
+          status: string
+        }
+        Insert: {
+          accepted_at?: string
+          agent_id: string
+          agreement_version?: string
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          merchant_name?: string | null
+          merchant_phone?: string | null
+          status?: string
+        }
+        Update: {
+          accepted_at?: string
+          agent_id?: string
+          agreement_version?: string
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          merchant_name?: string | null
+          merchant_phone?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string

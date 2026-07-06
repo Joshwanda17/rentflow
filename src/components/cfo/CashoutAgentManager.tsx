@@ -18,12 +18,13 @@ import {
 import {
   Banknote, UserPlus, Loader2, XCircle, Building2, Smartphone, Phone, Mail, MapPin,
   CreditCard, Calendar, Shield, Wallet, Users, TrendingUp, ArrowLeft, Search, CheckCircle2, Clock,
-  Network, Activity, Zap, Pencil, Trash2,
+  Network, Activity, Zap, Pencil, Trash2, FileCheck, FileWarning, Download, Monitor, Globe,
 } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge, getCashoutCommission } from '@/lib/cashoutCharges';
+import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/merchantAgreementPdf';
 
 // A payout only counts as "processed" once the Merchant Agent has executed disbursement.
 // `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
@@ -110,6 +111,31 @@ export function CashoutAgentManager() {
       return count || 0;
     },
   });
+
+  // Merchant Agent Agreement acceptances — who has formally signed on to be a
+  // Merchant (Cash-Out) Agent, with the audited detail (version, device, IP, date).
+  const { data: agreements = [] } = useQuery({
+    queryKey: ['merchant-agreement-acceptances'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('merchant_agreement_acceptance' as any)
+        .select('*')
+        .eq('status', 'accepted')
+        .order('accepted_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    staleTime: 60_000,
+  });
+
+  // Newest acceptance per agent_id (matches cashout_agents.agent_id).
+  const agreementByAgentId = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const a of agreements as any[]) {
+      if (!m.has(a.agent_id)) m.set(a.agent_id, a);
+    }
+    return m;
+  }, [agreements]);
 
   // Per-merchant active claim list — drives the "pending" badge on each card AND
   // powers the "Release stuck claims" recovery action in the delete dialog.
@@ -619,6 +645,52 @@ export function CashoutAgentManager() {
               </CardContent>
             </Card>
 
+            {/* Merchant Agent Agreement — acceptance record + downloadable PDF */}
+            {(() => {
+              const agreement = agreementByAgentId.get(selectedAgent.agent_id);
+              return (
+                <Card>
+                  <CardContent className="p-3 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <FileCheck className="h-3.5 w-3.5" /> Merchant Agent Agreement
+                      </p>
+                      {agreement ? (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
+                          <CheckCircle2 className="h-3 w-3" /> Signed {agreement.agreement_version}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
+                          <FileWarning className="h-3 w-3" /> Not signed
+                        </Badge>
+                      )}
+                    </div>
+                    {agreement ? (
+                      <div className="space-y-1.5">
+                        <DetailRow icon={<Calendar className="h-3.5 w-3.5" />} label="Accepted" value={formatDateTime(agreement.accepted_at)} />
+                        <DetailRow icon={<Users className="h-3.5 w-3.5" />} label="Signed as" value={agreement.merchant_name || p.full_name} />
+                        <DetailRow icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={agreement.merchant_phone || p.phone} />
+                        <DetailRow icon={<Globe className="h-3.5 w-3.5" />} label="IP address" value={agreement.ip_address} />
+                        <DetailRow icon={<Monitor className="h-3.5 w-3.5" />} label="Device" value={agreement.device_info} />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        This merchant has not yet accepted the current Merchant Agent Agreement. They will be prompted to accept it before processing payouts.
+                      </p>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-1.5"
+                      onClick={() => downloadMerchantAgreementPdf({ name: agreement?.merchant_name || p.full_name, phone: agreement?.merchant_phone || p.phone })}
+                    >
+                      <Download className="h-4 w-4" /> Download Agreement PDF
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setCashoutAgent(selectedAgent)}>
                 <Wallet className="h-4 w-4" /> Active Queue
@@ -788,6 +860,15 @@ export function CashoutAgentManager() {
                     <p className="text-[11px] text-muted-foreground truncate">{a.profiles?.phone} · {a.label || 'Merchant Agent'}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {methodBadges(a)}
+                      {agreementByAgentId.get(a.agent_id) ? (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 border-emerald-500/40 text-emerald-600" title="Merchant Agreement signed">
+                          <FileCheck className="h-2.5 w-2.5" /> Signed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 border-amber-500/40 text-amber-600" title="Merchant Agreement not signed yet">
+                          <FileWarning className="h-2.5 w-2.5" /> No agreement
+                        </Badge>
+                      )}
                       {pending && pending.count > 0 && (
                         <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5" title={`${pending.count} active claim${pending.count === 1 ? '' : 's'} in queue — blocks deletion`}>
                           <Clock className="h-2.5 w-2.5" />
