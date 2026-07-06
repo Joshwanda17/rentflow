@@ -444,6 +444,7 @@ export function CashoutAgentManager() {
       return s && new Date(s).toDateString() === todayStr;
     });
     const activeToday = new Set(todayPayouts.map((p: any) => p.assigned_cashout_agent_id).filter(Boolean)).size;
+    const chargesTotal = payouts.reduce((s: number, p: any) => s + getTelecomSendingCharge(Number(p.amount || 0)), 0);
     return {
       agentsCount: agents.length,
       activeToday,
@@ -451,6 +452,7 @@ export function CashoutAgentManager() {
       payoutsCount: payouts.length,
       todayCount: todayPayouts.length,
       pendingClaims,
+      chargesTotal,
       bankAmount: bank.reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
       momoAmount: momo.reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
       cashAmount: cash.reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
