@@ -183,6 +183,15 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                         </div>
                         {!s.has_smartphone && <Badge variant="outline" className="shrink-0">No phone</Badge>}
                       </div>
+                      {(() => {
+                        const st = getEnrollStatus(s);
+                        return (
+                          <Badge variant="outline" className={`gap-1 font-normal ${st.className}`}>
+                            {st.ready ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                            {st.label}
+                          </Badge>
+                        );
+                      })()}
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div><span className="text-muted-foreground">Rent</span><br /><span className="font-semibold">{formatUGX(s.monthly_rent)}</span></div>
                         <div><span className="text-muted-foreground">Outstanding</span><br /><span className="font-semibold text-orange-600">{formatUGX(s.outstanding_balance)}</span></div>
