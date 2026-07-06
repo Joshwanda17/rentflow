@@ -11,6 +11,8 @@ import { hapticTap } from '@/lib/haptics';
 import { format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { createShortLink } from '@/lib/createShortLink';
+import { useAgentBalances } from '@/hooks/useAgentBalances';
+import { formatDynamic } from '@/lib/currencyFormat';
 import {
   ArrowLeft, Users, UserCheck, Activity, Search,
   Share2, FileText, Heart, Briefcase, PiggyBank, HandCoins,
