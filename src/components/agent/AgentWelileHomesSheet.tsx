@@ -644,6 +644,36 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
             <div><p className="text-sm font-medium">Tenant has a smartphone</p><p className="text-xs text-muted-foreground">Off = you allocate their rent</p></div>
             <Switch checked={hasPhone} onCheckedChange={setHasPhone} />
           </div>
+
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
+              <History className="h-3.5 w-3.5" /> Edit history
+            </div>
+            {historyLoading ? (
+              <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+            ) : history.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No edits yet.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {history.map((h) => (
+                  <div key={h.id} className="text-xs border-l-2 border-muted pl-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{h.editor_name}</span>
+                      <span className="text-muted-foreground">{new Date(h.created_at).toLocaleString()}</span>
+                    </div>
+                    <ul className="mt-0.5 space-y-0.5 text-muted-foreground">
+                      {(h.changes ?? []).map((c, i) => (
+                        <li key={i}>
+                          <span className="text-foreground">{FIELD_LABELS[c.field] ?? c.field}:</span>{' '}
+                          {formatAuditValue(c.field, c.old)} → <span className="text-foreground">{formatAuditValue(c.field, c.new)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button onClick={submit} disabled={submitting} className="w-full">
