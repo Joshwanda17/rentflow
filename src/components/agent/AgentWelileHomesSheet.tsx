@@ -226,6 +226,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
 
       <EnrollDialog open={enrollOpen} onOpenChange={setEnrollOpen} agentId={user?.id} onDone={load} />
       <AllocateDialog sub={allocFor} onClose={() => setAllocFor(null)} onDone={load} />
+      <EditDialog sub={editFor} agentId={user?.id} onClose={() => setEditFor(null)} onDone={load} />
     </>
   );
 }
