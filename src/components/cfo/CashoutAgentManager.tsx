@@ -645,6 +645,52 @@ export function CashoutAgentManager() {
               </CardContent>
             </Card>
 
+            {/* Merchant Agent Agreement — acceptance record + downloadable PDF */}
+            {(() => {
+              const agreement = agreementByAgentId.get(selectedAgent.agent_id);
+              return (
+                <Card>
+                  <CardContent className="p-3 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <FileCheck className="h-3.5 w-3.5" /> Merchant Agent Agreement
+                      </p>
+                      {agreement ? (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
+                          <CheckCircle2 className="h-3 w-3" /> Signed {agreement.agreement_version}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
+                          <FileWarning className="h-3 w-3" /> Not signed
+                        </Badge>
+                      )}
+                    </div>
+                    {agreement ? (
+                      <div className="space-y-1.5">
+                        <DetailRow icon={<Calendar className="h-3.5 w-3.5" />} label="Accepted" value={formatDateTime(agreement.accepted_at)} />
+                        <DetailRow icon={<Users className="h-3.5 w-3.5" />} label="Signed as" value={agreement.merchant_name || p.full_name} />
+                        <DetailRow icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={agreement.merchant_phone || p.phone} />
+                        <DetailRow icon={<Globe className="h-3.5 w-3.5" />} label="IP address" value={agreement.ip_address} />
+                        <DetailRow icon={<Monitor className="h-3.5 w-3.5" />} label="Device" value={agreement.device_info} />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        This merchant has not yet accepted the current Merchant Agent Agreement. They will be prompted to accept it before processing payouts.
+                      </p>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-1.5"
+                      onClick={() => downloadMerchantAgreementPdf({ name: agreement?.merchant_name || p.full_name, phone: agreement?.merchant_phone || p.phone })}
+                    >
+                      <Download className="h-4 w-4" /> Download Agreement PDF
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setCashoutAgent(selectedAgent)}>
                 <Wallet className="h-4 w-4" /> Active Queue
