@@ -75,7 +75,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
     try {
       const { data: rows, error } = await supabase
         .from('welile_homes_subscriptions')
-        .select('id, tenant_id, monthly_rent, outstanding_balance, receivable_total, has_smartphone, landlord_uses_wallet, payout_day, next_due_date, landlord_name')
+        .select('id, tenant_id, monthly_rent, outstanding_balance, receivable_total, has_smartphone, landlord_uses_wallet, payout_day, next_due_date, landlord_name, created_at')
         .eq('agent_id', user.id)
         .eq('mode', 'agent_collection')
         .order('created_at', { ascending: false });
@@ -84,12 +84,17 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
       const tenantIds = list.map((s) => s.tenant_id);
       if (tenantIds.length) {
         const { data: profs } = await supabase
-          .from('profiles').select('id, full_name, phone').in('id', tenantIds);
+          .from('profiles').select('id, full_name, phone, verified, last_active_at, created_at').in('id', tenantIds);
         const map = new Map((profs ?? []).map((p: any) => [p.id, p]));
         list.forEach((s) => {
           const p = map.get(s.tenant_id);
           s.tenant_name = p?.full_name ?? 'Tenant';
           s.tenant_phone = p?.phone ?? '';
+          s.tenant_verified = !!p?.verified;
+          s.tenant_last_active = p?.last_active_at ?? null;
+          // "Newly created" = the tenant profile was created at (≈) enrollment time.
+          s.newly_created = !!(p?.created_at && s.created_at &&
+            Math.abs(new Date(p.created_at).getTime() - new Date(s.created_at).getTime()) < 5 * 60 * 1000);
         });
       }
       setSubs(list);
