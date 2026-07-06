@@ -395,14 +395,9 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto border-border/50 glass-card">
-        <NfcTransactionResultDialog
-          open={resultOpen}
-          onOpenChange={setResultOpen}
-          result={resultPayload}
-          onRetry={() => { setTapStage('idle'); }}
-        />
         <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-primary/5 pointer-events-none" />
         
         <AnimatePresence mode="wait">
@@ -411,7 +406,6 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
               key="success"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
               className="py-12 flex flex-col items-center justify-center relative"
             >
               <motion.div
@@ -444,7 +438,6 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
               key="form"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
               className="relative"
             >
               <DialogHeader>
@@ -726,5 +719,12 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
         </AnimatePresence>
       </DialogContent>
     </Dialog>
+    <NfcTransactionResultDialog
+      open={resultOpen}
+      onOpenChange={setResultOpen}
+      result={resultPayload}
+      onRetry={() => { setTapStage('idle'); }}
+    />
+    </>
   );
 }
