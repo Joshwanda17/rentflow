@@ -27,6 +27,26 @@ try {
     document.documentElement.classList.add('no-backdrop-blur');
     document.documentElement.classList.add('android-compositor-safe');
   }
+
+  // Low-end / Android Go-class detection. Any of these signals => "lite-mode":
+  // little RAM, few cores, explicit reduced-motion, or Data Saver. Lite-mode
+  // shares the android-compositor-safe rules (no blur, no big shadows, static
+  // motion) so entry-level devices (e.g. itel A08) render without GPU tearing.
+  const deviceMemory = (navigator as any).deviceMemory;
+  const cores = navigator.hardwareConcurrency;
+  const conn = (navigator as any).connection;
+  const prefersReducedMotion =
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+  const saveData = conn?.saveData === true;
+  const isLowEnd =
+    (typeof deviceMemory === 'number' && deviceMemory <= 3) ||
+    (typeof cores === 'number' && cores <= 4);
+  if (isLowEnd || prefersReducedMotion || saveData) {
+    document.documentElement.classList.add('lite-mode');
+    // Lite devices also get the compositor-safe path even on non-Android.
+    document.documentElement.classList.add('android-compositor-safe');
+    document.documentElement.classList.add('no-backdrop-blur');
+  }
 } catch {}
 
 // Unregister any service workers and clear leftover caches. The app no longer
