@@ -1,41 +1,105 @@
-# CTO Temporary-Password Reset + Forced Reset-on-Login
+# Low-end phone optimization — evidence-based audit & plan
 
-## Goal
-Give the CTO a dashboard tab to look up a user by **phone or email**, issue a **temporary password**, and deliver it (SMS + on-screen link the CTO can share). When that user next opens their dashboard, they are **forced** to set a new password before they can do anything else.
+## What the earlier audit got wrong (already done)
 
-## What already exists (reused)
-- `profiles.must_change_password` boolean column already exists but is currently unused — this becomes the "force reset" flag.
-- `admin-reset-password` edge function pattern (role gate + `admin.updateUserById`) — mirrored for the new function.
-- `ForcePasswordChange.tsx` portal pattern — reused as the visual model for the blocking gate.
-- CTO sidebar config in `executiveSidebarConfig.ts` and tab routing in `CTODashboard.tsx`.
+Verified against the current code, not assumptions:
 
-## Changes
+- **Dialogs/sheets already lazy-loaded** — `AgentDashboard.tsx` has **57** `lazy()` imports (DepositFlow, WithdrawFlow, scanners, poster, registration, etc.). Closed dialogs are not statically bundled.
+- **Android safe-mode already exists** — `main.tsx` adds `no-backdrop-blur` + `android-compositor-safe` on Android/low-blur.
+- **React Query already tuned** — `App.tsx:255-257` sets network-aware `staleTime`/`gcTime` (not a flat 60–120 min for everyone).
+- **Save-Data / slow-network mode already handled** — `App.tsx` adds a `save-data` class and listens for connection changes.
+- `**index.css` is ~34 KB source**, not 282 KB. The 282 KB figure is the *compiled* Tailwind output (all utilities); that is a build concern, addressed by purge, not hand-editing.
 
-### 1. Backend (migration)
-- No new table. Add a partial index on `profiles(must_change_password) where must_change_password = true` for fast gate checks. Confirm `must_change_password` defaults to `false`.
+So the app is not un-optimized — but there are real, targeted issues below.
 
-### 2. Edge function: `cto-issue-temp-password`
-- Verify caller JWT and require an authorised role (`cto`, `manager`, `super_admin`).
-- Input: `{ identifier }` (phone OR email). Normalise phone via Uganda phone rules; resolve the target `user_id` + auth email from `profiles`. Clear, specific errors when not found / ambiguous.
-- Generate a human-readable temp password (e.g. `Welile-7F3K`).
-- `admin.updateUserById(user_id, { password: temp })`, then set `profiles.must_change_password = true`.
-- Deliver: send an SMS (when a phone exists) containing the temp password + login link `https://welilereceipts.com`; always return `{ temp_password, login_url, delivered_via, masked_target }` so the CTO sees it on screen and can share the link/password manually.
-- Write an `audit_logs` row (`action_type: 'cto_temp_password_issued'`, reason ≥ 10 chars).
+## Confirmed real issues (with evidence)
 
-### 3. CTO dashboard tab: "Reset Password"
-- Add sidebar item `{ label: 'Reset Password', id: 'password-reset' }` to the `cto` section in `executiveSidebarConfig.ts`.
-- New component `src/components/cto/CTOPasswordResetPanel.tsx`: input for phone/email, "Issue temporary password" button, and a result card showing the generated temp password (copy button), the shareable login link, and delivery status.
-- Branch in `CTODashboard.tsx`: `if (activeTab === 'password-reset') return <CTOPasswordResetPanel />;`.
+1. `**will-change: scroll-position` on `.scroll-container**` (`index.css:886`) — forces a large permanent composited layer on every scroll region. This is a leading cause of the GPU tearing in the screenshot. Fix: remove it (keep `-webkit-overflow-scrolling` + `overscroll-behavior`).
+2. **225 files import `framer-motion**` — heavy JS + animated compositing on low-end. Biggest memory/CPU lever. Fix: gate motion off under `android-compositor-safe`/`prefers-reduced-motion` and swap the most common cases to CSS.
+3. `**AgentCashPayoutsTab.tsx` is 1746 lines with un-virtualized lists** — this is the corrupted "Cash, Mobile Money & Bank Payments" sheet. Fix: paginate/virtualize the payout list and cap query rows.
+4. **Caches cleared on every launch** (`main.tsx:82`) — `caches.delete` runs each boot. Fix: run once behind a `localStorage` version flag.
+5. `**AgentDashboard.tsx` (1756 lines, 90 static imports)** — still large despite lazy dialogs. Fix: move the heaviest still-static feature panels behind `lazy()`.
 
-### 4. Forced reset-on-login gate (must-do)
-- New page `src/pages/ForceResetPassword.tsx` + route `/force-reset-password`: password + confirm fields with strength rules; calls `supabase.auth.updateUser({ password })`, then sets `profiles.must_change_password = false`, then routes to the user's dashboard.
-- New global gate `src/components/auth/ForceResetPasswordGate.tsx`: for any logged-in user, reads `profiles.must_change_password`; while `true` it renders a **full-screen blocking portal** (same pattern as `ForcePasswordChange`) that forces the reset and cannot be dismissed. Mounted alongside the other authenticated gates in `App.tsx` so it intercepts every route immediately after login.
+## Prioritized implementation (incremental, after your OK)
+
+&nbsp;
+
+Minimum-device requirement:
+
+Treat entry-level Android phones such as the itel A08 series as a primary target, not an edge case. Optimize and test using an Android Go–class profile with:
+
+- 2 GB available RAM
+
+- Entry-level quad-core CPU
+
+- 6× CPU slowdown during browser testing
+
+- 360×720 viewport, plus testing at 320px width
+
+- Slow 3G network conditions
+
+- Data Saver enabled
+
+- Reduced Motion enabled
+
+- Limited GPU texture/compositing capacity
+
+- Current and older Chromium-based Android browsers
+
+On this profile, the application must:
+
+- Open without crashing, freezing, visual tearing, or automatic tab reloads.
+
+- Keep scrolling responsive.
+
+- Avoid blurred overlays, oversized composited layers, large shadows, and unnecessary transforms.
+
+- Render payout lists incrementally through pagination and virtualization.
+
+- Mount dialogs, maps, scanners, charts, and advanced tools only when requested.
+
+- Use static UI in low-performance mode.
+
+- Avoid retaining large query results or hidden component trees.
+
+- Display a lightweight loading state immediately.
+
+- Preserve every financial workflow and validation rule.
+
+Use progressive enhancement: the essential application must work without backdrop-filter, complex animation, WebGL, high-resolution assets, or advanced GPU effects.
+
+Test the payout sheet and agent dashboard repeatedly on this minimum-device profile. Passing desktop Lighthouse alone is not sufficient.
+
+<html class="lite-mode android-compositor-safe no-backdrop-blur">
+
+**Phase 1 — GPU tearing + boot cost (fast, low risk)**
+
+- Remove `will-change: scroll-position`; strengthen `android-compositor-safe` to also drop `backdrop-filter`, big shadows, and entrance transforms on the payout sheet.
+- Make cache cleanup one-time (versioned flag) in `main.tsx`.
+
+**Phase 2 — Payout sheet (the screenshot)**
+
+- Paginate/virtualize the payout list in `AgentCashPayoutsTab.tsx`; add row limits to its queries. Preserve all claim/complete/financial logic exactly.
+
+**Phase 3 — Motion weight**
+
+- Add a shared `useReducedMotion`/CSS gate so `framer-motion` animations are skipped in low-perf mode; convert the highest-traffic dashboard animations to CSS transitions. No behavior change.
+
+**Phase 4 — Dashboard chunking**
+
+- Lazy-load remaining heavy static panels in `AgentDashboard.tsx`.
+
+**Phase 5 — Verify**
+
+- Lint, typecheck, production build; compare chunk sizes before/after; test at 320/360/390 widths with 4× CPU throttle; confirm no tearing on the payout sheet.
+
+## Guardrails
+
+- No changes to financial calculations, ledger, RPCs, routes, permissions, or workflows.
+- No file deletions in this pass (redundant-file cleanup is a separate, evidence-gated phase).
+- Keep TypeScript strict; no new `any`.
 
 ## Technical notes
-- Temp password respects the platform's leaked-password (HIBP) protection; the generator avoids common/breached patterns by including random entropy.
-- The gate uses a fresh DB read of `must_change_password` (not React Query cache) per the high-stakes-mutation rule.
-- All amounts/text follow existing UGX + terminology conventions (none financial here).
-- SMS uses the existing SMS-sending infrastructure already used by `password-reset-sms`.
 
-## Out of scope
-- No changes to normal login, OTP, or PIN flows beyond the new gate check.
+- Motion gate: single hook reading `matchMedia('(prefers-reduced-motion)')` + `.android-compositor-safe` class, returning a flag components use to render static instead of `motion.*`.
+- Virtualization: reuse the existing approach already used in `AvailableHousesSheet.tsx`/`FindAHouse.tsx` for consistency.
