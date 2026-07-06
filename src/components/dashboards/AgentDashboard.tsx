@@ -137,7 +137,6 @@ import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
 import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
 import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
-import { AgentLandlordPromoBanner } from '@/components/agent/AgentLandlordPromoBanner';
 import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
@@ -880,12 +879,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * (advances, lending, sub-agents, partners, etc.) lives behind the
              * "Grow" button via AgentMenuDrawer so no functionality is lost.
              */}
-
-            {/* 0) PROMO — prominent weekly landlord registration drive.
-                Hidden for Merchant Agents (landlord operations are disabled). */}
-            {!isMerchant && (
-              <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setListHouseFromPromo(true); setListHouseOpen(true); }} />
-            )}
 
             {/* 0b) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
             {isCashoutAgent && showMerchantOnboard && (
