@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -333,15 +332,10 @@ export default function AgentNavFAB() {
   if (!isAgent || modalOpen || onHome) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        key="agent-nav-fab"
-        initial={{ y: 24, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 24, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+      <div
         className={cn(
           'md:hidden fixed left-3 right-3 z-[60] flex flex-col items-start gap-2',
+          'animate-fade-in',
           // Sit comfortably above the bottom role switcher and the WhatsApp
           // FAB stack (uses the global --fab-bottom variable so every floating
           // element keeps the same clearance).
@@ -446,7 +440,6 @@ export default function AgentNavFAB() {
           <Home className="h-6 w-6" aria-hidden="true" />
         </button>
         </div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
   );
 }
