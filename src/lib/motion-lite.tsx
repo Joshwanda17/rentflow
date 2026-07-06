@@ -67,7 +67,17 @@ export const motion: any = new Proxy({}, {
   get: (_target, tag: string) => getComponent(tag),
 });
 
-export function AnimatePresence({ children }: { children?: React.ReactNode }) {
+export function AnimatePresence({
+  children,
+}: {
+  children?: React.ReactNode;
+  // Accept (and ignore) framer-only props so call sites type-check.
+  mode?: 'sync' | 'wait' | 'popLayout';
+  initial?: boolean;
+  onExitComplete?: () => void;
+  custom?: unknown;
+  presenceAffectsLayout?: boolean;
+}) {
   return <>{children}</>;
 }
 
