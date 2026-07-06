@@ -1038,28 +1038,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <div className="grid grid-cols-2 gap-3">
                 {[
                   {
-                    key: 'withdrawable',
-                    label: 'Withdrawable Wallet',
-                    sub: 'Your money you can cash out',
-                    amount: withdrawableBalance,
-                    icon: Wallet,
-                    tone: 'text-emerald-600',
-                    ring: 'ring-emerald-500/30',
-                    bg: 'bg-emerald-500/10',
-                    onClick: () => { hapticTap(); setShowWallet(true); },
-                  },
-                  {
-                    key: 'operational',
-                    label: 'Operational Float',
-                    sub: 'Company money for rent & ops',
-                    amount: walletFloatBalance,
-                    icon: Banknote,
-                    tone: 'text-primary',
-                    ring: 'ring-primary/30',
-                    bg: 'bg-primary/10',
-                    onClick: () => { hapticTap(); setShowWallet(true); },
-                  },
-                  {
                     key: 'landlord',
                     label: 'Landlord Float',
                     sub: 'CFO funds for landlord payouts',
