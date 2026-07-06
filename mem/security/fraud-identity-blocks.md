@@ -17,6 +17,14 @@ ERRCODE 28000 when any identifier — including the normalized full_name — is
 blocked. This stops recycled accounts that reuse the same person's name with a
 fresh phone/email (e.g. "Kayaga Catherine").
 
+Phone is the strongest signal (a fraudster can rename but cannot change the
+underlying number), so `fraud_block_user_identifiers` sweeps EVERY phone /
+mobile-money number the account ever used — not just `profiles.phone` /
+`profiles.mobile_money_number`, but also all `withdrawal_requests.mobile_money_number`
+and `saved_payout_methods.momo_number` payout destinations — and blocks each as
+both `phone` and `mobile_money_number` (normalized to the last 9 digits). Add
+new payout-number sources to this sweep if more are introduced.
+
 Use `fraud_identity_blocks` and the `is_fraud_identifier_blocked` /
 `check_fraud_account_by_phone` / `check_fraud_account_by_email` /
 `check_fraud_account_by_name` helpers. Name normalization = lowercase, strip
