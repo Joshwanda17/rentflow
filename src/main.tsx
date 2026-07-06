@@ -53,7 +53,18 @@ try {
 // ships a service worker; this only cleans up workers from older installs so
 // devices stop serving a stale shell. The Lovable proxy already serves HTML
 // with no-cache, so the browser revalidates on every navigation.
+//
+// IMPORTANT: this runs ONCE per cleanup version, gated by a localStorage flag.
+// Previously it deleted every Cache Storage entry on every launch, which forced
+// slow cold re-fetches on low-end phones. Bump CACHE_CLEANUP_VERSION only when a
+// new legacy artifact must be purged.
+const CACHE_CLEANUP_VERSION = '2026-07-06';
 const cleanupServiceWorkersAndCaches = () => {
+  try {
+    if (localStorage.getItem('welile-cache-cleanup') === CACHE_CLEANUP_VERSION) {
+      return; // already cleaned for this version — skip the expensive work
+    }
+  } catch {}
   try {
     navigator.serviceWorker?.getRegistrations().then((regs) => {
       regs.forEach((r) => r.unregister());
@@ -65,6 +76,9 @@ const cleanupServiceWorkersAndCaches = () => {
         Promise.all(keys.map((k) => caches.delete(k)))
       ).catch(() => {});
     }
+  } catch {}
+  try {
+    localStorage.setItem('welile-cache-cleanup', CACHE_CLEANUP_VERSION);
   } catch {}
 };
 
