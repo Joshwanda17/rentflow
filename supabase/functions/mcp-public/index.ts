@@ -354,13 +354,132 @@ ${linkText}`;
   }
 });
 
+// src/lib/mcp-public/tools/estimate-supporter-returns.ts
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z4 } from "npm:zod@^4.4.3";
+var REWARD_RATE = 0.15;
+var DEFAULT_DURATIONS2 = [3, 6, 12];
+var MIN_AMOUNT = 2e4;
+var MAX_AMOUNT = 5e8;
+var MIN_MONTHS = 1;
+var MAX_MONTHS = 36;
+function project(amount, months) {
+  const monthlyReward = amount * REWARD_RATE;
+  const simpleEarnings = monthlyReward * months;
+  const simpleTotal = amount + simpleEarnings;
+  let balance = amount;
+  for (let m = 1; m <= months; m++) balance += balance * REWARD_RATE;
+  const compoundEarnings = balance - amount;
+  return {
+    durationMonths: months,
+    monthlyReward: Math.round(monthlyReward),
+    simpleEarnings: Math.round(simpleEarnings),
+    simpleTotal: Math.round(simpleTotal),
+    compoundEarnings: Math.round(compoundEarnings),
+    compoundTotal: Math.round(balance)
+  };
+}
+var ugx2 = (n) => `UGX ${Math.round(n).toLocaleString("en-US")}`;
+var estimate_supporter_returns_default = defineTool4({
+  name: "estimate_supporter_returns",
+  title: "Estimate Supporter Returns (illustrative)",
+  description: "Give a prospective Supporter an ILLUSTRATIVE Returns range in UGX for a chosen support amount over time (based on 15% monthly platform rewards), then return the free Supporter signup link. No sign-in required. The range spans simple (rewards paid out) to compounding (rewards reinvested) \u2014 it is an illustration only, not a guarantee; actual rates and terms are shown in the app after signup. Provide `amount` (UGX to support). Optionally provide `duration_months` (1-36) for one horizon, otherwise 3/6/12-month options are returned. Optional `referral_code` adds a referral signup link. (Terminology: Supporter, not lender; Returns, not interest.)",
+  inputSchema: {
+    amount: z4.number().describe("Amount to support in UGX (e.g. 500000). Illustration only."),
+    duration_months: z4.number().describe("Optional horizon in months (1-36). Omit to compare 3/6/12-month options.").optional(),
+    referral_code: z4.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: ({ amount, duration_months, referral_code }) => {
+    const { signupUrl, referralUrl } = buildSignupLinks({
+      referralCode: referral_code,
+      role: "supporter"
+    });
+    const linkText = referralUrl ? `Create a free Supporter account: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Create a free Supporter account: ${signupUrl}`;
+    if (!Number.isFinite(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
+      const text2 = `Please share a support amount between ${ugx2(MIN_AMOUNT)} and ${ugx2(MAX_AMOUNT)} for an illustrative estimate.
+
+${linkText}`;
+      return {
+        content: [{ type: "text", text: text2 }],
+        structuredContent: {
+          error: "invalid_amount",
+          min_amount: MIN_AMOUNT,
+          max_amount: MAX_AMOUNT,
+          signup_url: signupUrl,
+          referral_url: referralUrl,
+          currency: "UGX"
+        }
+      };
+    }
+    const roundedAmount = Math.round(amount);
+    let months;
+    if (duration_months != null) {
+      const m = Math.round(duration_months);
+      if (!Number.isFinite(m) || m < MIN_MONTHS || m > MAX_MONTHS) {
+        const text2 = `Horizon must be between ${MIN_MONTHS} and ${MAX_MONTHS} months. Try 3, 6, or 12 months.
+
+${linkText}`;
+        return {
+          content: [{ type: "text", text: text2 }],
+          structuredContent: {
+            error: "invalid_duration",
+            min_months: MIN_MONTHS,
+            max_months: MAX_MONTHS,
+            signup_url: signupUrl,
+            referral_url: referralUrl,
+            currency: "UGX"
+          }
+        };
+      }
+      months = [m];
+    } else {
+      months = [...DEFAULT_DURATIONS2];
+    }
+    const projections = months.map((m) => project(roundedAmount, m));
+    const lines = projections.map(
+      (p) => `\u2022 ${p.durationMonths} month${p.durationMonths === 1 ? "" : "s"}: Returns of ${ugx2(p.simpleEarnings)} (paid out) to ${ugx2(p.compoundEarnings)} (reinvested)`
+    ).join("\n");
+    const text = [
+      `Illustrative Returns for supporting ${ugx2(roundedAmount)} (UGX), at 15% monthly platform rewards:`,
+      "",
+      lines,
+      "",
+      "The range spans rewards paid out each month vs. reinvested (compounding). This is an illustration only \u2014 not a guarantee. Actual rates and terms are shown in the app after you create a free account.",
+      "",
+      linkText
+    ].join("\n");
+    return {
+      content: [{ type: "text", text }],
+      structuredContent: {
+        amount: roundedAmount,
+        illustrative: true,
+        monthly_reward_rate_pct: REWARD_RATE * 100,
+        projections: projections.map((p) => ({
+          duration_months: p.durationMonths,
+          monthly_reward: p.monthlyReward,
+          simple_earnings: p.simpleEarnings,
+          simple_total: p.simpleTotal,
+          compound_earnings: p.compoundEarnings,
+          compound_total: p.compoundTotal
+        })),
+        role: "supporter",
+        signup_url: signupUrl,
+        referral_url: referralUrl,
+        currency: "UGX"
+      }
+    };
+  }
+});
+
 // src/lib/mcp-public/index.ts
 var mcp_public_default = defineMcp({
   name: "welile-public-mcp",
   title: "Welile Receipts \u2014 Get Started",
   version: "0.1.0",
-  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Use `estimate_rent_access` when a prospective tenant gives a monthly rent (UGX) to return an indicative daily/total repayment ballpark plus the free tenant signup link \u2014 the figure is illustrative only, not an approval. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
-  tools: [how_welile_works_default, explore_welile_default, estimate_rent_access_default]
+  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Use `estimate_rent_access` when a prospective tenant gives a monthly rent (UGX) to return an indicative daily/total repayment ballpark plus the free tenant signup link \u2014 the figure is illustrative only, not an approval. Use `estimate_supporter_returns` when a prospective Supporter gives an amount (UGX) to return an illustrative Returns range (simple to compounding, at 15% monthly platform rewards) plus the free Supporter signup link \u2014 an illustration only, not a guarantee. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
+  tools: [how_welile_works_default, explore_welile_default, estimate_rent_access_default, estimate_supporter_returns_default]
 });
 
 // lovable-mcp-supabase-entry.ts
