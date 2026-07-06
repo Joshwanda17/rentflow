@@ -881,9 +881,12 @@ input[type="checkbox"], input[type="radio"] {
   max-width: 100%;
 }
 
-/* GPU compositing hints for smoother scrolling on low-RAM devices */
+/* Smoother scrolling on low-RAM devices.
+   NOTE: `will-change: scroll-position` was removed — it permanently promotes a
+   full-height composited layer that overruns the GPU texture budget on entry-
+   level Mali/Adreno GPUs and produces the rainbow tearing band. Momentum
+   scrolling + overscroll containment are enough and stay cheap. */
 .scroll-container {
-  will-change: scroll-position;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
@@ -1076,6 +1079,43 @@ html.android-compositor-safe [data-pull-to-refresh] > * {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   filter: none !important;
+}
+
+/* ===== LITE MODE (Android Go-class: <=3GB RAM / <=4 cores / reduced-motion /
+   Data Saver). Set by the runtime detector in main.tsx as `html.lite-mode`.
+   It also inherits every android-compositor-safe rule above. These extra rules
+   strip animation/compositing weight app-wide so entry-level phones stay
+   responsive and never tear. Progressive enhancement: the UI is fully usable
+   with no blur, no transforms, no heavy shadows. ===== */
+html.lite-mode *,
+html.lite-mode *::before,
+html.lite-mode *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+/* Keep a couple of essential feedback spinners visible. */
+html.lite-mode .animate-spin {
+  animation: spin 0.8s linear infinite !important;
+}
+html.lite-mode [class*="backdrop-blur"],
+html.lite-mode .glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html.lite-mode .shadow-2xl,
+html.lite-mode .shadow-xl,
+html.lite-mode .shadow-lg {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+/* Never leave a full-height composited layer on scroll shells in lite mode. */
+html.lite-mode .scroll-container,
+html.lite-mode .agent-dashboard-shell,
+html.lite-mode .agent-dashboard-main {
+  will-change: auto !important;
+  transform: none !important;
+  -webkit-transform: none !important;
 }
 
 /* Data-saver: hide decorative elements */

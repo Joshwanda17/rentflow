@@ -27,13 +27,44 @@ try {
     document.documentElement.classList.add('no-backdrop-blur');
     document.documentElement.classList.add('android-compositor-safe');
   }
+
+  // Low-end / Android Go-class detection. Any of these signals => "lite-mode":
+  // little RAM, few cores, explicit reduced-motion, or Data Saver. Lite-mode
+  // shares the android-compositor-safe rules (no blur, no big shadows, static
+  // motion) so entry-level devices (e.g. itel A08) render without GPU tearing.
+  const deviceMemory = (navigator as any).deviceMemory;
+  const cores = navigator.hardwareConcurrency;
+  const conn = (navigator as any).connection;
+  const prefersReducedMotion =
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+  const saveData = conn?.saveData === true;
+  const isLowEnd =
+    (typeof deviceMemory === 'number' && deviceMemory <= 3) ||
+    (typeof cores === 'number' && cores <= 4);
+  if (isLowEnd || prefersReducedMotion || saveData) {
+    document.documentElement.classList.add('lite-mode');
+    // Lite devices also get the compositor-safe path even on non-Android.
+    document.documentElement.classList.add('android-compositor-safe');
+    document.documentElement.classList.add('no-backdrop-blur');
+  }
 } catch {}
 
 // Unregister any service workers and clear leftover caches. The app no longer
 // ships a service worker; this only cleans up workers from older installs so
 // devices stop serving a stale shell. The Lovable proxy already serves HTML
 // with no-cache, so the browser revalidates on every navigation.
+//
+// IMPORTANT: this runs ONCE per cleanup version, gated by a localStorage flag.
+// Previously it deleted every Cache Storage entry on every launch, which forced
+// slow cold re-fetches on low-end phones. Bump CACHE_CLEANUP_VERSION only when a
+// new legacy artifact must be purged.
+const CACHE_CLEANUP_VERSION = '2026-07-06';
 const cleanupServiceWorkersAndCaches = () => {
+  try {
+    if (localStorage.getItem('welile-cache-cleanup') === CACHE_CLEANUP_VERSION) {
+      return; // already cleaned for this version — skip the expensive work
+    }
+  } catch {}
   try {
     navigator.serviceWorker?.getRegistrations().then((regs) => {
       regs.forEach((r) => r.unregister());
@@ -45,6 +76,9 @@ const cleanupServiceWorkersAndCaches = () => {
         Promise.all(keys.map((k) => caches.delete(k)))
       ).catch(() => {});
     }
+  } catch {}
+  try {
+    localStorage.setItem('welile-cache-cleanup', CACHE_CLEANUP_VERSION);
   } catch {}
 };
 
