@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from '@/lib/motion-lite';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, WalletMinimal, XCircle, RotateCcw } from 'lucide-react';

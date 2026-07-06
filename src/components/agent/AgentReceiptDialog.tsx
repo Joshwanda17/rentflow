@@ -9,7 +9,7 @@ import { Camera, Upload, X, Receipt, Loader2, CheckCircle2 } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '@/lib/motion-lite';
 
 interface AgentReceiptDialogProps {
   open: boolean;
