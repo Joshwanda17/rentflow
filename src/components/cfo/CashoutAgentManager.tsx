@@ -451,6 +451,11 @@ export function CashoutAgentManager() {
     return payouts.filter((p: any) => p.assigned_cashout_agent_id === selectedAgent.id);
   }, [selectedAgent, payouts]);
 
+  // Latest comment per payout — inline note on each processed-payout card.
+  const { data: latestClaimComments } = useLatestClaimComments(
+    selectedAgentPayouts.map((p: any) => p.id),
+  );
+
   // Commission the merchant actually earned on each settled payout — read from
   // their own wallet ledger legs (`<withdrawal_id>-cashout-commission`) so the
   // drill-down reconciles 1:1 with what landed in their withdrawable wallet.
