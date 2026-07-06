@@ -267,12 +267,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                   /* ─── Messages list ─── */
                   <div key="messages" className="py-4 space-y-1 animate-fade-in">
                     {messages.map((msg, idx) => (
-                      <motion.div
-                        key={msg.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.22 }}
-                      >
+                      <div key={msg.id} className="animate-fade-in">
                         {/* Message bubble */}
                         <div className={cn(
                           "px-4 py-1.5",
@@ -319,25 +314,16 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
 
                         {/* Share banner after last AI message */}
                         {msg.role === 'assistant' && msg.id !== 'streaming' && idx === messages.length - 1 && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="px-4 pt-2 pb-2 ml-[38px]"
-                          >
+                          <div className="px-4 pt-2 pb-2 ml-[38px] animate-fade-in">
                             <ShareWelileAIBanner />
-                          </motion.div>
+                          </div>
                         )}
-                      </motion.div>
+                      </div>
                     ))}
 
                     {/* Typing indicator */}
                     {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="px-4 py-2"
-                      >
+                      <div className="px-4 py-2 animate-fade-in">
                         <div className="flex gap-2.5">
                           <div className="h-7 w-7 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center flex-shrink-0 shadow-sm">
                             <Bot className="h-3.5 w-3.5 text-primary" />
@@ -352,13 +338,13 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                             ))}
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     )}
 
                     <div className="h-2" />
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
+              </>
             </div>
 
             {/* Scroll to bottom button */}
