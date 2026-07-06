@@ -82,6 +82,37 @@ const EARNING_CATEGORIES: Record<string, keyof EarningBreakdown> = {
   referral: 'referralBonus',
 };
 
+/**
+ * Ledger-derived earnings.
+ *
+ * The `general_ledger` (wallet scope) is the source of truth for every UGX an
+ * agent actually earned. The legacy `agent_earnings` table is populated
+ * inconsistently — for ~230 agents it is empty even though the ledger holds
+ * hundreds of commission legs — so agents saw "0 commission" while their wallet
+ * history clearly showed the credits. We now build the earnings feed straight
+ * from the ledger so what agents see matches their wallet history exactly.
+ *
+ * Maps a ledger `category` → the UI `earning_type` used by EARNING_CATEGORIES.
+ */
+const LEDGER_EARNING_CATEGORIES: Record<string, string> = {
+  agent_commission_earned: 'commission',
+  agent_commission: 'commission',
+  agent_investment_commission: 'investment_commission',
+  investment_commission: 'investment_commission',
+  proxy_investment_commission: 'investment_commission',
+  subagent_commission: 'subagent_commission',
+  subagent_override: 'subagent_commission',
+  referral_bonus: 'referral_bonus',
+  registration_bonus: 'registration_bonus',
+  verification_bonus: 'verification_bonus',
+  rent_funded_bonus: 'rent_funded_bonus',
+  facilitation_bonus: 'facilitation_bonus',
+  listing_bonus: 'listing_bonus',
+  approval_bonus: 'approval_bonus',
+  agent_bonus: 'other',
+};
+const LEDGER_EARNING_CATEGORY_LIST = Object.keys(LEDGER_EARNING_CATEGORIES);
+
 function buildBreakdown(data: Earning[]): EarningBreakdown {
   const b: EarningBreakdown = {
     rentCommission: 0, investmentCommission: 0, subagentCommission: 0,
@@ -173,13 +204,20 @@ export function useAgentEarnings() {
       return;
     }
 
-    // Fetch earnings, payouts, wallet, ledger, and source profiles in parallel
+    // Fetch earnings (from the authoritative ledger), payouts, wallet, accrual
+    // ledger, and source profiles in parallel. The ledger is the source of
+    // truth — the legacy `agent_earnings` table is populated inconsistently.
     const [earningsRes, payoutsRes, walletRes, ledgerRes] = await Promise.all([
       supabase
-        .from('agent_earnings')
-        .select('*')
-        .eq('agent_id', user.id)
-        .order('created_at', { ascending: false }),
+        .from('general_ledger')
+        .select('id, amount, category, description, created_at, linked_party')
+        .eq('user_id', user.id)
+        .eq('ledger_scope', 'wallet')
+        .in('category', LEDGER_EARNING_CATEGORY_LIST)
+        .in('direction', ['credit', 'cash_in'])
+        .neq('classification', 'admin_correction')
+        .order('created_at', { ascending: false })
+        .limit(1000),
       supabase
         .from('agent_commission_payouts')
         .select('amount, status')
@@ -205,7 +243,16 @@ export function useAgentEarnings() {
       return;
     }
 
-    const result: Earning[] = earningsRes.data || [];
+    // Map ledger rows → the Earning shape the UI consumes.
+    const result: Earning[] = (earningsRes.data || []).map((r) => ({
+      id: r.id,
+      amount: Number(r.amount),
+      earning_type: LEDGER_EARNING_CATEGORIES[r.category] || 'other',
+      description: r.description,
+      created_at: r.created_at,
+      source_user_id: r.linked_party ?? null,
+      rent_request_id: null,
+    }));
     const paidOut = (payoutsRes.data || []).reduce((sum, p) => sum + Number(p.amount), 0);
     const walletBalance = walletRes.data?.balance ? Number(walletRes.data.balance) : 0;
     const ledgerData = ledgerRes.data || [];
