@@ -444,6 +444,7 @@ export function CashoutAgentManager() {
       return s && new Date(s).toDateString() === todayStr;
     });
     const activeToday = new Set(todayPayouts.map((p: any) => p.assigned_cashout_agent_id).filter(Boolean)).size;
+    const chargesTotal = payouts.reduce((s: number, p: any) => s + getTelecomSendingCharge(Number(p.amount || 0)), 0);
     return {
       agentsCount: agents.length,
       activeToday,
@@ -451,6 +452,7 @@ export function CashoutAgentManager() {
       payoutsCount: payouts.length,
       todayCount: todayPayouts.length,
       pendingClaims,
+      chargesTotal,
       bankAmount: bank.reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
       momoAmount: momo.reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
       cashAmount: cash.reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
@@ -873,6 +875,9 @@ export function CashoutAgentManager() {
       <div className="grid grid-cols-2 gap-2">
         <KpiTile icon={<CheckCircle2 className="h-4 w-4" />} label="Completed Today" value={String(kpis.todayCount)} tone="muted" />
         <KpiTile icon={<Clock className="h-4 w-4" />} label="Active Claims" value={String(kpis.pendingClaims)} tone="muted" sub="in queue" />
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        <KpiTile icon={<Banknote className="h-4 w-4" />} label="Total Withdrawal Charges" value={formatUGX(kpis.chargesTotal)} tone="muted" sub="Bearer: Company · auto-computed" />
       </div>
 
       {/* Method breakdown */}
