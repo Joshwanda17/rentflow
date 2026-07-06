@@ -446,6 +446,10 @@ export function MerchantClaimsLog() {
 
   const rows = data || [];
 
+  // Latest comment per claim — shown inline on the merchant list so Finance can
+  // read status/notes without opening each claim.
+  const { data: latestComments } = useLatestClaimComments(rows.map(r => r.id));
+
   // The activity timestamp used for the tab + date-range filters:
   // "paid" claims filter on completedAt, "claimed" on claimedAt.
   const activityTs = (r: ClaimRow) => r.completedAt || r.claimedAt;
