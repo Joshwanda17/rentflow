@@ -900,7 +900,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     };
   }, [requests, repayments, sheetFrom, sheetTo]);
 
-  const availableRolesToAdd = ['agent', 'supporter', 'landlord'].filter(r => !userRoles.includes(r));
 
   if (loading) {
     return (
