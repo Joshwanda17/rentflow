@@ -24,3 +24,4 @@
 - [Merchant Agreement acceptance](mem://features/agent/merchant-agreement-acceptance) — Cash-Out agents must accept Welile Merchant Agent Agreement (gated payout tab); audited `merchant_agreement_acceptance` record + CFO sees signed status, details & PDF in Cash-Out Agents drill-down
 - [Fraud identity blocks](mem://security/fraud-identity-blocks) — Fraud-cutoff accounts permanently block tied phone/email/mobile-money identifiers from signup, login, withdrawals, and earning credits
 - [Cash-Out Claim Comments](mem://features/cfo/cashout-claim-comments) — Immutable per-claim comment timeline (cashout_claim_comments) on CFO Cash-Out Agents tab + Merchant Claims Log; company-borne auto charges
+- [Welile Homes agent-collection model](mem://features/welile-homes/agent-collection-model) — Agent-managed monthly rent collection + landlord payout; 10% fee = 2% agent / 8% Welile / 90% landlord; receivable×12 dues, fixed-day payouts, deposit auto-collect trigger, daily cron
