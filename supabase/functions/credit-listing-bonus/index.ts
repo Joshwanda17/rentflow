@@ -173,7 +173,109 @@ Deno.serve(async (req) => {
         });
       }
 
-      // pending_credit / pending_cfo / pending_landlord_ops / approved / rejected
+      // pending_credit → STUCK STATE SELF-HEAL.
+      // A prior invocation claimed the approval slot but never completed the
+      // ledger credit + verification (crash/timeout after the insert). Every
+      // retry used to short-circuit here and return "already pending_credit"
+      // WITHOUT ever setting verified=true — leaving the listing permanently
+      // stuck in the Verification Queue while the UI shows a success toast.
+      // Resume the flow: post the ledger (only if it never wrote), promote the
+      // approval to paid, and mark the listing + landlord verified.
+      if (existingApproval.status === "pending_credit") {
+        const now = new Date().toISOString();
+        const agentId = listing.agent_id;
+        if (!agentId) {
+          return new Response(JSON.stringify({ error: "No agent linked to this listing" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Has the ledger already written for this approval? (avoid double-credit)
+        const { data: existingLedger } = await adminClient
+          .from("general_ledger")
+          .select("transaction_group_id")
+          .eq("source_table", "listing_bonus_approvals")
+          .eq("source_id", existingApproval.id)
+          .limit(1);
+
+        let txGroupId: string | null = existingLedger?.[0]?.transaction_group_id ?? null;
+
+        if (!txGroupId) {
+          const { data: newTxGroupId, error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
+            entries: [
+              {
+                user_id: agentId,
+                amount: LISTING_BONUS,
+                direction: "cash_in",
+                category: "agent_commission_earned",
+                ledger_scope: "wallet",
+                source_table: "listing_bonus_approvals",
+                source_id: existingApproval.id,
+                description: `UGX ${LISTING_BONUS.toLocaleString()} house listing bonus — resumed on re-verification`,
+                currency: "UGX",
+                transaction_date: now,
+              },
+              {
+                direction: "cash_out",
+                amount: LISTING_BONUS,
+                category: "agent_commission_earned",
+                ledger_scope: "platform",
+                source_table: "listing_bonus_approvals",
+                source_id: existingApproval.id,
+                description: "Platform expense: agent listing bonus (resumed on re-verification)",
+                currency: "UGX",
+                transaction_date: now,
+              },
+            ],
+          });
+          if (ledgerErr) {
+            await adminClient
+              .from("listing_bonus_approvals")
+              .update({ status: "failed", rejection_reason: `Ledger write failed on resume: ${ledgerErr.message}` })
+              .eq("id", existingApproval.id);
+            return new Response(JSON.stringify({
+              error: `Ledger credit failed on resume — bonus rolled back: ${ledgerErr.message}`,
+              approval_id: existingApproval.id,
+              rolled_back: true,
+            }), {
+              status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          txGroupId = newTxGroupId as string;
+        }
+
+        // Promote to paid + apply verification flags (all idempotent).
+        await adminClient
+          .from("listing_bonus_approvals")
+          .update({
+            status: "paid",
+            cfo_approved_by: managerId,
+            cfo_approved_at: now,
+            cfo_notes: "Auto-approved on Landlord Ops verification (resumed stuck pending_credit)",
+            paid_at: now,
+            ledger_entry_id: txGroupId,
+          })
+          .eq("id", existingApproval.id);
+
+        await ensureVerified(adminClient, listing, managerId);
+
+        await adminClient
+          .from("house_listings")
+          .update({ listing_bonus_paid: true, listing_bonus_paid_at: now })
+          .eq("id", listing_id);
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Stuck verification resumed — listing verified & bonus credited",
+          approval_id: existingApproval.id,
+          resumed: true,
+          tx_group_id: txGroupId,
+        }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // pending_cfo / pending_landlord_ops / approved / rejected
       return new Response(JSON.stringify({
         message: `Bonus approval already ${existingApproval.status}`,
         approval_id: existingApproval.id,
