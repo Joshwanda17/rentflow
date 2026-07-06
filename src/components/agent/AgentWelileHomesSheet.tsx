@@ -366,8 +366,8 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   // new tenants) enroll immediately; a fresh tenant must verify their phone first.
   const submit = async () => {
     if (!agentId) return;
-    const rentNum = parseFloat(rent);
-    if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
+    const coreError = validateEnrollmentCore({ rent, payoutDay, hasSmartphone: hasPhone });
+    if (coreError) { toast({ title: coreError, variant: 'destructive' }); return; }
     // Require either a found tenant, or enough info to create a new one.
     if (!tenant) {
       if (!phone.trim()) { toast({ title: 'Enter the tenant phone', variant: 'destructive' }); return; }
