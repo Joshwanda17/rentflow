@@ -9,6 +9,7 @@ import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, start
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SignupSourceFunnel } from './SignupSourceFunnel';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
 type ReferralDateFilter = '6months' | 'today' | 'yesterday' | 'last_week';
@@ -435,6 +436,8 @@ export function CMODashboard() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      <SignupSourceFunnel start={start} end={end} />
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4">
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
