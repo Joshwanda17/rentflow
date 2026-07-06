@@ -92,20 +92,27 @@ export async function fetchUserRoles(
       let lastUsedRole: AppRole | null = null;
       try { lastUsedRole = localStorage.getItem('welile_last_role') as AppRole | null; } catch {}
 
-      // A user has made an explicit role choice when an admin forced one, they
-      // set a device preference, or they previously switched roles by hand.
-      const hasExplicitChoice =
+      // A user has made an explicit role choice when an admin forced one or they
+      // set a device preference by hand. For merchant (cash-out) agents we treat
+      // the agent console as their home, so a previously auto-selected
+      // last-used role does NOT count as an explicit choice — they should always
+      // fall back to the payout console.
+      const hasDevicePreference =
         !!forcedDefault
-        || (preferred !== 'auto' && userRoles.includes(preferred as AppRole))
-        || (!!lastUsedRole && userRoles.includes(lastUsedRole));
+        || (preferred !== 'auto' && userRoles.includes(preferred as AppRole));
+      const hasExplicitChoice =
+        hasDevicePreference
+        || (!cashoutDefault && !!lastUsedRole && userRoles.includes(lastUsedRole));
 
       const defaultForUser =
         forcedDefault
         ?? ((preferred !== 'auto' && userRoles.includes(preferred as AppRole)) ? preferred as AppRole
-        : (lastUsedRole && userRoles.includes(lastUsedRole)) ? lastUsedRole
+        // Merchant agents default straight to the agent console (ignoring a
+        // stale last-used role) so the pending withdrawals queue is visible.
         : (cashoutDefault
-          ?? ((intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-          : userRoles[0])));
+        ?? ((lastUsedRole && userRoles.includes(lastUsedRole)) ? lastUsedRole
+        : ((intendedRole && userRoles.includes(intendedRole)) ? intendedRole
+        : userRoles[0]))));
 
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
