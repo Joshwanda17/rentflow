@@ -149,7 +149,7 @@ export function SignupSourceFunnel({ start, end }: Props) {
         </div>
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h4 className="text-sm font-semibold mb-3">Source Breakdown</h4>
-          <ExecutiveDataTable data={tableData} columns={columns} loading={isLoading} emptyMessage="No signups in this range." />
+          <ExecutiveDataTable data={tableData} columns={columns} loading={isLoading} />
         </div>
       </div>
     </div>
