@@ -18806,50 +18806,157 @@ export type Database = {
         }
         Relationships: []
       }
+      welile_homes_monthly_dues: {
+        Row: {
+          agent_commission: number
+          agent_id: string | null
+          amount_collected: number
+          amount_due: number
+          collection_status: string
+          created_at: string
+          id: string
+          landlord_fee: number
+          landlord_id: string | null
+          landlord_net: number
+          ledger_transaction_id: string | null
+          payout_date: string
+          payout_status: string
+          period_month: string
+          subscription_id: string
+          tenant_id: string
+          updated_at: string
+          welile_net: number
+        }
+        Insert: {
+          agent_commission?: number
+          agent_id?: string | null
+          amount_collected?: number
+          amount_due?: number
+          collection_status?: string
+          created_at?: string
+          id?: string
+          landlord_fee?: number
+          landlord_id?: string | null
+          landlord_net?: number
+          ledger_transaction_id?: string | null
+          payout_date: string
+          payout_status?: string
+          period_month: string
+          subscription_id: string
+          tenant_id: string
+          updated_at?: string
+          welile_net?: number
+        }
+        Update: {
+          agent_commission?: number
+          agent_id?: string | null
+          amount_collected?: number
+          amount_due?: number
+          collection_status?: string
+          created_at?: string
+          id?: string
+          landlord_fee?: number
+          landlord_id?: string | null
+          landlord_net?: number
+          ledger_transaction_id?: string | null
+          payout_date?: string
+          payout_status?: string
+          period_month?: string
+          subscription_id?: string
+          tenant_id?: string
+          updated_at?: string
+          welile_net?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welile_homes_monthly_dues_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "welile_homes_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       welile_homes_subscriptions: {
         Row: {
+          agent_id: string | null
           created_at: string
           email_statements_enabled: boolean | null
+          enrolled_by: string | null
+          has_smartphone: boolean
           id: string
           landlord_id: string | null
+          landlord_name: string | null
+          landlord_phone: string | null
           landlord_registered: boolean
+          landlord_uses_wallet: boolean
           last_interest_applied_at: string | null
           last_statement_sent_at: string | null
+          mode: string
+          monthly_landlord_fee: number
           monthly_rent: number
           months_enrolled: number
+          next_due_date: string | null
           notes: string | null
+          outstanding_balance: number
+          payout_day: number
+          receivable_total: number
           subscription_status: string
           tenant_id: string
           total_savings: number
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           email_statements_enabled?: boolean | null
+          enrolled_by?: string | null
+          has_smartphone?: boolean
           id?: string
           landlord_id?: string | null
+          landlord_name?: string | null
+          landlord_phone?: string | null
           landlord_registered?: boolean
+          landlord_uses_wallet?: boolean
           last_interest_applied_at?: string | null
           last_statement_sent_at?: string | null
+          mode?: string
+          monthly_landlord_fee?: number
           monthly_rent?: number
           months_enrolled?: number
+          next_due_date?: string | null
           notes?: string | null
+          outstanding_balance?: number
+          payout_day?: number
+          receivable_total?: number
           subscription_status?: string
           tenant_id: string
           total_savings?: number
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           email_statements_enabled?: boolean | null
+          enrolled_by?: string | null
+          has_smartphone?: boolean
           id?: string
           landlord_id?: string | null
+          landlord_name?: string | null
+          landlord_phone?: string | null
           landlord_registered?: boolean
+          landlord_uses_wallet?: boolean
           last_interest_applied_at?: string | null
           last_statement_sent_at?: string | null
+          mode?: string
+          monthly_landlord_fee?: number
           monthly_rent?: number
           months_enrolled?: number
+          next_due_date?: string | null
           notes?: string | null
+          outstanding_balance?: number
+          payout_day?: number
+          receivable_total?: number
           subscription_status?: string
           tenant_id?: string
           total_savings?: number
@@ -20665,6 +20772,21 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      enroll_welile_home_tenant: {
+        Args: {
+          p_agent_id: string
+          p_has_smartphone?: boolean
+          p_landlord_id?: string
+          p_landlord_name?: string
+          p_landlord_phone?: string
+          p_landlord_uses_wallet?: boolean
+          p_monthly_rent: number
+          p_notes?: string
+          p_payout_day?: number
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       ensure_depositor_profile: { Args: { p_user_id: string }; Returns: string }
       expire_stale_cash_deposit_codes: { Args: never; Returns: number }
@@ -22920,6 +23042,19 @@ export type Database = {
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
         | { Args: { p_agent_id: string }; Returns: number }
+      welile_home_record_collection: {
+        Args: {
+          p_amount: number
+          p_notes?: string
+          p_source?: string
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
+      welile_home_run_landlord_payouts: {
+        Args: { p_as_of?: string }
+        Returns: Json
+      }
       welile_landlord_priority_breakdown: {
         Args: { p_since?: string }
         Returns: {
