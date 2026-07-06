@@ -92,10 +92,11 @@ export async function fetchUserRoles(
       try { lastUsedRole = localStorage.getItem('welile_last_role') as AppRole | null; } catch {}
       const defaultForUser =
         forcedDefault
+        ?? cashoutDefault
         ?? ((preferred !== 'auto' && userRoles.includes(preferred as AppRole)) ? preferred as AppRole
         : (lastUsedRole && userRoles.includes(lastUsedRole)) ? lastUsedRole
         : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-        : (cashoutDefault ?? userRoles[0]));
+        : userRoles[0]);
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
       }
