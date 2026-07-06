@@ -321,6 +321,8 @@ function AllocateDialog({ sub, onClose, onDone }: {
       const res = data as any;
       if (!res?.success) throw new Error(res?.error || 'Allocation failed');
       toast({ title: 'Rent allocated', description: `${formatUGX(res.amount_collected)} · you earned ${formatUGX(res.agent_commission)}` });
+      // Fire-and-forget: send the tenant an SMS receipt for this collection.
+      supabase.functions.invoke('welile-homes-sms-dispatch', { body: { since_minutes: 10 } }).catch(() => {});
       onClose();
       onDone();
     } catch (err: any) {
