@@ -40,6 +40,46 @@ const isMomo = (m: string | null) => ['mobile_money', 'mtn_mobile_money', 'airte
 const isBank = (m: string | null) => m === 'bank_transfer';
 const isCash = (m: string | null) => ['cash', 'cash_pickup'].includes(m || '') || !m;
 
+function ClaimCommentDialog({ claim, onClose }: { claim: any | null; onClose: () => void }) {
+  const charge = getTelecomSendingCharge(Number(claim?.amount || 0));
+  return (
+    <Dialog open={!!claim} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-primary" /> Claim comments
+          </DialogTitle>
+        </DialogHeader>
+        {claim && (
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-3 divide-y">
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-muted-foreground">Requested amount</span>
+                  <span className="text-sm font-medium">{formatUGX(Number(claim.amount || 0))}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-muted-foreground">Withdrawal charge</span>
+                  <span className="text-sm font-medium text-amber-600">{formatUGX(charge)}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-muted-foreground">Net paid to customer</span>
+                  <span className="text-sm font-bold">{formatUGX(Number(claim.amount || 0))}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-muted-foreground">Charge bearer</span>
+                  <Badge variant="outline" className="text-[10px]">Company</Badge>
+                </div>
+              </CardContent>
+            </Card>
+            <ClaimCommentTimeline withdrawalId={claim.id} />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function CashoutAgentManager() {
   const { user } = useAuth();
   const { toast } = useToast();
