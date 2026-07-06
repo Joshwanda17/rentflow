@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Plus, X, LucideIcon, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -38,106 +37,132 @@ interface SwipeableActionProps {
 }
 
 function SwipeableAction({ action, index, onAction }: SwipeableActionProps) {
-  const x = useMotionValue(0);
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startX = useRef(0);
   const hasTriggeredHaptic = useRef(false);
-  
-  const background = useTransform(
-    x,
-    [-100, 0, 100],
-    ['hsl(var(--destructive))', 'transparent', 'hsl(var(--primary))']
-  );
-  const opacity = useTransform(
-    x,
-    [-100, -50, 0, 50, 100],
-    [1, 0.5, 0, 0.5, 1]
-  );
-  const iconScale = useTransform(
-    x,
-    [-100, 0, 100],
-    [1.2, 1, 1.2]
-  );
+  const cardRef = useRef<HTMLButtonElement>(null);
+  const moved = useRef(false);
 
-  // Trigger haptic when crossing threshold during drag
-  x.on('change', (latest) => {
-    const threshold = 60;
-    if (Math.abs(latest) > threshold && !hasTriggeredHaptic.current) {
+  const ACTIVATE_THRESHOLD = 80;
+  const HAPTIC_THRESHOLD = 60;
+
+  const updateHaptic = (offset: number) => {
+    if (Math.abs(offset) > HAPTIC_THRESHOLD && !hasTriggeredHaptic.current) {
       hapticSelection();
       hasTriggeredHaptic.current = true;
-    } else if (Math.abs(latest) < threshold) {
+    } else if (Math.abs(offset) < HAPTIC_THRESHOLD) {
       hasTriggeredHaptic.current = false;
     }
-  });
+  };
 
-  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const threshold = 80;
-    if (Math.abs(info.offset.x) > threshold) {
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    startX.current = e.clientX;
+    moved.current = false;
+    setDragging(true);
+    cardRef.current?.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragging) return;
+    const offset = e.clientX - startX.current;
+    if (Math.abs(offset) > 4) moved.current = true;
+    // Elastic clamp for parity with previous dragElastic 0.3.
+    const clamped = Math.max(-140, Math.min(140, offset));
+    setDx(clamped);
+    updateHaptic(clamped);
+  };
+
+  const finish = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragging) return;
+    setDragging(false);
+    try { cardRef.current?.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    const offset = dx;
+    hasTriggeredHaptic.current = false;
+    setDx(0);
+    if (Math.abs(offset) > ACTIVATE_THRESHOLD) {
       hapticSuccess();
       onAction();
     }
   };
 
-  const handleTap = () => {
+  const handleClick = () => {
+    // Ignore the click synthesized at the end of a swipe gesture.
+    if (moved.current) {
+      moved.current = false;
+      return;
+    }
     hapticTap();
     onAction();
   };
 
+  // Derived visual feedback (previously useTransform-driven).
+  const progress = Math.min(Math.abs(dx) / 100, 1);
+  const indicatorOpacity = progress;
+  const iconScale = 1 + progress * 0.2;
+  const bg = dx === 0
+    ? 'transparent'
+    : dx < 0
+      ? 'hsl(var(--destructive))'
+      : 'hsl(var(--primary))';
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ 
-        opacity: 1, 
-        y: 0,
-        transition: {
-          type: 'spring',
-          stiffness: 400,
-          damping: 25,
-          delay: index * 0.05,
-        },
-      }}
-      className="relative overflow-hidden rounded-2xl"
+    <div
+      className="relative overflow-hidden rounded-2xl motion-lite-enter"
+      style={{ animationDelay: `${index * 0.05}s` }}
     >
       {/* Swipe indicator background */}
-      <motion.div 
-        style={{ background }}
+      <div
+        style={{ background: bg }}
         className="absolute inset-0 rounded-2xl flex items-center justify-between px-4"
       >
-        <motion.div style={{ opacity }} className="flex items-center gap-2 text-destructive-foreground">
+        <div
+          style={{ opacity: dx < 0 ? indicatorOpacity : 0 }}
+          className="flex items-center gap-2 text-destructive-foreground"
+        >
           <X className="h-5 w-5" />
           <span className="text-sm font-medium">Cancel</span>
-        </motion.div>
-        <motion.div style={{ opacity }} className="flex items-center gap-2 text-primary-foreground">
+        </div>
+        <div
+          style={{ opacity: dx > 0 ? indicatorOpacity : 0 }}
+          className="flex items-center gap-2 text-primary-foreground"
+        >
           <span className="text-sm font-medium">Run</span>
           <ChevronRight className="h-5 w-5" />
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* Draggable action card */}
-      <motion.button
-        style={{ x }}
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.3}
-        onDragEnd={handleDragEnd}
-        whileTap={{ scale: 0.98 }}
-        onClick={handleTap}
+      <button
+        ref={cardRef}
+        style={{
+          transform: `translateX(${dx}px)`,
+          transition: dragging ? 'none' : 'transform 0.2s ease-out',
+          touchAction: 'pan-y',
+        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finish}
+        onPointerCancel={finish}
+        onClick={handleClick}
         className={cn(
           "relative w-full flex items-center gap-4 p-4 rounded-2xl",
-          "bg-secondary/80 hover:bg-secondary",
+          "bg-secondary/80 hover:bg-secondary active:scale-[0.98]",
           "border border-border/50 hover:border-primary/30",
           "transition-colors duration-200 cursor-grab active:cursor-grabbing"
         )}
       >
-        <motion.div 
-          style={{ scale: iconScale }}
+        <div
+          style={{ transform: `scale(${iconScale})` }}
           className={cn(
-            "p-3 rounded-xl shrink-0",
-            action.variant === 'destructive' 
+            "p-3 rounded-xl shrink-0 transition-transform",
+            action.variant === 'destructive'
               ? "bg-destructive/10 text-destructive"
               : "bg-primary/10 text-primary"
           )}
         >
           <action.icon className="h-5 w-5" />
-        </motion.div>
+        </div>
         <div className="flex-1 text-left">
           <span className="text-sm font-medium text-foreground">
             {action.label}
@@ -147,8 +172,8 @@ function SwipeableAction({ action, index, onAction }: SwipeableActionProps) {
           </p>
         </div>
         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-      </motion.button>
-    </motion.div>
+      </button>
+    </div>
   );
 }
 
@@ -197,71 +222,6 @@ export function FloatingActionButton({
     'bottom-right': 'right-6 bottom-24 md:bottom-6',
     'bottom-left': 'left-6 bottom-24 md:bottom-6',
     'bottom-center': 'left-1/2 -translate-x-1/2 bottom-24 md:bottom-6',
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.1,
-      },
-    },
-    exit: {
-      opacity: 0,
-      transition: {
-        staggerChildren: 0.05,
-        staggerDirection: -1,
-      },
-    },
-  };
-
-  const actionVariants = {
-    hidden: { 
-      opacity: 0, 
-      y: 20, 
-      scale: 0.8,
-    },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      scale: 1,
-      transition: {
-        type: 'spring' as const,
-        stiffness: 400,
-        damping: 25,
-      },
-    },
-    exit: { 
-      opacity: 0, 
-      y: 10, 
-      scale: 0.8,
-      transition: {
-        duration: 0.15,
-      },
-    },
-  };
-
-  const mainButtonVariants = {
-    initial: { 
-      scale: 0, 
-      opacity: 0,
-      rotate: -180,
-    },
-    animate: { 
-      scale: 1, 
-      opacity: 1,
-      rotate: 0,
-      transition: {
-        type: 'spring' as const,
-        stiffness: 400,
-        damping: 20,
-        delay: 0.3,
-      },
-    },
-    tap: { scale: 0.95 },
-    hover: { scale: 1.05 },
   };
 
   const handleActionClick = (action: FABAction) => {
@@ -325,54 +285,42 @@ export function FloatingActionButton({
   }, [isOpen, isMobile, actions]);
 
   // Preview tooltip component for long-press
-  const PreviewTooltip = () => (
-    <AnimatePresence>
-      {showPreview && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.8, y: 10 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-          className="absolute bottom-full right-0 mb-3 pointer-events-none"
-        >
-          <div className="bg-background/95 backdrop-blur-md border border-border rounded-2xl shadow-2xl p-3 min-w-[200px]">
-            <p className="text-xs text-muted-foreground mb-2 text-center font-medium">
-              Quick Actions Preview
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {actions.map((action, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ 
-                    opacity: 1, 
-                    scale: 1,
-                    transition: { delay: index * 0.05 }
-                  }}
-                  className="flex flex-col items-center gap-1"
-                >
-                  <div className={cn(
-                    "p-2.5 rounded-xl",
-                    action.variant === 'destructive'
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-primary/10 text-primary"
-                  )}>
-                    <action.icon className="h-4 w-4" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground max-w-[60px] text-center truncate">
-                    {action.label}
-                  </span>
-                </motion.div>
-              ))}
-            </div>
-            <p className="text-[10px] text-muted-foreground/70 mt-2 text-center">
-              Release to dismiss • Tap to open
-            </p>
+  const PreviewTooltip = () => {
+    if (!showPreview) return null;
+    return (
+      <div className="absolute bottom-full right-0 mb-3 pointer-events-none motion-lite-enter">
+        <div className="bg-background/95 backdrop-blur-md border border-border rounded-2xl shadow-2xl p-3 min-w-[200px]">
+          <p className="text-xs text-muted-foreground mb-2 text-center font-medium">
+            Quick Actions Preview
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {actions.map((action, index) => (
+              <div
+                key={index}
+                className="flex flex-col items-center gap-1 motion-lite-enter"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <div className={cn(
+                  "p-2.5 rounded-xl",
+                  action.variant === 'destructive'
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-primary/10 text-primary"
+                )}>
+                  <action.icon className="h-4 w-4" />
+                </div>
+                <span className="text-[10px] text-muted-foreground max-w-[60px] text-center truncate">
+                  {action.label}
+                </span>
+              </div>
+            ))}
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+          <p className="text-[10px] text-muted-foreground/70 mt-2 text-center">
+            Release to dismiss • Tap to open
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   // Mobile: Use bottom sheet drawer with swipeable actions
   if (isMobile) {
@@ -380,17 +328,11 @@ export function FloatingActionButton({
       <>
         <div className={cn('fixed z-50', positionClasses[position], className)}>
           <PreviewTooltip />
-          <motion.div
-            variants={mainButtonVariants}
-            initial="initial"
-            animate="animate"
-            whileTap="tap"
-            whileHover="hover"
-          >
+          <div className="motion-lite-pop">
             <Button
               size="icon"
               className={cn(
-                "h-14 w-14 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300",
+                "h-14 w-14 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 active:scale-95",
                 "bg-primary hover:bg-primary/90",
                 isOpen && "bg-destructive hover:bg-destructive/90"
               )}
@@ -402,7 +344,7 @@ export function FloatingActionButton({
             >
               <Plus className="h-6 w-6" />
             </Button>
-          </motion.div>
+          </div>
         </div>
 
         <Drawer open={isOpen} onOpenChange={setIsOpen}>
@@ -435,60 +377,40 @@ export function FloatingActionButton({
       {/* Long-press preview tooltip */}
       <PreviewTooltip />
       {/* Action buttons */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="absolute bottom-16 right-0 flex flex-col-reverse gap-3 items-end"
-          >
-            {actions.map((action, index) => (
-              <motion.div
-                key={index}
-                variants={actionVariants}
-                className="flex items-center gap-3"
+      {isOpen && (
+        <div className="absolute bottom-16 right-0 flex flex-col-reverse gap-3 items-end">
+          {actions.map((action, index) => (
+            <div
+              key={index}
+              className="flex items-center gap-3 motion-lite-enter"
+              style={{ animationDelay: `${index * 0.06}s` }}
+            >
+              <span className="px-3 py-1.5 bg-background/95 backdrop-blur-sm border border-border rounded-lg text-sm font-medium shadow-lg whitespace-nowrap flex items-center gap-2">
+                {action.label}
+                <kbd className="hidden md:inline-flex items-center justify-center h-5 w-5 text-[10px] font-mono bg-muted rounded border border-border/50">
+                  {index + 1}
+                </kbd>
+              </span>
+              <Button
+                size="icon"
+                variant={action.variant || 'secondary'}
+                className="h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-shadow relative active:scale-95"
+                onClick={() => handleActionClick(action)}
               >
-                <motion.span
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 10 }}
-                  transition={{ delay: 0.1 + index * 0.05 }}
-                  className="px-3 py-1.5 bg-background/95 backdrop-blur-sm border border-border rounded-lg text-sm font-medium shadow-lg whitespace-nowrap flex items-center gap-2"
-                >
-                  {action.label}
-                  <kbd className="hidden md:inline-flex items-center justify-center h-5 w-5 text-[10px] font-mono bg-muted rounded border border-border/50">
-                    {index + 1}
-                  </kbd>
-                </motion.span>
-                <Button
-                  size="icon"
-                  variant={action.variant || 'secondary'}
-                  className="h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-shadow relative"
-                  onClick={() => handleActionClick(action)}
-                >
-                  <action.icon className="h-5 w-5" />
-                </Button>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <action.icon className="h-5 w-5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main FAB button */}
-      <motion.div
-        variants={mainButtonVariants}
-        initial="initial"
-        animate="animate"
-        whileTap="tap"
-        whileHover="hover"
-      >
+      <div className="motion-lite-pop">
         <Button
           size="icon"
           data-fab-trigger
           className={cn(
-            "h-14 w-14 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300",
+            "h-14 w-14 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 active:scale-95 hover:scale-105",
             "bg-primary hover:bg-primary/90",
             isOpen && "bg-destructive hover:bg-destructive/90"
           )}
@@ -500,31 +422,26 @@ export function FloatingActionButton({
           aria-label={isOpen ? "Close quick actions" : "Open quick actions"}
           aria-expanded={isOpen}
         >
-          <motion.div
-            animate={{ rotate: isOpen ? 45 : 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          <div
+            className="transition-transform duration-200"
+            style={{ transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}
           >
             {isOpen ? (
               <X className="h-6 w-6" />
             ) : (
               <Plus className="h-6 w-6" />
             )}
-          </motion.div>
+          </div>
         </Button>
-      </motion.div>
+      </div>
 
       {/* Backdrop */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/20 backdrop-blur-[2px] -z-10"
-            onClick={() => setIsOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-background/20 backdrop-blur-[2px] -z-10 motion-lite-enter"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
     </div>
   );
 }
