@@ -255,6 +255,13 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       if (error) throw error;
       const res = data as any;
       if (!res?.success) throw new Error(res?.error || 'Enrollment failed');
+      // For a freshly created tenant, send a one-time onboarding SMS so they can
+      // confirm their details and know receipts are coming. Fire-and-forget.
+      if (!tenant && tenantId) {
+        supabase.functions.invoke('welile-home-tenant-onboarding-sms', {
+          body: { tenant_id: tenantId, subscription_id: res.subscription_id, monthly_rent: rentNum },
+        }).catch(() => {});
+      }
       toast({
         title: tenant ? 'Tenant enrolled' : 'Tenant created & enrolled',
         description: `${formatUGX(rentNum)}/mo · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
