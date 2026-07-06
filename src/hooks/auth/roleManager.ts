@@ -67,6 +67,24 @@ export async function fetchUserRoles(
         if (forced && userRoles.includes(forced)) forcedDefault = forced;
       } catch {/* non-blocking */}
 
+      // Active Merchant (Cash-Out) Agents are SOLELY payout operators: their
+      // payout console lives on the agent dashboard. Multi-role field agents
+      // often have `tenant` first in userRoles, so without this they'd default
+      // to the tenant dashboard and never see the pending withdrawals queue.
+      // When they have no explicit preference, default them to `agent`.
+      let cashoutDefault: AppRole | null = null;
+      if (userRoles.includes('agent')) {
+        try {
+          const { data: cashoutRow } = await supabase
+            .from('cashout_agents')
+            .select('id')
+            .eq('agent_id', userId)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (cashoutRow) cashoutDefault = 'agent';
+        } catch {/* non-blocking */}
+      }
+
       // Then check user's device preference, then last-used role, then intended role
       const preferred = getPreferredDefaultRole();
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
@@ -77,6 +95,7 @@ export async function fetchUserRoles(
         ?? ((preferred !== 'auto' && userRoles.includes(preferred as AppRole)) ? preferred as AppRole
         : (lastUsedRole && userRoles.includes(lastUsedRole)) ? lastUsedRole
         : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
+        : cashoutDefault
         : userRoles[0]);
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
