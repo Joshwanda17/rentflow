@@ -25,6 +25,9 @@ import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDial
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge, getCashoutCommission } from '@/lib/cashoutCharges';
 import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/merchantAgreementPdf';
+import { ClaimCommentTimeline } from './ClaimCommentTimeline';
+import { useLatestClaimComments, type CashoutClaimComment } from '@/hooks/useCashoutClaimComments';
+import { MessageSquare } from 'lucide-react';
 
 // A payout only counts as "processed" once the Merchant Agent has executed disbursement.
 // `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
@@ -49,6 +52,7 @@ export function CashoutAgentManager() {
   const [label, setLabel] = useState('');
   const [cashoutAgent, setCashoutAgent] = useState<any>(null);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
+  const [commentClaim, setCommentClaim] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
