@@ -665,7 +665,7 @@ export function TenantMenuDrawer({
                 Welile · Tenant
               </p>
             </div>
-          </motion.div>
+          </div>
 
           {/* Long-press quick actions */}
           <Sheet open={!!quickAction} onOpenChange={(o) => !o && setQuickAction(null)}>
@@ -718,8 +718,6 @@ export function TenantMenuDrawer({
               )}
             </SheetContent>
           </Sheet>
-        </>
-      )}
-    </AnimatePresence>
+    </>
   );
 }
