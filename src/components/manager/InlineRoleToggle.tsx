@@ -83,17 +83,24 @@ function SwipeableRoleBadge({
   canRemove: boolean;
   onRemove: () => void;
 }) {
-  const x = useMotionValue(0);
-  const deleteOpacity = useTransform(x, [-60, -30], [1, 0]);
-  const deleteScale = useTransform(x, [-60, -30], [1, 0.8]);
-  const badgeOpacity = useTransform(x, [-80, -60], [0.5, 1]);
-  
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startX = useRef(0);
+  const swipeRef = useRef<HTMLDivElement>(null);
+
   // Long press state
   const [longPressProgress, setLongPressProgress] = useState(0);
   const [isLongPressing, setIsLongPressing] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDragging = useRef(false);
+
+  // Derived visual feedback (previously useTransform-driven).
+  // dx range is clamped to [-80, 0]. Reveal delete affordance as user swipes left.
+  const revealed = Math.min(Math.max(-dx, 0), 80);
+  const deleteOpacity = Math.min(revealed / 30, 1);        // 0 at 0px → 1 at 30px+
+  const deleteScale = 0.8 + Math.min(revealed / 60, 1) * 0.2; // 0.8 → 1
+  const badgeOpacity = 0.5 + Math.min(revealed / 80, 1) * 0.5; // 0.5 → 1 (kept subtle)
   
   const clearTimers = useCallback(() => {
     if (longPressTimer.current) {
@@ -146,42 +153,70 @@ function SwipeableRoleBadge({
     isDragging.current = true;
     clearTimers();
   }, [clearTimers]);
-  
-  const handleDragEnd = (_: any, info: PanInfo) => {
+
+  // ---- Native pointer-based horizontal swipe (replaces framer-motion drag) ----
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!canRemove || isLoading) return;
+    startX.current = e.clientX;
+    setDragging(true);
+    swipeRef.current?.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+    const offset = e.clientX - startX.current;
+    if (Math.abs(offset) > 4) {
+      isDragging.current = true;
+      clearTimers();
+    }
+    // Constrain to left swipe only (dragConstraints left: -80, right: 0) + light elastic.
+    const clamped = Math.max(-90, Math.min(0, offset));
+    setDx(clamped);
+  };
+
+  const finishSwipe = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+    setDragging(false);
+    try { swipeRef.current?.releasePointerCapture(e.pointerId); } catch { /* noop */ }
     const threshold = -50;
-    
-    if (info.offset.x < threshold && canRemove) {
+    if (dx < threshold && canRemove) {
       hapticSuccess();
-      animate(x, -100, { duration: 0.2 });
+      setDx(-100);
       setTimeout(() => {
+        setDx(0);
         onRemove();
-      }, 100);
+      }, 150);
     } else {
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      setDx(0);
     }
   };
 
   return (
     <div className="relative overflow-visible">
       {/* Delete indicator behind the badge */}
-      <motion.div 
+      <div
         className="absolute inset-y-0 right-0 flex items-center justify-end pr-2 pointer-events-none"
-        style={{ opacity: deleteOpacity, scale: deleteScale }}
+        style={{ opacity: deleteOpacity, transform: `scale(${deleteScale})` }}
       >
         <div className="bg-destructive text-destructive-foreground rounded-full p-1.5">
           <Trash2 className="h-3 w-3" />
         </div>
-      </motion.div>
+      </div>
       
       {/* Swipeable badge with long-press */}
-      <motion.div
-        drag={canRemove && !isLoading ? 'x' : false}
-        dragConstraints={{ left: -80, right: 0 }}
-        dragElastic={0.1}
-        onDragEnd={handleDragEnd}
-        onDragStart={() => { isDragging.current = true; clearTimers(); }}
-        style={{ x, opacity: badgeOpacity }}
-        className="relative touch-pan-y"
+      <div
+        ref={swipeRef}
+        style={{
+          transform: `translateX(${dx}px)`,
+          opacity: badgeOpacity,
+          transition: dragging ? 'none' : 'transform 0.2s ease-out',
+          touchAction: 'pan-y',
+        }}
+        className="relative"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishSwipe}
+        onPointerCancel={finishSwipe}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchMove}
@@ -193,11 +228,9 @@ function SwipeableRoleBadge({
         >
           {/* Long press progress indicator */}
           {isLongPressing && canRemove && (
-            <motion.div 
+            <div
               className="absolute inset-0 bg-destructive/30 origin-left"
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: longPressProgress / 100 }}
-              transition={{ duration: 0.05 }}
+              style={{ transform: `scaleX(${longPressProgress / 100})`, transition: 'transform 0.05s linear' }}
             />
           )}
           
@@ -213,7 +246,7 @@ function SwipeableRoleBadge({
             <span className="text-[10px] opacity-60 ml-0.5 relative z-10">•</span>
           )}
         </Badge>
-      </motion.div>
+      </div>
     </div>
   );
 }
