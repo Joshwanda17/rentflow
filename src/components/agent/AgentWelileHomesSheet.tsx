@@ -703,8 +703,9 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
 
   const submit = async () => {
     if (!sub || !agentId) return;
+    const coreError = validateEnrollmentCore({ rent, payoutDay, hasSmartphone: hasPhone });
+    if (coreError) { toast({ title: coreError, variant: 'destructive' }); return; }
     const rentNum = parseFloat(rent);
-    if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
       const { data, error } = await supabase.rpc('edit_welile_home_enrollment', {
