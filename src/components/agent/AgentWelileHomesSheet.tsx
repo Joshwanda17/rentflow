@@ -277,6 +277,8 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
     } finally { setSearching(false); setSearched(true); }
   };
 
+  // Validate the form, then decide: existing tenants (or already OTP-verified
+  // new tenants) enroll immediately; a fresh tenant must verify their phone first.
   const submit = async () => {
     if (!agentId) return;
     const rentNum = parseFloat(rent);
@@ -286,6 +288,46 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       if (!phone.trim()) { toast({ title: 'Enter the tenant phone', variant: 'destructive' }); return; }
       if (newName.trim().length < 2) { toast({ title: 'Enter the tenant full name', variant: 'destructive' }); return; }
     }
+    if (tenant || otpDone) { await finalizeEnroll(); return; }
+    await sendOtp();
+  };
+
+  const sendOtp = async () => {
+    setOtpSending(true); setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'send', phone: phone.trim() },
+      });
+      if (error) throw new Error(error.message || 'Could not send the code');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setOtpValue('');
+      setStep('otp');
+      setCooldown(60);
+    } catch (err: any) {
+      toast({ title: 'Could not send verification code', description: err.message, variant: 'destructive' });
+    } finally { setOtpSending(false); }
+  };
+
+  const verifyOtp = async (code: string) => {
+    setOtpVerifying(true); setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'verify', phone: phone.trim(), otp: code },
+      });
+      if (error) throw new Error('Invalid or expired code');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      if (!(data as any)?.success) throw new Error('Verification failed');
+      setOtpDone(true);
+      await finalizeEnroll();
+    } catch (err: any) {
+      setOtpValue('');
+      setOtpError(err.message || 'Verification failed');
+    } finally { setOtpVerifying(false); }
+  };
+
+  const finalizeEnroll = async () => {
+    if (!agentId) return;
+    const rentNum = parseFloat(rent);
     setSubmitting(true);
     try {
       // Auto-create the tenant account when no existing profile was found.
@@ -326,7 +368,7 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
         }).catch(() => {});
       }
       toast({
-        title: tenant ? 'Tenant enrolled' : 'Tenant created & enrolled',
+        title: tenant ? 'Tenant enrolled' : 'Tenant verified & enrolled',
         description: `${formatUGX(rentNum)}/mo · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
       });
       reset();
@@ -334,6 +376,7 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       onDone();
     } catch (err: any) {
       toast({ title: 'Enrollment failed', description: err.message, variant: 'destructive' });
+      setStep('form');
     } finally { setSubmitting(false); }
   };
 
