@@ -119,7 +119,7 @@ export function ProxyPartnerDepositDialog({
               </div>
               {result.commission_earned > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Commission Earned (2%)</span>
+                  <span className="text-muted-foreground">Commission Earned (1%)</span>
                   <span className="font-mono font-bold text-primary">{formatUGX(result.commission_earned)}</span>
                 </div>
               )}
@@ -207,8 +207,8 @@ export function ProxyPartnerDepositDialog({
                 </div>
                 <div className="border-t border-success/20 pt-1 mt-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Your commission (2%)</span>
-                    <span className="font-mono font-bold text-sm text-primary">{formatUGX(amount * 0.02)}</span>
+                    <span className="text-sm text-muted-foreground">Your commission (1%)</span>
+                    <span className="font-mono font-bold text-sm text-primary">{formatUGX(Math.round(amount * 0.01))}</span>
                   </div>
                 </div>
               </div>
