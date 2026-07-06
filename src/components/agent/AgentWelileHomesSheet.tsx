@@ -718,6 +718,13 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
       if (error) throw error;
       const res = data as any;
       if (!res?.success) throw new Error(res?.error || 'Update failed');
+      // Notify the tenant that their dues/payout day changed. Fire-and-forget;
+      // the edge function is idempotent and no-ops when nothing meaningful changed.
+      if ((res.changes?.length ?? 0) > 0) {
+        supabase.functions.invoke('welile-home-enrollment-update-sms', {
+          body: { subscription_id: sub.id },
+        }).catch(() => {});
+      }
       toast({
         title: 'Enrollment updated',
         description: `${res.months_adjusted} upcoming ${res.months_adjusted === 1 ? 'month' : 'months'} adjusted · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
