@@ -561,14 +561,39 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
   const [payoutDay, setPayoutDay] = useState('5');
   const [hasPhone, setHasPhone] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [history, setHistory] = useState<EnrollmentAuditRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = useCallback(async (subscriptionId: string) => {
+    setHistoryLoading(true);
+    try {
+      const { data } = await supabase
+        .from('welile_homes_enrollment_audit')
+        .select('id, edited_by, changes, months_adjusted, created_at')
+        .eq('subscription_id', subscriptionId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      const rows = (data ?? []) as EnrollmentAuditRow[];
+      const editorIds = Array.from(new Set(rows.map((r) => r.edited_by)));
+      if (editorIds.length) {
+        const { data: profs } = await supabase
+          .from('profiles').select('id, full_name').in('id', editorIds);
+        const nameMap = new Map((profs ?? []).map((p: any) => [p.id, p.full_name]));
+        rows.forEach((r) => { r.editor_name = nameMap.get(r.edited_by) ?? 'Someone'; });
+      }
+      setHistory(rows);
+    } finally { setHistoryLoading(false); }
+  }, []);
 
   useEffect(() => {
     if (sub) {
       setRent(String(sub.monthly_rent ?? ''));
       setPayoutDay(String(sub.payout_day ?? 5));
       setHasPhone(!!sub.has_smartphone);
+      setHistory([]);
+      loadHistory(sub.id);
     }
-  }, [sub]);
+  }, [sub, loadHistory]);
 
   const submit = async () => {
     if (!sub || !agentId) return;
@@ -590,8 +615,8 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
         title: 'Enrollment updated',
         description: `${res.months_adjusted} upcoming ${res.months_adjusted === 1 ? 'month' : 'months'} adjusted · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
       });
-      onClose();
       onDone();
+      onClose();
     } catch (err: any) {
       toast({ title: 'Update failed', description: err.message, variant: 'destructive' });
     } finally { setSubmitting(false); }
