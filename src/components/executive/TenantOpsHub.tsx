@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sparkles, History, MapPin } from 'lucide-react';
+import { Sparkles, History, MapPin, Home } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
 import { AgentInactiveAlertBanner } from '@/components/ops/AgentInactiveAlertBanner';
 import { BehaviorDrawer } from '@/components/ops/BehaviorDrawer';
 import { TenantPhoneDuplicatePanel } from '@/components/ops/TenantPhoneDuplicatePanel';
+import { WelileHomesAdminPanel } from '@/components/ops/WelileHomesAdminPanel';
 import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY = 'tenant-ops-view-mode';
@@ -15,6 +17,7 @@ export function TenantOpsHub() {
   const [mode, setMode] = useState<'v2' | 'classic'>('v2');
   const [opsUserId, setOpsUserId] = useState<string | null>(null);
   const [behaviorTenantId, setBehaviorTenantId] = useState<string | null>(null);
+  const [welileHomesOpen, setWelileHomesOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,6 +50,14 @@ export function TenantOpsHub() {
           <MapPin className="h-3.5 w-3.5" /> Manage Locations
         </Button>
         <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setWelileHomesOpen(true)}
+          className="gap-1.5"
+        >
+          <Home className="h-3.5 w-3.5" /> Welile Homes
+        </Button>
+        <Button
           variant={mode === 'v2' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setAndSave('v2')}
@@ -69,6 +80,17 @@ export function TenantOpsHub() {
         tenantId={behaviorTenantId}
         onOpenChange={(open) => { if (!open) setBehaviorTenantId(null); }}
       />
+
+      <Sheet open={welileHomesOpen} onOpenChange={setWelileHomesOpen}>
+        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2"><Home className="h-5 w-5 text-primary" /> Welile Homes — Agent-Managed Tenants</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            <WelileHomesAdminPanel />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
