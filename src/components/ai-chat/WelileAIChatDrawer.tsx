@@ -77,6 +77,18 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
     if (!open) setKeyboardHeight(0);
   }, [open]);
 
+  const { mounted, visible } = useDrawerTransition(open);
+
+  // ESC to close
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onOpenChange(false); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onOpenChange]);
+
   // Auto-resize textarea
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
