@@ -1297,8 +1297,7 @@ export function AgentCashPayoutsTab() {
             Payout Activity
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            Every payout you've settled — Cash, Mobile Money &amp; Bank — with the commission you
-            earned on each. Updates live and reconciles with your wallet statement.
+            All settled payouts and the commission you earned on each.
           </p>
         </CardHeader>
         <CardContent className="pt-0 space-y-2">
