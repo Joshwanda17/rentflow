@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
@@ -49,22 +49,12 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
-import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
-import DepositFlow from '@/components/payments/DepositFlow';
-import WithdrawFlow from '@/components/payments/WithdrawFlow';
-import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
-import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
-import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
-import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
-import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
-import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequestDialog';
-import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebrationModal';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentUnblockToast } from '@/hooks/useAgentUnblockToast';
 import { useRecruiterOverrideToast } from '@/hooks/useRecruiterOverrideToast';
@@ -89,64 +79,29 @@ import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { useAgentDashboardRealtime } from '@/hooks/useAgentDashboardRealtime';
-import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
-import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
-import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
-import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
-import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
-import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
 import { AgentLandlordFloatCard } from '@/components/agent/AgentLandlordFloatCard';
 import { AgentPendingReceiptPanel } from '@/components/agent/AgentPendingReceiptPanel';
 import { AgentTenantHealthCard } from '@/components/agent/AgentTenantHealthCard';
 import { AgentVouchHighlightCard } from '@/components/agent/AgentVouchHighlightCard';
-import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
-import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLandlordFloatAllocationsDialog';
 import type { LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
-import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
-import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTracker';
-import { LandlordPayoutOtpAuditSheet } from '@/components/agent/LandlordPayoutOtpAuditSheet';
-import { FloatTransactionHistory } from '@/components/agent/FloatTransactionHistory';
 
 import { AgentNotificationBell } from '@/components/agent/AgentNotificationBell';
 import { DeviceSessionIndicator } from '@/components/agent/DeviceSessionIndicator';
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
-import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
-import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 import { AgentRequestPipelineView, type PipelineTab } from '@/components/agent/AgentRequestPipelineView';
 import { useAgentPipelineCounts } from '@/hooks/useAgentPipelineCounts';
-import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersSheet';
-import { FieldCollectDialog } from '@/components/agent/FieldCollectDialog';
 
-import { FieldCollectReconciliationSheet } from '@/components/agent/FieldCollectReconciliationSheet';
 import { getDuplicateEntries } from '@/lib/fieldCollectStore';
 import { FileWarning } from 'lucide-react';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
 import { FieldDepositQueueCard } from '@/components/agent/FieldDepositQueueCard';
-import { CollectFromReferenceDialog } from '@/components/agent/CollectFromReferenceDialog';
 
-import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentRatingCard } from '@/components/agent/AgentRatingCard';
-import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
-import { AgentAngelPoolInvestDialog } from '@/components/agent/AgentAngelPoolInvestDialog';
-import { ProxyInvestmentHistorySheet } from '@/components/agent/ProxyInvestmentHistorySheet';
-import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
-import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
-import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
-import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
-import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
-import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
-import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
-import { MyLandlordsSheet } from '@/components/agent/MyLandlordsSheet';
 import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
-import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
-import { ShareLandlordLinkDialog } from '@/components/agent/ShareLandlordLinkDialog';
-import { FunderManagementSheet } from '@/components/agent/FunderManagementSheet';
-import { AgentPartnerDashboardSheet } from '@/components/agent/AgentPartnerDashboardSheet';
-import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { StuckDepositsRepairPanel } from '@/components/wallet/StuckDepositsRepairPanel';
@@ -160,13 +115,6 @@ import { AgentTenantInlineList } from '@/components/agent/AgentTenantInlineList'
 import { AgentCapacityShareInline } from '@/components/agent/AgentCapacityShareInline';
 import { AgentDailyCardEmailPrompt } from '@/components/agent/AgentDailyCardEmailPrompt';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
-import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
-import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
-import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
-import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
-import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
-import BorrowLoanSheet from '@/components/vouch/borrower/BorrowLoanSheet';
-import RentPosterDialog from '@/components/agent/RentPosterDialog';
 
 // PDF form generators
 import {
@@ -181,13 +129,74 @@ import {
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
 import { AgentCashDepositCodesPanel } from '@/components/agent/AgentCashDepositCodesPanel';
-import { AgentVisitPaymentWizard } from '@/components/agent/AgentVisitPaymentWizard';
-import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTokenDialog';
-import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
-import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
-import { AgentCashPayoutsTab } from '@/components/agent/AgentCashPayoutsTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MissionBanner } from '@/components/mission/MissionBanner';
+
+// Lazy-loaded modals/sheets — code-split so their JS only downloads when opened.
+const FullScreenWalletSheet = lazy(() => import('@/components/wallet/FullScreenWalletSheet').then(m => ({ default: m.FullScreenWalletSheet })));
+const DepositFlow = lazy(() => import('@/components/payments/DepositFlow'));
+const WithdrawFlow = lazy(() => import('@/components/payments/WithdrawFlow'));
+const SendMoneyDialog = lazy(() => import('@/components/wallet/SendMoneyDialog').then(m => ({ default: m.SendMoneyDialog })));
+const CollectFromReferenceDialog = lazy(() => import('@/components/agent/CollectFromReferenceDialog').then(m => ({ default: m.CollectFromReferenceDialog })));
+const AgentMenuDrawer = lazy(() => import('@/components/agent/AgentMenuDrawer').then(m => ({ default: m.AgentMenuDrawer })));
+const RentPosterDialog = lazy(() => import('@/components/agent/RentPosterDialog'));
+const AgentDepositDialog = lazy(() => import('@/components/agent/AgentDepositDialog').then(m => ({ default: m.AgentDepositDialog })));
+const UnifiedRegistrationDialog = lazy(() => import('@/components/agent/UnifiedRegistrationDialog').then(m => ({ default: m.UnifiedRegistrationDialog })));
+const RegisterSubAgentDialog = lazy(() => import('@/components/agent/RegisterSubAgentDialog').then(m => ({ default: m.RegisterSubAgentDialog })));
+const AgentRentRequestDialog = lazy(() => import('@/components/agent/AgentRentRequestDialog'));
+const BusinessAdvanceRequestDialog = lazy(() => import('@/components/agent/BusinessAdvanceRequestDialog'));
+const CommissionCelebrationModal = lazy(() => import('@/components/agent/CommissionCelebrationModal').then(m => ({ default: m.CommissionCelebrationModal })));
+const EarningsRankSystemSheet = lazy(() => import('@/components/agent/EarningsRankSystemSheet').then(m => ({ default: m.EarningsRankSystemSheet })));
+const AgentManagedPropertyDialog = lazy(() => import('@/components/agent/AgentManagedPropertyDialog').then(m => ({ default: m.AgentManagedPropertyDialog })));
+const AgentManagedPropertiesSheet = lazy(() => import('@/components/agent/AgentManagedPropertiesSheet').then(m => ({ default: m.AgentManagedPropertiesSheet })));
+const AgentLandlordPayoutDialog = lazy(() => import('@/components/agent/AgentLandlordPayoutDialog').then(m => ({ default: m.AgentLandlordPayoutDialog })));
+const AgentLandlordPayoutFlow = lazy(() => import('@/components/agent/AgentLandlordPayoutFlow').then(m => ({ default: m.AgentLandlordPayoutFlow })));
+const AgentFloatPayoutWizard = lazy(() => import('@/components/agent/AgentFloatPayoutWizard').then(m => ({ default: m.AgentFloatPayoutWizard })));
+const AgentLandlordFloatAllocationsDialog = lazy(() => import('@/components/agent/AgentLandlordFloatAllocationsDialog').then(m => ({ default: m.AgentLandlordFloatAllocationsDialog })));
+const LandlordRecoveryLedger = lazy(() => import('@/components/agent/LandlordRecoveryLedger').then(m => ({ default: m.LandlordRecoveryLedger })));
+const FloatPayoutStatusTracker = lazy(() => import('@/components/agent/FloatPayoutStatusTracker').then(m => ({ default: m.FloatPayoutStatusTracker })));
+const LandlordPayoutOtpAuditSheet = lazy(() => import('@/components/agent/LandlordPayoutOtpAuditSheet').then(m => ({ default: m.LandlordPayoutOtpAuditSheet })));
+const FloatTransactionHistory = lazy(() => import('@/components/agent/FloatTransactionHistory').then(m => ({ default: m.FloatTransactionHistory })));
+const AgentMyRentRequestsSheet = lazy(() => import('@/components/agent/AgentMyRentRequestsSheet').then(m => ({ default: m.AgentMyRentRequestsSheet })));
+const AgentTenantsSheet = lazy(() => import('@/components/agent/AgentTenantsSheet').then(m => ({ default: m.AgentTenantsSheet })));
+const FieldCollectDialog = lazy(() => import('@/components/agent/FieldCollectDialog').then(m => ({ default: m.FieldCollectDialog })));
+const FieldCollectReconciliationSheet = lazy(() => import('@/components/agent/FieldCollectReconciliationSheet').then(m => ({ default: m.FieldCollectReconciliationSheet })));
+const AgentManagedUsersSheet = lazy(() => import('@/components/agent/AgentManagedUsersSheet').then(m => ({ default: m.AgentManagedUsersSheet })));
+const AgentTopUpTenantDialog = lazy(() => import('@/components/agent/AgentTopUpTenantDialog').then(m => ({ default: m.AgentTopUpTenantDialog })));
+const AgentInvestForPartnerDialog = lazy(() => import('@/components/agent/AgentInvestForPartnerDialog').then(m => ({ default: m.AgentInvestForPartnerDialog })));
+const ProxyInvestmentHistorySheet = lazy(() => import('@/components/agent/ProxyInvestmentHistorySheet').then(m => ({ default: m.ProxyInvestmentHistorySheet })));
+const AgentAngelPoolInvestDialog = lazy(() => import('@/components/agent/AgentAngelPoolInvestDialog').then(m => ({ default: m.AgentAngelPoolInvestDialog })));
+const AgentReceiptDialog = lazy(() => import('@/components/agent/AgentReceiptDialog').then(m => ({ default: m.AgentReceiptDialog })));
+const AgentLandlordMapSheet = lazy(() => import('@/components/agent/AgentLandlordMapSheet').then(m => ({ default: m.AgentLandlordMapSheet })));
+const RentalFinderSheet = lazy(() => import('@/components/agent/RentalFinderSheet').then(m => ({ default: m.RentalFinderSheet })));
+const ListEmptyHouseDialog = lazy(() => import('@/components/agent/ListEmptyHouseDialog').then(m => ({ default: m.ListEmptyHouseDialog })));
+const AgentListingsSheet = lazy(() => import('@/components/agent/AgentListingsSheet').then(m => ({ default: m.AgentListingsSheet })));
+const AgentVisitPaymentWizard = lazy(() => import('@/components/agent/AgentVisitPaymentWizard').then(m => ({ default: m.AgentVisitPaymentWizard })));
+const GeneratePaymentTokenDialog = lazy(() => import('@/components/agent/GeneratePaymentTokenDialog').then(m => ({ default: m.GeneratePaymentTokenDialog })));
+const RecordAgentCollectionDialog = lazy(() => import('@/components/agent/RecordAgentCollectionDialog').then(m => ({ default: m.RecordAgentCollectionDialog })));
+const AgentDepositCashDialog = lazy(() => import('@/components/agent/AgentDepositCashDialog').then(m => ({ default: m.AgentDepositCashDialog })));
+const NearbyTenantsSheet = lazy(() => import('@/components/agent/NearbyTenantsSheet').then(m => ({ default: m.NearbyTenantsSheet })));
+const MySubAgentsSheet = lazy(() => import('@/components/agent/MySubAgentsSheet').then(m => ({ default: m.MySubAgentsSheet })));
+const MyLandlordsSheet = lazy(() => import('@/components/agent/MyLandlordsSheet').then(m => ({ default: m.MyLandlordsSheet })));
+const QuickShareSubAgentSheet = lazy(() => import('@/components/agent/QuickShareSubAgentSheet').then(m => ({ default: m.QuickShareSubAgentSheet })));
+const ShareLandlordLinkDialog = lazy(() => import('@/components/agent/ShareLandlordLinkDialog').then(m => ({ default: m.ShareLandlordLinkDialog })));
+const FunderManagementSheet = lazy(() => import('@/components/agent/FunderManagementSheet').then(m => ({ default: m.FunderManagementSheet })));
+const AgentPartnerDashboardSheet = lazy(() => import('@/components/agent/AgentPartnerDashboardSheet').then(m => ({ default: m.AgentPartnerDashboardSheet })));
+const FinancialAgentSection = lazy(() => import('@/components/agent/FinancialAgentSection').then(m => ({ default: m.FinancialAgentSection })));
+const LendingAgentPortal = lazy(() => import('@/components/vouch/agent/LendingAgentPortal'));
+const BorrowLoanSheet = lazy(() => import('@/components/vouch/borrower/BorrowLoanSheet'));
+const PromissoryNoteDialog = lazy(() => import('@/components/agent/PromissoryNoteDialog').then(m => ({ default: m.PromissoryNoteDialog })));
+const AgentPromissoryNotesList = lazy(() => import('@/components/agent/AgentPromissoryNotesList').then(m => ({ default: m.AgentPromissoryNotesList })));
+const AgentAdvanceRequestForm = lazy(() => import('@/components/agent/AgentAdvanceRequestForm').then(m => ({ default: m.AgentAdvanceRequestForm })));
+const CreditAccessCard = lazy(() => import('@/components/CreditAccessCard').then(m => ({ default: m.CreditAccessCard })));
+const AgentCashPayoutsTab = lazy(() => import('@/components/agent/AgentCashPayoutsTab').then(m => ({ default: m.AgentCashPayoutsTab })));
+
+// Renders a lazy modal only while `when` is truthy, so its chunk stays
+// unloaded and it is absent from the render tree until first opened.
+function LazyModal({ when, children }: { when: unknown; children: React.ReactNode }) {
+  if (!when) return null;
+  return <Suspense fallback={null}>{children}</Suspense>;
+}
 
 interface AgentDashboardProps {
   user: User;
@@ -925,7 +934,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               >
                 {/* subtle shimmer strip */}
                 <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-                <div className="p-2 sm:p-3 rounded-xl bg-white/20 shrink-0 backdrop-blur-sm">
+                <div className="p-2 sm:p-3 rounded-xl bg-white/20 shrink-0">
                   <Banknote className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <div className="flex-1 text-left min-w-0 relative">
@@ -1182,7 +1191,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <AgentDeadTenantsBanner agentId={user.id} />
             <div
               className={cn(
-                "sticky z-10 -mx-4 px-3 sm:px-4 bg-background/95 backdrop-blur-md border-b border-border/40 overscroll-contain",
+                "sticky z-10 -mx-4 px-3 sm:px-4 bg-background border-b border-border/40 overscroll-contain",
                 submissionsExpanded && "pb-2.5 max-h-[42vh] sm:max-h-[55vh] overflow-y-auto"
               )}
               style={{ top: 'calc(4.5rem + env(safe-area-inset-top, 0px))' }}
@@ -1306,7 +1315,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </main>
       </div>
 
+      <LazyModal when={showWallet}>
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+      </LazyModal>
+      <LazyModal when={showQuickDeposit}>
       <DepositFlow
         open={showQuickDeposit}
         onOpenChange={setShowQuickDeposit}
@@ -1314,15 +1326,23 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         defaultPurpose="operational_float"
         requirePurposeChoice
       />
+      </LazyModal>
+      <LazyModal when={showQuickWithdraw}>
       <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={realWithdrawableBalance} />
+      </LazyModal>
+      <LazyModal when={showQuickTransfer}>
       <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
+      </LazyModal>
 
+      <LazyModal when={collectFromRefOpen}>
       <CollectFromReferenceDialog
         open={collectFromRefOpen}
         onOpenChange={setCollectFromRefOpen}
         agentId={user.id}
       />
+      </LazyModal>
       
+      <LazyModal when={menuOpen}>
       <AgentMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
@@ -1462,31 +1482,45 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setRentPosterOpen(true);
         }}
       />
+      </LazyModal>
 
+      <LazyModal when={rentPosterOpen}>
       <RentPosterDialog open={rentPosterOpen} onOpenChange={setRentPosterOpen} />
+      </LazyModal>
 
       {/* Existing Dialogs */}
+      <LazyModal when={depositOpen}>
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+      </LazyModal>
+      <LazyModal when={registerUserOpen}>
       <UnifiedRegistrationDialog 
         open={registerUserOpen} 
         onOpenChange={setRegisterUserOpen}
         onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
       />
+      </LazyModal>
+      <LazyModal when={inviteSubAgentOpen}>
       <RegisterSubAgentDialog
         open={inviteSubAgentOpen}
         onOpenChange={setInviteSubAgentOpen}
         onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
       />
+      </LazyModal>
+      <LazyModal when={rentRequestOpen}>
       <AgentRentRequestDialog 
         open={rentRequestOpen} 
         onOpenChange={setRentRequestOpen} 
         onSuccess={() => setRentRequestOpen(false)}
       />
+      </LazyModal>
+      <LazyModal when={businessAdvanceOpen}>
       <BusinessAdvanceRequestDialog
         open={businessAdvanceOpen}
         onOpenChange={setBusinessAdvanceOpen}
         onSuccess={() => refreshOfflineData()}
       />
+      </LazyModal>
+      <LazyModal when={!!commissionEvent}>
       <CommissionCelebrationModal
         open={!!commissionEvent}
         onClose={dismissCommission}
@@ -1494,16 +1528,30 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         businessName={commissionEvent?.businessName}
         repaymentAmount={commissionEvent?.repaymentAmount}
       />
+      </LazyModal>
+      <LazyModal when={earningsRankOpen}>
       <EarningsRankSystemSheet open={earningsRankOpen} onOpenChange={setEarningsRankOpen} />
+      </LazyModal>
+      <LazyModal when={managedPropertyOpen}>
       <AgentManagedPropertyDialog open={managedPropertyOpen} onOpenChange={setManagedPropertyOpen} onSuccess={refreshOfflineData} />
+      </LazyModal>
+      <LazyModal when={managedPropertiesSheetOpen}>
       <AgentManagedPropertiesSheet open={managedPropertiesSheetOpen} onOpenChange={setManagedPropertiesSheetOpen} onRequestPayout={(p) => { setPayoutProperty(p); setPayoutDialogOpen(true); }} />
+      </LazyModal>
+      <LazyModal when={payoutDialogOpen}>
       <AgentLandlordPayoutDialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen} property={payoutProperty} />
+      </LazyModal>
+      <LazyModal when={landlordPayoutFlowOpen}>
       <AgentLandlordPayoutFlow open={landlordPayoutFlowOpen} onOpenChange={setLandlordPayoutFlowOpen} />
+      </LazyModal>
+      <LazyModal when={floatPayoutOpen}>
       <AgentFloatPayoutWizard
         open={floatPayoutOpen}
         onOpenChange={(o) => { setFloatPayoutOpen(o); if (!o) setSelectedFloatAllocation(null); }}
         allocation={selectedFloatAllocation}
       />
+      </LazyModal>
+      <LazyModal when={floatAllocationsOpen}>
       <AgentLandlordFloatAllocationsDialog
         open={floatAllocationsOpen}
         onOpenChange={setFloatAllocationsOpen}
@@ -1517,12 +1565,24 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setTimeout(() => setFloatPayoutOpen(true), 250);
         }}
       />
+      </LazyModal>
+      <LazyModal when={recoveryLedgerOpen}>
       <LandlordRecoveryLedger open={recoveryLedgerOpen} onOpenChange={setRecoveryLedgerOpen} />
+      </LazyModal>
+      <LazyModal when={payoutStatusOpen}>
       <FloatPayoutStatusTracker open={payoutStatusOpen} onOpenChange={setPayoutStatusOpen} />
+      </LazyModal>
+      <LazyModal when={otpAuditOpen}>
       <LandlordPayoutOtpAuditSheet open={otpAuditOpen} onOpenChange={setOtpAuditOpen} />
+      </LazyModal>
+      <LazyModal when={floatHistoryOpen}>
       <FloatTransactionHistory open={floatHistoryOpen} onOpenChange={setFloatHistoryOpen} />
+      </LazyModal>
       <CreditVerificationButton />
+      <LazyModal when={myRentRequestsOpen}>
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
+      </LazyModal>
+      <LazyModal when={tenantsSheetOpen}>
       <AgentTenantsSheet
         open={tenantsSheetOpen}
         onOpenChange={(o) => {
@@ -1540,17 +1600,39 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         initialHighlightId={submissionsHighlightId}
         initialProfileTenantId={tenantProfileId}
       />
+      </LazyModal>
+      <LazyModal when={fieldCollectOpen}>
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
+      </LazyModal>
       
+      <LazyModal when={reconcileOpen}>
       <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
+      </LazyModal>
+      <LazyModal when={managedUsersOpen}>
       <AgentManagedUsersSheet open={managedUsersOpen} onOpenChange={setManagedUsersOpen} agentId={user.id} />
+      </LazyModal>
+      <LazyModal when={topUpTenantOpen}>
       <AgentTopUpTenantDialog open={topUpTenantOpen} onOpenChange={setTopUpTenantOpen} onSuccess={refreshOfflineData} />
+      </LazyModal>
+      <LazyModal when={investForPartnerOpen}>
       <AgentInvestForPartnerDialog open={investForPartnerOpen} onOpenChange={setInvestForPartnerOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
+      </LazyModal>
+      <LazyModal when={proxyHistoryOpen}>
       <ProxyInvestmentHistorySheet open={proxyHistoryOpen} onOpenChange={setProxyHistoryOpen} />
+      </LazyModal>
+      <LazyModal when={angelPoolInvestOpen}>
       <AgentAngelPoolInvestDialog open={angelPoolInvestOpen} onOpenChange={setAngelPoolInvestOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
+      </LazyModal>
+      <LazyModal when={receiptOpen}>
       <AgentReceiptDialog open={receiptOpen} onOpenChange={setReceiptOpen} />
+      </LazyModal>
+      <LazyModal when={landlordMapOpen}>
       <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
+      </LazyModal>
+      <LazyModal when={rentalFinderOpen}>
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
+      </LazyModal>
+      <LazyModal when={listHouseOpen}>
       <ListEmptyHouseDialog
         open={listHouseOpen}
         onOpenChange={(open) => {
@@ -1560,6 +1642,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onSuccess={refreshOfflineData}
         fromPromoBanner={listHouseFromPromo}
       />
+      </LazyModal>
+      <LazyModal when={myListingsOpen}>
       <AgentListingsSheet
         open={myListingsOpen}
         onOpenChange={(open) => {
@@ -1569,21 +1653,49 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         vacantOnly={myListingsVacantOnly}
         onListHouse={() => { setListHouseFromPromo(false); setListHouseOpen(true); }}
       />
+      </LazyModal>
 
       {/* Phase 1: Agent Operations Dialogs */}
+      <LazyModal when={visitDialogOpen}>
       <AgentVisitPaymentWizard open={visitDialogOpen} onOpenChange={setVisitDialogOpen} onSuccess={refreshOfflineData} />
+      </LazyModal>
+      <LazyModal when={tokenDialogOpen}>
       <GeneratePaymentTokenDialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen} />
+      </LazyModal>
+      <LazyModal when={recordCollectionOpen}>
       <RecordAgentCollectionDialog open={recordCollectionOpen} onOpenChange={setRecordCollectionOpen} />
+      </LazyModal>
+      <LazyModal when={depositCashOpen}>
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
+      </LazyModal>
+      <LazyModal when={nearbyTenantsOpen}>
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
+      </LazyModal>
+      <LazyModal when={subAgentsSheetOpen}>
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
+      </LazyModal>
+      <LazyModal when={landlordsSheetOpen}>
       <MyLandlordsSheet open={landlordsSheetOpen} onOpenChange={setLandlordsSheetOpen} />
+      </LazyModal>
+      <LazyModal when={shareLinkOpen}>
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
+      </LazyModal>
+      <LazyModal when={shareLandlordOpen}>
       <ShareLandlordLinkDialog open={shareLandlordOpen} onOpenChange={setShareLandlordOpen} />
+      </LazyModal>
+      <LazyModal when={funderSheetOpen}>
       <FunderManagementSheet open={funderSheetOpen} onOpenChange={setFunderSheetOpen} />
+      </LazyModal>
+      <LazyModal when={partnerDashboardOpen}>
       <AgentPartnerDashboardSheet open={partnerDashboardOpen} onOpenChange={setPartnerDashboardOpen} />
+      </LazyModal>
+      <LazyModal when={requisitionOpen}>
       <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
+      </LazyModal>
+      <LazyModal when={lendingAgentOpen}>
       <LendingAgentPortal open={lendingAgentOpen} onOpenChange={setLendingAgentOpen} />
+      </LazyModal>
+      <LazyModal when={borrowOpen}>
       <BorrowLoanSheet
         open={borrowOpen}
         onOpenChange={setBorrowOpen}
@@ -1592,8 +1704,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setLendingAgentOpen(true);
         }}
       />
+      </LazyModal>
 
       {/* Rent Fee Available (Credit Access) — opened from All Menu → Earnings */}
+      {creditOpen && (
       <Dialog open={creditOpen} onOpenChange={setCreditOpen}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader className="p-4 pb-3 border-b shrink-0">
@@ -1603,12 +1717,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto p-4">
-            <CreditAccessCard userId={user.id} />
+            <Suspense fallback={null}><CreditAccessCard userId={user.id} /></Suspense>
           </div>
         </DialogContent>
       </Dialog>
+      )}
 
       {/* Cash Payouts Dialog - only rendered for cashout agents */}
+      {cashPayoutsOpen && (
       <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg p-0 gap-0 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="p-4 pb-3 border-b shrink-0">
@@ -1618,14 +1734,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
-            <AgentCashPayoutsTab />
+            <Suspense fallback={null}><AgentCashPayoutsTab /></Suspense>
           </div>
         </DialogContent>
       </Dialog>
+      )}
 
+      <LazyModal when={promissoryNoteOpen}>
       <PromissoryNoteDialog open={promissoryNoteOpen} onOpenChange={setPromissoryNoteOpen} />
+      </LazyModal>
+      <LazyModal when={promissoryListOpen}>
       <AgentPromissoryNotesList open={promissoryListOpen} onOpenChange={setPromissoryListOpen} />
+      </LazyModal>
+      <LazyModal when={advanceRequestOpen}>
       <AgentAdvanceRequestForm open={advanceRequestOpen} onOpenChange={setAdvanceRequestOpen} />
+      </LazyModal>
 
     </div>
     </AgentFrozenGate>
