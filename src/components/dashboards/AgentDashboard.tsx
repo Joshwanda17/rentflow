@@ -193,7 +193,7 @@ const AgentCashPayoutsTab = lazy(() => import('@/components/agent/AgentCashPayou
 
 // Renders a lazy modal only while `when` is truthy, so its chunk stays
 // unloaded and it is absent from the render tree until first opened.
-function LazyModal({ when, children }: { when: unknown; children: React.ReactNode }) {
+function LazyModal({ when, children }: { when: unknown; children: ReactNode }) {
   if (!when) return null;
   return <Suspense fallback={null}>{children}</Suspense>;
 }
