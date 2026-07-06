@@ -773,8 +773,10 @@ Deno.serve(async (req) => {
       resolvedCodeOnFile = onFileCode;
     }
 
-    // Only allow approval of pending/requested/manager_approved/rejected (re-approval)
-    const approvableStatuses = ["pending", "requested", "manager_approved", "rejected"];
+    // Only allow approval of live, unpaid requests. Re-approving `rejected`
+    // requests is blocked because old refund paths could restore balance after
+    // physical payout, then allow the same row to be approved again.
+    const approvableStatuses = ["pending", "requested", "manager_approved"];
     if (!approvableStatuses.includes(wr.status)) {
       return new Response(JSON.stringify({ error: `Cannot approve: withdrawal is already '${wr.status}'` }), {
         status: 409,
