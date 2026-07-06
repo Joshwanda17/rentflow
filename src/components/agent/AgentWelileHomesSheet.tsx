@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil } from 'lucide-react';
 
 interface WHSubscription {
   id: string;
