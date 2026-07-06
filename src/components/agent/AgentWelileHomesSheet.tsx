@@ -26,8 +26,32 @@ interface WHSubscription {
   payout_day: number;
   next_due_date: string | null;
   landlord_name: string | null;
+  created_at?: string;
   tenant_name?: string;
   tenant_phone?: string;
+  tenant_verified?: boolean;
+  tenant_last_active?: string | null;
+  newly_created?: boolean;
+}
+
+type EnrollStatus = {
+  label: string;
+  ready: boolean;
+  className: string;
+};
+
+// Derive an enrollment verification / readiness status for the agent's list.
+function getEnrollStatus(s: WHSubscription): EnrollStatus {
+  if (s.tenant_verified) {
+    return { label: 'Verified · ready to collect', ready: true, className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600' };
+  }
+  if (s.tenant_last_active) {
+    return { label: 'Confirmed · ready to collect', ready: true, className: 'border-blue-500/40 bg-blue-500/10 text-blue-600' };
+  }
+  if (s.newly_created) {
+    return { label: 'New account · pending confirmation', ready: false, className: 'border-amber-500/40 bg-amber-500/10 text-amber-600' };
+  }
+  return { label: 'Matched profile · ready to collect', ready: true, className: 'border-muted-foreground/30 bg-muted text-muted-foreground' };
 }
 
 interface AgentWelileHomesSheetProps {
@@ -51,7 +75,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
     try {
       const { data: rows, error } = await supabase
         .from('welile_homes_subscriptions')
-        .select('id, tenant_id, monthly_rent, outstanding_balance, receivable_total, has_smartphone, landlord_uses_wallet, payout_day, next_due_date, landlord_name')
+        .select('id, tenant_id, monthly_rent, outstanding_balance, receivable_total, has_smartphone, landlord_uses_wallet, payout_day, next_due_date, landlord_name, created_at')
         .eq('agent_id', user.id)
         .eq('mode', 'agent_collection')
         .order('created_at', { ascending: false });
@@ -60,12 +84,17 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
       const tenantIds = list.map((s) => s.tenant_id);
       if (tenantIds.length) {
         const { data: profs } = await supabase
-          .from('profiles').select('id, full_name, phone').in('id', tenantIds);
+          .from('profiles').select('id, full_name, phone, verified, last_active_at, created_at').in('id', tenantIds);
         const map = new Map((profs ?? []).map((p: any) => [p.id, p]));
         list.forEach((s) => {
           const p = map.get(s.tenant_id);
           s.tenant_name = p?.full_name ?? 'Tenant';
           s.tenant_phone = p?.phone ?? '';
+          s.tenant_verified = !!p?.verified;
+          s.tenant_last_active = p?.last_active_at ?? null;
+          // "Newly created" = the tenant profile was created at (≈) enrollment time.
+          s.newly_created = !!(p?.created_at && s.created_at &&
+            Math.abs(new Date(p.created_at).getTime() - new Date(s.created_at).getTime()) < 5 * 60 * 1000);
         });
       }
       setSubs(list);
@@ -92,6 +121,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   useEffect(() => { if (open) load(); }, [open, load]);
 
   const totalReceivable = subs.reduce((a, s) => a + (Number(s.receivable_total) || 0), 0);
+  const pendingConfirmation = subs.filter((s) => !getEnrollStatus(s).ready).length;
 
   return (
     <>
@@ -124,6 +154,13 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
               </CardContent></Card>
             </div>
 
+            {pendingConfirmation > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                {pendingConfirmation} new {pendingConfirmation === 1 ? 'tenant is' : 'tenants are'} pending confirmation. They'll show as ready once they confirm their details.
+              </div>
+            )}
+
             <Button className="w-full gap-2" onClick={() => setEnrollOpen(true)}>
               <Plus className="h-4 w-4" /> Enroll a tenant
             </Button>
@@ -146,6 +183,15 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                         </div>
                         {!s.has_smartphone && <Badge variant="outline" className="shrink-0">No phone</Badge>}
                       </div>
+                      {(() => {
+                        const st = getEnrollStatus(s);
+                        return (
+                          <Badge variant="outline" className={`gap-1 font-normal ${st.className}`}>
+                            {st.ready ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                            {st.label}
+                          </Badge>
+                        );
+                      })()}
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div><span className="text-muted-foreground">Rent</span><br /><span className="font-semibold">{formatUGX(s.monthly_rent)}</span></div>
                         <div><span className="text-muted-foreground">Outstanding</span><br /><span className="font-semibold text-orange-600">{formatUGX(s.outstanding_balance)}</span></div>
