@@ -20289,6 +20289,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      check_fraud_account_by_name: {
+        Args: { p_full_name: string }
+        Returns: {
+          blocked_at: string
+          is_blocked: boolean
+          reason: string
+          status: string
+          user_id: string
+        }[]
+      }
       check_fraud_account_by_phone: {
         Args: { phone_variants: string[] }
         Returns: {
