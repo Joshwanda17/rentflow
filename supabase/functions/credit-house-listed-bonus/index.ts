@@ -84,26 +84,82 @@ Deno.serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // ─── Post balanced double-entry: wallet agent_commission (cash_in) ↔
-    // platform marketing_expense (cash_out). recipient_type 'user' routes the
-    // credit to the agent's WITHDRAWABLE bucket. ───
-    const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
-      entries: [
+    // ─── Rejection-charge recovery rule ───
+    // If this agent still has an UNCOVERED listing-rejection charge (a UGX 2,000
+    // debit that landed while their wallet had nothing to debit), the listing
+    // bonus must first go toward clearing that gap — the agent does NOT receive
+    // it until the charge is fully covered. Any remainder above the outstanding
+    // gap is paid to the agent as normal.
+    let deficit = 0;
+    try {
+      const { data: deficitData, error: deficitErr } = await adminClient.rpc(
+        "get_agent_listing_rejection_deficit",
+        { p_agent_id: agentId },
+      );
+      if (deficitErr) {
+        console.error("[credit-house-listed-bonus] deficit lookup failed:", deficitErr.message);
+      } else {
+        deficit = Math.max(0, Number(deficitData ?? 0));
+      }
+    } catch (e) {
+      console.error("[credit-house-listed-bonus] deficit lookup threw:", e);
+    }
+
+    const offsetAmount = Math.min(deficit, LISTED_BONUS); // goes to clear the charge
+    const payableAmount = LISTED_BONUS - offsetAmount;    // paid to the agent
+
+    // Build the balanced double-entry. Both legs route to the agent's
+    // WITHDRAWABLE bucket so the offset portion nets directly against the
+    // outstanding rejection penalty (which also sits in withdrawable).
+    const entries: Record<string, unknown>[] = [];
+
+    if (offsetAmount > 0) {
+      entries.push(
         {
           user_id: agentId,
-          amount: LISTED_BONUS,
+          amount: offsetAmount,
+          direction: "cash_in",
+          category: "listing_rejection_offset",
+          ledger_scope: "wallet",
+          wallet_bucket: "withdrawable",
+          recipient_type: "user",
+          source_table: "house_listings",
+          source_id: listing_id,
+          description: `UGX ${offsetAmount.toLocaleString()} listing reward applied to outstanding rejection charge — ${listing.title || "house"}`,
+          currency: "UGX",
+          transaction_date: now,
+        },
+        {
+          amount: offsetAmount,
+          direction: "cash_out",
+          category: "marketing_expense",
+          ledger_scope: "platform",
+          source_table: "house_listings",
+          source_id: listing_id,
+          description: `Platform expense: listing reward covering rejection charge — ${listing.title || "house"}`,
+          currency: "UGX",
+          transaction_date: now,
+        },
+      );
+    }
+
+    if (payableAmount > 0) {
+      entries.push(
+        {
+          user_id: agentId,
+          amount: payableAmount,
           direction: "cash_in",
           category: "agent_commission",
           ledger_scope: "wallet",
           recipient_type: "user",
           source_table: "house_listings",
           source_id: listing_id,
-          description: `UGX ${LISTED_BONUS.toLocaleString()} instant house-listed reward — ${listing.title || "house"}`,
+          description: `UGX ${payableAmount.toLocaleString()} instant house-listed reward — ${listing.title || "house"}`,
           currency: "UGX",
           transaction_date: now,
         },
         {
-          amount: LISTED_BONUS,
+          amount: payableAmount,
           direction: "cash_out",
           category: "marketing_expense",
           ledger_scope: "platform",
@@ -113,7 +169,11 @@ Deno.serve(async (req) => {
           currency: "UGX",
           transaction_date: now,
         },
-      ],
+      );
+    }
+
+    const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
+      entries,
     });
 
     if (ledgerErr) {
