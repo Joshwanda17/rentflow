@@ -767,6 +767,8 @@ export function CashoutAgentManager() {
           isReleasing={releaseClaimsMutation.isPending}
           onRelease={() => deleteAgent && releaseClaimsMutation.mutate(deleteAgent)}
         />
+
+        <ClaimCommentDialog claim={commentClaim} onClose={() => setCommentClaim(null)} />
       </div>
     );
   }
