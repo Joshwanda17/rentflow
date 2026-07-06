@@ -662,6 +662,22 @@ export function MerchantClaimsLog() {
                     {r.merchantPhone && r.customerPhone ? ' · ' : ''}
                     {r.customerPhone ? `Customer ${r.customerPhone}` : ''}
                   </p>
+                  {(() => {
+                    const c: CashoutClaimComment | undefined = latestComments?.[r.id];
+                    if (!c) return null;
+                    return (
+                      <p className="text-xs mt-1 flex items-start gap-1.5 text-foreground/80">
+                        <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                        <span className="min-w-0">
+                          <span className="truncate">{c.comment}</span>
+                          <span className="text-muted-foreground">
+                            {' '}— {c.author_name || 'Officer'} · {format(new Date(c.created_at), 'dd MMM, HH:mm')}
+                            {c.status ? ` · ${c.status}` : ''}
+                          </span>
+                        </span>
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="text-right text-[11px] text-muted-foreground shrink-0">
                   {r.claimedAt && <p>Claimed {format(new Date(r.claimedAt), 'dd MMM yyyy, HH:mm')}</p>}
