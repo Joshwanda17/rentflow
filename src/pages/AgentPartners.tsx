@@ -264,6 +264,45 @@ export default function AgentPartners() {
       <div className="flex-1 overflow-y-auto pb-8">
         <div className="px-4 py-4 space-y-4 max-w-lg mx-auto">
 
+          {/* Commission summary (display only, no actions) */}
+          <div
+            style={{
+              borderRadius: '16px',
+              padding: '16px 18px',
+              background: 'linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.03))',
+              border: '1px solid hsl(var(--primary) / 0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'hsl(var(--primary) / 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Wallet style={{ width: '20px', height: '20px', color: 'hsl(var(--primary))' }} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'hsl(var(--muted-foreground))', margin: 0 }}>
+                  My Commission
+                </p>
+                <p style={{ fontSize: '22px', fontWeight: 700, color: 'hsl(var(--foreground))', margin: '2px 0 0', fontVariantNumeric: 'tabular-nums' }}>
+                  {commissionLoading ? '—' : formatDynamic(commissionBalance)}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* KPI Cards */}
           <div className="grid grid-cols-3 gap-2.5">
             {[
