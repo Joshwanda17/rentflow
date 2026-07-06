@@ -881,12 +881,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * "Grow" button via AgentMenuDrawer so no functionality is lost.
              */}
 
-            {/* 0) PROMO — prominent weekly landlord registration drive.
-                Hidden for Merchant Agents (landlord operations are disabled). */}
-            {!isMerchant && (
-              <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setListHouseFromPromo(true); setListHouseOpen(true); }} />
-            )}
-
             {/* 0b) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
             {isCashoutAgent && showMerchantOnboard && (
               <div className="w-full rounded-2xl border border-primary/30 bg-primary/5 p-4 relative animate-fade-in">
