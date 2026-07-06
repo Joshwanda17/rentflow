@@ -397,6 +397,36 @@ export function useAuthForm() {
     try {
       const last9 = fullPhone.replace(/\D/g, '').slice(-9);
       if (last9.length === 9) {
+        const { data: fraudRows } = await (supabase as any).rpc('check_fraud_account_by_phone', {
+          phone_variants: [`0${last9}`, `256${last9}`, last9],
+        });
+        const fraudRow = Array.isArray(fraudRows) ? fraudRows[0] : null;
+        if (fraudRow?.is_blocked) {
+          setIsLoading(false);
+          toast({
+            title: 'Account Restricted',
+            description: 'This phone number is permanently restricted for fraud review and cannot create a Welile account.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (hasRealEmail) {
+          const { data: emailFraudRows } = await (supabase as any).rpc('check_fraud_account_by_email', {
+            p_email: trimmedEmail,
+          });
+          const emailFraudRow = Array.isArray(emailFraudRows) ? emailFraudRows[0] : null;
+          if (emailFraudRow?.is_blocked) {
+            setIsLoading(false);
+            toast({
+              title: 'Account Restricted',
+              description: 'This email is permanently restricted for fraud review and cannot create a Welile account.',
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+
         const { data: existing } = await supabase.rpc('check_phone_exists', { phone_suffix: last9 });
         if (Array.isArray(existing) && existing.length > 0) {
           setIsLoading(false);
@@ -421,6 +451,8 @@ export function useAuthForm() {
         errorMessage = 'This phone number is already registered. Please sign in instead.';
       } else if (error.message.includes('phone_already_registered')) {
         errorMessage = 'This phone number is already linked to another account. Please sign in instead.';
+      } else if (error.message.includes('fraud_blocked_identifier')) {
+        errorMessage = 'This phone/email is permanently restricted for fraud review and cannot create a Welile account.';
       } else if (
         error.message.toLowerCase().includes('database error') ||
         (error as { code?: string }).code === 'unexpected_failure'
@@ -759,6 +791,21 @@ export function useAuthForm() {
       // deleted/archived account so we can show a precise message
       // instead of "no account found".
       try {
+        const { data: fraud } = await (supabase as any).rpc('check_fraud_account_by_phone', {
+          phone_variants: [`0${last9}`, `256${last9}`, last9],
+        });
+        const fraudRow = Array.isArray(fraud) ? fraud[0] : null;
+        if (fraudRow?.is_blocked) {
+          errorMessage = 'This account has been permanently restricted for fraud review. Access is blocked and the linked phone/email cannot be used again.';
+          setLoginError({ message: errorMessage, triedFormats });
+          toast({
+            title: 'Account Restricted',
+            description: errorMessage,
+            variant: 'destructive',
+          });
+          return;
+        }
+
         const { data: archived } = await supabase.rpc('check_archived_account_by_phone', {
           phone_variants: [`0${last9}`, `256${last9}`, last9],
         });
