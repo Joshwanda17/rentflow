@@ -208,7 +208,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   ]);
 
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [addingRole, setAddingRole] = useState(false);
 
   const [subAgentDialogOpen, setSubAgentDialogOpen] = useState(false);
   const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
@@ -522,49 +521,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       }
     } finally {
       setSharingProfile(false);
-    }
-  };
-
-  const handleAddRole = async (role: string) => {
-    if (!profile) return;
-    setAddingRole(true);
-    try {
-      const typedRole = role as 'agent' | 'supporter' | 'landlord' | 'tenant';
-      const { data: existing } = await supabase
-        .from('user_roles')
-        .select('id, enabled')
-        .eq('user_id', tenantId)
-        .eq('role', typedRole)
-        .maybeSingle();
-
-      if (existing) {
-        if (existing.enabled === false) {
-          await supabase.from('user_roles').update({ enabled: true }).eq('id', existing.id);
-          toast({ title: `✅ ${role} role re-enabled for ${profile.full_name}` });
-        } else {
-          toast({ title: `Already has ${role} role`, variant: 'default' });
-        }
-      } else {
-        const { error } = await supabase.from('user_roles').insert([{
-          user_id: tenantId,
-          role: typedRole,
-          enabled: true,
-        }]);
-        if (error) throw error;
-        toast({ title: `✅ ${role} role added to ${profile.full_name}` });
-      }
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('role, enabled')
-        .eq('user_id', tenantId);
-      const enabled = ((rolesData || []) as any[])
-        .filter(r => r.enabled === null || r.enabled === true)
-        .map(r => r.role as string);
-      setUserRoles(enabled);
-    } catch (err: any) {
-      toast({ title: 'Failed to add role', description: err.message, variant: 'destructive' });
-    } finally {
-      setAddingRole(false);
     }
   };
 
@@ -944,7 +900,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     };
   }, [requests, repayments, sheetFrom, sheetTo]);
 
-  const availableRolesToAdd = ['agent', 'supporter', 'landlord'].filter(r => !userRoles.includes(r));
 
   if (loading) {
     return (
@@ -1585,27 +1540,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             {userRoles.length === 0 && <Badge variant="outline" className="capitalize text-sm py-1 px-2.5">Tenant</Badge>}
             {profile.national_id && <Badge className="bg-primary/10 text-primary border-0 text-sm py-1 px-2.5">ID on file</Badge>}
           </div>
-
-          {availableRolesToAdd.length > 0 && (
-            <div className="pt-3 border-t border-border/40">
-              <p className="text-sm text-muted-foreground mb-2.5 font-medium">Add another role:</p>
-              <div className="flex flex-wrap gap-2">
-                {availableRolesToAdd.map(role => (
-                  <Button
-                    key={role}
-                    variant="outline"
-                    size="sm"
-                    className="capitalize gap-1.5 text-sm h-10"
-                    onClick={() => handleAddRole(role)}
-                    disabled={addingRole}
-                  >
-                    {addingRole ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
-                    + {role}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Calendar className="h-4 w-4" />
