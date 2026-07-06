@@ -105,13 +105,15 @@ var how_welile_works_default = defineTool({
       (f) => f.q.toLowerCase().includes(term) || f.tags.some((t) => t.includes(term) || term.includes(t))
     ) : FAQS;
     const faqs = matched.length > 0 ? matched : FAQS;
-    const { signupUrl, referralUrl } = buildSignupLinks({ referralCode: referral_code });
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
     const faqText = faqs.map((f) => `Q: ${f.q}
 A: ${f.a}`).join("\n\n");
     const promptText = `Try asking:
 ${GUIDED_PROMPTS.map((p) => `\u2022 ${p}`).join("\n")}`;
-    const linkText = referralUrl ? `Sign up: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Sign up: ${signupUrl}`;
+    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
+Sign up: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
+Sign up: ${signupUrl}`;
     return {
       content: [{ type: "text", text: `${faqText}
 
@@ -122,6 +124,7 @@ ${linkText}` }],
       structuredContent: {
         faqs: faqs.map(({ q, a }) => ({ question: q, answer: a })),
         guided_prompts: GUIDED_PROMPTS,
+        landing_url: landingUrl,
         signup_url: signupUrl,
         referral_url: referralUrl,
         currency: "UGX"
