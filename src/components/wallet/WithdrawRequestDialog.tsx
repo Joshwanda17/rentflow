@@ -584,11 +584,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           </DialogHeader>
 
           {/* Balance pill */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="relative z-10 mt-4 flex items-center justify-between p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20"
+          <div
+            className="relative z-10 mt-4 flex items-center justify-between p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 animate-fade-in"
           >
             <div className="flex items-center gap-2">
               <Wallet className="h-4 w-4 text-white/80" />
@@ -600,54 +597,40 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                 <p className="text-white/50 text-[10px]">{formatCurrency(pendingAmount)} pending</p>
               )}
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Content area */}
         <div className="bg-background rounded-b-xl px-5 pb-6 pt-5 space-y-5">
           {success ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="space-y-5 py-2"
-            >
+            <div className="space-y-5 py-2 animate-scale-in">
               <div className="text-center space-y-3">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-                  className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center"
-                >
+                <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center animate-scale-in">
                   <CheckCircle className="h-10 w-10 text-success" />
-                </motion.div>
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                </div>
+                <div className="animate-fade-in">
                   <h3 className="text-xl font-bold text-foreground">Request Submitted!</h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     We're processing <strong className="text-foreground">{formatCurrency(amount)}</strong>
                   </p>
-                </motion.div>
+                </div>
               </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="p-4 rounded-2xl border border-border bg-muted/30 text-center"
-              >
+              <div className="p-4 rounded-2xl border border-border bg-muted/30 text-center animate-fade-in">
                 <p className="text-sm text-muted-foreground">
                   ⏳ Awaiting approval — you'll be notified once it's processed. Thank you for your patience!
                 </p>
-              </motion.div>
+              </div>
 
               <Button onClick={handleClose} className="w-full h-12 rounded-xl text-base font-bold">
                 Done
               </Button>
-            </motion.div>
+            </div>
           ) : (
             <>
               {/* Alerts */}
               {!workingHoursStatus.isOpen && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-warning/10 border border-warning/20 space-y-1.5">
+                <div className="p-4 rounded-2xl bg-warning/10 border border-warning/20 space-y-1.5 animate-fade-in">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-warning shrink-0" />
                     <p className="text-sm font-bold text-foreground">Outside Working Hours</p>
@@ -655,7 +638,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                   <p className="text-xs text-muted-foreground">{workingHoursStatus.message}</p>
                   <p className="text-xs">Next: <strong className="text-foreground">{workingHoursStatus.nextOpen}</strong></p>
                   <p className="text-[10px] text-muted-foreground/60 pt-1 border-t border-warning/10">🕐 Mon–Fri 8AM–5PM · Sat 8AM–1PM EAT</p>
-                </motion.div>
+                </div>
               )}
 
 
