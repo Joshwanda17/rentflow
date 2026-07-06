@@ -1612,6 +1612,17 @@ export function AgentCashPayoutsTab() {
             <TabsContent key={tab} value={tab} className="space-y-2.5 mt-4">
               {loadingAll && items.length === 0 ? (
                 <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : tab === channelTab && queueError && items.length === 0 ? (
+                <Card className="rounded-2xl border-destructive/30">
+                  <CardContent className="py-10 text-center space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Couldn't load the pending queue. This is a connection issue, not an empty queue.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => refetchQueue()}>
+                      <Loader2 className="h-4 w-4 mr-2" /> Try again
+                    </Button>
+                  </CardContent>
+                </Card>
               ) : items.length === 0 ? (
                 <Card className="rounded-2xl"><CardContent className="py-12 text-center text-base text-muted-foreground">{emptyMsg}</CardContent></Card>
               ) : (
