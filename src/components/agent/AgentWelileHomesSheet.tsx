@@ -569,6 +569,24 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
 }
 
 // ---------------- Edit dialog ----------------
+function PreviewRow({ label, oldText, newText, changed }: {
+  label: string; oldText: string; newText: string; changed: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      {changed ? (
+        <span className="text-right">
+          <span className="text-muted-foreground line-through">{oldText}</span>{' '}
+          <span className="font-semibold text-foreground">→ {newText}</span>
+        </span>
+      ) : (
+        <span className="font-medium text-foreground">{newText}</span>
+      )}
+    </div>
+  );
+}
+
 function EditDialog({ sub, agentId, onClose, onDone }: {
   sub: WHSubscription | null; agentId?: string; onClose: () => void; onDone: () => void;
 }) {
