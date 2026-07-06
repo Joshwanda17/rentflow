@@ -20725,6 +20725,10 @@ export type Database = {
           total_count: number
         }[]
       }
+      get_agent_listing_rejection_deficit: {
+        Args: { p_agent_id: string }
+        Returns: number
+      }
       get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_network_summary: { Args: { p_agent_id: string }; Returns: Json }
       get_agent_ops_balances: {
