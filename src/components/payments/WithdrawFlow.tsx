@@ -607,7 +607,7 @@ export default function WithdrawFlow({
           const msg = String((requestError as any).message || '');
           if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
             toast.error(
-              `You already have a pending withdrawal of UGX ${amount.toLocaleString()} to this recipient. Wait for operations to approve or reject the existing one before submitting again.`,
+              `You just requested UGX ${amount.toLocaleString()} to this recipient a few minutes ago. To avoid double payouts, wait about 15 minutes (or for the earlier request to be settled) before requesting the same amount again.`,
               { duration: 8000 },
             );
             // Reset so a different recipient/amount can be tried.

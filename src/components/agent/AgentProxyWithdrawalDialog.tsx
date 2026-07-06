@@ -205,7 +205,7 @@ export function AgentProxyWithdrawalDialog({
           const msg = String((error as any).message || '');
           if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
             toast.error(
-              `A withdrawal of ${formatUGX(amount)} for ${funderName} is already waiting for Financial Ops approval.`,
+              `A withdrawal of ${formatUGX(amount)} for ${funderName} was just submitted a few minutes ago. Wait about 15 minutes (or for it to be settled) before submitting the same amount again.`,
               { duration: 8000 },
             );
             clientRequestIdRef.current = null;
