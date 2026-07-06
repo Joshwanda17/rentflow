@@ -73,3 +73,13 @@ takes 10% and pays the landlord 90% on a fixed day.
 - Runs on cron `welile-homes-sms-dispatch` every 5 min (covers deposit auto-collect +
   daily payout cron) AND is invoked fire-and-forget from the agent allocate and admin
   manual-payout actions for immediacy.
+
+## New-tenant OTP verification (enrollment gate)
+- When an agent enrolls a phone with NO existing profile, `AgentWelileHomesSheet`
+  EnrollDialog first sends an OTP (`sms-otp` action `send`) to the tenant's phone
+  and shows a 6-digit entry step. Only after `sms-otp` action `verify` succeeds does
+  it call `register-tenant` → `enroll_welile_home_tenant` (which books receivable×12
+  and schedules the 12 monthly dues). So no due is scheduled until the phone is verified.
+- Matched/existing tenants skip OTP entirely and enroll immediately (unchanged).
+- Reuses the shared `sms-otp` edge fn (no backend change). 60s resend cooldown; on
+  finalize error the dialog returns to the form. Onboarding SMS still fires for new tenants.
