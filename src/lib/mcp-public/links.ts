@@ -5,6 +5,13 @@
 
 const SIGNUP_BASE = "https://welilereceipts.com/auth";
 
+// Role-scoped deep-link landing path. Opens the public Welile AI onboarding
+// chat pre-scoped to a role (e.g. /ai?role=agent), so a tool response can route
+// a prospective user straight into the right onboarding flow instead of a bare
+// signup form. The landing page then surfaces role-specific guidance + the
+// correct signup CTA.
+const LANDING_BASE = "https://welilereceipts.com/ai";
+
 // Roles the Auth page accepts via the `role` query param (pre-selects signup).
 export const SIGNUP_ROLES = ["tenant", "agent", "landlord", "supporter"] as const;
 export type SignupRole = (typeof SIGNUP_ROLES)[number];
@@ -31,5 +38,12 @@ export function buildSignupLinks(opts?: {
     referralUrl = `${SIGNUP_BASE}?${refParams.toString()}`;
   }
 
-  return { signupUrl, referralUrl };
+  // Role-scoped onboarding deep link (/ai?role=...). Carries the same source
+  // (and referral, when valid) so attribution survives the landing hop.
+  const landingParams = new URLSearchParams({ signup_source: source });
+  if (opts?.role && SIGNUP_ROLES.includes(opts.role)) landingParams.set("role", opts.role);
+  if (ref && UUID_RE.test(ref)) landingParams.set("ref", ref.toLowerCase());
+  const landingUrl = `${LANDING_BASE}?${landingParams.toString()}`;
+
+  return { signupUrl, referralUrl, landingUrl };
 }

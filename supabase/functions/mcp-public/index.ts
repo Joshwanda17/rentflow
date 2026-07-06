@@ -11,6 +11,7 @@ import { z } from "npm:zod@^4.4.3";
 
 // src/lib/mcp-public/links.ts
 var SIGNUP_BASE = "https://welilereceipts.com/auth";
+var LANDING_BASE = "https://welilereceipts.com/ai";
 var SIGNUP_ROLES = ["tenant", "agent", "landlord", "supporter"];
 var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function buildSignupLinks(opts) {
@@ -25,7 +26,11 @@ function buildSignupLinks(opts) {
     refParams.set("ref", ref.toLowerCase());
     referralUrl = `${SIGNUP_BASE}?${refParams.toString()}`;
   }
-  return { signupUrl, referralUrl };
+  const landingParams = new URLSearchParams({ signup_source: source });
+  if (opts?.role && SIGNUP_ROLES.includes(opts.role)) landingParams.set("role", opts.role);
+  if (ref && UUID_RE.test(ref)) landingParams.set("ref", ref.toLowerCase());
+  const landingUrl = `${LANDING_BASE}?${landingParams.toString()}`;
+  return { signupUrl, referralUrl, landingUrl };
 }
 
 // src/lib/mcp-public/tools/how-welile-works.ts
