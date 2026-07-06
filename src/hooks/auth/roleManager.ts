@@ -71,7 +71,8 @@ export async function fetchUserRoles(
       // payout console lives on the agent dashboard. Multi-role field agents
       // often have `tenant` first in userRoles, so without this they'd default
       // to the tenant dashboard and never see the pending withdrawals queue.
-      // When they have no explicit preference, default them to `agent`.
+      // So (unless an admin has forced another role) always land them on the
+      // agent console. They can still switch roles manually within a session.
       let cashoutDefault: AppRole | null = null;
       if (userRoles.includes('agent')) {
         try {
