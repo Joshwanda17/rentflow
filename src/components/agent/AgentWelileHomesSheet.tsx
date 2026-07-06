@@ -183,7 +183,10 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   const { toast } = useToast();
   const [phone, setPhone] = useState('');
   const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
   const [tenant, setTenant] = useState<{ id: string; full_name: string; phone: string } | null>(null);
+  const [newName, setNewName] = useState('');
+  const [newNationalId, setNewNationalId] = useState('');
   const [rent, setRent] = useState('');
   const [payoutDay, setPayoutDay] = useState('5');
   const [hasPhone, setHasPhone] = useState(true);
@@ -193,7 +196,8 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
-    setPhone(''); setTenant(null); setRent(''); setPayoutDay('5');
+    setPhone(''); setSearched(false); setTenant(null); setNewName(''); setNewNationalId('');
+    setRent(''); setPayoutDay('5');
     setHasPhone(true); setLandlordUsesWallet(false); setLandlordName(''); setLandlordPhone('');
   };
 
@@ -201,23 +205,43 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
     const p = phone.trim();
     if (!p) return;
     setSearching(true);
+    setTenant(null);
     try {
       const { data } = await supabase
         .from('profiles').select('id, full_name, phone')
         .ilike('phone', `%${p.replace(/\s/g, '')}%`).limit(1).maybeSingle();
       if (data) setTenant(data as any);
-      else toast({ title: 'No tenant found', description: 'No registered user with that phone.', variant: 'destructive' });
-    } finally { setSearching(false); }
+    } finally { setSearching(false); setSearched(true); }
   };
 
   const submit = async () => {
-    if (!tenant || !agentId) return;
+    if (!agentId) return;
     const rentNum = parseFloat(rent);
     if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
+    // Require either a found tenant, or enough info to create a new one.
+    if (!tenant) {
+      if (!phone.trim()) { toast({ title: 'Enter the tenant phone', variant: 'destructive' }); return; }
+      if (newName.trim().length < 2) { toast({ title: 'Enter the tenant full name', variant: 'destructive' }); return; }
+    }
     setSubmitting(true);
     try {
+      // Auto-create the tenant account when no existing profile was found.
+      let tenantId = tenant?.id;
+      if (!tenantId) {
+        const { data: reg, error: regErr } = await supabase.functions.invoke('register-tenant', {
+          body: {
+            full_name: newName.trim(),
+            phone: phone.trim(),
+            national_id: newNationalId.trim() || null,
+          },
+        });
+        if (regErr) throw new Error(regErr.message || 'Could not create tenant account');
+        if ((reg as any)?.error) throw new Error((reg as any).error);
+        tenantId = (reg as any)?.user_id;
+        if (!tenantId) throw new Error('Could not create tenant account');
+      }
       const { data, error } = await supabase.rpc('enroll_welile_home_tenant', {
-        p_tenant_id: tenant.id,
+        p_tenant_id: tenantId,
         p_agent_id: agentId,
         p_monthly_rent: rentNum,
         p_payout_day: parseInt(payoutDay) || 5,
@@ -231,7 +255,10 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       if (error) throw error;
       const res = data as any;
       if (!res?.success) throw new Error(res?.error || 'Enrollment failed');
-      toast({ title: 'Tenant enrolled', description: `${formatUGX(rentNum)}/mo · you earn ${formatUGX(res.agent_commission_per_month)}/mo` });
+      toast({
+        title: tenant ? 'Tenant enrolled' : 'Tenant created & enrolled',
+        description: `${formatUGX(rentNum)}/mo · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
+      });
       reset();
       onOpenChange(false);
       onDone();
@@ -251,7 +278,11 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
           <div>
             <Label>Tenant phone</Label>
             <div className="flex gap-2">
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07..." />
+              <Input
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); setSearched(false); setTenant(null); }}
+                placeholder="07..."
+              />
               <Button type="button" variant="outline" onClick={findTenant} disabled={searching}>
                 {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
@@ -261,7 +292,25 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
                 <CheckCircle2 className="h-3.5 w-3.5" /> {tenant.full_name} · {tenant.phone}
               </div>
             )}
+            {searched && !tenant && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                No registered tenant with that phone — a new account will be created below.
+              </p>
+            )}
           </div>
+          {searched && !tenant && (
+            <div className="space-y-3 rounded-lg border border-dashed p-3">
+              <p className="text-xs font-medium text-muted-foreground">Create new tenant</p>
+              <div>
+                <Label>Tenant full name</Label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="First Last" />
+              </div>
+              <div>
+                <Label>National ID (optional)</Label>
+                <Input value={newNationalId} onChange={(e) => setNewNationalId(e.target.value)} placeholder="CM..." />
+              </div>
+            </div>
+          )}
           <div>
             <Label>Monthly rent (UGX)</Label>
             <Input type="number" inputMode="numeric" value={rent} onChange={(e) => setRent(e.target.value)} placeholder="500000" />
@@ -286,7 +335,11 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
           )}
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={submitting || !tenant} className="w-full">
+          <Button
+            onClick={submit}
+            disabled={submitting || (!tenant && !(searched && newName.trim().length >= 2))}
+            className="w-full"
+          >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Enroll tenant
           </Button>
         </DialogFooter>
