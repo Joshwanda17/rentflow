@@ -439,10 +439,12 @@ export function AgentCashPayoutsTab() {
   });
 
   // The current, server-paginated page of the Pending Queue for the active tab.
-  const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue } = useQuery({
+  const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue, isError: queueError, refetch: refetchQueue } = useQuery({
     queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page],
     queryFn: async () => {
-      await releaseExpiredClaims();
+      // Fire-and-forget: releasing other agents' expired claims must never block
+      // or fail this fetch. A slow/failed release previously blanked the queue.
+      releaseExpiredClaims().catch(() => {});
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const opts: QueueFilterOpts = {
@@ -1610,6 +1612,17 @@ export function AgentCashPayoutsTab() {
             <TabsContent key={tab} value={tab} className="space-y-2.5 mt-4">
               {loadingAll && items.length === 0 ? (
                 <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : tab === channelTab && queueError && items.length === 0 ? (
+                <Card className="rounded-2xl border-destructive/30">
+                  <CardContent className="py-10 text-center space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Couldn't load the pending queue. This is a connection issue, not an empty queue.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => refetchQueue()}>
+                      <Loader2 className="h-4 w-4 mr-2" /> Try again
+                    </Button>
+                  </CardContent>
+                </Card>
               ) : items.length === 0 ? (
                 <Card className="rounded-2xl"><CardContent className="py-12 text-center text-base text-muted-foreground">{emptyMsg}</CardContent></Card>
               ) : (
