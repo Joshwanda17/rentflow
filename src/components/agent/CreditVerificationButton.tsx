@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, Loader2, Banknote, User, Calendar, CheckCircle2 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import {
   Sheet,
@@ -117,17 +116,16 @@ export function CreditVerificationButton() {
 
   return (
     <>
-      <motion.button
-        whileTap={{ scale: 0.95 }}
+      <button
         onClick={handleOpen}
-        className="fixed bottom-36 sm:bottom-40 right-4 z-40 flex items-center gap-1.5 px-3 py-2 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 touch-manipulation text-xs"
+        className="fixed bottom-36 sm:bottom-40 right-4 z-40 flex items-center gap-1.5 px-3 py-2 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 touch-manipulation text-xs transition-transform active:scale-95"
       >
         <Banknote className="h-3.5 w-3.5" />
         <span className="font-bold">Credit Verify</span>
         <Badge variant="outline" className="bg-white/20 border-white/30 text-white text-[10px] px-1 py-0">
           {count}
         </Badge>
-      </motion.button>
+      </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl p-0">

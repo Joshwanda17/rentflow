@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Clock, Home, MapPin, Loader2, User, Pencil } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
-import { motion } from 'framer-motion';
 import { EditApprovedRentDialog } from './EditApprovedRentDialog';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -103,11 +102,7 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+    <div className="animate-fade-in">
       <Card className="border-2 border-success bg-gradient-to-br from-success/15 via-success/10 to-emerald-500/5 shadow-lg shadow-success/10 overflow-hidden">
         <CardContent className="p-0">
           {/* Header */}
@@ -127,12 +122,10 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
           ) : (
             <div className="divide-y divide-success/20">
               {requests.map((req, i) => (
-                <motion.div
+                <div
                   key={req.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="px-4 py-3 hover:bg-success/10 transition-colors"
+                  style={{ animationDelay: `${i * 0.05}s` }}
+                  className="animate-fade-in px-4 py-3 hover:bg-success/10 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -195,7 +188,7 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
                     <span>•</span>
                     <span>{req.duration_days}d</span>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           )}
@@ -208,6 +201,6 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
         onOpenChange={setEditOpen}
         onSaved={fetchRequests}
       />
-    </motion.div>
+    </div>
   );
 }

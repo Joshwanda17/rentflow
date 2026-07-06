@@ -1,5 +1,6 @@
 import { BadgeCheck, Lock, ChevronRight, Shield, Trophy } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+// framer-motion removed — entrance/progress animations are now CSS transitions
+// so this always-mounted component no longer pulls the vendor-motion chunk.
 import { useState } from 'react';
 import { useVerificationStatus } from '@/hooks/useVerificationStatus';
 import { cn } from '@/lib/utils';
@@ -56,25 +57,17 @@ export function VerificationChecklist({ userId, highlightRole, compact = false }
             </div>
             {/* Mini progress bar */}
             <div className="h-1 w-full bg-border/40 rounded-full mt-1 overflow-hidden">
-              <motion.div
-                className="h-full bg-primary rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
+              <div
+                className="h-full bg-primary rounded-full transition-[width] duration-700 ease-out"
+                style={{ width: `${progress}%` }}
               />
             </div>
           </div>
           <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", expanded && "rotate-90")} />
         </div>
 
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
+        {expanded && (
+            <div className="overflow-hidden animate-fade-in">
               <div className="pt-2 space-y-1.5">
                 {verifications.map((v) => (
                   <div
@@ -103,9 +96,8 @@ export function VerificationChecklist({ userId, highlightRole, compact = false }
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
       </button>
     );
   }
@@ -127,15 +119,12 @@ export function VerificationChecklist({ userId, highlightRole, compact = false }
         <div className="relative h-10 w-10">
           <svg className="h-10 w-10 -rotate-90" viewBox="0 0 36 36">
             <circle cx="18" cy="18" r="15.5" fill="none" className="stroke-border/30" strokeWidth="2.5" />
-            <motion.circle
+            <circle
               cx="18" cy="18" r="15.5" fill="none"
-              className="stroke-primary"
+              className="stroke-primary transition-[stroke-dasharray] duration-1000 ease-out"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeDasharray={`${progress} ${100 - progress}`}
-              initial={{ strokeDasharray: "0 100" }}
-              animate={{ strokeDasharray: `${progress} ${100 - progress}` }}
-              transition={{ duration: 1, ease: 'easeOut' }}
             />
           </svg>
           <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-foreground">

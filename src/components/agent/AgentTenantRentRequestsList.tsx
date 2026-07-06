@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Home, MapPin, Loader2, User, FileText } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
-import { motion } from 'framer-motion';
 
 interface RentRequest {
   id: string;
@@ -99,11 +98,7 @@ export function AgentTenantRentRequestsList({ onOpenRequests }: AgentTenantRentR
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+    <div className="animate-fade-in">
       <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-lg shadow-primary/10 overflow-hidden">
         <CardContent className="p-0">
           {/* Header */}
@@ -138,12 +133,10 @@ export function AgentTenantRentRequestsList({ onOpenRequests }: AgentTenantRentR
             {requests.map((req, i) => {
               const statusCfg = STATUS_CONFIG[req.status] || { label: req.status, variant: 'outline' as const };
               return (
-                <motion.div
+                <div
                   key={req.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="px-4 py-3 hover:bg-muted/30 transition-colors"
+                  style={{ animationDelay: `${i * 0.04}s` }}
+                  className="animate-fade-in px-4 py-3 hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
@@ -179,12 +172,12 @@ export function AgentTenantRentRequestsList({ onOpenRequests }: AgentTenantRentR
                     <span>•</span>
                     <span>{req.duration_days}d</span>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
