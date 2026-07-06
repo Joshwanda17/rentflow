@@ -21,6 +21,10 @@ import {
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
+import { useLatestClaimComments, type CashoutClaimComment } from '@/hooks/useCashoutClaimComments';
+import { ClaimCommentTimeline } from '@/components/cfo/ClaimCommentTimeline';
+import { MessageSquare } from 'lucide-react';
 
 interface ClaimRow {
   id: string;
