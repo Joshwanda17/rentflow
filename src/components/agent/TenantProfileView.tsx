@@ -1586,27 +1586,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             {profile.national_id && <Badge className="bg-primary/10 text-primary border-0 text-sm py-1 px-2.5">ID on file</Badge>}
           </div>
 
-          {availableRolesToAdd.length > 0 && (
-            <div className="pt-3 border-t border-border/40">
-              <p className="text-sm text-muted-foreground mb-2.5 font-medium">Add another role:</p>
-              <div className="flex flex-wrap gap-2">
-                {availableRolesToAdd.map(role => (
-                  <Button
-                    key={role}
-                    variant="outline"
-                    size="sm"
-                    className="capitalize gap-1.5 text-sm h-10"
-                    onClick={() => handleAddRole(role)}
-                    disabled={addingRole}
-                  >
-                    {addingRole ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
-                    + {role}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Calendar className="h-4 w-4" />
             Joined {format(new Date(profile.created_at), 'dd MMM yyyy')}
