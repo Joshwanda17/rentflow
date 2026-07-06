@@ -22548,6 +22548,16 @@ export type Database = {
         }
         Returns: Json
       }
+      preview_welile_home_enrollment_edit: {
+        Args: {
+          p_agent_id: string
+          p_has_smartphone: boolean
+          p_monthly_rent: number
+          p_payout_day: number
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
       process_verified_field_deposit: {
         Args: {

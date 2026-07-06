@@ -50,6 +50,22 @@ interface EnrollmentAuditRow {
   editor_name?: string;
 }
 
+type PreviewDelta<T> = { old: T; new: T };
+interface EditPreview {
+  success: boolean;
+  error?: string;
+  changes: { field: string; old: any; new: any }[];
+  months_adjusted: number;
+  monthly_rent: PreviewDelta<number>;
+  payout_day: PreviewDelta<number>;
+  has_smartphone: PreviewDelta<boolean>;
+  agent_commission_per_month: PreviewDelta<number>;
+  landlord_net_per_month: PreviewDelta<number>;
+  receivable_total: PreviewDelta<number>;
+  outstanding_balance: PreviewDelta<number>;
+  next_due_date: PreviewDelta<string | null>;
+}
+
 const FIELD_LABELS: Record<string, string> = {
   monthly_rent: 'Monthly rent',
   payout_day: 'Payout day',
@@ -553,6 +569,24 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
 }
 
 // ---------------- Edit dialog ----------------
+function PreviewRow({ label, oldText, newText, changed }: {
+  label: string; oldText: string; newText: string; changed: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      {changed ? (
+        <span className="text-right">
+          <span className="text-muted-foreground line-through">{oldText}</span>{' '}
+          <span className="font-semibold text-foreground">→ {newText}</span>
+        </span>
+      ) : (
+        <span className="font-medium text-foreground">{newText}</span>
+      )}
+    </div>
+  );
+}
+
 function EditDialog({ sub, agentId, onClose, onDone }: {
   sub: WHSubscription | null; agentId?: string; onClose: () => void; onDone: () => void;
 }) {
@@ -563,6 +597,9 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
   const [submitting, setSubmitting] = useState(false);
   const [history, setHistory] = useState<EnrollmentAuditRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [step, setStep] = useState<'form' | 'confirm'>('form');
+  const [preview, setPreview] = useState<EditPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const loadHistory = useCallback(async (subscriptionId: string) => {
     setHistoryLoading(true);
@@ -591,9 +628,38 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
       setPayoutDay(String(sub.payout_day ?? 5));
       setHasPhone(!!sub.has_smartphone);
       setHistory([]);
+      setStep('form');
+      setPreview(null);
       loadHistory(sub.id);
     }
   }, [sub, loadHistory]);
+
+  const review = async () => {
+    if (!sub || !agentId) return;
+    const rentNum = parseFloat(rent);
+    if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
+    setPreviewLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('preview_welile_home_enrollment_edit', {
+        p_subscription_id: sub.id,
+        p_agent_id: agentId,
+        p_monthly_rent: rentNum,
+        p_payout_day: parseInt(payoutDay) || 5,
+        p_has_smartphone: hasPhone,
+      });
+      if (error) throw error;
+      const res = data as unknown as EditPreview;
+      if (!res?.success) throw new Error(res?.error || 'Could not build preview');
+      if (!res.changes || res.changes.length === 0) {
+        toast({ title: 'No changes to save', description: 'The values match the current enrollment.' });
+        return;
+      }
+      setPreview(res);
+      setStep('confirm');
+    } catch (err: any) {
+      toast({ title: 'Preview failed', description: err.message, variant: 'destructive' });
+    } finally { setPreviewLoading(false); }
+  };
 
   const submit = async () => {
     if (!sub || !agentId) return;
@@ -626,11 +692,32 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
     <Dialog open={!!sub} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit enrollment — {sub?.tenant_name}</DialogTitle>
+          <DialogTitle>
+            {step === 'confirm' ? 'Confirm changes' : 'Edit enrollment'} — {sub?.tenant_name}
+          </DialogTitle>
           <DialogDescription>
-            Changes apply to upcoming, uncollected months only. Collected and paid months stay as they were.
+            {step === 'confirm'
+              ? 'Review how dues and totals will change before saving. Nothing is saved yet.'
+              : 'Changes apply to upcoming, uncollected months only. Collected and paid months stay as they were.'}
           </DialogDescription>
         </DialogHeader>
+        {step === 'confirm' && preview ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border divide-y">
+              <PreviewRow label="Monthly rent" oldText={formatUGX(preview.monthly_rent.old)} newText={formatUGX(preview.monthly_rent.new)} changed={preview.monthly_rent.old !== preview.monthly_rent.new} />
+              <PreviewRow label="Landlord payout day" oldText={String(preview.payout_day.old ?? '—')} newText={String(preview.payout_day.new)} changed={preview.payout_day.old !== preview.payout_day.new} />
+              <PreviewRow label="Collection mode" oldText={preview.has_smartphone.old ? 'Tenant pays' : 'Agent allocates'} newText={preview.has_smartphone.new ? 'Tenant pays' : 'Agent allocates'} changed={preview.has_smartphone.old !== preview.has_smartphone.new} />
+              <PreviewRow label="Your commission / mo" oldText={formatUGX(preview.agent_commission_per_month.old)} newText={formatUGX(preview.agent_commission_per_month.new)} changed={preview.agent_commission_per_month.old !== preview.agent_commission_per_month.new} />
+              <PreviewRow label="Landlord payout / mo" oldText={formatUGX(preview.landlord_net_per_month.old)} newText={formatUGX(preview.landlord_net_per_month.new)} changed={preview.landlord_net_per_month.old !== preview.landlord_net_per_month.new} />
+              <PreviewRow label="Receivable total" oldText={formatUGX(preview.receivable_total.old)} newText={formatUGX(preview.receivable_total.new)} changed={preview.receivable_total.old !== preview.receivable_total.new} />
+              <PreviewRow label="Outstanding balance" oldText={formatUGX(preview.outstanding_balance.old)} newText={formatUGX(preview.outstanding_balance.new)} changed={preview.outstanding_balance.old !== preview.outstanding_balance.new} />
+              <PreviewRow label="Next due date" oldText={preview.next_due_date.old ? new Date(preview.next_due_date.old).toLocaleDateString() : '—'} newText={preview.next_due_date.new ? new Date(preview.next_due_date.new).toLocaleDateString() : '—'} changed={preview.next_due_date.old !== preview.next_due_date.new} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {preview.months_adjusted} upcoming {preview.months_adjusted === 1 ? 'month' : 'months'} will be re-priced. Collected and paid months are untouched.
+            </p>
+          </div>
+        ) : (
         <div className="space-y-3">
           <div>
             <Label>Monthly rent (UGX)</Label>
@@ -675,10 +762,22 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
             )}
           </div>
         </div>
+        )}
         <DialogFooter>
-          <Button onClick={submit} disabled={submitting} className="w-full">
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Save changes
-          </Button>
+          {step === 'confirm' ? (
+            <div className="flex w-full gap-2">
+              <Button variant="outline" onClick={() => setStep('form')} disabled={submitting} className="flex-1">
+                <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
+              </Button>
+              <Button onClick={submit} disabled={submitting} className="flex-1">
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Confirm &amp; save
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={review} disabled={previewLoading} className="w-full">
+              {previewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Review changes
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
