@@ -84,26 +84,82 @@ Deno.serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // ─── Post balanced double-entry: wallet agent_commission (cash_in) ↔
-    // platform marketing_expense (cash_out). recipient_type 'user' routes the
-    // credit to the agent's WITHDRAWABLE bucket. ───
-    const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
-      entries: [
+    // ─── Rejection-charge recovery rule ───
+    // If this agent still has an UNCOVERED listing-rejection charge (a UGX 2,000
+    // debit that landed while their wallet had nothing to debit), the listing
+    // bonus must first go toward clearing that gap — the agent does NOT receive
+    // it until the charge is fully covered. Any remainder above the outstanding
+    // gap is paid to the agent as normal.
+    let deficit = 0;
+    try {
+      const { data: deficitData, error: deficitErr } = await adminClient.rpc(
+        "get_agent_listing_rejection_deficit",
+        { p_agent_id: agentId },
+      );
+      if (deficitErr) {
+        console.error("[credit-house-listed-bonus] deficit lookup failed:", deficitErr.message);
+      } else {
+        deficit = Math.max(0, Number(deficitData ?? 0));
+      }
+    } catch (e) {
+      console.error("[credit-house-listed-bonus] deficit lookup threw:", e);
+    }
+
+    const offsetAmount = Math.min(deficit, LISTED_BONUS); // goes to clear the charge
+    const payableAmount = LISTED_BONUS - offsetAmount;    // paid to the agent
+
+    // Build the balanced double-entry. Both legs route to the agent's
+    // WITHDRAWABLE bucket so the offset portion nets directly against the
+    // outstanding rejection penalty (which also sits in withdrawable).
+    const entries: Record<string, unknown>[] = [];
+
+    if (offsetAmount > 0) {
+      entries.push(
         {
           user_id: agentId,
-          amount: LISTED_BONUS,
+          amount: offsetAmount,
+          direction: "cash_in",
+          category: "listing_rejection_offset",
+          ledger_scope: "wallet",
+          wallet_bucket: "withdrawable",
+          recipient_type: "user",
+          source_table: "house_listings",
+          source_id: listing_id,
+          description: `UGX ${offsetAmount.toLocaleString()} listing reward applied to outstanding rejection charge — ${listing.title || "house"}`,
+          currency: "UGX",
+          transaction_date: now,
+        },
+        {
+          amount: offsetAmount,
+          direction: "cash_out",
+          category: "marketing_expense",
+          ledger_scope: "platform",
+          source_table: "house_listings",
+          source_id: listing_id,
+          description: `Platform expense: listing reward covering rejection charge — ${listing.title || "house"}`,
+          currency: "UGX",
+          transaction_date: now,
+        },
+      );
+    }
+
+    if (payableAmount > 0) {
+      entries.push(
+        {
+          user_id: agentId,
+          amount: payableAmount,
           direction: "cash_in",
           category: "agent_commission",
           ledger_scope: "wallet",
           recipient_type: "user",
           source_table: "house_listings",
           source_id: listing_id,
-          description: `UGX ${LISTED_BONUS.toLocaleString()} instant house-listed reward — ${listing.title || "house"}`,
+          description: `UGX ${payableAmount.toLocaleString()} instant house-listed reward — ${listing.title || "house"}`,
           currency: "UGX",
           transaction_date: now,
         },
         {
-          amount: LISTED_BONUS,
+          amount: payableAmount,
           direction: "cash_out",
           category: "marketing_expense",
           ledger_scope: "platform",
@@ -113,7 +169,11 @@ Deno.serve(async (req) => {
           currency: "UGX",
           transaction_date: now,
         },
-      ],
+      );
+    }
+
+    const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
+      entries,
     });
 
     if (ledgerErr) {
@@ -134,18 +194,47 @@ Deno.serve(async (req) => {
       console.error("[credit-house-listed-bonus] Flag update failed (money already moved):", flagErr.message);
     }
 
-    console.log(`[credit-house-listed-bonus] Credited UGX ${LISTED_BONUS} to ${agentId} for listing ${listing_id}`);
+    console.log(
+      `[credit-house-listed-bonus] listing ${listing_id}: offset=${offsetAmount} payable=${payableAmount} (deficit was ${deficit}) for ${agentId}`,
+    );
 
-    // Notify the agent immediately (in-app + SMS/WhatsApp). Best-effort —
-    // never let a notification failure affect the credited bonus.
-    await notifyAgentBonus(adminClient, {
-      agentId,
-      stage: "listed",
-      listingTitle: listing.title,
-      listingId: listing_id,
-    }).catch((e) => console.error("[credit-house-listed-bonus] notify failed:", e));
+    if (offsetAmount > 0) {
+      // Part or all of the reward covered an outstanding rejection charge.
+      // Send a clear in-app notice instead of the celebratory bonus message.
+      const remainingGap = Math.max(0, deficit - offsetAmount);
+      const msg = payableAmount > 0
+        ? `UGX ${offsetAmount.toLocaleString()} of your listing reward cleared your rejection charge; UGX ${payableAmount.toLocaleString()} was added to your wallet.`
+        : `Your UGX ${offsetAmount.toLocaleString()} listing reward was applied to your outstanding rejection charge.` +
+          (remainingGap > 0 ? ` UGX ${remainingGap.toLocaleString()} still to clear.` : ` Your charge is now fully cleared.`);
+      await adminClient.from("notifications").insert({
+        user_id: agentId,
+        title: "🏠 Listing reward applied to charge",
+        message: msg,
+        type: remainingGap > 0 ? "warning" : "success",
+        metadata: {
+          action: "listing_reward_offset",
+          listing_id,
+          offset: offsetAmount,
+          paid: payableAmount,
+          remaining_gap: remainingGap,
+        },
+      }).catch((e: unknown) => console.error("[credit-house-listed-bonus] offset notify failed:", e));
+    } else {
+      // No outstanding charge — normal celebratory bonus notice (in-app + SMS).
+      await notifyAgentBonus(adminClient, {
+        agentId,
+        stage: "listed",
+        listingTitle: listing.title,
+        listingId: listing_id,
+      }).catch((e) => console.error("[credit-house-listed-bonus] notify failed:", e));
+    }
 
-    return new Response(JSON.stringify({ success: true, bonus: LISTED_BONUS }), {
+    return new Response(JSON.stringify({
+      success: true,
+      bonus: payableAmount,
+      offset_to_charge: offsetAmount,
+      remaining_gap: Math.max(0, deficit - offsetAmount),
+    }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
