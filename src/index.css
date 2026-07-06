@@ -881,9 +881,12 @@ input[type="checkbox"], input[type="radio"] {
   max-width: 100%;
 }
 
-/* GPU compositing hints for smoother scrolling on low-RAM devices */
+/* Smoother scrolling on low-RAM devices.
+   NOTE: `will-change: scroll-position` was removed — it permanently promotes a
+   full-height composited layer that overruns the GPU texture budget on entry-
+   level Mali/Adreno GPUs and produces the rainbow tearing band. Momentum
+   scrolling + overscroll containment are enough and stay cheap. */
 .scroll-container {
-  will-change: scroll-position;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
