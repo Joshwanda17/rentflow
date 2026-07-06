@@ -278,7 +278,11 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
           <div>
             <Label>Tenant phone</Label>
             <div className="flex gap-2">
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07..." />
+              <Input
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); setSearched(false); setTenant(null); }}
+                placeholder="07..."
+              />
               <Button type="button" variant="outline" onClick={findTenant} disabled={searching}>
                 {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
@@ -288,7 +292,25 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
                 <CheckCircle2 className="h-3.5 w-3.5" /> {tenant.full_name} · {tenant.phone}
               </div>
             )}
+            {searched && !tenant && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                No registered tenant with that phone — a new account will be created below.
+              </p>
+            )}
           </div>
+          {searched && !tenant && (
+            <div className="space-y-3 rounded-lg border border-dashed p-3">
+              <p className="text-xs font-medium text-muted-foreground">Create new tenant</p>
+              <div>
+                <Label>Tenant full name</Label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="First Last" />
+              </div>
+              <div>
+                <Label>National ID (optional)</Label>
+                <Input value={newNationalId} onChange={(e) => setNewNationalId(e.target.value)} placeholder="CM..." />
+              </div>
+            </div>
+          )}
           <div>
             <Label>Monthly rent (UGX)</Label>
             <Input type="number" inputMode="numeric" value={rent} onChange={(e) => setRent(e.target.value)} placeholder="500000" />
