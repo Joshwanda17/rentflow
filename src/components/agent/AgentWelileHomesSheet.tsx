@@ -9,11 +9,12 @@ import { Switch } from '@/components/ui/switch';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2 } from 'lucide-react';
+import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft } from 'lucide-react';
 
 interface WHSubscription {
   id: string;
@@ -240,11 +241,27 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // OTP gating for brand-new tenant accounts: their phone must be verified
+  // before the enrollment (and its first monthly due) is scheduled.
+  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpValue, setOtpValue] = useState('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpDone, setOtpDone] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((c) => (c <= 1 ? 0 : c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
 
   const reset = () => {
     setPhone(''); setSearched(false); setTenant(null); setNewName(''); setNewNationalId('');
     setRent(''); setPayoutDay('5');
     setHasPhone(true); setLandlordUsesWallet(false); setLandlordName(''); setLandlordPhone('');
+    setStep('form'); setOtpValue(''); setOtpError(null); setOtpDone(false); setCooldown(0);
   };
 
   const findTenant = async () => {
@@ -260,6 +277,8 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
     } finally { setSearching(false); setSearched(true); }
   };
 
+  // Validate the form, then decide: existing tenants (or already OTP-verified
+  // new tenants) enroll immediately; a fresh tenant must verify their phone first.
   const submit = async () => {
     if (!agentId) return;
     const rentNum = parseFloat(rent);
@@ -269,6 +288,46 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       if (!phone.trim()) { toast({ title: 'Enter the tenant phone', variant: 'destructive' }); return; }
       if (newName.trim().length < 2) { toast({ title: 'Enter the tenant full name', variant: 'destructive' }); return; }
     }
+    if (tenant || otpDone) { await finalizeEnroll(); return; }
+    await sendOtp();
+  };
+
+  const sendOtp = async () => {
+    setOtpSending(true); setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'send', phone: phone.trim() },
+      });
+      if (error) throw new Error(error.message || 'Could not send the code');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setOtpValue('');
+      setStep('otp');
+      setCooldown(60);
+    } catch (err: any) {
+      toast({ title: 'Could not send verification code', description: err.message, variant: 'destructive' });
+    } finally { setOtpSending(false); }
+  };
+
+  const verifyOtp = async (code: string) => {
+    setOtpVerifying(true); setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'verify', phone: phone.trim(), otp: code },
+      });
+      if (error) throw new Error('Invalid or expired code');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      if (!(data as any)?.success) throw new Error('Verification failed');
+      setOtpDone(true);
+      await finalizeEnroll();
+    } catch (err: any) {
+      setOtpValue('');
+      setOtpError(err.message || 'Verification failed');
+    } finally { setOtpVerifying(false); }
+  };
+
+  const finalizeEnroll = async () => {
+    if (!agentId) return;
+    const rentNum = parseFloat(rent);
     setSubmitting(true);
     try {
       // Auto-create the tenant account when no existing profile was found.
@@ -309,7 +368,7 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
         }).catch(() => {});
       }
       toast({
-        title: tenant ? 'Tenant enrolled' : 'Tenant created & enrolled',
+        title: tenant ? 'Tenant enrolled' : 'Tenant verified & enrolled',
         description: `${formatUGX(rentNum)}/mo · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
       });
       reset();
@@ -317,6 +376,7 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       onDone();
     } catch (err: any) {
       toast({ title: 'Enrollment failed', description: err.message, variant: 'destructive' });
+      setStep('form');
     } finally { setSubmitting(false); }
   };
 
@@ -327,6 +387,64 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
           <DialogTitle>Enroll tenant in Welile Homes</DialogTitle>
           <DialogDescription>Rent is booked as receivable × 12 months. You earn 2% of every month's rent.</DialogDescription>
         </DialogHeader>
+        {step === 'otp' ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+              Verify <span className="font-medium text-foreground">{newName.trim() || 'this tenant'}</span>'s phone
+              before their first rent due is scheduled. We sent a 6-digit code to{' '}
+              <span className="font-medium text-foreground">{phone.trim()}</span>.
+            </div>
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={otpValue}
+                disabled={otpVerifying || submitting}
+                onChange={(v) => {
+                  setOtpValue(v);
+                  setOtpError(null);
+                  if (v.length === 6) verifyOtp(v);
+                }}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            {(otpVerifying || submitting) && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {submitting ? 'Enrolling tenant…' : 'Verifying…'}
+              </div>
+            )}
+            {otpError && <p className="text-sm text-destructive text-center">{otpError}</p>}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => { if (cooldown === 0 && !otpSending) sendOtp(); }}
+                disabled={cooldown > 0 || otpSending || otpVerifying || submitting}
+                className="text-xs text-primary hover:underline disabled:text-muted-foreground disabled:no-underline inline-flex items-center gap-1"
+              >
+                <RefreshCw className="h-3 w-3" />
+                {cooldown > 0 ? `Resend code in ${cooldown}s` : otpSending ? 'Sending…' : 'Resend code'}
+              </button>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full gap-1.5"
+              disabled={otpVerifying || submitting}
+              onClick={() => { setStep('form'); setOtpValue(''); setOtpError(null); }}
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to details
+            </Button>
+          </div>
+        ) : (
+        <>
         <div className="space-y-3">
           <div>
             <Label>Tenant phone</Label>
@@ -347,7 +465,7 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
             )}
             {searched && !tenant && (
               <p className="mt-1.5 text-xs text-muted-foreground">
-                No registered tenant with that phone — a new account will be created below.
+                No registered tenant with that phone — a new account will be created below and their phone verified via SMS.
               </p>
             )}
           </div>
@@ -393,9 +511,12 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
             disabled={submitting || (!tenant && !(searched && newName.trim().length >= 2))}
             className="w-full"
           >
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Enroll tenant
+            {(submitting || otpSending) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : (!tenant ? <ShieldCheck className="h-4 w-4 mr-2" /> : null)}
+            {tenant ? 'Enroll tenant' : 'Verify phone & enroll'}
           </Button>
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
