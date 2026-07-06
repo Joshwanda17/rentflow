@@ -97,6 +97,18 @@ export function SupporterMenuDrawer({
     onOpenChange(false);
   };
 
+  const { mounted, visible } = useDrawerTransition(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); handleClose(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const handleItemClick = (item: MenuItem) => {
     hapticSuccess();
     onOpenChange(false);
