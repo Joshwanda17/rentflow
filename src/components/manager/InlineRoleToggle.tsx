@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { hapticTap, hapticSuccess, hapticError } from '@/lib/haptics';
 import { useAuth } from '@/hooks/useAuth';
-import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import {
   Popover,
   PopoverContent,
