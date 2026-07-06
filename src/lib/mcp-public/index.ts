@@ -1,6 +1,7 @@
 import { defineMcp } from "@lovable.dev/mcp-js";
 import howWelileWorks from "./tools/how-welile-works";
 import exploreWelile from "./tools/explore-welile";
+import estimateRentAccess from "./tools/estimate-rent-access";
 
 // PUBLIC, no-auth MCP server — an acquisition surface for prospective users.
 // No `auth` is configured, so anyone (e.g. a ChatGPT connector shared with a
@@ -11,6 +12,6 @@ export default defineMcp({
   title: "Welile Receipts — Get Started",
   version: "0.1.0",
   instructions:
-    "Public information about Welile Receipts for prospective users — no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' — each returns a role-targeted signup link that turns the question into an account. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
-  tools: [howWelileWorks, exploreWelile],
+    "Public information about Welile Receipts for prospective users — no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' — each returns a role-targeted signup link that turns the question into an account. Use `estimate_rent_access` when a prospective tenant gives a monthly rent (UGX) to return an indicative daily/total repayment ballpark plus the free tenant signup link — the figure is illustrative only, not an approval. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
+  tools: [howWelileWorks, exploreWelile, estimateRentAccess],
 });

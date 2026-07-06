@@ -245,13 +245,122 @@ Or sign up now: ${signupUrl}` }],
   }
 });
 
+// src/lib/mcp-public/tools/estimate-rent-access.ts
+import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z3 } from "npm:zod@^4.4.3";
+var MONTHLY_RATE = 0.33;
+var DEFAULT_DURATIONS = [30, 60, 90];
+var MIN_RENT = 1e4;
+var MAX_RENT = 5e6;
+var MIN_DAYS = 7;
+var MAX_DAYS = 120;
+function computeRentPlan(rent, days) {
+  const accessFee = Math.round(rent * (Math.pow(1 + MONTHLY_RATE, days / 30) - 1));
+  const requestFee = rent <= 2e5 ? 1e4 : 2e4;
+  const totalRepayment = rent + accessFee + requestFee;
+  const dailyRepayment = Math.ceil(totalRepayment / days);
+  return { durationDays: days, accessFee, requestFee, totalRepayment, dailyRepayment };
+}
+var ugx = (n) => `UGX ${Math.round(n).toLocaleString("en-US")}`;
+var estimate_rent_access_default = defineTool3({
+  name: "estimate_rent_access",
+  title: "Estimate rent access (indicative)",
+  description: "Give a prospective tenant an INDICATIVE rent-access ballpark in UGX \u2014 total repayment and daily payment for a given monthly rent \u2014 then return the free tenant signup link. No sign-in required. Amounts are illustrative only, not an approval or guarantee; the actual Rent Plan is set after signup and verification. Provide `rent` (monthly rent in UGX). Optionally provide `duration_days` (7-120) for one plan, otherwise 30/60/90-day options are returned. Optional `referral_code` adds a referral signup link.",
+  inputSchema: {
+    rent: z3.number().describe("Monthly rent in UGX (e.g. 200000). Ballpark only."),
+    duration_days: z3.number().describe("Optional Rent Plan length in days (7-120). Omit to compare 30/60/90-day options.").optional(),
+    referral_code: z3.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: ({ rent, duration_days, referral_code }) => {
+    const { signupUrl, referralUrl } = buildSignupLinks({
+      referralCode: referral_code,
+      role: "tenant"
+    });
+    const linkText = referralUrl ? `Create a free tenant account: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Create a free tenant account: ${signupUrl}`;
+    if (!Number.isFinite(rent) || rent < MIN_RENT || rent > MAX_RENT) {
+      const text2 = `Please share a monthly rent between ${ugx(MIN_RENT)} and ${ugx(MAX_RENT)} for an indicative estimate.
+
+${linkText}`;
+      return {
+        content: [{ type: "text", text: text2 }],
+        structuredContent: {
+          error: "invalid_rent",
+          min_rent: MIN_RENT,
+          max_rent: MAX_RENT,
+          signup_url: signupUrl,
+          referral_url: referralUrl,
+          currency: "UGX"
+        }
+      };
+    }
+    const roundedRent = Math.round(rent);
+    let durations;
+    if (duration_days != null) {
+      const d = Math.round(duration_days);
+      if (!Number.isFinite(d) || d < MIN_DAYS || d > MAX_DAYS) {
+        const text2 = `Rent Plan length must be between ${MIN_DAYS} and ${MAX_DAYS} days. Try 30, 60, or 90 days.
+
+${linkText}`;
+        return {
+          content: [{ type: "text", text: text2 }],
+          structuredContent: {
+            error: "invalid_duration",
+            min_days: MIN_DAYS,
+            max_days: MAX_DAYS,
+            signup_url: signupUrl,
+            referral_url: referralUrl,
+            currency: "UGX"
+          }
+        };
+      }
+      durations = [d];
+    } else {
+      durations = [...DEFAULT_DURATIONS];
+    }
+    const plans = durations.map((d) => computeRentPlan(roundedRent, d));
+    const planLines = plans.map(
+      (p) => `\u2022 ${p.durationDays} days: pay about ${ugx(p.dailyRepayment)}/day \u2014 total repayment ~${ugx(p.totalRepayment)}`
+    ).join("\n");
+    const text = [
+      `Indicative Rent Plan for a monthly rent of ${ugx(roundedRent)} (UGX):`,
+      "",
+      planLines,
+      "",
+      "This is an illustration only \u2014 not an approval or guarantee. Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence).",
+      "",
+      linkText
+    ].join("\n");
+    return {
+      content: [{ type: "text", text }],
+      structuredContent: {
+        rent: roundedRent,
+        indicative: true,
+        monthly_rate_pct: MONTHLY_RATE * 100,
+        plans: plans.map((p) => ({
+          duration_days: p.durationDays,
+          daily_repayment: p.dailyRepayment,
+          total_repayment: p.totalRepayment,
+          access_fee: p.accessFee,
+          request_fee: p.requestFee
+        })),
+        role: "tenant",
+        signup_url: signupUrl,
+        referral_url: referralUrl,
+        currency: "UGX"
+      }
+    };
+  }
+});
+
 // src/lib/mcp-public/index.ts
 var mcp_public_default = defineMcp({
   name: "welile-public-mcp",
   title: "Welile Receipts \u2014 Get Started",
   version: "0.1.0",
-  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
-  tools: [how_welile_works_default, explore_welile_default]
+  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Use `estimate_rent_access` when a prospective tenant gives a monthly rent (UGX) to return an indicative daily/total repayment ballpark plus the free tenant signup link \u2014 the figure is illustrative only, not an approval. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
+  tools: [how_welile_works_default, explore_welile_default, estimate_rent_access_default]
 });
 
 // lovable-mcp-supabase-entry.ts
