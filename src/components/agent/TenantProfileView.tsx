@@ -208,7 +208,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   ]);
 
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [addingRole, setAddingRole] = useState(false);
 
   const [subAgentDialogOpen, setSubAgentDialogOpen] = useState(false);
   const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
