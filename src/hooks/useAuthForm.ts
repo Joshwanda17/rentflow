@@ -469,7 +469,7 @@ export function useAuthForm() {
       } else if (error.message.includes('phone_already_registered')) {
         errorMessage = 'This phone number is already linked to another account. Please sign in instead.';
       } else if (error.message.includes('fraud_blocked_identifier')) {
-        errorMessage = 'This phone/email is permanently restricted for fraud review and cannot create a Welile account.';
+        errorMessage = 'This phone/email/name is permanently restricted for fraud review and cannot create a Welile account.';
       } else if (
         error.message.toLowerCase().includes('database error') ||
         (error as { code?: string }).code === 'unexpected_failure'
