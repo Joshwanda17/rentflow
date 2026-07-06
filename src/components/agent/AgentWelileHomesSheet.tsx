@@ -204,11 +204,17 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                           {s.landlord_uses_wallet ? 'Landlord: Welile wallet' : `Landlord float${s.landlord_name ? ` · ${s.landlord_name}` : ''}`}
                         </Badge>
                       </div>
-                      <Button size="sm" variant="outline" className="w-full gap-1.5"
-                        disabled={s.outstanding_balance <= 0}
-                        onClick={() => setAllocFor(s)}>
-                        <Banknote className="h-3.5 w-3.5" /> Allocate rent
-                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button size="sm" variant="outline" className="gap-1.5"
+                          onClick={() => setEditFor(s)}>
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-1.5"
+                          disabled={s.outstanding_balance <= 0}
+                          onClick={() => setAllocFor(s)}>
+                          <Banknote className="h-3.5 w-3.5" /> Allocate
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
