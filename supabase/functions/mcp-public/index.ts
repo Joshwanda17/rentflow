@@ -473,13 +473,164 @@ ${linkText}`;
   }
 });
 
+// src/lib/mcp-public/tools/find-available-houses.ts
+import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z5 } from "npm:zod@^4.4.3";
+var DEFAULT_LIMIT = 5;
+var MAX_LIMIT = 10;
+function readEnv(name) {
+  const g = globalThis;
+  return g.Deno?.env?.get(name) ?? g.process?.env?.[name];
+}
+function anonClient() {
+  const url = readEnv("SUPABASE_URL");
+  const anonKey = readEnv("SUPABASE_PUBLISHABLE_KEY") ?? readEnv("SUPABASE_ANON_KEY");
+  if (!url || !anonKey) throw new Error("Supabase env not configured");
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var ugx3 = (n) => n == null ? "UGX \u2014" : `UGX ${Math.round(n).toLocaleString("en-US")}`;
+function amenityList(r) {
+  const out = [];
+  if (r.has_water) out.push("water");
+  if (r.has_electricity) out.push("electricity");
+  if (r.has_security) out.push("security");
+  if (r.has_parking) out.push("parking");
+  if (r.is_furnished) out.push("furnished");
+  return out;
+}
+function locationLabel(r) {
+  return [r.village, r.sub_county, r.district, r.region].filter(Boolean).join(", ") || "Location on request";
+}
+var find_available_houses_default = defineTool5({
+  name: "find_available_houses",
+  title: "Find available houses",
+  description: "Return a small read-only sample of AVAILABLE Welile house listings for a prospective tenant, filtered by district and/or area, then return the free tenant signup link to view details and apply. No sign-in required. Only public, non-sensitive fields are shown (no exact address, GPS, landlord, or contact details). Amounts are in UGX. Provide `district` and/or `area` to narrow the search, optional `max_rent` (UGX) and `limit` (1-10, default 5), and optional `referral_code` for a referral signup link.",
+  inputSchema: {
+    district: z5.string().describe("Optional district to search (e.g. 'Wakiso', 'Kampala').").optional(),
+    area: z5.string().describe("Optional area/neighbourhood \u2014 matches village, sub-county, district, or region.").optional(),
+    max_rent: z5.number().describe("Optional maximum monthly rent in UGX.").optional(),
+    limit: z5.number().describe("Optional number of listings to return (1-10, default 5).").optional(),
+    referral_code: z5.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ district, area, max_rent, limit, referral_code }) => {
+    const { signupUrl, referralUrl } = buildSignupLinks({
+      referralCode: referral_code,
+      role: "tenant"
+    });
+    const linkText = referralUrl ? `Create a free tenant account to view details and apply: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Create a free tenant account to view details and apply: ${signupUrl}`;
+    const take = Math.min(MAX_LIMIT, Math.max(1, Math.round(limit ?? DEFAULT_LIMIT)));
+    let query = anonClient().from("house_listings").select(
+      "id,title,house_category,number_of_rooms,monthly_rent,region,district,sub_county,village,has_water,has_electricity,has_security,has_parking,is_furnished,verified,image_urls"
+    ).eq("status", "available").not("is_hidden", "is", true);
+    const districtTerm = (district ?? "").trim();
+    if (districtTerm) query = query.ilike("district", `%${districtTerm}%`);
+    const areaTerm = (area ?? "").trim();
+    if (areaTerm) {
+      const like = `%${areaTerm}%`;
+      query = query.or(
+        `village.ilike.${like},sub_county.ilike.${like},district.ilike.${like},region.ilike.${like}`
+      );
+    }
+    if (typeof max_rent === "number" && Number.isFinite(max_rent) && max_rent > 0) {
+      query = query.lte("monthly_rent", Math.round(max_rent));
+    }
+    query = query.order("verified", { ascending: false }).order("created_at", { ascending: false }).limit(take);
+    const { data, error } = await query;
+    if (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Sorry, I couldn't fetch listings right now. You can still browse everything after signing up.
+
+${linkText}`
+          }
+        ],
+        isError: true,
+        structuredContent: { error: error.message, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" }
+      };
+    }
+    const rows = data ?? [];
+    if (rows.length === 0) {
+      const where = districtTerm || areaTerm ? ` in "${districtTerm || areaTerm}"` : "";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `No available listings matched your search${where} right now. New houses are added regularly \u2014 sign up free to save a search and get matched.
+
+${linkText}`
+          }
+        ],
+        structuredContent: {
+          count: 0,
+          listings: [],
+          filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
+          role: "tenant",
+          signup_url: signupUrl,
+          referral_url: referralUrl,
+          currency: "UGX"
+        }
+      };
+    }
+    const listings = rows.map((r) => ({
+      id: r.id,
+      title: r.title ?? "Available house",
+      category: r.house_category ?? null,
+      rooms: r.number_of_rooms ?? null,
+      monthly_rent: r.monthly_rent ?? null,
+      location: locationLabel(r),
+      district: r.district ?? null,
+      amenities: amenityList(r),
+      verified: !!r.verified,
+      photo_count: Array.isArray(r.image_urls) ? r.image_urls.length : 0
+    }));
+    const lines = listings.map((l) => {
+      const bits = [
+        `${ugx3(l.monthly_rent)}/mo`,
+        l.rooms ? `${l.rooms} room${l.rooms === 1 ? "" : "s"}` : null,
+        l.location,
+        l.amenities.length ? l.amenities.join(", ") : null,
+        l.verified ? "\u2713 verified" : null
+      ].filter(Boolean);
+      return `\u2022 ${l.title} \u2014 ${bits.join(" \xB7 ")}`;
+    }).join("\n");
+    const text = [
+      `${listings.length} available house${listings.length === 1 ? "" : "s"} on Welile (UGX):`,
+      "",
+      lines,
+      "",
+      "Full details, photos, and contact happen inside the app after you create a free account.",
+      "",
+      linkText
+    ].join("\n");
+    return {
+      content: [{ type: "text", text }],
+      structuredContent: {
+        count: listings.length,
+        listings,
+        filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
+        role: "tenant",
+        signup_url: signupUrl,
+        referral_url: referralUrl,
+        currency: "UGX"
+      }
+    };
+  }
+});
+
 // src/lib/mcp-public/index.ts
 var mcp_public_default = defineMcp({
   name: "welile-public-mcp",
   title: "Welile Receipts \u2014 Get Started",
   version: "0.1.0",
-  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Use `estimate_rent_access` when a prospective tenant gives a monthly rent (UGX) to return an indicative daily/total repayment ballpark plus the free tenant signup link \u2014 the figure is illustrative only, not an approval. Use `estimate_supporter_returns` when a prospective Supporter gives an amount (UGX) to return an illustrative Returns range (simple to compounding, at 15% monthly platform rewards) plus the free Supporter signup link \u2014 an illustration only, not a guarantee. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
-  tools: [how_welile_works_default, explore_welile_default, estimate_rent_access_default, estimate_supporter_returns_default]
+  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Use `estimate_rent_access` when a prospective tenant gives a monthly rent (UGX) to return an indicative daily/total repayment ballpark plus the free tenant signup link \u2014 the figure is illustrative only, not an approval. Use `estimate_supporter_returns` when a prospective Supporter gives an amount (UGX) to return an illustrative Returns range (simple to compounding, at 15% monthly platform rewards) plus the free Supporter signup link \u2014 an illustration only, not a guarantee. Use `find_available_houses` to return a small read-only sample of available house listings by district/area (public, non-sensitive fields only) plus the free tenant signup link to view details and apply. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
+  tools: [how_welile_works_default, explore_welile_default, estimate_rent_access_default, estimate_supporter_returns_default, find_available_houses_default]
 });
 
 // lovable-mcp-supabase-entry.ts
