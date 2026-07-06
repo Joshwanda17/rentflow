@@ -25,6 +25,9 @@ import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDial
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge, getCashoutCommission } from '@/lib/cashoutCharges';
 import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/merchantAgreementPdf';
+import { ClaimCommentTimeline } from './ClaimCommentTimeline';
+import { useLatestClaimComments, type CashoutClaimComment } from '@/hooks/useCashoutClaimComments';
+import { MessageSquare } from 'lucide-react';
 
 // A payout only counts as "processed" once the Merchant Agent has executed disbursement.
 // `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
@@ -36,6 +39,46 @@ type StatusFilter = 'all' | 'active' | 'idle';
 const isMomo = (m: string | null) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(m || '');
 const isBank = (m: string | null) => m === 'bank_transfer';
 const isCash = (m: string | null) => ['cash', 'cash_pickup'].includes(m || '') || !m;
+
+function ClaimCommentDialog({ claim, onClose }: { claim: any | null; onClose: () => void }) {
+  const charge = getTelecomSendingCharge(Number(claim?.amount || 0));
+  return (
+    <Dialog open={!!claim} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-primary" /> Claim comments
+          </DialogTitle>
+        </DialogHeader>
+        {claim && (
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-3 divide-y">
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-muted-foreground">Requested amount</span>
+                  <span className="text-sm font-medium">{formatUGX(Number(claim.amount || 0))}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-muted-foreground">Withdrawal charge</span>
+                  <span className="text-sm font-medium text-amber-600">{formatUGX(charge)}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-muted-foreground">Net paid to customer</span>
+                  <span className="text-sm font-bold">{formatUGX(Number(claim.amount || 0))}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-muted-foreground">Charge bearer</span>
+                  <Badge variant="outline" className="text-[10px]">Company</Badge>
+                </div>
+              </CardContent>
+            </Card>
+            <ClaimCommentTimeline withdrawalId={claim.id} />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function CashoutAgentManager() {
   const { user } = useAuth();
@@ -49,6 +92,7 @@ export function CashoutAgentManager() {
   const [label, setLabel] = useState('');
   const [cashoutAgent, setCashoutAgent] = useState<any>(null);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
+  const [commentClaim, setCommentClaim] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -447,6 +491,11 @@ export function CashoutAgentManager() {
     return payouts.filter((p: any) => p.assigned_cashout_agent_id === selectedAgent.id);
   }, [selectedAgent, payouts]);
 
+  // Latest comment per payout — inline note on each processed-payout card.
+  const { data: latestClaimComments } = useLatestClaimComments(
+    selectedAgentPayouts.map((p: any) => p.id),
+  );
+
   // Commission the merchant actually earned on each settled payout — read from
   // their own wallet ledger legs (`<withdrawal_id>-cashout-commission`) so the
   // drill-down reconciles 1:1 with what landed in their withdrawable wallet.
@@ -562,7 +611,7 @@ export function CashoutAgentManager() {
               <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
             ) : (
               selectedAgentPayouts.map((py: any) => (
-              <Card key={py.id}>
+              <Card key={py.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setCommentClaim(py)}>
                   <CardContent className="p-3 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -577,6 +626,14 @@ export function CashoutAgentManager() {
                     </Badge>
                     <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
                       Telecom charge: {formatUGX(getTelecomSendingCharge(Number(py.amount || 0)))}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      Net paid: {formatUGX(Number(py.amount || 0))}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      Charge bearer: Company
                     </Badge>
                   </div>
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -598,6 +655,21 @@ export function CashoutAgentManager() {
                     {py.fin_ops_reference && (
                       <p className="text-[10px] text-muted-foreground font-mono truncate">Ref: {py.fin_ops_reference}</p>
                     )}
+                    {(() => {
+                      const c: CashoutClaimComment | undefined = (latestClaimComments as Record<string, CashoutClaimComment> | undefined)?.[py.id];
+                      return (
+                        <p className="text-[10px] flex items-start gap-1 text-foreground/70 border-t border-border/60 pt-1.5">
+                          <MessageSquare className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+                          {c ? (
+                            <span className="min-w-0 truncate">
+                              {c.comment} <span className="text-muted-foreground">— {c.author_name || 'Officer'}{c.status ? ` · ${c.status}` : ''}</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Tap to add a comment</span>
+                          )}
+                        </p>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               ))
@@ -735,6 +807,8 @@ export function CashoutAgentManager() {
           isReleasing={releaseClaimsMutation.isPending}
           onRelease={() => deleteAgent && releaseClaimsMutation.mutate(deleteAgent)}
         />
+
+        <ClaimCommentDialog claim={commentClaim} onClose={() => setCommentClaim(null)} />
       </div>
     );
   }

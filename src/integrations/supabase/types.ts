@@ -4885,6 +4885,47 @@ export type Database = {
           },
         ]
       }
+      cashout_claim_comments: {
+        Row: {
+          author_id: string
+          author_name: string | null
+          author_role: string | null
+          comment: string
+          created_at: string
+          id: string
+          status: string | null
+          withdrawal_id: string
+        }
+        Insert: {
+          author_id: string
+          author_name?: string | null
+          author_role?: string | null
+          comment: string
+          created_at?: string
+          id?: string
+          status?: string | null
+          withdrawal_id: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string | null
+          author_role?: string | null
+          comment?: string
+          created_at?: string
+          id?: string
+          status?: string | null
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashout_claim_comments_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cfo_debit_obligations: {
         Row: {
           amount: number

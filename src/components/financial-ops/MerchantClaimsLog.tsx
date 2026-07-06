@@ -21,6 +21,10 @@ import {
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { getTelecomSendingCharge } from '@/lib/cashoutCharges';
+import { useLatestClaimComments, type CashoutClaimComment } from '@/hooks/useCashoutClaimComments';
+import { ClaimCommentTimeline } from '@/components/cfo/ClaimCommentTimeline';
+import { MessageSquare } from 'lucide-react';
 
 interface ClaimRow {
   id: string;
@@ -204,6 +208,44 @@ function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose
                   <p className="text-sm font-medium mt-0.5">{claim.customerName}</p>
                   {claim.customerPhone && <p className="text-xs text-muted-foreground">{claim.customerPhone}</p>}
                 </Card>
+              </div>
+
+              {/* Withdrawal charge (company-borne, auto-computed) */}
+              {(() => {
+                const charge = getTelecomSendingCharge(claim.amount);
+                return (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Withdrawal charge
+                    </p>
+                    <Card className="divide-y">
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Requested amount</span>
+                        <span className="text-sm font-medium">{formatUGX(claim.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Withdrawal charge</span>
+                        <span className="text-sm font-medium text-amber-600">{formatUGX(charge)}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Net paid to customer</span>
+                        <span className="text-sm font-bold">{formatUGX(claim.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Charge bearer</span>
+                        <Badge variant="outline" className="text-[10px]">Company</Badge>
+                      </div>
+                    </Card>
+                  </div>
+                );
+              })()}
+
+              {/* Comment timeline — permanent audit trail of officer notes */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" /> Comments
+                </p>
+                <ClaimCommentTimeline withdrawalId={claim.id} />
               </div>
 
               {/* Audit trail — every claim/payout state change */}
@@ -403,6 +445,10 @@ export function MerchantClaimsLog() {
   });
 
   const rows = data || [];
+
+  // Latest comment per claim — shown inline on the merchant list so Finance can
+  // read status/notes without opening each claim.
+  const { data: latestComments } = useLatestClaimComments(rows.map(r => r.id));
 
   // The activity timestamp used for the tab + date-range filters:
   // "paid" claims filter on completedAt, "claimed" on claimedAt.
@@ -616,6 +662,22 @@ export function MerchantClaimsLog() {
                     {r.merchantPhone && r.customerPhone ? ' · ' : ''}
                     {r.customerPhone ? `Customer ${r.customerPhone}` : ''}
                   </p>
+                  {(() => {
+                    const c: CashoutClaimComment | undefined = latestComments?.[r.id];
+                    if (!c) return null;
+                    return (
+                      <p className="text-xs mt-1 flex items-start gap-1.5 text-foreground/80">
+                        <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                        <span className="min-w-0">
+                          <span className="truncate">{c.comment}</span>
+                          <span className="text-muted-foreground">
+                            {' '}— {c.author_name || 'Officer'} · {format(new Date(c.created_at), 'dd MMM, HH:mm')}
+                            {c.status ? ` · ${c.status}` : ''}
+                          </span>
+                        </span>
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="text-right text-[11px] text-muted-foreground shrink-0">
                   {r.claimedAt && <p>Claimed {format(new Date(r.claimedAt), 'dd MMM yyyy, HH:mm')}</p>}

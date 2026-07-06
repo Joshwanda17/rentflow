@@ -1,105 +1,42 @@
-# Low-end phone optimization — evidence-based audit & plan
+## Scope
 
-## What the earlier audit got wrong (already done)
+Focused on the **Cash-Out Agents tab of the CFO Dashboard** (`CashoutAgentManager` + its dialogs and the shared `MerchantClaimsLog`). Reflecting your decisions: charges are **company-borne and auto-computed**, the flow stays **claim → done** (no heavy multi-stage approval), and the CFO gets **transaction-type filters + the ability to assign an agent to a transaction type**. Other spec sections (operational-expenses/landlord-payout standalone modules, full audit-log console) are deferred to later passes.
 
-Verified against the current code, not assumptions:
+## What already exists (no rebuild needed)
+- `cashout_agents` already stores per-agent capabilities: `handles_bank`, `handles_mtn`, `handles_airtel`, `handles_cash` — this IS "assign an agent to a transaction type". The Assign/Edit dialogs already toggle these.
+- Method filters (MoMo / Bank / Cash) exist in both the manager list and the Pending Withdrawals dialog.
+- Telecom charge + 0.5% commission are already computed per payout in the drill-down.
+- Float "Request float" button already disables while a request is `pending` (spec #9 already satisfied).
 
-- **Dialogs/sheets already lazy-loaded** — `AgentDashboard.tsx` has **57** `lazy()` imports (DepositFlow, WithdrawFlow, scanners, poster, registration, etc.). Closed dialogs are not statically bundled.
-- **Android safe-mode already exists** — `main.tsx` adds `no-backdrop-blur` + `android-compositor-safe` on Android/low-blur.
-- **React Query already tuned** — `App.tsx:255-257` sets network-aware `staleTime`/`gcTime` (not a flat 60–120 min for everyone).
-- **Save-Data / slow-network mode already handled** — `App.tsx` adds a `save-data` class and listens for connection changes.
-- `**index.css` is ~34 KB source**, not 282 KB. The 282 KB figure is the *compiled* Tailwind output (all utilities); that is a build concern, addressed by purge, not hand-editing.
+## Phase 1 — Cash-Out Claim Comments (the main gap)
 
-So the app is not un-optimized — but there are real, targeted issues below.
+New table `public.cashout_claim_comments`:
+```text
+id, withdrawal_id (fk withdrawal_requests), author_id (fk auth via profiles),
+author_role text, comment text, status text (nullable), created_at
+```
+- RLS + GRANTs: any finance/ops role (cfo, coo, manager, financial_ops, super_admin) and the assigned cash-out agent can INSERT and SELECT; no UPDATE/DELETE (immutable timeline). service_role ALL.
+- `useCashoutClaimComments(withdrawalId)` hook: read timeline + add comment (stamps author name/role).
+- UI:
+  - In the agent drill-down "Payouts Processed" list and in `MerchantClaimsLog` rows: show **latest comment inline** (officer · time · text · status).
+  - Claim detail drawer: full comment timeline + an "Add comment" composer (comment text + optional status like Verified / Paid / Failed).
+  - New "Cash-Out Merchant List" style row in the CFO tab: Merchant · Amount · Status · Latest comment · Officer · Time.
 
-## Confirmed real issues (with evidence)
+## Phase 2 — Withdrawal charge as a first-class figure
 
-1. `**will-change: scroll-position` on `.scroll-container**` (`index.css:886`) — forces a large permanent composited layer on every scroll region. This is a leading cause of the GPU tearing in the screenshot. Fix: remove it (keep `-webkit-overflow-scrolling` + `overscroll-behavior`).
-2. **225 files import `framer-motion**` — heavy JS + animated compositing on low-end. Biggest memory/CPU lever. Fix: gate motion off under `android-compositor-safe`/`prefers-reduced-motion` and swap the most common cases to CSS.
-3. `**AgentCashPayoutsTab.tsx` is 1746 lines with un-virtualized lists** — this is the corrupted "Cash, Mobile Money & Bank Payments" sheet. Fix: paginate/virtualize the payout list and cap query rows.
-4. **Caches cleared on every launch** (`main.tsx:82`) — `caches.delete` runs each boot. Fix: run once behind a `localStorage` version flag.
-5. `**AgentDashboard.tsx` (1756 lines, 90 static imports)** — still large despite lazy dialogs. Fix: move the heaviest still-static feature panels behind `lazy()`.
+Display-only (no schema; charge derived from existing `cashoutCharges.ts`, bearer = Company):
+- Each payout/claim row shows **Requested / Charge / Net paid** and a "Bearer: Company" tag.
+- Add a "Total withdrawal charges" KPI tile to the tab header and drill-down.
 
-## Prioritized implementation (incremental, after your OK)
+## Phase 3 — Transaction-type filters + assignment surfacing
 
-&nbsp;
-
-Minimum-device requirement:
-
-Treat entry-level Android phones such as the itel A08 series as a primary target, not an edge case. Optimize and test using an Android Go–class profile with:
-
-- 2 GB available RAM
-
-- Entry-level quad-core CPU
-
-- 6× CPU slowdown during browser testing
-
-- 360×720 viewport, plus testing at 320px width
-
-- Slow 3G network conditions
-
-- Data Saver enabled
-
-- Reduced Motion enabled
-
-- Limited GPU texture/compositing capacity
-
-- Current and older Chromium-based Android browsers
-
-On this profile, the application must:
-
-- Open without crashing, freezing, visual tearing, or automatic tab reloads.
-
-- Keep scrolling responsive.
-
-- Avoid blurred overlays, oversized composited layers, large shadows, and unnecessary transforms.
-
-- Render payout lists incrementally through pagination and virtualization.
-
-- Mount dialogs, maps, scanners, charts, and advanced tools only when requested.
-
-- Use static UI in low-performance mode.
-
-- Avoid retaining large query results or hidden component trees.
-
-- Display a lightweight loading state immediately.
-
-- Preserve every financial workflow and validation rule.
-
-Use progressive enhancement: the essential application must work without backdrop-filter, complex animation, WebGL, high-resolution assets, or advanced GPU effects.
-
-Test the payout sheet and agent dashboard repeatedly on this minimum-device profile. Passing desktop Lighthouse alone is not sufficient.
-
-<html class="lite-mode android-compositor-safe no-backdrop-blur">
-
-**Phase 1 — GPU tearing + boot cost (fast, low risk)**
-
-- Remove `will-change: scroll-position`; strengthen `android-compositor-safe` to also drop `backdrop-filter`, big shadows, and entrance transforms on the payout sheet.
-- Make cache cleanup one-time (versioned flag) in `main.tsx`.
-
-**Phase 2 — Payout sheet (the screenshot)**
-
-- Paginate/virtualize the payout list in `AgentCashPayoutsTab.tsx`; add row limits to its queries. Preserve all claim/complete/financial logic exactly.
-
-**Phase 3 — Motion weight**
-
-- Add a shared `useReducedMotion`/CSS gate so `framer-motion` animations are skipped in low-perf mode; convert the highest-traffic dashboard animations to CSS transitions. No behavior change.
-
-**Phase 4 — Dashboard chunking**
-
-- Lazy-load remaining heavy static panels in `AgentDashboard.tsx`.
-
-**Phase 5 — Verify**
-
-- Lint, typecheck, production build; compare chunk sizes before/after; test at 320/360/390 widths with 4× CPU throttle; confirm no tearing on the payout sheet.
-
-## Guardrails
-
-- No changes to financial calculations, ledger, RPCs, routes, permissions, or workflows.
-- No file deletions in this pass (redundant-file cleanup is a separate, evidence-gated phase).
-- Keep TypeScript strict; no new `any`.
+- Add a prominent **Bank vs Mobile Money** split (tabs/segment) to the payouts list and Pending Withdrawals dialog (bank already separated in the dialog; make it consistent and add a per-agent "specialization" badge derived from `handles_*`).
+- Make the Assign/Edit dialog wording explicit: "Assign transaction types this agent handles" (Bank slip / Mobile Money / Cash).
 
 ## Technical notes
+- Migration only creates the comments table (CREATE TABLE → GRANT → ENABLE RLS → POLICY, in that order).
+- All amounts via `formatUGX`; charges via `getTelecomSendingCharge`.
+- No changes to ledger/wallet logic — comments and charge display are additive.
 
-- Motion gate: single hook reading `matchMedia('(prefers-reduced-motion)')` + `.android-compositor-safe` class, returning a flag components use to render static instead of `motion.*`.
-- Virtualization: reuse the existing approach already used in `AvailableHousesSheet.tsx`/`FindAHouse.tsx` for consistency.
+## Sequencing
+Build Phase 1 first (migration + UI), verify with a typecheck/build, then Phase 2 and 3. I'll check in after Phase 1 before proceeding.
