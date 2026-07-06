@@ -427,6 +427,23 @@ export function useAuthForm() {
           }
         }
 
+        // Block recycled fraud accounts that reuse the same display name with a
+        // fresh phone/email. The DB trigger enforces this too, but we pre-check
+        // to show a clear message before attempting account creation.
+        const { data: nameFraudRows } = await (supabase as any).rpc('check_fraud_account_by_name', {
+          p_full_name: trimmedFullName,
+        });
+        const nameFraudRow = Array.isArray(nameFraudRows) ? nameFraudRows[0] : null;
+        if (nameFraudRow?.is_blocked) {
+          setIsLoading(false);
+          toast({
+            title: 'Account Restricted',
+            description: 'This name is linked to an account that was permanently restricted for fraud review and cannot be used to create a new Welile account.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
         const { data: existing } = await supabase.rpc('check_phone_exists', { phone_suffix: last9 });
         if (Array.isArray(existing) && existing.length > 0) {
           setIsLoading(false);
