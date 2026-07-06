@@ -806,11 +806,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
 
               {/* ── REASON FOR WITHDRAWAL ── */}
               {payoutMode && isPayoutValid() && (
-                <motion.div
+                <div
                   ref={reasonSectionRef as any}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`space-y-2 rounded-2xl p-1 transition-shadow ${pulseTarget === 'reason' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
+                  className={`space-y-2 rounded-2xl p-1 transition-shadow animate-fade-in ${pulseTarget === 'reason' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
                 >
                   <Label className="text-sm font-bold text-foreground flex items-center gap-2">
                     <FileText className="h-4 w-4 text-primary" />
@@ -825,18 +823,13 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                   {reason.length > 0 && reason.trim().length < 10 && (
                     <p className="text-[10px] text-destructive">Reason must be at least 10 characters</p>
                   )}
-                </motion.div>
+                </div>
               )}
 
-              <AnimatePresence>
-                {isPayoutValid() && meetsMinBalance && workingHoursStatus.isOpen && (
-                  <motion.div
+              {isPayoutValid() && meetsMinBalance && workingHoursStatus.isOpen && (
+                  <div
                     ref={amountSectionRef as any}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className={`space-y-4 rounded-2xl p-1 transition-shadow ${pulseTarget === 'amount' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
+                    className={`space-y-4 rounded-2xl p-1 transition-shadow animate-fade-in ${pulseTarget === 'amount' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
                   >
                     <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
@@ -898,14 +891,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                     </div>
 
                     {/* Transfer preview card */}
-                    <AnimatePresence>
-                      {amount >= 500 && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.97 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.97 }}
-                          className="p-4 rounded-2xl bg-gradient-to-br from-primary/5 via-primary/3 to-transparent border border-primary/15 space-y-2"
-                        >
+                    {amount >= 500 && (
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/5 via-primary/3 to-transparent border border-primary/15 space-y-2 animate-scale-in">
                           <div className="flex items-center justify-between">
                             <p className="text-xs text-muted-foreground font-medium">You'll receive</p>
                             <p className="text-xs text-muted-foreground">
@@ -923,12 +910,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                               Remaining: {formatCurrency(walletBalance - amount)}
                             </span>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                        </div>
+                    )}
+                  </div>
+              )}
 
               {/* ── ACTIONS ── */}
               <div className="pt-2 flex gap-3">
