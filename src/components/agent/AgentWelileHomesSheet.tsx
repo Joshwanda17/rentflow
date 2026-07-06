@@ -50,6 +50,22 @@ interface EnrollmentAuditRow {
   editor_name?: string;
 }
 
+type PreviewDelta<T> = { old: T; new: T };
+interface EditPreview {
+  success: boolean;
+  error?: string;
+  changes: { field: string; old: any; new: any }[];
+  months_adjusted: number;
+  monthly_rent: PreviewDelta<number>;
+  payout_day: PreviewDelta<number>;
+  has_smartphone: PreviewDelta<boolean>;
+  agent_commission_per_month: PreviewDelta<number>;
+  landlord_net_per_month: PreviewDelta<number>;
+  receivable_total: PreviewDelta<number>;
+  outstanding_balance: PreviewDelta<number>;
+  next_due_date: PreviewDelta<string | null>;
+}
+
 const FIELD_LABELS: Record<string, string> = {
   monthly_rent: 'Monthly rent',
   payout_day: 'Payout day',
