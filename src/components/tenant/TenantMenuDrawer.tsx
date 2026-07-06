@@ -85,6 +85,7 @@ export function TenantMenuDrawer({
   const longPressFired = useRef(false);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const { mounted, visible } = useDrawerTransition(open);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
     if (typeof window === 'undefined') return {};
     try {
