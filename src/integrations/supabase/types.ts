@@ -22775,6 +22775,14 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      signup_source_funnel: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          activated: number
+          signups: number
+          source: string
+        }[]
+      }
       snapshot_agent_daily_eligibility: {
         Args: { p_days?: number }
         Returns: number
