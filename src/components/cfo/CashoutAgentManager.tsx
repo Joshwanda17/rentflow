@@ -814,6 +814,15 @@ export function CashoutAgentManager() {
                     <p className="text-[11px] text-muted-foreground truncate">{a.profiles?.phone} · {a.label || 'Merchant Agent'}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {methodBadges(a)}
+                      {agreementByAgentId.get(a.agent_id) ? (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 border-emerald-500/40 text-emerald-600" title="Merchant Agreement signed">
+                          <FileCheck className="h-2.5 w-2.5" /> Signed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 border-amber-500/40 text-amber-600" title="Merchant Agreement not signed yet">
+                          <FileWarning className="h-2.5 w-2.5" /> No agreement
+                        </Badge>
+                      )}
                       {pending && pending.count > 0 && (
                         <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5" title={`${pending.count} active claim${pending.count === 1 ? '' : 's'} in queue — blocks deletion`}>
                           <Clock className="h-2.5 w-2.5" />
