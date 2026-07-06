@@ -85,6 +85,8 @@ export function WelileHomesAdminPanel() {
       if (error) throw error;
       const res = data as any;
       toast.success(`Paid ${res?.payouts ?? 0} landlord(s) · ${formatUGX(res?.total_paid ?? 0)}`);
+      // Fire-and-forget: send landlords their payout SMS receipts.
+      supabase.functions.invoke('welile-homes-sms-dispatch', { body: { since_minutes: 10 } }).catch(() => {});
       load();
     } catch (err: any) {
       toast.error('Payout run failed: ' + err.message);
