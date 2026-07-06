@@ -213,6 +213,17 @@ function SwipeableRoleBadge({
           touchAction: 'pan-y',
         }}
         className="relative"
+        role={canRemove ? 'button' : undefined}
+        tabIndex={canRemove && !isLoading ? 0 : undefined}
+        aria-label={canRemove ? `${role} role. Press Delete or Enter to remove.` : `${role} role`}
+        onKeyDown={(e) => {
+          if (!canRemove || isLoading) return;
+          if (e.key === 'Delete' || e.key === 'Backspace' || e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            hapticSuccess();
+            onRemove();
+          }
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishSwipe}
