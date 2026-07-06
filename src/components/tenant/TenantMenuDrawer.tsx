@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useDrawerTransition } from '@/hooks/useDrawerTransition';
 import { 
   X, 
   Home,
