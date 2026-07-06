@@ -187,16 +187,12 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
               </div>
 
               <div className="flex items-center gap-1 mt-2 md:mt-0">
-                <AnimatePresence mode="wait">
-                  {hasMessages && (
-                    <motion.button
+                {hasMessages && (
+                    <button
                       key="clear"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
                       onClick={handleClear}
                       className={cn(
-                        "h-9 px-3 rounded-xl text-[11px] font-semibold transition-all flex items-center gap-1.5 min-w-[36px] justify-center",
+                        "h-9 px-3 rounded-xl text-[11px] font-semibold transition-all flex items-center gap-1.5 min-w-[36px] justify-center animate-fade-in",
                         confirmClear
                           ? "bg-destructive/15 text-destructive border border-destructive/30"
                           : "hover:bg-muted text-muted-foreground"
@@ -208,9 +204,8 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                       ) : (
                         <RotateCcw className="h-4 w-4" />
                       )}
-                    </motion.button>
-                  )}
-                </AnimatePresence>
+                    </button>
+                )}
                 <button
                   onClick={() => onOpenChange(false)}
                   className="h-9 w-9 rounded-xl hover:bg-muted flex items-center justify-center transition-colors"
