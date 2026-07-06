@@ -41,6 +41,28 @@ type EnrollStatus = {
   className: string;
 };
 
+interface EnrollmentAuditRow {
+  id: string;
+  edited_by: string;
+  changes: { field: string; old: any; new: any }[];
+  months_adjusted: number;
+  created_at: string;
+  editor_name?: string;
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  monthly_rent: 'Monthly rent',
+  payout_day: 'Payout day',
+  has_smartphone: 'Smartphone mode',
+};
+
+function formatAuditValue(field: string, value: any): string {
+  if (value === null || value === undefined) return '—';
+  if (field === 'monthly_rent') return formatUGX(Number(value));
+  if (field === 'has_smartphone') return value ? 'Tenant pays' : 'Agent allocates';
+  return String(value);
+}
+
 // Derive an enrollment verification / readiness status for the agent's list.
 function getEnrollStatus(s: WHSubscription): EnrollStatus {
   if (s.tenant_verified) {
