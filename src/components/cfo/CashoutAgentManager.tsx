@@ -571,7 +571,7 @@ export function CashoutAgentManager() {
               <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
             ) : (
               selectedAgentPayouts.map((py: any) => (
-              <Card key={py.id}>
+              <Card key={py.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setCommentClaim(py)}>
                   <CardContent className="p-3 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -586,6 +586,14 @@ export function CashoutAgentManager() {
                     </Badge>
                     <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
                       Telecom charge: {formatUGX(getTelecomSendingCharge(Number(py.amount || 0)))}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      Net paid: {formatUGX(Number(py.amount || 0))}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      Charge bearer: Company
                     </Badge>
                   </div>
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -607,6 +615,21 @@ export function CashoutAgentManager() {
                     {py.fin_ops_reference && (
                       <p className="text-[10px] text-muted-foreground font-mono truncate">Ref: {py.fin_ops_reference}</p>
                     )}
+                    {(() => {
+                      const c: CashoutClaimComment | undefined = (latestClaimComments as Record<string, CashoutClaimComment> | undefined)?.[py.id];
+                      return (
+                        <p className="text-[10px] flex items-start gap-1 text-foreground/70 border-t border-border/60 pt-1.5">
+                          <MessageSquare className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+                          {c ? (
+                            <span className="min-w-0 truncate">
+                              {c.comment} <span className="text-muted-foreground">— {c.author_name || 'Officer'}{c.status ? ` · ${c.status}` : ''}</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Tap to add a comment</span>
+                          )}
+                        </p>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               ))
