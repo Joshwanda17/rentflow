@@ -525,49 +525,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     }
   };
 
-  const handleAddRole = async (role: string) => {
-    if (!profile) return;
-    setAddingRole(true);
-    try {
-      const typedRole = role as 'agent' | 'supporter' | 'landlord' | 'tenant';
-      const { data: existing } = await supabase
-        .from('user_roles')
-        .select('id, enabled')
-        .eq('user_id', tenantId)
-        .eq('role', typedRole)
-        .maybeSingle();
-
-      if (existing) {
-        if (existing.enabled === false) {
-          await supabase.from('user_roles').update({ enabled: true }).eq('id', existing.id);
-          toast({ title: `✅ ${role} role re-enabled for ${profile.full_name}` });
-        } else {
-          toast({ title: `Already has ${role} role`, variant: 'default' });
-        }
-      } else {
-        const { error } = await supabase.from('user_roles').insert([{
-          user_id: tenantId,
-          role: typedRole,
-          enabled: true,
-        }]);
-        if (error) throw error;
-        toast({ title: `✅ ${role} role added to ${profile.full_name}` });
-      }
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('role, enabled')
-        .eq('user_id', tenantId);
-      const enabled = ((rolesData || []) as any[])
-        .filter(r => r.enabled === null || r.enabled === true)
-        .map(r => r.role as string);
-      setUserRoles(enabled);
-    } catch (err: any) {
-      toast({ title: 'Failed to add role', description: err.message, variant: 'destructive' });
-    } finally {
-      setAddingRole(false);
-    }
-  };
-
   const handleAutoCollectFromWallet = async () => {
     if (!profile || !summary.activeRequest || !walletData) return;
     const collectAmount = Math.min(walletData.balance, summary.currentOutstanding);
