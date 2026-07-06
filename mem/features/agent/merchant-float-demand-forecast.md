@@ -1,20 +1,16 @@
 ---
-name: Merchant float demand forecast (shared-pool coordination)
-description: MerchantFloatDemandCard shows a SHARED (global) payout demand queue; every merchant agent sees the same demand, so float requests use a network-aware fair share, not the full gap
-type: feature
+name: Merchant float requests — CFO owns allocation (forecast removed)
+description: The per-agent MerchantFloatDemandCard "fair-share" forecast was removed. Merchant agents request any amount via MerchantFloatRequestCard; the CFO decides. Do not reintroduce per-agent forecasting/self-allocation.
+type: constraint
 ---
-`MerchantFloatDemandCard` (on the Cash/MoMo/Bank Payouts page) forecasts how much float a merchant (cash-out) agent should request from the CFO.
+**Decision (2026-07-06, Option A):** The per-agent float **demand forecast / fair-share** widget (`MerchantFloatDemandCard`) was deleted. It was misleading — it looked authoritative but bound nothing, and enabled a double-request loophole: the shared `net_gap = demand − network_float − pending_requested` recomputed with a lag after CFO approval and had no per-agent cap, so an agent could click "Request fair share" repeatedly and get double-funded.
 
-**The demand is GLOBAL, not per-agent.** It sums every available `withdrawal_requests` row (statuses pending/requested/manager_approved/cfo_approved/fin_ops_approved that are unclaimed OR have an expired >15-min claim) — the same pool every one of the ~8 active merchant agents sees. These are ROI cash-outs, landlord float payouts and commission withdrawals the CFO released to users' wallets. The card also splits the demand by channel (MTN / Airtel / other MoMo / bank / cash) and by day, with telecom sending fees on MoMo channels.
+**Current model — CFO is the gatekeeper.** Merchant (cash-out) agents request float through `MerchantFloatRequestCard` only:
+- Free-text amount + reason → inserts a `float_requests` row (status `pending`) → CFO "Pay to Wallet" queue → funded under Agent Float Allocation (recipient_type `operational_wallet` → Float bucket).
+- Double-request safe: `hasPending` disables the button AND the mutation rejects while any `pending` request exists.
+- The request card is always available (`showRequest = true`), with a low-float (<UGX 100,000) amber alert as a hint.
+- Coordination/forecasting of the shared payout pool is the CFO's job on the CFO side, not per-agent.
 
-**Over-request bug fixed via `get_merchant_float_network_status()`** (SECURITY DEFINER RPC, merchant-only). Because RLS blocks a merchant from reading other agents' float or float_requests, this RPC returns network-wide truth:
-- `total_demand` = global available payout principal
-- `network_float` = SUM(float_balance) over active merchants (from `v_user_wallet_strict`)
-- `pending_requested` = SUM(float_requests.requested_amount) where status='pending' for active merchants
-- `active_merchants` = count of `cashout_agents` where is_active
-- `net_gap` = max(0, total_demand − network_float − pending_requested)
-- `fair_share` = ceil(net_gap / active_merchants)
+**Do NOT reintroduce:** per-agent float demand forecasting, "fair-share" auto-computed request amounts, or any client-side self-service float allocation. Doing that correctly needs real backend work (claim locks, race-condition handling, spend-down tracking) and is only justified if agents self-serve float at scale — which we explicitly rejected.
 
-The card requests **fair_share**, not the full gap, so if all merchants request, the CFO isn't over-funded. Per-day request buttons request `ceil(day.needed / active_merchants)`. When `net_gap === 0` the card shows "Network is fully funded — no request needed". "Needs attention" / low-float alert triggers on `net_gap > 0`.
-
-Requests still flow into `float_requests` (status pending) → CFO "Pay to Wallet" queue → funded under Agent Float Allocation (recipient_type operational_wallet → Float bucket).
+The `get_merchant_float_network_status()` RPC is now unused by the UI (only a dead type ref remains in generated types). Safe to leave; do not build new UI on it.
