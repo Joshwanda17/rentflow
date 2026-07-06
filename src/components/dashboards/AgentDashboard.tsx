@@ -176,6 +176,7 @@ const GeneratePaymentTokenDialog = lazy(() => import('@/components/agent/Generat
 const RecordAgentCollectionDialog = lazy(() => import('@/components/agent/RecordAgentCollectionDialog').then(m => ({ default: m.RecordAgentCollectionDialog })));
 const AgentDepositCashDialog = lazy(() => import('@/components/agent/AgentDepositCashDialog').then(m => ({ default: m.AgentDepositCashDialog })));
 const NearbyTenantsSheet = lazy(() => import('@/components/agent/NearbyTenantsSheet').then(m => ({ default: m.NearbyTenantsSheet })));
+const AgentWelileHomesSheet = lazy(() => import('@/components/agent/AgentWelileHomesSheet').then(m => ({ default: m.AgentWelileHomesSheet })));
 const MySubAgentsSheet = lazy(() => import('@/components/agent/MySubAgentsSheet').then(m => ({ default: m.MySubAgentsSheet })));
 const MyLandlordsSheet = lazy(() => import('@/components/agent/MyLandlordsSheet').then(m => ({ default: m.MyLandlordsSheet })));
 const QuickShareSubAgentSheet = lazy(() => import('@/components/agent/QuickShareSubAgentSheet').then(m => ({ default: m.QuickShareSubAgentSheet })));
@@ -300,6 +301,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [businessAdvanceOpen, setBusinessAdvanceOpen] = useState(false);
   const { event: commissionEvent, dismiss: dismissCommission } = useBusinessAdvanceCommissionListener();
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
+  const [welileHomesOpen, setWelileHomesOpen] = useState(false);
   // When an agent taps a specific tenant in the inline list, open the sheet
   // straight into that tenant's profile (payments + outstanding balance).
   const [tenantProfileId, setTenantProfileId] = useState<string | undefined>(undefined);
@@ -1178,13 +1180,23 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className={cn("space-y-4 pb-24", tabAnimClass)}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">My Tenants</h2>
-              <Button
-                onClick={() => { hapticTap(); setRentRequestOpen(true); }}
-                className="h-11 px-4 text-sm font-bold rounded-xl gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <UserPlus className="h-4 w-4" />
-                Add Tenant
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { hapticTap(); setWelileHomesOpen(true); }}
+                  className="h-11 px-3 text-sm font-bold rounded-xl gap-2"
+                >
+                  <Home className="h-4 w-4" />
+                  Welile Homes
+                </Button>
+                <Button
+                  onClick={() => { hapticTap(); setRentRequestOpen(true); }}
+                  className="h-11 px-4 text-sm font-bold rounded-xl gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Add Tenant
+                </Button>
+              </div>
             </div>
             <AgentDailyCardEmailPrompt />
             <AgentCapacityShareInline />
@@ -1670,6 +1682,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </LazyModal>
       <LazyModal when={nearbyTenantsOpen}>
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
+      </LazyModal>
+      <LazyModal when={welileHomesOpen}>
+      <AgentWelileHomesSheet open={welileHomesOpen} onOpenChange={setWelileHomesOpen} />
       </LazyModal>
       <LazyModal when={subAgentsSheetOpen}>
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
