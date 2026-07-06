@@ -1,0 +1,64 @@
+---
+name: Welile Homes agent-collection model
+description: Agent-managed monthly rent collection + landlord payout engine (10% fee split 2% agent / 8% Welile / 90% landlord), receivable×12, fixed-day payouts, deposit auto-collect
+type: feature
+---
+
+# Welile Homes — Agent-Managed Rent Collection
+
+Operational model (distinct from the older Welile Homes *savings* product where 10%
+grows into tenant savings at 5%/mo). Agents enroll tenants; monthly rent is collected
+through the Welile wallet (or allocated by the agent for phone-less tenants); Welile
+takes 10% and pays the landlord 90% on a fixed day.
+
+## Locked economics
+- Landlord charged **10%** → receives **90%**.
+- Agent **2%** comes **out of Welile's 10%** → Welile net **8%**, agent **2%**, landlord **90%**.
+- At enrollment, one month's rent is booked as **receivable × 12**, one due per month.
+- 10% charged **the moment** rent lands: tenant wallet deposit OR agent allocation.
+- Landlord paid on a **fixed day-of-month** (`payout_day`, 1–28) per enrollment.
+
+## Schema
+- `welile_homes_subscriptions` extended: `agent_id`, `enrolled_by`, `has_smartphone`,
+  `landlord_uses_wallet`, `payout_day`, `monthly_landlord_fee`, `receivable_total`,
+  `outstanding_balance`, `next_due_date`, `mode` (`'agent_collection'` vs default
+  `'savings'`), `landlord_name`, `landlord_phone`. Landlord without an account →
+  `landlord_id` NULL, name/phone stored, paid via agent float.
+- `welile_homes_monthly_dues` — 12-month schedule per enrollment, UNIQUE
+  `(subscription_id, period_month)`: amounts due/collected, `landlord_fee` (10%),
+  `agent_commission` (2%), `welile_net` (8%), `landlord_net` (90%),
+  `collection_status` (pending/partial/collected), `payout_status`
+  (unpaid/paid_wallet/paid_float). RLS: agent/tenant see own, ops see all.
+
+## RPCs (SECURITY DEFINER)
+- `enroll_welile_home_tenant(tenant, agent, monthly_rent, payout_day, has_smartphone,
+  landlord_uses_wallet, landlord_id, landlord_name, landlord_phone, notes)` — upserts
+  subscription + generates 12 dues idempotently.
+- `welile_home_record_collection(subscription_id, amount, source, notes)` —
+  `source` = `tenant_wallet` (debit tenant withdrawable) or `agent_allocation`
+  (debit agent float via `rent_payment_for_tenant`). Pays agent 2% instantly
+  (`agent_commission_earned`), platform receives the rest. FIFO applies to dues.
+- `welile_home_run_landlord_payouts(as_of)` — pays each collected+matured due:
+  landlord wallet (`landlord_rent_payment` → withdrawable) if `landlord_uses_wallet`,
+  else agent landlord-float (`agent_landlord_payout` → float) + opens an
+  `agent_landlord_float_allocations` row (source `welile_homes_payout`) for the agent
+  to withdraw and hand over. Idempotent (payout_status gate).
+
+## Automation & hooks
+- Cron `welile-homes-landlord-payouts` daily 07:15 UTC → `welile_home_run_landlord_payouts(current_date)`.
+- Trigger `trg_welile_home_auto_collect` on `system_events` (AFTER INSERT,
+  `deposit_approved`/`funds_added`) best-effort auto-collects up to outstanding from
+  the tenant's just-topped-up wallet. Wrapped in EXCEPTION → never blocks deposits.
+
+## Ledger conventions
+- Mirrors `agent_allocate_tenant_payment`: build legs → `create_ledger_transaction(legs, key, true)`.
+  Wallet-scope legs auto-route via `wallet_route_for_category`; platform legs `ledger_scope='platform'`.
+  Only allowlisted categories used (rent_repayment, agent_commission_earned/payable,
+  rent_payment_for_tenant, rent_disbursement, landlord_rent_payment, agent_landlord_payout).
+
+## UI
+- Agent: Agent Dashboard → My Tenants → **Welile Homes** button →
+  `AgentWelileHomesSheet` (stats, enroll dialog, per-tenant allocate, 2% earnings).
+- Admin: Tenant Ops hub → **Welile Homes** button → `WelileHomesAdminPanel`
+  (enrolled tenants, receivable, outstanding, Welile 8%, pending payouts, manual payout run).
+- The legacy savings manager (`WelileHomesSubscriptionsManager`, mode `savings`) is untouched.
