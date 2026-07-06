@@ -21,6 +21,38 @@ import * as ops from './auth/authOperations';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function enforceAccountAccess(userId: string): Promise<boolean> {
+  try {
+    const [{ data: profile }, { data: fraudBlocked }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('is_frozen, frozen_reason')
+        .eq('id', userId)
+        .maybeSingle(),
+      (supabase as any).rpc('is_fraud_identifier_blocked', {
+        p_type: 'user_id',
+        p_value: userId,
+      }),
+    ]);
+
+    if (profile?.is_frozen || fraudBlocked === true) {
+      try {
+        localStorage.setItem(
+          'welile_account_blocked_reason',
+          profile?.frozen_reason || 'This account has been permanently restricted for fraud review.',
+        );
+      } catch { /* ignore */ }
+      clearAllAuthStorage();
+      await supabase.auth.signOut();
+      window.location.href = '/auth';
+      return false;
+    }
+  } catch (error) {
+    console.warn('[Auth] account access guard failed:', error);
+  }
+  return true;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const cachedSession = getPreloadedSession();
   const cachedRoles = getPreloadedRoles() as AppRole[] | null;
@@ -92,6 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return;
             }
           }
+          setTimeout(() => {
+            enforceAccountAccess(session.user.id).catch(() => { /* non-blocking */ });
+          }, 0);
         }
 
         // Only update session state if we actually have a session,
@@ -182,6 +217,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } else {
           if (session) {
+            const allowed = await enforceAccountAccess(session.user.id);
+            if (!allowed || !isMounted) return;
             setSession(session);
             setUser(session.user);
 

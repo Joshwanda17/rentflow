@@ -7553,6 +7553,60 @@ export type Database = {
           },
         ]
       }
+      fraud_identity_blocks: {
+        Row: {
+          blocked_at: string
+          blocked_by: string | null
+          created_at: string
+          id: string
+          identifier_type: string
+          identifier_value: string
+          metadata: Json
+          normalized_value: string
+          reason: string
+          released_at: string | null
+          released_by: string | null
+          severity: string
+          source_user_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          blocked_at?: string
+          blocked_by?: string | null
+          created_at?: string
+          id?: string
+          identifier_type: string
+          identifier_value: string
+          metadata?: Json
+          normalized_value: string
+          reason: string
+          released_at?: string | null
+          released_by?: string | null
+          severity?: string
+          source_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          blocked_at?: string
+          blocked_by?: string | null
+          created_at?: string
+          id?: string
+          identifier_type?: string
+          identifier_value?: string
+          metadata?: Json
+          normalized_value?: string
+          reason?: string
+          released_at?: string | null
+          released_by?: string | null
+          severity?: string
+          source_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       general_ledger: {
         Row: {
           account: string | null
@@ -20224,6 +20278,28 @@ export type Database = {
           user_id: string
         }[]
       }
+      check_fraud_account_by_email: {
+        Args: { p_email: string }
+        Returns: {
+          blocked_at: string
+          full_name: string
+          is_blocked: boolean
+          reason: string
+          status: string
+          user_id: string
+        }[]
+      }
+      check_fraud_account_by_phone: {
+        Args: { phone_variants: string[] }
+        Returns: {
+          blocked_at: string
+          full_name: string
+          is_blocked: boolean
+          reason: string
+          status: string
+          user_id: string
+        }[]
+      }
       check_landlord_payout_eligibility: {
         Args: { p_agent_id: string; p_amount: number; p_landlord_id: string }
         Returns: Json
@@ -20631,6 +20707,19 @@ export type Database = {
       }
       force_approve_rejected_rent_request: {
         Args: { p_payout_ref?: string; p_reason: string; p_request_id: string }
+        Returns: string
+      }
+      fraud_block_user_identifiers: {
+        Args: {
+          p_blocked_by?: string
+          p_extra_identifiers?: Json
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      fraud_normalize_identifier: {
+        Args: { p_type: string; p_value: string }
         Returns: string
       }
       generate_daily_merchant_commission_report: {
@@ -21770,6 +21859,10 @@ export type Database = {
         Returns: boolean
       }
       is_financial_ops_staff: { Args: { p_user: string }; Returns: boolean }
+      is_fraud_identifier_blocked: {
+        Args: { p_type: string; p_value: string }
+        Returns: boolean
+      }
       is_funder_approved: { Args: { _user_id: string }; Returns: boolean }
       is_landlord_ops: { Args: { _user_id: string }; Returns: boolean }
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }

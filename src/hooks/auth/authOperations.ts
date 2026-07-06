@@ -77,6 +77,19 @@ export async function signUpWithoutRole(email: string, password: string, fullNam
 }
 
 export async function signIn(email: string, password: string) {
+  try {
+    const { data: fraudRows } = await (supabase as any).rpc('check_fraud_account_by_email', {
+      p_email: email.trim().toLowerCase(),
+    });
+    const fraudRow = Array.isArray(fraudRows) ? fraudRows[0] : null;
+    if (fraudRow?.is_blocked) {
+      return {
+        error: new Error('This account has been permanently restricted for fraud review. Access is blocked and the linked phone/email cannot be used again.'),
+      };
+    }
+  } catch {
+    // Non-fatal: the session guard still enforces fraud/freeze status after auth.
+  }
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   return { error: error as Error | null };
 }

@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (wr.status === 'rejected' || wr.status === 'completed' || wr.status === 'approved') {
+      if (wr.status === 'rejected' || wr.status === 'completed' || wr.status === 'approved' || wr.status === 'processing') {
         results.push({ id: wId, status: 'already_' + wr.status, refunded: false });
         continue;
       }
@@ -266,7 +266,23 @@ Deno.serve(async (req) => {
 
         const hasPriorDeduction = priorDeduction && priorDeduction.length > 0;
 
-        if (hasPriorDeduction && (!existing || existing.length === 0)) {
+        // Only refund the legacy request-time hold category. A real approved
+        // payout posts `wallet_withdrawal`; refunding that after physical cash
+        // left is exactly the recycled-withdrawal loophole. If a row has a
+        // wallet_withdrawal ledger debit, rejection must NOT create cash_in.
+        const { data: legacyHold } = await admin
+          .from('general_ledger')
+          .select('id')
+          .eq('source_id', wId)
+          .eq('source_table', 'withdrawal_requests')
+          .eq('direction', 'cash_out')
+          .eq('ledger_scope', 'wallet')
+          .eq('category', 'withdrawal_pending')
+          .limit(1);
+
+        const hasLegacyHold = legacyHold && legacyHold.length > 0;
+
+        if (hasLegacyHold && (!existing || existing.length === 0)) {
           // Old-flow request: wallet was deducted at request time, so restore via balanced RPC
           const { error: rpcErr } = await admin.rpc('create_ledger_transaction', {
             entries: [
@@ -298,7 +314,7 @@ Deno.serve(async (req) => {
           if (rpcErr) console.error(`[reject-withdrawal] RPC error for ${wId}:`, rpcErr);
         }
         // New-flow requests: no deduction happened, so no refund needed
-        refunded = hasPriorDeduction ? true : false;
+        refunded = hasLegacyHold ? true : false;
       }
 
       // Update the withdrawal status

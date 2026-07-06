@@ -659,7 +659,19 @@ export default function Auth() {
                     if (error) {
                       let msg = error.message;
                       if (msg.includes('Invalid login credentials')) {
-                        msg = 'Incorrect email or password. Try Google sign-in if you used it before.';
+                        try {
+                          const { data: fraudRows } = await (supabase as any).rpc('check_fraud_account_by_email', {
+                            p_email: typed,
+                          });
+                          const fraudRow = Array.isArray(fraudRows) ? fraudRows[0] : null;
+                          if (fraudRow?.is_blocked) {
+                            msg = 'This account has been permanently restricted for fraud review. Access is blocked and the linked phone/email cannot be used again.';
+                          } else {
+                            msg = 'Incorrect email or password. Try Google sign-in if you used it before.';
+                          }
+                        } catch {
+                          msg = 'Incorrect email or password. Try Google sign-in if you used it before.';
+                        }
                       }
                       setLoginError({ message: msg, triedFormats: [] });
                       toast({ title: 'Sign In Failed', description: msg, variant: 'destructive' });
