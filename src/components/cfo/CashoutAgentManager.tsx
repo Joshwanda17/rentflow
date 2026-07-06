@@ -18,12 +18,13 @@ import {
 import {
   Banknote, UserPlus, Loader2, XCircle, Building2, Smartphone, Phone, Mail, MapPin,
   CreditCard, Calendar, Shield, Wallet, Users, TrendingUp, ArrowLeft, Search, CheckCircle2, Clock,
-  Network, Activity, Zap, Pencil, Trash2,
+  Network, Activity, Zap, Pencil, Trash2, FileCheck, FileWarning, Download, Monitor, Globe,
 } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getTelecomSendingCharge, getCashoutCommission } from '@/lib/cashoutCharges';
+import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/merchantAgreementPdf';
 
 // A payout only counts as "processed" once the Merchant Agent has executed disbursement.
 // `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
@@ -110,6 +111,31 @@ export function CashoutAgentManager() {
       return count || 0;
     },
   });
+
+  // Merchant Agent Agreement acceptances — who has formally signed on to be a
+  // Merchant (Cash-Out) Agent, with the audited detail (version, device, IP, date).
+  const { data: agreements = [] } = useQuery({
+    queryKey: ['merchant-agreement-acceptances'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('merchant_agreement_acceptance' as any)
+        .select('*')
+        .eq('status', 'accepted')
+        .order('accepted_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    staleTime: 60_000,
+  });
+
+  // Newest acceptance per agent_id (matches cashout_agents.agent_id).
+  const agreementByAgentId = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const a of agreements as any[]) {
+      if (!m.has(a.agent_id)) m.set(a.agent_id, a);
+    }
+    return m;
+  }, [agreements]);
 
   // Per-merchant active claim list — drives the "pending" badge on each card AND
   // powers the "Release stuck claims" recovery action in the delete dialog.
