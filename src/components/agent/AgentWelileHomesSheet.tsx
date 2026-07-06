@@ -121,6 +121,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   useEffect(() => { if (open) load(); }, [open, load]);
 
   const totalReceivable = subs.reduce((a, s) => a + (Number(s.receivable_total) || 0), 0);
+  const pendingConfirmation = subs.filter((s) => !getEnrollStatus(s).ready).length;
 
   return (
     <>
@@ -152,6 +153,13 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                 <p className="text-lg font-bold text-orange-600">{formatUGX(pendingPayouts)}</p>
               </CardContent></Card>
             </div>
+
+            {pendingConfirmation > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                {pendingConfirmation} new {pendingConfirmation === 1 ? 'tenant is' : 'tenants are'} pending confirmation. They'll show as ready once they confirm their details.
+              </div>
+            )}
 
             <Button className="w-full gap-2" onClick={() => setEnrollOpen(true)}>
               <Plus className="h-4 w-4" /> Enroll a tenant
