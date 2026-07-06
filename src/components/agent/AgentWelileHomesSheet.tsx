@@ -530,6 +530,84 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   );
 }
 
+// ---------------- Edit dialog ----------------
+function EditDialog({ sub, agentId, onClose, onDone }: {
+  sub: WHSubscription | null; agentId?: string; onClose: () => void; onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const [rent, setRent] = useState('');
+  const [payoutDay, setPayoutDay] = useState('5');
+  const [hasPhone, setHasPhone] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (sub) {
+      setRent(String(sub.monthly_rent ?? ''));
+      setPayoutDay(String(sub.payout_day ?? 5));
+      setHasPhone(!!sub.has_smartphone);
+    }
+  }, [sub]);
+
+  const submit = async () => {
+    if (!sub || !agentId) return;
+    const rentNum = parseFloat(rent);
+    if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('edit_welile_home_enrollment', {
+        p_subscription_id: sub.id,
+        p_agent_id: agentId,
+        p_monthly_rent: rentNum,
+        p_payout_day: parseInt(payoutDay) || 5,
+        p_has_smartphone: hasPhone,
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (!res?.success) throw new Error(res?.error || 'Update failed');
+      toast({
+        title: 'Enrollment updated',
+        description: `${res.months_adjusted} upcoming ${res.months_adjusted === 1 ? 'month' : 'months'} adjusted · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
+      });
+      onClose();
+      onDone();
+    } catch (err: any) {
+      toast({ title: 'Update failed', description: err.message, variant: 'destructive' });
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <Dialog open={!!sub} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit enrollment — {sub?.tenant_name}</DialogTitle>
+          <DialogDescription>
+            Changes apply to upcoming, uncollected months only. Collected and paid months stay as they were.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Monthly rent (UGX)</Label>
+            <Input type="number" inputMode="numeric" value={rent} onChange={(e) => setRent(e.target.value)} placeholder="500000" />
+          </div>
+          <div>
+            <Label>Landlord payout day (1–28)</Label>
+            <Input type="number" inputMode="numeric" value={payoutDay} onChange={(e) => setPayoutDay(e.target.value)} min={1} max={28} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div><p className="text-sm font-medium">Tenant has a smartphone</p><p className="text-xs text-muted-foreground">Off = you allocate their rent</p></div>
+            <Switch checked={hasPhone} onCheckedChange={setHasPhone} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={submitting} className="w-full">
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Save changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ---------------- Allocate dialog ----------------
 function AllocateDialog({ sub, onClose, onDone }: {
   sub: WHSubscription | null; onClose: () => void; onDone: () => void;
