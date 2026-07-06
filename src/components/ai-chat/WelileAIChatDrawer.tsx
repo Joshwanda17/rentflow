@@ -348,19 +348,15 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
             </div>
 
             {/* Scroll to bottom button */}
-            <AnimatePresence>
-              {showScrollDown && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
+            {showScrollDown && (
+                <button
                   onClick={() => scrollToBottom(true)}
-                  className="absolute bottom-24 right-4 h-9 w-9 rounded-full bg-background border border-border shadow-lg flex items-center justify-center z-10"
+                  aria-label="Scroll to latest"
+                  className="absolute bottom-24 right-4 h-9 w-9 rounded-full bg-background border border-border shadow-lg flex items-center justify-center z-10 animate-scale-in"
                 >
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </motion.button>
-              )}
-            </AnimatePresence>
+                </button>
+            )}
 
             {/* Input area — always pinned to bottom */}
             <div
@@ -392,12 +388,11 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                   )}
                   style={{ minHeight: '48px', maxHeight: '120px' }}
                 />
-                <motion.button
+                <button
                   onClick={isLoading ? cancelStream : handleSend}
                   disabled={!isLoading && !input.trim()}
-                  whileTap={!(!isLoading && !input.trim()) ? { scale: 0.9 } : {}}
                   className={cn(
-                    "flex-shrink-0 mr-2 mb-2 h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200",
+                    "flex-shrink-0 mr-2 mb-2 h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90",
                     (isLoading || input.trim())
                       ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90"
                       : "bg-muted text-muted-foreground/50 cursor-not-allowed"
@@ -408,19 +403,15 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                   ) : (
                     <Send className="h-4 w-4" />
                   )}
-                </motion.button>
+                </button>
               </div>
               <p className="text-[10px] text-center text-muted-foreground/40 mt-1.5 leading-none pb-0.5">
                 Welile AI can make mistakes. Verify important info.
               </p>
             </div>
-          </motion.div>
+          </div>
         </>
-      )}
-
-    </AnimatePresence>
-
-
+    )}
     </>
   );
 }
