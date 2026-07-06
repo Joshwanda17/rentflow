@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil } from 'lucide-react';
+import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil, History } from 'lucide-react';
 
 interface WHSubscription {
   id: string;
@@ -40,6 +40,28 @@ type EnrollStatus = {
   ready: boolean;
   className: string;
 };
+
+interface EnrollmentAuditRow {
+  id: string;
+  edited_by: string;
+  changes: { field: string; old: any; new: any }[];
+  months_adjusted: number;
+  created_at: string;
+  editor_name?: string;
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  monthly_rent: 'Monthly rent',
+  payout_day: 'Payout day',
+  has_smartphone: 'Smartphone mode',
+};
+
+function formatAuditValue(field: string, value: any): string {
+  if (value === null || value === undefined) return '—';
+  if (field === 'monthly_rent') return formatUGX(Number(value));
+  if (field === 'has_smartphone') return value ? 'Tenant pays' : 'Agent allocates';
+  return String(value);
+}
 
 // Derive an enrollment verification / readiness status for the agent's list.
 function getEnrollStatus(s: WHSubscription): EnrollStatus {
@@ -539,14 +561,39 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
   const [payoutDay, setPayoutDay] = useState('5');
   const [hasPhone, setHasPhone] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [history, setHistory] = useState<EnrollmentAuditRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = useCallback(async (subscriptionId: string) => {
+    setHistoryLoading(true);
+    try {
+      const { data } = await supabase
+        .from('welile_homes_enrollment_audit')
+        .select('id, edited_by, changes, months_adjusted, created_at')
+        .eq('subscription_id', subscriptionId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      const rows = (data ?? []) as EnrollmentAuditRow[];
+      const editorIds = Array.from(new Set(rows.map((r) => r.edited_by)));
+      if (editorIds.length) {
+        const { data: profs } = await supabase
+          .from('profiles').select('id, full_name').in('id', editorIds);
+        const nameMap = new Map((profs ?? []).map((p: any) => [p.id, p.full_name]));
+        rows.forEach((r) => { r.editor_name = nameMap.get(r.edited_by) ?? 'Someone'; });
+      }
+      setHistory(rows);
+    } finally { setHistoryLoading(false); }
+  }, []);
 
   useEffect(() => {
     if (sub) {
       setRent(String(sub.monthly_rent ?? ''));
       setPayoutDay(String(sub.payout_day ?? 5));
       setHasPhone(!!sub.has_smartphone);
+      setHistory([]);
+      loadHistory(sub.id);
     }
-  }, [sub]);
+  }, [sub, loadHistory]);
 
   const submit = async () => {
     if (!sub || !agentId) return;
@@ -568,8 +615,8 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
         title: 'Enrollment updated',
         description: `${res.months_adjusted} upcoming ${res.months_adjusted === 1 ? 'month' : 'months'} adjusted · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
       });
-      onClose();
       onDone();
+      onClose();
     } catch (err: any) {
       toast({ title: 'Update failed', description: err.message, variant: 'destructive' });
     } finally { setSubmitting(false); }
@@ -596,6 +643,36 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div><p className="text-sm font-medium">Tenant has a smartphone</p><p className="text-xs text-muted-foreground">Off = you allocate their rent</p></div>
             <Switch checked={hasPhone} onCheckedChange={setHasPhone} />
+          </div>
+
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
+              <History className="h-3.5 w-3.5" /> Edit history
+            </div>
+            {historyLoading ? (
+              <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+            ) : history.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No edits yet.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {history.map((h) => (
+                  <div key={h.id} className="text-xs border-l-2 border-muted pl-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{h.editor_name}</span>
+                      <span className="text-muted-foreground">{new Date(h.created_at).toLocaleString()}</span>
+                    </div>
+                    <ul className="mt-0.5 space-y-0.5 text-muted-foreground">
+                      {(h.changes ?? []).map((c, i) => (
+                        <li key={i}>
+                          <span className="text-foreground">{FIELD_LABELS[c.field] ?? c.field}:</span>{' '}
+                          {formatAuditValue(c.field, c.old)} → <span className="text-foreground">{formatAuditValue(c.field, c.new)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>

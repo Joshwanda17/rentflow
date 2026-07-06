@@ -18806,6 +18806,47 @@ export type Database = {
         }
         Relationships: []
       }
+      welile_homes_enrollment_audit: {
+        Row: {
+          agent_id: string | null
+          changes: Json
+          created_at: string
+          edited_by: string
+          id: string
+          months_adjusted: number
+          subscription_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          changes?: Json
+          created_at?: string
+          edited_by: string
+          id?: string
+          months_adjusted?: number
+          subscription_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          changes?: Json
+          created_at?: string
+          edited_by?: string
+          id?: string
+          months_adjusted?: number
+          subscription_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welile_homes_enrollment_audit_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "welile_homes_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       welile_homes_monthly_dues: {
         Row: {
           agent_commission: number

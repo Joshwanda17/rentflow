@@ -94,3 +94,11 @@ takes 10% and pays the landlord 90% on a fixed day.
 - UI: `AgentWelileHomesSheet` per-tenant card now has an **Edit** button (next to Allocate)
   opening `EditDialog` (monthly rent, payout day, smartphone toggle). Toast reports how
   many upcoming months were adjusted.
+
+## Edit audit trail
+- Table `welile_homes_enrollment_audit` (subscription_id, tenant_id, agent_id owner,
+  edited_by, changes jsonb [{field,old,new}], months_adjusted, created_at). RLS: owner
+  agent or editor sees own; ops sees all. Rows written by `edit_welile_home_enrollment`
+  (SECURITY DEFINER) only when a field actually changed (monthly_rent/payout_day/has_smartphone).
+- UI: `EditDialog` shows an "Edit history" section (editor name + timestamp + per-field
+  old→new), fetched on open and refreshed after save.
