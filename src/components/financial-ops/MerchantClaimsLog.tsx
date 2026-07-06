@@ -210,6 +210,44 @@ function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose
                 </Card>
               </div>
 
+              {/* Withdrawal charge (company-borne, auto-computed) */}
+              {(() => {
+                const charge = getTelecomSendingCharge(claim.amount);
+                return (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Withdrawal charge
+                    </p>
+                    <Card className="divide-y">
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Requested amount</span>
+                        <span className="text-sm font-medium">{formatUGX(claim.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Withdrawal charge</span>
+                        <span className="text-sm font-medium text-amber-600">{formatUGX(charge)}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Net paid to customer</span>
+                        <span className="text-sm font-bold">{formatUGX(claim.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Charge bearer</span>
+                        <Badge variant="outline" className="text-[10px]">Company</Badge>
+                      </div>
+                    </Card>
+                  </div>
+                );
+              })()}
+
+              {/* Comment timeline — permanent audit trail of officer notes */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" /> Comments
+                </p>
+                <ClaimCommentTimeline withdrawalId={claim.id} />
+              </div>
+
               {/* Audit trail — every claim/payout state change */}
               <div>
                 <div className="flex items-center justify-between mb-2">
