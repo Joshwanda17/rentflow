@@ -194,18 +194,47 @@ Deno.serve(async (req) => {
       console.error("[credit-house-listed-bonus] Flag update failed (money already moved):", flagErr.message);
     }
 
-    console.log(`[credit-house-listed-bonus] Credited UGX ${LISTED_BONUS} to ${agentId} for listing ${listing_id}`);
+    console.log(
+      `[credit-house-listed-bonus] listing ${listing_id}: offset=${offsetAmount} payable=${payableAmount} (deficit was ${deficit}) for ${agentId}`,
+    );
 
-    // Notify the agent immediately (in-app + SMS/WhatsApp). Best-effort —
-    // never let a notification failure affect the credited bonus.
-    await notifyAgentBonus(adminClient, {
-      agentId,
-      stage: "listed",
-      listingTitle: listing.title,
-      listingId: listing_id,
-    }).catch((e) => console.error("[credit-house-listed-bonus] notify failed:", e));
+    if (offsetAmount > 0) {
+      // Part or all of the reward covered an outstanding rejection charge.
+      // Send a clear in-app notice instead of the celebratory bonus message.
+      const remainingGap = Math.max(0, deficit - offsetAmount);
+      const msg = payableAmount > 0
+        ? `UGX ${offsetAmount.toLocaleString()} of your listing reward cleared your rejection charge; UGX ${payableAmount.toLocaleString()} was added to your wallet.`
+        : `Your UGX ${offsetAmount.toLocaleString()} listing reward was applied to your outstanding rejection charge.` +
+          (remainingGap > 0 ? ` UGX ${remainingGap.toLocaleString()} still to clear.` : ` Your charge is now fully cleared.`);
+      await adminClient.from("notifications").insert({
+        user_id: agentId,
+        title: "🏠 Listing reward applied to charge",
+        message: msg,
+        type: remainingGap > 0 ? "warning" : "success",
+        metadata: {
+          action: "listing_reward_offset",
+          listing_id,
+          offset: offsetAmount,
+          paid: payableAmount,
+          remaining_gap: remainingGap,
+        },
+      }).catch((e: unknown) => console.error("[credit-house-listed-bonus] offset notify failed:", e));
+    } else {
+      // No outstanding charge — normal celebratory bonus notice (in-app + SMS).
+      await notifyAgentBonus(adminClient, {
+        agentId,
+        stage: "listed",
+        listingTitle: listing.title,
+        listingId: listing_id,
+      }).catch((e) => console.error("[credit-house-listed-bonus] notify failed:", e));
+    }
 
-    return new Response(JSON.stringify({ success: true, bonus: LISTED_BONUS }), {
+    return new Response(JSON.stringify({
+      success: true,
+      bonus: payableAmount,
+      offset_to_charge: offsetAmount,
+      remaining_gap: Math.max(0, deficit - offsetAmount),
+    }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
