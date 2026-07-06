@@ -439,10 +439,12 @@ export function AgentCashPayoutsTab() {
   });
 
   // The current, server-paginated page of the Pending Queue for the active tab.
-  const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue } = useQuery({
+  const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue, isError: queueError, refetch: refetchQueue } = useQuery({
     queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page],
     queryFn: async () => {
-      await releaseExpiredClaims();
+      // Fire-and-forget: releasing other agents' expired claims must never block
+      // or fail this fetch. A slow/failed release previously blanked the queue.
+      releaseExpiredClaims().catch(() => {});
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const opts: QueueFilterOpts = {
