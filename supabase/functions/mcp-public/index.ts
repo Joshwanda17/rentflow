@@ -301,6 +301,8 @@ ${linkText}`;
           error: "invalid_rent",
           min_rent: MIN_RENT,
           max_rent: MAX_RENT,
+          landing_url: landingUrl,
+          landing_url: landingUrl,
           signup_url: signupUrl,
           referral_url: referralUrl,
           currency: "UGX"
@@ -321,6 +323,8 @@ ${linkText}`;
             error: "invalid_duration",
             min_days: MIN_DAYS,
             max_days: MAX_DAYS,
+            landing_url: landingUrl,
+            landing_url: landingUrl,
             signup_url: signupUrl,
             referral_url: referralUrl,
             currency: "UGX"
@@ -358,6 +362,7 @@ ${linkText}`;
           request_fee: p.requestFee
         })),
         role: "tenant",
+        landing_url: landingUrl,
         signup_url: signupUrl,
         referral_url: referralUrl,
         currency: "UGX"
