@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useDrawerTransition } from '@/hooks/useDrawerTransition';
 import { X, Send, RotateCcw, Bot, ChevronDown, Sparkles, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWelileAI } from '@/hooks/useWelileAI';
