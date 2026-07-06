@@ -665,12 +665,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                   {PAYOUT_OPTIONS.map((opt, i) => {
                     const selected = payoutMode === opt.value;
                     return (
-                      <motion.button
+                      <button
                         key={opt.value}
                         type="button"
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05 }}
                         onClick={() => setPayoutMode(prev => prev === opt.value ? null : opt.value)}
                         className={`relative flex flex-col items-center justify-center rounded-2xl border-2 p-3 min-h-[80px] transition-all active:scale-95 touch-manipulation ${
                           selected
@@ -679,18 +676,14 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                         }`}
                       >
                         {selected && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="absolute -top-1 -right-1"
-                          >
+                          <div className="absolute -top-1 -right-1 animate-scale-in">
                             <CheckCircle2 className="h-4 w-4 text-primary drop-shadow-sm" />
-                          </motion.div>
+                          </div>
                         )}
                         <span className="text-2xl leading-none">{opt.icon}</span>
                         <span className="text-[11px] font-bold mt-1.5 text-foreground">{opt.label}</span>
                         <span className="text-[9px] text-muted-foreground leading-none">{opt.sublabel}</span>
-                      </motion.button>
+                      </button>
                     );
                   })}
                 </div>
