@@ -397,6 +397,44 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fraud/freeze gate MUST run before any ledger write. The database trigger
+    // also blocks status changes, but this early check prevents a ledger debit
+    // from being posted and then failing only when the request flips to
+    // completed.
+    const { data: requesterProfile } = await admin
+      .from("profiles")
+      .select("is_frozen, frozen_reason")
+      .eq("id", wr.user_id)
+      .maybeSingle();
+    const { data: requesterFraudBlocked } = await admin.rpc(
+      "is_fraud_identifier_blocked",
+      { p_type: "user_id", p_value: wr.user_id },
+    );
+    if (requesterProfile?.is_frozen || requesterFraudBlocked === true) {
+      const blockedReason = requesterProfile?.frozen_reason ||
+        "This account is restricted for fraud review and cannot receive withdrawals.";
+      await admin.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "withdrawal_blocked_fraud_account",
+        action: "withdrawal_blocked_fraud_account",
+        table_name: "withdrawal_requests",
+        record_id: withdrawal_id,
+        metadata: {
+          reason: blockedReason,
+          request_owner_id: wr.user_id,
+          amount: wr.amount,
+        },
+      });
+      return new Response(JSON.stringify({
+        success: false,
+        error: blockedReason,
+        code: "FRAUD_ACCOUNT_BLOCKED",
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // A genuine merchant is an active cashout agent who completes the payout
     // FROM THE MERCHANT QUEUE (the only caller that sends `acting_as_merchant`).
     // They fronted their own MoMo/cash, so they earn the principal reimbursement
