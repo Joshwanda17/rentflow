@@ -18,6 +18,12 @@ import { buildSignupLinks } from "../links";
 const MONTHLY_RATE = 0.33;
 const DEFAULT_DURATIONS = [30, 60, 90] as const;
 
+// Illustrative agent commission share of the finance charge. Mirrors the
+// Agent Incentive Model (10% one-time rent commission). Shown ONLY to make the
+// breakdown transparent — it is carved out of the access fee, never added on
+// top, so the canonical total (rent + accessFee + requestFee) is unchanged.
+const AGENT_COMMISSION_RATE = 0.10;
+
 // Guard rails for a compliance-safe, sensible ballpark (UGX).
 const MIN_RENT = 10_000;
 const MAX_RENT = 5_000_000;
@@ -29,7 +35,28 @@ function computeRentPlan(rent: number, days: number) {
   const requestFee = rent <= 200_000 ? 10_000 : 20_000;
   const totalRepayment = rent + accessFee + requestFee;
   const dailyRepayment = Math.ceil(totalRepayment / days);
-  return { durationDays: days, accessFee, requestFee, totalRepayment, dailyRepayment };
+
+  // Illustrative line-item breakdown of the total repayment.
+  //   principalRent   — the rent amount Welile pays your landlord upfront
+  //   agentCommission — carved out of the access fee (10% of rent, capped)
+  //   accessFeeNet    — remaining finance/access charge (33% monthly compound)
+  //   serviceFee      — the flat request/service fee
+  // principalRent + accessFeeNet + agentCommission + serviceFee == totalRepayment
+  const agentCommission = Math.min(Math.round(rent * AGENT_COMMISSION_RATE), accessFee);
+  const accessFeeNet = accessFee - agentCommission;
+  const serviceFee = requestFee;
+
+  return {
+    durationDays: days,
+    principalRent: rent,
+    accessFee,
+    accessFeeNet,
+    agentCommission,
+    serviceFee,
+    requestFee,
+    totalRepayment,
+    dailyRepayment,
+  };
 }
 
 const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString("en-US")}`;
@@ -109,19 +136,24 @@ export default defineTool({
 
     const plans = durations.map((d) => computeRentPlan(roundedRent, d));
 
-    const planLines = plans
-      .map(
-        (p) =>
-          `• ${p.durationDays} days: pay about ${ugx(p.dailyRepayment)}/day — total repayment ~${ugx(p.totalRepayment)}`,
+    const planBlocks = plans
+      .map((p) =>
+        [
+          `${p.durationDays}-day plan — total ~${ugx(p.totalRepayment)} (about ${ugx(p.dailyRepayment)}/day)`,
+          `    • Rent paid to landlord: ${ugx(p.principalRent)}`,
+          `    • Access fee (financing): ${ugx(p.accessFeeNet)}`,
+          `    • Agent commission: ${ugx(p.agentCommission)}`,
+          `    • Service fee: ${ugx(p.serviceFee)}`,
+        ].join("\n"),
       )
-      .join("\n");
+      .join("\n\n");
 
     const text = [
       `Indicative Rent Plan for a monthly rent of ${ugx(roundedRent)} (UGX):`,
       "",
-      planLines,
+      planBlocks,
       "",
-      "This is an illustration only — not an approval or guarantee. Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence).",
+      "Line items are illustrative only — the fee split (service vs access vs agent commission) is shown for transparency and does not change the total. This is not an approval or guarantee. Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence).",
       "",
       linkText,
     ].join("\n");
@@ -138,7 +170,16 @@ export default defineTool({
           total_repayment: p.totalRepayment,
           access_fee: p.accessFee,
           request_fee: p.requestFee,
+          breakdown: {
+            principal_rent: p.principalRent,
+            access_fee: p.accessFeeNet,
+            agent_commission: p.agentCommission,
+            service_fee: p.serviceFee,
+            total: p.totalRepayment,
+          },
         })),
+        breakdown_note:
+          "Line items are illustrative only; the service/access/agent-commission split is for transparency and does not change the total.",
         role: "tenant",
         landing_url: landingUrl,
         signup_url: signupUrl,

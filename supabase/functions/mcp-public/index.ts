@@ -263,6 +263,7 @@ import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z3 } from "npm:zod@^4.4.3";
 var MONTHLY_RATE = 0.33;
 var DEFAULT_DURATIONS = [30, 60, 90];
+var AGENT_COMMISSION_RATE = 0.1;
 var MIN_RENT = 1e4;
 var MAX_RENT = 5e6;
 var MIN_DAYS = 7;
@@ -272,7 +273,20 @@ function computeRentPlan(rent, days) {
   const requestFee = rent <= 2e5 ? 1e4 : 2e4;
   const totalRepayment = rent + accessFee + requestFee;
   const dailyRepayment = Math.ceil(totalRepayment / days);
-  return { durationDays: days, accessFee, requestFee, totalRepayment, dailyRepayment };
+  const agentCommission = Math.min(Math.round(rent * AGENT_COMMISSION_RATE), accessFee);
+  const accessFeeNet = accessFee - agentCommission;
+  const serviceFee = requestFee;
+  return {
+    durationDays: days,
+    principalRent: rent,
+    accessFee,
+    accessFeeNet,
+    agentCommission,
+    serviceFee,
+    requestFee,
+    totalRepayment,
+    dailyRepayment
+  };
 }
 var ugx = (n) => `UGX ${Math.round(n).toLocaleString("en-US")}`;
 var estimate_rent_access_default = defineTool3({
@@ -337,15 +351,21 @@ ${linkText}`;
       durations = [...DEFAULT_DURATIONS];
     }
     const plans = durations.map((d) => computeRentPlan(roundedRent, d));
-    const planLines = plans.map(
-      (p) => `\u2022 ${p.durationDays} days: pay about ${ugx(p.dailyRepayment)}/day \u2014 total repayment ~${ugx(p.totalRepayment)}`
-    ).join("\n");
+    const planBlocks = plans.map(
+      (p) => [
+        `${p.durationDays}-day plan \u2014 total ~${ugx(p.totalRepayment)} (about ${ugx(p.dailyRepayment)}/day)`,
+        `    \u2022 Rent paid to landlord: ${ugx(p.principalRent)}`,
+        `    \u2022 Access fee (financing): ${ugx(p.accessFeeNet)}`,
+        `    \u2022 Agent commission: ${ugx(p.agentCommission)}`,
+        `    \u2022 Service fee: ${ugx(p.serviceFee)}`
+      ].join("\n")
+    ).join("\n\n");
     const text = [
       `Indicative Rent Plan for a monthly rent of ${ugx(roundedRent)} (UGX):`,
       "",
-      planLines,
+      planBlocks,
       "",
-      "This is an illustration only \u2014 not an approval or guarantee. Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence).",
+      "Line items are illustrative only \u2014 the fee split (service vs access vs agent commission) is shown for transparency and does not change the total. This is not an approval or guarantee. Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence).",
       "",
       linkText
     ].join("\n");
@@ -360,8 +380,16 @@ ${linkText}`;
           daily_repayment: p.dailyRepayment,
           total_repayment: p.totalRepayment,
           access_fee: p.accessFee,
-          request_fee: p.requestFee
+          request_fee: p.requestFee,
+          breakdown: {
+            principal_rent: p.principalRent,
+            access_fee: p.accessFeeNet,
+            agent_commission: p.agentCommission,
+            service_fee: p.serviceFee,
+            total: p.totalRepayment
+          }
         })),
+        breakdown_note: "Line items are illustrative only; the service/access/agent-commission split is for transparency and does not change the total.",
         role: "tenant",
         landing_url: landingUrl,
         signup_url: signupUrl,
