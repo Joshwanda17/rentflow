@@ -69,6 +69,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [pendingPayouts, setPendingPayouts] = useState(0);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [allocFor, setAllocFor] = useState<WHSubscription | null>(null);
+  const [editFor, setEditFor] = useState<WHSubscription | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
