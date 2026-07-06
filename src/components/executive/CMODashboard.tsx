@@ -437,6 +437,8 @@ export function CMODashboard() {
         </div>
       </div>
 
+      <SignupSourceFunnel start={start} end={end} />
+
       <div className="grid grid-cols-1 gap-3 sm:gap-4">
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Referral Performance</h3>
