@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2 } from 'lucide-react';
+import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CompactAmount } from '@/components/ui/CompactAmount';
@@ -32,6 +32,41 @@ export function PromissoryNotesQueue() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [approveTarget, setApproveTarget] = useState<any>(null);
+  const [approveReason, setApproveReason] = useState('');
+  const [approving, setApproving] = useState(false);
+
+  const handleApprove = async () => {
+    if (!approveTarget) return;
+    const reason = approveReason.trim();
+    if (reason.length < 20) {
+      toast.error('Please provide a reason of at least 20 characters.');
+      return;
+    }
+    setApproving(true);
+    try {
+      const { data, error } = await supabase.rpc('approve_promissory_note', {
+        p_note_id: approveTarget.id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (res?.status === 'error') throw new Error(res.message);
+      if (res?.status === 'already_approved') {
+        toast.info('This promissory note was already approved.');
+      } else {
+        toast.success('Approved — UGX 1,500 credited to the agent’s wallet.');
+      }
+      setApproveTarget(null);
+      setApproveReason('');
+      setSelectedNote(null);
+      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to approve promissory note.');
+    } finally {
+      setApproving(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
