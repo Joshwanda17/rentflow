@@ -83,3 +83,14 @@ takes 10% and pays the landlord 90% on a fixed day.
 - Matched/existing tenants skip OTP entirely and enroll immediately (unchanged).
 - Reuses the shared `sms-otp` edge fn (no backend change). 60s resend cooldown; on
   finalize error the dialog returns to the form. Onboarding SMS still fires for new tenants.
+
+## Edit enrollment
+- RPC `edit_welile_home_enrollment(p_subscription_id, p_agent_id, p_monthly_rent, p_payout_day, p_has_smartphone)`
+  (SECURITY DEFINER, agent-owner or ops only). Recomputes amount_due + 10% split
+  (2% agent / 8% Welile) + 90% landlord_net ONLY on months with amount_collected=0
+  and collection_status='pending'; shifts payout_date on all payout_status='unpaid'
+  months to the new payout day; recomputes receivable_total, outstanding_balance,
+  next_due_date. Collected/paid months are never touched. Emits system_event action 'edit'.
+- UI: `AgentWelileHomesSheet` per-tenant card now has an **Edit** button (next to Allocate)
+  opening `EditDialog` (monthly rent, payout day, smartphone toggle). Toast reports how
+  many upcoming months were adjusted.

@@ -20748,6 +20748,16 @@ export type Database = {
           new_withdrawable: number
         }[]
       }
+      edit_welile_home_enrollment: {
+        Args: {
+          p_agent_id: string
+          p_has_smartphone: boolean
+          p_monthly_rent: number
+          p_payout_day: number
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
       email_queue_dispatch: { Args: never; Returns: undefined }
       end_ledger_maintenance: {
         Args: { p_reason?: string }
