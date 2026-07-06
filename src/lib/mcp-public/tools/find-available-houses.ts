@@ -108,8 +108,8 @@ export default defineTool({
       role: "tenant",
     });
     const linkText = referralUrl
-      ? `Create a free tenant account to view details and apply: ${signupUrl}\nReferral signup link: ${referralUrl}`
-      : `Create a free tenant account to view details and apply: ${signupUrl}`;
+      ? `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account to view details and apply: ${signupUrl}\nReferral signup link: ${referralUrl}`
+      : `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account to view details and apply: ${signupUrl}`;
 
     const take = Math.min(MAX_LIMIT, Math.max(1, Math.round(limit ?? DEFAULT_LIMIT)));
 
@@ -151,7 +151,7 @@ export default defineTool({
           },
         ],
         isError: true,
-        structuredContent: { error: error.message, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" },
+        structuredContent: { error: error.message, landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" },
       };
     }
 

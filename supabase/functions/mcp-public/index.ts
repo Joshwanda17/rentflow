@@ -410,8 +410,10 @@ var estimate_supporter_returns_default = defineTool4({
       referralCode: referral_code,
       role: "supporter"
     });
-    const linkText = referralUrl ? `Create a free Supporter account: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Create a free Supporter account: ${signupUrl}`;
+    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
+Create a free Supporter account: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
+Create a free Supporter account: ${signupUrl}`;
     if (!Number.isFinite(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
       const text2 = `Please share a support amount between ${ugx2(MIN_AMOUNT)} and ${ugx2(MAX_AMOUNT)} for an illustrative estimate.
 
@@ -539,8 +541,10 @@ var find_available_houses_default = defineTool5({
       referralCode: referral_code,
       role: "tenant"
     });
-    const linkText = referralUrl ? `Create a free tenant account to view details and apply: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Create a free tenant account to view details and apply: ${signupUrl}`;
+    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
+Create a free tenant account to view details and apply: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
+Create a free tenant account to view details and apply: ${signupUrl}`;
     const take = Math.min(MAX_LIMIT, Math.max(1, Math.round(limit ?? DEFAULT_LIMIT)));
     let query = anonClient().from("house_listings").select(
       "id,title,house_category,number_of_rooms,monthly_rent,region,district,sub_county,village,has_water,has_electricity,has_security,has_parking,is_furnished,verified,image_urls"
@@ -570,7 +574,7 @@ ${linkText}`
           }
         ],
         isError: true,
-        structuredContent: { error: error.message, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" }
+        structuredContent: { error: error.message, landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" }
       };
     }
     const rows = data ?? [];

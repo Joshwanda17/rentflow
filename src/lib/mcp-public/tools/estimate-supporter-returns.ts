@@ -73,8 +73,8 @@ export default defineTool({
       role: "supporter",
     });
     const linkText = referralUrl
-      ? `Create a free Supporter account: ${signupUrl}\nReferral signup link: ${referralUrl}`
-      : `Create a free Supporter account: ${signupUrl}`;
+      ? `Start here (guided onboarding): ${landingUrl}\nCreate a free Supporter account: ${signupUrl}\nReferral signup link: ${referralUrl}`
+      : `Start here (guided onboarding): ${landingUrl}\nCreate a free Supporter account: ${signupUrl}`;
 
     if (!Number.isFinite(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
       const text =
