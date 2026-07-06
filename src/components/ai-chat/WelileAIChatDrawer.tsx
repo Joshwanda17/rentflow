@@ -248,11 +248,24 @@ export default function WelileAIChatDrawer({ open, onOpenChange, initialRole, si
                     </div>
 
                     <div className="text-center mb-5 animate-fade-in">
-                      <h2 className="text-lg font-bold text-foreground mb-1">Hey! 👋 Ask me anything</h2>
-                      <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
-                        Tap a question below or just type 💬
+                      <h2 className="text-lg font-bold text-foreground mb-1">
+                        {landing ? landing.headline : 'Hey! 👋 Ask me anything'}
+                      </h2>
+                      <p className="text-sm text-muted-foreground max-w-[260px] leading-relaxed">
+                        {landing ? landing.subtitle : 'Tap a question below or just type 💬'}
                       </p>
                     </div>
+
+                    {/* Role-scoped signup CTA (deep-link onboarding) */}
+                    {landing && roleSignupHref && (
+                      <a
+                        href={roleSignupHref}
+                        className="w-full max-w-[340px] mb-4 flex items-center justify-center gap-2 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm py-3 px-4 shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all animate-fade-in"
+                      >
+                        <span>{landing.emoji}</span>
+                        <span>{landing.cta}</span>
+                      </a>
+                    )}
 
                     {/* Earning prediction */}
                     <Suspense fallback={null}>
@@ -263,7 +276,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange, initialRole, si
 
                     {/* Suggestion pills */}
                     <div className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full max-w-[340px] animate-fade-in">
-                      {SUGGESTIONS.map((s) => (
+                      {roleSuggestions.map((s) => (
                         <button
                           key={s.text}
                           onClick={() => sendMessage(s.text)}
