@@ -62,3 +62,14 @@ takes 10% and pays the landlord 90% on a fixed day.
 - Admin: Tenant Ops hub → **Welile Homes** button → `WelileHomesAdminPanel`
   (enrolled tenants, receivable, outstanding, Welile 8%, pending payouts, manual payout run).
 - The legacy savings manager (`WelileHomesSubscriptionsManager`, mode `savings`) is untouched.
+## SMS receipts
+- Edge fn `welile-homes-sms-dispatch` scans recent `system_events` and sends
+  receipts: tenant on each collection (`payment_made` / action `collection`),
+  landlord on each payout (`rent_disbursed` / action `landlord_payout`).
+- Idempotent per event via `sms_delivery_log` idempotency keys
+  (`welile_collect_sms:<event_id>`, `welile_payout_sms:<event_id>`) — never double-sends.
+- Multi-provider send (`_shared/sendSmsMultiProvider.ts`): Yoola → AfricasTalking → Lana.
+- Landlord phone: wallet payout → landlord profile phone; float payout → stored `landlord_phone`.
+- Runs on cron `welile-homes-sms-dispatch` every 5 min (covers deposit auto-collect +
+  daily payout cron) AND is invoked fire-and-forget from the agent allocate and admin
+  manual-payout actions for immediacy.
