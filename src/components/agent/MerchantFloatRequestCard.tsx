@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Landmark, Loader2, PlusCircle, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -136,13 +136,18 @@ export function MerchantFloatRequestCard() {
       </div>
 
       {showRequest && (
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="shrink-0 gap-1.5" disabled={hasPending}>
+        <>
+            <Button
+              type="button"
+              size="sm"
+              className="shrink-0 gap-1.5"
+              disabled={hasPending}
+              onClick={() => setOpen(true)}
+            >
               <PlusCircle className="h-4 w-4" />
               {hasPending ? 'Pending' : 'Request float'}
             </Button>
-          </DialogTrigger>
+            <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -184,7 +189,8 @@ export function MerchantFloatRequestCard() {
                 </Button>
               </DialogFooter>
             </DialogContent>
-        </Dialog>
+            </Dialog>
+        </>
       )}
     </Card>
   );
