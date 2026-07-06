@@ -134,26 +134,23 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
 
   return (
     <>
-    <AnimatePresence>
-      {open && (
+    {mounted && (
         <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
+          <div
+            className={cn(
+              "fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] transition-opacity duration-200",
+              visible ? "opacity-100" : "opacity-0",
+            )}
             onClick={() => onOpenChange(false)}
           />
 
           {/* Chat panel */}
-          <motion.div
+          <div
             ref={panelRef}
-            initial={{ y: '100%', opacity: 0.5 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 32, stiffness: 320, mass: 0.8 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Welile AI chat"
             style={{
               // Push panel up when keyboard is open on mobile
               bottom: keyboardHeight > 0 ? keyboardHeight : undefined,
@@ -166,7 +163,9 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
               "h-[92dvh] md:h-[660px]",
               "rounded-t-3xl md:rounded-3xl",
               "bg-background z-[71] flex flex-col",
-              "shadow-2xl border border-border/40 overflow-hidden"
+              "shadow-2xl border border-border/40 overflow-hidden",
+              "transition-transform duration-300 ease-out will-change-transform",
+              visible ? "translate-y-0" : "translate-y-full",
             )}
           >
             {/* Header */}
