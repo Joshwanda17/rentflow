@@ -876,6 +876,9 @@ export function CashoutAgentManager() {
         <KpiTile icon={<CheckCircle2 className="h-4 w-4" />} label="Completed Today" value={String(kpis.todayCount)} tone="muted" />
         <KpiTile icon={<Clock className="h-4 w-4" />} label="Active Claims" value={String(kpis.pendingClaims)} tone="muted" sub="in queue" />
       </div>
+      <div className="grid grid-cols-1 gap-2">
+        <KpiTile icon={<Banknote className="h-4 w-4" />} label="Total Withdrawal Charges" value={formatUGX(kpis.chargesTotal)} tone="muted" sub="Bearer: Company · auto-computed" />
+      </div>
 
       {/* Method breakdown */}
       <div className="rounded-2xl border border-border bg-card p-3">
