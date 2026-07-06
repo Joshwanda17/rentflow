@@ -3,7 +3,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Copy, Check, ClipboardList, TrendingUp, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
 
@@ -101,11 +100,8 @@ export function ShareRentRecorderCard() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="rounded-2xl border-2 border-success/40 bg-gradient-to-br from-success/10 via-background to-primary/5 p-4 shadow-sm"
+    <div
+      className="animate-fade-in rounded-2xl border-2 border-success/40 bg-gradient-to-br from-success/10 via-background to-primary/5 p-4 shadow-sm"
     >
       <div className="flex items-start gap-3">
         <div className="p-2.5 rounded-xl bg-gradient-to-br from-success to-success/70 text-success-foreground shadow-md shrink-0">
@@ -181,7 +177,7 @@ export function ShareRentRecorderCard() {
           <span className="font-bold">Pro tip:</span> Send to WhatsApp groups & status. Every verified record raises your team's collection volume.
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

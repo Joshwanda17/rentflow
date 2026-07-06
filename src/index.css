@@ -891,6 +891,19 @@ input[type="checkbox"], input[type="radio"] {
   overscroll-behavior: contain;
 }
 
+/* Skeleton shimmer — CSS replacement for the former Framer Motion shimmer so
+   skeletons no longer pull the vendor-motion chunk into the initial load.
+   Neutralised automatically in lite-mode (the global lite rule zeroes it). */
+@keyframes skeleton-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.skeleton-shimmer {
+  animation: skeleton-shimmer 1.8s linear infinite;
+  animation-delay: 0.3s;
+}
+html.lite-mode .skeleton-shimmer { animation: none !important; }
+
 /* Reduce paint on low-end GPUs */
 @media (max-resolution: 1.5dppx) {
   * {

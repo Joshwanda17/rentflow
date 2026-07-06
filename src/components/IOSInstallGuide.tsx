@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { X, Square, ArrowDown, Plus, Share2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getIOSInstallInstructions, isChromeIOS, isFirefoxIOS } from '@/hooks/useIOSCompatibility';
@@ -17,11 +16,8 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex flex-col"
+    <div
+      className="animate-fade-in fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex flex-col"
       style={{
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
@@ -53,10 +49,8 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
 
           {/* Chrome/Firefox warning */}
           {isOtherBrowser && (
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="p-4 bg-warning/10 border border-warning/30 rounded-xl"
+            <div 
+              className="animate-fade-in p-4 bg-warning/10 border border-warning/30 rounded-xl"
             >
               <div className="flex items-start gap-3">
                 <ExternalLink className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
@@ -77,7 +71,7 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
                   </Button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* Steps */}
@@ -85,11 +79,9 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
             <h4 className="font-semibold text-center">Follow these 3 easy steps:</h4>
             
             {/* Step 1 */}
-            <motion.div 
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
+            <div 
+              style={{ animationDelay: '0.1s' }}
+              className="animate-fade-in flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
             >
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
                 1
@@ -106,14 +98,12 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
                   </span>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Step 2 */}
-            <motion.div 
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
+            <div 
+              style={{ animationDelay: '0.2s' }}
+              className="animate-fade-in flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
             >
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
                 2
@@ -127,14 +117,12 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
                   <span className="text-sm text-muted-foreground">Add to Home Screen</span>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Step 3 */}
-            <motion.div 
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
+            <div 
+              style={{ animationDelay: '0.3s' }}
+              className="animate-fade-in flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
             >
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
                 3
@@ -143,7 +131,7 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
                 <p className="font-medium mb-2">Tap "Add" in the top right</p>
                 <span className="text-sm text-muted-foreground">That's it! Welile will appear on your home screen</span>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           {/* Benefits */}
@@ -175,15 +163,13 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
         }}
       >
         <div className="max-w-sm mx-auto text-center space-y-2">
-          <motion.p 
+          <p 
             className="text-sm text-muted-foreground flex items-center justify-center gap-1"
-            animate={{ y: [0, -2, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
           >
             <ArrowDown className="h-4 w-4" />
             Look for the Share icon in Safari
             <ArrowDown className="h-4 w-4" />
-          </motion.p>
+          </p>
           <Button 
             variant="outline" 
             size="lg" 
@@ -195,6 +181,6 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
           </Button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

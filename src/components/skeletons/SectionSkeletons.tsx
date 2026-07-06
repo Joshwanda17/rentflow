@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
@@ -10,17 +9,10 @@ import { Skeleton } from '@/components/ui/skeleton';
  * primitive in `Skeleton`. No layout shift, no spinners.
  */
 
-const fadeIn = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  transition: { duration: 0.2 },
-};
-
 /** Top bar with avatar + name + trailing icon (matches DashboardHeader). */
 export function TopBarSkeleton() {
   return (
-    <motion.div
-      {...fadeIn}
+    <div
       className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/60"
     >
       <div className="flex items-center gap-3">
@@ -34,15 +26,14 @@ export function TopBarSkeleton() {
         <Skeleton className="h-8 w-8 rounded-lg" />
         <Skeleton className="h-8 w-8 rounded-lg" />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 /** Vertical sidebar with 6 stacked nav items (matches Executive layout). */
 export function SidebarSkeleton() {
   return (
-    <motion.aside
-      {...fadeIn}
+    <aside
       className="hidden lg:flex flex-col w-60 shrink-0 border-r border-border bg-card/40 p-3 gap-1"
     >
       <Skeleton className="h-3 w-16 mb-2 ml-2" />
@@ -52,15 +43,14 @@ export function SidebarSkeleton() {
           <Skeleton className="h-3.5 w-28" />
         </div>
       ))}
-    </motion.aside>
+    </aside>
   );
 }
 
 /** Hero wallet/balance card placeholder. */
 export function WalletHeroSkeleton() {
   return (
-    <motion.div
-      {...fadeIn}
+    <div
       className="rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/20 p-5 space-y-4"
     >
       <div className="flex items-center justify-between">
@@ -82,15 +72,14 @@ export function WalletHeroSkeleton() {
           <Skeleton className="h-4 w-16 bg-foreground/15" />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 /** Row of compact metric/stat cards. */
 export function MetricRowSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <motion.div
-      {...fadeIn}
+    <div
       className={`grid gap-3 ${count >= 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2 md:grid-cols-3'}`}
     >
       {Array.from({ length: count }).map((_, i) => (
@@ -103,7 +92,7 @@ export function MetricRowSkeleton({ count = 3 }: { count?: number }) {
           <Skeleton className="h-2.5 w-12" />
         </div>
       ))}
-    </motion.div>
+    </div>
   );
 }
 
@@ -113,7 +102,7 @@ export function ListSectionSkeleton({
   rows = 3,
 }: { title?: boolean; rows?: number }) {
   return (
-    <motion.div {...fadeIn} className="space-y-3">
+    <div className="space-y-3">
       {title && (
         <div className="flex items-center gap-2 px-1">
           <div className="w-1 h-5 rounded-full bg-muted" />
@@ -133,15 +122,14 @@ export function ListSectionSkeleton({
           <Skeleton className="h-4 w-16" />
         </div>
       ))}
-    </motion.div>
+    </div>
   );
 }
 
 /** Chart placeholder with title + bar shimmer. */
 export function ChartSkeleton({ height = 160 }: { height?: number }) {
   return (
-    <motion.div
-      {...fadeIn}
+    <div
       className="rounded-xl border border-border bg-card p-4 space-y-3"
     >
       <div className="flex items-center justify-between">
@@ -149,15 +137,14 @@ export function ChartSkeleton({ height = 160 }: { height?: number }) {
         <Skeleton className="h-3 w-16" />
       </div>
       <Skeleton className="w-full" style={{ height }} />
-    </motion.div>
+    </div>
   );
 }
 
 /** Simple table placeholder (header row + N body rows). */
 export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number; columns?: number }) {
   return (
-    <motion.div
-      {...fadeIn}
+    <div
       className="rounded-xl border border-border bg-card overflow-hidden"
     >
       <div
@@ -179,15 +166,14 @@ export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number; column
           ))}
         </div>
       ))}
-    </motion.div>
+    </div>
   );
 }
 
 /** Generic widget card (used for opportunities, capital, recent activity…). */
 export function WidgetCardSkeleton({ lines = 2 }: { lines?: number }) {
   return (
-    <motion.div
-      {...fadeIn}
+    <div
       className="rounded-xl border border-border bg-card p-4 space-y-3"
     >
       <div className="flex items-center gap-3">
@@ -204,6 +190,6 @@ export function WidgetCardSkeleton({ lines = 2 }: { lines?: number }) {
         <Skeleton className="h-8 flex-1 rounded-lg" />
         <Skeleton className="h-8 w-20 rounded-lg" />
       </div>
-    </motion.div>
+    </div>
   );
 }
