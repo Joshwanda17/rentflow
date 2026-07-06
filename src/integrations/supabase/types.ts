@@ -13565,6 +13565,10 @@ export type Database = {
           activation_token: string
           agent_id: string
           amount: number
+          approval_bonus_paid: boolean
+          approval_reason: string | null
+          approved_at: string | null
+          approved_by: string | null
           contribution_type: string
           created_at: string
           deduction_day: number | null
@@ -13584,6 +13588,10 @@ export type Database = {
           activation_token?: string
           agent_id: string
           amount: number
+          approval_bonus_paid?: boolean
+          approval_reason?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           contribution_type?: string
           created_at?: string
           deduction_day?: number | null
@@ -13603,6 +13611,10 @@ export type Database = {
           activation_token?: string
           agent_id?: string
           amount?: number
+          approval_bonus_paid?: boolean
+          approval_reason?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           contribution_type?: string
           created_at?: string
           deduction_day?: number | null
@@ -20039,6 +20051,10 @@ export type Database = {
             Returns: undefined
           }
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
+      approve_promissory_note: {
+        Args: { p_note_id: string; p_reason: string }
+        Returns: Json
+      }
       approve_self_registered_funder: {
         Args: { _reason: string; _target_user: string }
         Returns: undefined

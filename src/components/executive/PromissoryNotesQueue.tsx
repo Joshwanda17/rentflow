@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2 } from 'lucide-react';
+import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, Trash2, BadgeCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CompactAmount } from '@/components/ui/CompactAmount';
@@ -32,6 +32,41 @@ export function PromissoryNotesQueue() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [approveTarget, setApproveTarget] = useState<any>(null);
+  const [approveReason, setApproveReason] = useState('');
+  const [approving, setApproving] = useState(false);
+
+  const handleApprove = async () => {
+    if (!approveTarget) return;
+    const reason = approveReason.trim();
+    if (reason.length < 20) {
+      toast.error('Please provide a reason of at least 20 characters.');
+      return;
+    }
+    setApproving(true);
+    try {
+      const { data, error } = await supabase.rpc('approve_promissory_note', {
+        p_note_id: approveTarget.id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (res?.status === 'error') throw new Error(res.message);
+      if (res?.status === 'already_approved') {
+        toast.info('This promissory note was already approved.');
+      } else {
+        toast.success('Approved — UGX 1,500 credited to the agent’s wallet.');
+      }
+      setApproveTarget(null);
+      setApproveReason('');
+      setSelectedNote(null);
+      queryClient.invalidateQueries({ queryKey: ['promissory-notes-queue'] });
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to approve promissory note.');
+    } finally {
+      setApproving(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -385,14 +420,30 @@ export function PromissoryNotesQueue() {
                 </Card>
 
                 {/* Danger zone: delete with audit trail */}
-                <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={() => { setDeleteReason(''); setDeleteTarget(selectedNote); }}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Promissory Note
-                </Button>
+                <div className="flex gap-2">
+                  {!selectedNote.approval_bonus_paid ? (
+                    <Button
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => { setApproveReason(''); setApproveTarget(selectedNote); }}
+                    >
+                      <BadgeCheck className="h-4 w-4 mr-2" />
+                      Approve & Pay UGX 1,500
+                    </Button>
+                  ) : (
+                    <Button className="flex-1" variant="outline" disabled>
+                      <CheckCircle className="h-4 w-4 mr-2 text-emerald-600" />
+                      Approved
+                    </Button>
+                  )}
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => { setDeleteReason(''); setDeleteTarget(selectedNote); }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Promissory Note
+                  </Button>
+                </div>
               </div>
             );
           })()}
@@ -426,6 +477,38 @@ export function PromissoryNotesQueue() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? 'Deleting…' : 'Delete & Log'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Approve confirmation with mandatory reason */}
+      <AlertDialog open={!!approveTarget} onOpenChange={(open) => { if (!open && !approving) { setApproveTarget(null); setApproveReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve promissory note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This marks {approveTarget?.partner_name}'s promissory note as verified and credits UGX 1,500 to {approveTarget?.agent_name}'s wallet. A reason is required and this action is recorded in the audit trail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="approve-reason">Reason for approval (min 20 characters)</Label>
+            <Textarea
+              id="approve-reason"
+              value={approveReason}
+              onChange={(e) => setApproveReason(e.target.value)}
+              placeholder="e.g. Verified partner details and confirmed the signed promissory note document"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleApprove(); }}
+              disabled={approving || approveReason.trim().length < 20}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {approving ? 'Approving…' : 'Approve & Pay'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
