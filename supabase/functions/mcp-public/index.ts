@@ -195,12 +195,14 @@ var explore_welile_default = defineTool2({
   handler: ({ intent, referral_code }) => {
     const feature = matchFeature(intent);
     if (feature) {
-      const { signupUrl: signupUrl2, referralUrl } = buildSignupLinks({
+      const { signupUrl: signupUrl2, referralUrl, landingUrl: landingUrl2 } = buildSignupLinks({
         referralCode: referral_code,
         role: feature.role
       });
-      const linkText = referralUrl ? `Sign up: ${signupUrl2}
-Referral signup link: ${referralUrl}` : `Sign up: ${signupUrl2}`;
+      const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl2}
+Sign up: ${signupUrl2}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl2}
+Sign up: ${signupUrl2}`;
       return {
         content: [
           {
@@ -220,6 +222,7 @@ ${linkText}`
           explanation: feature.explanation,
           next_step: feature.next_step,
           role: feature.role ?? null,
+          landing_url: landingUrl2,
           signup_url: signupUrl2,
           referral_url: referralUrl,
           currency: "UGX"
@@ -227,12 +230,13 @@ ${linkText}`
       };
     }
     const prompts = FEATURES.map((f) => {
-      const { signupUrl: signupUrl2 } = buildSignupLinks({ referralCode: referral_code, role: f.role });
+      const { signupUrl: signupUrl2, landingUrl: landingUrl2 } = buildSignupLinks({ referralCode: referral_code, role: f.role });
       return {
         prompt: f.prompt,
         intent: f.intent,
         headline: f.headline,
         role: f.role ?? null,
+        landing_url: landingUrl2,
         signup_url: signupUrl2
       };
     });
@@ -240,12 +244,13 @@ ${linkText}`
       "Ask about any of these to get started with Welile (UGX):",
       ...prompts.map((p) => `\u2022 ${p.prompt}`)
     ].join("\n");
-    const { signupUrl } = buildSignupLinks({ referralCode: referral_code });
+    const { signupUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
     return {
       content: [{ type: "text", text: `${menuText}
 
+Start here (guided onboarding): ${landingUrl}
 Or sign up now: ${signupUrl}` }],
-      structuredContent: { guided_prompts: prompts, signup_url: signupUrl, currency: "UGX" }
+      structuredContent: { guided_prompts: prompts, landing_url: landingUrl, signup_url: signupUrl, currency: "UGX" }
     };
   }
 });

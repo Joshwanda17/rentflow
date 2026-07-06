@@ -104,13 +104,13 @@ export default defineTool({
     const feature = matchFeature(intent);
 
     if (feature) {
-      const { signupUrl, referralUrl } = buildSignupLinks({
+      const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
         referralCode: referral_code,
         role: feature.role,
       });
       const linkText = referralUrl
-        ? `Sign up: ${signupUrl}\nReferral signup link: ${referralUrl}`
-        : `Sign up: ${signupUrl}`;
+        ? `Start here (guided onboarding): ${landingUrl}\nSign up: ${signupUrl}\nReferral signup link: ${referralUrl}`
+        : `Start here (guided onboarding): ${landingUrl}\nSign up: ${signupUrl}`;
       return {
         content: [
           {
@@ -124,6 +124,7 @@ export default defineTool({
           explanation: feature.explanation,
           next_step: feature.next_step,
           role: feature.role ?? null,
+          landing_url: landingUrl,
           signup_url: signupUrl,
           referral_url: referralUrl,
           currency: "UGX",
@@ -134,12 +135,13 @@ export default defineTool({
     // No/unknown intent → return the menu of guided prompts, each with its own
     // role-targeted signup link so the assistant can offer them as next steps.
     const prompts = FEATURES.map((f) => {
-      const { signupUrl } = buildSignupLinks({ referralCode: referral_code, role: f.role });
+      const { signupUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code, role: f.role });
       return {
         prompt: f.prompt,
         intent: f.intent,
         headline: f.headline,
         role: f.role ?? null,
+        landing_url: landingUrl,
         signup_url: signupUrl,
       };
     });
@@ -147,10 +149,10 @@ export default defineTool({
       "Ask about any of these to get started with Welile (UGX):",
       ...prompts.map((p) => `• ${p.prompt}`),
     ].join("\n");
-    const { signupUrl } = buildSignupLinks({ referralCode: referral_code });
+    const { signupUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
     return {
-      content: [{ type: "text", text: `${menuText}\n\nOr sign up now: ${signupUrl}` }],
-      structuredContent: { guided_prompts: prompts, signup_url: signupUrl, currency: "UGX" },
+      content: [{ type: "text", text: `${menuText}\n\nStart here (guided onboarding): ${landingUrl}\nOr sign up now: ${signupUrl}` }],
+      structuredContent: { guided_prompts: prompts, landing_url: landingUrl, signup_url: signupUrl, currency: "UGX" },
     };
   },
 });
