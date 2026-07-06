@@ -21762,6 +21762,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      is_active_cashout_agent: { Args: { _user_id: string }; Returns: boolean }
       is_agent_frozen: { Args: { p_agent_id: string }; Returns: boolean }
       is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {
@@ -21783,6 +21784,7 @@ export type Database = {
         | { Args: { p_user_id: string }; Returns: boolean }
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
       is_tenant_ops_staff: { Args: { _uid: string }; Returns: boolean }
+      is_withdrawal_staff: { Args: { _user_id: string }; Returns: boolean }
       landlord_ops_bind_tenant_to_house: {
         Args: {
           p_house_id: string
