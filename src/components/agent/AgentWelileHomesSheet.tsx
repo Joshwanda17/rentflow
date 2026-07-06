@@ -15,6 +15,45 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2, ShieldCheck, RefreshCw, ArrowLeft, Pencil, History } from 'lucide-react';
+import { z } from 'zod';
+
+// Shared client-side validation for the core enrollment fields. Kept strict so
+// agents cannot submit invalid or internally conflicting values (e.g. decimal
+// rent, out-of-range payout days, or a payout day that isn't a real calendar
+// day for every month).
+const RENT_MIN = 10_000;
+const RENT_MAX = 100_000_000;
+
+const enrollmentCoreSchema = z.object({
+  monthlyRent: z
+    .number({ error: 'Enter the monthly rent as a number' })
+    .refine((n) => Number.isFinite(n), { message: 'Enter a valid monthly rent' })
+    .refine((n) => Number.isInteger(n), { message: 'Monthly rent must be a whole number (no decimals)' })
+    .refine((n) => n >= RENT_MIN, { message: `Monthly rent must be at least ${formatUGX(RENT_MIN)}` })
+    .refine((n) => n <= RENT_MAX, { message: `Monthly rent cannot exceed ${formatUGX(RENT_MAX)}` }),
+  payoutDay: z
+    .number({ error: 'Enter the landlord payout day as a number' })
+    .refine((n) => Number.isInteger(n), { message: 'Payout day must be a whole number' })
+    .refine((n) => n >= 1 && n <= 28, { message: 'Payout day must be between 1 and 28' }),
+  hasSmartphone: z.boolean({ error: 'Choose a collection mode' }),
+});
+
+type EnrollmentCoreInput = { rent: string; payoutDay: string; hasSmartphone: unknown };
+
+/** Returns the first validation error message, or null when the core fields are valid. */
+function validateEnrollmentCore({ rent, payoutDay, hasSmartphone }: EnrollmentCoreInput): string | null {
+  const rentTrimmed = rent.trim();
+  const dayTrimmed = payoutDay.trim();
+  if (!rentTrimmed) return 'Enter the monthly rent';
+  if (!dayTrimmed) return 'Enter the landlord payout day';
+  const parsed = enrollmentCoreSchema.safeParse({
+    monthlyRent: Number(rentTrimmed),
+    payoutDay: Number(dayTrimmed),
+    hasSmartphone: typeof hasSmartphone === 'boolean' ? hasSmartphone : undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? 'Some values are invalid';
+  return null;
+}
 
 interface WHSubscription {
   id: string;
@@ -327,8 +366,8 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   // new tenants) enroll immediately; a fresh tenant must verify their phone first.
   const submit = async () => {
     if (!agentId) return;
-    const rentNum = parseFloat(rent);
-    if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
+    const coreError = validateEnrollmentCore({ rent, payoutDay, hasSmartphone: hasPhone });
+    if (coreError) { toast({ title: coreError, variant: 'destructive' }); return; }
     // Require either a found tenant, or enough info to create a new one.
     if (!tenant) {
       if (!phone.trim()) { toast({ title: 'Enter the tenant phone', variant: 'destructive' }); return; }
@@ -636,8 +675,9 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
 
   const review = async () => {
     if (!sub || !agentId) return;
+    const coreError = validateEnrollmentCore({ rent, payoutDay, hasSmartphone: hasPhone });
+    if (coreError) { toast({ title: coreError, variant: 'destructive' }); return; }
     const rentNum = parseFloat(rent);
-    if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
     setPreviewLoading(true);
     try {
       const { data, error } = await supabase.rpc('preview_welile_home_enrollment_edit', {
@@ -663,8 +703,9 @@ function EditDialog({ sub, agentId, onClose, onDone }: {
 
   const submit = async () => {
     if (!sub || !agentId) return;
+    const coreError = validateEnrollmentCore({ rent, payoutDay, hasSmartphone: hasPhone });
+    if (coreError) { toast({ title: coreError, variant: 'destructive' }); return; }
     const rentNum = parseFloat(rent);
-    if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
       const { data, error } = await supabase.rpc('edit_welile_home_enrollment', {
