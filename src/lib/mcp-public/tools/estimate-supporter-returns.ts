@@ -68,7 +68,7 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: ({ amount, duration_months, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "supporter",
     });
@@ -86,6 +86,7 @@ export default defineTool({
           min_amount: MIN_AMOUNT,
           max_amount: MAX_AMOUNT,
           signup_url: signupUrl,
+          landing_url: landingUrl,
           referral_url: referralUrl,
           currency: "UGX",
         },
@@ -107,6 +108,7 @@ export default defineTool({
             min_months: MIN_MONTHS,
             max_months: MAX_MONTHS,
             signup_url: signupUrl,
+            landing_url: landingUrl,
             referral_url: referralUrl,
             currency: "UGX",
           },
@@ -152,6 +154,7 @@ export default defineTool({
         })),
         role: "supporter",
         signup_url: signupUrl,
+        landing_url: landingUrl,
         referral_url: referralUrl,
         currency: "UGX",
       },

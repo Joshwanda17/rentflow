@@ -103,7 +103,7 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ district, area, max_rent, limit, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant",
     });
@@ -172,6 +172,7 @@ export default defineTool({
           filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
           role: "tenant",
           signup_url: signupUrl,
+          landing_url: landingUrl,
           referral_url: referralUrl,
           currency: "UGX",
         },
@@ -222,6 +223,7 @@ export default defineTool({
         filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
         role: "tenant",
         signup_url: signupUrl,
+        landing_url: landingUrl,
         referral_url: referralUrl,
         currency: "UGX",
       },

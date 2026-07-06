@@ -406,7 +406,7 @@ var estimate_supporter_returns_default = defineTool4({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: ({ amount, duration_months, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "supporter"
     });
@@ -423,6 +423,7 @@ ${linkText}`;
           min_amount: MIN_AMOUNT,
           max_amount: MAX_AMOUNT,
           signup_url: signupUrl,
+          landing_url: landingUrl,
           referral_url: referralUrl,
           currency: "UGX"
         }
@@ -443,6 +444,7 @@ ${linkText}`;
             min_months: MIN_MONTHS,
             max_months: MAX_MONTHS,
             signup_url: signupUrl,
+            landing_url: landingUrl,
             referral_url: referralUrl,
             currency: "UGX"
           }
@@ -481,6 +483,7 @@ ${linkText}`;
         })),
         role: "supporter",
         signup_url: signupUrl,
+        landing_url: landingUrl,
         referral_url: referralUrl,
         currency: "UGX"
       }
@@ -532,7 +535,7 @@ var find_available_houses_default = defineTool5({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ district, area, max_rent, limit, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant"
     });
@@ -588,6 +591,7 @@ ${linkText}`
           filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
           role: "tenant",
           signup_url: signupUrl,
+          landing_url: landingUrl,
           referral_url: referralUrl,
           currency: "UGX"
         }
@@ -632,6 +636,7 @@ ${linkText}`
         filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
         role: "tenant",
         signup_url: signupUrl,
+        landing_url: landingUrl,
         referral_url: referralUrl,
         currency: "UGX"
       }
