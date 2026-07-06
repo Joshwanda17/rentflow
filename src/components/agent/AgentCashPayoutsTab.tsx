@@ -1053,12 +1053,8 @@ export function AgentCashPayoutsTab() {
         </Card>
       )}
 
-      {/* Available float — request appears when float is low */}
+      {/* Available float — agent requests any amount, CFO owns the allocation. */}
       <MerchantFloatRequestCard />
-
-      {/* Float demand forecast — how much float to request based on pending
-          payouts (ROIs, landlord float, commissions) broken down by channel. */}
-      <MerchantFloatDemandCard />
 
       {/* Withdrawable wallet — the 0.5% commission earned on every payout
           lands here and can be cashed out by the merchant agent. */}
