@@ -420,14 +420,30 @@ export function PromissoryNotesQueue() {
                 </Card>
 
                 {/* Danger zone: delete with audit trail */}
-                <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={() => { setDeleteReason(''); setDeleteTarget(selectedNote); }}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Promissory Note
-                </Button>
+                <div className="flex gap-2">
+                  {!selectedNote.approval_bonus_paid ? (
+                    <Button
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => { setApproveReason(''); setApproveTarget(selectedNote); }}
+                    >
+                      <BadgeCheck className="h-4 w-4 mr-2" />
+                      Approve & Pay UGX 1,500
+                    </Button>
+                  ) : (
+                    <Button className="flex-1" variant="outline" disabled>
+                      <CheckCircle className="h-4 w-4 mr-2 text-emerald-600" />
+                      Approved
+                    </Button>
+                  )}
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => { setDeleteReason(''); setDeleteTarget(selectedNote); }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Promissory Note
+                  </Button>
+                </div>
               </div>
             );
           })()}
