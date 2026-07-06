@@ -481,6 +481,38 @@ export function PromissoryNotesQueue() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Approve confirmation with mandatory reason */}
+      <AlertDialog open={!!approveTarget} onOpenChange={(open) => { if (!open && !approving) { setApproveTarget(null); setApproveReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve promissory note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This marks {approveTarget?.partner_name}'s promissory note as verified and credits UGX 1,500 to {approveTarget?.agent_name}'s wallet. A reason is required and this action is recorded in the audit trail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="approve-reason">Reason for approval (min 20 characters)</Label>
+            <Textarea
+              id="approve-reason"
+              value={approveReason}
+              onChange={(e) => setApproveReason(e.target.value)}
+              placeholder="e.g. Verified partner details and confirmed the signed promissory note document"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleApprove(); }}
+              disabled={approving || approveReason.trim().length < 20}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {approving ? 'Approving…' : 'Approve & Pay'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
