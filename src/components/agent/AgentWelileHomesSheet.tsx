@@ -26,16 +26,16 @@ const RENT_MAX = 100_000_000;
 
 const enrollmentCoreSchema = z.object({
   monthlyRent: z
-    .number({ invalid_type_error: 'Enter the monthly rent as a number' })
+    .number({ error: 'Enter the monthly rent as a number' })
     .refine((n) => Number.isFinite(n), { message: 'Enter a valid monthly rent' })
     .refine((n) => Number.isInteger(n), { message: 'Monthly rent must be a whole number (no decimals)' })
     .refine((n) => n >= RENT_MIN, { message: `Monthly rent must be at least ${formatUGX(RENT_MIN)}` })
     .refine((n) => n <= RENT_MAX, { message: `Monthly rent cannot exceed ${formatUGX(RENT_MAX)}` }),
   payoutDay: z
-    .number({ invalid_type_error: 'Enter the landlord payout day as a number' })
+    .number({ error: 'Enter the landlord payout day as a number' })
     .refine((n) => Number.isInteger(n), { message: 'Payout day must be a whole number' })
     .refine((n) => n >= 1 && n <= 28, { message: 'Payout day must be between 1 and 28' }),
-  hasSmartphone: z.boolean({ invalid_type_error: 'Choose a collection mode' }),
+  hasSmartphone: z.boolean({ error: 'Choose a collection mode' }),
 });
 
 type EnrollmentCoreInput = { rent: string; payoutDay: string; hasSmartphone: unknown };
