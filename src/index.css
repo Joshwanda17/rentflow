@@ -255,6 +255,12 @@ section[aria-label*="Notifications" i]:empty {
     animation: fade-in 0.2s ease-out;
   }
 
+  /* Entrance used by the motion-lite shim (replaces framer-motion).
+     Neutralized automatically by the html.lite-mode global rule. */
+  .motion-lite-enter {
+    animation: fade-in 0.22s ease-out both;
+  }
+
   .animate-fade-in-up {
     animation: fade-in-up 0.2s ease-out;
   }
