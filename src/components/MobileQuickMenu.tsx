@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
+import { useDrawerTransition } from '@/hooks/useDrawerTransition';
 import { 
   Menu, 
   X, 
@@ -140,49 +141,58 @@ export default function MobileQuickMenu({ currentRole, onScrollToProductivity }:
     onScrollToProductivity?.();
   };
 
+  const { mounted, visible } = useDrawerTransition(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); handleClose(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   return (
     <>
       {/* Floating Menu Button - Visible on mobile only */}
-      <motion.button
+      <button
         onClick={isOpen ? handleClose : handleOpen}
+        aria-label={isOpen ? 'Close menu' : 'Open menu'}
         className={cn(
-          "md:hidden fixed bottom-24 right-4 z-[60] p-4 rounded-full shadow-2xl transition-colors",
-          isOpen 
-            ? "bg-destructive text-destructive-foreground" 
-            : "bg-primary text-primary-foreground"
+          "md:hidden fixed bottom-24 right-4 z-[60] p-4 rounded-full shadow-2xl transition-transform duration-200 active:scale-90",
+          isOpen
+            ? "bg-destructive text-destructive-foreground rotate-90"
+            : "bg-primary text-primary-foreground rotate-0"
         )}
-        whileTap={{ scale: 0.9 }}
-        animate={{ rotate: isOpen ? 90 : 0 }}
       >
         {isOpen ? (
           <X className="h-6 w-6" />
         ) : (
           <Menu className="h-6 w-6" />
         )}
-      </motion.button>
+      </button>
 
-      {/* Backdrop */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      {mounted && (
+        <>
+          {/* Backdrop */}
+          <div
             onClick={handleClose}
-            className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[55]"
+            className={cn(
+              "md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] transition-opacity duration-300",
+              visible ? "opacity-100" : "opacity-0",
+            )}
           />
-        )}
-      </AnimatePresence>
 
-      {/* Menu Panel */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 100, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 100, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="md:hidden fixed bottom-40 left-4 right-4 z-[60] bg-card rounded-3xl shadow-2xl border border-border overflow-hidden max-w-md mx-auto"
+          {/* Menu Panel */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={roleLabel}
+            className={cn(
+              "md:hidden fixed bottom-40 left-4 right-4 z-[60] bg-card rounded-3xl shadow-2xl border border-border overflow-hidden max-w-md mx-auto transition-all duration-300 ease-out",
+              visible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-24 scale-95",
+            )}
           >
             {/* Header */}
             <div className="p-4 bg-primary/10 border-b border-border">
@@ -194,14 +204,11 @@ export default function MobileQuickMenu({ currentRole, onScrollToProductivity }:
 
             {/* Grid of Actions */}
             <div className="p-4 grid grid-cols-4 gap-3">
-              {menuItems.map((item, index) => (
-                <motion.button
+              {menuItems.map((item) => (
+                <button
                   key={item.path + item.label}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.03 }}
                   onClick={() => handleItemClick(item.path)}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-muted/50 hover:bg-muted active:scale-95 transition-all"
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-muted/50 hover:bg-muted active:scale-95 transition-all animate-fade-in"
                 >
                   <div className={cn("p-2.5 rounded-xl", item.color)}>
                     <item.icon className="h-5 w-5 text-white" />
@@ -209,7 +216,7 @@ export default function MobileQuickMenu({ currentRole, onScrollToProductivity }:
                   <span className="text-xs font-medium text-center leading-tight">
                     {item.label}
                   </span>
-                </motion.button>
+                </button>
               ))}
             </div>
 
@@ -235,9 +242,9 @@ export default function MobileQuickMenu({ currentRole, onScrollToProductivity }:
                 <span className="text-sm">Share App</span>
               </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </>
+      )}
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
+import { useDrawerTransition } from '@/hooks/useDrawerTransition';
 import { 
   X, 
   Home,
@@ -58,6 +59,18 @@ export function LandlordMenuDrawer({
     hapticTap();
     onOpenChange(false);
   };
+
+  const { mounted, visible } = useDrawerTransition(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); handleClose(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handleItemClick = (item: MenuItem) => {
     hapticSuccess();
@@ -199,26 +212,28 @@ export function LandlordMenuDrawer({
     },
   ];
 
+  if (!mounted) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
-        <>
+    <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            className={cn(
+              "fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300",
+              visible ? "opacity-100" : "opacity-0",
+            )}
           />
 
           {/* Drawer */}
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Landlord menu"
+            className={cn(
+              "fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col transition-transform duration-300 ease-out will-change-transform",
+              visible ? "translate-x-0" : "translate-x-full",
+            )}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border bg-card">
@@ -243,14 +258,11 @@ export function LandlordMenuDrawer({
                       {section.title}
                     </h3>
                     <div className="space-y-1">
-                      {section.items.map((item, itemIndex) => (
-                        <motion.button
+                      {section.items.map((item) => (
+                        <button
                           key={item.label}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: (sectionIndex * 0.05) + (itemIndex * 0.02) }}
                           onClick={() => handleItemClick(item)}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
+                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 active:scale-[0.98] transition-all text-left animate-fade-in"
                         >
                           <div className={cn(
                             "p-2 rounded-lg bg-muted/80",
@@ -272,7 +284,7 @@ export function LandlordMenuDrawer({
                             )}
                           </div>
                           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        </motion.button>
+                        </button>
                       ))}
                     </div>
                     {sectionIndex < menuSections.length - 1 && (
@@ -285,9 +297,7 @@ export function LandlordMenuDrawer({
               {/* Footer Padding */}
               <div className="h-8" />
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          </div>
+    </>
   );
 }

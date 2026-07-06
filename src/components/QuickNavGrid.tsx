@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -32,19 +31,16 @@ export function QuickNavGrid({ items, title = "Quick Actions" }: QuickNavGridPro
     <div className="space-y-3">
       <h3 className="text-sm font-medium text-muted-foreground px-1">{title}</h3>
       <div className="grid grid-cols-4 gap-2">
-        {items.map((item, index) => {
+        {items.map((item) => {
           const Icon = item.icon;
           const variant = item.variant || 'default';
           
           return (
-            <motion.button
+            <button
               key={item.label}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
               onClick={() => handleClick(item.onClick)}
               className={cn(
-                "flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 transition-all active:scale-95",
+                "flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border/50 transition-all active:scale-95 animate-fade-in",
                 variantStyles[variant]
               )}
             >
@@ -52,7 +48,7 @@ export function QuickNavGrid({ items, title = "Quick Actions" }: QuickNavGridPro
               <span className="text-[10px] font-medium text-center leading-tight line-clamp-2">
                 {item.label}
               </span>
-            </motion.button>
+            </button>
           );
         })}
       </div>

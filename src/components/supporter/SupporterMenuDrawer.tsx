@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
+import { useDrawerTransition } from '@/hooks/useDrawerTransition';
 import { 
   X, 
   CreditCard,
@@ -96,6 +97,18 @@ export function SupporterMenuDrawer({
     onOpenChange(false);
   };
 
+  const { mounted, visible } = useDrawerTransition(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); handleClose(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const handleItemClick = (item: MenuItem) => {
     hapticSuccess();
     onOpenChange(false);
@@ -149,26 +162,28 @@ export function SupporterMenuDrawer({
     },
   ];
 
+  if (!mounted) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
-        <>
+    <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             onClick={handleClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[100]"
+            className={cn(
+              "fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[100] transition-opacity duration-300",
+              visible ? "opacity-100" : "opacity-0",
+            )}
           />
 
           {/* Drawer */}
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed right-0 top-0 bottom-0 w-[82%] max-w-xs bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Supporter menu"
+            className={cn(
+              "fixed right-0 top-0 bottom-0 w-[82%] max-w-xs bg-background z-[101] shadow-2xl overflow-hidden flex flex-col transition-transform duration-300 ease-out will-change-transform",
+              visible ? "translate-x-0" : "translate-x-full",
+            )}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/60">
@@ -226,9 +241,7 @@ export function SupporterMenuDrawer({
 
               <div className="h-6" />
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          </div>
+    </>
   );
 }

@@ -14,22 +14,6 @@ vi.mock('@/hooks/use-toast', () => ({
   toast: (...args: unknown[]) => toastSpy(...args),
 }));
 
-// Framer-motion's AnimatePresence + motion.div aren't relevant to behaviour —
-// the test only cares about effects. The real lib works in jsdom but mocking
-// keeps tests fast and avoids RAF/timer churn.
-vi.mock('framer-motion', () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  motion: new Proxy(
-    {},
-    {
-      get: () => (props: Record<string, unknown> & { children?: React.ReactNode }) => {
-        const { children, ...rest } = props;
-        return <div {...rest}>{children}</div>;
-      },
-    },
-  ),
-}));
-
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>

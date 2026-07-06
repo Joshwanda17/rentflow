@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useDrawerTransition } from '@/hooks/useDrawerTransition';
 import { X, Send, RotateCcw, Bot, ChevronDown, Sparkles, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWelileAI } from '@/hooks/useWelileAI';
@@ -77,6 +77,18 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
     if (!open) setKeyboardHeight(0);
   }, [open]);
 
+  const { mounted, visible } = useDrawerTransition(open);
+
+  // ESC to close
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onOpenChange(false); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onOpenChange]);
+
   // Auto-resize textarea
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -122,26 +134,23 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
 
   return (
     <>
-    <AnimatePresence>
-      {open && (
+    {mounted && (
         <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
+          <div
+            className={cn(
+              "fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] transition-opacity duration-200",
+              visible ? "opacity-100" : "opacity-0",
+            )}
             onClick={() => onOpenChange(false)}
           />
 
           {/* Chat panel */}
-          <motion.div
+          <div
             ref={panelRef}
-            initial={{ y: '100%', opacity: 0.5 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 32, stiffness: 320, mass: 0.8 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Welile AI chat"
             style={{
               // Push panel up when keyboard is open on mobile
               bottom: keyboardHeight > 0 ? keyboardHeight : undefined,
@@ -154,7 +163,9 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
               "h-[92dvh] md:h-[660px]",
               "rounded-t-3xl md:rounded-3xl",
               "bg-background z-[71] flex flex-col",
-              "shadow-2xl border border-border/40 overflow-hidden"
+              "shadow-2xl border border-border/40 overflow-hidden",
+              "transition-transform duration-300 ease-out will-change-transform",
+              visible ? "translate-y-0" : "translate-y-full",
             )}
           >
             {/* Header */}
@@ -176,16 +187,12 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
               </div>
 
               <div className="flex items-center gap-1 mt-2 md:mt-0">
-                <AnimatePresence mode="wait">
-                  {hasMessages && (
-                    <motion.button
+                {hasMessages && (
+                    <button
                       key="clear"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
                       onClick={handleClear}
                       className={cn(
-                        "h-9 px-3 rounded-xl text-[11px] font-semibold transition-all flex items-center gap-1.5 min-w-[36px] justify-center",
+                        "h-9 px-3 rounded-xl text-[11px] font-semibold transition-all flex items-center gap-1.5 min-w-[36px] justify-center animate-fade-in",
                         confirmClear
                           ? "bg-destructive/15 text-destructive border border-destructive/30"
                           : "hover:bg-muted text-muted-foreground"
@@ -197,9 +204,8 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                       ) : (
                         <RotateCcw className="h-4 w-4" />
                       )}
-                    </motion.button>
-                  )}
-                </AnimatePresence>
+                    </button>
+                )}
                 <button
                   onClick={() => onOpenChange(false)}
                   className="h-9 w-9 rounded-xl hover:bg-muted flex items-center justify-center transition-colors"
@@ -216,87 +222,52 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
               className="flex-1 overflow-y-auto overscroll-contain"
               style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
-              <AnimatePresence mode="wait">
+              <>
                 {!hasMessages && !isLoading ? (
                   /* ─── Empty state ─── */
-                  <motion.div
+                  <div
                     key="empty"
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex flex-col items-center justify-center min-h-full px-5 py-8"
+                    className="flex flex-col items-center justify-center min-h-full px-5 py-8 animate-fade-in"
                   >
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
-                      className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center mb-4 shadow-lg shadow-primary/10"
+                    <div
+                      className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center mb-4 shadow-lg shadow-primary/10 animate-scale-in"
                     >
                       <Sparkles className="h-8 w-8 text-primary" />
-                    </motion.div>
+                    </div>
 
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="text-center mb-5"
-                    >
+                    <div className="text-center mb-5 animate-fade-in">
                       <h2 className="text-lg font-bold text-foreground mb-1">Hey! 👋 Ask me anything</h2>
                       <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
                         Tap a question below or just type 💬
                       </p>
-                    </motion.div>
+                    </div>
 
                     {/* Earning prediction */}
                     <Suspense fallback={null}>
-                      <motion.div
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="w-full max-w-[340px] mb-4"
-                      >
+                      <div className="w-full max-w-[340px] mb-4 animate-fade-in">
                         <EarningPredictionCard />
-                      </motion.div>
+                      </div>
                     </Suspense>
 
                     {/* Suggestion pills */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.35 }}
-                      className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full max-w-[340px]"
-                    >
-                      {SUGGESTIONS.map((s, i) => (
-                        <motion.button
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full max-w-[340px] animate-fade-in">
+                      {SUGGESTIONS.map((s) => (
+                        <button
                           key={s.text}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.4 + i * 0.06 }}
                           onClick={() => sendMessage(s.text)}
                           className="flex items-start gap-1.5 sm:gap-2 p-2.5 sm:p-3 rounded-2xl border border-border/60 bg-card hover:bg-accent/30 hover:border-border active:scale-95 transition-all text-left group min-h-[48px] sm:min-h-[56px] touch-manipulation"
                         >
                           <span className="text-sm sm:text-base leading-none mt-0.5 flex-shrink-0">{s.icon}</span>
                           <span className="text-[11px] sm:text-xs text-foreground/75 group-hover:text-foreground leading-snug font-medium">{s.text}</span>
-                        </motion.button>
+                        </button>
                       ))}
-                    </motion.div>
-                  </motion.div>
+                    </div>
+                  </div>
                 ) : (
                   /* ─── Messages list ─── */
-                  <motion.div
-                    key="messages"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="py-4 space-y-1"
-                  >
+                  <div key="messages" className="py-4 space-y-1 animate-fade-in">
                     {messages.map((msg, idx) => (
-                      <motion.div
-                        key={msg.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.22 }}
-                      >
+                      <div key={msg.id} className="animate-fade-in">
                         {/* Message bubble */}
                         <div className={cn(
                           "px-4 py-1.5",
@@ -343,25 +314,16 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
 
                         {/* Share banner after last AI message */}
                         {msg.role === 'assistant' && msg.id !== 'streaming' && idx === messages.length - 1 && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="px-4 pt-2 pb-2 ml-[38px]"
-                          >
+                          <div className="px-4 pt-2 pb-2 ml-[38px] animate-fade-in">
                             <ShareWelileAIBanner />
-                          </motion.div>
+                          </div>
                         )}
-                      </motion.div>
+                      </div>
                     ))}
 
                     {/* Typing indicator */}
                     {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="px-4 py-2"
-                      >
+                      <div className="px-4 py-2 animate-fade-in">
                         <div className="flex gap-2.5">
                           <div className="h-7 w-7 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center flex-shrink-0 shadow-sm">
                             <Bot className="h-3.5 w-3.5 text-primary" />
@@ -376,29 +338,25 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                             ))}
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     )}
 
                     <div className="h-2" />
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
+              </>
             </div>
 
             {/* Scroll to bottom button */}
-            <AnimatePresence>
-              {showScrollDown && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
+            {showScrollDown && (
+                <button
                   onClick={() => scrollToBottom(true)}
-                  className="absolute bottom-24 right-4 h-9 w-9 rounded-full bg-background border border-border shadow-lg flex items-center justify-center z-10"
+                  aria-label="Scroll to latest"
+                  className="absolute bottom-24 right-4 h-9 w-9 rounded-full bg-background border border-border shadow-lg flex items-center justify-center z-10 animate-scale-in"
                 >
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </motion.button>
-              )}
-            </AnimatePresence>
+                </button>
+            )}
 
             {/* Input area — always pinned to bottom */}
             <div
@@ -430,12 +388,11 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                   )}
                   style={{ minHeight: '48px', maxHeight: '120px' }}
                 />
-                <motion.button
+                <button
                   onClick={isLoading ? cancelStream : handleSend}
                   disabled={!isLoading && !input.trim()}
-                  whileTap={!(!isLoading && !input.trim()) ? { scale: 0.9 } : {}}
                   className={cn(
-                    "flex-shrink-0 mr-2 mb-2 h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200",
+                    "flex-shrink-0 mr-2 mb-2 h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90",
                     (isLoading || input.trim())
                       ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90"
                       : "bg-muted text-muted-foreground/50 cursor-not-allowed"
@@ -446,19 +403,15 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                   ) : (
                     <Send className="h-4 w-4" />
                   )}
-                </motion.button>
+                </button>
               </div>
               <p className="text-[10px] text-center text-muted-foreground/40 mt-1.5 leading-none pb-0.5">
                 Welile AI can make mistakes. Verify important info.
               </p>
             </div>
-          </motion.div>
+          </div>
         </>
-      )}
-
-    </AnimatePresence>
-
-
+    )}
     </>
   );
 }

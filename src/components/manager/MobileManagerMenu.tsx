@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
+import { useDrawerTransition } from '@/hooks/useDrawerTransition';
 import { 
   Menu, 
   X, 
@@ -152,55 +153,60 @@ export default function MobileManagerMenu({ onScrollToProductivity, isOpen: exte
     onScrollToProductivity?.();
   };
 
+  const { mounted, visible } = useDrawerTransition(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); handleClose(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   return (
     <>
       {/* Floating Menu Button - only shown when not controlled externally */}
       {!isControlled && (
-        <motion.button
-          drag
-          dragMomentum={false}
-          dragElastic={0.1}
-          whileDrag={{ scale: 1.1 }}
+        <button
           onClick={isOpen ? handleClose : handleOpen}
+          aria-label={isOpen ? 'Close quick actions' : 'Open quick actions'}
           className={cn(
-            "fixed bottom-28 right-4 z-[60] p-5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-colors touch-manipulation ring-2 ring-background cursor-grab active:cursor-grabbing",
-            isOpen 
-              ? "bg-destructive text-destructive-foreground" 
-              : "bg-primary text-primary-foreground"
+            "fixed bottom-28 right-4 z-[60] p-5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-transform duration-200 touch-manipulation ring-2 ring-background active:scale-90",
+            isOpen
+              ? "bg-destructive text-destructive-foreground rotate-90"
+              : "bg-primary text-primary-foreground rotate-0"
           )}
-          whileTap={{ scale: 0.9 }}
-          animate={{ rotate: isOpen ? 90 : 0 }}
         >
           {isOpen ? (
             <X className="h-7 w-7" />
           ) : (
             <Menu className="h-7 w-7" />
           )}
-        </motion.button>
+        </button>
       )}
 
-      {/* Backdrop */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      {mounted && (
+        <>
+          {/* Backdrop */}
+          <div
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55]"
+            className={cn(
+              "fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] transition-opacity duration-300",
+              visible ? "opacity-100" : "opacity-0",
+            )}
           />
-        )}
-      </AnimatePresence>
 
-      {/* Menu Panel - Larger items for easy tapping */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 100, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 100, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-40 left-3 right-3 z-[60] bg-card rounded-3xl shadow-2xl border-2 border-border overflow-hidden max-w-md mx-auto"
+          {/* Menu Panel - Larger items for easy tapping */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Quick actions"
+            className={cn(
+              "fixed bottom-40 left-3 right-3 z-[60] bg-card rounded-3xl shadow-2xl border-2 border-border overflow-hidden max-w-md mx-auto transition-all duration-300 ease-out",
+              visible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-24 scale-95",
+            )}
           >
             {/* Header */}
             <div className="p-4 bg-primary/10 border-b border-border">
@@ -212,14 +218,11 @@ export default function MobileManagerMenu({ onScrollToProductivity, isOpen: exte
 
             {/* Grid of Actions - Extra large icons for easy tapping */}
             <div className="p-4 grid grid-cols-4 gap-3">
-              {menuItems.map((item, index) => (
-                <motion.button
+              {menuItems.map((item) => (
+                <button
                   key={item.path}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.03 }}
                   onClick={() => handleItemClick(item.path)}
-                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-muted/50 hover:bg-muted active:scale-90 transition-all touch-manipulation min-h-[100px]"
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-muted/50 hover:bg-muted active:scale-90 transition-all touch-manipulation min-h-[100px] animate-fade-in"
                 >
                   <div className={cn("p-4 rounded-2xl shadow-lg", item.color)}>
                     <item.icon className="h-7 w-7 text-white" />
@@ -227,7 +230,7 @@ export default function MobileManagerMenu({ onScrollToProductivity, isOpen: exte
                   <span className="text-sm font-bold text-center leading-tight">
                     {item.label}
                   </span>
-                </motion.button>
+                </button>
               ))}
             </div>
 
@@ -248,9 +251,9 @@ export default function MobileManagerMenu({ onScrollToProductivity, isOpen: exte
                 <span className="text-lg">📤 Share</span>
               </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </>
+      )}
     </>
   );
 }

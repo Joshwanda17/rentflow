@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useDrawerTransition } from '@/hooks/useDrawerTransition';
 import { 
   X, 
   Home,
@@ -85,6 +85,7 @@ export function TenantMenuDrawer({
   const longPressFired = useRef(false);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const { mounted, visible } = useDrawerTransition(open);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
     if (typeof window === 'undefined') return {};
     try {
@@ -423,31 +424,30 @@ export function TenantMenuDrawer({
       .filter((s) => s.items.length > 0);
   }, [query, menuSections]);
 
+  if (!mounted) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
-        <>
+    <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            className={cn(
+              "fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300",
+              visible ? "opacity-100" : "opacity-0",
+            )}
           />
 
           {/* Drawer */}
-          <motion.div
+          <div
             role="dialog"
             aria-modal="true"
             aria-label="Tenant menu"
             ref={drawerRef}
             tabIndex={-1}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed right-0 top-0 bottom-0 w-[86%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
+            className={cn(
+              "fixed right-0 top-0 bottom-0 w-[86%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col transition-transform duration-300 ease-out will-change-transform",
+              visible ? "translate-x-0" : "translate-x-full",
+            )}
           >
             {/* Header (title only) */}
             <div className="border-b border-border/60 bg-background/80 backdrop-blur">
@@ -581,21 +581,11 @@ export function TenantMenuDrawer({
                         />
                       </button>
                     </h3>
-                    <AnimatePresence initial={false}>
-                      {!isCollapsed && (
-                        <motion.ul
+                    {!isCollapsed && (
+                        <ul
                           id={listId}
                           role="list"
-                          key="list"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{
-                            height: { duration: 0.24, ease: [0.32, 0.72, 0, 1] },
-                            opacity: { duration: 0.18, ease: 'easeOut' },
-                          }}
-                          style={{ overflow: 'hidden' }}
-                          className="m-0 p-0 list-none"
+                          className="m-0 p-0 list-none overflow-hidden animate-fade-in"
                         >
                           {section.items.map((item, itemIndex) => {
                         const isActive = !!item.path && (location.pathname === item.path || location.pathname.startsWith(item.path + '/'));
@@ -606,12 +596,7 @@ export function TenantMenuDrawer({
                           item.badge && !isActive ? `(${item.badge})` : null,
                         ].filter(Boolean).join('. ');
                         return (
-                          <motion.li
-                            key={item.label}
-                            initial={{ opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.18, ease: 'easeOut', delay: itemIndex * 0.015 }}
-                          >
+                          <li key={item.label}>
                             <button
                               type="button"
                               onPointerDown={() => { hapticSelection(); startLongPress(item); }}
@@ -664,12 +649,11 @@ export function TenantMenuDrawer({
                                 )}
                               </div>
                             </button>
-                          </motion.li>
+                          </li>
                         );
                           })}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
+                        </ul>
+                    )}
                   </section>
                   );
                 })}
@@ -681,7 +665,7 @@ export function TenantMenuDrawer({
                 Welile · Tenant
               </p>
             </div>
-          </motion.div>
+          </div>
 
           {/* Long-press quick actions */}
           <Sheet open={!!quickAction} onOpenChange={(o) => !o && setQuickAction(null)}>
@@ -734,8 +718,6 @@ export function TenantMenuDrawer({
               )}
             </SheetContent>
           </Sheet>
-        </>
-      )}
-    </AnimatePresence>
+    </>
   );
 }
