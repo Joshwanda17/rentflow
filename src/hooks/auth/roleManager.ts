@@ -69,9 +69,9 @@ export async function fetchUserRoles(
 
       // Active Merchant (Cash-Out) Agents are SOLELY payout operators: their
       // payout console lives on the agent dashboard. Multi-role field agents
-      // often have `tenant` first in userRoles, so without this they'd default
-      // to the tenant dashboard and never see the pending withdrawals queue.
-      // So (unless an admin has forced another role) always land them on the
+      // often have `tenant`/`supporter` first, so without this they'd default
+      // to the wrong dashboard and never see the pending withdrawals queue.
+      // When they haven't explicitly chosen another role, land them on the
       // agent console. They can still switch roles manually within a session.
       let cashoutDefault: AppRole | null = null;
       if (userRoles.includes('agent')) {
@@ -91,15 +91,29 @@ export async function fetchUserRoles(
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
       let lastUsedRole: AppRole | null = null;
       try { lastUsedRole = localStorage.getItem('welile_last_role') as AppRole | null; } catch {}
+
+      // A user has made an explicit role choice when an admin forced one, they
+      // set a device preference, or they previously switched roles by hand.
+      const hasExplicitChoice =
+        !!forcedDefault
+        || (preferred !== 'auto' && userRoles.includes(preferred as AppRole))
+        || (!!lastUsedRole && userRoles.includes(lastUsedRole));
+
       const defaultForUser =
         forcedDefault
-        ?? cashoutDefault
         ?? ((preferred !== 'auto' && userRoles.includes(preferred as AppRole)) ? preferred as AppRole
         : (lastUsedRole && userRoles.includes(lastUsedRole)) ? lastUsedRole
-        : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-        : userRoles[0]);
+        : (cashoutDefault
+          ?? ((intendedRole && userRoles.includes(intendedRole)) ? intendedRole
+          : userRoles[0])));
+
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
+      } else if (cashoutDefault && !hasExplicitChoice && currentRole !== 'agent') {
+        // Active merchant agent with no explicit choice landed on the generic
+        // default persona (e.g. supporter). Route them to the payout console so
+        // the pending withdrawals queue is visible.
+        setRole('agent');
       }
     } else if (!hasAnyRolesInDb) {
       // Only auto-provision if user has NO roles at all in DB (not even disabled ones)
