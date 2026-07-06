@@ -335,7 +335,11 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
           )}
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={submitting || !tenant} className="w-full">
+          <Button
+            onClick={submit}
+            disabled={submitting || (!tenant && !(searched && newName.trim().length >= 2))}
+            className="w-full"
+          >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Enroll tenant
           </Button>
         </DialogFooter>
