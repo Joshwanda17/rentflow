@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon, Menu, X } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -45,17 +44,17 @@ export function CollapsibleQuickNav({
   return (
     <div className="space-y-3">
       {/* Toggle Button */}
-      <motion.button
+      <button
         type="button"
         onClick={handleToggle}
+        aria-expanded={isOpen}
         className={cn(
-          "w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all shadow-sm select-none",
+          "w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all shadow-sm select-none active:scale-[0.98]",
           "min-h-[56px] touch-action-manipulation",
           isOpen 
             ? "bg-primary/10 border-primary/30 text-primary shadow-md" 
             : "bg-card border-border/60 hover:border-primary/30 hover:bg-accent/30 active:bg-accent/50"
         )}
-        whileTap={{ scale: 0.98 }}
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         <div className="flex items-center gap-3">
@@ -76,49 +75,37 @@ export function CollapsibleQuickNav({
             </p>
           </div>
         </div>
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
+        <div
           className={cn(
-            "h-9 w-9 rounded-xl flex items-center justify-center transition-all",
-            isOpen ? "bg-primary text-primary-foreground shadow-md" : "bg-muted/70"
+            "h-9 w-9 rounded-xl flex items-center justify-center transition-transform duration-200",
+            isOpen ? "bg-primary text-primary-foreground shadow-md rotate-180" : "bg-muted/70 rotate-0"
           )}
         >
           <span className="text-xs font-bold">{items.length}</span>
-        </motion.div>
-      </motion.button>
+        </div>
+      </button>
 
       {/* Expandable Grid */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
+      {isOpen && (
+          <div className="overflow-hidden animate-fade-in">
             <div className="space-y-3 pt-1">
               <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">{title}</h3>
               <div className="grid grid-cols-4 gap-2.5">
-                {items.map((item, index) => {
+                {items.map((item) => {
                   const Icon = item.icon;
                   const variant = item.variant || 'default';
                   
                   return (
-                    <motion.button
+                    <button
                       key={item.label}
                       type="button"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.025, type: 'spring', stiffness: 300, damping: 25 }}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handleClick(item.onClick);
                       }}
                       className={cn(
-                        "flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-border/40 transition-all shadow-sm hover:shadow-md select-none",
+                        "flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-border/40 transition-all shadow-sm hover:shadow-md select-none animate-fade-in",
                         "min-h-[72px] touch-action-manipulation active:scale-95 active:opacity-80",
                         variantStyles[variant]
                       )}
@@ -128,14 +115,13 @@ export function CollapsibleQuickNav({
                       <span className="text-[10px] font-semibold text-center leading-tight line-clamp-2 tracking-wide pointer-events-none">
                         {item.label}
                       </span>
-                    </motion.button>
+                    </button>
                   );
                 })}
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </div>
   );
 }
