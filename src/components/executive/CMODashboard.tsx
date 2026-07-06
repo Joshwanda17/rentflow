@@ -9,6 +9,7 @@ import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, start
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SignupSourceFunnel } from './SignupSourceFunnel';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
 type ReferralDateFilter = '6months' | 'today' | 'yesterday' | 'last_week';
