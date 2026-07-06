@@ -54,13 +54,13 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: ({ rent, duration_days, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant",
     });
     const linkText = referralUrl
-      ? `Create a free tenant account: ${signupUrl}\nReferral signup link: ${referralUrl}`
-      : `Create a free tenant account: ${signupUrl}`;
+      ? `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account: ${signupUrl}\nReferral signup link: ${referralUrl}`
+      : `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account: ${signupUrl}`;
 
     // Validate rent.
     if (!Number.isFinite(rent) || rent < MIN_RENT || rent > MAX_RENT) {
@@ -72,6 +72,7 @@ export default defineTool({
           error: "invalid_rent",
           min_rent: MIN_RENT,
           max_rent: MAX_RENT,
+          landing_url: landingUrl,
           signup_url: signupUrl,
           referral_url: referralUrl,
           currency: "UGX",
@@ -94,6 +95,7 @@ export default defineTool({
             error: "invalid_duration",
             min_days: MIN_DAYS,
             max_days: MAX_DAYS,
+            landing_url: landingUrl,
             signup_url: signupUrl,
             referral_url: referralUrl,
             currency: "UGX",
@@ -138,6 +140,7 @@ export default defineTool({
           request_fee: p.requestFee,
         })),
         role: "tenant",
+        landing_url: landingUrl,
         signup_url: signupUrl,
         referral_url: referralUrl,
         currency: "UGX",

@@ -11,6 +11,7 @@ import { z } from "npm:zod@^4.4.3";
 
 // src/lib/mcp-public/links.ts
 var SIGNUP_BASE = "https://welilereceipts.com/auth";
+var LANDING_BASE = "https://welilereceipts.com/ai";
 var SIGNUP_ROLES = ["tenant", "agent", "landlord", "supporter"];
 var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function buildSignupLinks(opts) {
@@ -25,7 +26,11 @@ function buildSignupLinks(opts) {
     refParams.set("ref", ref.toLowerCase());
     referralUrl = `${SIGNUP_BASE}?${refParams.toString()}`;
   }
-  return { signupUrl, referralUrl };
+  const landingParams = new URLSearchParams({ signup_source: source });
+  if (opts?.role && SIGNUP_ROLES.includes(opts.role)) landingParams.set("role", opts.role);
+  if (ref && UUID_RE.test(ref)) landingParams.set("ref", ref.toLowerCase());
+  const landingUrl = `${LANDING_BASE}?${landingParams.toString()}`;
+  return { signupUrl, referralUrl, landingUrl };
 }
 
 // src/lib/mcp-public/tools/how-welile-works.ts
@@ -100,13 +105,15 @@ var how_welile_works_default = defineTool({
       (f) => f.q.toLowerCase().includes(term) || f.tags.some((t) => t.includes(term) || term.includes(t))
     ) : FAQS;
     const faqs = matched.length > 0 ? matched : FAQS;
-    const { signupUrl, referralUrl } = buildSignupLinks({ referralCode: referral_code });
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
     const faqText = faqs.map((f) => `Q: ${f.q}
 A: ${f.a}`).join("\n\n");
     const promptText = `Try asking:
 ${GUIDED_PROMPTS.map((p) => `\u2022 ${p}`).join("\n")}`;
-    const linkText = referralUrl ? `Sign up: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Sign up: ${signupUrl}`;
+    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
+Sign up: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
+Sign up: ${signupUrl}`;
     return {
       content: [{ type: "text", text: `${faqText}
 
@@ -117,6 +124,7 @@ ${linkText}` }],
       structuredContent: {
         faqs: faqs.map(({ q, a }) => ({ question: q, answer: a })),
         guided_prompts: GUIDED_PROMPTS,
+        landing_url: landingUrl,
         signup_url: signupUrl,
         referral_url: referralUrl,
         currency: "UGX"
@@ -190,12 +198,14 @@ var explore_welile_default = defineTool2({
   handler: ({ intent, referral_code }) => {
     const feature = matchFeature(intent);
     if (feature) {
-      const { signupUrl: signupUrl2, referralUrl } = buildSignupLinks({
+      const { signupUrl: signupUrl2, referralUrl, landingUrl: landingUrl2 } = buildSignupLinks({
         referralCode: referral_code,
         role: feature.role
       });
-      const linkText = referralUrl ? `Sign up: ${signupUrl2}
-Referral signup link: ${referralUrl}` : `Sign up: ${signupUrl2}`;
+      const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl2}
+Sign up: ${signupUrl2}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl2}
+Sign up: ${signupUrl2}`;
       return {
         content: [
           {
@@ -215,6 +225,7 @@ ${linkText}`
           explanation: feature.explanation,
           next_step: feature.next_step,
           role: feature.role ?? null,
+          landing_url: landingUrl2,
           signup_url: signupUrl2,
           referral_url: referralUrl,
           currency: "UGX"
@@ -222,12 +233,13 @@ ${linkText}`
       };
     }
     const prompts = FEATURES.map((f) => {
-      const { signupUrl: signupUrl2 } = buildSignupLinks({ referralCode: referral_code, role: f.role });
+      const { signupUrl: signupUrl2, landingUrl: landingUrl2 } = buildSignupLinks({ referralCode: referral_code, role: f.role });
       return {
         prompt: f.prompt,
         intent: f.intent,
         headline: f.headline,
         role: f.role ?? null,
+        landing_url: landingUrl2,
         signup_url: signupUrl2
       };
     });
@@ -235,12 +247,13 @@ ${linkText}`
       "Ask about any of these to get started with Welile (UGX):",
       ...prompts.map((p) => `\u2022 ${p.prompt}`)
     ].join("\n");
-    const { signupUrl } = buildSignupLinks({ referralCode: referral_code });
+    const { signupUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
     return {
       content: [{ type: "text", text: `${menuText}
 
+Start here (guided onboarding): ${landingUrl}
 Or sign up now: ${signupUrl}` }],
-      structuredContent: { guided_prompts: prompts, signup_url: signupUrl, currency: "UGX" }
+      structuredContent: { guided_prompts: prompts, landing_url: landingUrl, signup_url: signupUrl, currency: "UGX" }
     };
   }
 });
@@ -273,12 +286,14 @@ var estimate_rent_access_default = defineTool3({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: ({ rent, duration_days, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant"
     });
-    const linkText = referralUrl ? `Create a free tenant account: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Create a free tenant account: ${signupUrl}`;
+    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
+Create a free tenant account: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
+Create a free tenant account: ${signupUrl}`;
     if (!Number.isFinite(rent) || rent < MIN_RENT || rent > MAX_RENT) {
       const text2 = `Please share a monthly rent between ${ugx(MIN_RENT)} and ${ugx(MAX_RENT)} for an indicative estimate.
 
@@ -289,6 +304,7 @@ ${linkText}`;
           error: "invalid_rent",
           min_rent: MIN_RENT,
           max_rent: MAX_RENT,
+          landing_url: landingUrl,
           signup_url: signupUrl,
           referral_url: referralUrl,
           currency: "UGX"
@@ -309,6 +325,7 @@ ${linkText}`;
             error: "invalid_duration",
             min_days: MIN_DAYS,
             max_days: MAX_DAYS,
+            landing_url: landingUrl,
             signup_url: signupUrl,
             referral_url: referralUrl,
             currency: "UGX"
@@ -346,6 +363,7 @@ ${linkText}`;
           request_fee: p.requestFee
         })),
         role: "tenant",
+        landing_url: landingUrl,
         signup_url: signupUrl,
         referral_url: referralUrl,
         currency: "UGX"
@@ -391,12 +409,14 @@ var estimate_supporter_returns_default = defineTool4({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: ({ amount, duration_months, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "supporter"
     });
-    const linkText = referralUrl ? `Create a free Supporter account: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Create a free Supporter account: ${signupUrl}`;
+    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
+Create a free Supporter account: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
+Create a free Supporter account: ${signupUrl}`;
     if (!Number.isFinite(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
       const text2 = `Please share a support amount between ${ugx2(MIN_AMOUNT)} and ${ugx2(MAX_AMOUNT)} for an illustrative estimate.
 
@@ -408,6 +428,7 @@ ${linkText}`;
           min_amount: MIN_AMOUNT,
           max_amount: MAX_AMOUNT,
           signup_url: signupUrl,
+          landing_url: landingUrl,
           referral_url: referralUrl,
           currency: "UGX"
         }
@@ -428,6 +449,7 @@ ${linkText}`;
             min_months: MIN_MONTHS,
             max_months: MAX_MONTHS,
             signup_url: signupUrl,
+            landing_url: landingUrl,
             referral_url: referralUrl,
             currency: "UGX"
           }
@@ -466,6 +488,7 @@ ${linkText}`;
         })),
         role: "supporter",
         signup_url: signupUrl,
+        landing_url: landingUrl,
         referral_url: referralUrl,
         currency: "UGX"
       }
@@ -517,12 +540,14 @@ var find_available_houses_default = defineTool5({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ district, area, max_rent, limit, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant"
     });
-    const linkText = referralUrl ? `Create a free tenant account to view details and apply: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Create a free tenant account to view details and apply: ${signupUrl}`;
+    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
+Create a free tenant account to view details and apply: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
+Create a free tenant account to view details and apply: ${signupUrl}`;
     const take = Math.min(MAX_LIMIT, Math.max(1, Math.round(limit ?? DEFAULT_LIMIT)));
     let query = anonClient().from("house_listings").select(
       "id,title,house_category,number_of_rooms,monthly_rent,region,district,sub_county,village,has_water,has_electricity,has_security,has_parking,is_furnished,verified,image_urls"
@@ -552,7 +577,7 @@ ${linkText}`
           }
         ],
         isError: true,
-        structuredContent: { error: error.message, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" }
+        structuredContent: { error: error.message, landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" }
       };
     }
     const rows = data ?? [];
@@ -573,6 +598,7 @@ ${linkText}`
           filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
           role: "tenant",
           signup_url: signupUrl,
+          landing_url: landingUrl,
           referral_url: referralUrl,
           currency: "UGX"
         }
@@ -617,6 +643,7 @@ ${linkText}`
         filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
         role: "tenant",
         signup_url: signupUrl,
+        landing_url: landingUrl,
         referral_url: referralUrl,
         currency: "UGX"
       }

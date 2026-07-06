@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import WelileAIChatDrawer from './WelileAIChatDrawer';
+import { isAiRole } from './roleLanding';
 
 const GeminiSparkle = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -80,10 +81,18 @@ export default function WelileAIChatButton() {
 export function WelileAIPage() {
   const [open, setOpen] = useState(true);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roleParam = searchParams.get('role');
+  const initialRole = isAiRole(roleParam) ? roleParam : undefined;
+  const signupSource = searchParams.get('signup_source');
+  const referralCode = searchParams.get('ref');
 
   return (
     <WelileAIChatDrawer
       open={open}
+      initialRole={initialRole}
+      signupSource={signupSource}
+      referralCode={referralCode}
       onOpenChange={(v) => {
         setOpen(v);
         if (!v) navigate('/welcome');

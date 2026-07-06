@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useWelileAI } from '@/hooks/useWelileAI';
 import ReactMarkdown from 'react-markdown';
 import ShareWelileAIBanner from './ShareWelileAIBanner';
+import { ROLE_LANDINGS, buildRoleSignupHref, type AiRole } from './roleLanding';
 
 const EarningPredictionCard = lazy(() => import('@/components/ai-chat/EarningPredictionCard'));
 
@@ -18,10 +19,21 @@ const SUGGESTIONS = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Deep-link role scope (from /ai?role=...). Tailors onboarding content. */
+  initialRole?: AiRole;
+  /** Attribution source carried from the deep link (signup_source). */
+  signupSource?: string | null;
+  /** Referral code carried from the deep link (ref). */
+  referralCode?: string | null;
 }
 
-export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
+export default function WelileAIChatDrawer({ open, onOpenChange, initialRole, signupSource, referralCode }: Props) {
   const { messages, isLoading, sendMessage, clearHistory, cancelStream } = useWelileAI();
+  const landing = initialRole ? ROLE_LANDINGS[initialRole] : null;
+  const roleSuggestions = landing?.suggestions ?? SUGGESTIONS;
+  const roleSignupHref = landing
+    ? buildRoleSignupHref(landing.role, { source: signupSource, ref: referralCode })
+    : null;
   const [input, setInput] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -236,11 +248,24 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                     </div>
 
                     <div className="text-center mb-5 animate-fade-in">
-                      <h2 className="text-lg font-bold text-foreground mb-1">Hey! 👋 Ask me anything</h2>
-                      <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
-                        Tap a question below or just type 💬
+                      <h2 className="text-lg font-bold text-foreground mb-1">
+                        {landing ? landing.headline : 'Hey! 👋 Ask me anything'}
+                      </h2>
+                      <p className="text-sm text-muted-foreground max-w-[260px] leading-relaxed">
+                        {landing ? landing.subtitle : 'Tap a question below or just type 💬'}
                       </p>
                     </div>
+
+                    {/* Role-scoped signup CTA (deep-link onboarding) */}
+                    {landing && roleSignupHref && (
+                      <a
+                        href={roleSignupHref}
+                        className="w-full max-w-[340px] mb-4 flex items-center justify-center gap-2 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm py-3 px-4 shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all animate-fade-in"
+                      >
+                        <span>{landing.emoji}</span>
+                        <span>{landing.cta}</span>
+                      </a>
+                    )}
 
                     {/* Earning prediction */}
                     <Suspense fallback={null}>
@@ -251,7 +276,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
 
                     {/* Suggestion pills */}
                     <div className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full max-w-[340px] animate-fade-in">
-                      {SUGGESTIONS.map((s) => (
+                      {roleSuggestions.map((s) => (
                         <button
                           key={s.text}
                           onClick={() => sendMessage(s.text)}
