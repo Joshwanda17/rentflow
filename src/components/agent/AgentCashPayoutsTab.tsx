@@ -27,7 +27,6 @@ import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
 import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
 import { MerchantWithdrawableCard } from '@/components/agent/MerchantWithdrawableCard';
-import { MerchantFloatDemandCard } from '@/components/agent/MerchantFloatDemandCard';
 
 // Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
 const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
@@ -1053,12 +1052,8 @@ export function AgentCashPayoutsTab() {
         </Card>
       )}
 
-      {/* Available float — request appears when float is low */}
+      {/* Available float — agent requests any amount, CFO owns the allocation. */}
       <MerchantFloatRequestCard />
-
-      {/* Float demand forecast — how much float to request based on pending
-          payouts (ROIs, landlord float, commissions) broken down by channel. */}
-      <MerchantFloatDemandCard />
 
       {/* Withdrawable wallet — the 0.5% commission earned on every payout
           lands here and can be cashed out by the merchant agent. */}
