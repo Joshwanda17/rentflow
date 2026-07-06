@@ -105,13 +105,13 @@ export function MerchantFloatRequestCard() {
   return (
     <Card
       className={cn(
-        'flex items-center justify-between gap-3 rounded-2xl border p-3.5',
+        'flex flex-col items-stretch gap-3 rounded-2xl border p-3.5 sm:flex-row sm:items-center sm:justify-between',
         isLow
           ? 'border-amber-500/30 bg-amber-500/5'
           : 'border-sky-500/20 bg-gradient-to-br from-sky-500/5 to-transparent',
       )}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           <Landmark className="h-3.5 w-3.5 text-sky-600" /> Available Float
         </div>
@@ -140,7 +140,7 @@ export function MerchantFloatRequestCard() {
             <Button
               type="button"
               size="sm"
-              className="shrink-0 gap-1.5"
+              className="w-full shrink-0 gap-1.5 sm:w-auto"
               disabled={hasPending}
               onClick={() => setOpen(true)}
             >
