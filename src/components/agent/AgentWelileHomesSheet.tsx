@@ -241,11 +241,27 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // OTP gating for brand-new tenant accounts: their phone must be verified
+  // before the enrollment (and its first monthly due) is scheduled.
+  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpValue, setOtpValue] = useState('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpDone, setOtpDone] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((c) => (c <= 1 ? 0 : c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
 
   const reset = () => {
     setPhone(''); setSearched(false); setTenant(null); setNewName(''); setNewNationalId('');
     setRent(''); setPayoutDay('5');
     setHasPhone(true); setLandlordUsesWallet(false); setLandlordName(''); setLandlordPhone('');
+    setStep('form'); setOtpValue(''); setOtpError(null); setOtpDone(false); setCooldown(0);
   };
 
   const findTenant = async () => {
