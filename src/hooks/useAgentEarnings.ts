@@ -204,13 +204,20 @@ export function useAgentEarnings() {
       return;
     }
 
-    // Fetch earnings, payouts, wallet, ledger, and source profiles in parallel
+    // Fetch earnings (from the authoritative ledger), payouts, wallet, accrual
+    // ledger, and source profiles in parallel. The ledger is the source of
+    // truth — the legacy `agent_earnings` table is populated inconsistently.
     const [earningsRes, payoutsRes, walletRes, ledgerRes] = await Promise.all([
       supabase
-        .from('agent_earnings')
-        .select('*')
-        .eq('agent_id', user.id)
-        .order('created_at', { ascending: false }),
+        .from('general_ledger')
+        .select('id, amount, category, description, created_at, linked_party')
+        .eq('user_id', user.id)
+        .eq('ledger_scope', 'wallet')
+        .in('category', LEDGER_EARNING_CATEGORY_LIST)
+        .in('direction', ['credit', 'cash_in'])
+        .neq('classification', 'admin_correction')
+        .order('created_at', { ascending: false })
+        .limit(1000),
       supabase
         .from('agent_commission_payouts')
         .select('amount, status')
@@ -236,7 +243,16 @@ export function useAgentEarnings() {
       return;
     }
 
-    const result: Earning[] = earningsRes.data || [];
+    // Map ledger rows → the Earning shape the UI consumes.
+    const result: Earning[] = (earningsRes.data || []).map((r) => ({
+      id: r.id,
+      amount: Number(r.amount),
+      earning_type: LEDGER_EARNING_CATEGORIES[r.category] || 'other',
+      description: r.description,
+      created_at: r.created_at,
+      source_user_id: r.linked_party ?? null,
+      rent_request_id: null,
+    }));
     const paidOut = (payoutsRes.data || []).reduce((sum, p) => sum + Number(p.amount), 0);
     const walletBalance = walletRes.data?.balance ? Number(walletRes.data.balance) : 0;
     const ledgerData = ledgerRes.data || [];
