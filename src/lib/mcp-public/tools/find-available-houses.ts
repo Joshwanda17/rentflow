@@ -14,10 +14,26 @@ import { buildSignupLinks } from "../links";
 const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 10;
 
+// Read env without referencing `process`/`Deno` directly: the bundle runs on
+// Deno (env via Deno.env), but this file is also type-checked in the Vite build
+// where those globals aren't declared. globalThis access avoids both a
+// ReferenceError at runtime and a type error at build time.
+function readEnv(name: string): string | undefined {
+  const g = globalThis as unknown as {
+    Deno?: { env?: { get(k: string): string | undefined } };
+    process?: { env?: Record<string, string | undefined> };
+  };
+  return g.Deno?.env?.get(name) ?? g.process?.env?.[name];
+}
+
 // Anon Supabase client. Created inside the handler so this module stays
 // import-safe (no env reads at import time — required by the MCP bundler).
 function anonClient() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+  const url = readEnv("SUPABASE_URL");
+  const anonKey =
+    readEnv("SUPABASE_PUBLISHABLE_KEY") ?? readEnv("SUPABASE_ANON_KEY");
+  if (!url || !anonKey) throw new Error("Supabase env not configured");
+  return createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

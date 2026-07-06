@@ -479,8 +479,15 @@ import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z5 } from "npm:zod@^4.4.3";
 var DEFAULT_LIMIT = 5;
 var MAX_LIMIT = 10;
+function readEnv(name) {
+  const g = globalThis;
+  return g.Deno?.env?.get(name) ?? g.process?.env?.[name];
+}
 function anonClient() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+  const url = readEnv("SUPABASE_URL");
+  const anonKey = readEnv("SUPABASE_PUBLISHABLE_KEY") ?? readEnv("SUPABASE_ANON_KEY");
+  if (!url || !anonKey) throw new Error("Supabase env not configured");
+  return createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
