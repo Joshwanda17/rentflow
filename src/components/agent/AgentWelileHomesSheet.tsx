@@ -1,0 +1,352 @@
+import { useState, useEffect, useCallback } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { formatUGX } from '@/lib/rentCalculations';
+import { Home, Loader2, Plus, Banknote, TrendingUp, Users, Clock, Search, CheckCircle2 } from 'lucide-react';
+
+interface WHSubscription {
+  id: string;
+  tenant_id: string;
+  monthly_rent: number;
+  outstanding_balance: number;
+  receivable_total: number;
+  has_smartphone: boolean;
+  landlord_uses_wallet: boolean;
+  payout_day: number;
+  next_due_date: string | null;
+  landlord_name: string | null;
+  tenant_name?: string;
+  tenant_phone?: string;
+}
+
+interface AgentWelileHomesSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSheetProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [subs, setSubs] = useState<WHSubscription[]>([]);
+  const [earned, setEarned] = useState(0);
+  const [pendingPayouts, setPendingPayouts] = useState(0);
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [allocFor, setAllocFor] = useState<WHSubscription | null>(null);
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data: rows, error } = await supabase
+        .from('welile_homes_subscriptions')
+        .select('id, tenant_id, monthly_rent, outstanding_balance, receivable_total, has_smartphone, landlord_uses_wallet, payout_day, next_due_date, landlord_name')
+        .eq('agent_id', user.id)
+        .eq('mode', 'agent_collection')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const list = (rows ?? []) as WHSubscription[];
+      const tenantIds = list.map((s) => s.tenant_id);
+      if (tenantIds.length) {
+        const { data: profs } = await supabase
+          .from('profiles').select('id, full_name, phone').in('id', tenantIds);
+        const map = new Map((profs ?? []).map((p: any) => [p.id, p]));
+        list.forEach((s) => {
+          const p = map.get(s.tenant_id);
+          s.tenant_name = p?.full_name ?? 'Tenant';
+          s.tenant_phone = p?.phone ?? '';
+        });
+      }
+      setSubs(list);
+
+      // Agent 2% earnings + pending landlord payouts
+      const { data: dues } = await supabase
+        .from('welile_homes_monthly_dues')
+        .select('agent_commission, collection_status, payout_status, landlord_net')
+        .eq('agent_id', user.id);
+      let e = 0, p = 0;
+      (dues ?? []).forEach((d: any) => {
+        if (d.collection_status === 'collected') e += Number(d.agent_commission) || 0;
+        if (d.collection_status === 'collected' && d.payout_status === 'unpaid') p += Number(d.landlord_net) || 0;
+      });
+      setEarned(e);
+      setPendingPayouts(p);
+    } catch (err: any) {
+      toast({ title: 'Failed to load Welile Homes', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const totalReceivable = subs.reduce((a, s) => a + (Number(s.receivable_total) || 0), 0);
+
+  return (
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto p-0">
+          <SheetHeader className="sticky top-0 z-10 bg-background border-b px-4 py-3">
+            <SheetTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5 text-primary" /> Welile Homes
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="p-4 space-y-4">
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <Card><CardContent className="p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Users className="h-3.5 w-3.5" /> Enrolled</div>
+                <p className="text-xl font-bold">{subs.length}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Banknote className="h-3.5 w-3.5" /> Receivable</div>
+                <p className="text-lg font-bold">{formatUGX(totalReceivable)}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><TrendingUp className="h-3.5 w-3.5" /> Your 2% earned</div>
+                <p className="text-lg font-bold text-emerald-600">{formatUGX(earned)}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Pending payouts</div>
+                <p className="text-lg font-bold text-orange-600">{formatUGX(pendingPayouts)}</p>
+              </CardContent></Card>
+            </div>
+
+            <Button className="w-full gap-2" onClick={() => setEnrollOpen(true)}>
+              <Plus className="h-4 w-4" /> Enroll a tenant
+            </Button>
+
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : subs.length === 0 ? (
+              <div className="text-center py-10 text-sm text-muted-foreground">
+                No Welile Homes tenants yet. Enroll a tenant to start earning 2% on their monthly rent.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {subs.map((s) => (
+                  <Card key={s.id}>
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate">{s.tenant_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{s.tenant_phone}</p>
+                        </div>
+                        {!s.has_smartphone && <Badge variant="outline" className="shrink-0">No phone</Badge>}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">Rent</span><br /><span className="font-semibold">{formatUGX(s.monthly_rent)}</span></div>
+                        <div><span className="text-muted-foreground">Outstanding</span><br /><span className="font-semibold text-orange-600">{formatUGX(s.outstanding_balance)}</span></div>
+                        <div><span className="text-muted-foreground">Payout day</span><br /><span className="font-semibold">{s.payout_day}</span></div>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <Badge variant="secondary" className="font-normal">
+                          {s.landlord_uses_wallet ? 'Landlord: Welile wallet' : `Landlord float${s.landlord_name ? ` · ${s.landlord_name}` : ''}`}
+                        </Badge>
+                      </div>
+                      <Button size="sm" variant="outline" className="w-full gap-1.5"
+                        disabled={s.outstanding_balance <= 0}
+                        onClick={() => setAllocFor(s)}>
+                        <Banknote className="h-3.5 w-3.5" /> Allocate rent
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <EnrollDialog open={enrollOpen} onOpenChange={setEnrollOpen} agentId={user?.id} onDone={load} />
+      <AllocateDialog sub={allocFor} onClose={() => setAllocFor(null)} onDone={load} />
+    </>
+  );
+}
+
+// ---------------- Enroll dialog ----------------
+function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
+  open: boolean; onOpenChange: (o: boolean) => void; agentId?: string; onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const [phone, setPhone] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [tenant, setTenant] = useState<{ id: string; full_name: string; phone: string } | null>(null);
+  const [rent, setRent] = useState('');
+  const [payoutDay, setPayoutDay] = useState('5');
+  const [hasPhone, setHasPhone] = useState(true);
+  const [landlordUsesWallet, setLandlordUsesWallet] = useState(false);
+  const [landlordName, setLandlordName] = useState('');
+  const [landlordPhone, setLandlordPhone] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const reset = () => {
+    setPhone(''); setTenant(null); setRent(''); setPayoutDay('5');
+    setHasPhone(true); setLandlordUsesWallet(false); setLandlordName(''); setLandlordPhone('');
+  };
+
+  const findTenant = async () => {
+    const p = phone.trim();
+    if (!p) return;
+    setSearching(true);
+    try {
+      const { data } = await supabase
+        .from('profiles').select('id, full_name, phone')
+        .ilike('phone', `%${p.replace(/\s/g, '')}%`).limit(1).maybeSingle();
+      if (data) setTenant(data as any);
+      else toast({ title: 'No tenant found', description: 'No registered user with that phone.', variant: 'destructive' });
+    } finally { setSearching(false); }
+  };
+
+  const submit = async () => {
+    if (!tenant || !agentId) return;
+    const rentNum = parseFloat(rent);
+    if (!rentNum || rentNum <= 0) { toast({ title: 'Enter a valid monthly rent', variant: 'destructive' }); return; }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('enroll_welile_home_tenant', {
+        p_tenant_id: tenant.id,
+        p_agent_id: agentId,
+        p_monthly_rent: rentNum,
+        p_payout_day: parseInt(payoutDay) || 5,
+        p_has_smartphone: hasPhone,
+        p_landlord_uses_wallet: landlordUsesWallet,
+        p_landlord_id: null,
+        p_landlord_name: landlordName || null,
+        p_landlord_phone: landlordPhone || null,
+        p_notes: null,
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (!res?.success) throw new Error(res?.error || 'Enrollment failed');
+      toast({ title: 'Tenant enrolled', description: `${formatUGX(rentNum)}/mo · you earn ${formatUGX(res.agent_commission_per_month)}/mo` });
+      reset();
+      onOpenChange(false);
+      onDone();
+    } catch (err: any) {
+      toast({ title: 'Enrollment failed', description: err.message, variant: 'destructive' });
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Enroll tenant in Welile Homes</DialogTitle>
+          <DialogDescription>Rent is booked as receivable × 12 months. You earn 2% of every month's rent.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Tenant phone</Label>
+            <div className="flex gap-2">
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07..." />
+              <Button type="button" variant="outline" onClick={findTenant} disabled={searching}>
+                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              </Button>
+            </div>
+            {tenant && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-600">
+                <CheckCircle2 className="h-3.5 w-3.5" /> {tenant.full_name} · {tenant.phone}
+              </div>
+            )}
+          </div>
+          <div>
+            <Label>Monthly rent (UGX)</Label>
+            <Input type="number" inputMode="numeric" value={rent} onChange={(e) => setRent(e.target.value)} placeholder="500000" />
+          </div>
+          <div>
+            <Label>Landlord payout day (1–28)</Label>
+            <Input type="number" inputMode="numeric" value={payoutDay} onChange={(e) => setPayoutDay(e.target.value)} min={1} max={28} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div><p className="text-sm font-medium">Tenant has a smartphone</p><p className="text-xs text-muted-foreground">Off = you allocate their rent</p></div>
+            <Switch checked={hasPhone} onCheckedChange={setHasPhone} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div><p className="text-sm font-medium">Landlord uses Welile wallet</p><p className="text-xs text-muted-foreground">Off = paid to your landlord float</p></div>
+            <Switch checked={landlordUsesWallet} onCheckedChange={setLandlordUsesWallet} />
+          </div>
+          {!landlordUsesWallet && (
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>Landlord name</Label><Input value={landlordName} onChange={(e) => setLandlordName(e.target.value)} /></div>
+              <div><Label>Landlord phone</Label><Input value={landlordPhone} onChange={(e) => setLandlordPhone(e.target.value)} /></div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={submitting || !tenant} className="w-full">
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Enroll tenant
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------- Allocate dialog ----------------
+function AllocateDialog({ sub, onClose, onDone }: {
+  sub: WHSubscription | null; onClose: () => void; onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const [amount, setAmount] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => { if (sub) setAmount(String(Math.min(sub.monthly_rent, sub.outstanding_balance))); }, [sub]);
+
+  const submit = async () => {
+    if (!sub) return;
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) { toast({ title: 'Enter a valid amount', variant: 'destructive' }); return; }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('welile_home_record_collection', {
+        p_subscription_id: sub.id,
+        p_amount: amt,
+        p_source: 'agent_allocation',
+        p_notes: 'Agent allocation',
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (!res?.success) throw new Error(res?.error || 'Allocation failed');
+      toast({ title: 'Rent allocated', description: `${formatUGX(res.amount_collected)} · you earned ${formatUGX(res.agent_commission)}` });
+      onClose();
+      onDone();
+    } catch (err: any) {
+      toast({ title: 'Allocation failed', description: err.message, variant: 'destructive' });
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <Dialog open={!!sub} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Allocate rent — {sub?.tenant_name}</DialogTitle>
+          <DialogDescription>
+            Records cash collected from the tenant. Outstanding: {sub ? formatUGX(sub.outstanding_balance) : ''}. Drawn from your float.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label>Amount (UGX)</Label>
+          <Input type="number" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={submitting} className="w-full">
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Allocate
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
