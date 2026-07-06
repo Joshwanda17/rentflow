@@ -424,31 +424,30 @@ export function TenantMenuDrawer({
       .filter((s) => s.items.length > 0);
   }, [query, menuSections]);
 
+  if (!mounted) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
-        <>
+    <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            className={cn(
+              "fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300",
+              visible ? "opacity-100" : "opacity-0",
+            )}
           />
 
           {/* Drawer */}
-          <motion.div
+          <div
             role="dialog"
             aria-modal="true"
             aria-label="Tenant menu"
             ref={drawerRef}
             tabIndex={-1}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed right-0 top-0 bottom-0 w-[86%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
+            className={cn(
+              "fixed right-0 top-0 bottom-0 w-[86%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col transition-transform duration-300 ease-out will-change-transform",
+              visible ? "translate-x-0" : "translate-x-full",
+            )}
           >
             {/* Header (title only) */}
             <div className="border-b border-border/60 bg-background/80 backdrop-blur">
