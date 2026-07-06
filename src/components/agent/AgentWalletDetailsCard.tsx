@@ -4,7 +4,7 @@ import { useWalletMovementCounts } from '@/hooks/useWalletMovementCounts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, Wallet, ArrowDownLeft, ArrowUpRight, Activity, Clock, FileSpreadsheet, FileDown } from 'lucide-react';
+import { Loader2, Wallet, ArrowDownLeft, ArrowUpRight, Activity, Clock, FileDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -42,7 +42,7 @@ export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDet
   } = useAgentBalances(agentId);
 
   const { counts, isLoading: countsLoading } = useWalletMovementCounts(agentId);
-  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [exporting, setExporting] = useState<'pdf' | null>(null);
 
   const isLoading = balancesLoading || countsLoading;
 
@@ -92,63 +92,6 @@ export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDet
       return null;
     }
   }, [agentId]);
-
-  const exportToCSV = useCallback(async () => {
-    if (!agentId) return;
-    setExporting('csv');
-    const result = await fetchLast25Entries();
-    if (!result || result.entries.length === 0) {
-      toast.error('No transactions to export');
-      setExporting(null);
-      return;
-    }
-    const { entries, userName } = result;
-
-    const escape = (val: string | number | null | undefined) => {
-      const s = val == null ? '' : String(val);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-
-    const header = ['Date', 'Time', 'Description', 'Category', 'Type', 'Amount (UGX)', 'Balance After (UGX)', 'Reference', 'Linked Party'];
-    const rows = entries.map(e => [
-      format(new Date(e.date), 'yyyy-MM-dd'),
-      format(new Date(e.date), 'HH:mm:ss'),
-      e.description,
-      e.category,
-      e.type === 'credit' ? 'IN' : 'OUT',
-      (e.type === 'credit' ? '+' : '-') + e.amount,
-      e.balance_after ?? '',
-      e.reference_id ?? '',
-      e.linked_party ?? '',
-    ]);
-
-    const totalIn = entries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0);
-    const totalOut = entries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0);
-
-    const meta = [
-      ['Welile Wallet Statement'],
-      ['Account', userName],
-      ['Generated', format(new Date(), 'yyyy-MM-dd HH:mm')],
-      ['Scope', 'Last 25 entries'],
-      ['Total In', `+${totalIn}`],
-      ['Total Out', `-${totalOut}`],
-      ['Net', `${totalIn - totalOut}`],
-      [],
-    ];
-
-    const csv = [...meta, header, ...rows].map(r => r.map(escape).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Welile_Wallet_Statement_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('CSV downloaded');
-    setExporting(null);
-  }, [agentId, fetchLast25Entries]);
 
   const exportToPDF = useCallback(async () => {
     if (!agentId) return;
@@ -349,20 +292,6 @@ export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDet
             Wallet Details
           </CardTitle>
           <div className="flex items-center gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 text-muted-foreground hover:text-primary"
-              onClick={(e) => { e.stopPropagation(); exportToCSV(); }}
-              disabled={!!exporting}
-              title="Export last 25 as CSV"
-            >
-              {exporting === 'csv' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="h-3.5 w-3.5" />
-              )}
-            </Button>
             <Button
               size="icon"
               variant="ghost"
