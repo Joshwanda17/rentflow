@@ -54,13 +54,13 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: ({ rent, duration_days, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant",
     });
     const linkText = referralUrl
-      ? `Create a free tenant account: ${signupUrl}\nReferral signup link: ${referralUrl}`
-      : `Create a free tenant account: ${signupUrl}`;
+      ? `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account: ${signupUrl}\nReferral signup link: ${referralUrl}`
+      : `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account: ${signupUrl}`;
 
     // Validate rent.
     if (!Number.isFinite(rent) || rent < MIN_RENT || rent > MAX_RENT) {

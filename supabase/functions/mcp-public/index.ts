@@ -283,12 +283,14 @@ var estimate_rent_access_default = defineTool3({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: ({ rent, duration_days, referral_code }) => {
-    const { signupUrl, referralUrl } = buildSignupLinks({
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant"
     });
-    const linkText = referralUrl ? `Create a free tenant account: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Create a free tenant account: ${signupUrl}`;
+    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
+Create a free tenant account: ${signupUrl}
+Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
+Create a free tenant account: ${signupUrl}`;
     if (!Number.isFinite(rent) || rent < MIN_RENT || rent > MAX_RENT) {
       const text2 = `Please share a monthly rent between ${ugx(MIN_RENT)} and ${ugx(MAX_RENT)} for an indicative estimate.
 
