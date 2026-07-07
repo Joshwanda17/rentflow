@@ -101,6 +101,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Financial Reports', icon: BookOpen, id: 'statements' },
         { label: 'Revenue & Expenses', icon: TrendingUp, id: 'revenue-expenses' },
+        { label: 'House Listing Commission', icon: Home, id: 'house-listing-commission' },
         { label: 'Safety Buffer', icon: Shield, id: 'solvency' },
         { label: 'Reconciliation', icon: Scale, id: 'reconciliation' },
         { label: 'Full Ledger', icon: ClipboardList, id: 'ledger' },
