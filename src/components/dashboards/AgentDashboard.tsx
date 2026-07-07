@@ -929,7 +929,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 ref={merchantBtnRef}
                 onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
                 className={cn(
-                  "w-full flex items-center gap-2.5 sm:gap-4 p-3.5 sm:p-5 rounded-2xl border border-warning/60 bg-gradient-to-br from-warning to-amber-600 shadow-lg shadow-warning/20 touch-manipulation active:scale-[0.97] transition-all min-h-[72px] relative overflow-hidden",
+                  "w-full flex items-center gap-2.5 sm:gap-4 p-3.5 sm:p-5 rounded-2xl border border-warning/60 bg-warning bg-gradient-to-br from-warning to-amber-600 shadow-lg shadow-warning/20 touch-manipulation active:scale-[0.97] transition-all min-h-[72px] relative overflow-hidden",
                   highlightMerchant && "ring-4 ring-primary ring-offset-2 ring-offset-background animate-pulse scale-[1.02]"
                 )}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
