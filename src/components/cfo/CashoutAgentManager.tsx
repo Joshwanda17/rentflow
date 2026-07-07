@@ -402,15 +402,23 @@ export function CashoutAgentManager() {
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!editAgent) throw new Error('No merchant selected');
-      if (!editHandlesCash && !editHandlesBank && !editHandlesMomo) {
-        throw new Error('Enable at least one payout method');
+      const cfg = editConfig;
+      if (!cfg.channels.cash && !cfg.channels.bank && !cfg.channels.momo) {
+        throw new Error('Enable at least one payment channel');
+      }
+      const anyCategory = Object.values(cfg.categories).some(Boolean);
+      if (!anyCategory) {
+        throw new Error('Authorize at least one payout category');
       }
       const patch = {
         label: editLabel.trim() || 'Merchant Agent',
-        handles_cash: editHandlesCash,
-        handles_bank: editHandlesBank,
-        handles_mtn: editHandlesMomo,
-        handles_airtel: editHandlesMomo,
+        // Keep legacy boolean columns in sync so existing routing & filters work.
+        handles_cash: cfg.channels.cash,
+        handles_bank: cfg.channels.bank,
+        handles_mtn: cfg.channels.momo && cfg.networks.mtn,
+        handles_airtel: cfg.channels.momo && cfg.networks.airtel,
+        is_active: cfg.status === 'active',
+        config: cfg as unknown as Record<string, unknown>,
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase.from('cashout_agents').update(patch).eq('id', editAgent.id);
@@ -428,8 +436,10 @@ export function CashoutAgentManager() {
             handles_bank: editAgent.handles_bank,
             handles_mtn: editAgent.handles_mtn,
             handles_airtel: editAgent.handles_airtel,
+            config: editAgent.config ?? null,
           },
           after: patch,
+          reason: 'CFO updated merchant agent permission matrix',
         },
       });
     },
@@ -441,10 +451,12 @@ export function CashoutAgentManager() {
         setSelectedAgent({
           ...selectedAgent,
           label: editLabel.trim() || 'Merchant Agent',
-          handles_cash: editHandlesCash,
-          handles_bank: editHandlesBank,
-          handles_mtn: editHandlesMomo,
-          handles_airtel: editHandlesMomo,
+          handles_cash: editConfig.channels.cash,
+          handles_bank: editConfig.channels.bank,
+          handles_mtn: editConfig.channels.momo && editConfig.networks.mtn,
+          handles_airtel: editConfig.channels.momo && editConfig.networks.airtel,
+          is_active: editConfig.status === 'active',
+          config: editConfig,
         });
       }
       setEditAgent(null);
