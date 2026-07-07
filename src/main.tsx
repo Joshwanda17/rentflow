@@ -232,6 +232,19 @@ setTimeout(() => {
     try { return navigator.onLine !== false; } catch { return true; }
   })();
 
+  // Exponential backoff across reloads. Each timed-out start bumps the attempt
+  // counter (persisted for the tab via sessionStorage); the auto-retry delay
+  // grows 3s → 6s → 12s → 24s (capped), so a flaky/slow network gets
+  // progressively more breathing room instead of hammering reloads. The counter
+  // resets to 0 once the app boots successfully (see loadApp).
+  const BASE_DELAY_MS = 3000;
+  const MAX_DELAY_MS = 24000;
+  const MAX_AUTO_RETRIES = 4;
+  let attempt = 0;
+  try { attempt = parseInt(sessionStorage.getItem('welile-startup-retry') || '0', 10) || 0; } catch {}
+  const backoffMs = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
+  const canAutoRetry = online && attempt < MAX_AUTO_RETRIES;
+
   const hint = document.createElement('div');
   hint.style.cssText =
     'display:flex;flex-direction:column;align-items:center;gap:8px;max-width:300px;text-align:center;margin-top:8px';
@@ -246,14 +259,41 @@ setTimeout(() => {
     : 'Please check your internet connection, then try again.';
   msg.style.cssText = 'font:14px/1.5 system-ui,-apple-system,sans-serif;color:#6b7280;margin:0';
 
+  const doRetry = () => {
+    try { sessionStorage.setItem('welile-startup-retry', String(attempt + 1)); } catch {}
+    window.location.reload();
+  };
+
   const retryBtn = document.createElement('button');
-  retryBtn.textContent = 'Tap to Retry';
-  retryBtn.onclick = () => window.location.reload();
+  retryBtn.onclick = doRetry;
   retryBtn.style.cssText =
     'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px;margin-top:4px';
 
   hint.append(title, msg, retryBtn);
   root.firstElementChild?.appendChild(hint);
+
+  // Auto-retry with exponential backoff (online only). Show a live countdown on
+  // the button; the user can still tap to retry immediately at any point.
+  if (canAutoRetry) {
+    let remaining = Math.round(backoffMs / 1000);
+    const label = () => {
+      retryBtn.textContent = remaining > 0 ? `Retrying in ${remaining}s — Tap to retry now` : 'Retrying…';
+    };
+    label();
+    const ticker = window.setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        window.clearInterval(ticker);
+        doRetry();
+      } else {
+        label();
+      }
+    }, 1000);
+    // Tapping retry should cancel the pending auto-retry to avoid a double reload.
+    retryBtn.addEventListener('click', () => window.clearInterval(ticker));
+  } else {
+    retryBtn.textContent = 'Tap to Retry';
+  }
 
   // Log the timeout so recurring slow-start issues are diagnosable.
   void import('./lib/startupCrashReporter')
