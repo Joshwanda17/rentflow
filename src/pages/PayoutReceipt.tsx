@@ -136,18 +136,29 @@ export default function PayoutReceipt() {
 
       // Brand header band
       doc.setFillColor(124, 58, 237); // welile purple
-      doc.roundedRect(cardX, y, cardW, 88, 10, 10, 'F');
+      doc.roundedRect(cardX, y, cardW, 108, 10, 10, 'F');
       doc.setTextColor(255, 255, 255);
+      // W mark (best-effort — skip silently if it can't be loaded)
+      try {
+        const markImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const im = new Image();
+          im.onload = () => resolve(im);
+          im.onerror = reject;
+          im.src = welileMark;
+        });
+        const ms = 34;
+        doc.addImage(markImg, 'PNG', cardX + cardW / 2 - ms / 2, y + 12, ms, ms);
+      } catch { /* mark optional */ }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
-      doc.text('WELILE TECHNOLOGIES LTD', cardX + cardW / 2, y + 30, { align: 'center' });
+      doc.text('WELILE TECHNOLOGIES LTD', cardX + cardW / 2, y + 62, { align: 'center' });
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
-      doc.text('Digital Transaction Receipt', cardX + cardW / 2, y + 50, { align: 'center' });
+      doc.text('Digital Transaction Receipt', cardX + cardW / 2, y + 80, { align: 'center' });
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.text('STATUS: COMPLETED', cardX + cardW / 2, y + 72, { align: 'center' });
-      y += 118;
+      doc.setFontSize(12);
+      doc.text('STATUS : COMPLETED', cardX + cardW / 2, y + 98, { align: 'center' });
+      y += 138;
 
       // Amount
       doc.setTextColor(17, 24, 39);
