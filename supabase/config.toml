@@ -133,3 +133,6 @@ verify_jwt = false
 
 [functions.notify-merchants-new-withdrawal]
 verify_jwt = false
+
+[functions.merchant-cashout-daily-report]
+verify_jwt = false

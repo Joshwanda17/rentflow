@@ -20974,6 +20974,10 @@ export type Database = {
       generate_employee_id: { Args: { _full_name: string }; Returns: string }
       generate_landlord_payables: { Args: never; Returns: number }
       generate_landlord_receivables: { Args: never; Returns: number }
+      generate_merchant_cashout_daily_report: {
+        Args: { p_date: string }
+        Returns: Json
+      }
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
