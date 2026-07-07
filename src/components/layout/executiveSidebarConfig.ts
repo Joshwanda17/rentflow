@@ -167,6 +167,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Signup Trends', icon: UserCheck, id: 'signups' },
         { label: 'Referral Performance', icon: Share2, id: 'referrals' },
         { label: 'Campaign Analytics', icon: Target, id: 'campaigns' },
+        { label: 'Merchandise', icon: ShoppingBag, id: 'merchandise' },
       ],
     },
   ],
