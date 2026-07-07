@@ -304,6 +304,14 @@ export interface WithdrawalPaidReceiptInput {
   newBalance?: number | null;
   /** Public proof-of-payment receipt link (same one sent by SMS/WhatsApp). */
   receiptUrl?: string | null;
+  /**
+   * When set, renders an internal "receipt copy" (for the merchant agent,
+   * Financial Ops, CFO or the records archive) instead of the customer copy.
+   * The string labels who the copy is for, e.g. "Financial Ops".
+   */
+  copyFor?: string | null;
+  /** Extra suffix so each recipient gets its own idempotent email. */
+  idempotencySuffix?: string | null;
 }
 
 /**
@@ -315,7 +323,9 @@ export function buildWithdrawalPaidReceiptRequest(input: WithdrawalPaidReceiptIn
   return {
     templateName: "withdrawal-paid-receipt",
     recipientEmail: input.recipientEmail,
-    idempotencyKey: `withdrawal-paid-receipt-${input.withdrawalId}`,
+    idempotencyKey:
+      `withdrawal-paid-receipt-${input.withdrawalId}` +
+      (input.idempotencySuffix ? `-${input.idempotencySuffix}` : ""),
     templateData: {
       recipient_name: input.recipientName || "there",
       amount: input.amount,
@@ -334,6 +344,7 @@ export function buildWithdrawalPaidReceiptRequest(input: WithdrawalPaidReceiptIn
       }),
       wallet_url: DASHBOARD_URL,
       receipt_url: input.receiptUrl || null,
+      copy_for: input.copyFor || null,
       unsubscribe_url: UNSUBSCRIBE_URL,
       contact_url: CONTACT_URL,
     },
