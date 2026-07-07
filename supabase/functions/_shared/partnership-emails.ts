@@ -10,6 +10,12 @@ const LOGO_URL = "https://welilereceipts.com/welile-logo.png";
 const DASHBOARD_URL = "https://welilereceipts.com/auth";
 const UNSUBSCRIBE_URL = "https://welile.com/unsubscribe";
 const CONTACT_URL = "https://welile.com/contact";
+
+import {
+  type ReceiptAudience,
+  commissionForAudience,
+  assertReceiptContent,
+} from "./receipt-content-policy.ts";
 const COMPANY_NAME = "Welile";
 const CURRENCY = "UGX";
 
