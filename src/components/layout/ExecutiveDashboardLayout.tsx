@@ -88,11 +88,14 @@ export default function ExecutiveDashboardLayout({
   }, [location.pathname, activeTab, role]);
 
   /**
-   * Sync ?tab=<id> from the URL → activeTab state. This means a deep link like
-   * /cfo/dashboard?tab=platform-impact opens that view AND highlights the row.
+   * Sync ?section=<id> from the URL → activeTab state. This means a deep link like
+   * /cfo/dashboard?section=platform-impact opens that view AND highlights the row.
+   * NOTE: this MUST match the param used by `usePersistedActiveTab` (`?section`).
+   * Using a different param (`?tab`) here caused the two to clobber each other on
+   * every navigation, resetting the view back to Overview (the "flash" bug).
    */
   useEffect(() => {
-    const urlTab = searchParams.get('tab');
+    const urlTab = searchParams.get('section');
     if (urlTab && urlTab !== activeTab) {
       onTabChange(urlTab);
     }
@@ -109,9 +112,9 @@ export default function ExecutiveDashboardLayout({
       return;
     }
     onTabChange(item.id);
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', item.id);
-    setSearchParams(next, { replace: true });
+    // `onTabChange` (usePersistedActiveTab) already writes `?section`. Avoid a
+    // second competing setSearchParams call here — two calls in the same tick
+    // clobber each other (last write wins) and drop a param.
   };
 
   /**
@@ -141,11 +144,7 @@ export default function ExecutiveDashboardLayout({
       /* storage unavailable */
     }
     onTabChange('overview');
-    if (searchParams.get('tab')) {
-      const next = new URLSearchParams(searchParams);
-      next.delete('tab');
-      setSearchParams(next, { replace: true });
-    }
+    // `onTabChange('overview')` already clears the `?section` param via the hook.
   };
 
   const handleRoleChange = (newRole: AppRole) => {
