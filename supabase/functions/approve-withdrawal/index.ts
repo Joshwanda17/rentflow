@@ -2286,6 +2286,8 @@ Deno.serve(async (req) => {
               new_balance: newBalance,
               payment_method,
               reference: refUpper,
+              receipt_url: receiptUrl,
+              receipt_token: receiptToken,
             },
           })
           .then(({ error }) => {
