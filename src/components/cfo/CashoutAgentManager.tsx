@@ -846,10 +846,16 @@ export function CashoutAgentManager() {
                       </div>
                       <p className="font-bold text-sm shrink-0">{formatUGX(py.amount)}</p>
                     </div>
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
-                      Commission: +{formatUGX((commissionByWithdrawal as Record<string, number>)[String(py.id)] ?? getCashoutCommission(Number(py.amount || 0)))}
-                    </Badge>
+                   <div className="flex items-center justify-between gap-2 flex-wrap">
+                     {(commissionByWithdrawal as Record<string, number>)[String(py.id)] === undefined ? (
+                       <Badge variant="outline" className="text-[10px] gap-1 border-destructive/40 text-destructive">
+                         Commission not credited (expected +{formatUGX(getCashoutCommission(Number(py.amount || 0)))})
+                       </Badge>
+                     ) : (
+                       <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
+                         Commission: +{formatUGX((commissionByWithdrawal as Record<string, number>)[String(py.id)])}
+                       </Badge>
+                     )}
                     <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
                       Telecom charge: {formatUGX(getTelecomSendingCharge(Number(py.amount || 0)))}
                     </Badge>
