@@ -1377,6 +1377,7 @@ export default function WithdrawFlow({
                 { label: 'Payout Mode', value: payoutMode === 'mobile_money' ? '📱 Mobile Money' : payoutMode === 'bank_transfer' ? '🏦 Bank Transfer' : '💵 Cash Pickup' },
                 { label: 'To', value: getPayoutSummary() },
                 { label: 'Name', value: getPayoutName() },
+                { label: 'Reason', value: effectiveReason || '—' },
               ]}
               fees={[
                 { label: 'Withdrawal fee', value: 'Free' },
