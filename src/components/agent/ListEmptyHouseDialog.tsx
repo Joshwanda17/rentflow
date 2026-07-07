@@ -1283,6 +1283,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         } catch {
           setListingBlock({ blocked: true, reason: raw.replace('AGENT_LISTING_BLOCKED:', '').trim() });
         }
+      } else if (raw.includes('AGENT_LISTING_INELIGIBLE')) {
+        // Field-activity requirements not met — surface the eligibility checklist.
+        toast.error('You can’t list houses yet', {
+          description: 'Refer a user, post a tenant, and record a rent repayment first.',
+        });
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data } = await (supabase as any).rpc('get_agent_listing_eligibility');
+          if (data) setEligibility(data as ListingEligibility);
+          else setEligibility({ eligible: false, has_referral: false, has_rent_request: false, has_collection: false });
+        } catch {
+          setEligibility({ eligible: false, has_referral: false, has_rent_request: false, has_collection: false });
+        }
       } else {
         toast.error(err?.message || 'Failed to list house');
       }
