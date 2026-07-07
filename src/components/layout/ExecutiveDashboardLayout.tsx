@@ -30,7 +30,7 @@ export default function ExecutiveDashboardLayout({
   const { user, roles, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [navQuery, setNavQuery] = useState('');
