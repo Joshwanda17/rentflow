@@ -189,6 +189,11 @@ export function ProxyPartnerFunds() {
   const [clearTargets, setClearTargets] = useState<Array<{ partnerId: string; portfolioId: string | null; amount: number; partnerName: string }>>([]);
   const [clearReason, setClearReason] = useState('');
   const [clearing, setClearing] = useState(false);
+  // Revert-to-nearing-payout dialog state
+  const [revertOpen, setRevertOpen] = useState(false);
+  const [revertTarget, setRevertTarget] = useState<PartnerBalance | null>(null);
+  const [revertReason, setRevertReason] = useState('');
+  const [reverting, setReverting] = useState(false);
   const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false);
   const [restoringKey, setRestoringKey] = useState<string | null>(null);
   // Custody V2: partner UUIDs we currently render. Used to scope a second
@@ -1322,6 +1327,66 @@ export function ProxyPartnerFunds() {
     }
   };
 
+  const openRevertDialog = (partner: PartnerBalance) => {
+    setRevertTarget(partner);
+    setRevertReason('');
+    setRevertOpen(true);
+  };
+
+  const confirmRevert = async () => {
+    if (!user?.id || !revertTarget) return;
+    if (revertReason.trim().length < 10) return;
+    setReverting(true);
+    try {
+      // Move the card off the ready-to-withdraw queue back into a
+      // nearing-payout (accruing) state by recording a dismissal snapshot.
+      const { error } = await supabase
+        .from('agent_proxy_card_dismissals')
+        .upsert(
+          {
+            agent_id: user.id,
+            partner_id: revertTarget.partnerId,
+            portfolio_id: revertTarget.portfolioId,
+            snapshot_amount: revertTarget.available,
+            reason: revertReason.trim(),
+          },
+          { onConflict: 'agent_id,partner_id,portfolio_id' },
+        );
+      if (error) throw error;
+
+      // Mandatory audit trail for the reversal.
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'agent_proxy_revert_to_nearing_payout',
+          table_name: 'agent_proxy_card_dismissals',
+          record_id: revertTarget.portfolioId,
+          metadata: {
+            partner_id: revertTarget.partnerId,
+            partner_name: revertTarget.partnerName,
+            portfolio_id: revertTarget.portfolioId,
+            snapshot_amount: revertTarget.available,
+            reason: revertReason.trim(),
+          },
+        });
+      } catch (e) {
+        console.warn('audit log failed', e);
+      }
+
+      toast.success('Sent back to nearing payout', {
+        description: `${revertTarget.partnerName} has been moved back to the nearing payout list. Reason recorded for audit.`,
+      });
+      setRevertOpen(false);
+      setRevertTarget(null);
+      setRevertReason('');
+      loadProxyFunds();
+    } catch (err: any) {
+      toast.error('Failed to revert', { description: err.message });
+    } finally {
+      setReverting(false);
+    }
+  };
+
   const getStatusBadge = (partner: PartnerBalance) => {
     const key = getStatusKey(partner);
     const status = partnerWithdrawalStatus[key];
@@ -1709,15 +1774,28 @@ export function ProxyPartnerFunds() {
                   )}
                 </div>
               ) : (
-                <Button
-                  size="sm"
-                  className="w-full gap-1"
-                  onClick={() => handleWithdraw(partner)}
-                  disabled={partner.available <= 0 || hasPending || isSubmitting}
-                >
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                  {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 gap-1"
+                    onClick={() => handleWithdraw(partner)}
+                    disabled={partner.available <= 0 || hasPending || isSubmitting}
+                  >
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                    {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 shrink-0"
+                    title="Send back to nearing payout"
+                    onClick={() => openRevertDialog(partner)}
+                    disabled={hasPending || isSubmitting}
+                  >
+                    <Hourglass className="h-3.5 w-3.5" />
+                    Nearing
+                  </Button>
+                </div>
               )}
               <Button
                 size="sm"
@@ -1894,6 +1972,49 @@ export function ProxyPartnerFunds() {
             >
               {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
               Yes, clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Revert to nearing payout dialog */}
+      <AlertDialog open={revertOpen} onOpenChange={(open) => {
+        setRevertOpen(open);
+        if (!open) { setRevertTarget(null); setRevertReason(''); }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send back to nearing payout?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This moves <strong>{revertTarget?.partnerName}</strong> back to the
+                  nearing payout list and removes the card from your ready-to-withdraw
+                  queue. No financial records are deleted. A reason is required for auditing.
+                </p>
+                <div>
+                  <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
+                  <Textarea
+                    placeholder="e.g. Payout deferred to next cycle at partner's request"
+                    value={revertReason}
+                    onChange={e => setRevertReason(e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    className="mt-1"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{revertReason.length}/500</p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reverting}>Keep on list</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRevert}
+              disabled={reverting || revertReason.trim().length < 10}
+            >
+              {reverting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Hourglass className="h-3.5 w-3.5 mr-1" />}
+              Yes, send back
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
