@@ -131,6 +131,10 @@ interface NearingPayoutPortfolio {
   dueToday: boolean;
   durationMonths: number;
   nextRoiDate: string | null;
+  /** True once this portfolio's ROI for the current cycle is credited OR sitting in the approval queue. */
+  alreadyProcessedThisCycle?: boolean;
+  /** How it was already handled this cycle — drives the badge label. */
+  processedState?: 'credited' | 'pending' | null;
   status?: string | null;
   paymentMethod?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
   mobileNetwork?: string | null;
