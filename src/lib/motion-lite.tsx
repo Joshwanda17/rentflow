@@ -64,7 +64,15 @@ function getComponent(tag: string) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const motion: any = new Proxy({}, {
-  get: (_target, tag: string) => getComponent(tag),
+  get: (target, tag: string | symbol) => {
+    // React Refresh / bundler internals probe modules with symbol keys
+    // (Symbol.toStringTag, Symbol.toPrimitive, etc.). Never feed those to
+    // getComponent — string-concatenating a Symbol throws.
+    if (typeof tag !== 'string') {
+      return Reflect.get(target, tag);
+    }
+    return getComponent(tag);
+  },
 });
 
 export function AnimatePresence({
