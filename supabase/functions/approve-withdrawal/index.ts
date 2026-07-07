@@ -1388,10 +1388,18 @@ Deno.serve(async (req) => {
     // the merchant is cashing out their own wallet: the user's withdrawable
     // balance is reduced by the normal withdrawal leg, and the physical company
     // cash/float they dispensed must still leave the merchant float bucket.
+    //
+    // PROXY PAYOUTS (2026-07): a merchant who delivers a proxy partner payout
+    // physically dispenses company cash from THEIR OWN float too, so the payout
+    // must drain BOTH the proxy agent's wallet (funding debit below) AND the
+    // merchant's float (consume block further down). We therefore require and
+    // check the merchant's float here for proxy payouts as well — if they don't
+    // hold enough float the CFO/treasury must top them up before settling.
+    // (pool-funded settlements already debit float in the main block, so they
+    // stay excluded to avoid a double debit.)
     let merchantFloatAvailable = 0;
     if (
       actingAsMerchant &&
-      !isProxyPayout &&
       !poolFunded &&
       amount > 0
     ) {
