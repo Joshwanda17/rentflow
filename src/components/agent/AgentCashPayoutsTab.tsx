@@ -468,7 +468,7 @@ export function AgentCashPayoutsTab() {
   // Unfiltered count of all available (unclaimed/expired) requests — powers the
   // "action required" badge and live banner regardless of active filters.
   const { data: availableTotal = 0 } = useQuery({
-    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause],
+    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, frozenUserIds],
     queryFn: async () => {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       let q = supabase
@@ -477,6 +477,7 @@ export function AgentCashPayoutsTab() {
         .in('status', CASHOUT_QUEUE_STATUSES)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (categoryOrClause) q = q.or(categoryOrClause);
+      if (frozenUserIds.length) q = q.not('user_id', 'in', `(${frozenUserIds.join(',')})`);
       const { count } = await q;
       return count || 0;
     },
@@ -487,13 +488,13 @@ export function AgentCashPayoutsTab() {
 
   // Per-channel filtered counts (All / MoMo / Cash) for the tab badges.
   const { data: queueCounts } = useQuery({
-    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, categoryOrClause],
+    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, categoryOrClause, frozenUserIds],
     queryFn: async () => {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const base = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
-        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause,
+        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause, frozenUserIds,
       };
       const mk = (channel: 'all' | 'momo' | 'cash' | 'bank') =>
         applyQueueFilters(
@@ -510,7 +511,7 @@ export function AgentCashPayoutsTab() {
 
   // The current, server-paginated page of the Pending Queue for the active tab.
   const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue, isError: queueError, refetch: refetchQueue } = useQuery({
-    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page, categoryOrClause],
+    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page, categoryOrClause, frozenUserIds],
     queryFn: async () => {
       // Fire-and-forget: releasing other agents' expired claims must never block
       // or fail this fetch. A slow/failed release previously blanked the queue.
@@ -520,7 +521,7 @@ export function AgentCashPayoutsTab() {
       const opts: QueueFilterOpts = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
         minAmount, maxAmount, fromIso, toIso, channel: channelTab,
-        searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause,
+        searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause, frozenUserIds,
       };
       let q = applyQueueFilters(
         supabase.from('withdrawal_requests').select('*', { count: 'exact' }),
