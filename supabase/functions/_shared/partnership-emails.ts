@@ -328,6 +328,18 @@ export interface WithdrawalPaidReceiptInput {
  * balance the SMS would have shown so the user is never left uninformed.
  */
 export function buildWithdrawalPaidReceiptRequest(input: WithdrawalPaidReceiptInput) {
+  // Resolve who this receipt is for. Only the merchant agent's own copy may
+  // carry commission; the customer's primary receipt and every internal copy
+  // (FinOps / CFO / records archive) must not.
+  const audience: ReceiptAudience = !input.copyFor
+    ? "customer"
+    : input.copyFor === "Merchant Agent"
+      ? "merchant"
+      : "internal";
+  const commissionEarned = commissionForAudience(audience, input.commissionEarned);
+  // Enforce the content rule before the email is built: customer/internal
+  // receipts never include commission; merchant receipts always do.
+  assertReceiptContent(audience, commissionEarned !== null);
   return {
     templateName: "withdrawal-paid-receipt",
     recipientEmail: input.recipientEmail,
@@ -353,10 +365,7 @@ export function buildWithdrawalPaidReceiptRequest(input: WithdrawalPaidReceiptIn
       wallet_url: DASHBOARD_URL,
       receipt_url: input.receiptUrl || null,
       copy_for: input.copyFor || null,
-      commission_earned:
-        typeof input.commissionEarned === "number" && input.commissionEarned > 0
-          ? input.commissionEarned
-          : null,
+      commission_earned: commissionEarned,
       unsubscribe_url: UNSUBSCRIBE_URL,
       contact_url: CONTACT_URL,
     },
