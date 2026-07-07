@@ -312,6 +312,8 @@ export interface WithdrawalPaidReceiptInput {
   copyFor?: string | null;
   /** Extra suffix so each recipient gets its own idempotent email. */
   idempotencySuffix?: string | null;
+  /** Merchant-only: commission the processing agent earned on this payout. */
+  commissionEarned?: number | null;
 }
 
 /**
@@ -345,6 +347,10 @@ export function buildWithdrawalPaidReceiptRequest(input: WithdrawalPaidReceiptIn
       wallet_url: DASHBOARD_URL,
       receipt_url: input.receiptUrl || null,
       copy_for: input.copyFor || null,
+      commission_earned:
+        typeof input.commissionEarned === "number" && input.commissionEarned > 0
+          ? input.commissionEarned
+          : null,
       unsubscribe_url: UNSUBSCRIBE_URL,
       contact_url: CONTACT_URL,
     },
