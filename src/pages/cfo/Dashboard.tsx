@@ -193,6 +193,7 @@ export default function CFODashboardPage() {
       case 'reconciliation':
         return (
           <div className="space-y-6">
+            <DuplicateRoiCreditsPanel />
             <PhantomCorrectionDriftPanel />
           </div>
         );
