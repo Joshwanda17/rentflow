@@ -133,16 +133,47 @@ export function CashoutAgentManager() {
     },
   });
 
+  // Resolve the active date-range filter into ISO bounds (local day boundaries).
+  const dateBounds = useMemo(() => {
+    const now = new Date();
+    const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+    const endOfDay = (d: Date) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
+    const DAY = 24 * 3600 * 1000;
+    if (datePreset === 'today') return { from: startOfDay(now).toISOString(), to: null as string | null };
+    if (datePreset === '7d') return { from: startOfDay(new Date(now.getTime() - 6 * DAY)).toISOString(), to: null as string | null };
+    if (datePreset === '30d') return { from: startOfDay(new Date(now.getTime() - 29 * DAY)).toISOString(), to: null as string | null };
+    if (datePreset === 'custom') {
+      return {
+        from: customFrom ? startOfDay(new Date(customFrom)).toISOString() : null,
+        to: customTo ? endOfDay(new Date(customTo)).toISOString() : null,
+      };
+    }
+    return { from: null as string | null, to: null as string | null };
+  }, [datePreset, customFrom, customTo]);
+
+  const dateFilterLabel = useMemo(() => {
+    if (datePreset === 'all') return 'All time';
+    if (datePreset === 'today') return 'Today';
+    if (datePreset === '7d') return 'Last 7 days';
+    if (datePreset === '30d') return 'Last 30 days';
+    const f = customFrom ? new Date(customFrom).toLocaleDateString('en-UG', { day: 'numeric', month: 'short' }) : '…';
+    const t = customTo ? new Date(customTo).toLocaleDateString('en-UG', { day: 'numeric', month: 'short' }) : '…';
+    return `${f} → ${t}`;
+  }, [datePreset, customFrom, customTo]);
+
   const { data: payouts = [] } = useQuery({
-    queryKey: ['merchant-agent-payouts'],
+    queryKey: ['merchant-agent-payouts', dateBounds.from, dateBounds.to],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('withdrawal_requests')
         .select('id, amount, payout_method, status, created_at, processed_at, fin_ops_reference, assigned_cashout_agent_id, user_id, mobile_money_name, mobile_money_number')
         .in('status', COMPLETED_STATUSES)
         .not('assigned_cashout_agent_id', 'is', null)
         .order('processed_at', { ascending: false })
-        .limit(1000);
+        .limit(2000);
+      if (dateBounds.from) q = q.gte('processed_at', dateBounds.from);
+      if (dateBounds.to) q = q.lte('processed_at', dateBounds.to);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
