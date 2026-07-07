@@ -5286,6 +5286,20 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               </div>
             </div>
             <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
+              {processedHiddenCount > 0 && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2">
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    <span className="font-semibold">{processedHiddenCount}</span> already paid or pending this cycle{showProcessed ? ' (shown, cannot be paid again)' : ' — hidden to prevent double credits'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowProcessed(v => !v)}
+                    className="text-xs font-medium text-green-700 dark:text-green-300 underline underline-offset-2 shrink-0"
+                  >
+                    {showProcessed ? 'Hide them' : 'Show them'}
+                  </button>
+                </div>
+              )}
               {filtered.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground text-sm">
                   <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
