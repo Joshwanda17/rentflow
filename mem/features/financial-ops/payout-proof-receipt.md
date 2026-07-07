@@ -24,3 +24,12 @@ The receipt link is now delivered to the customer on THREE channels (all idempot
 - **WhatsApp** — best-effort via `_shared/whatsapp.ts` `sendWhatsApp()` using the Twilio Messages API. Reads `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` (+ optional `TWILIO_WHATSAPP_CONTENT_SID` for approved out-of-window template). Safe no-op (logs, never throws) when the WhatsApp sender is not configured. `toE164()` normalises Ugandan numbers. Same receipt URL in every channel.
 
 NOTE: WhatsApp only activates once the Twilio WhatsApp sender secrets are added; outbound/unsolicited WhatsApp requires a pre-approved Content template (set `TWILIO_WHATSAPP_CONTENT_SID`) to deliver outside the 24h customer-service window.
+
+## Receipt distribution (2026-07-07)
+On every completed payout, `approve-withdrawal` now emails the SAME secure receipt link to FOUR internal/archive parties in addition to the customer (who gets SMS + email + WhatsApp):
+- **Merchant agent / processor** (`processed_by` = caller `user.id`) — also still gets the commission SMS with the link.
+- **Financial Ops** — all users with the `operations` role.
+- **CFO** — all users with the `cfo` role.
+- **Records archive** — fixed address `weliletenants@gmail.com`.
+
+Implemented via a "receipt copy" variant: `buildWithdrawalPaidReceiptRequest` accepts `copyFor` (recipient label) + `idempotencySuffix` (normalised email → one idempotent email per recipient); `withdrawal-paid-receipt.tsx` renders an internal "Payout receipt (copy)" layout (no wallet balance, neutral footer) when `copy_for` is set. Fan-out dedupes by lowercased email and skips the customer's own address (they already got the primary). All best-effort, never blocks the approval response.
