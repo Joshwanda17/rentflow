@@ -36,6 +36,11 @@ import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/me
 import { ClaimCommentTimeline } from './ClaimCommentTimeline';
 import { useLatestClaimComments, type CashoutClaimComment } from '@/hooks/useCashoutClaimComments';
 import { MessageSquare } from 'lucide-react';
+import {
+  PAYOUT_CATEGORY_GROUPS, ALL_PAYOUT_CATEGORIES, APPROVAL_RULES, AGENT_STATUSES,
+  SUPPORTED_BANKS, defaultCashoutAgentConfig, normalizeCashoutAgentConfig,
+  type CashoutAgentConfig, type ApprovalRule,
+} from '@/lib/cashoutAgentConfig';
 
 // A payout only counts as "processed" once the Merchant Agent has executed disbursement.
 // `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
