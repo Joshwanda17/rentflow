@@ -189,6 +189,11 @@ export function ProxyPartnerFunds() {
   const [clearTargets, setClearTargets] = useState<Array<{ partnerId: string; portfolioId: string | null; amount: number; partnerName: string }>>([]);
   const [clearReason, setClearReason] = useState('');
   const [clearing, setClearing] = useState(false);
+  // Revert-to-nearing-payout dialog state
+  const [revertOpen, setRevertOpen] = useState(false);
+  const [revertTarget, setRevertTarget] = useState<PartnerBalance | null>(null);
+  const [revertReason, setRevertReason] = useState('');
+  const [reverting, setReverting] = useState(false);
   const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false);
   const [restoringKey, setRestoringKey] = useState<string | null>(null);
   // Custody V2: partner UUIDs we currently render. Used to scope a second
