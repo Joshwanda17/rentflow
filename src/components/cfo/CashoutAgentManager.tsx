@@ -97,6 +97,11 @@ export function CashoutAgentManager() {
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
+  // Global date-range filter — scopes ALL merchant-agent payout stats & KPIs.
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7d' | '30d' | 'custom'>('all');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
   // Edit dialog state
   const [editAgent, setEditAgent] = useState<any>(null);
   const [editLabel, setEditLabel] = useState('');
@@ -128,16 +133,47 @@ export function CashoutAgentManager() {
     },
   });
 
+  // Resolve the active date-range filter into ISO bounds (local day boundaries).
+  const dateBounds = useMemo(() => {
+    const now = new Date();
+    const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+    const endOfDay = (d: Date) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
+    const DAY = 24 * 3600 * 1000;
+    if (datePreset === 'today') return { from: startOfDay(now).toISOString(), to: null as string | null };
+    if (datePreset === '7d') return { from: startOfDay(new Date(now.getTime() - 6 * DAY)).toISOString(), to: null as string | null };
+    if (datePreset === '30d') return { from: startOfDay(new Date(now.getTime() - 29 * DAY)).toISOString(), to: null as string | null };
+    if (datePreset === 'custom') {
+      return {
+        from: customFrom ? startOfDay(new Date(customFrom)).toISOString() : null,
+        to: customTo ? endOfDay(new Date(customTo)).toISOString() : null,
+      };
+    }
+    return { from: null as string | null, to: null as string | null };
+  }, [datePreset, customFrom, customTo]);
+
+  const dateFilterLabel = useMemo(() => {
+    if (datePreset === 'all') return 'All time';
+    if (datePreset === 'today') return 'Today';
+    if (datePreset === '7d') return 'Last 7 days';
+    if (datePreset === '30d') return 'Last 30 days';
+    const f = customFrom ? new Date(customFrom).toLocaleDateString('en-UG', { day: 'numeric', month: 'short' }) : '…';
+    const t = customTo ? new Date(customTo).toLocaleDateString('en-UG', { day: 'numeric', month: 'short' }) : '…';
+    return `${f} → ${t}`;
+  }, [datePreset, customFrom, customTo]);
+
   const { data: payouts = [] } = useQuery({
-    queryKey: ['merchant-agent-payouts'],
+    queryKey: ['merchant-agent-payouts', dateBounds.from, dateBounds.to],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('withdrawal_requests')
         .select('id, amount, payout_method, status, created_at, processed_at, fin_ops_reference, assigned_cashout_agent_id, user_id, mobile_money_name, mobile_money_number')
         .in('status', COMPLETED_STATUSES)
         .not('assigned_cashout_agent_id', 'is', null)
         .order('processed_at', { ascending: false })
-        .limit(1000);
+        .limit(2000);
+      if (dateBounds.from) q = q.gte('processed_at', dateBounds.from);
+      if (dateBounds.to) q = q.lte('processed_at', dateBounds.to);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
@@ -865,6 +901,36 @@ export function CashoutAgentManager() {
             </div>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* Top KPIs */}
+      {/* Global date filter — scopes every stat/KPI below for ALL merchant agents */}
+      <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" /> Payout Period
+          </p>
+          <span className="text-[10px] font-medium text-primary">{dateFilterLabel}</span>
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5">
+          <FilterChip active={datePreset === 'all'} onClick={() => setDatePreset('all')}>All time</FilterChip>
+          <FilterChip active={datePreset === 'today'} onClick={() => setDatePreset('today')}>Today</FilterChip>
+          <FilterChip active={datePreset === '7d'} onClick={() => setDatePreset('7d')}>7 days</FilterChip>
+          <FilterChip active={datePreset === '30d'} onClick={() => setDatePreset('30d')}>30 days</FilterChip>
+          <FilterChip active={datePreset === 'custom'} onClick={() => setDatePreset('custom')}>Custom</FilterChip>
+        </div>
+        {datePreset === 'custom' && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex-1">
+              <Label className="text-[10px] text-muted-foreground">From</Label>
+              <Input type="date" value={customFrom} max={customTo || undefined} onChange={e => setCustomFrom(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="flex-1">
+              <Label className="text-[10px] text-muted-foreground">To</Label>
+              <Input type="date" value={customTo} min={customFrom || undefined} onChange={e => setCustomTo(e.target.value)} className="h-8 text-xs" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Top KPIs */}
