@@ -131,6 +131,10 @@ interface NearingPayoutPortfolio {
   dueToday: boolean;
   durationMonths: number;
   nextRoiDate: string | null;
+  /** True once this portfolio's ROI for the current cycle is credited OR sitting in the approval queue. */
+  alreadyProcessedThisCycle?: boolean;
+  /** How it was already handled this cycle — drives the badge label. */
+  processedState?: 'credited' | 'pending' | null;
   status?: string | null;
   paymentMethod?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
   mobileNetwork?: string | null;
@@ -879,6 +883,67 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
+
+      // ── Mark portfolios already handled THIS cycle so they drop off the list ──
+      // A portfolio is "processed" if a ledger credit exists for its cycle key
+      // (roi-cycle-<portfolioId>-<cycleAnchor>) OR an ROI payout is still open in
+      // the approval queue. Either way it must NOT be payable again — this is the
+      // primary defence against duplicate / double ROI credits.
+      try {
+        const cycleKeyToPortfolio = new Map<string, string>();
+        for (const n of nearingList) {
+          const anchor = n.nextRoiDate || new Date().toISOString().slice(0, 10);
+          cycleKeyToPortfolio.set(`roi-cycle-${n.portfolioId}-${anchor}`, n.portfolioId);
+        }
+        const portfolioIds = nearingList.map(n => n.portfolioId);
+        const cycleKeys = Array.from(cycleKeyToPortfolio.keys());
+        const creditedPortfolioIds = new Set<string>();
+        const pendingPortfolioIds = new Set<string>();
+
+        const chunk = <T,>(arr: T[], size: number) => {
+          const out: T[][] = [];
+          for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+          return out;
+        };
+
+        await Promise.all([
+          ...chunk(cycleKeys, 200).map(async (batch) => {
+            const { data } = await supabase
+              .from('general_ledger')
+              .select('idempotency_key')
+              .in('idempotency_key', batch);
+            for (const r of (data as any[]) || []) {
+              const pid = cycleKeyToPortfolio.get(r.idempotency_key);
+              if (pid) creditedPortfolioIds.add(pid);
+            }
+          }),
+          ...chunk(portfolioIds, 200).map(async (batch) => {
+            const { data } = await supabase
+              .from('pending_wallet_operations')
+              .select('source_id')
+              .eq('source_table', 'investor_portfolios')
+              .eq('category', 'roi_payout')
+              .in('source_id', batch)
+              .in('status', ['pending', 'pending_coo_approval', 'coo_approved', 'awaiting_verification']);
+            for (const r of (data as any[]) || []) {
+              if (r.source_id) pendingPortfolioIds.add(r.source_id);
+            }
+          }),
+        ]);
+
+        for (const n of nearingList) {
+          if (creditedPortfolioIds.has(n.portfolioId)) {
+            n.alreadyProcessedThisCycle = true;
+            n.processedState = 'credited';
+          } else if (pendingPortfolioIds.has(n.portfolioId)) {
+            n.alreadyProcessedThisCycle = true;
+            n.processedState = 'pending';
+          }
+        }
+      } catch (e) {
+        console.error('[NearingPayout] cycle-processed lookup failed:', e);
+      }
+
       if (import.meta.env.DEV) {
         const dueCount = nearingList.filter(n => n.dueToday).length;
         // eslint-disable-next-line no-console
@@ -4266,6 +4331,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [selectedPayout, setSelectedPayout] = useState<NearingPayoutPortfolio | null>(null);
   const [paymentStep, setPaymentStep] = useState<'list' | 'payment-options' | 'split-config'>('list');
   const [checkingManagedStep2, setCheckingManagedStep2] = useState(false);
+  // Hide anyone whose ROI is already credited / pending this cycle so they can't
+  // be paid twice. Off by default; a toggle reveals them (read-only, no Pay btn).
+  const [showProcessed, setShowProcessed] = useState(false);
 
   // Split payout state
   const [splitCashAmount, setSplitCashAmount] = useState(0);
@@ -4350,8 +4418,19 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         p.email.toLowerCase().includes(q)
       );
     }
+    // Drop anyone already credited / pending this cycle — the core guard against
+    // duplicate ROI credits. `completed` is the in-session equivalent (just paid).
+    if (!showProcessed) {
+      list = list.filter(p => !p.alreadyProcessedThisCycle && !completed[p.portfolioId]);
+    }
     return list;
-  }, [localPortfolios, search, rangeFilter]);
+  }, [localPortfolios, search, rangeFilter, showProcessed, completed]);
+
+  // How many were removed from view because they're already handled this cycle.
+  const processedHiddenCount = useMemo(
+    () => localPortfolios.filter(p => p.alreadyProcessedThisCycle).length,
+    [localPortfolios],
+  );
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
@@ -5207,6 +5286,20 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               </div>
             </div>
             <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
+              {processedHiddenCount > 0 && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2">
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    <span className="font-semibold">{processedHiddenCount}</span> already paid or pending this cycle{showProcessed ? ' (shown, cannot be paid again)' : ' — hidden to prevent double credits'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowProcessed(v => !v)}
+                    className="text-xs font-medium text-green-700 dark:text-green-300 underline underline-offset-2 shrink-0"
+                  >
+                    {showProcessed ? 'Hide them' : 'Show them'}
+                  </button>
+                </div>
+              )}
               {filtered.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground text-sm">
                   <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -5308,7 +5401,17 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         {destExtra && <p className="text-[10px] text-muted-foreground">{destExtra}</p>}
                       </div>
                       {/* Audit Reason + Action Buttons */}
-                      {!isDone && (
+                      {p.alreadyProcessedThisCycle && !isDone && (
+                        <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                          <p className="text-xs font-medium text-green-700 dark:text-green-300">
+                            {p.processedState === 'pending'
+                              ? 'ROI already in the approval queue for this cycle — cannot pay again.'
+                              : 'ROI already credited this cycle — cannot pay again.'}
+                          </p>
+                        </div>
+                      )}
+                      {!isDone && !p.alreadyProcessedThisCycle && (
                         <div className="space-y-2 pt-1">
                           <Textarea
                             placeholder="Include reason and phone number or A/C"
