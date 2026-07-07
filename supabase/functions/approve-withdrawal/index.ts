@@ -2036,6 +2036,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Public proof-of-payment receipt link (unguessable token). Fetched once so
+    // both the customer SMS and the merchant confirmation SMS can share it.
+    let receiptToken: string | null = null;
+    try {
+      const { data: rtRow } = await admin
+        .from("withdrawal_requests")
+        .select("receipt_token")
+        .eq("id", withdrawal_id)
+        .maybeSingle();
+      receiptToken = (rtRow as any)?.receipt_token ?? null;
+    } catch (e) {
+      console.error("[approve-withdrawal] receipt token fetch failed (non-fatal):", e);
+    }
+    const receiptUrl = receiptToken
+      ? `https://welilereceipts.com/r/${receiptToken}`
+      : `https://welilereceipts.com/receipt/${withdrawal_id}`;
+
     // Cashout agent 0.5% commission (when caller is an active cashout agent, including staff roles).
     // Company funds (platform cash_out) move INSTANTLY into the agent's own
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
