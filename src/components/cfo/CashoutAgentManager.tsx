@@ -97,6 +97,11 @@ export function CashoutAgentManager() {
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
+  // Global date-range filter — scopes ALL merchant-agent payout stats & KPIs.
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7d' | '30d' | 'custom'>('all');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
   // Edit dialog state
   const [editAgent, setEditAgent] = useState<any>(null);
   const [editLabel, setEditLabel] = useState('');
