@@ -212,16 +212,49 @@ import('./lib/errorReporting')
   .then((m) => m.installGlobalErrorReporting())
   .catch(() => {});
 
-// Show retry UI after 10s on slow networks
+// Blank-screen watchdog: if the app still hasn't mounted after 10s, the branded
+// spinner is likely stuck behind a slow/offline connection or a stalled bundle
+// fetch. Instead of a lone "retry" button, show a clear
+// "offline / connection too slow" hint with a retry option so the user isn't
+// left staring at an endless spinner. Only fires while the spinner is still up
+// (the `animation:` marker in the initial loader HTML) and the app is not ready.
 setTimeout(() => {
-  if (root.innerHTML.includes('animation:')) {
-    const retryBtn = document.createElement('button');
-    retryBtn.textContent = 'Tap to Retry';
-    retryBtn.onclick = () => window.location.reload();
-    retryBtn.style.cssText =
-      'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px;margin-top:8px';
-    root.firstElementChild?.appendChild(retryBtn);
-  }
+  const appReady = (() => {
+    try { return (window as any).__WELILE_APP_READY__ === true; } catch { return false; }
+  })();
+  if (appReady || !root.innerHTML.includes('animation:')) return;
+
+  const online = (() => {
+    try { return navigator.onLine !== false; } catch { return true; }
+  })();
+
+  const hint = document.createElement('div');
+  hint.style.cssText =
+    'display:flex;flex-direction:column;align-items:center;gap:8px;max-width:300px;text-align:center;margin-top:8px';
+
+  const title = document.createElement('p');
+  title.textContent = online ? 'This is taking longer than usual' : 'You appear to be offline';
+  title.style.cssText = 'font:600 15px/1.4 system-ui,-apple-system,sans-serif;color:#1f2937;margin:0';
+
+  const msg = document.createElement('p');
+  msg.textContent = online
+    ? 'Your connection may be slow. Check your network and try again.'
+    : 'Please check your internet connection, then try again.';
+  msg.style.cssText = 'font:14px/1.5 system-ui,-apple-system,sans-serif;color:#6b7280;margin:0';
+
+  const retryBtn = document.createElement('button');
+  retryBtn.textContent = 'Tap to Retry';
+  retryBtn.onclick = () => window.location.reload();
+  retryBtn.style.cssText =
+    'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px;margin-top:4px';
+
+  hint.append(title, msg, retryBtn);
+  root.firstElementChild?.appendChild(hint);
+
+  // Log the timeout so recurring slow-start issues are diagnosable.
+  void import('./lib/startupCrashReporter')
+    .then((m) => m.reportStartupCrash({ reason: online ? 'startup-timeout-slow' : 'startup-timeout-offline' }))
+    .catch(() => {});
 }, 10000);
 
 // Suppress chunk/import preload errors — the browser revalidates HTML on the
