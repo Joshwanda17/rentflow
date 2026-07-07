@@ -72,22 +72,9 @@ export default function COODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('coo');
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [, setSearchParams] = useSearchParams();
 
   const handleNavTo = (tab: string) => {
     setActiveTab(tab);
-    // Keep the layout's `?tab=` param in sync. The shared ExecutiveDashboardLayout
-    // force-syncs `?tab=` → activeTab on any URL change, so a stale `?tab=overview`
-    // would otherwise instantly reset the section (causes the "flash").
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (tab === 'overview') next.delete('tab');
-        else next.set('tab', tab);
-        return next;
-      },
-      { replace: true },
-    );
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
