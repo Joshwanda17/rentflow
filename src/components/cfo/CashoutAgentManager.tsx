@@ -1158,69 +1158,283 @@ function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: strin
 function EditMerchantDialog({
   editAgent, setEditAgent,
   editLabel, setEditLabel,
-  editHandlesMomo, setEditHandlesMomo,
-  editHandlesBank, setEditHandlesBank,
-  editHandlesCash, setEditHandlesCash,
+  editConfig, setEditConfig,
   isPending, onSave,
 }: {
   editAgent: any; setEditAgent: (v: any) => void;
   editLabel: string; setEditLabel: (v: string) => void;
-  editHandlesMomo: boolean; setEditHandlesMomo: (v: boolean) => void;
-  editHandlesBank: boolean; setEditHandlesBank: (v: boolean) => void;
-  editHandlesCash: boolean; setEditHandlesCash: (v: boolean) => void;
+  editConfig: CashoutAgentConfig; setEditConfig: (v: CashoutAgentConfig) => void;
   isPending: boolean; onSave: () => void;
 }) {
-  const noMethod = !editHandlesCash && !editHandlesBank && !editHandlesMomo;
+  const c = editConfig;
+  const set = (patch: Partial<CashoutAgentConfig>) => setEditConfig({ ...c, ...patch });
+  const noChannel = !c.channels.cash && !c.channels.bank && !c.channels.momo;
+  const enabledCount = Object.values(c.categories).filter(Boolean).length;
+  const noCategory = enabledCount === 0;
+
+  const numOrNull = (v: string): number | null => {
+    const n = Number(v.replace(/[^\d]/g, ''));
+    return v.trim() === '' || Number.isNaN(n) ? null : n;
+  };
+
   return (
     <Dialog open={!!editAgent} onOpenChange={v => { if (!v) setEditAgent(null); }}>
       <DialogContent
-        className="max-w-sm overflow-visible"
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
         onInteractOutside={e => e.preventDefault()}
         onPointerDownOutside={e => e.preventDefault()}
       >
-        <DialogHeader><DialogTitle>Edit Merchant Agent</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Edit Cash-Out Agent</DialogTitle>
+        </DialogHeader>
         {editAgent && (
-          <>
+          <div className="space-y-4">
             <p className="text-xs text-muted-foreground">
               Updating <span className="font-semibold text-foreground">{editAgent.profiles?.full_name || 'this merchant'}</span>.
-              Changes apply immediately to their payout routing capabilities.
+              Changes apply immediately to their payout routing permissions.
             </p>
-            <div className="space-y-3">
-              <div>
-                <Label>Label / Cluster</Label>
-                <Input
-                  placeholder="e.g. Kampala CBD · Branch 02"
-                  value={editLabel}
-                  onChange={e => setEditLabel(e.target.value)}
-                />
-              </div>
-              <div className="rounded-lg border border-border bg-muted/30 p-2.5 space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Payout Capabilities</p>
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm flex items-center gap-1.5"><Smartphone className="h-3.5 w-3.5" />Mobile Money</Label>
-                  <Switch checked={editHandlesMomo} onCheckedChange={setEditHandlesMomo} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Bank Transfer</Label>
-                  <Switch checked={editHandlesBank} onCheckedChange={setEditHandlesBank} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm flex items-center gap-1.5"><Banknote className="h-3.5 w-3.5" />Cash Payout</Label>
-                  <Switch checked={editHandlesCash} onCheckedChange={setEditHandlesCash} />
-                </div>
-                {noMethod && (
-                  <p className="text-[11px] text-destructive">Enable at least one method.</p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setEditAgent(null)}>Cancel</Button>
-                <Button className="flex-1" onClick={onSave} disabled={isPending || noMethod}>
-                  {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Save Changes
-                </Button>
-              </div>
+
+            <Accordion type="multiple" defaultValue={['general', 'channels', 'categories']} className="w-full">
+              {/* GENERAL */}
+              <AccordionItem value="general">
+                <AccordionTrigger className="text-sm font-semibold">General</AccordionTrigger>
+                <AccordionContent className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Label / Cluster</Label>
+                    <Input
+                      placeholder="e.g. Kampala CBD · Branch 02"
+                      value={editLabel}
+                      onChange={e => setEditLabel(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Region</Label>
+                      <Input value={c.ops.region} onChange={e => set({ ops: { ...c.ops, region: e.target.value } })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">District</Label>
+                      <Input value={c.ops.district} onChange={e => set({ ops: { ...c.ops, district: e.target.value } })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Branch</Label>
+                      <Input value={c.ops.branch} onChange={e => set({ ops: { ...c.ops, branch: e.target.value } })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Cluster</Label>
+                      <Input value={c.ops.cluster} onChange={e => set({ ops: { ...c.ops, cluster: e.target.value } })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Supervisor</Label>
+                      <Input value={c.ops.supervisor} onChange={e => set({ ops: { ...c.ops, supervisor: e.target.value } })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Operations Team</Label>
+                      <Input value={c.ops.team} onChange={e => set({ ops: { ...c.ops, team: e.target.value } })} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs mb-1.5 block">Agent Status</Label>
+                    <RadioGroup
+                      className="grid grid-cols-3 gap-2"
+                      value={c.status}
+                      onValueChange={(v) => set({ status: v as CashoutAgentConfig['status'] })}
+                    >
+                      {AGENT_STATUSES.map(s => (
+                        <label key={s.value} className="flex items-center gap-1.5 text-xs cursor-pointer rounded-md border border-border p-2 hover:bg-muted/40">
+                          <RadioGroupItem value={s.value} /> {s.label}
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* PAYMENT CHANNELS */}
+              <AccordionItem value="channels">
+                <AccordionTrigger className="text-sm font-semibold">Payment Channels</AccordionTrigger>
+                <AccordionContent className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-1.5"><Smartphone className="h-3.5 w-3.5" />Mobile Money</Label>
+                    <Switch checked={c.channels.momo} onCheckedChange={v => set({ channels: { ...c.channels, momo: v } })} />
+                  </div>
+                  {c.channels.momo && (
+                    <div className="ml-5 flex gap-4 pb-1">
+                      <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                        <Checkbox checked={c.networks.mtn} onCheckedChange={v => set({ networks: { ...c.networks, mtn: !!v } })} /> MTN
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                        <Checkbox checked={c.networks.airtel} onCheckedChange={v => set({ networks: { ...c.networks, airtel: !!v } })} /> Airtel
+                      </label>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Bank Transfer</Label>
+                    <Switch checked={c.channels.bank} onCheckedChange={v => set({ channels: { ...c.channels, bank: v } })} />
+                  </div>
+                  {c.channels.bank && (
+                    <div className="ml-5 grid grid-cols-2 gap-1.5 pb-1">
+                      {SUPPORTED_BANKS.map(b => (
+                        <label key={b.id} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                          <Checkbox checked={!!c.banks[b.id]} onCheckedChange={v => set({ banks: { ...c.banks, [b.id]: !!v } })} /> {b.label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-1.5"><Banknote className="h-3.5 w-3.5" />Cash Payout</Label>
+                    <Switch checked={c.channels.cash} onCheckedChange={v => set({ channels: { ...c.channels, cash: v } })} />
+                  </div>
+                  {noChannel && <p className="text-[11px] text-destructive">Enable at least one channel.</p>}
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* AUTHORIZED PAYOUT CATEGORIES */}
+              <AccordionItem value="categories">
+                <AccordionTrigger className="text-sm font-semibold">
+                  Authorized Payout Categories
+                  <Badge variant="secondary" className="ml-2 text-[10px]">{enabledCount}</Badge>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button" size="sm" variant="outline" className="h-7 text-xs"
+                      onClick={() => {
+                        const all: Record<string, boolean> = {};
+                        ALL_PAYOUT_CATEGORIES.forEach(cat => { all[cat.id] = true; });
+                        set({ categories: all });
+                      }}
+                    >Select all</Button>
+                    <Button
+                      type="button" size="sm" variant="outline" className="h-7 text-xs"
+                      onClick={() => {
+                        const none: Record<string, boolean> = {};
+                        ALL_PAYOUT_CATEGORIES.forEach(cat => { none[cat.id] = false; });
+                        set({ categories: none });
+                      }}
+                    >Clear all</Button>
+                  </div>
+                  {PAYOUT_CATEGORY_GROUPS.map(group => (
+                    <div key={group.group} className="rounded-lg border border-border p-2.5 space-y-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group.group}</p>
+                      {group.items.map(item => {
+                        const on = !!c.categories[item.id];
+                        return (
+                          <div key={item.id} className="space-y-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <label className="flex items-start gap-2 text-sm cursor-pointer flex-1">
+                                <Checkbox
+                                  className="mt-0.5"
+                                  checked={on}
+                                  onCheckedChange={v => set({ categories: { ...c.categories, [item.id]: !!v } })}
+                                />
+                                <span>
+                                  <span className="font-medium">{item.label}</span>
+                                  {item.hint && <span className="block text-[11px] text-muted-foreground leading-snug">{item.hint}</span>}
+                                </span>
+                              </label>
+                              {on && (
+                                <Select
+                                  value={c.approvals[item.id]}
+                                  onValueChange={(v) => set({ approvals: { ...c.approvals, [item.id]: v as ApprovalRule } })}
+                                >
+                                  <SelectTrigger className="h-7 w-[150px] text-[11px] shrink-0"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {APPROVAL_RULES.map(r => (
+                                      <SelectItem key={r.value} value={r.value} className="text-xs">{r.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  {noCategory && <p className="text-[11px] text-destructive">Authorize at least one payout category.</p>}
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* FLOAT PERMISSIONS */}
+              <AccordionItem value="float">
+                <AccordionTrigger className="text-sm font-semibold">Float Permissions</AccordionTrigger>
+                <AccordionContent className="space-y-2">
+                  {([
+                    ['request', 'Request Float'],
+                    ['receive', 'Receive Float'],
+                    ['distribute', 'Distribute Float'],
+                    ['emergency', 'Emergency Float'],
+                  ] as const).map(([k, lbl]) => (
+                    <div key={k} className="flex items-center justify-between">
+                      <Label className="text-sm">{lbl}</Label>
+                      <Switch checked={c.float[k]} onCheckedChange={v => set({ float: { ...c.float, [k]: v } })} />
+                    </div>
+                  ))}
+                  <div>
+                    <Label className="text-xs">Maximum Float (UGX)</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={c.float.max ?? ''}
+                      onChange={e => set({ float: { ...c.float, max: numOrNull(e.target.value) } })}
+                      placeholder="No limit"
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* TRANSACTION LIMITS */}
+              <AccordionItem value="limits">
+                <AccordionTrigger className="text-sm font-semibold">Transaction Limits</AccordionTrigger>
+                <AccordionContent className="grid grid-cols-2 gap-2">
+                  {([
+                    ['daily', 'Daily Limit'],
+                    ['single', 'Single Transaction'],
+                    ['monthly', 'Monthly Limit'],
+                    ['maxCashout', 'Maximum Cash-Out'],
+                    ['minCashout', 'Minimum Cash-Out'],
+                  ] as const).map(([k, lbl]) => (
+                    <div key={k}>
+                      <Label className="text-xs">{lbl} (UGX)</Label>
+                      <Input
+                        inputMode="numeric"
+                        value={c.limits[k] ?? ''}
+                        onChange={e => set({ limits: { ...c.limits, [k]: numOrNull(e.target.value) } })}
+                        placeholder="—"
+                      />
+                    </div>
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* SECURITY */}
+              <AccordionItem value="security">
+                <AccordionTrigger className="text-sm font-semibold">Security</AccordionTrigger>
+                <AccordionContent className="space-y-2">
+                  {([
+                    ['otp', 'Require OTP'],
+                    ['twoFactor', 'Require 2FA'],
+                    ['deviceRestriction', 'Device Restriction'],
+                    ['highValueVerification', 'High-Value Verification'],
+                  ] as const).map(([k, lbl]) => (
+                    <div key={k} className="flex items-center justify-between">
+                      <Label className="text-sm">{lbl}</Label>
+                      <Switch checked={c.security[k]} onCheckedChange={v => set({ security: { ...c.security, [k]: v } })} />
+                    </div>
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
+            <Separator />
+            <div className="flex gap-2 sticky bottom-0 bg-background pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setEditAgent(null)}>Cancel</Button>
+              <Button className="flex-1" onClick={onSave} disabled={isPending || noChannel || noCategory}>
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Save Changes
+              </Button>
             </div>
-          </>
+          </div>
         )}
       </DialogContent>
     </Dialog>
