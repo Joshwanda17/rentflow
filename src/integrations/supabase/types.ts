@@ -21968,6 +21968,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_payout_receipt: { Args: { p_withdrawal_id: string }; Returns: Json }
       get_pending_wallet_ops: {
         Args: { p_page?: number; p_page_size?: number }
         Returns: Json
