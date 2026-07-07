@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Loader2, AlertTriangle, Clock, Download, ScanLine } from 'lucide-react';
-import welileMark from '@/assets/welile-mark-white.png';
+import welileWordmark from '@/assets/welile-wordmark.png';
 import { downloadPayoutReceiptPdf, receiptMethodLabel, receiptPublicUrl, type PayoutReceiptData as ReceiptData } from '@/lib/payoutReceiptPdf';
 
 /**
@@ -110,11 +110,10 @@ export default function PayoutReceipt() {
         <div className="bg-card rounded-[28px] shadow-xl overflow-hidden border border-border">
           {/* Header */}
           <div className="bg-primary text-primary-foreground px-6 pt-8 pb-7 text-center">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <img src={welileMark} alt="Welile" width={44} height={44} className="h-10 w-auto" />
-              <div className="text-left leading-none">
-                <p className="text-3xl font-extrabold tracking-tight">WELILE</p>
-                <p className="text-[11px] font-semibold tracking-[0.18em] opacity-90 mt-1">TECHNOLOGIES LTD</p>
+            <div className="mb-3 flex justify-center">
+              <div className="inline-flex items-start gap-0.5 rounded-2xl bg-white px-5 py-3 shadow-sm">
+                <img src={welileWordmark} alt="Welile" className="h-9 w-auto" />
+                <span className="mt-0.5 text-[13px] font-bold leading-none text-primary">™</span>
               </div>
             </div>
             <p className="text-[15px] opacity-90">Digital Transaction Receipt</p>
