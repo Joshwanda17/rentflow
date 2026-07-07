@@ -15,6 +15,7 @@ interface Props {
   date?: string
   wallet_url?: string
   receipt_url?: string | null
+  copy_for?: string | null
 }
 
 const fmt = (a: string | number | undefined | null, c: string) => {
@@ -36,24 +37,33 @@ export function WithdrawalPaidReceipt({
   date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
   wallet_url = 'https://welilereceipts.com/ZQhyGb',
   receipt_url = null,
+  copy_for = null,
 }: Props) {
   const amt = fmt(amount, currency)
   const hasBalance = new_balance !== null && new_balance !== undefined && new_balance !== ''
   const hasReceipt = !!receipt_url
+  const isCopy = !!copy_for
   return (
     <Html lang="en" dir="ltr">
       <Head />
-      <Preview>Your withdrawal of {amt} has been paid</Preview>
+      <Preview>{isCopy ? `Receipt copy — payout of ${amt}` : `Your withdrawal of ${amt} has been paid`}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={accentBar} />
           <Section style={{ padding: '32px 32px 8px 32px' }}>
-            <Heading style={h1}>Withdrawal paid ✅</Heading>
+            <Heading style={h1}>{isCopy ? 'Payout receipt (copy) ✅' : 'Withdrawal paid ✅'}</Heading>
             <Text style={lead}>Hi {recipient_name},</Text>
-            <Text style={body}>
-              Here is your proof of payment. Your withdrawal has been{' '}
-              <strong>approved and paid</strong> via {payment_method}.
-            </Text>
+            {isCopy ? (
+              <Text style={body}>
+                Receipt copy for <strong>{copy_for}</strong> records. A withdrawal of{' '}
+                <strong>{amt}</strong> was <strong>approved and paid</strong> via {payment_method}.
+              </Text>
+            ) : (
+              <Text style={body}>
+                Here is your proof of payment. Your withdrawal has been{' '}
+                <strong>approved and paid</strong> via {payment_method}.
+              </Text>
+            )}
           </Section>
           <Section style={{ padding: '0 32px' }}>
             <Section style={amountCard}>
@@ -64,7 +74,7 @@ export function WithdrawalPaidReceipt({
               <Row label="Payment method" value={payment_method} />
               {proof_reference ? <Row label={proof_label} value={proof_reference} mono /> : null}
               <Row label="Date" value={date} />
-              {hasBalance ? <Row label="New wallet balance" value={fmt(new_balance as any, currency)} /> : null}
+              {hasBalance && !isCopy ? <Row label="New wallet balance" value={fmt(new_balance as any, currency)} /> : null}
             </Section>
           </Section>
           <Section style={{ padding: '24px 32px 8px 32px', textAlign: 'center' as const }}>
@@ -81,10 +91,16 @@ export function WithdrawalPaidReceipt({
             )}
           </Section>
           <Section style={{ padding: '16px 32px 32px 32px' }}>
-            <Text style={fineprint}>
-              If you didn't request this withdrawal, please{' '}
-              <Link href="https://welile.com/contact" style={link}>contact support</Link> immediately.
-            </Text>
+            {isCopy ? (
+              <Text style={fineprint}>
+                This is an automated receipt copy for internal records. No action is required.
+              </Text>
+            ) : (
+              <Text style={fineprint}>
+                If you didn't request this withdrawal, please{' '}
+                <Link href="https://welile.com/contact" style={link}>contact support</Link> immediately.
+              </Text>
+            )}
           </Section>
         </Container>
         <Text style={footer}>© {new Date().getFullYear()} {SITE_NAME}. All rights reserved.</Text>

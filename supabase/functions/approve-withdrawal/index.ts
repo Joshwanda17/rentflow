@@ -2457,6 +2457,86 @@ Deno.serve(async (req) => {
           })
           .then(() => {}, () => {});
       }
+
+      // ── Receipt copies to internal parties + records archive ────────────
+      // The SAME proof-of-payment receipt link is emailed to the merchant
+      // agent who processed the payout, to Financial Ops (operations role),
+      // to the CFO(s), and to the fixed records archive address. Each copy is
+      // idempotent per (withdrawal, recipient) so retries never duplicate.
+      try {
+        const copyRecipients: { email: string; role: string }[] = [];
+
+        // 1) Merchant agent / processor who confirmed the payout.
+        try {
+          const { data: procProfile } = await admin
+            .from("profiles")
+            .select("email")
+            .eq("id", user.id)
+            .maybeSingle();
+          const pe = (procProfile as any)?.email;
+          if (pe && /@/.test(pe)) copyRecipients.push({ email: pe, role: "Merchant Agent" });
+        } catch { /* non-fatal */ }
+
+        // 2) Financial Ops + CFO teams (by role).
+        try {
+          const { data: roleRows } = await admin
+            .from("user_roles")
+            .select("user_id, role")
+            .in("role", ["cfo", "operations"]);
+          const cfoIds = new Set<string>();
+          const finOpsIds = new Set<string>();
+          for (const r of (roleRows || []) as any[]) {
+            if (r.role === "cfo") cfoIds.add(r.user_id);
+            else if (r.role === "operations") finOpsIds.add(r.user_id);
+          }
+          const allIds = [...new Set([...cfoIds, ...finOpsIds])];
+          if (allIds.length > 0) {
+            const { data: roleProfiles } = await admin
+              .from("profiles")
+              .select("id, email")
+              .in("id", allIds);
+            for (const p of (roleProfiles || []) as any[]) {
+              if (p.email && /@/.test(p.email)) {
+                copyRecipients.push({
+                  email: p.email,
+                  role: cfoIds.has(p.id) ? "CFO" : "Financial Ops",
+                });
+              }
+            }
+          }
+        } catch { /* non-fatal */ }
+
+        // 3) Fixed records archive mailbox.
+        copyRecipients.push({ email: "weliletenants@gmail.com", role: "Records Archive" });
+
+        // Dedupe by email; the customer already received the primary receipt.
+        const customerEmailLc = (recipientEmailForLog || "").trim().toLowerCase();
+        const seen = new Set<string>();
+        for (const rec of copyRecipients) {
+          const key = rec.email.trim().toLowerCase();
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          if (key === customerEmailLc) continue; // already got the primary copy
+          const emailReq = buildWithdrawalPaidReceiptRequest({
+            recipientEmail: rec.email,
+            recipientName: rec.role,
+            withdrawalId: String(withdrawal_id),
+            amount,
+            paymentMethod: payment_method,
+            proofLabel,
+            proofReference: refUpper,
+            receiptUrl,
+            copyFor: rec.role,
+            idempotencySuffix: key.replace(/[^a-z0-9]/g, "").slice(0, 40),
+          });
+          dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
+        }
+        console.log(
+          `[approve-withdrawal] receipt copies queued to ${seen.size} internal/archive recipient(s).`,
+        );
+      } catch (e) {
+        console.error("[approve-withdrawal] receipt copy fan-out failed (non-fatal):", e);
+      }
     }
 
     // ── User in-app notification (paid) ─────────────────────────────────
