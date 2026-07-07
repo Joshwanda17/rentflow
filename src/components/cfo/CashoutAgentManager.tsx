@@ -740,9 +740,11 @@ export function CashoutAgentManager() {
           <KpiTile
             icon={<Wallet className="h-4 w-4" />}
             label="Commission Earned"
-            value={formatUGX(selectedAgentPayouts.reduce((s: number, py: any) => s + ((commissionByWithdrawal as Record<string, number>)[String(py.id)] ?? getCashoutCommission(Number(py.amount || 0))), 0))}
+            value={formatUGX(commissionSummary.credited)}
             tone="primary"
-            sub="0.5% per payout"
+            sub={commissionSummary.missingCount > 0
+              ? `${formatUGX(commissionSummary.expected)} expected · ${commissionSummary.missingCount} unpaid`
+              : `0.5% per payout · fully credited`}
           />
           <KpiTile
             icon={<Banknote className="h-4 w-4" />}
