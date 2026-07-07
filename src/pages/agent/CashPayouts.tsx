@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Banknote } from 'lucide-react';
+import { ArrowLeft, Banknote, ReceiptText } from 'lucide-react';
 import { AgentCashPayoutsTab } from '@/components/agent/AgentCashPayoutsTab';
 
 export default function AgentCashPayoutsPage() {
@@ -20,7 +20,7 @@ export default function AgentCashPayoutsPage() {
           >
             <ArrowLeft className="h-6 w-6" />
           </Button>
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
               <Banknote className="h-5 w-5 text-primary" />
             </div>
@@ -29,6 +29,15 @@ export default function AgentCashPayoutsPage() {
               <p className="text-sm text-muted-foreground leading-tight">Claim · Pay · Confirm</p>
             </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/agent/payout-receipts')}
+            aria-label="Receipt history"
+            className="h-11 w-11 shrink-0 rounded-full"
+          >
+            <ReceiptText className="h-6 w-6" />
+          </Button>
         </div>
       </header>
 
