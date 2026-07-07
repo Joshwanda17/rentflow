@@ -10,11 +10,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Briefcase, MessageCircle, Mail, RefreshCw, MapPin, Link2, ChevronDown,
+  Briefcase, RefreshCw, MapPin, Link2, ChevronDown,
   Clock, PhoneCall, Users, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { waLink } from '@/lib/whatsapp';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import ApplicantCommsLog from './ApplicantCommsLog';
