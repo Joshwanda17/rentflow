@@ -545,10 +545,67 @@ export function CashoutAgentManager() {
     });
   }, [agents, search, methodFilter, statusFilter, agentStats]);
 
+  // Fleet-wide duplicate detector — flags, per agent, any beneficiary+amount
+  // paid more than once. Drives the "duplicates" badge on each agent card so
+  // mistakes surface at a glance without opening the drill-down.
+  const duplicateByAgent = useMemo(() => {
+    const perAgent = new Map<string, Map<string, number>>();
+    for (const py of payouts as any[]) {
+      const agentId = py.assigned_cashout_agent_id;
+      if (!agentId) continue;
+      const who = String(
+        py.mobile_money_number || py.beneficiary_phone ||
+        py.mobile_money_name || py.beneficiary_name || py.user_id || 'unknown',
+      ).trim().toLowerCase();
+      const key = `${who}|${Number(py.amount || 0)}`;
+      const m = perAgent.get(agentId) || new Map<string, number>();
+      m.set(key, (m.get(key) || 0) + 1);
+      perAgent.set(agentId, m);
+    }
+    const result = new Map<string, number>();
+    for (const [agentId, m] of perAgent) {
+      let groups = 0;
+      for (const n of m.values()) if (n > 1) groups += 1;
+      if (groups > 0) result.set(agentId, groups);
+    }
+    return result;
+  }, [payouts]);
+
   const selectedAgentPayouts = useMemo(() => {
     if (!selectedAgent) return [];
     return payouts.filter((p: any) => p.assigned_cashout_agent_id === selectedAgent.id);
   }, [selectedAgent, payouts]);
+
+  // ---- Duplicate / repeat-payout detector (per merchant agent) ----
+  // Flags payouts this agent sent to the SAME beneficiary for the SAME amount.
+  // This is the exact fingerprint of the double-payout mistakes we want to catch
+  // (e.g. a customer owed 150K getting paid twice). Grouped by beneficiary
+  // identity (phone → name fallback) + amount; any group of 2+ is suspicious.
+  const duplicatePayouts = useMemo(() => {
+    const groups = new Map<string, any[]>();
+    for (const py of selectedAgentPayouts as any[]) {
+      const who = String(
+        py.mobile_money_number || py.beneficiary_phone ||
+        py.mobile_money_name || py.beneficiary_name || py.user_id || 'unknown',
+      ).trim().toLowerCase();
+      const key = `${who}|${Number(py.amount || 0)}`;
+      const arr = groups.get(key) || [];
+      arr.push(py);
+      groups.set(key, arr);
+    }
+    const flaggedIds = new Set<string>();
+    let excess = 0;
+    let groupCount = 0;
+    for (const arr of groups.values()) {
+      if (arr.length > 1) {
+        groupCount += 1;
+        // Every payout beyond the first in the group is a suspected duplicate.
+        excess += Number(arr[0].amount || 0) * (arr.length - 1);
+        for (const py of arr) flaggedIds.add(String(py.id));
+      }
+    }
+    return { flaggedIds, excess, groupCount };
+  }, [selectedAgentPayouts]);
 
   // Latest comment per payout — inline note on each processed-payout card.
   const { data: latestClaimComments } = useLatestClaimComments(
@@ -666,12 +723,35 @@ export function CashoutAgentManager() {
           </TabsList>
 
           <TabsContent value="transactions" className="space-y-2 mt-3">
+            {duplicatePayouts.groupCount > 0 && (
+              <Card className="border-destructive/40 bg-destructive/5">
+                <CardContent className="p-3 flex items-start gap-2">
+                  <FileWarning className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-destructive">
+                      {duplicatePayouts.groupCount} possible duplicate payout{duplicatePayouts.groupCount > 1 ? 's' : ''} detected
+                    </p>
+                    <p className="text-xs text-destructive/80">
+                      This agent sent the same amount to the same beneficiary more than once.
+                      Suspected excess: <span className="font-bold">{formatUGX(duplicatePayouts.excess)}</span>. Review the flagged transactions below.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {selectedAgentPayouts.length === 0 ? (
               <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
             ) : (
-              selectedAgentPayouts.map((py: any) => (
-              <Card key={py.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setCommentClaim(py)}>
+              selectedAgentPayouts.map((py: any) => {
+                const isDup = duplicatePayouts.flaggedIds.has(String(py.id));
+                return (
+              <Card key={py.id} className={`cursor-pointer hover:bg-muted/40 transition-colors${isDup ? ' border-destructive/50 bg-destructive/5' : ''}`} onClick={() => setCommentClaim(py)}>
                   <CardContent className="p-3 space-y-1.5">
+                    {isDup && (
+                      <Badge variant="destructive" className="text-[10px] gap-1">
+                        <FileWarning className="h-2.5 w-2.5" /> Possible duplicate
+                      </Badge>
+                    )}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-sm truncate">{py.beneficiary_name || py.mobile_money_name || 'Beneficiary'}</p>
@@ -731,7 +811,8 @@ export function CashoutAgentManager() {
                     })()}
                   </CardContent>
                 </Card>
-              ))
+                );
+              })
             )}
           </TabsContent>
 
@@ -1037,6 +1118,15 @@ export function CashoutAgentManager() {
                           {pending.count} in queue
                         </Badge>
                       )}
+                      {(() => {
+                        const dups = duplicateByAgent.get(a.id);
+                        return dups ? (
+                          <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5" title={`${dups} beneficiary paid the same amount more than once — possible duplicate payouts`}>
+                            <FileWarning className="h-2.5 w-2.5" />
+                            {dups} duplicate{dups === 1 ? '' : 's'}
+                          </Badge>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
