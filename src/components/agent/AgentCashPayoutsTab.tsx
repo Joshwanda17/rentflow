@@ -1102,6 +1102,27 @@ export function AgentCashPayoutsTab() {
           lands here and can be cashed out by the merchant agent. */}
       <MerchantWithdrawableCard />
 
+      {/* Authorized payout categories — the CFO permission matrix decides which
+          categories of transactions this merchant agent may claim & process.
+          Only these appear in the queue below. */}
+      {authorizedCategoryLabels.length > 0 && (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
+          <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+            <UserCheck className="h-3.5 w-3.5" /> Authorized payout categories
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {authorizedCategoryLabels.map((label) => (
+              <Badge key={label} variant="secondary" className="text-[11px] font-medium">
+                {label}
+              </Badge>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+            You can only claim withdrawals in these categories. Others are hidden from your queue.
+          </p>
+        </div>
+      )}
+
       {/* Today's payouts */}
       <section className="space-y-3">
         <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Payouts</h2>
