@@ -272,9 +272,6 @@ export default function PayoutReceipt() {
               <Row icon={<Store className="h-4 w-4" />} label="Merchant branch" value={data.merchant_branch} />
               <Row icon={<Phone className="h-4 w-4" />} label="Agent contact" value={data.processor_phone} mono />
               <Row icon={<Clock className="h-4 w-4" />} label="Date & time" value={dateStr} />
-              {data.commission != null && (
-                <Row icon={<Banknote className="h-4 w-4" />} label="Commission" value={formatUGX(Number(data.commission))} />
-              )}
             </div>
 
             {/* QR code */}
