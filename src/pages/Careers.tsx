@@ -49,7 +49,7 @@ export default function Careers() {
 
     setIsSubmitting(true);
     try {
-      const { error } = await (supabase.from('job_applications' as any) as any).insert({
+      const { data: inserted, error } = await (supabase.from('job_applications' as any) as any).insert({
         full_name: form.fullName.trim(),
         whatsapp_number: form.whatsapp.trim(),
         email: form.email.trim() || null,
@@ -60,8 +60,28 @@ export default function Careers() {
         location: form.location.trim() || null,
         cover_note: form.coverNote.trim() || null,
         status: 'new',
-      });
+      }).select('id').single();
       if (error) throw error;
+
+      // Auto-reply confirmation email from info@welile.com (only when an email
+      // was provided). Best-effort — never block the success screen on it.
+      const applicantEmail = form.email.trim();
+      if (applicantEmail) {
+        const categoryLabel = CATEGORIES.find((c) => c.value === form.category)?.label ?? 'a role';
+        supabase.functions.invoke('send-transactional-email', {
+          body: {
+            templateName: 'job-application-received',
+            recipientEmail: applicantEmail,
+            idempotencyKey: `job-application-received-${inserted?.id ?? applicantEmail}`,
+            templateData: {
+              recipient_name: form.fullName.trim() || 'there',
+              category_label: categoryLabel,
+              role_interest: form.roleInterest.trim(),
+            },
+          },
+        }).catch((err) => console.error('Failed to send applicant confirmation email:', err));
+      }
+
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to submit. Please try again.', variant: 'destructive' });

@@ -30,6 +30,7 @@ import { template as standingOrderCreatedTemplate } from './standing-order-creat
 import { template as newWithdrawalMerchantAlertTemplate } from './new-withdrawal-merchant-alert.tsx'
 import { template as withdrawalPaidReceiptTemplate } from './withdrawal-paid-receipt.tsx'
 import { template as tenantPartnershipAgreementTemplate } from './tenant-partnership-agreement.tsx'
+import { template as jobApplicationReceivedTemplate } from './job-application-received.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -65,4 +66,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'new-withdrawal-merchant-alert': newWithdrawalMerchantAlertTemplate,
   'withdrawal-paid-receipt': withdrawalPaidReceiptTemplate,
   'tenant-partnership-agreement': tenantPartnershipAgreementTemplate,
+  'job-application-received': jobApplicationReceivedTemplate,
 }
