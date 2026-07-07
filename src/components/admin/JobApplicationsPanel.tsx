@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { waLink } from '@/lib/whatsapp';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import ApplicantCommsLog from './ApplicantCommsLog';
 
 interface JobApplication {
   id: string;
