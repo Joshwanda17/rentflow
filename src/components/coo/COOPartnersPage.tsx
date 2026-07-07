@@ -5401,7 +5401,17 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         {destExtra && <p className="text-[10px] text-muted-foreground">{destExtra}</p>}
                       </div>
                       {/* Audit Reason + Action Buttons */}
-                      {!isDone && (
+                      {p.alreadyProcessedThisCycle && !isDone && (
+                        <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                          <p className="text-xs font-medium text-green-700 dark:text-green-300">
+                            {p.processedState === 'pending'
+                              ? 'ROI already in the approval queue for this cycle — cannot pay again.'
+                              : 'ROI already credited this cycle — cannot pay again.'}
+                          </p>
+                        </div>
+                      )}
+                      {!isDone && !p.alreadyProcessedThisCycle && (
                         <div className="space-y-2 pt-1">
                           <Textarea
                             placeholder="Include reason and phone number or A/C"
