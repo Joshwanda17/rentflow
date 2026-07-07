@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { normalizeWa, isValidWaNumber } from '@/lib/whatsapp';
 import welileLogo from '@/assets/welile-logo.png';
 
 const CATEGORIES = [
@@ -47,11 +48,20 @@ export default function Careers() {
       return;
     }
 
+    if (!isValidWaNumber(form.whatsapp)) {
+      toast({
+        title: 'Check your WhatsApp number',
+        description: 'Enter a valid number, e.g. 0782 123 456 or +256 782 123 456.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { data: inserted, error } = await (supabase.from('job_applications' as any) as any).insert({
         full_name: form.fullName.trim(),
-        whatsapp_number: form.whatsapp.trim(),
+        whatsapp_number: normalizeWa(form.whatsapp),
         email: form.email.trim() || null,
         category: form.category,
         role_interest: form.roleInterest.trim() || null,
