@@ -285,6 +285,7 @@ export function AgentMenuDrawer({
       label: '⋯ More',
       items: [
         { icon: BookOpen, label: 'Internship Program', description: 'Earn while you learn', path: '/internship', accent: 'amber-500', badge: '🎓' },
+        { icon: Briefcase, label: 'Apply for a Job', description: 'Developers, sales & more', path: '/careers', accent: 'indigo-500', badge: '💼' },
         { icon: Download, label: 'Share App', path: '/install', accent: 'primary' },
         { icon: ScrollText, label: 'Agreement', path: '/agent-agreement', accent: 'muted-foreground' },
         { icon: Settings, label: 'Settings', path: '/settings', accent: 'muted-foreground' },

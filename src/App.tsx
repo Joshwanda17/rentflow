@@ -212,6 +212,7 @@ const AngelPool = lazy(() => import('./pages/AngelPool'));
 const AngelPoolAgreement = lazy(() => import('./pages/AngelPoolAgreement'));
 const AgentCommissionBenefits = lazy(() => import('./pages/AgentCommissionBenefits'));
 const Internship = lazy(() => import('./pages/Internship'));
+const Careers = lazy(() => import('./pages/Careers'));
 const HolisticProfile = lazy(() => import('./pages/HolisticProfile'));
 // Public funder signup (multi-step) — lives in pages/Onboarding.tsx and is exported as FunderOnboarding.
 const FunderOnboarding = lazy(() => import('./pages/Onboarding'));
@@ -316,6 +317,7 @@ function AppRoutes() {
           <Route path="/" element={<Index />} />
           <Route path="/welcome" element={<Landing />} />
            <Route path="/internship" element={<Internship />} />
+           <Route path="/careers" element={<Careers />} />
            <Route path="/auth" element={<Auth />} />
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/onboarding" element={<Onboarding />} />
