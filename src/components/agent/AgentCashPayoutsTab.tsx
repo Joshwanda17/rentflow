@@ -116,6 +116,11 @@ interface QueueFilterOpts {
    * restriction (authorized for everything, or matrix not loaded yet).
    */
   categoryOrClause: string | null;
+  /**
+   * User ids whose accounts are currently frozen. Their withdrawal requests are
+   * excluded from the queue entirely — a frozen account must never be payable.
+   */
+  frozenUserIds?: string[] | null;
 }
 
 /**
@@ -133,6 +138,11 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
   // Authorized payout categories (CFO permission matrix). Only surface rows in
   // the categories mapped to this agent.
   if (o.categoryOrClause) q = q.or(o.categoryOrClause);
+
+  // Frozen accounts must vanish from the payout queue — never payable.
+  if (o.frozenUserIds && o.frozenUserIds.length) {
+    q = q.not('user_id', 'in', `(${o.frozenUserIds.join(',')})`);
+  }
 
   // Landlord float payout vs standard payout.
   if (o.status === 'landlord') {
@@ -204,6 +214,16 @@ async function resolveSearchUserIds(term: string): Promise<string[]> {
     .select('id')
     .or(`full_name.ilike.*${t}*,phone.ilike.*${t}*`)
     .limit(500);
+  return (data || []).map((p: any) => p.id);
+}
+
+/** Fetch ids of all currently-frozen accounts so their payouts are hidden. */
+async function resolveFrozenUserIds(): Promise<string[]> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('is_frozen', true)
+    .limit(5000);
   return (data || []).map((p: any) => p.id);
 }
 
@@ -415,6 +435,17 @@ export function AgentCashPayoutsTab() {
     }
   };
 
+  // Frozen accounts must never appear in the payout queue. Fetched once and
+  // reused by the counts, page, and available-total queries so a freeze makes
+  // the withdrawal disappear everywhere at once.
+  const { data: frozenUserIds = [] } = useQuery({
+    queryKey: ['cashout-frozen-user-ids'],
+    queryFn: resolveFrozenUserIds,
+    enabled: !!isCashoutAgent,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
   // Requests this agent has claimed and still needs to confirm. Kept as its own
   // (small) query so it is never affected by the queue's filters or pagination.
   const { data: myActiveClaims = [] } = useQuery({
@@ -437,7 +468,7 @@ export function AgentCashPayoutsTab() {
   // Unfiltered count of all available (unclaimed/expired) requests — powers the
   // "action required" badge and live banner regardless of active filters.
   const { data: availableTotal = 0 } = useQuery({
-    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause],
+    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause, frozenUserIds],
     queryFn: async () => {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       let q = supabase
@@ -446,6 +477,7 @@ export function AgentCashPayoutsTab() {
         .in('status', CASHOUT_QUEUE_STATUSES)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (categoryOrClause) q = q.or(categoryOrClause);
+      if (frozenUserIds.length) q = q.not('user_id', 'in', `(${frozenUserIds.join(',')})`);
       const { count } = await q;
       return count || 0;
     },
@@ -456,13 +488,13 @@ export function AgentCashPayoutsTab() {
 
   // Per-channel filtered counts (All / MoMo / Cash) for the tab badges.
   const { data: queueCounts } = useQuery({
-    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, categoryOrClause],
+    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, categoryOrClause, frozenUserIds],
     queryFn: async () => {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const base = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
-        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause,
+        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause, frozenUserIds,
       };
       const mk = (channel: 'all' | 'momo' | 'cash' | 'bank') =>
         applyQueueFilters(
@@ -479,7 +511,7 @@ export function AgentCashPayoutsTab() {
 
   // The current, server-paginated page of the Pending Queue for the active tab.
   const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue, isError: queueError, refetch: refetchQueue } = useQuery({
-    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page, categoryOrClause],
+    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page, categoryOrClause, frozenUserIds],
     queryFn: async () => {
       // Fire-and-forget: releasing other agents' expired claims must never block
       // or fail this fetch. A slow/failed release previously blanked the queue.
@@ -489,7 +521,7 @@ export function AgentCashPayoutsTab() {
       const opts: QueueFilterOpts = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
         minAmount, maxAmount, fromIso, toIso, channel: channelTab,
-        searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause,
+        searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause, frozenUserIds,
       };
       let q = applyQueueFilters(
         supabase.from('withdrawal_requests').select('*', { count: 'exact' }),
