@@ -108,6 +108,9 @@ const schedulePreviewBlankPageGuard = () => {
     requestAnimationFrame(() => {
       if (!hasVisibleAppContent()) {
         console.error('[Main] Preview blank-page guard triggered');
+        void import('./lib/startupCrashReporter').then((m) =>
+          m.reportStartupCrash({ reason: 'blank-page-guard' }),
+        );
         showErrorUI();
       }
     });
@@ -162,6 +165,9 @@ const loadApp = async () => {
     schedulePreviewBlankPageGuard();
   } catch (err) {
     console.error('[Main] App load failed:', err);
+    void import('./lib/startupCrashReporter').then((m) =>
+      m.reportStartupCrash({ reason: 'app-load-failed', error: err }),
+    );
     showErrorUI();
   }
 };
