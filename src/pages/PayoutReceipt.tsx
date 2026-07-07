@@ -166,11 +166,16 @@ export default function PayoutReceipt() {
             {/* QR code */}
             <div className="mt-6 flex flex-col items-center gap-2">
               <div className="rounded-xl bg-white p-3 border border-border">
-                <QRCodeCanvas value={publicUrl} size={150} includeMargin={false} />
+                <QRCodeCanvas value={qrValue} size={150} includeMargin={false} />
               </div>
               <p className="text-xs text-primary font-medium inline-flex items-center gap-1.5">
                 <ScanLine className="h-3.5 w-3.5" /> Scan to verify this receipt
               </p>
+              {checksumVerified && (
+                <p className="text-xs text-emerald-600 font-semibold inline-flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Authenticity verified
+                </p>
+              )}
             </div>
 
             {/* Footer */}
