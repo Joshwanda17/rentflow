@@ -1992,13 +1992,15 @@ Deno.serve(async (req) => {
     // discharged against the company float the merchant was holding — nothing
     // ever lands in the merchant's withdrawable. Float sufficiency was already
     // verified up-front; the DB non-negative constraint is the hard backstop.
-    // Only for standard cash payouts settled by a cashout agent — never for
-    // proxy/pool payouts. Even when the merchant is the requester, company
-    // float was the cash source and must be consumed.
+    // Applies to standard cash payouts AND proxy partner deliveries settled by
+    // a merchant agent: in both cases the merchant physically dispenses company
+    // cash from their float, so it must be consumed here (proxy payouts also
+    // drain the proxy agent's wallet via the funding debit above — draining
+    // both is intentional). Pool-funded settlements already debit float in the
+    // main block, so they stay excluded to avoid a double debit.
     let merchantFloatConsumed = 0;
     if (
       actingAsMerchant &&
-      !isProxyPayout &&
       !poolFunded &&
       amount > 0
     ) {
