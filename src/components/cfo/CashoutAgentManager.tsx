@@ -697,12 +697,35 @@ export function CashoutAgentManager() {
           </TabsList>
 
           <TabsContent value="transactions" className="space-y-2 mt-3">
+            {duplicatePayouts.groupCount > 0 && (
+              <Card className="border-destructive/40 bg-destructive/5">
+                <CardContent className="p-3 flex items-start gap-2">
+                  <FileWarning className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-destructive">
+                      {duplicatePayouts.groupCount} possible duplicate payout{duplicatePayouts.groupCount > 1 ? 's' : ''} detected
+                    </p>
+                    <p className="text-xs text-destructive/80">
+                      This agent sent the same amount to the same beneficiary more than once.
+                      Suspected excess: <span className="font-bold">{formatUGX(duplicatePayouts.excess)}</span>. Review the flagged transactions below.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {selectedAgentPayouts.length === 0 ? (
               <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
             ) : (
-              selectedAgentPayouts.map((py: any) => (
-              <Card key={py.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setCommentClaim(py)}>
+              selectedAgentPayouts.map((py: any) => {
+                const isDup = duplicatePayouts.flaggedIds.has(String(py.id));
+                return (
+              <Card key={py.id} className={`cursor-pointer hover:bg-muted/40 transition-colors${isDup ? ' border-destructive/50 bg-destructive/5' : ''}`} onClick={() => setCommentClaim(py)}>
                   <CardContent className="p-3 space-y-1.5">
+                    {isDup && (
+                      <Badge variant="destructive" className="text-[10px] gap-1">
+                        <FileWarning className="h-2.5 w-2.5" /> Possible duplicate
+                      </Badge>
+                    )}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-sm truncate">{py.beneficiary_name || py.mobile_money_name || 'Beneficiary'}</p>
@@ -762,7 +785,8 @@ export function CashoutAgentManager() {
                     })()}
                   </CardContent>
                 </Card>
-              ))
+                );
+              })
             )}
           </TabsContent>
 
