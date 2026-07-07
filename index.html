@@ -143,6 +143,89 @@
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
+
+    <!--
+      Out-of-date browser banner. Lightweight, dependency-free, and written in
+      ES5 so it runs on very old engines. It targets phones so old they can't
+      render the app even after runtime polyfills. Three signals trigger it:
+        1) the module script never runs (no ES-module support) — <script nomodule>
+        2) a critical runtime capability is missing (Promise/fetch/Map/etc.)
+        3) React never mounts within the watchdog window (hard crash on old JS)
+      The banner is dismissible and non-blocking so it never traps a healthy
+      session behind a false positive on a slow network.
+    -->
+    <script nomodule>
+      (function () { try { window.__WELILE_NO_MODULES__ = true; } catch (e) {} })();
+    </script>
+    <script>
+      (function () {
+        var DISMISS_KEY = 'welile-outdated-dismissed';
+        var shown = false;
+        function dismissed() {
+          try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch (e) { return false; }
+        }
+        function showBanner() {
+          if (shown || dismissed()) return;
+          if (document.getElementById('welile-outdated-banner')) return;
+          shown = true;
+          var bar = document.createElement('div');
+          bar.id = 'welile-outdated-banner';
+          bar.setAttribute('role', 'alert');
+          bar.style.cssText =
+            'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#7c3aed;color:#fff;' +
+            'font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;' +
+            'padding:12px 14px;box-shadow:0 2px 8px rgba(0,0,0,.25);' +
+            'display:flex;align-items:center;gap:10px;flex-wrap:wrap';
+          var msg = document.createElement('div');
+          msg.style.cssText = 'flex:1 1 220px;min-width:180px';
+          msg.innerHTML =
+            '<strong style="display:block;font-weight:600">Your browser is out of date</strong>' +
+            '<span style="opacity:.92">Welile may not load correctly. Please update your browser or Android System WebView, ' +
+            'or open the app in the latest Chrome.</span>';
+          var actions = document.createElement('div');
+          actions.style.cssText = 'display:flex;gap:8px;align-items:center';
+          var reload = document.createElement('button');
+          reload.type = 'button';
+          reload.textContent = 'Reload';
+          reload.style.cssText =
+            'background:#fff;color:#5b21b6;border:0;border-radius:6px;padding:8px 12px;' +
+            'font-weight:600;font-size:13px;cursor:pointer;min-height:36px';
+          reload.onclick = function () { window.location.reload(); };
+          var close = document.createElement('button');
+          close.type = 'button';
+          close.setAttribute('aria-label', 'Dismiss');
+          close.textContent = '\u00D7';
+          close.style.cssText =
+            'background:transparent;color:#fff;border:0;font-size:20px;line-height:1;' +
+            'cursor:pointer;padding:4px 8px;min-height:36px';
+          close.onclick = function () {
+            try { localStorage.setItem(DISMISS_KEY, '1'); } catch (e) {}
+            if (bar.parentNode) bar.parentNode.removeChild(bar);
+          };
+          actions.appendChild(reload);
+          actions.appendChild(close);
+          bar.appendChild(msg);
+          bar.appendChild(actions);
+          (document.body || document.documentElement).appendChild(bar);
+        }
+        try { window.__welileShowOutdatedBanner = showBanner; } catch (e) {}
+
+        // 1) No ES-module support: the app's module script never executes.
+        if (window.__WELILE_NO_MODULES__) { showBanner(); return; }
+
+        // 2) Critical runtime capabilities missing (not polyfillable enough to run).
+        var ok = !!(window.Promise && window.fetch && window.Map && window.Set &&
+          window.Symbol && Array.from && Object.assign && window.WeakMap);
+        if (!ok) { showBanner(); return; }
+
+        // 3) Hard-crash watchdog: if React never sets the ready flag, the app
+        //    likely threw on old-engine JS. 18s is generous for slow 2G/3G so a
+        //    healthy-but-slow load is not flagged.
+        setTimeout(function () {
+          if (!window.__WELILE_APP_READY__ && !dismissed()) showBanner();
+        }, 18000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
