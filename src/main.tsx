@@ -124,6 +124,11 @@ const schedulePreviewBlankPageGuard = () => {
 const loadApp = async () => {
   cleanupServiceWorkersAndCaches();
   try {
+    // Conditionally fetch + apply runtime polyfills BEFORE importing app code.
+    // No-op (no network) on modern devices; fetches the polyfill chunk only when
+    // a required method is missing, so app modules never touch an unpatched API.
+    await ensureRuntimePolyfills();
+
     const importTimeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Import timeout')), 30000)
     );
