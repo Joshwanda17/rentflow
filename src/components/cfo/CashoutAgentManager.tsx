@@ -664,6 +664,26 @@ export function CashoutAgentManager() {
 
   const selectedAgentStats = selectedAgent ? agentStats.get(selectedAgent.id) || { count: 0, volume: 0, bank: 0, momo: 0, cash: 0, bankCount: 0, momoCount: 0, cashCount: 0, lastAt: null, todayCount: 0 } : null;
 
+  // Commission accuracy reconciliation. Rather than silently masking gaps with
+  // the 0.5% estimate, compare what actually landed in the merchant's wallet
+  // (ledger legs) against what SHOULD have been credited (0.5% of each payout).
+  // This surfaces payouts that never received a commission leg (under-credit)
+  // so the CFO sees the real, honest figure instead of an idealised one.
+  const commissionSummary = useMemo(() => {
+    const legs = commissionByWithdrawal as Record<string, number>;
+    let credited = 0;      // what actually hit the wallet (ledger only)
+    let expected = 0;      // what 0.5% says it should be
+    let missingCount = 0;  // payouts with no commission leg
+    for (const py of selectedAgentPayouts as any[]) {
+      const amt = Number(py.amount || 0);
+      expected += getCashoutCommission(amt);
+      const leg = legs[String(py.id)];
+      if (leg === undefined) missingCount += 1;
+      else credited += Number(leg || 0);
+    }
+    return { credited, expected, missingCount, gap: expected - credited };
+  }, [selectedAgentPayouts, commissionByWithdrawal]);
+
   const methodBadges = (a: any) => {
     const handlesMomoAny = a.handles_mtn || a.handles_airtel;
     return (
@@ -720,9 +740,11 @@ export function CashoutAgentManager() {
           <KpiTile
             icon={<Wallet className="h-4 w-4" />}
             label="Commission Earned"
-            value={formatUGX(selectedAgentPayouts.reduce((s: number, py: any) => s + ((commissionByWithdrawal as Record<string, number>)[String(py.id)] ?? getCashoutCommission(Number(py.amount || 0))), 0))}
+            value={formatUGX(commissionSummary.credited)}
             tone="primary"
-            sub="0.5% per payout"
+            sub={commissionSummary.missingCount > 0
+              ? `${formatUGX(commissionSummary.expected)} expected · ${commissionSummary.missingCount} unpaid`
+              : `0.5% per payout · fully credited`}
           />
           <KpiTile
             icon={<Banknote className="h-4 w-4" />}
@@ -745,6 +767,24 @@ export function CashoutAgentManager() {
           </TabsList>
 
           <TabsContent value="transactions" className="space-y-2 mt-3">
+            {commissionSummary.missingCount > 0 && (
+              <Card className="border-amber-500/40 bg-amber-500/5">
+                <CardContent className="p-3 flex items-start gap-2">
+                  <FileWarning className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-amber-700">
+                      {commissionSummary.missingCount} payout{commissionSummary.missingCount > 1 ? 's' : ''} missing a commission credit
+                    </p>
+                    <p className="text-xs text-amber-700/80">
+                      Credited so far: <span className="font-bold">{formatUGX(commissionSummary.credited)}</span> ·
+                      Expected at 0.5%: <span className="font-bold">{formatUGX(commissionSummary.expected)}</span> ·
+                      Shortfall: <span className="font-bold">{formatUGX(commissionSummary.gap)}</span>.
+                      These payouts settled without posting a commission leg to the wallet.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {dailyPayoutBreakdown.length > 0 && (
               <Card>
                 <CardContent className="p-3 space-y-2">
@@ -806,10 +846,16 @@ export function CashoutAgentManager() {
                       </div>
                       <p className="font-bold text-sm shrink-0">{formatUGX(py.amount)}</p>
                     </div>
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
-                      Commission: +{formatUGX((commissionByWithdrawal as Record<string, number>)[String(py.id)] ?? getCashoutCommission(Number(py.amount || 0)))}
-                    </Badge>
+                   <div className="flex items-center justify-between gap-2 flex-wrap">
+                     {(commissionByWithdrawal as Record<string, number>)[String(py.id)] === undefined ? (
+                       <Badge variant="outline" className="text-[10px] gap-1 border-destructive/40 text-destructive">
+                         Commission not credited (expected +{formatUGX(getCashoutCommission(Number(py.amount || 0)))})
+                       </Badge>
+                     ) : (
+                       <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
+                         Commission: +{formatUGX((commissionByWithdrawal as Record<string, number>)[String(py.id)])}
+                       </Badge>
+                     )}
                     <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
                       Telecom charge: {formatUGX(getTelecomSendingCharge(Number(py.amount || 0)))}
                     </Badge>
