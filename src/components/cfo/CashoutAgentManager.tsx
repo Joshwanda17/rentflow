@@ -557,7 +557,7 @@ export function CashoutAgentManager() {
   // identity (phone → name fallback) + amount; any group of 2+ is suspicious.
   const duplicatePayouts = useMemo(() => {
     const groups = new Map<string, any[]>();
-    for (const py of selectedAgentPayouts) {
+    for (const py of selectedAgentPayouts as any[]) {
       const who = String(
         py.mobile_money_number || py.beneficiary_phone ||
         py.mobile_money_name || py.beneficiary_name || py.user_id || 'unknown',
