@@ -322,6 +322,7 @@ function AppRoutes() {
           <Route path="/partner-onboarding" element={<PartnerOnboarding />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/stop-sms" element={<StopSms />} />
+          <Route path="/receipt/:id" element={<PayoutReceipt />} />
           <Route path="/resume-sms" element={<ResumeSms />} />
           <Route path="/r/:code" element={<ResolveShortLink />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
