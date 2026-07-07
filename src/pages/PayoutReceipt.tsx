@@ -107,7 +107,6 @@ export default function PayoutReceipt() {
   const pm = (data.payout_method || '').toLowerCase();
   const isBank = pm.includes('bank');
   const isMoMo = pm.includes('momo') || pm.includes('mobile') || pm.includes('mtn') || pm.includes('airtel');
-  const MethodIcon = isBank ? Building2 : isMoMo ? Smartphone : Banknote;
   const methodLabel = isBank ? 'Bank Transfer' : isMoMo ? 'Mobile Money' : 'Cash';
 
   const paidAt = data.processed_at ? new Date(data.processed_at) : null;
