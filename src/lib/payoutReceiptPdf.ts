@@ -221,5 +221,8 @@ export async function downloadPayoutReceiptPdf(data: PayoutReceiptData) {
   y += 12;
   doc.text('Verify at welilereceipts.com', cardX + cardW / 2, y, { align: 'center' });
 
+  // Authenticity e-stamp watermark, stamped over the receipt body.
+  drawStampWatermark(doc, cardX + cardW / 2, 430);
+
   doc.save(`welile-receipt-${data.receipt_number || data.reference || 'payout'}.pdf`);
 }
