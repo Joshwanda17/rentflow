@@ -5,6 +5,7 @@ import {
   dispatchTransactionalEmail,
   buildWithdrawalPaidReceiptRequest,
 } from "../_shared/partnership-emails.ts";
+import { sendWhatsApp } from "../_shared/whatsapp.ts";
 import {
   logSmsDelivery,
   reserveSmsIdempotency,
