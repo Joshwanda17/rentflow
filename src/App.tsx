@@ -140,6 +140,7 @@ const TrackedRedirect = lazy(() => import('./pages/TrackedRedirect'));
 const RentAccessLimitPublic = lazy(() => import('./pages/RentAccessLimitPublic'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const StopSms = lazy(() => import('./pages/StopSms'));
+const PayoutReceipt = lazy(() => import('./pages/PayoutReceipt'));
 const ResumeSms = lazy(() => import('./pages/ResumeSms'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
