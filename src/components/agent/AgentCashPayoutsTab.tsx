@@ -28,6 +28,14 @@ import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutC
 import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
 import { MerchantWithdrawableCard } from '@/components/agent/MerchantWithdrawableCard';
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
+import {
+  normalizeCashoutAgentConfig,
+  buildQueueCategoryOrClause,
+  isWithdrawalCategoryAuthorized,
+  authorizedQueueCategoryLabels,
+  getWithdrawalQueueCategory,
+  type CashoutAgentConfig,
+} from '@/lib/cashoutAgentConfig';
 
 // Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
 const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
