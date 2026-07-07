@@ -117,13 +117,11 @@ export default function PayoutReceipt() {
       })
     : '—';
 
-  const Row = ({ icon, label, value, mono }: { icon?: React.ReactNode; label: string; value?: string | null; mono?: boolean }) =>
+  const Row = ({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) =>
     value ? (
-      <div className="flex items-start justify-between gap-3 py-2.5">
-        <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5 shrink-0">
-          {icon}{label}
-        </span>
-        <span className={`text-sm font-semibold text-right break-words ${mono ? 'font-mono tracking-wide' : ''}`}>{value}</span>
+      <div className="flex items-start justify-between gap-3 py-3">
+        <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+        <span className={`text-sm font-semibold text-right break-words text-foreground ${mono ? 'font-mono tracking-wide' : ''}`}>{value}</span>
       </div>
     ) : null;
 
