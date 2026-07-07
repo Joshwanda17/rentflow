@@ -1388,10 +1388,18 @@ Deno.serve(async (req) => {
     // the merchant is cashing out their own wallet: the user's withdrawable
     // balance is reduced by the normal withdrawal leg, and the physical company
     // cash/float they dispensed must still leave the merchant float bucket.
+    //
+    // PROXY PAYOUTS (2026-07): a merchant who delivers a proxy partner payout
+    // physically dispenses company cash from THEIR OWN float too, so the payout
+    // must drain BOTH the proxy agent's wallet (funding debit below) AND the
+    // merchant's float (consume block further down). We therefore require and
+    // check the merchant's float here for proxy payouts as well — if they don't
+    // hold enough float the CFO/treasury must top them up before settling.
+    // (pool-funded settlements already debit float in the main block, so they
+    // stay excluded to avoid a double debit.)
     let merchantFloatAvailable = 0;
     if (
       actingAsMerchant &&
-      !isProxyPayout &&
       !poolFunded &&
       amount > 0
     ) {
@@ -1984,13 +1992,15 @@ Deno.serve(async (req) => {
     // discharged against the company float the merchant was holding — nothing
     // ever lands in the merchant's withdrawable. Float sufficiency was already
     // verified up-front; the DB non-negative constraint is the hard backstop.
-    // Only for standard cash payouts settled by a cashout agent — never for
-    // proxy/pool payouts. Even when the merchant is the requester, company
-    // float was the cash source and must be consumed.
+    // Applies to standard cash payouts AND proxy partner deliveries settled by
+    // a merchant agent: in both cases the merchant physically dispenses company
+    // cash from their float, so it must be consumed here (proxy payouts also
+    // drain the proxy agent's wallet via the funding debit above — draining
+    // both is intentional). Pool-funded settlements already debit float in the
+    // main block, so they stay excluded to avoid a double debit.
     let merchantFloatConsumed = 0;
     if (
       actingAsMerchant &&
-      !isProxyPayout &&
       !poolFunded &&
       amount > 0
     ) {
