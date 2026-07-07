@@ -144,6 +144,10 @@ const loadApp = async () => {
     // successfully mounted, so it never shows the banner on healthy sessions.
     try { (window as any).__WELILE_APP_READY__ = true; } catch {}
 
+    // App booted successfully — clear the exponential-backoff retry counter so
+    // the next cold start begins from a clean slate.
+    try { sessionStorage.removeItem('welile-startup-retry'); } catch {}
+
     // Preload Dashboard chunk only when the user is actually heading there.
     try {
       const cached = localStorage.getItem('welile_session_cache');
