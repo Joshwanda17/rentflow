@@ -37,6 +37,10 @@ export function CMODashboard({ activeTab }: { activeTab?: string } = {}) {
   if (activeTab === 'merchandise') {
     return <MerchandiseManager />;
   }
+  return <CMOMarketingDashboard />;
+}
+
+function CMOMarketingDashboard() {
   const now = new Date();
   const [startMonth, setStartMonth] = useState(format(subMonths(now, 5), 'yyyy-MM'));
   const [endMonth, setEndMonth] = useState(format(now, 'yyyy-MM'));
