@@ -607,6 +607,28 @@ export function CashoutAgentManager() {
     return { flaggedIds, excess, groupCount };
   }, [selectedAgentPayouts]);
 
+  // ---- Daily float breakdown (per merchant agent) ----
+  // The CFO needs to see how much float this agent gave out on EACH day,
+  // not just the running total. Group settled payouts by calendar day
+  // (processed_at → created_at fallback), summing amount + count.
+  const dailyPayoutBreakdown = useMemo(() => {
+    const byDay = new Map<string, { amount: number; count: number }>();
+    for (const py of selectedAgentPayouts as any[]) {
+      const stamp = py.processed_at || py.created_at;
+      if (!stamp) continue;
+      const d = new Date(stamp);
+      if (isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const cur = byDay.get(key) || { amount: 0, count: 0 };
+      cur.amount += Number(py.amount || 0);
+      cur.count += 1;
+      byDay.set(key, cur);
+    }
+    return Array.from(byDay.entries())
+      .map(([day, v]) => ({ day, ...v }))
+      .sort((a, b) => (a.day < b.day ? 1 : -1));
+  }, [selectedAgentPayouts]);
+
   // Latest comment per payout — inline note on each processed-payout card.
   const { data: latestClaimComments } = useLatestClaimComments(
     selectedAgentPayouts.map((p: any) => p.id),
