@@ -14,6 +14,7 @@ import {
   Clock, PhoneCall, Users, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { waLink } from '@/lib/whatsapp';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -66,24 +67,6 @@ const STATUSES: StatusMeta[] = [
 
 const statusMeta = (value: string): StatusMeta =>
   STATUSES.find(s => s.value === value) ?? STATUSES[0];
-
-/** Normalize a phone number to WhatsApp's required international format.
- *  wa.me needs a country code and no leading 0 / + / spaces. Local Ugandan
- *  numbers (07XX..., 9 digits after the 0) are prefixed with 256. */
-function normalizeWa(num: string): string {
-  let d = (num || '').replace(/[^\d]/g, '');
-  if (d.startsWith('00')) d = d.slice(2);            // 00256... -> 256...
-  if (d.startsWith('0')) d = `256${d.slice(1)}`;      // 07XX...  -> 2567XX...
-  return d;
-}
-
-function waLink(num: string) {
-  const digits = normalizeWa(num);
-  const msg = encodeURIComponent(
-    "Hello, this is the Welile hiring team reaching out about your job application. Do you have a moment to chat?"
-  );
-  return `https://wa.me/${digits}?text=${msg}`;
-}
 
 type SortKey = 'newest' | 'oldest' | 'name' | 'status';
 
