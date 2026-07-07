@@ -156,6 +156,21 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [listingBlock, setListingBlock] = useState<ListingBlock | null>(null);
   const [blockChecking, setBlockChecking] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  // Field-activity eligibility to list houses: an agent must have (1) referred a
+  // user, (2) posted a tenant rent request, and (3) recorded a rent repayment.
+  // Mirrors the server-side `get_agent_listing_eligibility` RPC + insert trigger.
+  type ListingEligibility = {
+    eligible: boolean;
+    is_privileged?: boolean;
+    has_referral: boolean;
+    has_rent_request: boolean;
+    has_collection: boolean;
+    referral_count?: number;
+    rent_request_count?: number;
+    collection_count?: number;
+  };
+  const [eligibility, setEligibility] = useState<ListingEligibility | null>(null);
+  const [eligibilityChecking, setEligibilityChecking] = useState(false);
   // Phone-based auto-detection: when the agent types a landlord phone that is
   // already registered anywhere in the system (even one created from just an
   // estimation, with no photos/houses yet), surface it so they reuse it and
@@ -341,6 +356,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     const t = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(t);
   }, [open, listingBlock?.blocked]);
+
+  // Check house-listing eligibility whenever the dialog opens.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setEligibilityChecking(true);
+    (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any).rpc('get_agent_listing_eligibility');
+        if (cancelled) return;
+        if (error) setEligibility(null);
+        else setEligibility((data as ListingEligibility) ?? null);
+      } catch {
+        if (!cancelled) setEligibility(null);
+      } finally {
+        if (!cancelled) setEligibilityChecking(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
 
   // Promo banner mode: pre-apply empty-house defaults and show campaign badge.
   useEffect(() => {
@@ -1247,6 +1283,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         } catch {
           setListingBlock({ blocked: true, reason: raw.replace('AGENT_LISTING_BLOCKED:', '').trim() });
         }
+      } else if (raw.includes('AGENT_LISTING_INELIGIBLE')) {
+        // Field-activity requirements not met — surface the eligibility checklist.
+        toast.error('You can’t list houses yet', {
+          description: 'Refer a user, post a tenant, and record a rent repayment first.',
+        });
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data } = await (supabase as any).rpc('get_agent_listing_eligibility');
+          if (data) setEligibility(data as ListingEligibility);
+          else setEligibility({ eligible: false, has_referral: false, has_rent_request: false, has_collection: false });
+        } catch {
+          setEligibility({ eligible: false, has_referral: false, has_rent_request: false, has_collection: false });
+        }
       } else {
         toast.error(err?.message || 'Failed to list house');
       }
@@ -1440,6 +1489,53 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <Button type="button" variant="ghost" onClick={listAnother}>List another</Button>
               <Button type="button" variant="secondary" onClick={closeAll}>Done</Button>
             </div>
+          </div>
+        ) : eligibility && !eligibility.eligible ? (
+          <div className="space-y-5 py-2">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                Unlock house listing
+              </DialogTitle>
+              <DialogDescription>
+                Complete these three field activities first, then you can list houses and earn listing rewards.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              {[
+                { done: eligibility.has_referral, title: 'Refer at least one user', hint: 'Share your referral link so a new user signs up.' },
+                { done: eligibility.has_rent_request, title: 'Post at least one tenant', hint: 'Submit at least one tenant rent request.' },
+                { done: eligibility.has_collection, title: 'Record at least one rent repayment', hint: 'Collect and record at least one tenant repayment.' },
+              ].map((req, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-3 p-3 rounded-xl border ${
+                    req.done ? 'bg-success/5 border-success/25' : 'bg-muted/40 border-border'
+                  }`}
+                >
+                  <div className={`mt-0.5 h-6 w-6 shrink-0 rounded-full flex items-center justify-center ${
+                    req.done ? 'bg-success text-success-foreground' : 'bg-muted-foreground/15 text-muted-foreground'
+                  }`}>
+                    {req.done ? <Check className="h-4 w-4" /> : <span className="text-xs font-bold">{i + 1}</span>}
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold ${req.done ? 'text-success' : 'text-foreground'}`}>{req.title}</p>
+                    <p className="text-xs text-muted-foreground leading-snug">{req.hint}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <p className="text-xs text-muted-foreground">
+                Once all three are complete this screen unlocks automatically. Reopen this dialog after finishing them.
+              </p>
+            </div>
+
+            <Button type="button" variant="secondary" className="w-full h-11" onClick={closeAll}>
+              Close
+            </Button>
           </div>
         ) : (
         <>
