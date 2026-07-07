@@ -654,6 +654,22 @@ function RecordPurchaseDialog({ userId, productNames, onSaved }: { userId?: stri
               <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Optional" />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Buyer / Purchaser name</Label>
+              <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Who bought it" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Buyer phone</Label>
+              <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="For wallet debit" />
+            </div>
+          </div>
+          {buyerPhone.trim() && total > 0 && (
+            <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
+              If this phone belongs to a registered user, {formatUGX(total)} will be recovered
+              automatically — 15% of their Withdrawable Wallet each day until fully paid.
+            </div>
+          )}
           <div className="space-y-1">
             <Label className="text-xs">Notes</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" rows={2} />
