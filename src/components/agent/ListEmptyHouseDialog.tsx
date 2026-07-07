@@ -156,21 +156,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [listingBlock, setListingBlock] = useState<ListingBlock | null>(null);
   const [blockChecking, setBlockChecking] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
-  // Field-activity eligibility to list houses: an agent must have (1) referred a
-  // user, (2) posted a tenant rent request, and (3) recorded a rent repayment.
-  // Mirrors the server-side `get_agent_listing_eligibility` RPC + insert trigger.
-  type ListingEligibility = {
-    eligible: boolean;
-    is_privileged?: boolean;
-    has_referral: boolean;
-    has_rent_request: boolean;
-    has_collection: boolean;
-    referral_count?: number;
-    rent_request_count?: number;
-    collection_count?: number;
-  };
-  const [eligibility, setEligibility] = useState<ListingEligibility | null>(null);
-  const [eligibilityChecking, setEligibilityChecking] = useState(false);
   // Phone-based auto-detection: when the agent types a landlord phone that is
   // already registered anywhere in the system (even one created from just an
   // estimation, with no photos/houses yet), surface it so they reuse it and
