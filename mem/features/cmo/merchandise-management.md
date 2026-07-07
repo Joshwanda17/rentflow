@@ -32,7 +32,7 @@ automatically from their Withdrawable Wallet — no more manual `CFO Debit [🔧
   outstanding_balance, amount_recovered, daily_rate (0.15), status (active|completed|cancelled),
   last_recovery_at. **`merchandise_recovery_deductions`**: per-deduction audit log.
 - **`recover_merchandise_from_wallets()`** (SECURITY DEFINER, EXECUTE→service_role) — daily
-  pg_cron `recover-merchandise-from-wallets` at `0 5 * * *`. For each active plan reads STRICT
+  pg_cron `recover-merchandise-from-wallets` at `0 9 * * *` (12:00 EAT). For each active plan reads STRICT
   withdrawable via `get_user_available_balance`, deducts
   `least(outstanding, available, greatest(round(available*0.15),1))` via
   `create_ledger_transaction`: wallet leg (`cash_out`, category `wallet_deduction`,
