@@ -1976,6 +1976,49 @@ export function ProxyPartnerFunds() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Revert to nearing payout dialog */}
+      <AlertDialog open={revertOpen} onOpenChange={(open) => {
+        setRevertOpen(open);
+        if (!open) { setRevertTarget(null); setRevertReason(''); }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send back to nearing payout?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This moves <strong>{revertTarget?.partnerName}</strong> back to the
+                  nearing payout list and removes the card from your ready-to-withdraw
+                  queue. No financial records are deleted. A reason is required for auditing.
+                </p>
+                <div>
+                  <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
+                  <Textarea
+                    placeholder="e.g. Payout deferred to next cycle at partner's request"
+                    value={revertReason}
+                    onChange={e => setRevertReason(e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    className="mt-1"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{revertReason.length}/500</p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reverting}>Keep on list</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRevert}
+              disabled={reverting || revertReason.trim().length < 10}
+            >
+              {reverting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Hourglass className="h-3.5 w-3.5 mr-1" />}
+              Yes, send back
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
