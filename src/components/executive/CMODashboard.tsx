@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SignupSourceFunnel } from './SignupSourceFunnel';
+import { MerchandiseManager } from './MerchandiseManager';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
 type ReferralDateFilter = '6months' | 'today' | 'yesterday' | 'last_week';
@@ -32,7 +33,10 @@ function getDateBounds(filter: ReferralDateFilter, customStart: Date, customEnd:
   }
 }
 
-export function CMODashboard() {
+export function CMODashboard({ activeTab }: { activeTab?: string } = {}) {
+  if (activeTab === 'merchandise') {
+    return <MerchandiseManager />;
+  }
   const now = new Date();
   const [startMonth, setStartMonth] = useState(format(subMonths(now, 5), 'yyyy-MM'));
   const [endMonth, setEndMonth] = useState(format(now, 'yyyy-MM'));
