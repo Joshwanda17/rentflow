@@ -14,25 +14,28 @@
  * Callers MUST await `ensureRuntimePolyfills()` before loading any app code so
  * the patches are in place first.
  */
+import { clientLog } from './clientLogger';
 
-/** True when every runtime method the app/deps rely on already exists. */
-function hasAllModernFeatures(): boolean {
-  try {
-    return (
-      typeof (String.prototype as any).replaceAll === 'function' &&
-      typeof (String.prototype as any).at === 'function' &&
-      typeof (Array.prototype as any).at === 'function' &&
-      typeof (Array.prototype as any).flat === 'function' &&
-      typeof (Array.prototype as any).flatMap === 'function' &&
-      typeof (Object as any).hasOwn === 'function' &&
-      typeof (Promise as any).allSettled === 'function' &&
-      typeof (Promise as any).any === 'function' &&
-      typeof (globalThis as any) !== 'undefined'
-    );
-  } catch {
-    // If detection itself throws on an ancient engine, assume we need the patch.
-    return false;
+/** Individual feature probes — each returns true when the feature is present. */
+function detectMissingFeatures(): string[] {
+  const probes: Record<string, () => boolean> = {
+    'String.prototype.replaceAll': () => typeof (String.prototype as any).replaceAll === 'function',
+    'String.prototype.at': () => typeof (String.prototype as any).at === 'function',
+    'Array.prototype.at': () => typeof (Array.prototype as any).at === 'function',
+    'Array.prototype.flat': () => typeof (Array.prototype as any).flat === 'function',
+    'Array.prototype.flatMap': () => typeof (Array.prototype as any).flatMap === 'function',
+    'Object.hasOwn': () => typeof (Object as any).hasOwn === 'function',
+    'Promise.allSettled': () => typeof (Promise as any).allSettled === 'function',
+    'Promise.any': () => typeof (Promise as any).any === 'function',
+    globalThis: () => typeof (globalThis as any) !== 'undefined',
+  };
+  const missing: string[] = [];
+  for (const [name, probe] of Object.entries(probes)) {
+    let ok = false;
+    try { ok = probe() === true; } catch { ok = false; }
+    if (!ok) missing.push(name);
   }
+  return missing;
 }
 
 let applied: Promise<void> | null = null;
@@ -44,16 +47,52 @@ let applied: Promise<void> | null = null;
  */
 export function ensureRuntimePolyfills(): Promise<void> {
   if (applied) return applied;
-  if (hasAllModernFeatures()) {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : null;
+  let missing: string[];
+  try {
+    missing = detectMissingFeatures();
+  } catch {
+    // Detection itself threw on an ancient engine — assume everything is missing.
+    missing = ['detection-threw'];
+  }
+
+  if (missing.length === 0) {
     applied = Promise.resolve();
     return applied;
   }
+
+  // Missing features detected — record exactly which ones + the device before
+  // attempting to fetch the polyfill chunk.
+  clientLog.warn('polyfill.gate.missing_features', {
+    missing_features: missing,
+    missing_count: missing.length,
+    user_agent: ua,
+  });
+
+  const startedAt = Date.now();
   applied = import('./runtimePolyfillsImpl')
-    .then(() => undefined)
+    .then(() => {
+      clientLog.info('polyfill.impl.loaded', {
+        missing_features: missing,
+        load_ms: Date.now() - startedAt,
+      });
+    })
     .catch((err) => {
-      // Best-effort: log and continue. The out-of-date-browser banner and
-      // startup crash reporter are the safety nets if the app still can't run.
-      try { console.error('[runtimePolyfills] failed to load polyfill chunk', err); } catch {}
+      // Polyfill chunk failed to load — the app will likely crash on old
+      // engines. Log verbosely (console + Sentry via clientLog) so we can see
+      // WHICH features were missing and WHY the fetch failed. The
+      // out-of-date-browser banner + startup crash reporter are the safety nets.
+      clientLog.error('polyfill.impl.load_failed', {
+        missing_features: missing,
+        missing_count: missing.length,
+        user_agent: ua,
+        load_ms: Date.now() - startedAt,
+        online: typeof navigator !== 'undefined' ? navigator.onLine : null,
+        error_message: err instanceof Error ? err.message : String(err),
+        error_stack: err instanceof Error ? err.stack ?? null : null,
+        // Raw Error so clientLog forwards it to Sentry.captureException.
+        error: err,
+      });
     });
   return applied;
 }
