@@ -13,4 +13,9 @@ The CFO "Edit Cash-Out Agent" modal (`CashoutAgentManager.tsx` → `EditMerchant
 
 **Validation:** must have ≥1 channel AND ≥1 authorized category. Change audited to `audit_logs` (`cfo_merchant_agent_updated`, before/after + config).
 
-NOTE: This stores the CFO's intent/config. Enforcement across the payout edge functions (blocking an agent from settling a category they're not authorized for, applying per-category approval routing) is NOT yet wired — it is a future step that should read `cashout_agents.config`.
+**Category enforcement in the merchant claim queue (wired 2026-07-07):** The withdrawal claim queue (`AgentCashPayoutsTab`, backed by `withdrawal_requests`) now maps every withdrawal row to a payout category from its `reason` and only surfaces / allows claiming of the categories the agent is authorized for. Helpers live in `src/lib/cashoutAgentConfig.ts`:
+- `QUEUE_CATEGORY_DEFS` — ordered defs (proxy_partner_withdrawal, landlord_payouts, roi_payments, payroll_payments, agent_commissions, wallet_withdrawals catch-all) with a client `match(row)` + PostgREST predicates. `agent_commissions` is authorized by ANY of `cashout_commission`/`rent_collection_commission`/`partner_commission`.
+- `getWithdrawalQueueCategory(row)`, `isWithdrawalCategoryAuthorized(config, row)`, `authorizedQueueCategoryLabels(config)`, and `buildQueueCategoryOrClause(config)` (returns a single `.or()` clause, or `null` when all categories allowed; the wallet catch-all is expressed as `reason.is.null` OR `and(<negation of every special pattern>)`).
+`applyQueueFilters` takes `categoryOrClause` and ANDs it into the queue/counts/available-total queries so pagination + badges stay accurate; `handleClaim` re-checks `isWithdrawalCategoryAuthorized` before claiming; a badge banner shows the authorized category labels.
+
+NOTE: Enforcement across the payout EDGE FUNCTIONS (per-category approval routing, blocking settlement server-side) is still NOT wired — future step that should read `cashout_agents.config`.
