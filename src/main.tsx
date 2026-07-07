@@ -1,4 +1,9 @@
-// MUST be first: drops the stored session on a cold start when the user opted
+// MUST be first: runtime polyfills for old mobile browsers (String.replaceAll,
+// Array.at, Object.hasOwn, Promise.allSettled, …). Vite target es2017 only
+// down-levels syntax, not runtime methods — without this, older Android/iOS
+// phones crash to a blank screen when deps like input-otp call replaceAll.
+import './lib/runtimePolyfills';
+// Then: drops the stored session on a cold start when the user opted
 // out of "remember this device", before Supabase/session-cache read any token.
 import './lib/ephemeralGuard';
 import { createRoot } from 'react-dom/client';
