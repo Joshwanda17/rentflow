@@ -8751,6 +8751,41 @@ export type Database = {
           },
         ]
       }
+      job_application_communications: {
+        Row: {
+          application_id: string
+          channel: string
+          created_at: string
+          id: string
+          logged_by: string | null
+          message: string | null
+        }
+        Insert: {
+          application_id: string
+          channel: string
+          created_at?: string
+          id?: string
+          logged_by?: string | null
+          message?: string | null
+        }
+        Update: {
+          application_id?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          logged_by?: string | null
+          message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_application_communications_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_applications: {
         Row: {
           category: string
