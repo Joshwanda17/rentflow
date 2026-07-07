@@ -236,6 +236,31 @@
           window.Symbol && Array.from && Object.assign && window.WeakMap);
         if (!ok) { showBanner(); return; }
 
+        // 2.5) PROACTIVE old-WebView / old-Chrome detection. Show the banner
+        //      BEFORE the app crashes to a blank screen. Many budget Android
+        //      phones (Tecno, Infinix, itel) ship an outdated Android System
+        //      WebView that renders the app inside in-app browsers
+        //      (WhatsApp/Facebook). We parse the Chromium version from the UA
+        //      and warn when it's below our supported floor (Chrome 90+).
+        //      Only fires for Chromium-based engines we can version-parse, so
+        //      modern phones and non-Chromium browsers are never false-flagged.
+        try {
+          var ua = navigator.userAgent || '';
+          var MIN_CHROMIUM = 90;
+          var cm = ua.match(/Chrome\/(\d+)/);
+          if (cm) {
+            var chromeVer = parseInt(cm[1], 10);
+            // "; wv" marks an Android System WebView; also treat known in-app
+            // browsers (Facebook/Instagram) as WebView-class surfaces.
+            var isWebView = /; wv\)/.test(ua) || /\bFB_IAB\b|FBAN|FBAV|Instagram/.test(ua);
+            var isAndroid = /Android/.test(ua);
+            if (chromeVer && chromeVer < MIN_CHROMIUM && (isWebView || isAndroid)) {
+              showBanner();
+              return;
+            }
+          }
+        } catch (e) {}
+
         // 3) Hard-crash watchdog: if React never sets the ready flag, the app
         //    likely threw on old-engine JS. 18s is generous for slow 2G/3G so a
         //    healthy-but-slow load is not flagged.
