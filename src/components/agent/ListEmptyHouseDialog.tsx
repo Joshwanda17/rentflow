@@ -342,27 +342,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     return () => clearInterval(t);
   }, [open, listingBlock?.blocked]);
 
-  // Check house-listing eligibility whenever the dialog opens.
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setEligibilityChecking(true);
-    (async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any).rpc('get_agent_listing_eligibility');
-        if (cancelled) return;
-        if (error) setEligibility(null);
-        else setEligibility((data as ListingEligibility) ?? null);
-      } catch {
-        if (!cancelled) setEligibility(null);
-      } finally {
-        if (!cancelled) setEligibilityChecking(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [open]);
-
   // Promo banner mode: pre-apply empty-house defaults and show campaign badge.
   useEffect(() => {
     if (open && fromPromoBanner) {
