@@ -544,6 +544,7 @@ export default function WithdrawFlow({
           p_bank_account_number: payoutMode === 'bank_transfer' ? bankAccountNumber.trim() : null,
           p_bank_account_name: payoutMode === 'bank_transfer' ? bankAccountName.trim() : null,
           p_client_request_id: clientRequestIdRef.current,
+          p_reason: effectiveReason || null,
         },
       );
 
