@@ -2246,15 +2246,17 @@ Deno.serve(async (req) => {
         }
       }
 
+      const customerFirstName = (profile?.full_name || "").toString().trim().split(/\s+/)[0] || "Customer";
       const smsMsg =
-        `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
-        `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
+        `WELILE: Withdrawal Successful. Dear ${customerFirstName}, your cash withdrawal of ` +
+        `UGX ${amount.toLocaleString()} has been completed successfully.\n` +
+        `Transaction ID: ${refUpper}.` +
         `${bankLine}` +
         `${merchantLine}` +
         `${balanceLine}` +
-        `\n\nView your proof-of-payment receipt:\n` +
-        `https://welilereceipts.com/receipt/${withdrawal_id}` +
-        `\n\nNeed help? Call or WhatsApp: +256777607640`;
+        `\n\nYour digital receipt is ready (no sign-in required):\n` +
+        `${receiptUrl}` +
+        `\n\nThank you for choosing Welile Technologies Ltd. Help: +256777607640`;
 
       // In-app notification center entry so the user sees the approval update
       // (merchant agent name + remaining wallet balance) without relying on SMS.
