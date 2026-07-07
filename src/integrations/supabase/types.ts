@@ -7671,6 +7671,7 @@ export type Database = {
             | null
           source_id: string | null
           source_table: string
+          sub_category: string | null
           transaction_date: string
           transaction_group_id: string | null
           user_id: string | null
@@ -7699,6 +7700,7 @@ export type Database = {
             | null
           source_id?: string | null
           source_table: string
+          sub_category?: string | null
           transaction_date?: string
           transaction_group_id?: string | null
           user_id?: string | null
@@ -7727,6 +7729,7 @@ export type Database = {
             | null
           source_id?: string | null
           source_table?: string
+          sub_category?: string | null
           transaction_date?: string
           transaction_group_id?: string | null
           user_id?: string | null
@@ -20011,6 +20014,21 @@ export type Database = {
           territory: string | null
           total_capability_count: number | null
           verified: boolean | null
+        }
+        Relationships: []
+      }
+      wallet_pivot_drift_view: {
+        Row: {
+          advance_drift: number | null
+          cache_advance: number | null
+          cache_float: number | null
+          cache_withdrawable: number | null
+          float_drift: number | null
+          pivot_advance: number | null
+          pivot_float: number | null
+          pivot_withdrawable: number | null
+          user_id: string | null
+          withdrawable_drift: number | null
         }
         Relationships: []
       }
