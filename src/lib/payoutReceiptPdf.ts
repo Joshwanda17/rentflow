@@ -106,7 +106,7 @@ export async function downloadPayoutReceiptPdf(data: PayoutReceiptData) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.text('STATUS : COMPLETED', cardX + cardW / 2, pillY + pillH + 34, { align: 'center' });
-  y += 12 + pillH + 44;
+  y += 138; // clear the 108pt header band + margin (matches original layout)
 
   doc.setTextColor(17, 24, 39);
   doc.setFont('helvetica', 'bold');
