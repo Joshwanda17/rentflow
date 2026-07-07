@@ -435,6 +435,17 @@ export function AgentCashPayoutsTab() {
     }
   };
 
+  // Frozen accounts must never appear in the payout queue. Fetched once and
+  // reused by the counts, page, and available-total queries so a freeze makes
+  // the withdrawal disappear everywhere at once.
+  const { data: frozenUserIds = [] } = useQuery({
+    queryKey: ['cashout-frozen-user-ids'],
+    queryFn: resolveFrozenUserIds,
+    enabled: !!isCashoutAgent,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
   // Requests this agent has claimed and still needs to confirm. Kept as its own
   // (small) query so it is never affected by the queue's filters or pagination.
   const { data: myActiveClaims = [] } = useQuery({
