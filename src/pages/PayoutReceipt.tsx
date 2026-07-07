@@ -195,7 +195,6 @@ export default function PayoutReceipt() {
       line('Merchant Agent', data.processor_name);
       line('Merchant Branch', data.merchant_branch);
       line('Date & Time', dateStr);
-      if (data.commission != null) line('Commission', formatUGX(Number(data.commission)));
 
       y += 22;
 
