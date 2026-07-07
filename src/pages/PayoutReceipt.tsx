@@ -5,10 +5,8 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { QRCodeCanvas } from 'qrcode.react';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
-import {
-  Loader2, CheckCircle2, ShieldCheck, Building2, Smartphone, Banknote,
-  AlertTriangle, Clock, User, Phone, Hash, Download, Store,
-} from 'lucide-react';
+import { Loader2, AlertTriangle, Clock, Download, ScanLine } from 'lucide-react';
+import welileMark from '@/assets/welile-mark-white.png';
 
 interface ReceiptData {
   paid: boolean;
@@ -109,7 +107,6 @@ export default function PayoutReceipt() {
   const pm = (data.payout_method || '').toLowerCase();
   const isBank = pm.includes('bank');
   const isMoMo = pm.includes('momo') || pm.includes('mobile') || pm.includes('mtn') || pm.includes('airtel');
-  const MethodIcon = isBank ? Building2 : isMoMo ? Smartphone : Banknote;
   const methodLabel = isBank ? 'Bank Transfer' : isMoMo ? 'Mobile Money' : 'Cash';
 
   const paidAt = data.processed_at ? new Date(data.processed_at) : null;
@@ -120,13 +117,11 @@ export default function PayoutReceipt() {
       })
     : '—';
 
-  const Row = ({ icon, label, value, mono }: { icon?: React.ReactNode; label: string; value?: string | null; mono?: boolean }) =>
+  const Row = ({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) =>
     value ? (
-      <div className="flex items-start justify-between gap-3 py-2.5">
-        <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5 shrink-0">
-          {icon}{label}
-        </span>
-        <span className={`text-sm font-semibold text-right break-words ${mono ? 'font-mono tracking-wide' : ''}`}>{value}</span>
+      <div className="flex items-start justify-between gap-3 py-3">
+        <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+        <span className={`text-sm font-semibold text-right break-words text-foreground ${mono ? 'font-mono tracking-wide' : ''}`}>{value}</span>
       </div>
     ) : null;
 
@@ -141,18 +136,29 @@ export default function PayoutReceipt() {
 
       // Brand header band
       doc.setFillColor(124, 58, 237); // welile purple
-      doc.roundedRect(cardX, y, cardW, 88, 10, 10, 'F');
+      doc.roundedRect(cardX, y, cardW, 108, 10, 10, 'F');
       doc.setTextColor(255, 255, 255);
+      // W mark (best-effort — skip silently if it can't be loaded)
+      try {
+        const markImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const im = new Image();
+          im.onload = () => resolve(im);
+          im.onerror = reject;
+          im.src = welileMark;
+        });
+        const ms = 34;
+        doc.addImage(markImg, 'PNG', cardX + cardW / 2 - ms / 2, y + 12, ms, ms);
+      } catch { /* mark optional */ }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
-      doc.text('WELILE TECHNOLOGIES LTD', cardX + cardW / 2, y + 30, { align: 'center' });
+      doc.text('WELILE TECHNOLOGIES LTD', cardX + cardW / 2, y + 62, { align: 'center' });
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
-      doc.text('Digital Transaction Receipt', cardX + cardW / 2, y + 50, { align: 'center' });
+      doc.text('Digital Transaction Receipt', cardX + cardW / 2, y + 80, { align: 'center' });
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.text('STATUS: COMPLETED', cardX + cardW / 2, y + 72, { align: 'center' });
-      y += 118;
+      doc.setFontSize(12);
+      doc.text('STATUS : COMPLETED', cardX + cardW / 2, y + 98, { align: 'center' });
+      y += 138;
 
       // Amount
       doc.setTextColor(17, 24, 39);
@@ -228,86 +234,88 @@ export default function PayoutReceipt() {
   return (
     <div className="min-h-screen bg-muted/30 py-8 px-4 flex justify-center">
       <div className="w-full max-w-md">
-        <div className="bg-card rounded-3xl shadow-xl overflow-hidden border border-border">
+        <div className="bg-card rounded-[28px] shadow-xl overflow-hidden border border-border">
           {/* Header */}
-          <div className="bg-primary text-primary-foreground px-6 pt-6 pb-8 text-center">
-            <p className="text-sm font-extrabold tracking-widest mb-1">WELILE TECHNOLOGIES LTD</p>
-            <p className="text-[11px] opacity-80 mb-4">Digital Transaction Receipt</p>
-            <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-primary-foreground/15 mb-3">
-              <CheckCircle2 className="h-8 w-8" />
+          <div className="bg-primary text-primary-foreground px-6 pt-8 pb-7 text-center">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <img src={welileMark} alt="Welile" width={44} height={44} className="h-10 w-auto" />
+              <div className="text-left leading-none">
+                <p className="text-3xl font-extrabold tracking-tight">WELILE</p>
+                <p className="text-[11px] font-semibold tracking-[0.18em] opacity-90 mt-1">TECHNOLOGIES LTD</p>
+              </div>
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/25 px-3 py-1 text-xs font-bold tracking-wide">
-              <ShieldCheck className="h-3.5 w-3.5" /> COMPLETED
-            </div>
-            <p className="text-4xl font-extrabold tabular-nums mt-3">{formatUGX(data.amount || 0)}</p>
-            <div className="inline-flex items-center gap-1.5 mt-3 rounded-full bg-primary-foreground/15 px-3 py-1 text-xs font-semibold">
-              <MethodIcon className="h-3.5 w-3.5" /> {data.transaction_type || 'Cash Withdrawal'} • {methodLabel}
-            </div>
+            <p className="text-[15px] opacity-90">Digital Transaction Receipt</p>
+            <p className="text-sm font-bold tracking-wide mt-2">STATUS : COMPLETED</p>
           </div>
 
           {/* Body */}
-          <div className="px-6 py-5">
-            <div className="divide-y divide-border">
-              <Row icon={<Hash className="h-4 w-4" />} label="Reference" value={data.receipt_number} mono />
-              <Row icon={<Hash className="h-4 w-4" />} label="Transaction ID (TID)" value={data.reference} mono />
-              <Row icon={<User className="h-4 w-4" />} label="Customer" value={data.recipient_name} />
+          <div className="px-6 py-6">
+            {/* Amount */}
+            <div className="text-center pb-5">
+              <p className="text-4xl font-extrabold tabular-nums text-foreground">{formatUGX(data.amount || 0)}</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {data.transaction_type || 'Cash Withdrawal'} • {methodLabel}
+              </p>
+            </div>
+
+            <div className="divide-y divide-border border-t border-border">
+              <Row label="Transaction Reference" value={data.receipt_number} mono />
+              <Row label="Transaction ID (TID)" value={data.reference} mono />
+              <Row label="Customer" value={data.recipient_name} />
 
               {isBank && (
                 <>
                   <Row label="Bank" value={data.bank_name} />
-                  <Row icon={<Hash className="h-4 w-4" />} label="Account number" value={data.bank_account_number} mono />
-                  <Row label="Account name" value={data.bank_account_name} />
+                  <Row label="Account Number" value={data.bank_account_number} mono />
+                  <Row label="Account Name" value={data.bank_account_name} />
                 </>
               )}
 
               {isMoMo && (
                 <>
                   {data.mobile_money_provider && <Row label="Provider" value={data.mobile_money_provider} />}
-                  <Row icon={<Phone className="h-4 w-4" />} label="Phone number" value={data.mobile_money_number} mono />
-                  <Row label="Registered name" value={data.mobile_money_name} />
+                  <Row label="Phone Number" value={data.mobile_money_number} mono />
+                  <Row label="Registered Name" value={data.mobile_money_name} />
                 </>
               )}
 
-              <Row icon={<User className="h-4 w-4" />} label="Merchant agent" value={data.processor_name} />
-              <Row icon={<Store className="h-4 w-4" />} label="Merchant branch" value={data.merchant_branch} />
-              <Row icon={<Phone className="h-4 w-4" />} label="Agent contact" value={data.processor_phone} mono />
-              <Row icon={<Clock className="h-4 w-4" />} label="Date & time" value={dateStr} />
+              <Row label="Merchant Agent" value={data.processor_name} />
+              <Row label="Merchant Branch" value={data.merchant_branch} />
+              <Row label="Date & Time" value={dateStr} />
             </div>
 
             {/* QR code */}
-            <div className="mt-5 flex flex-col items-center gap-2">
+            <div className="mt-6 flex flex-col items-center gap-2">
               <div className="rounded-xl bg-white p-3 border border-border">
-                <QRCodeCanvas value={publicUrl} size={128} includeMargin={false} />
+                <QRCodeCanvas value={publicUrl} size={150} includeMargin={false} />
               </div>
-              <p className="text-[11px] text-muted-foreground">Scan to verify this receipt</p>
+              <p className="text-xs text-primary font-medium inline-flex items-center gap-1.5">
+                <ScanLine className="h-3.5 w-3.5" /> Scan to verify this receipt
+              </p>
             </div>
 
-            {/* Download */}
-            <button
-              onClick={downloadPdf}
-              disabled={downloading}
-              className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-3 text-sm font-semibold disabled:opacity-60"
-            >
-              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              {downloading ? 'Preparing PDF…' : 'Download PDF receipt'}
-            </button>
-
-            {/* Verified footer */}
-            <div className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 text-emerald-700 dark:text-emerald-400">
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <span className="text-xs font-semibold text-center">
-                Verified proof of payment • Generated electronically • No signature required
-              </span>
+            {/* Footer */}
+            <div className="mt-6 text-center">
+              <p className="text-sm font-bold text-foreground">Powered by Welile Receipts</p>
+              <p className="text-[12px] text-muted-foreground mt-1">
+                This receipt was generated electronically. No signature is required.
+              </p>
+              <p className="text-[12px] text-muted-foreground mt-1">
+                Verify at <span className="text-primary font-semibold">welilereceipts.com</span>
+              </p>
             </div>
-
-            <p className="text-center text-[11px] text-muted-foreground mt-4">
-              Powered by Welile Receipts · Verify at welilereceipts.com
-            </p>
-            <p className="text-center text-[11px] text-muted-foreground mt-1">
-              Need help? Call or WhatsApp +256 777 607640
-            </p>
           </div>
         </div>
+
+        {/* Download (functional action, outside the receipt card) */}
+        <button
+          onClick={downloadPdf}
+          disabled={downloading}
+          className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-3 text-sm font-semibold disabled:opacity-60"
+        >
+          {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {downloading ? 'Preparing PDF…' : 'Download PDF receipt'}
+        </button>
       </div>
     </div>
   );
