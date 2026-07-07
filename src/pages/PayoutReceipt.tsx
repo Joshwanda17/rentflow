@@ -49,6 +49,13 @@ export default function PayoutReceipt() {
   // Canonical QR value for this receipt — the public URL plus an authenticity
   // checksum, used by both the on-screen QR and the PDF.
   const qrValue = data ? receiptQrValue(data) : '';
+  // When the receipt is opened from a scanned QR/URL that carries a `c=` code,
+  // recompute the checksum from the server-loaded receipt and confirm it matches.
+  const providedChecksum =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('c')
+      : null;
+  const checksumVerified = data ? verifyReceiptChecksum(data, providedChecksum) : false;
 
   if (loading) {
     return (
