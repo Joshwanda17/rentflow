@@ -16,6 +16,7 @@ interface Props {
   wallet_url?: string
   receipt_url?: string | null
   copy_for?: string | null
+  commission_earned?: string | number | null
 }
 
 const fmt = (a: string | number | undefined | null, c: string) => {
@@ -38,11 +39,13 @@ export function WithdrawalPaidReceipt({
   wallet_url = 'https://welilereceipts.com/ZQhyGb',
   receipt_url = null,
   copy_for = null,
+  commission_earned = null,
 }: Props) {
   const amt = fmt(amount, currency)
   const hasBalance = new_balance !== null && new_balance !== undefined && new_balance !== ''
   const hasReceipt = !!receipt_url
   const isCopy = !!copy_for
+  const hasCommission = commission_earned !== null && commission_earned !== undefined && commission_earned !== ''
   return (
     <Html lang="en" dir="ltr">
       <Head />
@@ -75,6 +78,7 @@ export function WithdrawalPaidReceipt({
               {proof_reference ? <Row label={proof_label} value={proof_reference} mono /> : null}
               <Row label="Date" value={date} />
               {hasBalance && !isCopy ? <Row label="New wallet balance" value={fmt(new_balance as any, currency)} /> : null}
+              {hasCommission ? <Row label="Commission earned" value={fmt(commission_earned as any, currency)} /> : null}
             </Section>
           </Section>
           <Section style={{ padding: '24px 32px 8px 32px', textAlign: 'center' as const }}>

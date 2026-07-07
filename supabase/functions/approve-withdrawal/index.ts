@@ -2528,6 +2528,9 @@ Deno.serve(async (req) => {
             receiptUrl,
             copyFor: rec.role,
             idempotencySuffix: key.replace(/[^a-z0-9]/g, "").slice(0, 40),
+          // Only the processing merchant agent's own copy shows the commission
+          // they earned (kept hidden from the customer & other parties).
+          commissionEarned: rec.role === "Merchant Agent" ? cashoutCommission : null,
           });
           dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
         }
