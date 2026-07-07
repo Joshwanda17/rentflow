@@ -330,6 +330,55 @@ export function MerchandiseManager() {
         <KPICard title="Total Accounts Receivable" value={formatUGX(totals.outstanding)} icon={Users} color="bg-amber-500/10 text-amber-600" />
       </div>
 
+      {/* Wallet-recovery KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <KPICard title="Recovered to Date" value={formatUGX(recovery.recoveredToDate)} icon={CircleDollarSign} loading={loadingRecovery} color="bg-emerald-500/10 text-emerald-600" subtitle="Via daily wallet deductions" />
+        <KPICard title="Customers Repaying" value={recovery.count.toLocaleString()} icon={Repeat} loading={loadingRecovery} color="bg-purple-500/10 text-purple-600" subtitle="Active recovery plans" />
+        <KPICard title="Remaining to Recover" value={formatUGX(recovery.remaining)} icon={HandCoins} loading={loadingRecovery} color="bg-amber-500/10 text-amber-600" />
+        <KPICard title="Fully Paid Accounts" value={recovery.completed.length.toLocaleString()} icon={CheckCircle2} loading={loadingRecovery} color="bg-green-500/10 text-green-600" />
+      </div>
+
+      {/* Merchandise wallet recovery */}
+      <Section title="Merchandise Wallet Recovery (Daily 15%)" icon={Repeat}>
+        {recoveryPlans.length === 0 ? (
+          <EmptyRow text="No wallet-recovery plans yet. Credit sales to registered customers are recovered automatically." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3">Customer</th>
+                  <th className="py-2 px-3">Item</th>
+                  <th className="py-2 px-3 text-right">Original</th>
+                  <th className="py-2 px-3 text-right">Recovered</th>
+                  <th className="py-2 px-3 text-right">Remaining</th>
+                  <th className="py-2 px-3">Last Recovery</th>
+                  <th className="py-2 pl-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recoveryPlans.map((p) => (
+                  <tr key={p.id} className="border-b border-border/40">
+                    <td className="py-2 pr-3">
+                      <div className="font-medium">{p.customer_name || 'Customer'}</div>
+                      <div className="text-[11px] text-muted-foreground">{p.customer_phone || '—'}</div>
+                    </td>
+                    <td className="py-2 px-3">{p.item_name}</td>
+                    <td className="py-2 px-3 text-right">{formatUGX(Number(p.original_amount))}</td>
+                    <td className="py-2 px-3 text-right text-emerald-600">{formatUGX(Number(p.amount_recovered))}</td>
+                    <td className="py-2 px-3 text-right font-semibold text-amber-600">{formatUGX(Number(p.outstanding_balance))}</td>
+                    <td className="py-2 px-3 whitespace-nowrap text-muted-foreground">
+                      {p.last_recovery_at ? format(new Date(p.last_recovery_at), 'dd MMM yy') : '—'}
+                    </td>
+                    <td className="py-2 pl-3"><RecoveryBadge status={p.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
       {/* Inventory by item */}
       <Section title="Inventory by Item" icon={Boxes}>
         {inventoryByItem.length === 0 ? (
