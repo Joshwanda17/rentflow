@@ -1338,43 +1338,36 @@ export function ProxyPartnerFunds() {
     if (revertReason.trim().length < 10) return;
     setReverting(true);
     try {
-      // Move the card off the ready-to-withdraw queue back into a
-      // nearing-payout (accruing) state by recording a dismissal snapshot.
-      const { error } = await supabase
-        .from('agent_proxy_card_dismissals')
-        .upsert(
-          {
-            agent_id: user.id,
-            partner_id: revertTarget.partnerId,
-            portfolio_id: revertTarget.portfolioId,
-            snapshot_amount: revertTarget.available,
-            reason: revertReason.trim(),
-          },
-          { onConflict: 'agent_id,partner_id,portfolio_id' },
-        );
-      if (error) throw error;
+      // Collect the CFO-approved ROI approvals backing THIS card
+      // (partner + portfolio) that are not yet settled by a delivered payout.
+      const approvalIds = approvedOps
+        .filter((op) => {
+          if (op.source_id !== revertTarget.portfolioId) return false;
+          const investor = op.source_id ? portfolioMap[op.source_id]?.investor_id : null;
+          if (investor !== revertTarget.partnerId) return false;
+          const settled = settledByApproval[op.id] || 0;
+          return settled <= 0;
+        })
+        .map((op) => op.id);
 
-      // Mandatory audit trail for the reversal.
-      try {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          action_type: 'agent_proxy_revert_to_nearing_payout',
-          table_name: 'agent_proxy_card_dismissals',
-          record_id: revertTarget.portfolioId,
-          metadata: {
-            partner_id: revertTarget.partnerId,
-            partner_name: revertTarget.partnerName,
-            portfolio_id: revertTarget.portfolioId,
-            snapshot_amount: revertTarget.available,
-            reason: revertReason.trim(),
-          },
-        });
-      } catch (e) {
-        console.warn('audit log failed', e);
+      if (approvalIds.length === 0) {
+        throw new Error('No reversible ROI approvals found for this partner.');
+      }
+
+      const { data, error } = await supabase.functions.invoke('reverse-proxy-roi-approval', {
+        body: { approval_ids: approvalIds, reason: revertReason.trim() },
+      });
+      if (error) throw new Error(error.message || 'Reversal failed');
+      if (data?.error) throw new Error(data.error);
+
+      const count = Number(data?.reversed_count || 0);
+      if (count === 0) {
+        const why = (data?.skipped || []).map((s: any) => s.reason).join('; ');
+        throw new Error(why || 'Nothing was reversed.');
       }
 
       toast.success('Sent back to nearing payout', {
-        description: `${revertTarget.partnerName} has been moved back to the nearing payout list. Reason recorded for audit.`,
+        description: `${revertTarget.partnerName}'s ROI approval was reversed and the partner returned to the COO Nearing Payout list. Reason recorded for audit.`,
       });
       setRevertOpen(false);
       setRevertTarget(null);
@@ -1988,9 +1981,12 @@ export function ProxyPartnerFunds() {
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
-                  This moves <strong>{revertTarget?.partnerName}</strong> back to the
-                  nearing payout list and removes the card from your ready-to-withdraw
-                  queue. No financial records are deleted. A reason is required for auditing.
+                  This <strong>reverses the CFO-approved ROI</strong> for{' '}
+                  <strong>{revertTarget?.partnerName}</strong>: the credited funds are
+                  pulled back with a balanced ledger reversal, the card leaves your
+                  ready-to-withdraw queue, and the partner returns to the COO
+                  Nearing Payout list. Already-delivered payouts cannot be reversed.
+                  A reason is required for auditing.
                 </p>
                 <div>
                   <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
