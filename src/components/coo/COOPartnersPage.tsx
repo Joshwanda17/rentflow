@@ -883,6 +883,67 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
+
+      // ── Mark portfolios already handled THIS cycle so they drop off the list ──
+      // A portfolio is "processed" if a ledger credit exists for its cycle key
+      // (roi-cycle-<portfolioId>-<cycleAnchor>) OR an ROI payout is still open in
+      // the approval queue. Either way it must NOT be payable again — this is the
+      // primary defence against duplicate / double ROI credits.
+      try {
+        const cycleKeyToPortfolio = new Map<string, string>();
+        for (const n of nearingList) {
+          const anchor = n.nextRoiDate || new Date().toISOString().slice(0, 10);
+          cycleKeyToPortfolio.set(`roi-cycle-${n.portfolioId}-${anchor}`, n.portfolioId);
+        }
+        const portfolioIds = nearingList.map(n => n.portfolioId);
+        const cycleKeys = Array.from(cycleKeyToPortfolio.keys());
+        const creditedPortfolioIds = new Set<string>();
+        const pendingPortfolioIds = new Set<string>();
+
+        const chunk = <T,>(arr: T[], size: number) => {
+          const out: T[][] = [];
+          for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+          return out;
+        };
+
+        await Promise.all([
+          ...chunk(cycleKeys, 200).map(async (batch) => {
+            const { data } = await supabase
+              .from('general_ledger')
+              .select('idempotency_key')
+              .in('idempotency_key', batch);
+            for (const r of (data as any[]) || []) {
+              const pid = cycleKeyToPortfolio.get(r.idempotency_key);
+              if (pid) creditedPortfolioIds.add(pid);
+            }
+          }),
+          ...chunk(portfolioIds, 200).map(async (batch) => {
+            const { data } = await supabase
+              .from('pending_wallet_operations')
+              .select('source_id')
+              .eq('source_table', 'investor_portfolios')
+              .eq('category', 'roi_payout')
+              .in('source_id', batch)
+              .in('status', ['pending', 'pending_coo_approval', 'coo_approved', 'awaiting_verification']);
+            for (const r of (data as any[]) || []) {
+              if (r.source_id) pendingPortfolioIds.add(r.source_id);
+            }
+          }),
+        ]);
+
+        for (const n of nearingList) {
+          if (creditedPortfolioIds.has(n.portfolioId)) {
+            n.alreadyProcessedThisCycle = true;
+            n.processedState = 'credited';
+          } else if (pendingPortfolioIds.has(n.portfolioId)) {
+            n.alreadyProcessedThisCycle = true;
+            n.processedState = 'pending';
+          }
+        }
+      } catch (e) {
+        console.error('[NearingPayout] cycle-processed lookup failed:', e);
+      }
+
       if (import.meta.env.DEV) {
         const dueCount = nearingList.filter(n => n.dueToday).length;
         // eslint-disable-next-line no-console
