@@ -302,6 +302,8 @@ export interface WithdrawalPaidReceiptInput {
   proofReference: string;
   /** Post-debit withdrawable balance; null when it could not be resolved. */
   newBalance?: number | null;
+  /** Public proof-of-payment receipt link (same one sent by SMS/WhatsApp). */
+  receiptUrl?: string | null;
 }
 
 /**
@@ -331,6 +333,7 @@ export function buildWithdrawalPaidReceiptRequest(input: WithdrawalPaidReceiptIn
         year: "numeric",
       }),
       wallet_url: DASHBOARD_URL,
+      receipt_url: input.receiptUrl || null,
       unsubscribe_url: UNSUBSCRIBE_URL,
       contact_url: CONTACT_URL,
     },
