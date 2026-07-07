@@ -102,6 +102,12 @@ interface QueueFilterOpts {
   channel: 'all' | 'momo' | 'cash' | 'bank';
   searchUserIds: string[] | null;
   searchTerm: string;
+  /**
+   * PostgREST `.or()` clause restricting the queue to only the payout
+   * categories this Cash-Out Agent is authorized to process. `null` = no
+   * restriction (authorized for everything, or matrix not loaded yet).
+   */
+  categoryOrClause: string | null;
 }
 
 /**
@@ -115,6 +121,10 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
   // Available = unclaimed OR a claim that has expired (>15 min). Excludes rows
   // currently claimed by anyone (including me — those live in "Claimed by you").
   q = q.or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${o.cutoffIso}`);
+
+  // Authorized payout categories (CFO permission matrix). Only surface rows in
+  // the categories mapped to this agent.
+  if (o.categoryOrClause) q = q.or(o.categoryOrClause);
 
   // Landlord float payout vs standard payout.
   if (o.status === 'landlord') {
