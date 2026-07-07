@@ -160,14 +160,64 @@
     <script>
       (function () {
         var DISMISS_KEY = 'welile-outdated-dismissed';
+        var CHOICE_KEY = 'welile-outdated-choices';
         var shown = false;
         function dismissed() {
           try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch (e) { return false; }
+        }
+        // Queue the user's banner interaction in localStorage. The app bundle
+        // drains this into browser_compat_events once it boots (the banner runs
+        // before the bundle and can't reach the backend itself).
+        function recordChoice(choice) {
+          try {
+            var raw = null;
+            try { raw = localStorage.getItem(CHOICE_KEY); } catch (e) {}
+            var arr = [];
+            if (raw) { try { arr = JSON.parse(raw) || []; } catch (e) { arr = []; } }
+            if (!arr || typeof arr.length !== 'number') arr = [];
+            arr.push({ choice: choice, ts: new Date().toISOString(), ua: navigator.userAgent || null });
+            if (arr.length > 20) arr = arr.slice(arr.length - 20);
+            try { localStorage.setItem(CHOICE_KEY, JSON.stringify(arr)); } catch (e) {}
+            try { window.__welileBannerChoice = choice; } catch (e) {}
+          } catch (e) {}
+        }
+        // Try to reopen the current page in real Chrome. On Android in-app
+        // browsers this uses an intent:// URL; on iOS the googlechrome:// scheme.
+        // Falls back to the store listing when neither is available.
+        function openInChrome() {
+          var ua = navigator.userAgent || '';
+          var href = window.location.href;
+          try {
+            if (/Android/.test(ua)) {
+              var noScheme = href.replace(/^https?:\/\//, '');
+              window.location.href =
+                'intent://' + noScheme + '#Intent;scheme=https;package=com.android.chrome;end';
+              return;
+            }
+            if (/iPhone|iPad|iPod/.test(ua)) {
+              window.location.href = href.replace(/^https?:\/\//, 'googlechrome://');
+              return;
+            }
+          } catch (e) {}
+          try {
+            window.open(
+              /iPhone|iPad|iPod/.test(ua)
+                ? 'https://apps.apple.com/app/id535886823'
+                : 'https://play.google.com/store/apps/details?id=com.android.chrome',
+              '_blank'
+            );
+          } catch (e) {}
         }
         function showBanner() {
           if (shown || dismissed()) return;
           if (document.getElementById('welile-outdated-banner')) return;
           shown = true;
+          recordChoice('shown');
+          var ua = navigator.userAgent || '';
+          var isIOS = /iPhone|iPad|iPod/.test(ua);
+          var isInApp =
+            /; wv\)/.test(ua) ||
+            /\bFB_IAB\b|FBAN|FBAV|Instagram|WhatsApp|Line|Twitter|MicroMessenger|GSA/.test(ua);
           var bar = document.createElement('div');
           bar.id = 'welile-outdated-banner';
           bar.setAttribute('role', 'alert');
@@ -178,10 +228,16 @@
             'display:flex;align-items:center;gap:10px;flex-wrap:wrap';
           var msg = document.createElement('div');
           msg.style.cssText = 'flex:1 1 220px;min-width:180px';
+          // Tailor the headline + the one concrete next step to the environment.
+          var headline = isInApp ? 'Open Welile in your browser' : 'Your browser is out of date';
+          var nextStep = isInApp
+            ? (isIOS
+                ? 'You\u2019re in an in-app browser (like WhatsApp). Tap the \u2022\u2022\u2022 menu and choose \u201cOpen in Safari\u201d, or tap <strong>Open in Chrome</strong> below.'
+                : 'You\u2019re in an in-app browser (like WhatsApp). Tap the \u22ee menu (top-right) and choose \u201cOpen in browser\u201d, or tap <strong>Open in Chrome</strong> below.')
+            : 'Welile may not load correctly. Tap <strong>Open in Chrome</strong>, update your browser, or tap Reload once updated.';
           msg.innerHTML =
-            '<strong style="display:block;font-weight:600">Your browser is out of date</strong>' +
-            '<span style="opacity:.92">Welile may not load correctly. Please update your browser or Android System WebView, ' +
-            'or open the app in the latest Chrome.</span>';
+            '<strong style="display:block;font-weight:600">' + headline + '</strong>' +
+            '<span style="opacity:.92">' + nextStep + '</span>';
           // Supported-browsers section: concrete minimum versions plus direct
           // one-tap update links for Chrome and Android System WebView.
           var supported = document.createElement('div');
@@ -200,14 +256,32 @@
             '<a href="https://apps.apple.com/app/id535886823" target="_blank" rel="noopener" ' +
             'style="color:#fff;font-weight:600;text-decoration:underline">Chrome for iOS</a></span>';
           var actions = document.createElement('div');
-          actions.style.cssText = 'display:flex;gap:8px;align-items:center';
+          actions.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+          // Primary CTA: Open in Chrome (the single clearest next step).
+          var openChrome = document.createElement('button');
+          openChrome.type = 'button';
+          openChrome.textContent = 'Open in Chrome';
+          openChrome.style.cssText =
+            'background:#fff;color:#5b21b6;border:0;border-radius:6px;padding:8px 12px;' +
+            'font-weight:700;font-size:13px;cursor:pointer;min-height:36px';
+          openChrome.onclick = function () { recordChoice('open_chrome'); openInChrome(); };
           var reload = document.createElement('button');
           reload.type = 'button';
           reload.textContent = 'Reload';
           reload.style.cssText =
-            'background:#fff;color:#5b21b6;border:0;border-radius:6px;padding:8px 12px;' +
-            'font-weight:600;font-size:13px;cursor:pointer;min-height:36px';
-          reload.onclick = function () { window.location.reload(); };
+            'background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.55);' +
+            'border-radius:6px;padding:8px 12px;font-weight:600;font-size:13px;cursor:pointer;min-height:36px';
+          reload.onclick = function () { recordChoice('reload'); window.location.reload(); };
+          // In-app browsers get an explicit "How to switch" helper toggle.
+          var howto = null;
+          if (isInApp) {
+            howto = document.createElement('button');
+            howto.type = 'button';
+            howto.textContent = 'How to switch';
+            howto.style.cssText =
+              'background:transparent;color:#fff;border:1px solid rgba(255,255,255,.55);' +
+              'border-radius:6px;padding:8px 12px;font-weight:600;font-size:13px;cursor:pointer;min-height:36px';
+          }
           var close = document.createElement('button');
           close.type = 'button';
           close.setAttribute('aria-label', 'Dismiss');
@@ -216,13 +290,39 @@
             'background:transparent;color:#fff;border:0;font-size:20px;line-height:1;' +
             'cursor:pointer;padding:4px 8px;min-height:36px';
           close.onclick = function () {
+            recordChoice('dismiss');
             try { localStorage.setItem(DISMISS_KEY, '1'); } catch (e) {}
             if (bar.parentNode) bar.parentNode.removeChild(bar);
           };
+          // Step-by-step "switch browser" instructions for in-app surfaces,
+          // hidden until the user taps "How to switch".
+          var steps = null;
+          if (isInApp) {
+            steps = document.createElement('div');
+            steps.style.cssText =
+              'flex:1 1 100%;margin-top:4px;padding-top:8px;border-top:1px solid rgba(255,255,255,.25);' +
+              'font-size:12px;line-height:1.6;opacity:.95;display:none';
+            steps.innerHTML = isIOS
+              ? '<strong style="display:block;font-weight:600;margin-bottom:2px">Switch to Safari or Chrome</strong>' +
+                '1. Tap the <strong>\u2022\u2022\u2022</strong> (or share) icon.<br>' +
+                '2. Choose <strong>Open in Safari</strong> or <strong>Open in Chrome</strong>.<br>' +
+                '3. Welile will load normally there.'
+              : '<strong style="display:block;font-weight:600;margin-bottom:2px">Switch to your browser</strong>' +
+                '1. Tap the <strong>\u22ee</strong> menu (top-right corner).<br>' +
+                '2. Choose <strong>Open in browser</strong> (or <strong>Open in Chrome</strong>).<br>' +
+                '3. Welile will load normally there.';
+            howto.onclick = function () {
+              recordChoice('switch_browser');
+              steps.style.display = steps.style.display === 'none' ? 'block' : 'none';
+            };
+          }
+          actions.appendChild(openChrome);
           actions.appendChild(reload);
+          if (howto) actions.appendChild(howto);
           actions.appendChild(close);
           bar.appendChild(msg);
           bar.appendChild(actions);
+          if (steps) bar.appendChild(steps);
           bar.appendChild(supported);
           (document.body || document.documentElement).appendChild(bar);
         }
