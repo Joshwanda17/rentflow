@@ -3,6 +3,56 @@ import QRCode from 'qrcode';
 import { formatUGX } from '@/lib/rentCalculations';
 import welileWordmark from '@/assets/welile-wordmark.png';
 import { assertReceiptContent } from '@/lib/receiptContentPolicy';
+import { stampDate } from '@/components/receipts/WelileStamp';
+
+/**
+ * Draws the Welile Technologies official e-stamp as a faint authenticity
+ * watermark centred on the receipt. Mirrors the on-screen WelileStamp: blue
+ * border, serif company name, red current date flanked by stars, PO Box line.
+ */
+function drawStampWatermark(doc: jsPDF, cx: number, cy: number) {
+  const BLUE: [number, number, number] = [17, 52, 166];
+  const RED: [number, number, number] = [229, 25, 33];
+  const boxW = 300;
+  const boxH = 132;
+  const boxX = cx - boxW / 2;
+  const boxY = cy - boxH / 2;
+
+  const GStateCtor = (doc as any).GState;
+  const hasGState = typeof GStateCtor === 'function';
+  if (hasGState) doc.setGState(new GStateCtor({ opacity: 0.14 }));
+
+  // Border
+  doc.setDrawColor(...BLUE);
+  doc.setLineWidth(3);
+  doc.roundedRect(boxX, boxY, boxW, boxH, 8, 8, 'S');
+
+  // Company name (serif, two lines)
+  doc.setTextColor(...BLUE);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(18);
+  doc.text('WELILE TECHNOLOGIES', cx, boxY + 34, { align: 'center' });
+  doc.text('LIMITED', cx, boxY + 54, { align: 'center' });
+
+  // Middle row: star — date — star
+  const midY = boxY + 88;
+  doc.setFontSize(22);
+  doc.text('*', boxX + 26, midY + 4, { align: 'center' });
+  doc.text('*', boxX + boxW - 26, midY + 4, { align: 'center' });
+  doc.setTextColor(...RED);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(24);
+  doc.text(stampDate(), cx, midY + 6, { align: 'center' });
+
+  // Address
+  doc.setTextColor(...BLUE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('PO Box 167564 Kampala Uganda', cx, boxY + boxH - 14, { align: 'center' });
+
+  // Reset opacity for anything drawn afterwards.
+  if (hasGState) doc.setGState(new GStateCtor({ opacity: 1 }));
+}
 
 /** Shape returned by get_payout_receipt / get_payout_receipt_by_token. */
 export interface PayoutReceiptData {
