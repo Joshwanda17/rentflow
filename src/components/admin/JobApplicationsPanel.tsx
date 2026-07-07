@@ -284,6 +284,8 @@ export default function JobApplicationsPanel() {
                     applicationId={a.id}
                     whatsappNumber={a.whatsapp_number}
                     email={a.email}
+                    applicantName={a.full_name}
+                    roleInterest={a.role_interest}
                     onFirstContact={() => { if (a.status === 'new') changeStatus(a.id, 'contacted'); }}
                   />
                 </div>
