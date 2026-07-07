@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import RegisterEmployeeDialog from '@/components/admin/RegisterEmployeeDialog';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
+import JobApplicationsPanel from '@/components/admin/JobApplicationsPanel';
 
 interface StaffUser {
   id: string;
@@ -202,6 +203,9 @@ export default function AdminUsersPage() {
 
       {/* Table */}
       <div className="px-4 py-4 print-area">
+        {/* Priority: incoming job applications */}
+        <JobApplicationsPanel />
+
         {/* Print-only header */}
         <div className="hidden print-header">
           <h1>Welile Technologies — Company Staff List</h1>
