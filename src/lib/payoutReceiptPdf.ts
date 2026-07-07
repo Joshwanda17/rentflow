@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { formatUGX } from '@/lib/rentCalculations';
 import welileMark from '@/assets/welile-mark-white.png';
+import { assertReceiptContent } from '@/lib/receiptContentPolicy';
 
 /** Shape returned by get_payout_receipt / get_payout_receipt_by_token. */
 export interface PayoutReceiptData {
@@ -48,6 +49,10 @@ export function receiptPublicUrl(data: PayoutReceiptData) {
  * printed — this is the customer receipt.
  */
 export async function downloadPayoutReceiptPdf(data: PayoutReceiptData) {
+  // Policy guard: this is the CUSTOMER receipt — it must never render the
+  // merchant agent's commission. We never draw a commission line below, so the
+  // rendered content carries no commission (false).
+  assertReceiptContent('customer', false);
   const { isBank, isMoMo, methodLabel } = receiptMethodLabel(data.payout_method);
   const publicUrl = receiptPublicUrl(data);
   const paidAt = data.processed_at ? new Date(data.processed_at) : null;
