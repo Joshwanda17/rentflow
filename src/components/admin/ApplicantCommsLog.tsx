@@ -21,11 +21,15 @@ interface Props {
   applicationId: string;
   whatsappNumber: string;
   email: string | null;
+  /** Applicant name, used to personalise the prefilled email. */
+  applicantName?: string;
+  /** Role the applicant is interested in, used in the email subject/body. */
+  roleInterest?: string | null;
   /** Called after the first contact is logged so the parent can bump status. */
   onFirstContact?: () => void;
 }
 
-export default function ApplicantCommsLog({ applicationId, whatsappNumber, email, onFirstContact }: Props) {
+export default function ApplicantCommsLog({ applicationId, whatsappNumber, email, applicantName, roleInterest, onFirstContact }: Props) {
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<CommEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -87,8 +91,25 @@ export default function ApplicantCommsLog({ applicationId, whatsappNumber, email
 
   const contactEmail = () => {
     if (!email) return;
-    window.location.href = `mailto:${email}?cc=info@welile.com`;
-    logComm('email', 'Opened email draft (cc info@welile.com)');
+    const name = (applicantName || '').trim().split(' ')[0] || 'there';
+    const role = (roleInterest || '').trim();
+    const subject = role
+      ? `Your Welile application — ${role}`
+      : 'Your Welile job application';
+    const body =
+      `Hi ${name},\n\n` +
+      `Thank you for applying to join the Welile team${role ? ` for the ${role} role` : ''}. ` +
+      `We've reviewed your application and would love to talk with you about the next steps.\n\n` +
+      `Please reply to this email or let us know a good time to reach you on WhatsApp.\n\n` +
+      `Warm regards,\n` +
+      `The Welile Hiring Team\n` +
+      `info@welile.com`;
+    const href =
+      `mailto:${email}?cc=info@welile.com` +
+      `&subject=${encodeURIComponent(subject)}` +
+      `&body=${encodeURIComponent(body)}`;
+    window.location.href = href;
+    logComm('email', `Opened prefilled hiring email (cc info@welile.com) — subject: ${subject}`);
   };
 
   const addNote = async (channel: 'whatsapp' | 'email') => {
