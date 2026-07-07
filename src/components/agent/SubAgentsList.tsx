@@ -34,6 +34,7 @@ import {
   X,
   Mail,
   UserMinus,
+  Info,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
