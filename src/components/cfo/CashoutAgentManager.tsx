@@ -545,6 +545,32 @@ export function CashoutAgentManager() {
     });
   }, [agents, search, methodFilter, statusFilter, agentStats]);
 
+  // Fleet-wide duplicate detector — flags, per agent, any beneficiary+amount
+  // paid more than once. Drives the "duplicates" badge on each agent card so
+  // mistakes surface at a glance without opening the drill-down.
+  const duplicateByAgent = useMemo(() => {
+    const perAgent = new Map<string, Map<string, number>>();
+    for (const py of payouts as any[]) {
+      const agentId = py.assigned_cashout_agent_id;
+      if (!agentId) continue;
+      const who = String(
+        py.mobile_money_number || py.beneficiary_phone ||
+        py.mobile_money_name || py.beneficiary_name || py.user_id || 'unknown',
+      ).trim().toLowerCase();
+      const key = `${who}|${Number(py.amount || 0)}`;
+      const m = perAgent.get(agentId) || new Map<string, number>();
+      m.set(key, (m.get(key) || 0) + 1);
+      perAgent.set(agentId, m);
+    }
+    const result = new Map<string, number>();
+    for (const [agentId, m] of perAgent) {
+      let groups = 0;
+      for (const n of m.values()) if (n > 1) groups += 1;
+      if (groups > 0) result.set(agentId, groups);
+    }
+    return result;
+  }, [payouts]);
+
   const selectedAgentPayouts = useMemo(() => {
     if (!selectedAgent) return [];
     return payouts.filter((p: any) => p.assigned_cashout_agent_id === selectedAgent.id);
