@@ -491,6 +491,29 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
           </div>
         </div>
 
+        {/* Expired-invite explainer — prevents the "my sub-agents keep
+            disappearing" confusion. Expired = an invite that was never
+            accepted; the person was never an active sub-agent and nothing
+            was lost. They can be recovered with a single Resend. */}
+        {expiredCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter('expired')}
+            className="w-full text-left flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3"
+          >
+            <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-amber-700">
+                {expiredCount} invite{expiredCount === 1 ? '' : 's'} expired before being accepted
+              </p>
+              <p className="text-[11px] text-amber-700/80 leading-snug mt-0.5">
+                These were never active sub-agents — nothing was removed from your team.
+                An invite expires if it isn't accepted within 7 days. Tap here to view them and Resend to recover.
+              </p>
+            </div>
+          </button>
+        )}
+
         {/* Date Range Filter */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
