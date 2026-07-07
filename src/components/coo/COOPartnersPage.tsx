@@ -4331,6 +4331,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [selectedPayout, setSelectedPayout] = useState<NearingPayoutPortfolio | null>(null);
   const [paymentStep, setPaymentStep] = useState<'list' | 'payment-options' | 'split-config'>('list');
   const [checkingManagedStep2, setCheckingManagedStep2] = useState(false);
+  // Hide anyone whose ROI is already credited / pending this cycle so they can't
+  // be paid twice. Off by default; a toggle reveals them (read-only, no Pay btn).
+  const [showProcessed, setShowProcessed] = useState(false);
 
   // Split payout state
   const [splitCashAmount, setSplitCashAmount] = useState(0);
