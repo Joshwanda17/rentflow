@@ -550,6 +550,37 @@ export function CashoutAgentManager() {
     return payouts.filter((p: any) => p.assigned_cashout_agent_id === selectedAgent.id);
   }, [selectedAgent, payouts]);
 
+  // ---- Duplicate / repeat-payout detector (per merchant agent) ----
+  // Flags payouts this agent sent to the SAME beneficiary for the SAME amount.
+  // This is the exact fingerprint of the double-payout mistakes we want to catch
+  // (e.g. a customer owed 150K getting paid twice). Grouped by beneficiary
+  // identity (phone → name fallback) + amount; any group of 2+ is suspicious.
+  const duplicatePayouts = useMemo(() => {
+    const groups = new Map<string, any[]>();
+    for (const py of selectedAgentPayouts) {
+      const who = String(
+        py.mobile_money_number || py.beneficiary_phone ||
+        py.mobile_money_name || py.beneficiary_name || py.user_id || 'unknown',
+      ).trim().toLowerCase();
+      const key = `${who}|${Number(py.amount || 0)}`;
+      const arr = groups.get(key) || [];
+      arr.push(py);
+      groups.set(key, arr);
+    }
+    const flaggedIds = new Set<string>();
+    let excess = 0;
+    let groupCount = 0;
+    for (const arr of groups.values()) {
+      if (arr.length > 1) {
+        groupCount += 1;
+        // Every payout beyond the first in the group is a suspected duplicate.
+        excess += Number(arr[0].amount || 0) * (arr.length - 1);
+        for (const py of arr) flaggedIds.add(String(py.id));
+      }
+    }
+    return { flaggedIds, excess, groupCount };
+  }, [selectedAgentPayouts]);
+
   // Latest comment per payout — inline note on each processed-payout card.
   const { data: latestClaimComments } = useLatestClaimComments(
     selectedAgentPayouts.map((p: any) => p.id),
