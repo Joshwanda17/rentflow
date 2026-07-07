@@ -400,6 +400,7 @@ export default function CFODashboardPage() {
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
       <CFOFavoritesBar activeTab={activeTab} onJump={setActiveTab} />
       <SwipeOnboardingHint enabled={isMobile} />
+      <DuplicateRoiCreditAlert onJump={setActiveTab} />
       <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
         {renderContent()}
       </div>
