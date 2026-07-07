@@ -31,3 +31,5 @@
 - [Duplicate ROI Credit Monitor](mem://features/cfo/duplicate-roi-credit-monitor) — CFO report `get_duplicate_roi_credits` + proactive alert flagging investor ROI credited twice to same portfolio/cycle within seconds (double-submitted proxy payouts); roi_wallet_credit legs lack idempotency_key
 
 - [ROI Payout Cycle Idempotency](mem://business-model/roi-cycle-idempotency) — one ROI credit per portfolio per cycle; key `roi-cycle-<portfolio>-<next_roi_date>` enforced in approve-wallet-operation (pre-check + create_ledger_transaction idempotency_key + concurrent race guard) and client pre-flight in COOPartnersPage handlePay/handleSplitPayout
+
+- [CMO Merchandise Management](mem://features/cmo/merchandise-management) — Merchandise tab on CMO dashboard: `merchandise_purchases`/`merchandise_sales` tables (cmo/manager/super_admin RLS), inventory (purchased-sold), COGS/gross-profit, client credit receivables, date/product/client filters; queried via `supabase as any`
