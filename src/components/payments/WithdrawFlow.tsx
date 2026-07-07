@@ -982,7 +982,6 @@ export default function WithdrawFlow({
                       <p className="text-xs text-muted-foreground">
                         {method.value === 'mobile_money' && 'MTN or Airtel Mobile Money'}
                         {method.value === 'bank_transfer' && 'Direct bank deposit'}
-                        {method.value === 'cash' && 'Collect cash at the office'}
                       </p>
                     </div>
                     {payoutMode === method.value && (
