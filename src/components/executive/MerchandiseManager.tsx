@@ -231,7 +231,17 @@ export function MerchandiseManager() {
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['merchandise-purchases'] });
     queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
+    queryClient.invalidateQueries({ queryKey: ['merchandise-recovery-plans'] });
   };
+
+  // ---- Wallet-recovery roll-ups ----
+  const recovery = useMemo(() => {
+    const active = recoveryPlans.filter((p) => p.status === 'active');
+    const completed = recoveryPlans.filter((p) => p.status === 'completed');
+    const recoveredToDate = recoveryPlans.reduce((s, p) => s + Number(p.amount_recovered), 0);
+    const remaining = active.reduce((s, p) => s + Number(p.outstanding_balance), 0);
+    return { active, completed, recoveredToDate, remaining, count: active.length };
+  }, [recoveryPlans]);
 
   const deletePurchase = async (id: string) => {
     const { error } = await db.from('merchandise_purchases').delete().eq('id', id);
