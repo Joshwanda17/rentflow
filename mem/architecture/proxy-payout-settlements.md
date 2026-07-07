@@ -34,6 +34,7 @@ type: feature
 
 **Invariants.**
 - Only approvals carrying `metadata.cfo_approved_by` surface a card. COO-only does not.
+- **Proxy delivery drains BOTH buckets (2026-07-07).** A merchant agent settling a proxy partner delivery (`acting_as_merchant=true`, non-pool-funded) debits the proxy agent's wallet (funding leg, `fundingUserId`) AND consumes the merchant's own `float_balance` via the `agent_float_settlement` leg — because the merchant physically dispenses company cash from their float. The merchant-float pre-check + consume in `approve-withdrawal` therefore apply to proxy payouts (only `poolFunded` stays excluded, since it debits float in the main block). Consequence: a proxy delivery larger than the merchant's available float is blocked (`INSUFFICIENT_MERCHANT_FLOAT`) until the CFO/treasury tops up their float. Do not re-add a `!isProxyPayout` guard to those two blocks.
 - `approval_id` UNIQUE — an approval can only be settled once.
 - Settlement is out-of-band; original `pending_wallet_operations` audit trail preserved.
 - Wallet writes still go through `apply_wallet_movement` only.
