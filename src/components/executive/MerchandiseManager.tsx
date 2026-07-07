@@ -553,6 +553,16 @@ function StatusBadge({ status }: { status: 'paid' | 'credit' | 'partial' }) {
   return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>{label}</span>;
 }
 
+function RecoveryBadge({ status }: { status: 'active' | 'completed' | 'cancelled' }) {
+  const map = {
+    active: 'bg-purple-500/10 text-purple-600',
+    completed: 'bg-green-500/10 text-green-600',
+    cancelled: 'bg-muted text-muted-foreground',
+  } as const;
+  const label = { active: 'Recovering', completed: 'Fully Paid', cancelled: 'Cancelled' }[status];
+  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>{label}</span>;
+}
+
 // ---------------------------------------------------------------------------
 // Record Purchase dialog
 // ---------------------------------------------------------------------------
