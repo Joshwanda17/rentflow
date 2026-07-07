@@ -33,6 +33,41 @@ function fmtUGX(n: number): string {
   return `UGX ${Math.round(Number(n) || 0).toLocaleString("en-US")}`;
 }
 
+// Generate a cryptographically random 32-byte hex token.
+function generateToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Ensure an unsubscribe token exists for a recipient (the email API requires
+// one on transactional sends). Upsert-then-read handles concurrent inserts.
+async function ensureUnsubscribeToken(
+  admin: ReturnType<typeof createClient>,
+  email: string,
+): Promise<string> {
+  const normalized = email.trim().toLowerCase();
+  const { data: existing } = await admin
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalized)
+    .maybeSingle();
+  if (existing?.token) return existing.token as string;
+
+  const token = generateToken();
+  await admin
+    .from("email_unsubscribe_tokens")
+    .upsert({ token, email: normalized }, { onConflict: "email", ignoreDuplicates: true });
+  const { data: stored } = await admin
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalized)
+    .maybeSingle();
+  return (stored?.token as string) || token;
+}
+
 // Current calendar date in East Africa Time (UTC+3, no DST).
 function eatToday(): string {
   const eat = new Date(Date.now() + 3 * 60 * 60 * 1000);
@@ -263,6 +298,7 @@ Deno.serve(async (req) => {
     const results: Record<string, string> = {};
     for (const to of REPORT_RECIPIENTS) {
       const messageId = crypto.randomUUID();
+      const unsubscribeToken = await ensureUnsubscribeToken(admin, to);
       const payload = {
         message_id: messageId,
         to,
@@ -274,6 +310,7 @@ Deno.serve(async (req) => {
         purpose: "transactional",
         label: "merchant-cashout-daily-report",
         idempotency_key: `merchant-cashout-daily-report:${targetDate}:${to}`,
+        unsubscribe_token: unsubscribeToken,
         queued_at: new Date().toISOString(),
       };
 
