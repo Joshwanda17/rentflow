@@ -1258,6 +1258,36 @@ export default function WithdrawFlow({
                 </Card>
               </div>
             )}
+
+            {/* Reason / purpose — determines the payout category and which
+                Cash-Out Agents can process this withdrawal. */}
+            <div className="space-y-2 pt-2 border-t border-border/60">
+              <Label>Reason for withdrawal</Label>
+              <Select value={reasonPreset} onValueChange={setReasonPreset}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WITHDRAWAL_REASON_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={OTHER_WITHDRAWAL_REASON}>Other (specify)</SelectItem>
+                </SelectContent>
+              </Select>
+              {reasonPreset === OTHER_WITHDRAWAL_REASON && (
+                <Input
+                  value={reasonCustom}
+                  onChange={(e) => setReasonCustom(e.target.value)}
+                  placeholder="Enter your reason"
+                  maxLength={200}
+                />
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Helps route your withdrawal to the right payout desk.
+              </p>
+            </div>
           </div>
         );
 
