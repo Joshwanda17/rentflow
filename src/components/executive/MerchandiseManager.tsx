@@ -575,6 +575,8 @@ function RecordPurchaseDialog({ userId, productNames, onSaved }: { userId?: stri
   const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [supplier, setSupplier] = useState('');
   const [notes, setNotes] = useState('');
+  const [buyerName, setBuyerName] = useState('');
+  const [buyerPhone, setBuyerPhone] = useState('');
 
   const qty = num(quantity);
   const cost = num(unitCost);
@@ -583,6 +585,7 @@ function RecordPurchaseDialog({ userId, productNames, onSaved }: { userId?: stri
   const reset = () => {
     setItemName(''); setQuantity(''); setUnitCost('');
     setPurchaseDate(format(new Date(), 'yyyy-MM-dd')); setSupplier(''); setNotes('');
+    setBuyerName(''); setBuyerPhone('');
   };
 
   const save = async () => {
@@ -598,11 +601,17 @@ function RecordPurchaseDialog({ userId, productNames, onSaved }: { userId?: stri
       purchase_date: purchaseDate,
       supplier: supplier.trim() || null,
       notes: notes.trim() || null,
+      buyer_name: buyerName.trim() || null,
+      buyer_phone: buyerPhone.trim() || null,
       created_by: userId ?? null,
     });
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success('Purchase recorded');
+    toast.success(
+      buyerPhone.trim()
+        ? 'Purchase recorded. If the buyer is a registered user, their wallet will be debited daily.'
+        : 'Purchase recorded',
+    );
     reset();
     setOpen(false);
     onSaved();
