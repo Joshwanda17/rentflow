@@ -928,7 +928,14 @@ export function AgentCashPayoutsTab() {
       qc.invalidateQueries({ queryKey: ['cashout-agent-lifetime-commission'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      toast.error(e.message);
+      // A failed confirmation now returns the request to the shared queue
+      // (the edge function clears the assignment). Refresh so the released
+      // claim leaves "Claimed by you" and the queue unlocks — the agent can
+      // immediately claim another payout instead of being stuck on a pending row.
+      invalidateQueue();
+    },
     onSettled: (_d, _e, vars) => {
       if (vars?.id) {
         completeLockRef.current.delete(vars.id);
