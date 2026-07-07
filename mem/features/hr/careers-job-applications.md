@@ -7,4 +7,6 @@ Public `/careers` page (src/pages/Careers.tsx) lets anyone apply for jobs (categ
 
 Data goes to `job_applications` table (anon INSERT allowed via RLS; staff roles manager/super_admin/coo/hr/cto/operations/ceo can SELECT + UPDATE). Fields: full_name, whatsapp_number, email, category, role_interest, experience_level, portfolio_url, location, cover_note, status (new/contacted), contacted_by, contacted_at.
 
-Surfaced as a priority panel (JobApplicationsPanel) at the top of the Company Staff dashboard (/admin/users). Staff contact via WhatsApp (wa.me link) or email (mailto cc info@welile.com) and "Mark contacted". New-count priority badge.
+Surfaced as a priority panel (JobApplicationsPanel) at the top of the Company Staff dashboard (/admin/users). Staff contact via WhatsApp (wa.me link) or email (mailto cc info@welile.com). New-count priority badge.
+
+Applicant status workflow (pipeline): new -> contacted -> interviewing -> hired (+ rejected). Each card has a dropdown to change status (sets contacted_by/contacted_at when moving off "new"). Panel has status pipeline filter tabs with per-status counts, a category filter, and sort options (newest, oldest, name A-Z, pipeline stage). Status is stored in the free-text job_applications.status column (no enum/schema change).
