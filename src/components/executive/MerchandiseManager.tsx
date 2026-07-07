@@ -35,6 +35,8 @@ interface Purchase {
   purchase_date: string;
   supplier: string | null;
   notes: string | null;
+  buyer_name: string | null;
+  buyer_phone: string | null;
   created_at: string;
 }
 
