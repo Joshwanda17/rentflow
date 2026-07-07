@@ -14,6 +14,7 @@ interface Props {
   new_balance?: string | number | null
   date?: string
   wallet_url?: string
+  receipt_url?: string | null
 }
 
 const fmt = (a: string | number | undefined | null, c: string) => {
@@ -34,9 +35,11 @@ export function WithdrawalPaidReceipt({
   new_balance = null,
   date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
   wallet_url = 'https://welilereceipts.com/ZQhyGb',
+  receipt_url = null,
 }: Props) {
   const amt = fmt(amount, currency)
   const hasBalance = new_balance !== null && new_balance !== undefined && new_balance !== ''
+  const hasReceipt = !!receipt_url
   return (
     <Html lang="en" dir="ltr">
       <Head />
@@ -48,8 +51,8 @@ export function WithdrawalPaidReceipt({
             <Heading style={h1}>Withdrawal paid ✅</Heading>
             <Text style={lead}>Hi {recipient_name},</Text>
             <Text style={body}>
-              We couldn't reach you by SMS, so here is your receipt by email. Your
-              withdrawal has been <strong>approved and paid</strong> via {payment_method}.
+              Here is your proof of payment. Your withdrawal has been{' '}
+              <strong>approved and paid</strong> via {payment_method}.
             </Text>
           </Section>
           <Section style={{ padding: '0 32px' }}>
@@ -65,7 +68,17 @@ export function WithdrawalPaidReceipt({
             </Section>
           </Section>
           <Section style={{ padding: '24px 32px 8px 32px', textAlign: 'center' as const }}>
-            <Button href={wallet_url} style={ctaBtn}>Access your dashboard</Button>
+            {hasReceipt ? (
+              <>
+                <Button href={receipt_url as string} style={ctaBtn}>View &amp; download your receipt</Button>
+                <Text style={{ margin: '12px 0 0 0', color: SUB, fontSize: '12px' }}>
+                  Or open this link (no sign-in required):{' '}
+                  <Link href={receipt_url as string} style={link}>{receipt_url}</Link>
+                </Text>
+              </>
+            ) : (
+              <Button href={wallet_url} style={ctaBtn}>Access your dashboard</Button>
+            )}
           </Section>
           <Section style={{ padding: '16px 32px 32px 32px' }}>
             <Text style={fineprint}>
@@ -97,7 +110,7 @@ export const template = {
     const amt = fmt(d?.amount, d?.currency ?? 'UGX')
     return `Receipt: your withdrawal of ${amt} has been paid`
   },
-  displayName: 'Withdrawal paid receipt (SMS fallback)',
+  displayName: 'Withdrawal paid receipt',
   previewData: {
     recipient_name: 'Jane',
     amount: 50000,
@@ -105,6 +118,7 @@ export const template = {
     proof_label: 'Mobile Money transaction ID',
     proof_reference: 'MP260628.1234.A56789',
     new_balance: 12000,
+    receipt_url: 'https://welilereceipts.com/r/2eaa0cdc65f145d5a65cd755b7910d2f',
   },
 } satisfies TemplateEntry
 

@@ -5,6 +5,7 @@ import {
   dispatchTransactionalEmail,
   buildWithdrawalPaidReceiptRequest,
 } from "../_shared/partnership-emails.ts";
+import { sendWhatsApp } from "../_shared/whatsapp.ts";
 import {
   logSmsDelivery,
   reserveSmsIdempotency,
@@ -2309,16 +2310,14 @@ Deno.serve(async (req) => {
         recipientEmailForLog = (rp as any)?.email ?? null;
       } catch { /* non-fatal */ }
 
-      // Fallback receipt: if the SMS can't be delivered (no phone, provider
-      // rejection, or a thrown error) we email the user the SAME proof
-      // reference and updated wallet balance so they're never left in the
-      // dark. Fire-and-forget, idempotent per withdrawal, and only attempted
-      // when we actually have an email address on file.
-      let fallbackEmailSent = false;
-      const sendFallbackReceiptEmail = (reasonTag: string) => {
-        if (fallbackEmailSent) return;
+      // Multi-channel proof of payment. The customer now receives the SAME
+      // receipt link via SMS, email AND WhatsApp (best-effort) — not just SMS.
+      // Each channel is idempotent per withdrawal so retries never duplicate.
+      let receiptEmailSent = false;
+      const sendReceiptEmail = (reasonTag: string) => {
+        if (receiptEmailSent) return;
         if (!recipientEmailForLog || !/@/.test(recipientEmailForLog)) return;
-        fallbackEmailSent = true;
+        receiptEmailSent = true;
         try {
           const emailReq = buildWithdrawalPaidReceiptRequest({
             recipientEmail: recipientEmailForLog,
@@ -2329,15 +2328,49 @@ Deno.serve(async (req) => {
             proofLabel,
             proofReference: refUpper,
             newBalance,
+            receiptUrl,
           });
           dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
           console.log(
-            `[approve-withdrawal] SMS undeliverable (${reasonTag}); fallback receipt email queued to ${recipientEmailForLog}`,
+            `[approve-withdrawal] receipt email queued to ${recipientEmailForLog} (${reasonTag})`,
           );
         } catch (e) {
-          console.error("[approve-withdrawal] fallback receipt email failed:", e);
+          console.error("[approve-withdrawal] receipt email failed:", e);
         }
       };
+      // Backwards-compatible alias for the existing SMS-failure call sites.
+      const sendFallbackReceiptEmail = sendReceiptEmail;
+
+      // Always email the receipt (in addition to SMS), whenever we have an
+      // address on file — no longer gated on SMS delivery failure.
+      if (recipientEmailForLog && /@/.test(recipientEmailForLog)) {
+        sendReceiptEmail("primary channel");
+      }
+
+      // WhatsApp proof of payment (best-effort, no-op if Twilio WhatsApp
+      // sender is not configured). Carries the same secure receipt link.
+      if (profile?.phone) {
+        const customerFirstNameWa = (profile?.full_name || "").toString().trim().split(/\s+/)[0] || "Customer";
+        const waMsg =
+          `WELILE: Withdrawal Successful. Dear ${customerFirstNameWa}, your cash withdrawal of ` +
+          `UGX ${amount.toLocaleString()} has been completed successfully.\n` +
+          `Transaction ID: ${refUpper}.\n\n` +
+          `Your digital receipt (no sign-in required):\n${receiptUrl}\n\n` +
+          `Thank you for choosing Welile Technologies Ltd.`;
+        sendWhatsApp(profile.phone, waMsg, {
+          contentVariables: {
+            "1": customerFirstNameWa,
+            "2": `UGX ${amount.toLocaleString()}`,
+            "3": refUpper,
+            "4": receiptUrl,
+          },
+        })
+          .then((r) => {
+            if (r.ok) console.log(`[approve-withdrawal] WhatsApp receipt sent (sid ${r.sid}).`);
+            else if (!r.skipped) console.warn(`[approve-withdrawal] WhatsApp receipt failed: ${r.error}`);
+          })
+          .catch((e) => console.error("[approve-withdrawal] WhatsApp receipt threw:", e));
+      }
 
       if (profile?.phone) {
         // 1) Record the SMS as "queued" up front so Financial Ops can see the
