@@ -19524,6 +19524,7 @@ export type Database = {
           processing_started_by: string | null
           proxy_partner_id: string | null
           reason: string | null
+          receipt_token: string | null
           rejection_reason: string | null
           status: string
           transaction_id: string | null
@@ -19575,6 +19576,7 @@ export type Database = {
           processing_started_by?: string | null
           proxy_partner_id?: string | null
           reason?: string | null
+          receipt_token?: string | null
           rejection_reason?: string | null
           status?: string
           transaction_id?: string | null
@@ -19626,6 +19628,7 @@ export type Database = {
           processing_started_by?: string | null
           proxy_partner_id?: string | null
           reason?: string | null
+          receipt_token?: string | null
           rejection_reason?: string | null
           status?: string
           transaction_id?: string | null
@@ -21969,6 +21972,7 @@ export type Database = {
         }[]
       }
       get_payout_receipt: { Args: { p_withdrawal_id: string }; Returns: Json }
+      get_payout_receipt_by_token: { Args: { p_token: string }; Returns: Json }
       get_pending_wallet_ops: {
         Args: { p_page?: number; p_page_size?: number }
         Returns: Json

@@ -2036,6 +2036,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Public proof-of-payment receipt link (unguessable token). Fetched once so
+    // both the customer SMS and the merchant confirmation SMS can share it.
+    let receiptToken: string | null = null;
+    try {
+      const { data: rtRow } = await admin
+        .from("withdrawal_requests")
+        .select("receipt_token")
+        .eq("id", withdrawal_id)
+        .maybeSingle();
+      receiptToken = (rtRow as any)?.receipt_token ?? null;
+    } catch (e) {
+      console.error("[approve-withdrawal] receipt token fetch failed (non-fatal):", e);
+    }
+    const receiptUrl = receiptToken
+      ? `https://welilereceipts.com/r/${receiptToken}`
+      : `https://welilereceipts.com/receipt/${withdrawal_id}`;
+
     // Cashout agent 0.5% commission (when caller is an active cashout agent, including staff roles).
     // Company funds (platform cash_out) move INSTANTLY into the agent's own
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
@@ -2086,11 +2103,13 @@ Deno.serve(async (req) => {
             .eq("id", user.id)
             .maybeSingle();
           if (agentProfile?.phone) {
+            const customerName = (profile?.full_name || "the customer").toString().trim();
+            const merchantTid = reference.trim().toUpperCase();
             const commMsg =
-              `WELILE: You earned a payout commission of UGX ${cashoutCommission.toLocaleString()} (0.5%) ` +
-              `for processing a UGX ${amount.toLocaleString()} payout. It has been added to your ` +
-              `withdrawable wallet. Thank you for your service.\n` +
-              `Access your dashboard https://welilereceipts.com/ZQhyGb`;
+              `WELILE: Payout Completed. You have successfully paid UGX ${amount.toLocaleString()} to ${customerName}.\n` +
+              `Commission Earned: UGX ${cashoutCommission.toLocaleString()} (0.5%), added to your withdrawable wallet.\n` +
+              `Transaction ID: ${merchantTid}\n` +
+              `Receipt: ${receiptUrl}`;
             sendSMS(agentProfile.phone, commMsg, {
               admin,
               source: "merchant_commission",
@@ -2134,9 +2153,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         userIds: notifyUserIds,
         payload: {
-          title: "✅ Withdrawal Approved",
-          body: `UGX ${amount.toLocaleString()} has been sent to you via ${payment_method}`,
-          url: "/dashboard/agent",
+          title: "✅ Withdrawal Completed",
+          body: `Your withdrawal of UGX ${amount.toLocaleString()} has been processed successfully. Tap to view your receipt.`,
+          url: receiptToken ? `/r/${receiptToken}` : "/dashboard/agent",
           type: "success",
         },
       }),
@@ -2227,15 +2246,17 @@ Deno.serve(async (req) => {
         }
       }
 
+      const customerFirstName = (profile?.full_name || "").toString().trim().split(/\s+/)[0] || "Customer";
       const smsMsg =
-        `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
-        `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
+        `WELILE: Withdrawal Successful. Dear ${customerFirstName}, your cash withdrawal of ` +
+        `UGX ${amount.toLocaleString()} has been completed successfully.\n` +
+        `Transaction ID: ${refUpper}.` +
         `${bankLine}` +
         `${merchantLine}` +
         `${balanceLine}` +
-        `\n\nView your proof-of-payment receipt:\n` +
-        `https://welilereceipts.com/receipt/${withdrawal_id}` +
-        `\n\nNeed help? Call or WhatsApp: +256777607640`;
+        `\n\nYour digital receipt is ready (no sign-in required):\n` +
+        `${receiptUrl}` +
+        `\n\nThank you for choosing Welile Technologies Ltd. Help: +256777607640`;
 
       // In-app notification center entry so the user sees the approval update
       // (merchant agent name + remaining wallet balance) without relying on SMS.
@@ -2265,6 +2286,8 @@ Deno.serve(async (req) => {
               new_balance: newBalance,
               payment_method,
               reference: refUpper,
+              receipt_url: receiptUrl,
+              receipt_token: receiptToken,
             },
           })
           .then(({ error }) => {
