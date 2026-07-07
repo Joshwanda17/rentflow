@@ -296,6 +296,8 @@ export default function WithdrawFlow({
     setAmount(100000);
     setCurrency('UGX');
     setPayoutMode('mobile_money');
+    setReasonPreset(WITHDRAWAL_REASON_OPTIONS[0].value);
+    setReasonCustom('');
     setMomoNumber('');
     setMomoName('');
     setMomoProvider('MTN');
