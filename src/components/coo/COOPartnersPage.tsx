@@ -4418,8 +4418,19 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         p.email.toLowerCase().includes(q)
       );
     }
+    // Drop anyone already credited / pending this cycle — the core guard against
+    // duplicate ROI credits. `completed` is the in-session equivalent (just paid).
+    if (!showProcessed) {
+      list = list.filter(p => !p.alreadyProcessedThisCycle && !completed[p.portfolioId]);
+    }
     return list;
-  }, [localPortfolios, search, rangeFilter]);
+  }, [localPortfolios, search, rangeFilter, showProcessed, completed]);
+
+  // How many were removed from view because they're already handled this cycle.
+  const processedHiddenCount = useMemo(
+    () => localPortfolios.filter(p => p.alreadyProcessedThisCycle).length,
+    [localPortfolios],
+  );
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
