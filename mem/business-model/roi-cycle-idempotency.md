@@ -8,6 +8,7 @@ type: feature
 **Idempotency key:** `roi-cycle-<portfolio_id>-<next_roi_date>` (falls back to `roi-cycle-<portfolio_id>-<YYYY-MM-DD today>` if next_roi_date is null).
 
 **Enforcement (defense in depth):**
+0. **DB trigger `trg_enforce_roi_cycle_once` on `pending_wallet_operations` BEFORE INSERT (tamper-proof floor)**: for any inserted row with `category='roi_payout'` + `source_table='investor_portfolios'`, function `enforce_roi_cycle_once` resolves the cycle key from the portfolio's current `next_roi_date` and RAISES `unique_violation` if (a) a `general_ledger` row already has that `idempotency_key` (already credited this cycle) or (b) another open `roi_payout` `pending_wallet_operations` row exists for the same portfolio (statuses pending/pending_coo_approval/coo_approved/awaiting_verification). This runs at the database, so it blocks a duplicate ROI request even if the UI list-hiding is bypassed, "Show them" is toggled, or the client is tampered with. Client insert surfaces the raised message via `toast.error`.
 1. `approve-wallet-operation` edge fn (authoritative, covers all approval-based `roi_payout`/`supporter_platform_rewards` credits incl. managed-proxy + split cash leg):
    - Pre-check: if any `general_ledger` row already has that `idempotency_key`, the pending op is set `status='rejected'` (metadata.duplicate_roi_blocked) and skipped — no credit.
    - The ROI `create_ledger_transaction` call passes `idempotency_key: roiCycleKey`. `create_ledger_transaction` already advisory-locks + returns the existing group WITHOUT posting on a key hit.
