@@ -435,6 +435,8 @@ export default function WithdrawFlow({
         );
       case 2: return !!payoutMode;
       case 3: {
+        // A reason is required — custom reason must not be blank.
+        if (!effectiveReason) return false;
         if (payoutMode === 'mobile_money') return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
         if (payoutMode === 'bank_transfer') return !!bankName && bankAccountName.trim().length >= 2 && bankAccountNumber.trim().length >= 5;
         if (payoutMode === 'cash') return true;
