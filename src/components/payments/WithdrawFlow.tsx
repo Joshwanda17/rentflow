@@ -959,7 +959,7 @@ export default function WithdrawFlow({
             </div>
 
             <div className="space-y-3">
-              {PAYOUT_METHODS.map((method) => (
+              {PAYOUT_METHODS.filter((method) => method.value !== 'cash').map((method) => (
                 <Card
                   key={method.value}
                   className={`p-4 cursor-pointer transition-all ${
