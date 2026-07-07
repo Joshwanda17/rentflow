@@ -33,6 +33,7 @@ import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusAp
 import { FinancialAgentsPanel } from '@/components/cfo/FinancialAgentsPanel';
 import { PayrollPanel } from '@/components/cfo/PayrollPanel';
 import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
+import { HouseListingCommissionReport } from '@/components/cfo/HouseListingCommissionReport';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { DeliveryPipelineTracker } from '@/components/cfo/DeliveryPipelineTracker';
 import { AgentCashReconciliation } from '@/components/cfo/AgentCashReconciliation';
@@ -196,6 +197,8 @@ export default function CFODashboardPage() {
         return <GeneralLedger />;
       case 'commissions':
         return <AgentCommissionPayoutsManager />;
+      case 'house-listing-commission':
+        return <HouseListingCommissionReport />;
       case 'withdrawals':
         return (
           <div className="space-y-6">
