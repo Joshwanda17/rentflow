@@ -7,7 +7,7 @@ export default function CMODashboardPage() {
 
   return (
     <ExecutiveDashboardLayout role="cmo" activeTab={activeTab} onTabChange={setActiveTab}>
-      <CMODashboard />
+      <CMODashboard activeTab={activeTab} />
     </ExecutiveDashboardLayout>
   );
 }
