@@ -410,7 +410,7 @@ export function CashoutAgentManager() {
       if (!anyCategory) {
         throw new Error('Authorize at least one payout category');
       }
-      const patch = {
+      const patch: Record<string, any> = {
         label: editLabel.trim() || 'Merchant Agent',
         // Keep legacy boolean columns in sync so existing routing & filters work.
         handles_cash: cfg.channels.cash,
@@ -418,10 +418,10 @@ export function CashoutAgentManager() {
         handles_mtn: cfg.channels.momo && cfg.networks.mtn,
         handles_airtel: cfg.channels.momo && cfg.networks.airtel,
         is_active: cfg.status === 'active',
-        config: cfg as unknown as Record<string, unknown>,
+        config: cfg as any,
         updated_at: new Date().toISOString(),
       };
-      const { error } = await supabase.from('cashout_agents').update(patch).eq('id', editAgent.id);
+      const { error } = await supabase.from('cashout_agents').update(patch as any).eq('id', editAgent.id);
       if (error) throw error;
       await supabase.from('audit_logs').insert({
         user_id: user!.id,
@@ -440,8 +440,8 @@ export function CashoutAgentManager() {
           },
           after: patch,
           reason: 'CFO updated merchant agent permission matrix',
-        },
-      });
+        } as any,
+      } as any);
     },
     onSuccess: () => {
       toast({ title: '✅ Merchant Agent updated' });
