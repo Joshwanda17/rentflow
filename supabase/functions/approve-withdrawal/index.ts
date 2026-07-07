@@ -2103,11 +2103,13 @@ Deno.serve(async (req) => {
             .eq("id", user.id)
             .maybeSingle();
           if (agentProfile?.phone) {
+            const customerName = (profile?.full_name || "the customer").toString().trim();
+            const merchantTid = reference.trim().toUpperCase();
             const commMsg =
-              `WELILE: You earned a payout commission of UGX ${cashoutCommission.toLocaleString()} (0.5%) ` +
-              `for processing a UGX ${amount.toLocaleString()} payout. It has been added to your ` +
-              `withdrawable wallet. Thank you for your service.\n` +
-              `Access your dashboard https://welilereceipts.com/ZQhyGb`;
+              `WELILE: Payout Completed. You have successfully paid UGX ${amount.toLocaleString()} to ${customerName}.\n` +
+              `Commission Earned: UGX ${cashoutCommission.toLocaleString()} (0.5%), added to your withdrawable wallet.\n` +
+              `Transaction ID: ${merchantTid}\n` +
+              `Receipt: ${receiptUrl}`;
             sendSMS(agentProfile.phone, commMsg, {
               admin,
               source: "merchant_commission",
