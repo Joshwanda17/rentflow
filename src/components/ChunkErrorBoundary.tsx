@@ -23,6 +23,60 @@ interface State {
 
 const MAX_RESET_ATTEMPTS = 1;
 
+/**
+ * Best-effort, dependency-free device/browser hints for the failure screen.
+ * Helps a confused user (or support) understand *why* the app may not load —
+ * old browser, offline, private mode, tiny/odd viewport — without any tracking.
+ */
+function collectDeviceHints(): { label: string; value: string }[] {
+  const hints: { label: string; value: string }[] = [];
+  try {
+    const ua = navigator.userAgent || "";
+
+    // Browser name + version (rough, no library)
+    let browser = "Unknown browser";
+    const m =
+      ua.match(/(Edg|EdgA|OPR|Opera|SamsungBrowser|Chrome|CriOS|Firefox|FxiOS|Version)[/ ]?([\d.]+)/) ||
+      [];
+    const map: Record<string, string> = {
+      Edg: "Edge",
+      EdgA: "Edge",
+      OPR: "Opera",
+      Opera: "Opera",
+      SamsungBrowser: "Samsung Internet",
+      Chrome: "Chrome",
+      CriOS: "Chrome",
+      Firefox: "Firefox",
+      FxiOS: "Firefox",
+      Version: /Safari/i.test(ua) ? "Safari" : "Browser",
+    };
+    if (m[1]) browser = `${map[m[1]] || m[1]} ${(m[2] || "").split(".")[0]}`.trim();
+    hints.push({ label: "Browser", value: browser });
+
+    // OS / platform
+    let os = "Unknown";
+    if (/Android/i.test(ua)) os = "Android";
+    else if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
+    else if (/Windows/i.test(ua)) os = "Windows";
+    else if (/Mac OS X/i.test(ua)) os = "macOS";
+    else if (/Linux/i.test(ua)) os = "Linux";
+    hints.push({ label: "Device", value: os });
+
+    // Connection
+    hints.push({ label: "Connection", value: navigator.onLine ? "Online" : "Offline" });
+    const conn = (navigator as any).connection;
+    if (conn?.effectiveType) {
+      hints.push({
+        label: "Network",
+        value: conn.saveData ? `${conn.effectiveType} (Data Saver)` : conn.effectiveType,
+      });
+    }
+  } catch {
+    // ignore — hints are best-effort only
+  }
+  return hints;
+}
+
 function classifyChunkError(error: Error): boolean {
   const msg = (error?.message || "").toLowerCase();
   const name = (error?.name || "").toLowerCase();
@@ -197,6 +251,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
   render() {
     // Generic (non-chunk) app error — friendly full-screen fallback.
     if (this.state.hasError) {
+      const deviceHints = collectDeviceHints();
       return (
         <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
           <div className="flex flex-col items-center gap-6 max-w-sm text-center">
@@ -204,9 +259,10 @@ class ChunkErrorBoundary extends Component<Props, State> {
               <span className="text-2xl">⚠️</span>
             </div>
             <div className="space-y-2">
-              <h1 className="text-xl font-semibold">Something went wrong</h1>
+              <h1 className="text-xl font-semibold">App failed to load</h1>
               <p className="text-muted-foreground text-sm">
-                An unexpected error occurred. You can refresh or head back home.
+                Welile couldn't start on this device. Try again — if it keeps
+                happening, an out-of-date browser is the most likely cause.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -215,7 +271,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
               >
                 <RefreshCw className="w-4 h-4" />
-                Refresh
+                Try again
               </button>
               <button
                 onClick={this.handleGoHome}
@@ -225,6 +281,23 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 Go Home
               </button>
             </div>
+            {deviceHints.length > 0 && (
+              <div className="w-full rounded-lg bg-muted/40 p-3 text-left">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Device info</p>
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  {deviceHints.map((h) => (
+                    <div key={h.label} className="contents">
+                      <dt className="text-xs text-muted-foreground/70">{h.label}</dt>
+                      <dd className="text-xs font-medium text-foreground text-right">{h.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/70">
+                  Tip: update your browser (or install a recent Chrome) and make
+                  sure you have a stable connection, then try again.
+                </p>
+              </div>
+            )}
             {this.state.errorMessage && (
               <details className="w-full text-left">
                 <summary className="text-xs text-muted-foreground/60 cursor-pointer">Technical details</summary>
