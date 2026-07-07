@@ -4767,6 +4767,7 @@ export type Database = {
         Row: {
           agent_id: string
           assigned_by: string
+          config: Json
           created_at: string
           current_queue_count: number | null
           handles_airtel: boolean | null
@@ -4783,6 +4784,7 @@ export type Database = {
         Insert: {
           agent_id: string
           assigned_by: string
+          config?: Json
           created_at?: string
           current_queue_count?: number | null
           handles_airtel?: boolean | null
@@ -4799,6 +4801,7 @@ export type Database = {
         Update: {
           agent_id?: string
           assigned_by?: string
+          config?: Json
           created_at?: string
           current_queue_count?: number | null
           handles_airtel?: boolean | null
