@@ -33,3 +33,9 @@ On every completed payout, `approve-withdrawal` now emails the SAME secure recei
 - **Records archive** — fixed address `weliletenants@gmail.com`.
 
 Implemented via a "receipt copy" variant: `buildWithdrawalPaidReceiptRequest` accepts `copyFor` (recipient label) + `idempotencySuffix` (normalised email → one idempotent email per recipient); `withdrawal-paid-receipt.tsx` renders an internal "Payout receipt (copy)" layout (no wallet balance, neutral footer) when `copy_for` is set. Fan-out dedupes by lowercased email and skips the customer's own address (they already got the primary). All best-effort, never blocks the approval response.
+
+## Commission content validation rule (2026-07-07)
+The commission-disclosure invariant is now centrally enforced, not just conditionally rendered:
+- **`src/lib/receiptContentPolicy.ts`** (frontend) + mirror **`supabase/functions/_shared/receipt-content-policy.ts`** (Deno) — single source of truth. `ReceiptAudience = 'customer' | 'merchant' | 'internal'`. Rule: commission is included **iff** audience === `'merchant'`. Helpers: `audienceIncludesCommission`, `commissionForAudience(audience, raw)` (strips → null unless merchant), `validateReceiptContent(audience, commissionIncluded)`, and throwing `assertReceiptContent(...)`.
+- **Customer PDF** (`payoutReceiptPdf.ts` `downloadPayoutReceiptPdf`) calls `assertReceiptContent('customer', false)` — never draws a commission line.
+- **Email builder** (`buildWithdrawalPaidReceiptRequest`) derives audience from `copyFor` (null→customer, `'Merchant Agent'`→merchant, else→internal), normalises `commission_earned` via `commissionForAudience`, and asserts before building. So customer + FinOps/CFO/archive copies can never carry commission and the merchant copy always does. Keep the two policy modules in sync.
