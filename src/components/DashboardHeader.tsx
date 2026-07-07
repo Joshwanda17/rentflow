@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check, GraduationCap } from 'lucide-react';
+import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check, GraduationCap, Briefcase } from 'lucide-react';
 
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
@@ -239,6 +239,19 @@ const DashboardHeader = memo(function DashboardHeader({
                       Internship Program
                     </DropdownMenuItem>
                   )}
+
+                  <DropdownMenuItem
+                    onClick={() => navigate('/careers')}
+                    className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                  >
+                    <div className="p-1.5 rounded-lg" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)' }}>
+                      <Briefcase className="h-4 w-4" style={{ color: '#10b981' }} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span>We're Hiring</span>
+                      <span className="text-[11px] font-normal text-muted-foreground">Explore & apply for open roles</span>
+                    </div>
+                  </DropdownMenuItem>
 
                   {menuItems.length > 0 && <DropdownMenuSeparator />}
                   
