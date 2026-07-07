@@ -2153,9 +2153,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         userIds: notifyUserIds,
         payload: {
-          title: "✅ Withdrawal Approved",
-          body: `UGX ${amount.toLocaleString()} has been sent to you via ${payment_method}`,
-          url: "/dashboard/agent",
+          title: "✅ Withdrawal Completed",
+          body: `Your withdrawal of UGX ${amount.toLocaleString()} has been processed successfully. Tap to view your receipt.`,
+          url: receiptToken ? `/r/${receiptToken}` : "/dashboard/agent",
           type: "success",
         },
       }),
