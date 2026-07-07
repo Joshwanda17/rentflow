@@ -11099,6 +11099,105 @@ export type Database = {
         }
         Relationships: []
       }
+      merchandise_purchases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          item_name: string
+          notes: string | null
+          purchase_date: string
+          quantity: number
+          supplier: string | null
+          total_cost: number
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_name: string
+          notes?: string | null
+          purchase_date?: string
+          quantity: number
+          supplier?: string | null
+          total_cost: number
+          unit_cost: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_name?: string
+          notes?: string | null
+          purchase_date?: string
+          quantity?: number
+          supplier?: string | null
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      merchandise_sales: {
+        Row: {
+          amount_outstanding: number
+          amount_paid: number
+          client_name: string | null
+          client_phone: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          item_name: string
+          notes: string | null
+          payment_status: string
+          quantity: number
+          sale_date: string
+          total_revenue: number
+          unit_cost: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          amount_outstanding?: number
+          amount_paid?: number
+          client_name?: string | null
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_name: string
+          notes?: string | null
+          payment_status?: string
+          quantity: number
+          sale_date?: string
+          total_revenue: number
+          unit_cost?: number
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          amount_outstanding?: number
+          amount_paid?: number
+          client_name?: string | null
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_name?: string
+          notes?: string | null
+          payment_status?: string
+          quantity?: number
+          sale_date?: string
+          total_revenue?: number
+          unit_cost?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       merchant_agreement_acceptance: {
         Row: {
           accepted_at: string
