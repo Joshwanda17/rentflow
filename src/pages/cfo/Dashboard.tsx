@@ -27,6 +27,8 @@ import { RentDisbursementQueue } from '@/components/cfo/RentDisbursementQueue';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { LandlordFloatAllocationsPanel } from '@/components/cfo/LandlordFloatAllocationsPanel';
 import { WithdrawalHistoryStatement } from '@/components/financial-ops/WithdrawalHistoryStatement';
+import { AutoPayoutHistory } from '@/components/cfo/AutoPayoutHistory';
+import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
 import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusApprovalQueue';
