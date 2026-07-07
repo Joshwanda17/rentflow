@@ -1,14 +1,16 @@
 /**
- * Runtime polyfills for older mobile browsers (old Android WebView / Chrome < 85,
- * Samsung Internet < 14, iOS Safari < 13.4).
+ * Runtime polyfill IMPLEMENTATION for older mobile browsers (old Android WebView
+ * / Chrome < 85, Samsung Internet < 14, iOS Safari < 13.4).
  *
- * Vite's build `target: es2017` only down-levels modern *syntax* — it does NOT
+ * Vite's build `target: es2015` only down-levels modern *syntax* — it does NOT
  * add polyfills for newer *runtime methods*. Several shipped dependencies use
  * ES2019–2022 methods (e.g. `input-otp` calls `String.prototype.replaceAll`),
  * which crashes the whole app with a blank screen on phones that lack them.
  *
- * This module MUST be imported first in the entry point, before any app code.
- * Every patch is feature-guarded so modern browsers are untouched.
+ * This module is emitted as its own async chunk and is loaded CONDITIONALLY by
+ * `./runtimePolyfills` (the gate) — only when feature detection finds a missing
+ * method, so modern browsers never fetch it. Every patch is still individually
+ * feature-guarded as a second safety layer.
  */
 
 /* eslint-disable no-extend-native */
