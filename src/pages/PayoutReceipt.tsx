@@ -3,9 +3,10 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Loader2, AlertTriangle, Clock, Download, ScanLine } from 'lucide-react';
+import { Loader2, AlertTriangle, Clock, Download, ScanLine, ShieldCheck } from 'lucide-react';
 import welileWordmark from '@/assets/welile-wordmark.png';
-import { downloadPayoutReceiptPdf, receiptMethodLabel, receiptPublicUrl, type PayoutReceiptData as ReceiptData } from '@/lib/payoutReceiptPdf';
+import { downloadPayoutReceiptPdf, receiptMethodLabel, receiptQrValue, type PayoutReceiptData as ReceiptData } from '@/lib/payoutReceiptPdf';
+import { verifyReceiptChecksum } from '@/lib/receiptVerification';
 import { WelileStamp } from '@/components/receipts/WelileStamp';
 
 /**
@@ -45,8 +46,9 @@ export default function PayoutReceipt() {
     })();
   }, [id, token]);
 
-  // Canonical public URL for this receipt — used by the QR code and PDF.
-  const publicUrl = data ? receiptPublicUrl(data) : '';
+  // Canonical QR value for this receipt — the public URL plus an authenticity
+  // checksum, used by both the on-screen QR and the PDF.
+  const qrValue = data ? receiptQrValue(data) : '';
 
   if (loading) {
     return (
