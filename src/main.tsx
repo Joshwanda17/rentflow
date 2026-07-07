@@ -137,6 +137,10 @@ const loadApp = async () => {
 
     createRoot(root).render(<App />);
 
+    // Signal the inline out-of-date-browser watchdog (index.html) that React
+    // successfully mounted, so it never shows the banner on healthy sessions.
+    try { (window as any).__WELILE_APP_READY__ = true; } catch {}
+
     // Preload Dashboard chunk only when the user is actually heading there.
     try {
       const cached = localStorage.getItem('welile_session_cache');
