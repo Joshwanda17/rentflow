@@ -1118,6 +1118,15 @@ export function CashoutAgentManager() {
                           {pending.count} in queue
                         </Badge>
                       )}
+                      {(() => {
+                        const dups = duplicateByAgent.get(a.id);
+                        return dups ? (
+                          <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5" title={`${dups} beneficiary paid the same amount more than once — possible duplicate payouts`}>
+                            <FileWarning className="h-2.5 w-2.5" />
+                            {dups} duplicate{dups === 1 ? '' : 's'}
+                          </Badge>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
