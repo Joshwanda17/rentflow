@@ -118,9 +118,7 @@ export function CashoutAgentManager() {
   // Edit dialog state
   const [editAgent, setEditAgent] = useState<any>(null);
   const [editLabel, setEditLabel] = useState('');
-  const [editHandlesCash, setEditHandlesCash] = useState(true);
-  const [editHandlesBank, setEditHandlesBank] = useState(true);
-  const [editHandlesMomo, setEditHandlesMomo] = useState(true);
+  const [editConfig, setEditConfig] = useState<CashoutAgentConfig>(() => defaultCashoutAgentConfig());
 
   // Delete confirmation state
   const [deleteAgent, setDeleteAgent] = useState<any>(null);
@@ -128,9 +126,7 @@ export function CashoutAgentManager() {
   const openEdit = (a: any) => {
     setEditAgent(a);
     setEditLabel(a.label || '');
-    setEditHandlesCash(!!a.handles_cash);
-    setEditHandlesBank(!!a.handles_bank);
-    setEditHandlesMomo(!!(a.handles_mtn || a.handles_airtel));
+    setEditConfig(normalizeCashoutAgentConfig(a.config, a));
   };
 
   const { data: agents = [], isLoading } = useQuery({
