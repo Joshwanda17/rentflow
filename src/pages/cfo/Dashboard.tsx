@@ -61,6 +61,8 @@ import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
 import { AgentAllocationTracesPanel } from '@/components/cfo/AgentAllocationTracesPanel';
 import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionDriftPanel';
+import { DuplicateRoiCreditsPanel } from '@/components/cfo/DuplicateRoiCreditsPanel';
+import { DuplicateRoiCreditAlert } from '@/components/cfo/DuplicateRoiCreditAlert';
 import { CFOUnfundingApprovals } from '@/components/cfo/CFOUnfundingApprovals';
 import { CFOAllocationReturnApprovals } from '@/components/cfo/CFOAllocationReturnApprovals';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
@@ -192,6 +194,7 @@ export default function CFODashboardPage() {
       case 'reconciliation':
         return (
           <div className="space-y-6">
+            <DuplicateRoiCreditsPanel />
             <PhantomCorrectionDriftPanel />
           </div>
         );
@@ -397,6 +400,7 @@ export default function CFODashboardPage() {
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
       <CFOFavoritesBar activeTab={activeTab} onJump={setActiveTab} />
       <SwipeOnboardingHint enabled={isMobile} />
+      <DuplicateRoiCreditAlert onJump={setActiveTab} />
       <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
         {renderContent()}
       </div>

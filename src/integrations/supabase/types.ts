@@ -21460,6 +21460,24 @@ export type Database = {
         }
         Returns: Json
       }
+      get_duplicate_roi_credits: {
+        Args: { p_lookback_days?: number; p_window_seconds?: number }
+        Returns: {
+          beneficiary_name: string
+          credit_count: number
+          cycle_month: string
+          excess_amount: number
+          first_credit_at: string
+          last_credit_at: string
+          ledger_ids: string[]
+          ledger_references: string[]
+          min_gap_seconds: number
+          portfolio_code: string
+          portfolio_id: string
+          proxy_wallet_user_id: string
+          total_amount: number
+        }[]
+      }
       get_email_by_phone: {
         Args: { phone_variants: string[] }
         Returns: {
