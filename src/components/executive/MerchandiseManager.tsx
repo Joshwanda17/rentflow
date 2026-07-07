@@ -816,6 +816,12 @@ function RecordSaleDialog({
               <span className="font-semibold text-amber-700">{formatUGX(outstanding)}</span>
             </div>
           )}
+          {(paymentStatus === 'credit' || paymentStatus === 'partial') && outstanding > 0 && clientPhone.trim() && (
+            <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
+              If this phone belongs to a registered customer, the outstanding balance will be
+              recovered automatically — 15% of their Withdrawable Wallet each day until fully paid.
+            </div>
+          )}
           <div className="space-y-1">
             <Label className="text-xs">Notes</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" rows={2} />
