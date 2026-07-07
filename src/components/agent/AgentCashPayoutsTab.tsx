@@ -139,6 +139,11 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
   // the categories mapped to this agent.
   if (o.categoryOrClause) q = q.or(o.categoryOrClause);
 
+  // Frozen accounts must vanish from the payout queue — never payable.
+  if (o.frozenUserIds && o.frozenUserIds.length) {
+    q = q.not('user_id', 'in', `(${o.frozenUserIds.join(',')})`);
+  }
+
   // Landlord float payout vs standard payout.
   if (o.status === 'landlord') {
     q = q.ilike('reason', 'Landlord float payout%');
