@@ -317,6 +317,7 @@ function AppRoutes() {
           <Route path="/" element={<Index />} />
           <Route path="/welcome" element={<Landing />} />
            <Route path="/internship" element={<Internship />} />
+           <Route path="/careers" element={<Careers />} />
            <Route path="/auth" element={<Auth />} />
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/onboarding" element={<Onboarding />} />
