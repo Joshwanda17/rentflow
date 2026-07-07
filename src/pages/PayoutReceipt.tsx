@@ -3,9 +3,10 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Loader2, AlertTriangle, Clock, Download, ScanLine } from 'lucide-react';
+import { Loader2, AlertTriangle, Clock, Download, ScanLine, ShieldCheck } from 'lucide-react';
 import welileWordmark from '@/assets/welile-wordmark.png';
-import { downloadPayoutReceiptPdf, receiptMethodLabel, receiptPublicUrl, type PayoutReceiptData as ReceiptData } from '@/lib/payoutReceiptPdf';
+import { downloadPayoutReceiptPdf, receiptMethodLabel, receiptQrValue, type PayoutReceiptData as ReceiptData } from '@/lib/payoutReceiptPdf';
+import { verifyReceiptChecksum } from '@/lib/receiptVerification';
 import { WelileStamp } from '@/components/receipts/WelileStamp';
 
 /**
@@ -45,8 +46,16 @@ export default function PayoutReceipt() {
     })();
   }, [id, token]);
 
-  // Canonical public URL for this receipt — used by the QR code and PDF.
-  const publicUrl = data ? receiptPublicUrl(data) : '';
+  // Canonical QR value for this receipt — the public URL plus an authenticity
+  // checksum, used by both the on-screen QR and the PDF.
+  const qrValue = data ? receiptQrValue(data) : '';
+  // When the receipt is opened from a scanned QR/URL that carries a `c=` code,
+  // recompute the checksum from the server-loaded receipt and confirm it matches.
+  const providedChecksum =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('c')
+      : null;
+  const checksumVerified = data ? verifyReceiptChecksum(data, providedChecksum) : false;
 
   if (loading) {
     return (
@@ -164,11 +173,16 @@ export default function PayoutReceipt() {
             {/* QR code */}
             <div className="mt-6 flex flex-col items-center gap-2">
               <div className="rounded-xl bg-white p-3 border border-border">
-                <QRCodeCanvas value={publicUrl} size={150} includeMargin={false} />
+                <QRCodeCanvas value={qrValue} size={150} includeMargin={false} />
               </div>
               <p className="text-xs text-primary font-medium inline-flex items-center gap-1.5">
                 <ScanLine className="h-3.5 w-3.5" /> Scan to verify this receipt
               </p>
+              {checksumVerified && (
+                <p className="text-xs text-emerald-600 font-semibold inline-flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Authenticity verified
+                </p>
+              )}
             </div>
 
             {/* Footer */}

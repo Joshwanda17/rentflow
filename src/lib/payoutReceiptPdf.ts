@@ -4,6 +4,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import welileWordmark from '@/assets/welile-wordmark.png';
 import { assertReceiptContent } from '@/lib/receiptContentPolicy';
 import { stampDate } from '@/components/receipts/WelileStamp';
+import { receiptChecksum } from '@/lib/receiptVerification';
 
 /**
  * Draws the Welile Technologies official e-stamp as a faint authenticity
@@ -90,6 +91,20 @@ export function receiptPublicUrl(data: PayoutReceiptData) {
   return data.receipt_token
     ? `https://welilereceipts.com/r/${data.receipt_token}`
     : (typeof window !== 'undefined' ? window.location.href : '');
+}
+
+/**
+ * Value encoded into the receipt QR code. It is the canonical receipt URL with
+ * an authenticity checksum (`c`) appended so a scan both opens the receipt and
+ * carries a tamper-evident code bound to this receipt's token, amount, TID and
+ * paid-at timestamp.
+ */
+export function receiptQrValue(data: PayoutReceiptData) {
+  const base = receiptPublicUrl(data);
+  if (!base) return '';
+  const checksum = receiptChecksum(data);
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}c=${checksum}`;
 }
 
 /**
@@ -202,7 +217,7 @@ export async function downloadPayoutReceiptPdf(data: PayoutReceiptData) {
   y += 22;
 
   try {
-    const qrDataUrl = await QRCode.toDataURL(publicUrl, { margin: 1, width: 220 });
+    const qrDataUrl = await QRCode.toDataURL(receiptQrValue(data), { margin: 1, width: 220 });
     const qrSize = 120;
     doc.addImage(qrDataUrl, 'PNG', cardX + cardW / 2 - qrSize / 2, y, qrSize, qrSize);
     y += qrSize + 16;
