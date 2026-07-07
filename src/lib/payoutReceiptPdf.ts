@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { formatUGX } from '@/lib/rentCalculations';
-import welileMark from '@/assets/welile-mark-white.png';
+import welileWordmark from '@/assets/welile-wordmark.png';
 import { assertReceiptContent } from '@/lib/receiptContentPolicy';
 
 /** Shape returned by get_payout_receipt / get_payout_receipt_by_token. */
@@ -72,26 +72,41 @@ export async function downloadPayoutReceiptPdf(data: PayoutReceiptData) {
   doc.setFillColor(124, 58, 237);
   doc.roundedRect(cardX, y, cardW, 108, 10, 10, 'F');
   doc.setTextColor(255, 255, 255);
+  // Welile wordmark on a white pill (the purple logo needs a light backdrop),
+  // with the ™ trademark symbol.
+  const logoH = 30;
+  const logoW = logoH * (640 / 196); // preserve the wordmark aspect ratio
+  const tmW = 10;
+  const pillPadX = 16;
+  const pillPadY = 9;
+  const pillW = logoW + tmW + pillPadX * 2;
+  const pillH = logoH + pillPadY * 2;
+  const pillX = cardX + cardW / 2 - pillW / 2;
+  const pillY = y + 12;
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(pillX, pillY, pillW, pillH, 8, 8, 'F');
   try {
     const markImg = await new Promise<HTMLImageElement>((resolve, reject) => {
       const im = new Image();
       im.onload = () => resolve(im);
       im.onerror = reject;
-      im.src = welileMark;
+      im.src = welileWordmark;
     });
-    const ms = 34;
-    doc.addImage(markImg, 'PNG', cardX + cardW / 2 - ms / 2, y + 12, ms, ms);
-  } catch { /* mark optional */ }
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('WELILE TECHNOLOGIES LTD', cardX + cardW / 2, y + 62, { align: 'center' });
+    doc.addImage(markImg, 'PNG', pillX + pillPadX, pillY + pillPadY, logoW, logoH);
+    // Trademark symbol next to the wordmark, in brand purple.
+    doc.setTextColor(124, 58, 237);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('™', pillX + pillPadX + logoW + 1, pillY + pillPadY + 8);
+  } catch { /* logo optional */ }
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
-  doc.text('Digital Transaction Receipt', cardX + cardW / 2, y + 80, { align: 'center' });
+  doc.text('Digital Transaction Receipt', cardX + cardW / 2, pillY + pillH + 16, { align: 'center' });
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text('STATUS : COMPLETED', cardX + cardW / 2, y + 98, { align: 'center' });
-  y += 138;
+  doc.text('STATUS : COMPLETED', cardX + cardW / 2, pillY + pillH + 34, { align: 'center' });
+  y += 138; // clear the 108pt header band + margin (matches original layout)
 
   doc.setTextColor(17, 24, 39);
   doc.setFont('helvetica', 'bold');
