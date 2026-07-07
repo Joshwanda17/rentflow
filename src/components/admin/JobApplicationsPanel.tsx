@@ -10,13 +10,13 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Briefcase, MessageCircle, Mail, RefreshCw, MapPin, Link2, ChevronDown,
+  Briefcase, RefreshCw, MapPin, Link2, ChevronDown,
   Clock, PhoneCall, Users, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { waLink } from '@/lib/whatsapp';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import ApplicantCommsLog from './ApplicantCommsLog';
 
 interface JobApplication {
   id: string;
@@ -280,20 +280,12 @@ export default function JobApplicationsPanel() {
                     <span className="text-[10px]">Applied {format(new Date(a.created_at), 'dd MMM yyyy, HH:mm')}</span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10">
-                      <a href={waLink(a.whatsapp_number)} target="_blank" rel="noreferrer">
-                        <MessageCircle className="h-3.5 w-3.5" /> {a.whatsapp_number}
-                      </a>
-                    </Button>
-                    {a.email && (
-                      <Button asChild size="sm" variant="outline" className="h-8 gap-1.5">
-                        <a href={`mailto:${a.email}?cc=info@welile.com`}>
-                          <Mail className="h-3.5 w-3.5" /> Email
-                        </a>
-                      </Button>
-                    )}
-                  </div>
+                  <ApplicantCommsLog
+                    applicationId={a.id}
+                    whatsappNumber={a.whatsapp_number}
+                    email={a.email}
+                    onFirstContact={() => { if (a.status === 'new') changeStatus(a.id, 'contacted'); }}
+                  />
                 </div>
               );
             })}
