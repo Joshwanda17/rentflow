@@ -250,7 +250,7 @@ export default function SelectRole() {
           }
         }
 
-        // Sub-agent registration bonus (UGX 10,000) is awarded automatically
+        // Sub-agent registration bonus (UGX 3,000) is awarded automatically
         // by the trg_award_subagent_commission trigger on agent_subagents insert.
 
         // Notification removed - table dropped

@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
         .insert({ parent_agent_id: parentAgentId, sub_agent_id: userId, source: 'invite' });
       if (subAgentError) console.error("[activate-supporter] Sub-agent error:", subAgentError);
 
-      // Sub-agent registration bonus (UGX 10,000) is now awarded automatically
+      // Sub-agent registration bonus (UGX 3,000) is now awarded automatically
       // by the trg_award_subagent_commission trigger on agent_subagents insert.
       // No manual RPC call needed here.
     }
