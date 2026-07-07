@@ -311,6 +311,7 @@ Deno.serve(async (req) => {
               transaction_date: new Date().toISOString(),
             },
           ],
+          idempotency_key: roiCycleKey ?? undefined,
         });
 
         if (ledgerErr) {
