@@ -33,3 +33,5 @@
 - [ROI Payout Cycle Idempotency](mem://business-model/roi-cycle-idempotency) — one ROI credit per portfolio per cycle; key `roi-cycle-<portfolio>-<next_roi_date>` enforced in approve-wallet-operation (pre-check + create_ledger_transaction idempotency_key + concurrent race guard) and client pre-flight in COOPartnersPage handlePay/handleSplitPayout
 
 - [CMO Merchandise Management](mem://features/cmo/merchandise-management) — Merchandise tab on CMO dashboard: `merchandise_purchases`/`merchandise_sales` tables (cmo/manager/super_admin RLS), inventory (purchased-sold), COGS/gross-profit, client credit receivables, date/product/client filters; queried via `supabase as any`
+
+- [Payout proof-of-payment receipt](mem://features/financial-ops/payout-proof-receipt) — Public `/receipt/:id` page + `get_payout_receipt` RPC; merchant-agent payout confirmation SMS links to a verified receipt (amount, method destination, TID, date/time, processor name+phone)
