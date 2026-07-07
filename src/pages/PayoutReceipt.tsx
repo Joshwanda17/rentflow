@@ -5,10 +5,8 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { QRCodeCanvas } from 'qrcode.react';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
-import {
-  Loader2, CheckCircle2, ShieldCheck, Building2, Smartphone, Banknote,
-  AlertTriangle, Clock, User, Phone, Hash, Download, Store,
-} from 'lucide-react';
+import { Loader2, AlertTriangle, Clock, Download, ScanLine } from 'lucide-react';
+import welileMark from '@/assets/welile-mark-white.png';
 
 interface ReceiptData {
   paid: boolean;
