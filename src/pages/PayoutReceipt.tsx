@@ -3,34 +3,9 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { QRCodeCanvas } from 'qrcode.react';
-import QRCode from 'qrcode';
-import jsPDF from 'jspdf';
 import { Loader2, AlertTriangle, Clock, Download, ScanLine } from 'lucide-react';
 import welileMark from '@/assets/welile-mark-white.png';
-
-interface ReceiptData {
-  paid: boolean;
-  status?: string;
-  amount?: number;
-  commission?: number | null;
-  payout_method?: string;
-  reference?: string;
-  receipt_token?: string;
-  receipt_number?: string;
-  transaction_type?: string;
-  processed_at?: string;
-  recipient_name?: string;
-  processor_name?: string;
-  processor_phone?: string;
-  merchant_branch?: string | null;
-  reason?: string;
-  bank_name?: string | null;
-  bank_account_number?: string | null;
-  bank_account_name?: string | null;
-  mobile_money_number?: string | null;
-  mobile_money_name?: string | null;
-  mobile_money_provider?: string | null;
-}
+import { downloadPayoutReceiptPdf, receiptMethodLabel, receiptPublicUrl, type PayoutReceiptData as ReceiptData } from '@/lib/payoutReceiptPdf';
 
 /**
  * Public proof-of-payment receipt. Opens instantly from the SMS link a customer
