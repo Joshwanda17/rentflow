@@ -27,3 +27,5 @@
 - [Welile Homes agent-collection model](mem://features/welile-homes/agent-collection-model) — Agent-managed monthly rent collection + landlord payout; 10% fee = 2% agent / 8% Welile / 90% landlord; receivable×12 dues, fixed-day payouts, deposit auto-collect trigger, daily cron
 - [Merchant cash-out daily report](mem://features/financial-ops/merchant-cashout-daily-report) — 22:00 EAT emailed per-merchant payout+commission report from ledger-accurate RPC to weliletenants@ + joshwanda17@
 - [Cash-Out Agent permission matrix](mem://features/cfo/cashout-agent-permission-matrix) — CFO Edit Cash-Out Agent modal is a full permission matrix (categories+approvals, float, limits, networks/banks, security, status) persisted to cashout_agents.config jsonb; legacy handles_* columns kept in sync; enforcement in payout fns still TODO
+
+- [Duplicate ROI Credit Monitor](mem://features/cfo/duplicate-roi-credit-monitor) — CFO report `get_duplicate_roi_credits` + proactive alert flagging investor ROI credited twice to same portfolio/cycle within seconds (double-submitted proxy payouts); roi_wallet_credit legs lack idempotency_key
