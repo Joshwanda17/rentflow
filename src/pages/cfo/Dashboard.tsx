@@ -197,6 +197,8 @@ export default function CFODashboardPage() {
         return <GeneralLedger />;
       case 'commissions':
         return <AgentCommissionPayoutsManager />;
+      case 'house-listing-commission':
+        return <HouseListingCommissionReport />;
       case 'withdrawals':
         return (
           <div className="space-y-6">
