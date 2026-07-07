@@ -303,6 +303,10 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
     // Page through EVERY matching listing — no fixed cap.
     paginate: true,
+    // Fetch a large first page so the map pins and the district/sub-county/
+    // village dropdowns see the full result set immediately — not just the
+    // first 24 rows the infinite-scroll sentinel would otherwise load.
+    pageSize: 500,
     enabled: open && !geo.loading,
   });
 
