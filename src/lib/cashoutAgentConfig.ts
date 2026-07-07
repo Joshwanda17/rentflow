@@ -384,3 +384,30 @@ export function buildQueueCategoryOrClause(config: CashoutAgentConfig | null): s
   }
   return parts.join(',');
 }
+
+// ===========================================================================
+// Withdrawal reason presets (user-facing)
+// ---------------------------------------------------------------------------
+// When a user initiates a withdrawal they pick a reason. The stored reason
+// string is what maps the resulting withdrawal_requests row to a payout
+// category (see getWithdrawalQueueCategory) so it reaches a Cash-Out Agent
+// authorized for that category. Keep the `value` strings' keywords aligned
+// with QUEUE_CATEGORY_DEFS.match().
+// ===========================================================================
+
+export interface WithdrawalReasonOption {
+  /** stored into withdrawal_requests.reason */
+  value: string;
+  label: string;
+  /** the queue category this reason maps to (for reference) */
+  queueCategory: string;
+}
+
+export const OTHER_WITHDRAWAL_REASON = '__other__';
+
+export const WITHDRAWAL_REASON_OPTIONS: WithdrawalReasonOption[] = [
+  { value: 'Wallet withdrawal', label: 'Personal / wallet withdrawal', queueCategory: 'wallet_withdrawals' },
+  { value: 'Commission payout', label: 'Commission earnings', queueCategory: 'agent_commissions' },
+  { value: 'ROI returns payout', label: 'Investment returns (ROI)', queueCategory: 'roi_payments' },
+  { value: 'Salary / payroll payout', label: 'Salary / payroll', queueCategory: 'payroll_payments' },
+];

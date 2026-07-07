@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Star } from 'lucide-react';
 import { downloadWithdrawalReceiptPdf, shareWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
 import { useLanguage } from '@/hooks/useLanguage';
+import { WITHDRAWAL_REASON_OPTIONS, OTHER_WITHDRAWAL_REASON } from '@/lib/cashoutAgentConfig';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
@@ -82,6 +83,14 @@ export default function WithdrawFlow({
 
   // Payout mode state
   const [payoutMode, setPayoutMode] = useState<'mobile_money' | 'bank_transfer' | 'cash'>('mobile_money');
+
+  // Reason / purpose the user selects for this withdrawal. The stored reason
+  // determines which payout category the request maps to, so it reaches a
+  // Cash-Out Agent authorized for that category.
+  const [reasonPreset, setReasonPreset] = useState<string>(WITHDRAWAL_REASON_OPTIONS[0].value);
+  const [reasonCustom, setReasonCustom] = useState('');
+  const effectiveReason =
+    reasonPreset === OTHER_WITHDRAWAL_REASON ? reasonCustom.trim() : reasonPreset;
   
   // Mobile Money details
   const [momoNumber, setMomoNumber] = useState('');
@@ -287,6 +296,8 @@ export default function WithdrawFlow({
     setAmount(100000);
     setCurrency('UGX');
     setPayoutMode('mobile_money');
+    setReasonPreset(WITHDRAWAL_REASON_OPTIONS[0].value);
+    setReasonCustom('');
     setMomoNumber('');
     setMomoName('');
     setMomoProvider('MTN');
@@ -426,6 +437,8 @@ export default function WithdrawFlow({
         );
       case 2: return !!payoutMode;
       case 3: {
+        // A reason is required — custom reason must not be blank.
+        if (!effectiveReason) return false;
         if (payoutMode === 'mobile_money') return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
         if (payoutMode === 'bank_transfer') return !!bankName && bankAccountName.trim().length >= 2 && bankAccountNumber.trim().length >= 5;
         if (payoutMode === 'cash') return true;
@@ -535,6 +548,7 @@ export default function WithdrawFlow({
           p_bank_account_number: payoutMode === 'bank_transfer' ? bankAccountNumber.trim() : null,
           p_bank_account_name: payoutMode === 'bank_transfer' ? bankAccountName.trim() : null,
           p_client_request_id: clientRequestIdRef.current,
+          p_reason: effectiveReason || null,
         },
       );
 
@@ -1248,6 +1262,36 @@ export default function WithdrawFlow({
                 </Card>
               </div>
             )}
+
+            {/* Reason / purpose — determines the payout category and which
+                Cash-Out Agents can process this withdrawal. */}
+            <div className="space-y-2 pt-2 border-t border-border/60">
+              <Label>Reason for withdrawal</Label>
+              <Select value={reasonPreset} onValueChange={setReasonPreset}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WITHDRAWAL_REASON_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={OTHER_WITHDRAWAL_REASON}>Other (specify)</SelectItem>
+                </SelectContent>
+              </Select>
+              {reasonPreset === OTHER_WITHDRAWAL_REASON && (
+                <Input
+                  value={reasonCustom}
+                  onChange={(e) => setReasonCustom(e.target.value)}
+                  placeholder="Enter your reason"
+                  maxLength={200}
+                />
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Helps route your withdrawal to the right payout desk.
+              </p>
+            </div>
           </div>
         );
 
@@ -1333,6 +1377,7 @@ export default function WithdrawFlow({
                 { label: 'Payout Mode', value: payoutMode === 'mobile_money' ? '📱 Mobile Money' : payoutMode === 'bank_transfer' ? '🏦 Bank Transfer' : '💵 Cash Pickup' },
                 { label: 'To', value: getPayoutSummary() },
                 { label: 'Name', value: getPayoutName() },
+                { label: 'Reason', value: effectiveReason || '—' },
               ]}
               fees={[
                 { label: 'Withdrawal fee', value: 'Free' },
