@@ -69,6 +69,14 @@ export function ensureRuntimePolyfills(): Promise<void> {
     user_agent: ua,
   });
 
+  // Persist to the compat telemetry table (fire-and-forget) so the CTO
+  // "Browser Compatibility" dashboard can aggregate missing features by device.
+  void import('./compatTelemetry')
+    .then(({ reportCompatEvent }) =>
+      reportCompatEvent({ event_type: 'gate_missing', missing_features: missing }),
+    )
+    .catch(() => {});
+
   const startedAt = Date.now();
   applied = import('./runtimePolyfillsImpl')
     .then(() => {
@@ -76,6 +84,15 @@ export function ensureRuntimePolyfills(): Promise<void> {
         missing_features: missing,
         load_ms: Date.now() - startedAt,
       });
+      void import('./compatTelemetry')
+        .then(({ reportCompatEvent }) =>
+          reportCompatEvent({
+            event_type: 'impl_loaded',
+            missing_features: missing,
+            load_ms: Date.now() - startedAt,
+          }),
+        )
+        .catch(() => {});
     })
     .catch((err) => {
       // Polyfill chunk failed to load — the app will likely crash on old
@@ -93,6 +110,18 @@ export function ensureRuntimePolyfills(): Promise<void> {
         // Raw Error so clientLog forwards it to Sentry.captureException.
         error: err,
       });
+
+      // Persist the gate-path failure for the compatibility dashboard.
+      void import('./compatTelemetry')
+        .then(({ reportCompatEvent }) =>
+          reportCompatEvent({
+            event_type: 'impl_load_failed',
+            missing_features: missing,
+            load_ms: Date.now() - startedAt,
+            error_message: err instanceof Error ? err.message : String(err),
+          }),
+        )
+        .catch(() => {});
     });
   return applied;
 }
