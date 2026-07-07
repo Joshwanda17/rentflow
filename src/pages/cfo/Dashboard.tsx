@@ -61,6 +61,7 @@ import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
 import { AgentAllocationTracesPanel } from '@/components/cfo/AgentAllocationTracesPanel';
 import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionDriftPanel';
+import { DuplicateRoiCreditsPanel } from '@/components/cfo/DuplicateRoiCreditsPanel';
 import { CFOUnfundingApprovals } from '@/components/cfo/CFOUnfundingApprovals';
 import { CFOAllocationReturnApprovals } from '@/components/cfo/CFOAllocationReturnApprovals';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
