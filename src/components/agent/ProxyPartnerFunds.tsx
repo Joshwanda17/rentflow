@@ -1327,6 +1327,66 @@ export function ProxyPartnerFunds() {
     }
   };
 
+  const openRevertDialog = (partner: PartnerBalance) => {
+    setRevertTarget(partner);
+    setRevertReason('');
+    setRevertOpen(true);
+  };
+
+  const confirmRevert = async () => {
+    if (!user?.id || !revertTarget) return;
+    if (revertReason.trim().length < 10) return;
+    setReverting(true);
+    try {
+      // Move the card off the ready-to-withdraw queue back into a
+      // nearing-payout (accruing) state by recording a dismissal snapshot.
+      const { error } = await supabase
+        .from('agent_proxy_card_dismissals')
+        .upsert(
+          {
+            agent_id: user.id,
+            partner_id: revertTarget.partnerId,
+            portfolio_id: revertTarget.portfolioId,
+            snapshot_amount: revertTarget.available,
+            reason: revertReason.trim(),
+          },
+          { onConflict: 'agent_id,partner_id,portfolio_id' },
+        );
+      if (error) throw error;
+
+      // Mandatory audit trail for the reversal.
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'agent_proxy_revert_to_nearing_payout',
+          table_name: 'agent_proxy_card_dismissals',
+          record_id: revertTarget.portfolioId,
+          metadata: {
+            partner_id: revertTarget.partnerId,
+            partner_name: revertTarget.partnerName,
+            portfolio_id: revertTarget.portfolioId,
+            snapshot_amount: revertTarget.available,
+            reason: revertReason.trim(),
+          },
+        });
+      } catch (e) {
+        console.warn('audit log failed', e);
+      }
+
+      toast.success('Sent back to nearing payout', {
+        description: `${revertTarget.partnerName} has been moved back to the nearing payout list. Reason recorded for audit.`,
+      });
+      setRevertOpen(false);
+      setRevertTarget(null);
+      setRevertReason('');
+      loadProxyFunds();
+    } catch (err: any) {
+      toast.error('Failed to revert', { description: err.message });
+    } finally {
+      setReverting(false);
+    }
+  };
+
   const getStatusBadge = (partner: PartnerBalance) => {
     const key = getStatusKey(partner);
     const status = partnerWithdrawalStatus[key];
