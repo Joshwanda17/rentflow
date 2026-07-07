@@ -6,6 +6,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { Loader2, AlertTriangle, Clock, Download, ScanLine } from 'lucide-react';
 import welileWordmark from '@/assets/welile-wordmark.png';
 import { downloadPayoutReceiptPdf, receiptMethodLabel, receiptPublicUrl, type PayoutReceiptData as ReceiptData } from '@/lib/payoutReceiptPdf';
+import { WelileStamp } from '@/components/receipts/WelileStamp';
 
 /**
  * Public proof-of-payment receipt. Opens instantly from the SMS link a customer
@@ -107,7 +108,11 @@ export default function PayoutReceipt() {
   return (
     <div className="min-h-screen bg-muted/30 py-8 px-4 flex justify-center">
       <div className="w-full max-w-md">
-        <div className="bg-card rounded-[28px] shadow-xl overflow-hidden border border-border">
+        <div className="relative bg-card rounded-[28px] shadow-xl overflow-hidden border border-border">
+          {/* Authenticity e-stamp watermark, stamped across every receipt */}
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden">
+            <WelileStamp watermark scale={0.62} />
+          </div>
           {/* Header */}
           <div className="bg-primary text-primary-foreground px-6 pt-8 pb-7 text-center">
             <div className="mb-3 flex justify-center">
