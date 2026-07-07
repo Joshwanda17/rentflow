@@ -217,6 +217,16 @@ async function resolveSearchUserIds(term: string): Promise<string[]> {
   return (data || []).map((p: any) => p.id);
 }
 
+/** Fetch ids of all currently-frozen accounts so their payouts are hidden. */
+async function resolveFrozenUserIds(): Promise<string[]> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('is_frozen', true)
+    .limit(5000);
+  return (data || []).map((p: any) => p.id);
+}
+
 /** Attach profile name/phone to a small page of withdrawal rows (no FK embed). */
 async function attachProfiles(rows: any[]) {
   if (!rows || rows.length === 0) return rows || [];
