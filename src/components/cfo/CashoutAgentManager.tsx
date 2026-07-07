@@ -904,6 +904,36 @@ export function CashoutAgentManager() {
       </div>
 
       {/* Top KPIs */}
+      {/* Global date filter — scopes every stat/KPI below for ALL merchant agents */}
+      <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" /> Payout Period
+          </p>
+          <span className="text-[10px] font-medium text-primary">{dateFilterLabel}</span>
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5">
+          <FilterChip active={datePreset === 'all'} onClick={() => setDatePreset('all')}>All time</FilterChip>
+          <FilterChip active={datePreset === 'today'} onClick={() => setDatePreset('today')}>Today</FilterChip>
+          <FilterChip active={datePreset === '7d'} onClick={() => setDatePreset('7d')}>7 days</FilterChip>
+          <FilterChip active={datePreset === '30d'} onClick={() => setDatePreset('30d')}>30 days</FilterChip>
+          <FilterChip active={datePreset === 'custom'} onClick={() => setDatePreset('custom')}>Custom</FilterChip>
+        </div>
+        {datePreset === 'custom' && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex-1">
+              <Label className="text-[10px] text-muted-foreground">From</Label>
+              <Input type="date" value={customFrom} max={customTo || undefined} onChange={e => setCustomFrom(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="flex-1">
+              <Label className="text-[10px] text-muted-foreground">To</Label>
+              <Input type="date" value={customTo} min={customFrom || undefined} onChange={e => setCustomTo(e.target.value)} className="h-8 text-xs" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Top KPIs */}
       <div className="grid grid-cols-2 gap-2">
         <KpiTile icon={<Users className="h-4 w-4" />} label="Total Merchants" value={String(kpis.agentsCount)} tone="primary" sub={`${kpis.activeToday} active today`} />
         <KpiTile icon={<TrendingUp className="h-4 w-4" />} label="Total Processed" value={formatUGX(kpis.totalPaid)} tone="primary" sub={`${kpis.payoutsCount} payouts`} />
