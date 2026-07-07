@@ -1774,15 +1774,28 @@ export function ProxyPartnerFunds() {
                   )}
                 </div>
               ) : (
-                <Button
-                  size="sm"
-                  className="w-full gap-1"
-                  onClick={() => handleWithdraw(partner)}
-                  disabled={partner.available <= 0 || hasPending || isSubmitting}
-                >
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                  {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 gap-1"
+                    onClick={() => handleWithdraw(partner)}
+                    disabled={partner.available <= 0 || hasPending || isSubmitting}
+                  >
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                    {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 shrink-0"
+                    title="Send back to nearing payout"
+                    onClick={() => openRevertDialog(partner)}
+                    disabled={hasPending || isSubmitting}
+                  >
+                    <Hourglass className="h-3.5 w-3.5" />
+                    Nearing
+                  </Button>
+                </div>
               )}
               <Button
                 size="sm"
