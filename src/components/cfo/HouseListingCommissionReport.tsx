@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Home, Loader2, Download, Calendar, TrendingUp, Users, Award,
-  Zap, ShieldCheck, UserPlus,
+  Zap, ShieldCheck, UserPlus, FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { generateHouseListingCommissionPdf } from '@/lib/houseListingCommissionPdf';
 
 type Preset = 'all' | 'today' | '7d' | '30d' | 'month' | 'custom';
 
@@ -86,19 +87,37 @@ export function HouseListingCommissionReport() {
   const exportCsv = () => {
     if (!data) return;
     const rows: string[] = [];
-    rows.push(`House Listing Commission Report,${label}`);
+    const esc = (v: string | number) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const line = (cols: (string | number)[]) => rows.push(cols.map(esc).join(','));
+
+    line(['House Listing Commission Report']);
+    line(['Period', label]);
+    line(['Generated', new Date().toLocaleString('en-UG')]);
     rows.push('');
-    rows.push('Summary');
-    rows.push(`Total commission paid,${data.total_amount}`);
-    rows.push(`Payments,${data.total_count}`);
-    rows.push(`Agents paid,${data.agent_count}`);
+
+    line(['SUMMARY']);
+    line(['Metric', 'Value']);
+    line(['Total Commission Paid (UGX)', data.total_amount]);
+    line(['Payments', data.total_count]);
+    line(['Agents Paid', data.agent_count]);
     rows.push('');
-    rows.push('By commission type,Amount (UGX),Payments');
-    for (const t of data.by_type) rows.push(`${TYPE_META[t.type]?.label || t.type},${t.amount},${t.count}`);
+
+    line(['COMMISSION BY TYPE']);
+    line(['Commission Type', 'Payments', 'Amount (UGX)', 'Share (%)']);
+    for (const t of data.by_type) {
+      const pct = data.total_amount > 0 ? Math.round((t.amount / data.total_amount) * 100) : 0;
+      line([TYPE_META[t.type]?.label || t.type, t.count, t.amount, pct]);
+    }
     rows.push('');
-    rows.push('By agent,Phone,Amount (UGX),Payments');
-    for (const a of data.by_agent) rows.push(`"${a.agent_name}",${a.phone},${a.amount},${a.count}`);
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+
+    line(['COMMISSION BY AGENT']);
+    line(['Rank', 'Agent', 'Phone', 'Payments', 'Amount (UGX)']);
+    data.by_agent.forEach((a, i) => line([i + 1, a.agent_name, a.phone || '', a.count, a.amount]));
+
+    const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -106,6 +125,34 @@ export function HouseListingCommissionReport() {
     link.click();
     URL.revokeObjectURL(url);
     toast.success('Report exported');
+  };
+
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const exportPdf = async () => {
+    if (!data) return;
+    setPdfBusy(true);
+    try {
+      const blob = await generateHouseListingCommissionPdf({
+        periodLabel: label,
+        totalAmount: data.total_amount,
+        totalCount: data.total_count,
+        agentCount: data.agent_count,
+        byType: data.by_type.map(t => ({ label: TYPE_META[t.type]?.label || t.type, amount: t.amount, count: t.count })),
+        byAgent: data.by_agent.map(a => ({ name: a.agent_name, phone: a.phone, amount: a.amount, count: a.count })),
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `house_listing_commission_${new Date().toISOString().slice(0, 10)}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('PDF downloaded');
+    } catch (e) {
+      console.error(e);
+      toast.error('Could not generate PDF');
+    } finally {
+      setPdfBusy(false);
+    }
   };
 
   const chip = (p: Preset, text: string) => (
@@ -191,14 +238,19 @@ export function HouseListingCommissionReport() {
             </div>
           </div>
 
+          {/* Export actions */}
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-8 flex-1 gap-1.5 text-xs" onClick={exportCsv} disabled={!data.total_count}>
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </Button>
+            <Button size="sm" className="h-8 flex-1 gap-1.5 text-xs" onClick={exportPdf} disabled={!data.total_count || pdfBusy}>
+              {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />} Download PDF
+            </Button>
+          </div>
+
           {/* By type */}
           <div className="rounded-2xl border border-border bg-card p-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Commission by Type</p>
-              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={exportCsv} disabled={!data.total_count}>
-                <Download className="h-3.5 w-3.5" /> Export CSV
-              </Button>
-            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Commission by Type</p>
             <div className="space-y-2">
               {data.by_type.length === 0 && (
                 <p className="text-sm text-muted-foreground py-4 text-center">No commission paid in this period.</p>
