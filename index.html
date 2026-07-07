@@ -182,6 +182,23 @@
             '<strong style="display:block;font-weight:600">Your browser is out of date</strong>' +
             '<span style="opacity:.92">Welile may not load correctly. Please update your browser or Android System WebView, ' +
             'or open the app in the latest Chrome.</span>';
+          // Supported-browsers section: concrete minimum versions plus direct
+          // one-tap update links for Chrome and Android System WebView.
+          var supported = document.createElement('div');
+          supported.style.cssText =
+            'flex:1 1 100%;margin-top:4px;padding-top:8px;border-top:1px solid rgba(255,255,255,.25);' +
+            'font-size:12px;line-height:1.5;opacity:.95';
+          supported.innerHTML =
+            '<strong style="display:block;font-weight:600;margin-bottom:2px">Supported browsers</strong>' +
+            '<span style="display:block">Chrome 90+ &middot; Android System WebView 90+ &middot; Safari / iOS 14+ &middot; ' +
+            'Samsung Internet 14+ &middot; Firefox 90+ &middot; Edge 90+</span>' +
+            '<span style="display:block;margin-top:6px">Update now: ' +
+            '<a href="https://play.google.com/store/apps/details?id=com.android.chrome" target="_blank" rel="noopener" ' +
+            'style="color:#fff;font-weight:600;text-decoration:underline">Chrome</a> &middot; ' +
+            '<a href="https://play.google.com/store/apps/details?id=com.google.android.webview" target="_blank" rel="noopener" ' +
+            'style="color:#fff;font-weight:600;text-decoration:underline">Android System WebView</a> &middot; ' +
+            '<a href="https://apps.apple.com/app/id535886823" target="_blank" rel="noopener" ' +
+            'style="color:#fff;font-weight:600;text-decoration:underline">Chrome for iOS</a></span>';
           var actions = document.createElement('div');
           actions.style.cssText = 'display:flex;gap:8px;align-items:center';
           var reload = document.createElement('button');
@@ -206,6 +223,7 @@
           actions.appendChild(close);
           bar.appendChild(msg);
           bar.appendChild(actions);
+          bar.appendChild(supported);
           (document.body || document.documentElement).appendChild(bar);
         }
         try { window.__welileShowOutdatedBanner = showBanner; } catch (e) {}
