@@ -41,8 +41,14 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    // es2017 supports Android 5+ (Chrome 58+), Samsung Internet 7+, KaiOS
-    target: 'es2017',
+    // es2015 (ES6) is the widest safe syntax floor: it runs on very old
+    // Android System WebViews / stock browsers (Android 5+, Chrome 51+,
+    // Samsung Internet 5+, Safari 10+) while modern phones execute it natively
+    // with no meaningful cost. Combined with the feature-guarded runtime
+    // polyfills in src/lib/runtimePolyfills.ts (which only patch MISSING
+    // methods), a SINGLE bundle serves every supported browser — no separate
+    // legacy build or differential serving needed.
+    target: 'es2015',
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1500,
     sourcemap: false,
