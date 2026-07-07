@@ -3,7 +3,7 @@ import {
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
-  ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark, KeyRound, SlidersHorizontal, HandCoins, Snowflake, ShoppingBag
+  ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark, KeyRound, SlidersHorizontal, HandCoins, Snowflake, ShoppingBag, MonitorSmartphone
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -45,6 +45,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Reset Password', icon: KeyRound, id: 'password-reset' },
         { label: 'Developer Tools', icon: Wrench, id: 'tools' },
         { label: 'System Logs', icon: FileText, id: 'system-logs' },
+        { label: 'Browser Compatibility', icon: MonitorSmartphone, id: 'browser-compat' },
         { label: 'Platform Users', icon: Users, id: 'platform-users', route: '/platform-users' },
       ],
     },

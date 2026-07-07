@@ -4055,6 +4055,39 @@ export type Database = {
         }
         Relationships: []
       }
+      browser_compat_events: {
+        Row: {
+          created_at: string
+          device: Json
+          error_message: string | null
+          event_type: string
+          id: string
+          load_ms: number | null
+          missing_features: string[]
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          device?: Json
+          error_message?: string | null
+          event_type: string
+          id?: string
+          load_ms?: number | null
+          missing_features?: string[]
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          device?: Json
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          load_ms?: number | null
+          missing_features?: string[]
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       bulk_bank_payout_allocations: {
         Row: {
           allocated_amount: number

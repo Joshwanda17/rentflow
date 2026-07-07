@@ -6,6 +6,7 @@ import { Server, Activity, ShieldAlert, Users, Bug, Wifi, Database, Clock, HardD
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
 import { SystemLogsViewer } from './SystemLogsViewer';
+import { BrowserCompatDashboard } from './BrowserCompatDashboard';
 import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
 import { CTOCommunicationOverview } from './CTOCommunicationOverview';
@@ -23,6 +24,9 @@ import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
     return <SystemLogsViewer />;
+  }
+  if (activeTab === 'browser-compat') {
+    return <BrowserCompatDashboard />;
   }
   if (activeTab === 'sms-delivery') {
     return <SmsDeliveryLogViewer />;
