@@ -11141,6 +11141,115 @@ export type Database = {
         }
         Relationships: []
       }
+      merchandise_recovery_deductions: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_id: string
+          id: string
+          item_name: string | null
+          outstanding_after: number
+          plan_id: string
+          transaction_ref: string | null
+          withdrawable_before: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          customer_id: string
+          id?: string
+          item_name?: string | null
+          outstanding_after?: number
+          plan_id: string
+          transaction_ref?: string | null
+          withdrawable_before?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_id?: string
+          id?: string
+          item_name?: string | null
+          outstanding_after?: number
+          plan_id?: string
+          transaction_ref?: string | null
+          withdrawable_before?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchandise_recovery_deductions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "merchandise_recovery_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      merchandise_recovery_plans: {
+        Row: {
+          amount_recovered: number
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          customer_name: string | null
+          customer_phone: string | null
+          daily_rate: number
+          id: string
+          item_name: string
+          last_recovery_at: string | null
+          original_amount: number
+          outstanding_balance: number
+          sale_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_recovered?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          daily_rate?: number
+          id?: string
+          item_name: string
+          last_recovery_at?: string | null
+          original_amount?: number
+          outstanding_balance?: number
+          sale_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_recovered?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          daily_rate?: number
+          id?: string
+          item_name?: string
+          last_recovery_at?: string | null
+          original_amount?: number
+          outstanding_balance?: number
+          sale_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchandise_recovery_plans_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "merchandise_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       merchandise_sales: {
         Row: {
           amount_outstanding: number
@@ -11149,6 +11258,7 @@ export type Database = {
           client_phone: string | null
           created_at: string
           created_by: string | null
+          customer_id: string | null
           id: string
           item_name: string
           notes: string | null
@@ -11167,6 +11277,7 @@ export type Database = {
           client_phone?: string | null
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           id?: string
           item_name: string
           notes?: string | null
@@ -11185,6 +11296,7 @@ export type Database = {
           client_phone?: string | null
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           id?: string
           item_name?: string
           notes?: string | null
@@ -22369,6 +22481,7 @@ export type Database = {
       normalize_e164_phone: { Args: { raw: string }; Returns: string }
       normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
       normalize_phone: { Args: { p: string }; Returns: string }
+      normalize_phone_9: { Args: { p_phone: string }; Returns: string }
       normalize_phone_last9: { Args: { phone: string }; Returns: string }
       normalize_uganda_district: { Args: { p_raw: string }; Returns: string }
       normalize_uganda_region: { Args: { p_raw: string }; Returns: string }
@@ -22815,6 +22928,7 @@ export type Database = {
         Args: { p_code: string; p_referrer?: string; p_user_agent?: string }
         Returns: undefined
       }
+      recover_merchandise_from_wallets: { Args: never; Returns: Json }
       redeem_staff_access_code: { Args: { p_code: string }; Returns: Json }
       refresh_financial_summaries: { Args: never; Returns: undefined }
       refresh_house_location_rollup: { Args: never; Returns: undefined }

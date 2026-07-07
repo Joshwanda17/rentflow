@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import {
   Package, ShoppingCart, Boxes, TrendingUp, Wallet, Coins, Users, HandCoins,
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
+  Repeat, CheckCircle2, CircleDollarSign,
 } from 'lucide-react';
 
 // The merchandise tables are new; the generated Supabase types don't include
@@ -51,6 +52,21 @@ interface Sale {
   amount_outstanding: number;
   sale_date: string;
   notes: string | null;
+  created_at: string;
+}
+
+interface RecoveryPlan {
+  id: string;
+  customer_id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  item_name: string;
+  original_amount: number;
+  outstanding_balance: number;
+  amount_recovered: number;
+  daily_rate: number;
+  status: 'active' | 'completed' | 'cancelled';
+  last_recovery_at: string | null;
   created_at: string;
 }
 
@@ -89,6 +105,19 @@ export function MerchandiseManager() {
         .from('merchandise_sales')
         .select('*')
         .order('sale_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+  });
+
+  const { data: recoveryPlans = [], isLoading: loadingRecovery } = useQuery<RecoveryPlan[]>({
+    queryKey: ['merchandise-recovery-plans'],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from('merchandise_recovery_plans')
+        .select('*')
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -202,7 +231,17 @@ export function MerchandiseManager() {
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['merchandise-purchases'] });
     queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
+    queryClient.invalidateQueries({ queryKey: ['merchandise-recovery-plans'] });
   };
+
+  // ---- Wallet-recovery roll-ups ----
+  const recovery = useMemo(() => {
+    const active = recoveryPlans.filter((p) => p.status === 'active');
+    const completed = recoveryPlans.filter((p) => p.status === 'completed');
+    const recoveredToDate = recoveryPlans.reduce((s, p) => s + Number(p.amount_recovered), 0);
+    const remaining = active.reduce((s, p) => s + Number(p.outstanding_balance), 0);
+    return { active, completed, recoveredToDate, remaining, count: active.length };
+  }, [recoveryPlans]);
 
   const deletePurchase = async (id: string) => {
     const { error } = await db.from('merchandise_purchases').delete().eq('id', id);
@@ -290,6 +329,55 @@ export function MerchandiseManager() {
         <KPICard title="Cost of Merchandise Sold" value={formatUGX(totals.cogs)} icon={Receipt} color="bg-orange-500/10 text-orange-600" />
         <KPICard title="Total Accounts Receivable" value={formatUGX(totals.outstanding)} icon={Users} color="bg-amber-500/10 text-amber-600" />
       </div>
+
+      {/* Wallet-recovery KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <KPICard title="Recovered to Date" value={formatUGX(recovery.recoveredToDate)} icon={CircleDollarSign} loading={loadingRecovery} color="bg-emerald-500/10 text-emerald-600" subtitle="Via daily wallet deductions" />
+        <KPICard title="Customers Repaying" value={recovery.count.toLocaleString()} icon={Repeat} loading={loadingRecovery} color="bg-purple-500/10 text-purple-600" subtitle="Active recovery plans" />
+        <KPICard title="Remaining to Recover" value={formatUGX(recovery.remaining)} icon={HandCoins} loading={loadingRecovery} color="bg-amber-500/10 text-amber-600" />
+        <KPICard title="Fully Paid Accounts" value={recovery.completed.length.toLocaleString()} icon={CheckCircle2} loading={loadingRecovery} color="bg-green-500/10 text-green-600" />
+      </div>
+
+      {/* Merchandise wallet recovery */}
+      <Section title="Merchandise Wallet Recovery (Daily 15%)" icon={Repeat}>
+        {recoveryPlans.length === 0 ? (
+          <EmptyRow text="No wallet-recovery plans yet. Credit sales to registered customers are recovered automatically." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3">Customer</th>
+                  <th className="py-2 px-3">Item</th>
+                  <th className="py-2 px-3 text-right">Original</th>
+                  <th className="py-2 px-3 text-right">Recovered</th>
+                  <th className="py-2 px-3 text-right">Remaining</th>
+                  <th className="py-2 px-3">Last Recovery</th>
+                  <th className="py-2 pl-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recoveryPlans.map((p) => (
+                  <tr key={p.id} className="border-b border-border/40">
+                    <td className="py-2 pr-3">
+                      <div className="font-medium">{p.customer_name || 'Customer'}</div>
+                      <div className="text-[11px] text-muted-foreground">{p.customer_phone || '—'}</div>
+                    </td>
+                    <td className="py-2 px-3">{p.item_name}</td>
+                    <td className="py-2 px-3 text-right">{formatUGX(Number(p.original_amount))}</td>
+                    <td className="py-2 px-3 text-right text-emerald-600">{formatUGX(Number(p.amount_recovered))}</td>
+                    <td className="py-2 px-3 text-right font-semibold text-amber-600">{formatUGX(Number(p.outstanding_balance))}</td>
+                    <td className="py-2 px-3 whitespace-nowrap text-muted-foreground">
+                      {p.last_recovery_at ? format(new Date(p.last_recovery_at), 'dd MMM yy') : '—'}
+                    </td>
+                    <td className="py-2 pl-3"><RecoveryBadge status={p.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
 
       {/* Inventory by item */}
       <Section title="Inventory by Item" icon={Boxes}>
@@ -462,6 +550,16 @@ function StatusBadge({ status }: { status: 'paid' | 'credit' | 'partial' }) {
     partial: 'bg-amber-500/10 text-amber-600',
   } as const;
   const label = { paid: 'Paid', credit: 'On Credit', partial: 'Partial' }[status];
+  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>{label}</span>;
+}
+
+function RecoveryBadge({ status }: { status: 'active' | 'completed' | 'cancelled' }) {
+  const map = {
+    active: 'bg-purple-500/10 text-purple-600',
+    completed: 'bg-green-500/10 text-green-600',
+    cancelled: 'bg-muted text-muted-foreground',
+  } as const;
+  const label = { active: 'Recovering', completed: 'Fully Paid', cancelled: 'Cancelled' }[status];
   return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>{label}</span>;
 }
 
@@ -716,6 +814,12 @@ function RecordSaleDialog({
             <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm flex justify-between">
               <span className="text-amber-700">Outstanding balance</span>
               <span className="font-semibold text-amber-700">{formatUGX(outstanding)}</span>
+            </div>
+          )}
+          {(paymentStatus === 'credit' || paymentStatus === 'partial') && outstanding > 0 && clientPhone.trim() && (
+            <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
+              If this phone belongs to a registered customer, the outstanding balance will be
+              recovered automatically — 15% of their Withdrawable Wallet each day until fully paid.
             </div>
           )}
           <div className="space-y-1">
