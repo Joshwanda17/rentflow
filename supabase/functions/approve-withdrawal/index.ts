@@ -2233,8 +2233,8 @@ Deno.serve(async (req) => {
         `${bankLine}` +
         `${merchantLine}` +
         `${balanceLine}` +
-        `\n\nView your wallet, transactions, and account details:\n` +
-        `https://welilereceipts.com/ZQhyGb` +
+        `\n\nView your proof-of-payment receipt:\n` +
+        `https://welilereceipts.com/receipt/${withdrawal_id}` +
         `\n\nNeed help? Call or WhatsApp: +256777607640`;
 
       // In-app notification center entry so the user sees the approval update

@@ -524,6 +524,10 @@ export function WithdrawalPayoutCard({
                     {completingId === withdrawal.id ? 'Confirming…' : 'Confirm Paid'}
                   </Button>
                 </div>
+                <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-px shrink-0 text-emerald-500" />
+                  Once confirmed, the recipient gets an SMS with a link to a proof-of-payment receipt showing this TID, the amount, the destination details, the date/time, and your name.
+                </p>
                 <Button
                   variant="ghost"
                   className="w-full h-11 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
