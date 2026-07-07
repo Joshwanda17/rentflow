@@ -847,12 +847,8 @@ export function CashoutAgentManager() {
           setEditAgent={setEditAgent}
           editLabel={editLabel}
           setEditLabel={setEditLabel}
-          editHandlesMomo={editHandlesMomo}
-          setEditHandlesMomo={setEditHandlesMomo}
-          editHandlesBank={editHandlesBank}
-          setEditHandlesBank={setEditHandlesBank}
-          editHandlesCash={editHandlesCash}
-          setEditHandlesCash={setEditHandlesCash}
+          editConfig={editConfig}
+          setEditConfig={setEditConfig}
           isPending={updateMutation.isPending}
           onSave={() => updateMutation.mutate()}
         />
@@ -1080,12 +1076,8 @@ export function CashoutAgentManager() {
         setEditAgent={setEditAgent}
         editLabel={editLabel}
         setEditLabel={setEditLabel}
-        editHandlesMomo={editHandlesMomo}
-        setEditHandlesMomo={setEditHandlesMomo}
-        editHandlesBank={editHandlesBank}
-        setEditHandlesBank={setEditHandlesBank}
-        editHandlesCash={editHandlesCash}
-        setEditHandlesCash={setEditHandlesCash}
+        editConfig={editConfig}
+        setEditConfig={setEditConfig}
         isPending={updateMutation.isPending}
         onSave={() => updateMutation.mutate()}
       />
