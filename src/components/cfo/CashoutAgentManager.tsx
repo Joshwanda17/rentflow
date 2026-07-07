@@ -664,6 +664,26 @@ export function CashoutAgentManager() {
 
   const selectedAgentStats = selectedAgent ? agentStats.get(selectedAgent.id) || { count: 0, volume: 0, bank: 0, momo: 0, cash: 0, bankCount: 0, momoCount: 0, cashCount: 0, lastAt: null, todayCount: 0 } : null;
 
+  // Commission accuracy reconciliation. Rather than silently masking gaps with
+  // the 0.5% estimate, compare what actually landed in the merchant's wallet
+  // (ledger legs) against what SHOULD have been credited (0.5% of each payout).
+  // This surfaces payouts that never received a commission leg (under-credit)
+  // so the CFO sees the real, honest figure instead of an idealised one.
+  const commissionSummary = useMemo(() => {
+    const legs = commissionByWithdrawal as Record<string, number>;
+    let credited = 0;      // what actually hit the wallet (ledger only)
+    let expected = 0;      // what 0.5% says it should be
+    let missingCount = 0;  // payouts with no commission leg
+    for (const py of selectedAgentPayouts as any[]) {
+      const amt = Number(py.amount || 0);
+      expected += getCashoutCommission(amt);
+      const leg = legs[String(py.id)];
+      if (leg === undefined) missingCount += 1;
+      else credited += Number(leg || 0);
+    }
+    return { credited, expected, missingCount, gap: expected - credited };
+  }, [selectedAgentPayouts, commissionByWithdrawal]);
+
   const methodBadges = (a: any) => {
     const handlesMomoAny = a.handles_mtn || a.handles_airtel;
     return (
