@@ -6,7 +6,7 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
-import { MonitorSmartphone, PackageX, PackageCheck, AlertTriangle } from 'lucide-react';
+import { MonitorSmartphone, PackageX, PackageCheck, AlertTriangle, MousePointerClick } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface CompatEvent {
