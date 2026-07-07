@@ -14,7 +14,7 @@
 /* eslint-disable no-extend-native */
 
 // String.prototype.replaceAll (ES2021) — used by input-otp (OTP/PIN inputs).
-if (typeof String.prototype.replaceAll !== 'function') {
+if (typeof (String.prototype as any).replaceAll !== 'function') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (String.prototype as any).replaceAll = function (search: any, replacement: any) {
     if (Object.prototype.toString.call(search) === '[object RegExp]') {
@@ -37,11 +37,11 @@ function atPolyfill(this: any, n: number) {
   if (n < 0 || n >= this.length) return undefined;
   return this[n];
 }
-if (typeof Array.prototype.at !== 'function') {
+if (typeof (Array.prototype as any).at !== 'function') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (Array.prototype as any).at = atPolyfill;
 }
-if (typeof String.prototype.at !== 'function') {
+if (typeof (String.prototype as any).at !== 'function') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (String.prototype as any).at = atPolyfill;
 }
@@ -55,7 +55,7 @@ if (typeof (Object as any).hasOwn !== 'function') {
 }
 
 // Array.prototype.flat / flatMap (ES2019).
-if (typeof Array.prototype.flat !== 'function') {
+if (typeof (Array.prototype as any).flat !== 'function') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (Array.prototype as any).flat = function (depth = 1) {
     const flatten = (arr: any[], d: number): any[] =>
@@ -69,7 +69,7 @@ if (typeof Array.prototype.flat !== 'function') {
     return flatten(this, depth);
   };
 }
-if (typeof Array.prototype.flatMap !== 'function') {
+if (typeof (Array.prototype as any).flatMap !== 'function') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (Array.prototype as any).flatMap = function (cb: any, thisArg: any) {
     return this.map((v: any, i: number, a: any[]) => cb.call(thisArg, v, i, a)).flat();
