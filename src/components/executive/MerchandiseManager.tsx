@@ -111,6 +111,19 @@ export function MerchandiseManager() {
     staleTime: 60000,
   });
 
+  const { data: recoveryPlans = [], isLoading: loadingRecovery } = useQuery<RecoveryPlan[]>({
+    queryKey: ['merchandise-recovery-plans'],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from('merchandise_recovery_plans')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+  });
+
   // ---- Product & client option lists (for filters + autocomplete) ----
   const productNames = useMemo(() => {
     const set = new Set<string>();
