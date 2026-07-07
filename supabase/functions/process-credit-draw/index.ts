@@ -85,7 +85,6 @@ Deno.serve(async (req) => {
         amount,
         requested_amount: amount,
         duration_months,
-        duration_days: durationDays,
         monthly_rate: MONTHLY_RATE,
         access_fee: accessFee,
         total_payable: totalPayable,
