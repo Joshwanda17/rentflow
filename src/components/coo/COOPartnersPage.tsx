@@ -4692,6 +4692,44 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // ── ROI CYCLE GUARD (once per payout cycle) ──────────────────────────
+      // Block a second payout for the same portfolio + cycle. The cycle is keyed
+      // by the portfolio's current next_roi_date (advances only on approval), so
+      // an accidental double-submit is refused before a duplicate credit / a
+      // duplicate pending approval can be created. The backend enforces the same
+      // rule idempotently as the final safety net.
+      const cycleAnchor = p.nextRoiDate || new Date().toISOString().slice(0, 10);
+      const roiCycleKey = `roi-cycle-${p.portfolioId}-${cycleAnchor}`;
+      const [{ data: creditedRows }, { data: openOps }] = await Promise.all([
+        supabase
+          .from('general_ledger')
+          .select('id')
+          .eq('idempotency_key', roiCycleKey)
+          .limit(1),
+        supabase
+          .from('pending_wallet_operations')
+          .select('id')
+          .eq('source_id', p.portfolioId)
+          .eq('source_table', 'investor_portfolios')
+          .eq('category', 'roi_payout')
+          .in('status', ['pending', 'pending_coo_approval', 'coo_approved', 'awaiting_verification'])
+          .limit(1),
+      ]);
+      if (creditedRows && creditedRows.length > 0) {
+        toast.error('Already paid this cycle', {
+          description: `${p.name} already received their ROI for the ${cycleAnchor} cycle. It advances after the next due date.`,
+        });
+        setProcessing(prev => ({ ...prev, [p.portfolioId]: null }));
+        return;
+      }
+      if (openOps && openOps.length > 0) {
+        toast.error('Payout already in the approval queue', {
+          description: `An ROI payout for ${p.name} is already awaiting approval. Approve or reject that one first.`,
+        });
+        setProcessing(prev => ({ ...prev, [p.portfolioId]: null }));
+        return;
+      }
+
       // Date stays unchanged — only advances when CFO approves the payout
 
       // Managed-proxy ROI rule: the full ROI goes to the proxy agent wallet,
@@ -4859,6 +4897,35 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const refId = generateRef('SPL');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      // ── ROI CYCLE GUARD (once per payout cycle) ──────────────────────────
+      const cycleAnchor = p.nextRoiDate || new Date().toISOString().slice(0, 10);
+      const roiCycleKey = `roi-cycle-${p.portfolioId}-${cycleAnchor}`;
+      const [{ data: creditedRows }, { data: openOps }] = await Promise.all([
+        supabase.from('general_ledger').select('id').eq('idempotency_key', roiCycleKey).limit(1),
+        supabase
+          .from('pending_wallet_operations')
+          .select('id')
+          .eq('source_id', p.portfolioId)
+          .eq('source_table', 'investor_portfolios')
+          .eq('category', 'roi_payout')
+          .in('status', ['pending', 'pending_coo_approval', 'coo_approved', 'awaiting_verification'])
+          .limit(1),
+      ]);
+      if (creditedRows && creditedRows.length > 0) {
+        toast.error('Already paid this cycle', {
+          description: `${p.name} already received their ROI for the ${cycleAnchor} cycle.`,
+        });
+        setProcessing(prev => ({ ...prev, [p.portfolioId]: null }));
+        return;
+      }
+      if (openOps && openOps.length > 0) {
+        toast.error('Payout already in the approval queue', {
+          description: `An ROI payout for ${p.name} is already awaiting approval.`,
+        });
+        setProcessing(prev => ({ ...prev, [p.portfolioId]: null }));
+        return;
+      }
 
       const managed = managedInfo[p.portfolioId];
       // Split allowed for all partners (incl. managed proxy). For managed proxy,
