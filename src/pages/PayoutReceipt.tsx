@@ -6,7 +6,6 @@ import {
   Loader2, CheckCircle2, ShieldCheck, Building2, Smartphone, Banknote,
   AlertTriangle, Clock, User, Phone, Hash,
 } from 'lucide-react';
-import welileWordmark from '@/assets/welile-wordmark.png.asset.json';
 
 interface ReceiptData {
   paid: boolean;
@@ -125,7 +124,7 @@ export default function PayoutReceipt() {
         <div className="bg-card rounded-3xl shadow-xl overflow-hidden border border-border">
           {/* Header */}
           <div className="bg-primary text-primary-foreground px-6 pt-6 pb-8 text-center">
-            <img src={welileWordmark.url} alt="Welile" className="h-7 mx-auto mb-4 brightness-0 invert" />
+            <p className="text-lg font-extrabold tracking-widest mb-4">WELILE</p>
             <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-primary-foreground/15 mb-3">
               <CheckCircle2 className="h-8 w-8" />
             </div>
