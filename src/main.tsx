@@ -154,6 +154,13 @@ const loadApp = async () => {
     // the next cold start begins from a clean slate.
     try { sessionStorage.removeItem('welile-startup-retry'); } catch {}
 
+    // Drain any out-of-date-banner interactions the inline banner queued in
+    // localStorage (it runs before this bundle and can't reach the backend).
+    // Fire-and-forget so it never delays first paint.
+    void import('./lib/compatTelemetry')
+      .then(({ flushBannerChoices }) => flushBannerChoices())
+      .catch(() => {});
+
     // Preload Dashboard chunk only when the user is actually heading there.
     try {
       const cached = localStorage.getItem('welile_session_cache');

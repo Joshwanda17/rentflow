@@ -4057,6 +4057,7 @@ export type Database = {
       }
       browser_compat_events: {
         Row: {
+          choice: string | null
           created_at: string
           device: Json
           error_message: string | null
@@ -4067,6 +4068,7 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          choice?: string | null
           created_at?: string
           device?: Json
           error_message?: string | null
@@ -4077,6 +4079,7 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          choice?: string | null
           created_at?: string
           device?: Json
           error_message?: string | null

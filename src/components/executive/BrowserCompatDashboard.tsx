@@ -6,18 +6,19 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
-import { MonitorSmartphone, PackageX, PackageCheck, AlertTriangle } from 'lucide-react';
+import { MonitorSmartphone, PackageX, PackageCheck, AlertTriangle, MousePointerClick } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface CompatEvent {
   id: string;
   created_at: string;
-  event_type: 'gate_missing' | 'impl_loaded' | 'impl_load_failed';
+  event_type: 'gate_missing' | 'impl_loaded' | 'impl_load_failed' | 'banner_shown' | 'banner_action';
   user_agent: string | null;
   missing_features: string[] | null;
   device: Record<string, any> | null;
   error_message: string | null;
   load_ms: number | null;
+  choice: string | null;
 }
 
 /** Compress a raw UA string into a readable "Browser vNN · OS · surface" label. */
@@ -55,6 +56,25 @@ export function BrowserCompatDashboard() {
     const gateMissing = list.filter((e) => e.event_type === 'gate_missing');
     const implLoaded = list.filter((e) => e.event_type === 'impl_loaded');
     const implFailed = list.filter((e) => e.event_type === 'impl_load_failed');
+    const bannerShown = list.filter((e) => e.event_type === 'banner_shown');
+    const bannerActions = list.filter((e) => e.event_type === 'banner_action');
+
+    // How users responded to the out-of-date banner.
+    const CHOICE_LABELS: Record<string, string> = {
+      open_chrome: 'Open in Chrome',
+      reload: 'Reload',
+      switch_browser: 'How to switch',
+      dismiss: 'Dismissed',
+    };
+    const choiceCounts: Record<string, number> = {};
+    for (const e of bannerActions) {
+      const key = e.choice || 'unknown';
+      choiceCounts[key] = (choiceCounts[key] ?? 0) + 1;
+    }
+    const choiceRows = Object.entries(choiceCounts)
+      .map(([choice, count]) => ({ label: CHOICE_LABELS[choice] ?? choice, count }))
+      .sort((a, b) => b.count - a.count);
+    const bannerActioned = bannerActions.filter((e) => e.choice && e.choice !== 'dismiss').length;
 
     // Feature frequency across all gate detections.
     const featureCounts: Record<string, number> = {};
@@ -105,6 +125,12 @@ export function BrowserCompatDashboard() {
       gateMissingCount: gateMissing.length,
       implLoadedCount: implLoaded.length,
       implFailedCount: implFailed.length,
+      bannerShownCount: bannerShown.length,
+      bannerActionRate:
+        bannerShown.length > 0
+          ? Math.round((bannerActioned / bannerShown.length) * 100)
+          : 0,
+      choiceRows,
       featureChart,
       uaRows,
     };
@@ -145,6 +171,32 @@ export function BrowserCompatDashboard() {
         <KPICard title="Polyfill Load Failures" value={stats.implFailedCount} icon={AlertTriangle}
           color="bg-red-500/10 text-red-600" loading={isLoading}
           subtitle={stats.implFailedCount > 0 ? 'Gate path failing — investigate' : 'No gate-path failures'} />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 className="text-sm font-semibold">Out-of-date banner response</h3>
+            <p className="text-xs text-muted-foreground">
+              Banner shown {stats.bannerShownCount}× · {stats.bannerActionRate}% took an action
+            </p>
+          </div>
+          <MousePointerClick className="h-5 w-5 text-muted-foreground shrink-0" />
+        </div>
+        {stats.choiceRows.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            No banner interactions recorded yet.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {stats.choiceRows.map((c) => (
+              <div key={c.label} className="rounded-xl border border-border bg-muted/40 px-3 py-2 min-w-[110px]">
+                <p className="text-xs text-muted-foreground">{c.label}</p>
+                <p className="text-lg font-bold">{c.count}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-4">
