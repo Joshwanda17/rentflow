@@ -110,7 +110,7 @@ export const template = {
     const amt = fmt(d?.amount, d?.currency ?? 'UGX')
     return `Receipt: your withdrawal of ${amt} has been paid`
   },
-  displayName: 'Withdrawal paid receipt (SMS fallback)',
+  displayName: 'Withdrawal paid receipt',
   previewData: {
     recipient_name: 'Jane',
     amount: 50000,
@@ -118,6 +118,7 @@ export const template = {
     proof_label: 'Mobile Money transaction ID',
     proof_reference: 'MP260628.1234.A56789',
     new_balance: 12000,
+    receipt_url: 'https://welilereceipts.com/r/2eaa0cdc65f145d5a65cd755b7910d2f',
   },
 } satisfies TemplateEntry
 
