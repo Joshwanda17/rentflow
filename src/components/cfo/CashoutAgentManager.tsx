@@ -607,6 +607,28 @@ export function CashoutAgentManager() {
     return { flaggedIds, excess, groupCount };
   }, [selectedAgentPayouts]);
 
+  // ---- Daily float breakdown (per merchant agent) ----
+  // The CFO needs to see how much float this agent gave out on EACH day,
+  // not just the running total. Group settled payouts by calendar day
+  // (processed_at → created_at fallback), summing amount + count.
+  const dailyPayoutBreakdown = useMemo(() => {
+    const byDay = new Map<string, { amount: number; count: number }>();
+    for (const py of selectedAgentPayouts as any[]) {
+      const stamp = py.processed_at || py.created_at;
+      if (!stamp) continue;
+      const d = new Date(stamp);
+      if (isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const cur = byDay.get(key) || { amount: 0, count: 0 };
+      cur.amount += Number(py.amount || 0);
+      cur.count += 1;
+      byDay.set(key, cur);
+    }
+    return Array.from(byDay.entries())
+      .map(([day, v]) => ({ day, ...v }))
+      .sort((a, b) => (a.day < b.day ? 1 : -1));
+  }, [selectedAgentPayouts]);
+
   // Latest comment per payout — inline note on each processed-payout card.
   const { data: latestClaimComments } = useLatestClaimComments(
     selectedAgentPayouts.map((p: any) => p.id),
@@ -723,6 +745,31 @@ export function CashoutAgentManager() {
           </TabsList>
 
           <TabsContent value="transactions" className="space-y-2 mt-3">
+            {dailyPayoutBreakdown.length > 0 && (
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" /> Float Given Out Per Day
+                    </p>
+                    <Badge variant="outline" className="text-[10px]">
+                      {dailyPayoutBreakdown.length} day{dailyPayoutBreakdown.length > 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                  <div className="divide-y divide-border/60">
+                    {dailyPayoutBreakdown.map((row) => (
+                      <div key={row.day} className="flex items-center justify-between gap-2 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{formatDate(row.day)}</p>
+                          <p className="text-[10px] text-muted-foreground">{row.count} payout{row.count > 1 ? 's' : ''}</p>
+                        </div>
+                        <p className="text-sm font-bold shrink-0">{formatUGX(row.amount)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {duplicatePayouts.groupCount > 0 && (
               <Card className="border-destructive/40 bg-destructive/5">
                 <CardContent className="p-3 flex items-start gap-2">
