@@ -868,12 +868,22 @@ Deno.serve(async (req) => {
     // the operator can retry after fixing the issue (insufficient balance,
     // wallet drift, ledger write failure, etc.). The claim is held only
     // when we're past the point of no return (ledger entries posted).
+    //
+    // IMPORTANT: a failed confirmation must FULLY return the request to the
+    // shared queue — not just flip the status back to pending. Previously the
+    // row was reverted to `previousStatus` while STILL assigned to the merchant
+    // agent, so it sat in their "Claimed by you" list, kept the one-claim lock
+    // engaged, and blocked them from ever claiming another payout. Clearing the
+    // assignment (assigned_cashout_agent_id / dispatched_at) unblocks the agent
+    // immediately and lets any agent (or FinOps) pick the request back up.
     const releaseClaim = async () => {
       try {
         await admin
           .from("withdrawal_requests")
           .update({
             status: previousStatus,
+            assigned_cashout_agent_id: null,
+            dispatched_at: null,
             processing_started_at: null,
             processing_started_by: null,
             updated_at: new Date().toISOString(),
