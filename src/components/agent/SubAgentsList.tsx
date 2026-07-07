@@ -423,6 +423,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const activeToday = subAgents.filter(s => s.active_today).length;
   const acceptedCount = subAgents.filter(s => s.status === 'verified').length;
   const pendingCount = subAgents.filter(s => s.status === 'pending_acceptance').length;
+  const expiredCount = subAgents.filter(s => s.status === 'expired').length;
 
   return (
     <Card>
