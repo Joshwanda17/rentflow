@@ -336,6 +336,24 @@ export default function CFODashboardPage() {
         );
       case 'revenue-expenses':
         return <RevenueExpenseDashboard />;
+      case 'payout-reports':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div>
+                <h1 className="text-xl font-bold">💸 Payout Reports</h1>
+                <p className="text-sm text-muted-foreground">
+                  Consolidated view of every payout — user wallet withdrawals, mobile money and bank
+                  disbursements, and automated payouts — with daily cash position and search.
+                </p>
+              </div>
+              <CFOPayoutsShareButton />
+            </div>
+            <DailyCashPositionReport />
+            <AutoPayoutHistory />
+            <WithdrawalHistoryStatement />
+          </div>
+        );
       case 'platform-impact':
         return (
           <div className="space-y-4">
