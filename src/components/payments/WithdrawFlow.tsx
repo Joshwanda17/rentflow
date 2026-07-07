@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Star } from 'lucide-react';
 import { downloadWithdrawalReceiptPdf, shareWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
 import { useLanguage } from '@/hooks/useLanguage';
+import { WITHDRAWAL_REASON_OPTIONS, OTHER_WITHDRAWAL_REASON } from '@/lib/cashoutAgentConfig';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
@@ -82,6 +83,14 @@ export default function WithdrawFlow({
 
   // Payout mode state
   const [payoutMode, setPayoutMode] = useState<'mobile_money' | 'bank_transfer' | 'cash'>('mobile_money');
+
+  // Reason / purpose the user selects for this withdrawal. The stored reason
+  // determines which payout category the request maps to, so it reaches a
+  // Cash-Out Agent authorized for that category.
+  const [reasonPreset, setReasonPreset] = useState<string>(WITHDRAWAL_REASON_OPTIONS[0].value);
+  const [reasonCustom, setReasonCustom] = useState('');
+  const effectiveReason =
+    reasonPreset === OTHER_WITHDRAWAL_REASON ? reasonCustom.trim() : reasonPreset;
   
   // Mobile Money details
   const [momoNumber, setMomoNumber] = useState('');
