@@ -244,3 +244,143 @@ export function normalizeCashoutAgentConfig(
   }
   return merged;
 }
+
+// ===========================================================================
+// Mapping payout categories → the merchant withdrawal claim queue
+// ---------------------------------------------------------------------------
+// The CFO authorizes each Cash-Out Agent for specific payout categories. The
+// merchant claim queue reads from `withdrawal_requests`, so we translate a
+// withdrawal row into one of the config categories (using its `reason`) and
+// only surface / allow claiming of the categories the agent is authorized for.
+//
+// A single queue "category" can map to several config category ids (e.g. the
+// Agent Commissions group). `configIds` lists every config id that authorizes
+// the queue category; `orPredicates` are the PostgREST predicates that select
+// rows of that category server-side.
+// ===========================================================================
+
+export interface QueueCategoryDef {
+  /** stable queue-category id (not necessarily a config id) */
+  id: string;
+  label: string;
+  /** config category ids that authorize this queue category */
+  configIds: string[];
+  /** true if a withdrawal_requests row belongs to this category (client-side) */
+  match: (w: any) => boolean;
+  /** PostgREST predicate fragments that positively select this category */
+  orPredicates: string[];
+  /** PostgREST predicate fragments that EXCLUDE this category (for the catch-all) */
+  notPredicates: string[];
+}
+
+const reasonOf = (w: any) => String(w?.reason || '').toLowerCase();
+
+// Ordered, most-specific first. `wallet_withdrawals` is the catch-all.
+export const QUEUE_CATEGORY_DEFS: QueueCategoryDef[] = [
+  {
+    id: 'proxy_partner_withdrawal',
+    label: 'Proxy Partner Withdrawal',
+    configIds: ['proxy_partner_withdrawal'],
+    match: (w) => reasonOf(w).includes('proxy'),
+    orPredicates: ['reason.ilike.*proxy*'],
+    notPredicates: ['reason.not.ilike.*proxy*'],
+  },
+  {
+    id: 'landlord_payouts',
+    label: 'Landlord Payouts',
+    configIds: ['landlord_payouts'],
+    match: (w) => reasonOf(w).startsWith('landlord float payout'),
+    orPredicates: ['reason.ilike.Landlord float payout*'],
+    notPredicates: ['reason.not.ilike.Landlord float payout*'],
+  },
+  {
+    id: 'roi_payments',
+    label: 'ROI Payments',
+    configIds: ['roi_payments'],
+    match: (w) => /roi|return/.test(reasonOf(w)),
+    orPredicates: ['reason.ilike.*roi*', 'reason.ilike.*return*'],
+    notPredicates: ['reason.not.ilike.*roi*', 'reason.not.ilike.*return*'],
+  },
+  {
+    id: 'payroll_payments',
+    label: 'Payroll Payments',
+    configIds: ['payroll_payments'],
+    match: (w) => /salary|payroll/.test(reasonOf(w)),
+    orPredicates: ['reason.ilike.*salary*', 'reason.ilike.*payroll*'],
+    notPredicates: ['reason.not.ilike.*salary*', 'reason.not.ilike.*payroll*'],
+  },
+  {
+    id: 'agent_commissions',
+    label: 'Agent Commissions',
+    configIds: ['cashout_commission', 'rent_collection_commission', 'partner_commission'],
+    match: (w) => reasonOf(w).includes('commission'),
+    orPredicates: ['reason.ilike.*commission*'],
+    notPredicates: ['reason.not.ilike.*commission*'],
+  },
+  {
+    id: 'wallet_withdrawals',
+    label: 'Wallet Withdrawals',
+    configIds: ['wallet_withdrawals'],
+    match: () => true, // catch-all — any withdrawal that isn't one of the above
+    orPredicates: [], // handled specially (negation of every special category)
+    notPredicates: [],
+  },
+];
+
+const SPECIAL_QUEUE_DEFS = QUEUE_CATEGORY_DEFS.filter((d) => d.id !== 'wallet_withdrawals');
+const WALLET_QUEUE_DEF = QUEUE_CATEGORY_DEFS.find((d) => d.id === 'wallet_withdrawals')!;
+
+/** Resolve which queue category a withdrawal_requests row belongs to. */
+export function getWithdrawalQueueCategory(withdrawal: any): QueueCategoryDef {
+  return QUEUE_CATEGORY_DEFS.find((d) => d.match(withdrawal)) || WALLET_QUEUE_DEF;
+}
+
+/** Is any config id backing this queue category enabled? */
+function isQueueCategoryAuthorized(config: CashoutAgentConfig, def: QueueCategoryDef): boolean {
+  return def.configIds.some((id) => !!config.categories[id]);
+}
+
+/** Client-side gate: may this agent claim/see this specific withdrawal? */
+export function isWithdrawalCategoryAuthorized(config: CashoutAgentConfig | null, withdrawal: any): boolean {
+  if (!config) return true; // no matrix loaded yet — don't block
+  const def = getWithdrawalQueueCategory(withdrawal);
+  return isQueueCategoryAuthorized(config, def);
+}
+
+/** Human-readable labels of the queue categories this agent may process. */
+export function authorizedQueueCategoryLabels(config: CashoutAgentConfig | null): string[] {
+  if (!config) return [];
+  return QUEUE_CATEGORY_DEFS.filter((d) => isQueueCategoryAuthorized(config, d)).map((d) => d.label);
+}
+
+/**
+ * Build a single PostgREST `.or()` clause that restricts a withdrawal_requests
+ * query to ONLY the categories this agent is authorized to process.
+ * Returns `null` when the agent is authorized for every queue category (no
+ * filtering needed) so we avoid an unnecessary predicate.
+ */
+export function buildQueueCategoryOrClause(config: CashoutAgentConfig | null): string | null {
+  if (!config) return null;
+  const authorized = QUEUE_CATEGORY_DEFS.filter((d) => isQueueCategoryAuthorized(config, d));
+  if (authorized.length === QUEUE_CATEGORY_DEFS.length) return null; // all allowed
+
+  const parts: string[] = [];
+  for (const def of authorized) {
+    if (def.id === 'wallet_withdrawals') continue; // handled below
+    parts.push(...def.orPredicates);
+  }
+
+  if (isQueueCategoryAuthorized(config, WALLET_QUEUE_DEF)) {
+    // Catch-all: rows with no reason, or a reason that matches none of the
+    // special categories.
+    const negations = SPECIAL_QUEUE_DEFS.flatMap((d) => d.notPredicates);
+    parts.push('reason.is.null');
+    parts.push(`and(${negations.join(',')})`);
+  }
+
+  if (parts.length === 0) {
+    // Authorized for nothing that maps to the queue — match no rows.
+    return 'id.eq.00000000-0000-0000-0000-000000000000';
+  }
+  return parts.join(',');
+}

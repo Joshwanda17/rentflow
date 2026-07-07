@@ -28,6 +28,14 @@ import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutC
 import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
 import { MerchantWithdrawableCard } from '@/components/agent/MerchantWithdrawableCard';
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
+import {
+  normalizeCashoutAgentConfig,
+  buildQueueCategoryOrClause,
+  isWithdrawalCategoryAuthorized,
+  authorizedQueueCategoryLabels,
+  getWithdrawalQueueCategory,
+  type CashoutAgentConfig,
+} from '@/lib/cashoutAgentConfig';
 
 // Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
 const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
@@ -102,6 +110,12 @@ interface QueueFilterOpts {
   channel: 'all' | 'momo' | 'cash' | 'bank';
   searchUserIds: string[] | null;
   searchTerm: string;
+  /**
+   * PostgREST `.or()` clause restricting the queue to only the payout
+   * categories this Cash-Out Agent is authorized to process. `null` = no
+   * restriction (authorized for everything, or matrix not loaded yet).
+   */
+  categoryOrClause: string | null;
 }
 
 /**
@@ -115,6 +129,10 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
   // Available = unclaimed OR a claim that has expired (>15 min). Excludes rows
   // currently claimed by anyone (including me — those live in "Claimed by you").
   q = q.or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${o.cutoffIso}`);
+
+  // Authorized payout categories (CFO permission matrix). Only surface rows in
+  // the categories mapped to this agent.
+  if (o.categoryOrClause) q = q.or(o.categoryOrClause);
 
   // Landlord float payout vs standard payout.
   if (o.status === 'landlord') {
@@ -315,6 +333,16 @@ export function AgentCashPayoutsTab() {
   type ClaimConfirmation = { momoNumber?: string | null; momoName?: string | null };
   const handleClaim = (id: string, confirm?: ClaimConfirmation) => {
     if (claimLockRef.current.has(id)) return; // already submitting this request
+    // Category permission gate: a merchant agent may only claim payouts in the
+    // categories the CFO mapped to them in the permission matrix.
+    const row =
+      (queuePage?.rows ?? []).find((w: any) => w.id === id) ||
+      myActiveClaims.find((w: any) => w.id === id);
+    if (row && !isWithdrawalCategoryAuthorized(agentConfig, row)) {
+      const cat = getWithdrawalQueueCategory(row);
+      toast.error(`Not authorized: you can't process "${cat.label}" payouts. Ask the CFO to enable this category.`);
+      return;
+    }
     // One claim at a time: block claiming a NEW request while another is open.
     const alreadyMine = myActiveClaims.some((w: any) => w.id === id);
     if (!alreadyMine && myActiveClaims.length > 0) {
@@ -364,6 +392,15 @@ export function AgentCashPayoutsTab() {
     enabled: !!user,
   });
 
+  // The CFO permission matrix for THIS agent, and the derived category filter
+  // clause that limits the queue to only the payout categories mapped to them.
+  const agentConfig: CashoutAgentConfig | null = useMemo(
+    () => (isCashoutAgent ? normalizeCashoutAgentConfig((isCashoutAgent as any).config, isCashoutAgent as any) : null),
+    [isCashoutAgent],
+  );
+  const categoryOrClause = useMemo(() => buildQueueCategoryOrClause(agentConfig), [agentConfig]);
+  const authorizedCategoryLabels = useMemo(() => authorizedQueueCategoryLabels(agentConfig), [agentConfig]);
+
   const releaseExpiredClaims = async () => {
     const cutoff = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
     const { error } = await supabase
@@ -400,14 +437,16 @@ export function AgentCashPayoutsTab() {
   // Unfiltered count of all available (unclaimed/expired) requests — powers the
   // "action required" badge and live banner regardless of active filters.
   const { data: availableTotal = 0 } = useQuery({
-    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id],
+    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id, categoryOrClause],
     queryFn: async () => {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
-      const { count } = await supabase
+      let q = supabase
         .from('withdrawal_requests')
         .select('id', { count: 'exact', head: true })
         .in('status', CASHOUT_QUEUE_STATUSES)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
+      if (categoryOrClause) q = q.or(categoryOrClause);
+      const { count } = await q;
       return count || 0;
     },
     enabled: !!isCashoutAgent,
@@ -417,13 +456,13 @@ export function AgentCashPayoutsTab() {
 
   // Per-channel filtered counts (All / MoMo / Cash) for the tab badges.
   const { data: queueCounts } = useQuery({
-    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch],
+    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, categoryOrClause],
     queryFn: async () => {
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const base = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
-        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(),
+        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause,
       };
       const mk = (channel: 'all' | 'momo' | 'cash' | 'bank') =>
         applyQueueFilters(
@@ -440,7 +479,7 @@ export function AgentCashPayoutsTab() {
 
   // The current, server-paginated page of the Pending Queue for the active tab.
   const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue, isError: queueError, refetch: refetchQueue } = useQuery({
-    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page],
+    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page, categoryOrClause],
     queryFn: async () => {
       // Fire-and-forget: releasing other agents' expired claims must never block
       // or fail this fetch. A slow/failed release previously blanked the queue.
@@ -450,7 +489,7 @@ export function AgentCashPayoutsTab() {
       const opts: QueueFilterOpts = {
         cutoffIso, status: queueStatus, merchant: queueMerchant,
         minAmount, maxAmount, fromIso, toIso, channel: channelTab,
-        searchUserIds, searchTerm: debouncedSearch.trim(),
+        searchUserIds, searchTerm: debouncedSearch.trim(), categoryOrClause,
       };
       let q = applyQueueFilters(
         supabase.from('withdrawal_requests').select('*', { count: 'exact' }),
@@ -1062,6 +1101,27 @@ export function AgentCashPayoutsTab() {
       {/* Withdrawable wallet — the 0.5% commission earned on every payout
           lands here and can be cashed out by the merchant agent. */}
       <MerchantWithdrawableCard />
+
+      {/* Authorized payout categories — the CFO permission matrix decides which
+          categories of transactions this merchant agent may claim & process.
+          Only these appear in the queue below. */}
+      {authorizedCategoryLabels.length > 0 && (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
+          <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+            <UserCheck className="h-3.5 w-3.5" /> Authorized payout categories
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {authorizedCategoryLabels.map((label) => (
+              <Badge key={label} variant="secondary" className="text-[11px] font-medium">
+                {label}
+              </Badge>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+            You can only claim withdrawals in these categories. Others are hidden from your queue.
+          </p>
+        </div>
+      )}
 
       {/* Today's payouts */}
       <section className="space-y-3">
