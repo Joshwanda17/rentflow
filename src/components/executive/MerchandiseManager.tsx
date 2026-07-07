@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import {
   Package, ShoppingCart, Boxes, TrendingUp, Wallet, Coins, Users, HandCoins,
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
+  Repeat, CheckCircle2, CircleDollarSign,
 } from 'lucide-react';
 
 // The merchandise tables are new; the generated Supabase types don't include
@@ -51,6 +52,21 @@ interface Sale {
   amount_outstanding: number;
   sale_date: string;
   notes: string | null;
+  created_at: string;
+}
+
+interface RecoveryPlan {
+  id: string;
+  customer_id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  item_name: string;
+  original_amount: number;
+  outstanding_balance: number;
+  amount_recovered: number;
+  daily_rate: number;
+  status: 'active' | 'completed' | 'cancelled';
+  last_recovery_at: string | null;
   created_at: string;
 }
 
