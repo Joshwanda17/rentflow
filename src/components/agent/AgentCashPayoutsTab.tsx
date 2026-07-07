@@ -333,6 +333,16 @@ export function AgentCashPayoutsTab() {
   type ClaimConfirmation = { momoNumber?: string | null; momoName?: string | null };
   const handleClaim = (id: string, confirm?: ClaimConfirmation) => {
     if (claimLockRef.current.has(id)) return; // already submitting this request
+    // Category permission gate: a merchant agent may only claim payouts in the
+    // categories the CFO mapped to them in the permission matrix.
+    const row =
+      (queuePage?.rows ?? []).find((w: any) => w.id === id) ||
+      myActiveClaims.find((w: any) => w.id === id);
+    if (row && !isWithdrawalCategoryAuthorized(agentConfig, row)) {
+      const cat = getWithdrawalQueueCategory(row);
+      toast.error(`Not authorized: you can't process "${cat.label}" payouts. Ask the CFO to enable this category.`);
+      return;
+    }
     // One claim at a time: block claiming a NEW request while another is open.
     const alreadyMine = myActiveClaims.some((w: any) => w.id === id);
     if (!alreadyMine && myActiveClaims.length > 0) {
