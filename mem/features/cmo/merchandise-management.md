@@ -38,7 +38,11 @@ automatically from their Withdrawable Wallet — no more manual `CFO Debit [🔧
   `create_ledger_transaction`: wallet leg (`cash_out`, category `wallet_deduction`,
   recipient_type `user`, bucket `withdrawable`, description
   `Merchandise Payment – <item> (Daily 15% Recovery)` — production, shows in wallet statement)
-  + platform leg (`cash_in`, category `debt_recovery`, recipient_type `operational_wallet`).
+  + CMO credit leg: wallet `cash_in` to **CMO Keith Asea** (`aseakeith@gmail.com`,
+  `475c6ccb-166c-41cd-b2a8-386c99777138`), category `wallet_transfer`, recipient_type `user`,
+  bucket `withdrawable`, description `Merchandise Recovery` — the recovered money is deposited
+  into Keith Asea's wallet and shows in his statement as "Merchandise Recovery" (NOT the
+  operational wallet anymore).
   Idempotent per plan per day (`merch_recover_<plan>_<YYYYMMDD>`). Updates the plan, logs the
   deduction, and keeps the originating sale's `amount_outstanding`/`payment_status` in sync.
 - RLS: cmo/cfo/manager/super_admin manage; customers can read their own plans + deductions.
