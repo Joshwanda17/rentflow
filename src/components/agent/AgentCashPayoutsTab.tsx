@@ -116,6 +116,11 @@ interface QueueFilterOpts {
    * restriction (authorized for everything, or matrix not loaded yet).
    */
   categoryOrClause: string | null;
+  /**
+   * User ids whose accounts are currently frozen. Their withdrawal requests are
+   * excluded from the queue entirely — a frozen account must never be payable.
+   */
+  frozenUserIds?: string[] | null;
 }
 
 /**
