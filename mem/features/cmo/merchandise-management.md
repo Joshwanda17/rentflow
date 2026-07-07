@@ -28,6 +28,13 @@ automatically from their Withdrawable Wallet — no more manual `CFO Debit [🔧
   `amount_outstanding > 0`, resolves the customer from `customer_id` or by matching
   `client_phone` to `profiles.phone` via `normalize_phone_9` (last-9-digits). If resolved,
   inserts a row into `merchandise_recovery_plans`. Unregistered buyers stay plain receivables.
+- `merchandise_purchases.buyer_id`/`buyer_name`/`buyer_phone`: Record Purchase dialog now
+  captures who bought the item so their wallet can be debited for the cost.
+- **`trg_create_purchase_recovery_plan`** (AFTER INSERT on `merchandise_purchases`): when
+  `total_cost > 0`, resolves the buyer from `buyer_id` or by matching `buyer_phone` to
+  `profiles.phone` (`normalize_phone_9`). If resolved, inserts a `merchandise_recovery_plans`
+  row (`sale_id NULL`, `original_amount = total_cost`, `daily_rate 0.15`). Unregistered/absent
+  buyers create no plan. Recovered by the SAME daily cron; credit lands on CMO Keith Asea.
 - **`merchandise_recovery_plans`**: sale_id, customer_id, item_name, original_amount,
   outstanding_balance, amount_recovered, daily_rate (0.15), status (active|completed|cancelled),
   last_recovery_at. **`merchandise_recovery_deductions`**: per-deduction audit log.

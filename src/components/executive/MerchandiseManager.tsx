@@ -35,6 +35,8 @@ interface Purchase {
   purchase_date: string;
   supplier: string | null;
   notes: string | null;
+  buyer_name: string | null;
+  buyer_phone: string | null;
   created_at: string;
 }
 
@@ -575,6 +577,8 @@ function RecordPurchaseDialog({ userId, productNames, onSaved }: { userId?: stri
   const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [supplier, setSupplier] = useState('');
   const [notes, setNotes] = useState('');
+  const [buyerName, setBuyerName] = useState('');
+  const [buyerPhone, setBuyerPhone] = useState('');
 
   const qty = num(quantity);
   const cost = num(unitCost);
@@ -583,6 +587,7 @@ function RecordPurchaseDialog({ userId, productNames, onSaved }: { userId?: stri
   const reset = () => {
     setItemName(''); setQuantity(''); setUnitCost('');
     setPurchaseDate(format(new Date(), 'yyyy-MM-dd')); setSupplier(''); setNotes('');
+    setBuyerName(''); setBuyerPhone('');
   };
 
   const save = async () => {
@@ -598,11 +603,17 @@ function RecordPurchaseDialog({ userId, productNames, onSaved }: { userId?: stri
       purchase_date: purchaseDate,
       supplier: supplier.trim() || null,
       notes: notes.trim() || null,
+      buyer_name: buyerName.trim() || null,
+      buyer_phone: buyerPhone.trim() || null,
       created_by: userId ?? null,
     });
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success('Purchase recorded');
+    toast.success(
+      buyerPhone.trim()
+        ? 'Purchase recorded. If the buyer is a registered user, their wallet will be debited daily.'
+        : 'Purchase recorded',
+    );
     reset();
     setOpen(false);
     onSaved();
@@ -645,6 +656,22 @@ function RecordPurchaseDialog({ userId, productNames, onSaved }: { userId?: stri
               <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Optional" />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Buyer / Purchaser name</Label>
+              <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Who bought it" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Buyer phone</Label>
+              <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="For wallet debit" />
+            </div>
+          </div>
+          {buyerPhone.trim() && total > 0 && (
+            <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
+              If this phone belongs to a registered user, {formatUGX(total)} will be recovered
+              automatically — 15% of their Withdrawable Wallet each day until fully paid.
+            </div>
+          )}
           <div className="space-y-1">
             <Label className="text-xs">Notes</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" rows={2} />

@@ -11101,6 +11101,9 @@ export type Database = {
       }
       merchandise_purchases: {
         Row: {
+          buyer_id: string | null
+          buyer_name: string | null
+          buyer_phone: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -11114,6 +11117,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          buyer_id?: string | null
+          buyer_name?: string | null
+          buyer_phone?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -11127,6 +11133,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          buyer_id?: string | null
+          buyer_name?: string | null
+          buyer_phone?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
