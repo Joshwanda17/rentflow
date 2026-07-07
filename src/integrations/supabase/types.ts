@@ -8751,6 +8751,60 @@ export type Database = {
           },
         ]
       }
+      job_applications: {
+        Row: {
+          category: string
+          contacted_at: string | null
+          contacted_by: string | null
+          cover_note: string | null
+          created_at: string
+          email: string | null
+          experience_level: string | null
+          full_name: string
+          id: string
+          location: string | null
+          portfolio_url: string | null
+          role_interest: string | null
+          status: string
+          updated_at: string
+          whatsapp_number: string
+        }
+        Insert: {
+          category?: string
+          contacted_at?: string | null
+          contacted_by?: string | null
+          cover_note?: string | null
+          created_at?: string
+          email?: string | null
+          experience_level?: string | null
+          full_name: string
+          id?: string
+          location?: string | null
+          portfolio_url?: string | null
+          role_interest?: string | null
+          status?: string
+          updated_at?: string
+          whatsapp_number: string
+        }
+        Update: {
+          category?: string
+          contacted_at?: string | null
+          contacted_by?: string | null
+          cover_note?: string | null
+          created_at?: string
+          email?: string | null
+          experience_level?: string | null
+          full_name?: string
+          id?: string
+          location?: string | null
+          portfolio_url?: string | null
+          role_interest?: string | null
+          status?: string
+          updated_at?: string
+          whatsapp_number?: string
+        }
+        Relationships: []
+      }
       landlord_account_ledger: {
         Row: {
           amount: number
