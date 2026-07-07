@@ -267,6 +267,7 @@ Deno.serve(async (req) => {
         }
 
         // Insert into general_ledger via RPC
+        const ledgerPostStart = Date.now();
         const { data: rpcTxGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
           entries: [
             {
@@ -318,6 +319,42 @@ Deno.serve(async (req) => {
           console.error(`[approve-wallet-op] Ledger insert failed for ${op.id}:`, ledgerErr);
           failedResults.push({ id: op.id, error: ledgerErr.message || 'Ledger insert failed' });
           continue;
+        }
+
+        // RACE-SAFE ROI IDEMPOTENCY: create_ledger_transaction returns the
+        // pre-existing group (posting NOTHING) when the cycle key was already
+        // used. If that row predates this invocation, a concurrent/earlier
+        // approval already credited this cycle — bail out BEFORE the wallet
+        // delta-recovery below, which would otherwise re-credit the wallet.
+        if (roiCycleKey) {
+          const { data: keyRows } = await adminClient
+            .from('general_ledger')
+            .select('created_at')
+            .eq('idempotency_key', roiCycleKey)
+            .order('created_at', { ascending: true })
+            .limit(1);
+          const firstAt = keyRows?.[0]?.created_at ? new Date(keyRows[0].created_at).getTime() : null;
+          if (firstAt !== null && firstAt < ledgerPostStart - 1500) {
+            console.warn(`[approve-wallet-op] DUPLICATE ROI blocked (idempotent hit) for op ${op.id} key ${roiCycleKey}`);
+            await adminClient
+              .from('pending_wallet_operations')
+              .update({
+                status: 'rejected',
+                metadata: {
+                  ...(op.metadata || {}),
+                  duplicate_roi_blocked: true,
+                  duplicate_idempotency_key: roiCycleKey,
+                  rejected_reason: 'Portfolio already received its ROI for this payout cycle (concurrent)',
+                  rejected_at: new Date().toISOString(),
+                },
+              })
+              .eq('id', op.id);
+            failedResults.push({
+              id: op.id,
+              error: 'Duplicate ROI payout blocked — this portfolio was already credited for this payout cycle.',
+            });
+            continue;
+          }
         }
 
         // HARD-FAIL SAFETY: For wallet-scope credits, verify the bucket actually
