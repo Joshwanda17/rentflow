@@ -403,6 +403,7 @@ export function AgentRentCapacityPanel({
         {!compact && <FleetPerformanceStats />}
       </div>
 
+      {showList && (
       <div className="p-3 sm:p-4 space-y-3">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
@@ -471,6 +472,7 @@ export function AgentRentCapacityPanel({
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }
