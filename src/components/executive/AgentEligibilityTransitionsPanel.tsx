@@ -66,7 +66,7 @@ export function AgentEligibilityTransitionsPanel({
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-3">
-          <Stat label="Total changes" value={(data || []).length} tone="text-violet-600" />
+          <Stat label="Total changes" value={agentsOnly.length} tone="text-violet-600" />
           <Stat label="Upgrades" value={upCount} tone="text-emerald-600" />
           <Stat label="Downgrades" value={downCount} tone="text-destructive" />
         </div>
