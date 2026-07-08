@@ -224,68 +224,40 @@ export default function SupporterDashboard({
         return;
       }
 
-      if (Notification.permission !== 'granted') {
+      // Ask the browser for permission and create/refresh the subscription
+      // right here — no need to visit Settings first. If the user allows,
+      // we immediately send the test push below.
+      const enabling = Notification.permission !== 'granted';
+      if (enabling) {
         toast({
-          title: 'Enable notifications first',
-          description: 'Open Settings and enable web push notifications on this device, then test again.',
+          title: 'Enabling notifications…',
+          description: 'Choose "Allow" when your browser asks.',
+        });
+      }
+
+      const result = await ensurePushSubscription(
+        async ({ endpoint, p256dh, auth }) => {
+          const { error: saveError } = await supabase
+            .from('push_subscriptions')
+            .upsert(
+              { user_id: user.id, endpoint, p256dh, auth },
+              { onConflict: 'user_id,endpoint' },
+            );
+          if (saveError) throw saveError;
+        },
+        async (endpoint) => {
+          await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+        },
+      );
+
+      if (!result.ok) {
+        toast({
+          title: result.reason === 'denied' ? 'Notifications blocked' : 'Could not enable notifications',
+          description: result.message,
           variant: 'destructive',
         });
         return;
       }
-
-      const registration = await navigator.serviceWorker.getRegistration('/sw.js');
-      let subscription = await registration?.pushManager.getSubscription();
-
-      if (!subscription) {
-        toast({
-          title: 'Enable notifications first',
-          description: 'No active web push subscription was found on this device. Please enable notifications, then test again.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (!subscriptionUsesCurrentVapidKey(subscription)) {
-        await supabase
-          .from('push_subscriptions')
-          .delete()
-          .eq('endpoint', subscription.endpoint);
-        await subscription.unsubscribe();
-        subscription = null;
-        toast({
-          title: 'Enable notifications again',
-          description: 'This device had an old push key. I reset it — enable notifications again, then test.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const json = subscription.toJSON();
-      const p256dh = json.keys?.p256dh ?? arrayBufferToBase64(subscription.getKey('p256dh'));
-      const auth = json.keys?.auth ?? arrayBufferToBase64(subscription.getKey('auth'));
-
-      if (!p256dh || !auth) {
-        toast({
-          title: 'Enable notifications again',
-          description: 'This device subscription is incomplete. Turn notifications off and on again, then test.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const { error: saveError } = await supabase
-        .from('push_subscriptions')
-        .upsert(
-          {
-            user_id: user.id,
-            endpoint: subscription.endpoint,
-            p256dh,
-            auth,
-          },
-          { onConflict: 'user_id,endpoint' },
-        );
-
-      if (saveError) throw saveError;
 
       const { data, error } = await supabase.functions.invoke('send-push-notification', {
         body: {
@@ -317,7 +289,7 @@ export default function SupporterDashboard({
       }
 
       toast({
-        title: 'Test push sent',
+        title: enabling ? 'Notifications enabled — test sent 🔔' : 'Test push sent',
         description: failed > 0
           ? `Sent to ${sent} device(s); ${failed} failed.`
           : 'Check this device’s notification tray.',
