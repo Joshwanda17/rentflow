@@ -36,6 +36,7 @@ import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { AgentEligibilityTransitionsPanel } from './AgentEligibilityTransitionsPanel';
 import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
+import { AdvanceAnalyticsPanel } from './agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
@@ -211,6 +212,7 @@ export function AgentOpsDashboard() {
       case 'lending-agents': return <LendingAgentsPanel />;
       case 'advance-requests': return (
         <div className="space-y-6">
+          <AdvanceAnalyticsPanel />
           <AdvanceRequestsQueue stage="agent_ops" />
           <BusinessAdvanceQueue stage="agent_ops" />
           <RentHistoryVerificationQueue dept="agent_ops" />
@@ -277,6 +279,7 @@ export function AgentOpsDashboard() {
   ) : bottomTab !== 'more' ? (
     <div className="space-y-4">
       <AgentMonthlyKpis />
+      <AdvanceAnalyticsPanel />
       <AgentOpsHomeView
         range={dateRange}
         onRangeChange={setDateRange}
