@@ -442,6 +442,7 @@ function AgentOpsSideNav({
   onSelect: (k: ActiveView) => void;
   onHome: () => void;
 }) {
+  const pendingAdvanceCount = usePendingAdvanceCount();
   // Priority stays pinned & always exposed on top. Every other group is
   // collapsible so the nav never over-scrolls. Agent Network sits right
   // below Priority and is open by default (this dashboard is agent-centric).
