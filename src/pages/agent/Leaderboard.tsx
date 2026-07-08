@@ -52,10 +52,14 @@ export default function AgentLeaderboard() {
   const { data: rows = [], isFetching } = useQuery({
     queryKey: ['subagent-leaderboard', period, page],
     queryFn: async () => {
+      // Page 0 shows the top 3 (podium) + 20 list rows = 23 fetched.
+      // Later pages continue after those 23 and show 20 per page.
+      const limit = page === 0 ? PER_PAGE + 3 : PER_PAGE;
+      const offset = page === 0 ? 0 : page * PER_PAGE + 3;
       const { data, error } = await supabase.rpc('get_subagent_leaderboard', {
         p_period: period,
-        p_limit: PER_PAGE,
-        p_offset: page * PER_PAGE,
+        p_limit: limit,
+        p_offset: offset,
       });
       if (error) throw error;
       return (data ?? []) as Row[];
@@ -76,7 +80,10 @@ export default function AgentLeaderboard() {
   });
 
   const totalMatched = rows[0]?.total_matched ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalMatched / PER_PAGE));
+  // First page holds 23 (3 podium + 20 list); each later page holds 20.
+  const totalPages = totalMatched <= PER_PAGE + 3
+    ? 1
+    : 1 + Math.ceil((totalMatched - (PER_PAGE + 3)) / PER_PAGE);
 
   // Podium only on first page (top 3 overall)
   const top3 = page === 0 ? rows.slice(0, 3) : [];
