@@ -119,9 +119,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const maxAmount = limit?.totalLimit || 0;
   const overLimit = principal > maxAmount;
 
-  // Recent tenant allocations (each one boosts the agent's credit limit
-  // by 2× its amount, capped at 30M total — see recalculate_credit_limit).
-  const ALLOC_MULTIPLIER = 2;
+  // Recent rent collections (each boosts the agent's advance limit by half
+  // its amount, capped at 6M total — see recalculate_credit_limit).
+  const ALLOC_MULTIPLIER = 0.5;
   const { data: recentAllocations = [] } = useQuery({
     queryKey: ['my-recent-allocations', user?.id],
     queryFn: async () => {
