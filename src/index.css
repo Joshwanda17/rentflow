@@ -1079,6 +1079,26 @@ html.android-compositor-safe [role="dialog"].app-sheet-content[data-sheet-side="
   -webkit-backface-visibility: hidden;
 }
 
+[role="dialog"].app-sheet-content.advance-request-sheet[data-sheet-side="bottom"] {
+  left: 50% !important;
+  right: auto !important;
+  width: min(100vw, 32rem) !important;
+  max-width: 32rem !important;
+  transform: translate3d(-50%, 0, 0) !important;
+  -webkit-transform: translate3d(-50%, 0, 0) !important;
+}
+
+@media (max-width: 640px) {
+  [role="dialog"].app-sheet-content.advance-request-sheet[data-sheet-side="bottom"] {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+  }
+}
+
 /* Heavy shadows on rounded cards are the second-biggest source of
    oversized textures. Soften them on affected devices. */
 html.android-compositor-safe .shadow-2xl,
