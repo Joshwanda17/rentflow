@@ -289,13 +289,15 @@ export default function AgentLeaderboard() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: Math.min(i * 0.03, 0.4) }}
                       className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b px-4 py-3 last:border-b-0 transition-colors hover:bg-slate-50"
-                      style={isMe ? { background: 'rgba(147,52,235,0.08)' } : undefined}
+                      style={isMe ? { background: 'rgba(147,52,235,0.1)' } : undefined}
                     >
-                      <span className="text-sm font-bold text-slate-500">#{r.rank}</span>
+                      <span className="text-sm font-bold" style={{ color: isMe ? '#6D28D9' : '#64748b' }}>#{r.rank}</span>
                       <div className="flex min-w-0 items-center gap-2.5">
                         <UserAvatar avatarUrl={r.avatar_url} fullName={r.agent_name} size="sm" />
                         <span className="truncate text-sm font-semibold text-slate-800">
-                          {r.agent_name}{isMe && <span className="ml-1 text-xs font-medium" style={{ color: '#9334EB' }}>(You)</span>}
+                          {isMe
+                            ? <><span style={{ color: '#6D28D9' }}>You</span> ({r.agent_name})</>
+                            : r.agent_name}
                         </span>
                       </div>
                       <div className="text-right">
