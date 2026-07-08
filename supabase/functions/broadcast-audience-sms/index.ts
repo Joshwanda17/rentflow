@@ -194,6 +194,10 @@ Deno.serve(async (req) => {
     const dryRun = !!body.dry_run;
     const testPhoneRaw = (body.test_phone || '').toString().trim();
     const isTest = !!testPhoneRaw;
+    // Optional campaign key enables idempotent, resumable, background sending.
+    // With a campaign_key set, already-sent numbers are skipped on retries and
+    // the send runs in the background so the client never times out.
+    const campaignKey = (body.campaign_key || '').toString().trim();
     const audiences: Audience[] = Array.isArray(body.audiences)
       ? body.audiences.filter((a: string) => VALID_AUDIENCES.includes(a as Audience))
       : [];
@@ -259,6 +263,71 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---- Idempotent + background mode (campaign_key provided) ----
+    if (campaignKey && !isTest) {
+      // Load phones already marked sent for this campaign and skip them.
+      const alreadySent = new Set<string>();
+      const PAGE = 1000;
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await admin
+          .from('sms_broadcast_log')
+          .select('phone')
+          .eq('campaign_key', campaignKey)
+          .eq('status', 'sent')
+          .range(from, from + PAGE - 1);
+        if (error) break;
+        if (!data || data.length === 0) break;
+        for (const r of data) alreadySent.add(r.phone);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+
+      const pending = recipients.filter((r) => !alreadySent.has(r.phone));
+
+      const process = async () => {
+        const BATCH = 40;
+        for (let i = 0; i < pending.length; i += BATCH) {
+          const batch = pending.slice(i, i + BATCH);
+          const results = await Promise.all(batch.map((r) => sendSMS(r.phone, message)));
+          const rows = batch.map((r, idx) => ({
+            campaign_key: campaignKey,
+            phone: r.phone,
+            status: results[idx].accepted ? 'sent' : 'failed',
+            provider: results[idx].provider ?? null,
+            reason: results[idx].reason ?? null,
+          }));
+          // Upsert so retries flip failed -> sent and never duplicate.
+          await admin
+            .from('sms_broadcast_log')
+            .upsert(rows, { onConflict: 'campaign_key,phone' })
+            .then(() => {})
+            .catch(() => {});
+        }
+      };
+
+      // Run in the background so the client connection can close immediately
+      // without aborting the send.
+      // @ts-ignore EdgeRuntime is provided by the Supabase edge runtime.
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(process());
+      } else {
+        process();
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        started: true,
+        campaign_key: campaignKey,
+        total_recipients: recipients.length,
+        already_sent: alreadySent.size,
+        pending: pending.length,
+      }), { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ---- Legacy synchronous mode (test sends / small partner broadcasts) ----
     const BATCH = 50;
     let sent = 0, failed = 0;
     const errors: string[] = [];
@@ -270,13 +339,6 @@ Deno.serve(async (req) => {
         else { failed++; if (result.reason) errors.push(result.reason); }
       }
     }
-
-    // Log broadcast as a system event (fire-and-forget)
-    admin.from('system_events').insert({
-      event_type: 'audience_sms_broadcast',
-      actor_id: caller.id,
-      metadata: { audiences, sent, failed, total: recipients.length },
-    }).then(() => {}).catch(() => {});
 
     return new Response(JSON.stringify({
       success: true, sent, failed, total: recipients.length,

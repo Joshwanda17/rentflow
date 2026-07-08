@@ -16167,6 +16167,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_broadcast_log: {
+        Row: {
+          campaign_key: string
+          created_at: string
+          id: string
+          phone: string
+          provider: string | null
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          campaign_key: string
+          created_at?: string
+          id?: string
+          phone: string
+          provider?: string | null
+          reason?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_key?: string
+          created_at?: string
+          id?: string
+          phone?: string
+          provider?: string | null
+          reason?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       sms_delivery_log: {
         Row: {
           cost: string | null
