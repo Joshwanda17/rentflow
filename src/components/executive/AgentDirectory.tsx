@@ -15,6 +15,7 @@ import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
 import { cn } from '@/lib/utils';
 import { useAgentCapacityMap } from '@/hooks/useAgentCapacityMap';
 import { AgentCapacityBadge } from './AgentCapacityBadge';
+import { AgentAvatar } from './AgentAvatar';
 
 interface AgentRow {
   id: string;
