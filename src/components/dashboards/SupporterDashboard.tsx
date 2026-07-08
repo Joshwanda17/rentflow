@@ -470,6 +470,32 @@ export default function SupporterDashboard({
               <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
             </div>
             <AiIdButton variant="compact" />
+            {/* TEMP: test web push — remove later */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const { error } = await supabase.functions.invoke('send-push-notification', {
+                    body: {
+                      userIds: [user.id],
+                      payload: {
+                        title: 'Welile test 🔔',
+                        body: 'This is a test web push notification.',
+                        url: '/dashboard/funder',
+                      },
+                    },
+                  });
+                  if (error) throw error;
+                  toast({ title: 'Test push sent', description: 'Check your device notifications.' });
+                } catch (err) {
+                  console.error('Test push failed:', err);
+                  toast({ title: 'Test push failed', description: 'See console for details.', variant: 'destructive' });
+                }
+              }}
+            >
+              Test push
+            </Button>
           </div>
 
           <MerchantCodePills />
