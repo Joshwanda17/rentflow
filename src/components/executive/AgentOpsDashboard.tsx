@@ -227,6 +227,7 @@ export function AgentOpsDashboard() {
           <RentHistoryVerificationQueue dept="agent_ops" />
         </div>
       );
+      case 'advance-potential': return <AgentAdvancePotential />;
       case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
         <div className="rounded-2xl border border-border bg-card p-3">
