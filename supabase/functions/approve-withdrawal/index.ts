@@ -2477,36 +2477,10 @@ Deno.serve(async (req) => {
           if (pe && /@/.test(pe)) copyRecipients.push({ email: pe, role: "Merchant Agent" });
         } catch { /* non-fatal */ }
 
-        // 2) Financial Ops + CFO teams (by role).
-        try {
-          const { data: roleRows } = await admin
-            .from("user_roles")
-            .select("user_id, role")
-            .in("role", ["cfo", "operations"]);
-          const cfoIds = new Set<string>();
-          const finOpsIds = new Set<string>();
-          for (const r of (roleRows || []) as any[]) {
-            if (r.role === "cfo") cfoIds.add(r.user_id);
-            else if (r.role === "operations") finOpsIds.add(r.user_id);
-          }
-          const allIds = [...new Set([...cfoIds, ...finOpsIds])];
-          if (allIds.length > 0) {
-            const { data: roleProfiles } = await admin
-              .from("profiles")
-              .select("id, email")
-              .in("id", allIds);
-            for (const p of (roleProfiles || []) as any[]) {
-              if (p.email && /@/.test(p.email)) {
-                copyRecipients.push({
-                  email: p.email,
-                  role: cfoIds.has(p.id) ? "CFO" : "Financial Ops",
-                });
-              }
-            }
-          }
-        } catch { /* non-fatal */ }
-
-        // 3) Fixed records archive mailbox.
+        // 2) Fixed records archive mailbox.
+        // NOTE: Internal receipt copies deliberately do NOT fan out to CFO /
+        // Financial Ops / manager-line roles anymore. The single internal copy
+        // goes only to the shared records archive mailbox below.
         copyRecipients.push({ email: "weliletenants@gmail.com", role: "Records Archive" });
 
         // Dedupe by email; the customer already received the primary receipt.
