@@ -11,6 +11,7 @@ import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
+import { OAuthDomainNotice } from '@/components/auth/OAuthDomainNotice';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 import { ArchivedAccountSupport } from '@/components/auth/ArchivedAccountSupport';
@@ -561,6 +562,7 @@ export default function Auth() {
                     isLoading={isAppleLoading}
                   />
                 </div>
+                <OAuthDomainNotice />
 
                 {failedAttempts >= 2 && (
                   <Button
@@ -745,6 +747,7 @@ export default function Auth() {
                   isLoading={isGoogleLoading}
                   variant="standard"
                 />
+                <OAuthDomainNotice />
 
                 <button type="button" onClick={() => setLoginMode('password')} className="w-full text-xs text-muted-foreground hover:text-primary text-center pt-1">
                   ← Back to phone login
@@ -1091,6 +1094,7 @@ export default function Auth() {
                     isLoading={isAppleLoading}
                   />
                 </div>
+                <OAuthDomainNotice />
 
                 <div className="relative flex items-center py-1">
                   <div className="flex-1 border-t border-border/40" />
