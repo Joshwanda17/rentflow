@@ -3349,8 +3349,7 @@ export function LandlordOpsDashboard() {
       <>
       <div className="space-y-6">
         <BackButton />
-        <h2 className="text-lg font-bold">Agent Advance Requests</h2>
-        <AdvanceRequestsQueue stage="landlord_ops" />
+        <h2 className="text-lg font-bold">Business Advances</h2>
         <BusinessAdvanceQueue stage="landlord_ops" />
         <RentHistoryVerificationQueue dept="landlord_ops" />
       </div>
