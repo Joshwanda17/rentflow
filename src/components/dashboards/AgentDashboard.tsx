@@ -954,21 +954,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </button>
             )}
 
-            {/* 1) Priorities first — Wallet · Collect Rent · Add Tenant · List House */}
-            <AgentPriorityGrid
-              agentId={user.id}
-              withdrawable={realWithdrawableBalance}
-              restricted={isMerchant}
-              onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
-              onOpenFieldCollect={() => { if (guardMerchant()) return; setFieldCollectOpen(true); }}
-              onOpenNewTenant={() => { if (guardMerchant()) return; setRentRequestOpen(true); }}
-              onOpenListHouse={() => { if (guardMerchant()) return; hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
-            />
-
-            {/* 2) Today's collected total — single most useful at-a-glance number */}
-            <FieldCollectDailyTotals live />
-
-            {/* 2a) Agent Advance — prominent on Home so every agent sees the cash
+            {/* 0) Agent Advance — TOP priority on Home so every agent sees the cash
                 they can access instantly (hidden for payout-only Merchant Agents). */}
             {!isMerchant && (
             <button
@@ -998,6 +984,20 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </div>
             </button>
             )}
+
+            {/* 1) Priorities first — Wallet · Collect Rent · Add Tenant · List House */}
+            <AgentPriorityGrid
+              agentId={user.id}
+              withdrawable={realWithdrawableBalance}
+              restricted={isMerchant}
+              onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
+              onOpenFieldCollect={() => { if (guardMerchant()) return; setFieldCollectOpen(true); }}
+              onOpenNewTenant={() => { if (guardMerchant()) return; setRentRequestOpen(true); }}
+              onOpenListHouse={() => { if (guardMerchant()) return; hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
+            />
+
+            {/* 2) Today's collected total — single most useful at-a-glance number */}
+            <FieldCollectDailyTotals live />
 
             {/* 2b) Earnings summary — available rewards + lifetime total */}
             <EarningsSummaryCard />
