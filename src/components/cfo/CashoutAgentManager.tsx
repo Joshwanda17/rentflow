@@ -1320,9 +1320,16 @@ export function CashoutAgentManager() {
   );
 }
 
-function KpiTile({ icon, label, value, sub, tone = 'muted', compact = false }: { icon: React.ReactNode; label: string; value: string; sub?: string; tone?: 'primary' | 'muted'; compact?: boolean }) {
+function KpiTile({ icon, label, value, sub, tone = 'muted', compact = false, onClick, hint }: { icon: React.ReactNode; label: string; value: string; sub?: string; tone?: 'primary' | 'muted'; compact?: boolean; onClick?: () => void; hint?: string }) {
+  const interactive = typeof onClick === 'function';
   return (
-    <Card className={tone === 'primary' ? 'bg-primary/5' : ''}>
+    <Card
+      onClick={onClick}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(); } } : undefined}
+      className={`${tone === 'primary' ? 'bg-primary/5' : ''}${interactive ? ' cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50' : ''}`}
+    >
       <CardContent className={compact ? 'p-2.5' : 'p-3'}>
         <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
           <span className={tone === 'primary' ? 'text-primary' : ''}>{icon}</span>
@@ -1330,6 +1337,11 @@ function KpiTile({ icon, label, value, sub, tone = 'muted', compact = false }: {
         </div>
         <p className={`font-bold tabular-nums truncate ${compact ? 'text-xs' : 'text-sm'}`}>{value}</p>
         {sub && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
+        {hint && (
+          <p className="text-[10px] font-medium text-primary mt-1 inline-flex items-center gap-0.5">
+            {hint} <ChevronRight className="h-3 w-3" />
+          </p>
+        )}
       </CardContent>
     </Card>
   );
