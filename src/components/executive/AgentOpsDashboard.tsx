@@ -92,6 +92,7 @@ export function AgentOpsDashboard() {
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [bottomTab, setBottomTab] = useState<BottomTab>('home');
   const [dateRange, setDateRange] = useState<DateRange>('24h');
+  const pendingAdvanceCount = usePendingAdvanceCount();
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['agent-ops-kpis'],
