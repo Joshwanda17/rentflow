@@ -128,6 +128,16 @@ async function sendSMS(phone: string, message: string): Promise<SmsResult> {
   return { accepted: false, reason: combineFailureReasons(failures) };
 }
 
+async function sendSMSWithRetries(phone: string, message: string, attempts = 3): Promise<SmsResult> {
+  let last: SmsResult = { accepted: false, reason: 'not_attempted' };
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    last = await sendSMS(phone, message);
+    if (last.accepted) return last;
+    if (attempt < attempts) await delay(750 * attempt);
+  }
+  return last;
+}
+
 async function fetchRoleUserPhones(admin: any, role: Audience): Promise<{ user_id: string; phone: string }[]> {
   const out: { user_id: string; phone: string }[] = [];
   const PAGE = 1000;
@@ -319,10 +329,10 @@ Deno.serve(async (req) => {
       const pending = recipients.filter((r) => !alreadySent.has(r.phone));
 
       const process = async () => {
-        const BATCH = 40;
+        const BATCH = 8;
         for (let i = 0; i < pending.length; i += BATCH) {
           const batch = pending.slice(i, i + BATCH);
-          const results = await Promise.all(batch.map((r) => sendSMS(r.phone, message)));
+          const results = await Promise.all(batch.map((r) => sendSMSWithRetries(r.phone, message)));
           const rows = batch.map((r, idx) => ({
             campaign_key: campaignKey,
             phone: r.phone,
@@ -336,6 +346,7 @@ Deno.serve(async (req) => {
             .upsert(rows, { onConflict: 'campaign_key,phone' })
             .then(() => {})
             .catch(() => {});
+          await delay(500);
         }
         // Mark the campaign as complete once this pass drains its pending set.
         await admin
