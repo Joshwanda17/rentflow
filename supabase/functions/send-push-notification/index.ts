@@ -172,6 +172,7 @@ async function createVapidJwt(audience: string): Promise<string> {
   const pubBytes = base64urlToBytes(VAPID_PUBLIC_KEY); // 0x04 || x(32) || y(32)
   const xBytes = pubBytes.slice(1, 33);
   const yBytes = pubBytes.slice(33, 65);
+  console.log('VAPID key lengths', { d: dBytes.length, pub: pubBytes.length });
 
   const key = await crypto.subtle.importKey(
     'jwk',
