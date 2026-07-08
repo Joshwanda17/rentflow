@@ -803,6 +803,29 @@ export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean 
             </div>
           )}
 
+          {detailed && (
+          <>
+          {/* Search — placed prominently above the agent breakdown */}
+          <div className="mt-3 relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search agent name or ID…"
+              className="w-full h-8 pl-8 pr-8 rounded-lg border border-border bg-background text-[11px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-5 w-5 rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
 
           {/* Agent-by-agent breakdown — mobile-friendly, paginated, expandable rows */}
           <div className="mt-3 rounded-lg border border-border overflow-hidden">
