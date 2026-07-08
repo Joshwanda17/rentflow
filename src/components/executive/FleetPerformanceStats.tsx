@@ -926,6 +926,8 @@ export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean 
               </div>
             )}
           </div>
+          </>
+          )}
         </>
       )}
     </div>
