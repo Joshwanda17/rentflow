@@ -3,40 +3,23 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Approval stages an advance request travels through. Each stage reviews the
- * request while it holds the mapped status, then bumps it to the next status.
+ * Count of brand-new agent advance requests awaiting Agent Ops review
+ * (status = 'pending'). Agent Ops is the only operational desk — once it
+ * approves, requests go straight to the CFO. Used to badge the Agent Ops
+ * "Advances" menu item. Kept live via realtime on agent_advance_requests.
  */
-export type AdvanceStage = 'agent_ops' | 'tenant_ops' | 'landlord_ops' | 'coo';
-
-/** The status a request holds while it is awaiting a given stage's review. */
-const STAGE_FILTER_STATUS: Record<AdvanceStage, string> = {
-  agent_ops: 'pending',
-  tenant_ops: 'agent_ops_approved',
-  landlord_ops: 'tenant_ops_approved',
-  coo: 'landlord_ops_approved',
-};
-
-/**
- * Count of agent advance requests awaiting review at the given approval stage.
- * Used to badge each reviewer's "Advances" menu item so every desk in the
- * approval line sees, at a glance, how many requests are waiting on them.
- * Kept live via a realtime subscription on agent_advance_requests.
- *
- * Defaults to the agent-ops stage (brand-new `pending` requests).
- */
-export function usePendingAdvanceCount(stage: AdvanceStage = 'agent_ops') {
+export function usePendingAdvanceCount() {
   const queryClient = useQueryClient();
-  const filterStatus = STAGE_FILTER_STATUS[stage];
 
   const query = useQuery({
-    queryKey: ['pending-advance-count', stage],
+    queryKey: ['pending-advance-count'],
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async () => {
       const { count, error } = await supabase
         .from('agent_advance_requests_privileged')
         .select('id', { count: 'exact', head: true })
-        .eq('status', filterStatus);
+        .eq('status', 'pending');
       if (error) throw error;
       return count ?? 0;
     },
