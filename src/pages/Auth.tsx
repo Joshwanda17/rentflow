@@ -747,6 +747,7 @@ export default function Auth() {
                   isLoading={isGoogleLoading}
                   variant="standard"
                 />
+                <OAuthDomainNotice />
 
                 <button type="button" onClick={() => setLoginMode('password')} className="w-full text-xs text-muted-foreground hover:text-primary text-center pt-1">
                   ← Back to phone login
