@@ -330,6 +330,39 @@ Deno.serve(async (req) => {
 
       const pending = recipients.filter((r) => !alreadySent.has(r.phone));
 
+      // Older runs accepted loose phone formats (for example +2560...). Those
+      // rows cannot be flipped by a normalized retry because the unique key is
+      // campaign_key + phone. Preserve the audit row, but stop counting stale
+      // malformed/non-audience rows as retryable failures on the status page.
+      const validCampaignPhones = new Set(recipients.map((r) => r.phone));
+      const staleFailedIds: string[] = [];
+      from = 0;
+      while (true) {
+        const { data, error } = await admin
+          .from('sms_broadcast_log')
+          .select('id, phone')
+          .eq('campaign_key', campaignKey)
+          .eq('status', 'failed')
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        for (const r of data) {
+          const normalized = formatPhoneInternational(r.phone);
+          if (!validCampaignPhones.has(r.phone) && (!normalized || !validCampaignPhones.has(r.phone))) {
+            staleFailedIds.push(r.id);
+          }
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      for (let i = 0; i < staleFailedIds.length; i += 200) {
+        await admin
+          .from('sms_broadcast_log')
+          .update({ status: 'invalid', reason: 'invalid_or_stale_phone' })
+          .in('id', staleFailedIds.slice(i, i + 200))
+          .then(() => {})
+          .catch(() => {});
+      }
+
       const process = async () => {
         const BATCH = 8;
         for (let i = 0; i < pending.length; i += BATCH) {
