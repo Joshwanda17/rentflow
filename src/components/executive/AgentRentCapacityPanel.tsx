@@ -20,6 +20,7 @@ import {
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 import { FleetPerformanceStats } from './FleetPerformanceStats';
+import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 
 type AgentRow = {
   agent_id: string;
@@ -46,9 +47,20 @@ type AgentRow = {
 export function AgentRentCapacityPanel({
   defaultLimit = 25,
   compact = false,
-}: { defaultLimit?: number; compact?: boolean }) {
+  mode = 'full',
+}: {
+  defaultLimit?: number;
+  compact?: boolean;
+  /**
+   * 'full'    — stats header + searchable agent list (default)
+   * 'summary' — stats header only (used on the dashboard overview)
+   */
+  mode?: 'full' | 'summary';
+}) {
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const showList = mode !== 'summary';
+  const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // On phones, default every row to collapsed so the agent sees a clean
   // ALLOWED / BLOCKED status card and can tap to drill in.
   const isPhone = typeof window !== 'undefined' && window.innerWidth < 640;
