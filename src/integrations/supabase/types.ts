@@ -21342,6 +21342,39 @@ export type Database = {
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_agent_advance_potential: {
+        Args: { _limit?: number; _offset?: number; _search?: string }
+        Returns: {
+          active_subagents: number
+          advances_count: number
+          agent_id: string
+          avatar_url: string
+          collections_count: number
+          collections_score: number
+          current_limit: number
+          direct_subagents: number
+          email: string
+          full_name: string
+          grand_subagents: number
+          has_active_advance: boolean
+          house_listings: number
+          listings_score: number
+          network_score: number
+          outstanding_total: number
+          phone: string
+          potential_score: number
+          principal_total: number
+          rent_collected: number
+          rent_requests: number
+          repayment_rate: number
+          repayment_score: number
+          requests_score: number
+          suggested_amount: number
+          territory: string
+          total_matched: number
+          verified: boolean
+        }[]
+      }
       get_agent_daily_eligibility: {
         Args: { p_agent_ids: string[] }
         Returns: {
