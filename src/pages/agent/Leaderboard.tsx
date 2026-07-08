@@ -307,6 +307,32 @@ export default function AgentLeaderboard() {
                     </motion.div>
                   );
                 })}
+                {/* Pin the logged-in user as the last row when they're outside the visible top 20 */}
+                {myRank && !rows.some((r) => r.agent_id === user?.id) && (
+                  <>
+                    <div className="flex items-center justify-center gap-1.5 border-t bg-slate-50 py-2 text-slate-400">
+                      <span className="h-1 w-1 rounded-full bg-slate-300" />
+                      <span className="h-1 w-1 rounded-full bg-slate-300" />
+                      <span className="h-1 w-1 rounded-full bg-slate-300" />
+                    </div>
+                    <div
+                      className="grid grid-cols-[44px_1fr_auto] items-center gap-3 px-4 py-3"
+                      style={{ background: 'rgba(147,52,235,0.1)' }}
+                    >
+                      <span className="text-sm font-bold" style={{ color: '#6D28D9' }}>#{myRank.rank}</span>
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <UserAvatar avatarUrl={myRank.avatar_url} fullName={myRank.agent_name} size="sm" />
+                        <span className="truncate text-sm font-semibold text-slate-800">
+                          {myRank.agent_name}<span className="ml-1 text-xs font-medium" style={{ color: '#9334EB' }}>(You)</span>
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-slate-800">{myRank.invite_count} Invites</p>
+                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{earnings(myRank.invite_count)}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </Card>
             )}
 
