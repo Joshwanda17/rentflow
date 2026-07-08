@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Loader2, ArrowRight, Shield, Banknote, Calendar as CalendarIcon, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, ArrowRight, Shield, Banknote, Calendar as CalendarIcon, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Briefcase } from 'lucide-react';
 import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersHorizontal, ArrowUp, ArrowDown, Activity, TrendingUp } from 'lucide-react';
 import { Search, X } from 'lucide-react';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
@@ -427,7 +427,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             </div>
             <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">You can access now</p>
             <p className="mt-1 text-3xl font-black leading-none text-primary whitespace-pre-line">
-              {formatCreditAmount(advanceLimit?.totalLimit || 30000)}
+              {formatCreditAmount(limit?.totalLimit || 30000)}
             </p>
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
               <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
