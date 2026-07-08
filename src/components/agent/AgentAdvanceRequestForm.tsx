@@ -417,28 +417,25 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[92vh] w-full max-w-lg mx-auto inset-x-0 overflow-y-auto rounded-t-2xl px-4 pb-6 pt-5">
         {/* Hero — clear, professional, minimalist value proposition */}
-        <div className="mb-5 rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-6 text-card-foreground shadow-lg ring-1 ring-primary/20">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="rounded-full bg-primary/15 p-1.5 text-primary">
-              <Banknote className="h-4 w-4" />
+        <div className="mb-5 relative w-full overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-5 text-card-foreground shadow-lg ring-1 ring-primary/20">
+          <div className="relative">
+            <div className="flex items-center gap-2">
+              <div className="rounded-full bg-primary/15 p-1.5 text-primary">
+                <Briefcase className="h-4 w-4" strokeWidth={2.2} />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Agent Advance</span>
             </div>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-primary">Agent Advance</span>
-          </div>
-          <h1 className="text-[22px] font-extrabold leading-tight text-foreground">
-            Welile lends money to active agents
-          </h1>
-          <p className="text-sm font-medium text-muted-foreground mt-1.5 leading-snug">
-            Get up to <span className="font-extrabold text-primary">UGX 30M</span> sent straight to your wallet, and pay it back over a period of up to <span className="font-extrabold text-primary">12 months</span>.
-          </p>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-primary/10 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Up to</p>
-              <p className="text-lg font-extrabold leading-none mt-0.5 text-primary">UGX 30M</p>
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">You can access now</p>
+            <p className="mt-1 text-3xl font-black leading-none text-primary whitespace-pre-line">
+              {formatCreditAmount(advanceLimit?.totalLimit || 30000)}
+            </p>
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+              <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
+              Grow up to UGX 30,000,000 as you perform better
             </div>
-            <div className="rounded-2xl bg-primary/10 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pay back over</p>
-              <p className="text-lg font-extrabold leading-none mt-0.5 text-primary">12 months</p>
-            </div>
+            <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
+              Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
+            </p>
           </div>
         </div>
 
