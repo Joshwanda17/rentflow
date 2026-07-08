@@ -73,6 +73,7 @@ export default function COODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('coo');
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const pendingAdvanceCount = usePendingAdvanceCount('coo');
 
   const handleNavTo = (tab: string) => {
     setActiveTab(tab);
