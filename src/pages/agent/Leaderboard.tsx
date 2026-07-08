@@ -305,8 +305,8 @@ export default function AgentLeaderboard() {
                     </motion.div>
                   );
                 })}
-                {/* Pin the logged-in user as the last row when they're outside the podium + top 20 list */}
-                {page === 0 && myRank && !rows.some((r) => r.agent_id === user?.id) && (
+                {/* Pin the logged-in user as the last row when they're outside the top 20 */}
+                {myRank && !rows.some((r) => r.agent_id === user?.id) && (
                   <>
                     <div className="flex items-center justify-center gap-1.5 border-t bg-slate-50 py-2 text-slate-400">
                       <span className="h-1 w-1 rounded-full bg-slate-300" />
@@ -332,33 +332,6 @@ export default function AgentLeaderboard() {
                   </>
                 )}
               </Card>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mb-8 flex items-center justify-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => { hapticTap(); setPage((p) => Math.max(0, p - 1)); }}
-                  className="rounded-full"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Prev
-                </Button>
-                <span className="text-sm font-medium text-slate-500">
-                  Page {page + 1} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= totalPages}
-                  onClick={() => { hapticTap(); setPage((p) => p + 1); }}
-                  className="rounded-full"
-                >
-                  Next <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
             )}
           </>
         )}
