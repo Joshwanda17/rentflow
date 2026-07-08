@@ -23454,6 +23454,10 @@ export type Database = {
           snapshotted_count: number
         }[]
       }
+      subagent_listing_count: {
+        Args: { p_sub_agent_id: string }
+        Returns: number
+      }
       submit_withdrawal_request:
         | {
             Args: {
@@ -23511,6 +23515,10 @@ export type Database = {
           rent_request_id: string
           tenant_id: string
         }[]
+      }
+      try_award_subagent_registration_bonus: {
+        Args: { p_sub_agent_id: string }
+        Returns: undefined
       }
       try_link_gmail_for_deposit: {
         Args: { p_deposit_id: string }
