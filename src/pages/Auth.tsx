@@ -562,6 +562,7 @@ export default function Auth() {
                     isLoading={isAppleLoading}
                   />
                 </div>
+                <OAuthDomainNotice />
 
                 {failedAttempts >= 2 && (
                   <Button
