@@ -275,11 +275,11 @@ export function AgentOpsDashboard() {
 
   // Grouped sections for the "More" tab (mobile dropdown + grid)
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
-    { title: '🧩 Operations', keys: ['trust-capture', 'escalations', 'tasks'] },
-    { title: '👥 Agent Network', keys: ['sub-agents', 'promote-tenant', 'lending-agents'] },
-    { title: '🏢 Business', keys: ['service-centres', 'advance-requests'] },
-    { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'allocation-report', 'performance', 'lifecycle', 'alerts', 'brief'] },
-    { title: '🔗 System', keys: ['connector', 'transfers', 'float-payouts', 'earnings'] },
+    { title: '👥 Agent Network', keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
+    { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
+    { title: '🏢 Business', keys: ['service-centres', 'advance-requests', 'transfers', 'float-payouts'] },
+    { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
+    { title: '🔗 System', keys: ['bulk-ops'] },
   ];
 
   // Main content region — sub-view when one is active, else the overview / more-grid.
