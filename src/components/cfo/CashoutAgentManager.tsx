@@ -27,6 +27,7 @@ import {
   Banknote, UserPlus, Loader2, XCircle, Building2, Smartphone, Phone, Mail, MapPin,
   CreditCard, Calendar, Shield, Wallet, Users, TrendingUp, ArrowLeft, Search, CheckCircle2, Clock,
   Network, Activity, Zap, Pencil, Trash2, FileCheck, FileWarning, Download, Monitor, Globe,
+  ChevronRight, ChevronDown, Hash, Inbox,
 } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
@@ -106,6 +107,8 @@ export function CashoutAgentManager() {
   const [cashoutAgent, setCashoutAgent] = useState<any>(null);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [commentClaim, setCommentClaim] = useState<any>(null);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -629,6 +632,38 @@ export function CashoutAgentManager() {
       .sort((a, b) => (a.day < b.day ? 1 : -1));
   }, [selectedAgentPayouts]);
 
+  // Individual payouts grouped by calendar day, most-recent day first, and each
+  // day's payouts sorted latest-first. Powers the expandable rows inside the
+  // "Float Given Out Per Day" drill-down modal.
+  const payoutsByDay = useMemo(() => {
+    const byDay = new Map<string, any[]>();
+    for (const py of selectedAgentPayouts as any[]) {
+      const stamp = py.processed_at || py.created_at;
+      if (!stamp) continue;
+      const d = new Date(stamp);
+      if (isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const arr = byDay.get(key) || [];
+      arr.push(py);
+      byDay.set(key, arr);
+    }
+    for (const arr of byDay.values()) {
+      arr.sort((a, b) => {
+        const ta = new Date(a.processed_at || a.created_at).getTime();
+        const tb = new Date(b.processed_at || b.created_at).getTime();
+        return tb - ta;
+      });
+    }
+    return byDay;
+  }, [selectedAgentPayouts]);
+
+  const toggleDay = (day: string) =>
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      next.has(day) ? next.delete(day) : next.add(day);
+      return next;
+    });
+
   // Latest comment per payout — inline note on each processed-payout card.
   const { data: latestClaimComments } = useLatestClaimComments(
     selectedAgentPayouts.map((p: any) => p.id),
@@ -734,7 +769,14 @@ export function CashoutAgentManager() {
 
         <div className="grid grid-cols-2 gap-2">
           <KpiTile icon={<CheckCircle2 className="h-4 w-4" />} label="Completed Payouts" value={String(selectedAgentStats?.count || 0)} tone="primary" sub={`${selectedAgentStats?.todayCount || 0} today`} />
-          <KpiTile icon={<TrendingUp className="h-4 w-4" />} label="Volume Total" value={formatUGX(selectedAgentStats?.volume || 0)} tone="primary" />
+          <KpiTile
+            icon={<TrendingUp className="h-4 w-4" />}
+            label="Volume Total"
+            value={formatUGX(selectedAgentStats?.volume || 0)}
+            tone="primary"
+            hint="Tap to view daily volume"
+            onClick={() => setBreakdownOpen(true)}
+          />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
@@ -1038,6 +1080,101 @@ export function CashoutAgentManager() {
         />
 
         <ClaimCommentDialog claim={commentClaim} onClose={() => setCommentClaim(null)} />
+
+        {/* Float Given Out Per Day — drill-down from the Volume Total card */}
+        <Dialog open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto p-0 gap-0">
+            <DialogHeader className="p-4 pb-3 border-b sticky top-0 bg-background z-10">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Calendar className="h-4 w-4 text-primary" /> Float Given Out Per Day
+              </DialogTitle>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <p className="text-xs text-muted-foreground">
+                  {selectedAgent?.label || 'Merchant Agent'}
+                  {selectedAgent?.territory ? ` · ${selectedAgent.territory}` : ''}
+                </p>
+                <p className="text-sm font-bold text-primary tabular-nums">
+                  {formatUGX(selectedAgentStats?.volume || 0)}
+                </p>
+              </div>
+            </DialogHeader>
+
+            <div className="p-3 space-y-2">
+              {dailyPayoutBreakdown.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Inbox className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                  <p className="text-sm font-medium">No float issued</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No float has been issued during the selected period.
+                  </p>
+                </div>
+              ) : (
+                dailyPayoutBreakdown.map((row) => {
+                  const isOpen = expandedDays.has(row.day);
+                  const dayPayouts = payoutsByDay.get(row.day) || [];
+                  return (
+                    <div key={row.day} className="rounded-lg border border-border/60 overflow-hidden">
+                      <button
+                        onClick={() => toggleDay(row.day)}
+                        className="w-full flex items-center justify-between gap-2 p-3 text-left transition-colors hover:bg-muted/50"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isOpen
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{formatDate(row.day)}</p>
+                            <p className="text-[10px] text-muted-foreground">{row.count} payout{row.count > 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm font-bold shrink-0 tabular-nums">{formatUGX(row.amount)}</p>
+                      </button>
+
+                      {isOpen && (
+                        <div className="divide-y divide-border/60 border-t border-border/60 bg-muted/20">
+                          {dayPayouts.map((py: any) => (
+                            <div key={py.id} className="p-3 space-y-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {py.beneficiary_name || py.mobile_money_name || 'Beneficiary'}
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground truncate">
+                                    {py.beneficiary_phone || py.mobile_money_number || '—'}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-bold shrink-0 tabular-nums">{formatUGX(py.amount)}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge variant="secondary" className="text-[10px] gap-1">
+                                  {isBank(py.payout_method) ? <Building2 className="h-2.5 w-2.5" /> :
+                                   isMomo(py.payout_method) ? <Smartphone className="h-2.5 w-2.5" /> :
+                                   <Banknote className="h-2.5 w-2.5" />}
+                                  {py.payout_method?.replace(/_/g, ' ') || 'cash'}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px] gap-1">
+                                  <CheckCircle2 className="h-2.5 w-2.5" /> {py.status}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                                  <Clock className="h-2.5 w-2.5" /> {formatDateTime(py.processed_at || py.created_at)}
+                                </span>
+                              </div>
+                              {py.fin_ops_reference && (
+                                <p className="text-[10px] text-muted-foreground font-mono truncate inline-flex items-center gap-1">
+                                  <Hash className="h-2.5 w-2.5 shrink-0" /> {py.fin_ops_reference}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -1278,9 +1415,16 @@ export function CashoutAgentManager() {
   );
 }
 
-function KpiTile({ icon, label, value, sub, tone = 'muted', compact = false }: { icon: React.ReactNode; label: string; value: string; sub?: string; tone?: 'primary' | 'muted'; compact?: boolean }) {
+function KpiTile({ icon, label, value, sub, tone = 'muted', compact = false, onClick, hint }: { icon: React.ReactNode; label: string; value: string; sub?: string; tone?: 'primary' | 'muted'; compact?: boolean; onClick?: () => void; hint?: string }) {
+  const interactive = typeof onClick === 'function';
   return (
-    <Card className={tone === 'primary' ? 'bg-primary/5' : ''}>
+    <Card
+      onClick={onClick}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(); } } : undefined}
+      className={`${tone === 'primary' ? 'bg-primary/5' : ''}${interactive ? ' cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50' : ''}`}
+    >
       <CardContent className={compact ? 'p-2.5' : 'p-3'}>
         <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
           <span className={tone === 'primary' ? 'text-primary' : ''}>{icon}</span>
@@ -1288,6 +1432,11 @@ function KpiTile({ icon, label, value, sub, tone = 'muted', compact = false }: {
         </div>
         <p className={`font-bold tabular-nums truncate ${compact ? 'text-xs' : 'text-sm'}`}>{value}</p>
         {sub && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
+        {hint && (
+          <p className="text-[10px] font-medium text-primary mt-1 inline-flex items-center gap-0.5">
+            {hint} <ChevronRight className="h-3 w-3" />
+          </p>
+        )}
       </CardContent>
     </Card>
   );
