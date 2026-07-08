@@ -39,6 +39,8 @@ import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
 import { AdvanceAnalyticsPanel } from './agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
+import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
+import { Badge } from '@/components/ui/badge';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
