@@ -325,11 +325,6 @@ export default function COODashboardPage() {
                       item.color
                     )}
                   >
-                    {item.id === 'advance-requests' && pendingAdvanceCount > 0 && (
-                      <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow">
-                        {pendingAdvanceCount > 99 ? '99+' : pendingAdvanceCount}
-                      </span>
-                    )}
                     <div className="flex items-center justify-between w-full">
                       <item.icon className="h-5 w-5" />
                       <ChevronRight className="h-3.5 w-3.5 opacity-40" />
