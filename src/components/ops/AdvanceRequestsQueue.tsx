@@ -18,7 +18,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type ApprovalStage = 'agent_ops' | 'tenant_ops' | 'landlord_ops' | 'coo';
+// Agent advances now have a single operational approval desk: Agent Ops.
+// Once Agent Ops approves, the request goes straight to the CFO for final
+// evaluation and disbursement — there are no tenant/landlord/COO stages.
+type ApprovalStage = 'agent_ops';
 
 interface AdvanceRequestsQueueProps {
   stage: ApprovalStage;
@@ -26,9 +29,6 @@ interface AdvanceRequestsQueueProps {
 
 const STAGE_CONFIG: Record<ApprovalStage, { filterStatus: string; nextStatus: string; reviewerCol: string; reviewedAtCol: string; notesCol: string; title: string }> = {
   agent_ops: { filterStatus: 'pending', nextStatus: 'agent_ops_approved', reviewerCol: 'reviewed_by_agent_ops', reviewedAtCol: 'agent_ops_reviewed_at', notesCol: 'agent_ops_notes', title: 'Agent Advance Requests' },
-  tenant_ops: { filterStatus: 'agent_ops_approved', nextStatus: 'tenant_ops_approved', reviewerCol: 'reviewed_by_tenant_ops', reviewedAtCol: 'tenant_ops_reviewed_at', notesCol: 'tenant_ops_notes', title: 'Agent Advance Requests' },
-  landlord_ops: { filterStatus: 'tenant_ops_approved', nextStatus: 'landlord_ops_approved', reviewerCol: 'reviewed_by_landlord_ops', reviewedAtCol: 'landlord_ops_reviewed_at', notesCol: 'landlord_ops_notes', title: 'Agent Advance Requests' },
-  coo: { filterStatus: 'landlord_ops_approved', nextStatus: 'coo_approved', reviewerCol: 'approved_by_coo', reviewedAtCol: 'coo_approved_at', notesCol: 'coo_notes', title: 'Agent Advance Approvals' },
 };
 
 const num = (v: any) => Number(v ?? 0);
