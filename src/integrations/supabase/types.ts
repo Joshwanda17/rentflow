@@ -21537,6 +21537,20 @@ export type Database = {
           with_withdrawable: number
         }[]
       }
+      get_agent_proxy_roi_payouts: {
+        Args: { p_agent_id?: string }
+        Returns: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          linked_party: string
+          metadata: Json
+          reviewed_at: string
+          source_id: string
+          target_wallet_user_id: string
+        }[]
+      }
       get_agent_rent_request_capacity: {
         Args: { p_agent_id: string; p_tenant_id: string }
         Returns: Json

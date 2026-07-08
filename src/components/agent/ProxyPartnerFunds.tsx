@@ -98,6 +98,28 @@ type FilterMode = 'all' | 'inflight' | 'reattempt' | 'fresh';
 const makeCardKey = (partnerId: string, portfolioId: string | null) =>
   `${partnerId}-${portfolioId || 'none'}`;
 
+const QUERY_CHUNK_SIZE = 100;
+
+const chunkArray = <T,>(items: T[], size = QUERY_CHUNK_SIZE): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+};
+
+const fetchChunks = async <T,>(
+  items: string[],
+  buildQuery: (chunk: string[]) => PromiseLike<{ data: any[] | null; error: any }>,
+): Promise<T[]> => {
+  const rows: T[] = [];
+  for (const chunk of chunkArray(items)) {
+    if (chunk.length === 0) continue;
+    const { data, error } = await buildQuery(chunk);
+    if (error) throw error;
+    rows.push(...((data || []) as T[]));
+  }
+  return rows;
+};
+
 // Proxy withdrawals stamp the chosen portfolio into the request reason as
 // "... | Route: portfolio <uuid>". Parsing it back lets us scope an in-flight
 // hold (and the backend FIFO settlement) to the EXACT portfolio that was
@@ -313,24 +335,7 @@ export function ProxyPartnerFunds() {
     if (!user?.id) return;
     if (showSpinner) setLoading(true);
     try {
-      // Step 1: Get ROI payouts explicitly approved by a CFO-role user
-      const { getCfoUserIds } = await import('@/lib/cfoUserIds');
-      const cfoIds = await getCfoUserIds();
-      if (cfoIds.length === 0) {
-        setApprovedOps([]);
-        setProfiles({});
-        setCompletedWithdrawals([]);
-        setPortfolios([]);
-        setPartnerWithdrawalStatus({});
-        setActiveWithdrawalsByPartner({});
-        setActiveWithdrawalsByCard({});
-        setLastTerminalByPartner({});
-        setStrictWithdrawableByPartner({});
-        setPartnerIdsForRealtime([]);
-        setPortfolioIdsForRealtime([]);
-        setLoading(false);
-        return;
-      }
+      // Step 1: Get ROI payouts approved through the Partner Ops → COO → CFO flow.
       // Two sources of CFO-approved ROI payouts the agent should see:
       //
       //   (A) LEGACY custody — `pending_wallet_operations.target_wallet_user_id
@@ -371,46 +376,18 @@ export function ProxyPartnerFunds() {
       );
       setManagedPartnerIds(managedSet);
 
-      // Source IDs (portfolios) belonging to those proxy partners.
-      let v2PortfolioIds: string[] = [];
-      if (proxyPartnerIds.length > 0) {
-        const { data: v2Portfolios } = await supabase
-          .from('investor_portfolios')
-          .select('id')
-          .in('investor_id', proxyPartnerIds);
-        v2PortfolioIds = (v2Portfolios || []).map((p: any) => p.id);
-      }
+      // Load through the backend helper instead of a browser-side
+      // `.in(source_id, hundreds...)` query. The long URL was returning 400,
+      // so the UI silently had zero v2 ROI rows even though CFO approvals
+      // existed. The RPC enforces the same active proxy-assignment bridge
+      // server-side and returns both legacy and Custody-v2 approvals.
+      const { data: proxyRoiRows, error: proxyRoiError } = await (supabase as any).rpc(
+        'get_agent_proxy_roi_payouts',
+        { p_agent_id: user.id },
+      );
+      if (proxyRoiError) throw proxyRoiError;
 
-      const [legacyRes, v2Res] = await Promise.all([
-        supabase
-          .from('pending_wallet_operations')
-          .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at, reviewed_at')
-          .eq('target_wallet_user_id', user.id)
-          .eq('category', 'roi_payout')
-          .eq('status', 'approved')
-          .in('reviewed_by', cfoIds)
-          .not('metadata->coo_approved_by', 'is', null)
-          .not('source_id', 'is', null)
-          .order('created_at', { ascending: false }),
-        v2PortfolioIds.length > 0
-          ? supabase
-              .from('pending_wallet_operations')
-              .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at, reviewed_at')
-              .eq('category', 'roi_payout')
-              .eq('status', 'approved')
-              .not('metadata->coo_approved_by', 'is', null)
-              .in('source_id', v2PortfolioIds)
-              .order('created_at', { ascending: false })
-          : Promise.resolve({ data: [], error: null } as any),
-      ]);
-
-      if (legacyRes.error) throw legacyRes.error;
-      if ((v2Res as any).error) throw (v2Res as any).error;
-
-      const mergedById = new Map<string, PwoEntry>();
-      ((legacyRes.data || []) as PwoEntry[]).forEach((op) => mergedById.set(op.id, op));
-      ((v2Res as any).data || []).forEach((op: PwoEntry) => mergedById.set(op.id, op));
-      let rawOps = Array.from(mergedById.values()).sort(
+      let rawOps = ((proxyRoiRows || []) as PwoEntry[]).sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
 
@@ -467,8 +444,6 @@ export function ProxyPartnerFunds() {
       } else {
         setSettledByApproval({});
       }
-      setPortfolioIdsForRealtime(v2PortfolioIds);
-
       if (rawOps.length === 0) {
         setProfiles({});
         setCompletedWithdrawals([]);
@@ -490,15 +465,17 @@ export function ProxyPartnerFunds() {
         if (op.source_id) portfolioIds.add(op.source_id);
       });
       const uniquePortfolioIds = [...portfolioIds];
+      setPortfolioIdsForRealtime(uniquePortfolioIds.slice(0, 100));
 
       // Fetch portfolios first so we can resolve partner IDs
       let fetchedPortfolios: PortfolioInfo[] = [];
       if (uniquePortfolioIds.length > 0) {
-        const { data: portfolioData } = await supabase
-          .from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investor_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
-          .in('id', uniquePortfolioIds);
-        fetchedPortfolios = (portfolioData || []) as PortfolioInfo[];
+        fetchedPortfolios = await fetchChunks<PortfolioInfo>(uniquePortfolioIds, (chunk) =>
+          supabase
+            .from('investor_portfolios')
+            .select('id, portfolio_code, account_name, investor_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
+            .in('id', chunk),
+        );
       }
       setPortfolios(fetchedPortfolios);
 
@@ -560,56 +537,64 @@ export function ProxyPartnerFunds() {
 
       // Step 4: Fetch profiles, completed withdrawals, active withdrawals, and
       // terminal-unpaid history in parallel
-      const [profileRes, completedRes, activeWithdrawalRes, terminalRes, strictBalanceRes] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', uniquePartnerIds),
+      const userScopeIds = Array.from(new Set([user.id, ...uniquePartnerIds]));
+      const [profileRows, completedRows, activeWithdrawalRows, terminalRows, strictBalanceRows] = await Promise.all([
+        fetchChunks<any>(uniquePartnerIds, (chunk) =>
+          supabase.from('profiles').select('id, full_name, phone').in('id', chunk),
+        ),
         // Completed withdrawals for these partners (already delivered)
         // Custody V2: partner-owned rows (`user_id = partner`, no
         // `linked_party`). Legacy: agent-owned rows (`user_id = agent`,
         // `linked_party = partner`). Pull both, dedupe in JS.
-        supabase
-          .from('withdrawal_requests')
-          .select('id, user_id, linked_party, amount, status, reason, updated_at, created_at')
-          .in('user_id', [user.id, ...uniquePartnerIds])
-          .in('status', [...COMPLETED_PROXY_WITHDRAWAL_STATUSES])
-          .or(`linked_party.not.is.null,agent_id.eq.${user.id}`),
+        fetchChunks<any>(userScopeIds, (chunk) =>
+          supabase
+            .from('withdrawal_requests')
+            .select('id, user_id, linked_party, amount, status, reason, updated_at, created_at')
+            .in('user_id', chunk)
+            .in('status', [...COMPLETED_PROXY_WITHDRAWAL_STATUSES])
+            .or(`linked_party.not.is.null,agent_id.eq.${user.id}`),
+        ),
         // Active (pending/processing) withdrawal requests — same dual scope.
-        supabase
-          .from('withdrawal_requests')
-          .select('id, user_id, linked_party, status, reason, amount, updated_at, created_at, agent_id')
-          .in('user_id', [user.id, ...uniquePartnerIds])
-          .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES])
-          .or(`linked_party.not.is.null,agent_id.eq.${user.id}`),
+        fetchChunks<any>(userScopeIds, (chunk) =>
+          supabase
+            .from('withdrawal_requests')
+            .select('id, user_id, linked_party, status, reason, amount, updated_at, created_at, agent_id')
+            .in('user_id', chunk)
+            .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES])
+            .or(`linked_party.not.is.null,agent_id.eq.${user.id}`),
+        ),
         // Terminal-unpaid: rejected / expired / cancelled.
-        supabase
-          .from('withdrawal_requests')
-          .select('id, user_id, linked_party, status, rejection_reason, updated_at, created_at, agent_id')
-          .in('user_id', [user.id, ...uniquePartnerIds])
-          .in('status', [...TERMINAL_UNPAID_STATUSES])
-          .or(`linked_party.not.is.null,agent_id.eq.${user.id}`)
-          // Defense-in-depth: only consider terminal events from the last 7 days
-          // so old rejections naturally fall off Caro's view.
-          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-          .order('updated_at', { ascending: false })
-          .limit(500),
-        supabase
-          .from('v_user_wallet_strict')
-          .select('user_id, withdrawable')
-          // Include the AGENT's own row so the managed-proxy clamp can use
-          // the agent's strict withdrawable (managed funds land in agent
-          // wallet, not partner wallet).
-          .in('user_id', [user.id, ...uniquePartnerIds]),
+        fetchChunks<any>(userScopeIds, (chunk) =>
+          supabase
+            .from('withdrawal_requests')
+            .select('id, user_id, linked_party, status, rejection_reason, updated_at, created_at, agent_id')
+            .in('user_id', chunk)
+            .in('status', [...TERMINAL_UNPAID_STATUSES])
+            .or(`linked_party.not.is.null,agent_id.eq.${user.id}`)
+            // Defense-in-depth: only consider terminal events from the last 7 days
+            // so old rejections naturally fall off Caro's view.
+            .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+            .order('updated_at', { ascending: false })
+            .limit(500),
+        ),
+        fetchChunks<any>(userScopeIds, (chunk) =>
+          supabase
+            .from('v_user_wallet_strict')
+            .select('user_id, withdrawable')
+            // Include the AGENT's own row so the managed-proxy clamp can use
+            // the agent's strict withdrawable (managed funds land in agent
+            // wallet, not partner wallet).
+            .in('user_id', chunk),
+        ),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
-      (profileRes.data || []).forEach(p => {
+      profileRows.forEach(p => {
         profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
       });
       setProfiles(profileMap);
       const strictMap: Record<string, number> = {};
-      (strictBalanceRes.data || []).forEach((row: any) => {
+      strictBalanceRows.forEach((row: any) => {
         strictMap[row.user_id] = Number(row.withdrawable) || 0;
       });
       setStrictWithdrawableByPartner(strictMap);
@@ -626,7 +611,7 @@ export function ProxyPartnerFunds() {
         }
         return null;
       };
-      const completedNormalized = (completedRes.data || [])
+      const completedNormalized = completedRows
         .map((w: any) => ({ ...w, linked_party: resolvePartnerKey(w) }))
         .filter((w: any) => !!w.linked_party);
       setCompletedWithdrawals(completedNormalized);
@@ -643,7 +628,7 @@ export function ProxyPartnerFunds() {
       // Track the most recent active-withdrawal timestamp per partner so we
       // can suppress stale terminal banners that have been superseded.
       const lastActiveAtByPartner: Record<string, string> = {};
-      (activeWithdrawalRes.data || []).forEach((w: any) => {
+      activeWithdrawalRows.forEach((w: any) => {
         const partnerKey = resolvePartnerKey(w);
         const wAmt = Number(w.amount) || 0;
         // The portfolio this withdrawal targets, parsed from the stamped
@@ -713,7 +698,7 @@ export function ProxyPartnerFunds() {
       // partner — a terminal event older than this means Caro already
       // re-requested and got paid, so the destructive banner is outdated.
       const lastSuccessAtByPartner: Record<string, string> = {};
-      (completedRes.data || []).forEach((w: any) => {
+      completedRows.forEach((w: any) => {
         const pid = resolvePartnerKey(w);
         if (!pid || !uniquePartnerIds.includes(pid)) return;
         const ts = w.updated_at || w.created_at;
@@ -725,7 +710,7 @@ export function ProxyPartnerFunds() {
 
       // Build last-terminal map: most recent rejected/expired/cancelled per partner
       const terminalMap: Record<string, LastTerminal> = {};
-      (terminalRes.data || []).forEach((w: any) => {
+      terminalRows.forEach((w: any) => {
         const pid = resolvePartnerKey(w);
         if (!pid || !uniquePartnerIds.includes(pid)) return;
         if (terminalMap[pid]) return; // already have the most recent (ordered desc)
