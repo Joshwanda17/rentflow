@@ -10,16 +10,14 @@ import { cn } from '@/lib/utils';
 const num = (v: any) => Number(v ?? 0);
 
 const APPROVED_STATUSES = [
-  'agent_ops_approved', 'tenant_ops_approved', 'landlord_ops_approved',
-  'coo_approved', 'cfo_approved', 'disbursed', 'active', 'repaying', 'completed', 'overdue',
+  'agent_ops_approved', 'cfo_approved', 'cfo_paid',
+  'disbursed', 'active', 'repaying', 'completed', 'overdue',
 ];
 
 const STATUS_LABEL: Record<string, string> = {
-  agent_ops_approved: 'Agent Ops approved',
-  tenant_ops_approved: 'Tenant Ops approved',
-  landlord_ops_approved: 'Landlord Ops approved',
-  coo_approved: 'COO approved',
-  cfo_approved: 'CFO approved',
+  agent_ops_approved: 'Agent Ops approved · awaiting CFO',
+  cfo_approved: 'CFO approved · ready to disburse',
+  cfo_paid: 'Disbursed',
   disbursed: 'Disbursed',
   active: 'Active',
   repaying: 'Repaying',
@@ -27,20 +25,18 @@ const STATUS_LABEL: Record<string, string> = {
   overdue: 'Overdue',
 };
 
-// The full approval route an advance travels before it is paid out.
-// Each step maps to the status a request holds *after* that desk approves it.
+// The approval route an advance travels before it is paid out. Agent Ops is the
+// only operational desk; once it approves, the request goes straight to the CFO
+// for final evaluation and disbursement.
 const PIPELINE: { key: string; label: string }[] = [
   { key: 'pending', label: 'Submitted' },
   { key: 'agent_ops_approved', label: 'Agent Ops' },
-  { key: 'tenant_ops_approved', label: 'Tenant Ops' },
-  { key: 'landlord_ops_approved', label: 'Landlord Ops' },
-  { key: 'coo_approved', label: 'COO' },
   { key: 'cfo_approved', label: 'CFO' },
   { key: 'disbursed', label: 'Paid out' },
 ];
 
 // Statuses that mean the money has already left the building.
-const PAID_STATUSES = ['disbursed', 'active', 'repaying', 'completed', 'overdue'];
+const PAID_STATUSES = ['cfo_paid', 'disbursed', 'active', 'repaying', 'completed', 'overdue'];
 
 /** Index of the current stage within PIPELINE (post-payout statuses collapse to the last step). */
 function stageIndex(status: string): number {
@@ -56,8 +52,7 @@ function isPaidOut(req: any): boolean {
 /** The most recent moment this request moved forward — used to age how long it has been holding. */
 function lastActivityAt(req: any): Date {
   const candidates = [
-    req.cfo_paid_at, req.cfo_approved_at, req.coo_approved_at,
-    req.landlord_ops_reviewed_at, req.tenant_ops_reviewed_at,
+    req.cfo_paid_at, req.cfo_approved_at,
     req.agent_ops_reviewed_at, req.updated_at, req.created_at,
   ].filter(Boolean).map((v: string) => new Date(v).getTime());
   return new Date(candidates.length ? Math.max(...candidates) : Date.now());
@@ -65,7 +60,7 @@ function lastActivityAt(req: any): Date {
 
 /** Best-effort human note for an approved request (latest stage note). */
 function approvalNote(req: any): string | null {
-  return req.cfo_notes || req.coo_notes || req.landlord_ops_notes || req.tenant_ops_notes || req.agent_ops_notes || null;
+  return req.cfo_notes || req.agent_ops_notes || null;
 }
 
 function EmptyState({ label }: { label: string }) {

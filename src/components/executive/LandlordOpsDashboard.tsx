@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
-import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
@@ -72,7 +71,6 @@ import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerification
 import { Lc1VerificationRequestsPanel } from './landlord-ops/Lc1VerificationRequestsPanel';
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
-import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 
 
 interface ListingWithLandlord {
@@ -257,7 +255,7 @@ const navItems: { id: View; label: string; icon: typeof Building2; color: string
   { id: 'matching', label: 'Tenant Matching', icon: Handshake, color: 'bg-primary/10 text-primary border-primary/30', description: 'Match tenants to empty houses' },
   { id: 'agents', label: 'Listing Agents', icon: Users, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30', description: 'Agent performance rankings' },
   { id: 'analytics', label: 'Analytics', icon: Banknote, color: 'bg-orange-500/10 text-orange-600 border-orange-500/30', description: 'Photos, GPS & vacancy stats' },
-  { id: 'advance-requests', label: 'Agent Advances', icon: Banknote, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Review advance requests' },
+  { id: 'advance-requests', label: 'Business Advances', icon: Banknote, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Business advances & rent history' },
 ];
 
 function TenantStatusFilter({
@@ -357,7 +355,6 @@ export function LandlordOpsDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [view, setView] = useState<View>('home');
-  const pendingAdvanceCount = usePendingAdvanceCount('landlord_ops');
   const [search, setSearch] = useState('');
   const [navSheetOpen, setNavSheetOpen] = useState(false);
   const [landlordPage, setLandlordPage] = useState(1);
@@ -3349,8 +3346,7 @@ export function LandlordOpsDashboard() {
       <>
       <div className="space-y-6">
         <BackButton />
-        <h2 className="text-lg font-bold">Agent Advance Requests</h2>
-        <AdvanceRequestsQueue stage="landlord_ops" />
+        <h2 className="text-lg font-bold">Business Advances</h2>
         <BusinessAdvanceQueue stage="landlord_ops" />
         <RentHistoryVerificationQueue dept="landlord_ops" />
       </div>
@@ -3586,13 +3582,11 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navItems.filter(n => !n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)}
-              badgeAlert={item.id === 'advance-requests' && pendingAdvanceCount > 0}
               badge={
                 item.id === 'empty' ? `${emptyLandlords.length}` :
                 item.id === 'occupied' ? `${occupiedLandlords.length}` :
                 item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
-                item.id === 'agents' ? `${agentSummary.length}` :
-                item.id === 'advance-requests' ? (pendingAdvanceCount > 0 ? `${pendingAdvanceCount}` : undefined) : undefined
+                item.id === 'agents' ? `${agentSummary.length}` : undefined
               } />
           ))}
         </div>

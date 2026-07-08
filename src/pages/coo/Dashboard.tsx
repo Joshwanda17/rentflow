@@ -1,5 +1,4 @@
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
-import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
@@ -30,7 +29,6 @@ import { useNavigate } from 'react-router-dom';
 import { COOScaleVisionView } from '@/components/coo/COOScaleVisionView';
 import { WelileOperationsHub } from '@/components/executive/WelileOperationsHub';
 import { AgentNetworkBadge } from '@/components/executive/tenant-ops/AgentNetworkBadge';
-import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
@@ -65,7 +63,7 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'partner-topups', label: 'Partner Top-ups', icon: TrendingUp, color: 'bg-green-500/10 text-green-600 border-green-500/20', description: 'Pending top-ups' },
   { id: 'partner-finance', label: 'Partner Finance', icon: Receipt, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20', description: 'All activity' },
   { id: 'staff-performance', label: 'Staff', icon: UserCheck, color: 'bg-pink-500/10 text-pink-600 border-pink-500/20', description: 'Team metrics' },
-  { id: 'advance-requests', label: 'Agent Advances', icon: Banknote, color: 'bg-purple-500/10 text-purple-600 border-purple-500/20', description: 'Approve advances' },
+  { id: 'advance-requests', label: 'Business Advances', icon: Banknote, color: 'bg-purple-500/10 text-purple-600 border-purple-500/20', description: 'Business advances' },
   { id: 'scale-vision', label: 'At Scale (40M+)', icon: Globe2, color: 'bg-primary/10 text-primary border-primary/20', description: 'Hyperscale vision' },
 ];
 
@@ -73,7 +71,6 @@ export default function COODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('coo');
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const pendingAdvanceCount = usePendingAdvanceCount('coo');
 
   const handleNavTo = (tab: string) => {
     setActiveTab(tab);
@@ -258,9 +255,7 @@ export default function COODashboardPage() {
         return (
           <div className="space-y-6">
             {isMobile && renderBackButton('Overview')}
-            {renderSectionHeader('Agent Advance Approvals', Banknote)}
-            <p className="text-sm text-muted-foreground -mt-2">Final operational approval before CFO payment.</p>
-            <AdvanceRequestsQueue stage="coo" />
+            {renderSectionHeader('Business Advances', Banknote)}
             <BusinessAdvanceQueue stage="coo" />
           </div>
         );
@@ -330,11 +325,6 @@ export default function COODashboardPage() {
                       item.color
                     )}
                   >
-                    {item.id === 'advance-requests' && pendingAdvanceCount > 0 && (
-                      <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow">
-                        {pendingAdvanceCount > 99 ? '99+' : pendingAdvanceCount}
-                      </span>
-                    )}
                     <div className="flex items-center justify-between w-full">
                       <item.icon className="h-5 w-5" />
                       <ChevronRight className="h-3.5 w-3.5 opacity-40" />

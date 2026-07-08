@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,7 +26,6 @@ import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
 import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
-import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -81,7 +79,6 @@ export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const pendingAdvanceCount = usePendingAdvanceCount('tenant_ops');
   // Collapsible panel state — collapsed by default on phones so the
   // action grid + tenant list are reachable without scrolling past
   // heavy dashboards.
@@ -1054,12 +1051,10 @@ export function TenantOpsDashboard() {
     },
     {
       id: 'advance-requests' as ActiveView,
-      label: 'Agent Advances',
-      description: 'Review advance requests',
+      label: 'Business Advances',
+      description: 'Business advances & rent history',
       icon: Banknote,
       color: 'bg-purple-500/10 text-purple-600 border-purple-200',
-      badge: pendingAdvanceCount,
-      badgeColor: 'bg-rose-600 text-white',
     },
     {
       id: 'agent-allocations' as ActiveView,
@@ -1285,7 +1280,6 @@ export function TenantOpsDashboard() {
       case 'advance-requests':
         return (
           <div className="space-y-6">
-            <AdvanceRequestsQueue stage="tenant_ops" />
             <BusinessAdvanceQueue stage="tenant_ops" />
             <RentHistoryVerificationQueue dept="tenant_ops" />
           </div>
