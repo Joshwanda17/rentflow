@@ -21437,6 +21437,7 @@ export type Database = {
       }
       get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_network_summary: { Args: { p_agent_id: string }; Returns: Json }
+      get_agent_ops_agent_stats: { Args: { p_days?: number }; Returns: Json }
       get_agent_ops_balances: {
         Args: {
           _limit?: number
