@@ -20,6 +20,7 @@ import {
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 import { FleetPerformanceStats } from './FleetPerformanceStats';
+import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 
 type AgentRow = {
   agent_id: string;
@@ -46,9 +47,20 @@ type AgentRow = {
 export function AgentRentCapacityPanel({
   defaultLimit = 25,
   compact = false,
-}: { defaultLimit?: number; compact?: boolean }) {
+  mode = 'full',
+}: {
+  defaultLimit?: number;
+  compact?: boolean;
+  /**
+   * 'full'    — stats header + searchable agent list (default)
+   * 'summary' — stats header only (used on the dashboard overview)
+   */
+  mode?: 'full' | 'summary';
+}) {
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const showList = mode !== 'summary';
+  const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // On phones, default every row to collapsed so the agent sees a clean
   // ALLOWED / BLOCKED status card and can tap to drill in.
   const isPhone = typeof window !== 'undefined' && window.innerWidth < 640;
@@ -302,23 +314,30 @@ export function AgentRentCapacityPanel({
     },
   });
 
+  // Only surface qualifying agents (behaviour-based agent definition) so the
+  // capacity list matches "who is an agent" everywhere in the dashboard.
+  const rows = useMemo(() => {
+    if (!qualifyingReady) return data || [];
+    return (data || []).filter((r) => qualifyingIds.has(r.agent_id));
+  }, [data, qualifyingIds, qualifyingReady]);
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return data || [];
-    return (data || []).filter(
+    if (!term) return rows;
+    return rows.filter(
       (r) =>
         r.name.toLowerCase().includes(term) ||
         (r.phone || '').toLowerCase().includes(term),
     );
-  }, [data, search]);
+  }, [rows, search]);
 
   const visible = showAll ? filtered : filtered.slice(0, defaultLimit);
 
   // Aggregate KPIs
-  const totalUsed = (data || []).reduce((s, r) => s + r.used, 0);
-  const totalCap = (data || []).length * AGENT_RENT_CAP_UGX;
+  const totalUsed = rows.reduce((s, r) => s + r.used, 0);
+  const totalCap = rows.length * AGENT_RENT_CAP_UGX;
   const totalHeadroom = Math.max(totalCap - totalUsed, 0);
-  const atRisk = (data || []).filter(
+  const atRisk = rows.filter(
     (r) => r.used / AGENT_RENT_CAP_UGX >= 0.85,
   ).length;
 
@@ -369,7 +388,7 @@ export function AgentRentCapacityPanel({
             <Kpi
               icon={<Gauge className="h-3.5 w-3.5" />}
               label="Active Agents"
-              value={(data || []).length.toLocaleString()}
+              value={rows.length.toLocaleString()}
               tone="text-violet-600"
             />
             <Kpi
@@ -381,9 +400,10 @@ export function AgentRentCapacityPanel({
           </div>
         )}
 
-        {!compact && <FleetPerformanceStats />}
+        {!compact && <FleetPerformanceStats detailed={showList} />}
       </div>
 
+      {showList && (
       <div className="p-3 sm:p-4 space-y-3">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
@@ -452,6 +472,7 @@ export function AgentRentCapacityPanel({
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }

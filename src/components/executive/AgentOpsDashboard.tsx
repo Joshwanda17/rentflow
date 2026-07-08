@@ -34,11 +34,12 @@ import { AgentBulkOpsConsole } from './AgentBulkOpsConsole';
 import { AgentDailyOverviewReportButton } from './AgentDailyOverviewReportButton';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { AgentEligibilityTransitionsPanel } from './AgentEligibilityTransitionsPanel';
+import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
-  LayoutGrid, ChevronDown, ToggleRight, Layers
+  LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -52,7 +53,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'bulk-ops', icon: Layers, label: 'Bulk Ops Console', color: 'bg-rose-700', priority: true },
@@ -67,6 +68,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'sub-agents', icon: UsersRound, label: 'Sub-Agents', color: 'bg-amber-600', priority: true },
   { key: 'promote-tenant', icon: ArrowLeftRight, label: 'Tenant → Sub-Agent', color: 'bg-fuchsia-600', priority: true },
   { key: 'directory', icon: Search, label: 'Agents', color: 'bg-blue-500', priority: true },
+  { key: 'rent-capacity', icon: Gauge, label: 'Rent Capacity', color: 'bg-cyan-500', priority: true },
   { key: 'tasks', icon: ClipboardList, label: 'Tasks', color: 'bg-emerald-500', priority: true },
   { key: 'escalations', icon: AlertTriangle, label: 'Escalations', color: 'bg-red-500' },
   { key: 'connector', icon: UserPlus, label: 'Connect', color: 'bg-violet-500' },
@@ -204,6 +206,7 @@ export function AgentOpsDashboard() {
       case 'pipeline': return <AgentOpsPipelineHub />;
       case 'brief': return <AgentOpsBrief />;
       case 'directory': return <AgentDirectory />;
+      case 'rent-capacity': return <AgentRentCapacityPanel />;
       case 'connector': return <AgentTenantConnector />;
       case 'performance': return <AgentPerformanceTiers />;
       case 'lifecycle': return <AgentLifecyclePipeline />;
@@ -272,11 +275,11 @@ export function AgentOpsDashboard() {
 
   // Grouped sections for the "More" tab (mobile dropdown + grid)
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
-    { title: '🧩 Operations', keys: ['trust-capture', 'escalations', 'tasks'] },
-    { title: '👥 Agent Network', keys: ['sub-agents', 'promote-tenant', 'lending-agents'] },
-    { title: '🏢 Business', keys: ['service-centres', 'advance-requests'] },
-    { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'allocation-report', 'performance', 'lifecycle', 'alerts', 'brief'] },
-    { title: '🔗 System', keys: ['connector', 'transfers', 'float-payouts', 'earnings'] },
+    { title: '👥 Agent Network', keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
+    { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
+    { title: '🏢 Business', keys: ['service-centres', 'advance-requests', 'transfers', 'float-payouts'] },
+    { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
+    { title: '🔗 System', keys: ['bulk-ops'] },
   ];
 
   // Main content region — sub-view when one is active, else the overview / more-grid.
@@ -299,8 +302,11 @@ export function AgentOpsDashboard() {
         onRangeChange={setDateRange}
         onOpenSection={handleOpenSection}
       />
+      <AgentMonthlyKpis />
       <div className="space-y-4">
-        <AgentRentCapacityPanel />
+        <AgentRentCapacityPanel
+          mode="summary"
+        />
         <AgentEligibilityTransitionsPanel />
       </div>
     </div>
@@ -436,14 +442,48 @@ function AgentOpsSideNav({
   onSelect: (k: ActiveView) => void;
   onHome: () => void;
 }) {
-  const SIDE_GROUPS: { title: string; keys: ActiveView[] }[] = [
-    { title: 'Priority', keys: ['advance-requests', 'feature-flags', 'trust-capture'] },
-    { title: 'Operations', keys: ['escalations', 'tasks', 'pipeline'] },
-    { title: 'Agent Network', keys: ['sub-agents', 'promote-tenant', 'lending-agents', 'balances', 'directory'] },
-    { title: 'Business', keys: ['service-centres', 'connector'] },
-    { title: 'Insights', keys: ['leaderboard', 'performance-report', 'allocation-report', 'performance', 'lifecycle', 'alerts', 'brief'] },
-    { title: 'System', keys: ['bulk-ops', 'transfers', 'float-payouts', 'earnings'] },
+  // Priority stays pinned & always exposed on top. Every other group is
+  // collapsible so the nav never over-scrolls. Agent Network sits right
+  // below Priority and is open by default (this dashboard is agent-centric).
+  const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
+    { title: 'Priority', pinned: true, keys: ['advance-requests', 'trust-capture', 'feature-flags'] },
+    { title: 'Agent Network', defaultOpen: true, keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
+    { title: 'Operations', keys: ['pipeline', 'escalations', 'tasks', 'connector'] },
+    { title: 'Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
+    { title: 'Performance & Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
+    { title: 'System', keys: ['bulk-ops'] },
   ];
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    SIDE_GROUPS.forEach((g) => { init[g.title] = !!g.defaultOpen; });
+    return init;
+  });
+  const toggleGroup = (title: string) =>
+    setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+
+  const renderItem = (key: ActiveView) => {
+    const item = NAV_ITEMS.find((n) => n.key === key);
+    if (!item) return null;
+    const Icon = item.icon;
+    const active = activeView === key;
+    return (
+      <button
+        key={key as string}
+        type="button"
+        onClick={() => onSelect(key)}
+        className={cn(
+          'w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors',
+          active ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted',
+        )}
+      >
+        <span className={cn('h-6 w-6 rounded-md flex items-center justify-center shrink-0', item.color)}>
+          <Icon className="h-3.5 w-3.5 text-white" />
+        </span>
+        <span className="truncate">{item.label}</span>
+      </button>
+    );
+  };
 
   return (
     <aside className="hidden lg:flex flex-col w-56 shrink-0 sticky top-0 self-start max-h-[calc(100dvh-8.5rem)] overflow-y-auto pr-2">
@@ -462,35 +502,36 @@ function AgentOpsSideNav({
           <span className="truncate">Overview</span>
         </button>
 
-        {SIDE_GROUPS.map((group) => (
-          <div key={group.title} className="space-y-1">
-            <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {group.title}
-            </p>
-            {group.keys.map((key) => {
-              const item = NAV_ITEMS.find((n) => n.key === key);
-              if (!item) return null;
-              const Icon = item.icon;
-              const active = activeView === key;
-              return (
-                <button
-                  key={key as string}
-                  type="button"
-                  onClick={() => onSelect(key)}
-                  className={cn(
-                    'w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors',
-                    active ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted',
-                  )}
-                >
-                  <span className={cn('h-6 w-6 rounded-md flex items-center justify-center shrink-0', item.color)}>
-                    <Icon className="h-3.5 w-3.5 text-white" />
-                  </span>
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
+        {SIDE_GROUPS.map((group) => {
+          const containsActive = group.keys.includes(activeView as ActiveView);
+          const open = group.pinned || openGroups[group.title] || containsActive;
+          if (group.pinned) {
+            return (
+              <div key={group.title} className="space-y-1">
+                <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-primary/80">
+                  {group.title}
+                </p>
+                {group.keys.map(renderItem)}
+              </div>
+            );
+          }
+          return (
+            <div key={group.title} className="space-y-1">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.title)}
+                className="w-full flex items-center justify-between px-2 py-1 rounded-md hover:bg-muted/60 transition-colors"
+                aria-expanded={open}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group.title}
+                </span>
+                <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', open ? '' : '-rotate-90')} />
+              </button>
+              {open && <div className="space-y-1">{group.keys.map(renderItem)}</div>}
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

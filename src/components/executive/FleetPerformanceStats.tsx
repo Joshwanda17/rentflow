@@ -13,6 +13,7 @@ import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import {
   ComposedChart,
   Bar,
@@ -417,7 +418,8 @@ async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranular
   return byBucket;
 }
 
-export function FleetPerformanceStats() {
+export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean } = {}) {
+  const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // Restore last-used range from localStorage.
   const restored = useMemo(() => {
     try {
@@ -511,8 +513,11 @@ export function FleetPerformanceStats() {
         const rate = expected > 0 ? Math.round((collected / expected) * 100) : 0;
         return { id, name: names[id] || id.slice(0, 8), expected, collected, rate };
       })
-      .filter((r) => r.expected > 0 || r.collected > 0);
-  }, [agentIds, expectedByAgent, collectedByAgent, names, days]);
+      .filter((r) => r.expected > 0 || r.collected > 0)
+      // Only qualifying agents (behaviour-based definition) — consistent
+      // with every other agent list in the dashboard.
+      .filter((r) => !qualifyingReady || qualifyingIds.has(r.id));
+  }, [agentIds, expectedByAgent, collectedByAgent, names, days, qualifyingIds, qualifyingReady]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -736,6 +741,8 @@ export function FleetPerformanceStats() {
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
           </p>
 
+          {detailed && (
+          <>
           {/* Search — placed prominently under summary stats */}
           <div className="mt-3 relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -924,6 +931,8 @@ export function FleetPerformanceStats() {
               </div>
             )}
           </div>
+          </>
+          )}
         </>
       )}
     </div>
