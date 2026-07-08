@@ -112,6 +112,7 @@ const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
 const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
 const Join = lazy(() => import('./pages/Join'));
 const SubAgentInvite = lazy(() => import('./pages/SubAgentInvite'));
+const AgentLeaderboard = lazy(() => import('./pages/agent/Leaderboard'));
 const RecordRent = lazy(() => import('./pages/RecordRent'));
 const Calculator = lazy(() => import('./pages/Calculator'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
@@ -343,6 +344,7 @@ function AppRoutes() {
           <Route path="/dashboard/landlord" element={<Dashboard />} />
           <Route path="/dashboard/funder" element={<Dashboard />} />
           <Route path="/dashboard/manager" element={<Dashboard />} />
+          <Route path="/dashboard/agents/leaderboard" element={<AgentLeaderboard />} />
           <Route path="/dashboard/*" element={<DashboardRedirect />} />
           <Route path="/verification-request/:id" element={<VerificationRequestDetailPage />} />
           {/* Dev-only Playwright harnesses — stripped from production builds. */}
