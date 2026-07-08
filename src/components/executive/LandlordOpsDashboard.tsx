@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
-import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
@@ -72,7 +71,6 @@ import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerification
 import { Lc1VerificationRequestsPanel } from './landlord-ops/Lc1VerificationRequestsPanel';
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
-import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 
 
 interface ListingWithLandlord {
