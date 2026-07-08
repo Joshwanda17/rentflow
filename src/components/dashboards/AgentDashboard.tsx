@@ -292,6 +292,20 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
+
+  // Show the leaderboard promo once per session when an agent lands on their
+  // dashboard (agents only — this component only renders for agents). Snoozed
+  // per session so it doesn't reopen while switching tabs.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('welile-agent-leaderboard-promo-seen')) return;
+    } catch { /* ignore */ }
+    const t = setTimeout(() => {
+      setLeaderboardPromoOpen(true);
+      try { sessionStorage.setItem('welile-agent-leaderboard-promo-seen', '1'); } catch { /* ignore */ }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, []);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
