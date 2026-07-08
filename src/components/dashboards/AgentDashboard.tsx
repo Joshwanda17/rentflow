@@ -1618,6 +1618,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
       />
       </LazyModal>
+      <LazyModal when={leaderboardPromoOpen}>
+      <AgentLeaderboardPromoDialog
+        open={leaderboardPromoOpen}
+        onOpenChange={setLeaderboardPromoOpen}
+        onViewLeaderboard={() => navigate('/dashboard/agents/leaderboard')}
+        onInviteSubAgent={handleInviteSubAgent}
+      />
+      </LazyModal>
       <LazyModal when={rentRequestOpen}>
       <AgentRentRequestDialog 
         open={rentRequestOpen} 
