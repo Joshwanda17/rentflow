@@ -140,6 +140,11 @@ export function AgentAdvancePotential() {
               Potential estimates how much an agent can safely grow within the advance
               programme. The sub-agent network is the biggest driver.
             </p>
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+              <span className="font-semibold text-foreground">Suggested amounts start low</span> and grow
+              over time. New agents get a small starter; the amount only increases as they repay
+              advances well (repaying early raises their next offer).
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
               {[
                 { label: 'Sub-agent network', weight: '70%', icon: Network, note: 'Direct + grand sub-agents' },
@@ -360,6 +365,8 @@ function AgentDetailDialog({ row, onClose }: { row: PotentialRow | null; onClose
               {row.rent_collected < 2000000 && <li>Push daily rent collections to strengthen repayment capacity.</li>}
               {!row.has_active_advance && <li>Offer a starter advance now to activate them in the programme.</li>}
               {repayPct != null && repayPct >= 80 && <li>Strong repayer — safe to upsell a larger advance.</li>}
+              {row.advances_count === 0 && <li>Start with the small suggested amount — it grows automatically as they repay.</li>}
+              {row.outstanding_total > 0 && <li>Encourage clearing the outstanding balance early — it unlocks a higher next advance.</li>}
             </ul>
           </div>
         </div>
