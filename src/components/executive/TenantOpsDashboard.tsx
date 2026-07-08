@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,7 +26,6 @@ import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
 import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
-import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
