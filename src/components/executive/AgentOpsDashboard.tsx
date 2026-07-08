@@ -302,8 +302,11 @@ export function AgentOpsDashboard() {
         onRangeChange={setDateRange}
         onOpenSection={handleOpenSection}
       />
+      <AgentMonthlyKpis />
       <div className="space-y-4">
-        <AgentRentCapacityPanel />
+        <AgentRentCapacityPanel
+          mode="summary"
+        />
         <AgentEligibilityTransitionsPanel />
       </div>
     </div>
