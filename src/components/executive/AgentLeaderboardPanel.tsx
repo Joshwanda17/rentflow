@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import {
   Users, UsersRound, TrendingUp, UserPlus, Trophy, Search, Crown, Medal, ShieldCheck, Clock,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -72,6 +73,8 @@ const rankAccent = ['text-amber-500', 'text-slate-400', 'text-orange-600'];
 export function AgentLeaderboardPanel() {
   const [period, setPeriod] = useState<Period>('monthly');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-leaderboard-stats', period],
@@ -99,6 +102,18 @@ export function AgentLeaderboardPanel() {
       i.sub_agent_phone?.toLowerCase().includes(q),
     );
   }, [data?.invitees, search]);
+
+  // Reset to first page whenever the filter or period changes.
+  useEffect(() => { setPage(1); }, [search, period]);
+
+  const totalPages = Math.max(1, Math.ceil(invitees.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedInvitees = useMemo(
+    () => invitees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [invitees, currentPage],
+  );
+  const rangeStart = invitees.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, invitees.length);
 
   // Label for the current selected period (Daily = today, etc.)
   const periodNoun =
@@ -273,7 +288,7 @@ export function AgentLeaderboardPanel() {
               ) : invitees.length === 0 ? (
                 <tr><td colSpan={4} className="py-8 text-center text-muted-foreground">No invitees found for this period.</td></tr>
               ) : (
-                invitees.map((inv) => (
+                pagedInvitees.map((inv) => (
                   <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="py-2.5 pr-3">
                       <p className="font-medium truncate max-w-[180px]">{inv.sub_agent_name}</p>
@@ -295,6 +310,36 @@ export function AgentLeaderboardPanel() {
             </tbody>
           </table>
         </div>
+        {/* Pagination — 15 per page */}
+        {!isLoading && invitees.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-1 border-t border-border/60">
+            <p className="text-[11px] text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{rangeStart}–{rangeEnd}</span> of{' '}
+              <span className="font-medium text-foreground">{invitees.length}</span>
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/40 transition-colors"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Prev
+              </button>
+              <span className="text-xs text-muted-foreground px-1 tabular-nums">
+                Page {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/40 transition-colors"
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
