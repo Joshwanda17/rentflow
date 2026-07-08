@@ -21457,6 +21457,16 @@ export type Database = {
           withdrawable: number
         }[]
       }
+      get_agent_ops_criteria_users: {
+        Args: { p_criterion: string }
+        Returns: {
+          avatar_url: string
+          cnt: number
+          full_name: string
+          phone: string
+          user_id: string
+        }[]
+      }
       get_agent_ops_kpis: {
         Args: never
         Returns: {

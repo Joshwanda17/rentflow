@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserCheck, Activity, Loader2, Info, Home, FileText, ScrollText, Network } from 'lucide-react';
+import { Users, UserCheck, Activity, Loader2, Info, Home, FileText, ScrollText, Network, ChevronRight, Search } from 'lucide-react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -14,9 +14,15 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { DateRange } from './AgentOpsHomeView';
 
 interface AgentStats {
@@ -33,6 +39,25 @@ interface AgentStats {
   };
   trend: Array<{ day: string; active_agents: number; operations: number }>;
 }
+
+type CriterionKey = 'house_listings' | 'promissory_notes' | 'behalf_rent_requests' | 'subagents';
+
+interface CriterionUserRow {
+  user_id: string;
+  full_name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  cnt: number;
+}
+
+const CRITERIA_META: Record<CriterionKey, { label: string; icon: typeof Home; color: string }> = {
+  house_listings: { label: 'Listed a house', icon: Home, color: 'hsl(var(--primary))' },
+  promissory_notes: { label: 'Posted a promissory note', icon: ScrollText, color: 'hsl(199 89% 48%)' },
+  behalf_rent_requests: { label: 'Rent request for a tenant', icon: FileText, color: 'hsl(38 92% 50%)' },
+  subagents: { label: 'Added a sub-agent', icon: Network, color: 'hsl(280 65% 60%)' },
+};
+
+const CRITERIA_ORDER: CriterionKey[] = ['house_listings', 'promissory_notes', 'behalf_rent_requests', 'subagents'];
 
 function rangeToDays(range: DateRange): number {
   if (range === '24h') return 1;
@@ -51,6 +76,7 @@ function fmt(n: number): string {
 
 export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
   const days = rangeToDays(range);
+  const [drill, setDrill] = useState<CriterionKey | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-definition-funnel', days],
@@ -82,6 +108,18 @@ export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
     [data?.trend, days],
   );
 
+  const pieData = useMemo(
+    () =>
+      CRITERIA_ORDER.map((key) => ({
+        key,
+        name: CRITERIA_META[key].label,
+        value: data?.criteria?.[key] ?? 0,
+        color: CRITERIA_META[key].color,
+      })),
+    [data?.criteria],
+  );
+  const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
+
   const funnelSteps = [
     {
       key: 'users',
@@ -93,6 +131,7 @@ export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
       bg: 'bg-sky-500/10',
       barBg: 'bg-sky-500',
       shareOf: null as number | null,
+      of: '',
     },
     {
       key: 'agents',
@@ -104,6 +143,7 @@ export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
       bg: 'bg-primary/10',
       barBg: 'bg-primary',
       shareOf: pct(totalAgents, totalUsers),
+      of: 'users',
     },
     {
       key: 'active',
@@ -115,14 +155,8 @@ export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
       bg: 'bg-amber-500/10',
       barBg: 'bg-amber-500',
       shareOf: pct(activeAgents, totalAgents),
+      of: 'agents',
     },
-  ];
-
-  const criteriaChips = [
-    { label: 'Listed a house', value: data?.criteria.house_listings ?? 0, icon: Home },
-    { label: 'Promissory note', value: data?.criteria.promissory_notes ?? 0, icon: ScrollText },
-    { label: 'Rent request for a tenant', value: data?.criteria.behalf_rent_requests ?? 0, icon: FileText },
-    { label: 'Added a sub-agent', value: data?.criteria.subagents ?? 0, icon: Network },
   ];
 
   return (
@@ -131,9 +165,7 @@ export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
             Who is an Agent?
-            <span className="group relative inline-flex">
-              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-            </span>
+            <Info className="h-3.5 w-3.5 text-muted-foreground" />
           </h3>
           <p className="text-[11px] text-muted-foreground">
             Users become agents by acting — not by role. Funnel from all users → agents → active.
@@ -171,7 +203,7 @@ export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
                     {step.shareOf !== null && !isLoading && (
                       <p className="text-[10px] font-semibold text-muted-foreground">
                         {step.shareOf.toFixed(step.shareOf < 1 ? 2 : 1)}%
-                        <span className="text-muted-foreground/60"> of {step.key === 'agents' ? 'users' : 'agents'}</span>
+                        <span className="text-muted-foreground/60"> of {step.of}</span>
                       </p>
                     )}
                   </div>
@@ -182,23 +214,6 @@ export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
               </div>
             );
           })}
-
-          {/* Criteria breakdown chips */}
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
-            {criteriaChips.map((c) => {
-              const Icon = c.icon;
-              return (
-                <span
-                  key={c.label}
-                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground"
-                >
-                  <Icon className="h-3 w-3 text-primary" />
-                  {c.label}
-                  <span className="font-bold text-foreground tabular-nums">{fmt(c.value)}</span>
-                </span>
-              );
-            })}
-          </div>
         </div>
 
         {/* Trend of active agents & operations */}
@@ -252,6 +267,161 @@ export function AgentDefinitionFunnel({ range }: { range: DateRange }) {
           </div>
         </div>
       </div>
+
+      {/* Criteria pie + clickable legend */}
+      <div className="mt-4 pt-3 border-t border-border/50">
+        <p className="text-[11px] font-medium text-muted-foreground mb-2">
+          How agents qualify — tap any slice to view those users
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+          <div className="h-48">
+            {isLoading ? (
+              <div className="h-full w-full flex items-center justify-center">
+                <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+              </div>
+            ) : pieTotal === 0 ? (
+              <div className="h-full w-full flex items-center justify-center">
+                <p className="text-xs text-muted-foreground">No qualifying agents yet.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius="52%"
+                    outerRadius="85%"
+                    paddingAngle={2}
+                    onClick={(_, idx) => setDrill(pieData[idx]?.key ?? null)}
+                    className="cursor-pointer focus:outline-none"
+                  >
+                    {pieData.map((d) => (
+                      <Cell key={d.key} fill={d.color} className="cursor-pointer focus:outline-none" />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number, n: string) => [`${fmt(v)} agents`, n]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            {pieData.map((d) => {
+              const Icon = CRITERIA_META[d.key].icon;
+              return (
+                <button
+                  key={d.key}
+                  type="button"
+                  onClick={() => setDrill(d.key)}
+                  className="group flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-card/60 px-2.5 py-2 text-left hover:border-primary/40 hover:bg-muted/50 transition-colors"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${d.color}22` }}>
+                      <Icon className="h-3.5 w-3.5" style={{ color: d.color }} />
+                    </span>
+                    <span className="text-xs font-medium text-foreground truncate">{d.name}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-sm font-bold tabular-nums text-foreground">{fmt(d.value)}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <CriterionUsersDialog criterion={drill} onOpenChange={(open) => !open && setDrill(null)} />
     </Card>
+  );
+}
+
+function CriterionUsersDialog({
+  criterion,
+  onOpenChange,
+}: {
+  criterion: CriterionKey | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [search, setSearch] = useState('');
+
+  const { data, isLoading } = useQuery({
+    enabled: !!criterion,
+    queryKey: ['agent-criteria-users', criterion],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('get_agent_ops_criteria_users', { p_criterion: criterion });
+      if (error) throw error;
+      return (data ?? []) as CriterionUserRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const meta = criterion ? CRITERIA_META[criterion] : null;
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return data ?? [];
+    return (data ?? []).filter(
+      (r) => (r.full_name || '').toLowerCase().includes(term) || (r.phone || '').toLowerCase().includes(term),
+    );
+  }, [data, search]);
+
+  return (
+    <Dialog open={!!criterion} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            {meta && <meta.icon className="h-4 w-4 text-primary" />}
+            {meta?.label ?? 'Users'}
+            {data && <Badge variant="secondary" className="ml-1">{data.length}</Badge>}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name or phone…"
+            className="pl-8 h-9"
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-1.5 mt-1">
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-10">No users found.</p>
+          ) : (
+            filtered.map((r) => (
+              <div
+                key={r.user_id}
+                className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-2.5"
+              >
+                <UserAvatar avatarUrl={r.avatar_url} fullName={r.full_name ?? undefined} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">{r.full_name || 'Unnamed user'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{r.phone || '—'}</p>
+                </div>
+                <Badge variant="outline" className="tabular-nums shrink-0">
+                  {fmt(r.cnt)}×
+                </Badge>
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -31,6 +31,7 @@ export default function ExecutiveHub() {
   const tab = searchParams.get('tab') || 'ceo';
   const current = dashboards[tab] || dashboards.ceo;
   const DashboardComponent = current.component;
+  const fullWidth = tab === 'agent-ops';
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background overflow-hidden">
@@ -65,7 +66,7 @@ export default function ExecutiveHub() {
         </div>
       </header>
       <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-        <div className="max-w-7xl mx-auto p-4 pb-24">
+        <div className={`${fullWidth ? 'max-w-none' : 'max-w-7xl'} mx-auto p-4 pb-24`}>
           {current.missionRole && <MissionBanner dashboardRole={current.missionRole} className="mb-4" />}
           <DashboardComponent />
         </div>

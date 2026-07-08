@@ -50,7 +50,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
 type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
@@ -87,7 +86,6 @@ export function AgentOpsDashboard() {
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [bottomTab, setBottomTab] = useState<BottomTab>('home');
   const [dateRange, setDateRange] = useState<DateRange>('24h');
-  const isMobile = useIsMobile();
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['agent-ops-kpis'],
@@ -258,61 +256,13 @@ export function AgentOpsDashboard() {
     }
   };
 
-  // MOBILE: Show sub-view inline with back button
-  if (isMobile && activeView) {
-    return (
-      <div className="space-y-3 pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
-        <button
-          onClick={() => setActiveView(null)}
-          className="flex items-center gap-2 text-sm font-semibold text-primary active:scale-95 transition-transform touch-manipulation py-2"
-        >
-          <ChevronLeft className="h-5 w-5" />
-          Back to Overview
-        </button>
-        <h2 className="text-lg font-bold">{viewLabel}</h2>
-        {renderSubView()}
-        <UserProfileDialog open={!!selectedAgent} onOpenChange={(open) => !open && setSelectedAgent(null)} user={selectedAgent} />
-      </div>
-    );
-  }
-
-  // DESKTOP: Show sub-view inline (no grid replacement)
-  if (!isMobile && activeView) {
-    return (
-      <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
-        <button
-          onClick={() => setActiveView(null)}
-          className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Back to Agent Ops Overview
-        </button>
-        {renderSubView()}
-        <UserProfileDialog open={!!selectedAgent} onOpenChange={(open) => !open && setSelectedAgent(null)} user={selectedAgent} />
-      </div>
-    );
-  }
-
   // Map a bottom-nav tab → opening the matching sub-view
   const handleBottomNav = (tab: BottomTab) => {
     setBottomTab(tab);
-    if (tab === 'home') {
-      setActiveView(null);
-      return;
-    }
-    if (tab === 'pipeline') {
-      setActiveView('pipeline');
-      return;
-    }
-    if (tab === 'agents') {
-      setActiveView('directory');
-      return;
-    }
-    if (tab === 'finance') {
-      setActiveView('balances');
-      return;
-    }
-    // 'more' just shows the grouped grid below — keep activeView=null
+    if (tab === 'home') { setActiveView(null); return; }
+    if (tab === 'pipeline') { setActiveView('pipeline'); return; }
+    if (tab === 'agents') { setActiveView('directory'); return; }
+    if (tab === 'finance') { setActiveView('balances'); return; }
     setActiveView(null);
   };
 
@@ -320,7 +270,7 @@ export function AgentOpsDashboard() {
     setActiveView(key as ActiveView);
   };
 
-  // Grouped sections for the "More" tab
+  // Grouped sections for the "More" tab (mobile dropdown + grid)
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
     { title: '🧩 Operations', keys: ['trust-capture', 'escalations', 'tasks'] },
     { title: '👥 Agent Network', keys: ['sub-agents', 'promote-tenant', 'lending-agents'] },
@@ -329,9 +279,72 @@ export function AgentOpsDashboard() {
     { title: '🔗 System', keys: ['connector', 'transfers', 'float-payouts', 'earnings'] },
   ];
 
-  // HOME VIEW
+  // Main content region — sub-view when one is active, else the overview / more-grid.
+  const contentRegion = activeView ? (
+    <div className="space-y-4">
+      <button
+        onClick={() => setActiveView(null)}
+        className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline lg:hidden"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back to Agent Ops Overview
+      </button>
+      <h2 className="text-lg font-bold">{viewLabel}</h2>
+      {renderSubView()}
+    </div>
+  ) : bottomTab !== 'more' ? (
+    <div className="space-y-4">
+      <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
+      <AgentOpsHomeView
+        range={dateRange}
+        onRangeChange={setDateRange}
+        onOpenSection={handleOpenSection}
+      />
+      <div className="space-y-4">
+        <AgentRentCapacityPanel />
+        <AgentEligibilityTransitionsPanel />
+      </div>
+    </div>
+  ) : (
+    <div className="space-y-5 pb-20 sm:pb-4">
+      <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
+      {MORE_GROUPS.map((group) => (
+        <section key={group.title} className="space-y-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+            {group.title}
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+            {group.keys.map((key) => {
+              const item = NAV_ITEMS.find((n) => n.key === key);
+              if (!item) return null;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setActiveView(item.key)}
+                  className={cn(
+                    'flex flex-col items-center gap-2 p-3 rounded-2xl border border-border bg-card',
+                    'active:scale-95 transition-all touch-manipulation min-h-[84px]',
+                    'hover:shadow-md hover:border-primary/30',
+                  )}
+                >
+                  <div className={cn('p-2.5 rounded-xl shadow-sm', item.color)}>
+                    <item.icon className="h-4 w-4 text-white" />
+                  </div>
+                  <span className="text-[11px] sm:text-xs font-semibold text-center leading-tight">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+
+  // HOME VIEW / shell
   return (
-    <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
+    <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-4">
       {/* Greeting header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -340,11 +353,12 @@ export function AgentOpsDashboard() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <AgentDailyOverviewReportButton />
+          {/* Section switcher — mobile / tablet only (desktop uses the left sidebar) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="h-9 px-3 rounded-full border border-border bg-card flex items-center gap-1.5 text-xs font-semibold text-foreground hover:border-primary/30 active:scale-95 transition-all touch-manipulation"
+                className="lg:hidden h-9 px-3 rounded-full border border-border bg-card flex items-center gap-1.5 text-xs font-semibold text-foreground hover:border-primary/30 active:scale-95 transition-all touch-manipulation"
                 aria-label="All Agent Ops sections"
               >
                 <LayoutGrid className="h-4 w-4 text-primary" />
@@ -392,63 +406,95 @@ export function AgentOpsDashboard() {
         </div>
       </div>
 
-      {bottomTab !== 'more' ? (
-        <>
-          <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
-          {/* Graphs & KPIs first — desktop-first analytics layout */}
-          <AgentOpsHomeView
-            range={dateRange}
-            onRangeChange={setDateRange}
-            onOpenSection={handleOpenSection}
-          />
-          {/* Detailed lists below the charts */}
-          <div className="space-y-4">
-            <AgentRentCapacityPanel />
-            <AgentEligibilityTransitionsPanel />
-          </div>
-        </>
-      ) : (
-        <div className="space-y-5 pb-20 sm:pb-4">
-          <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
-          {MORE_GROUPS.map((group) => (
-            <section key={group.title} className="space-y-2">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                {group.title}
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-                {group.keys.map((key) => {
-                  const item = NAV_ITEMS.find((n) => n.key === key);
-                  if (!item) return null;
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() => setActiveView(item.key)}
-                      className={cn(
-                        'flex flex-col items-center gap-2 p-3 rounded-2xl border border-border bg-card',
-                        'active:scale-95 transition-all touch-manipulation min-h-[84px]',
-                        'hover:shadow-md hover:border-primary/30',
-                      )}
-                    >
-                      <div className={cn('p-2.5 rounded-xl shadow-sm', item.color)}>
-                        <item.icon className="h-4 w-4 text-white" />
-                      </div>
-                      <span className="text-[11px] sm:text-xs font-semibold text-center leading-tight">
-                        {item.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+      {/* Body: persistent left sidebar (desktop) + content */}
+      <div className="lg:flex lg:gap-5 lg:items-start">
+        <AgentOpsSideNav
+          activeView={activeView}
+          onSelect={(k) => setActiveView(k)}
+          onHome={() => { setBottomTab('home'); setActiveView(null); }}
+        />
+        <div className="flex-1 min-w-0">{contentRegion}</div>
+      </div>
 
       {/* Mobile bottom nav */}
       <AgentOpsBottomNav active={bottomTab} onChange={handleBottomNav} />
 
       <UserProfileDialog open={!!selectedAgent} onOpenChange={(open) => !open && setSelectedAgent(null)} user={selectedAgent} />
     </div>
+  );
+}
+
+/* ===================================================================
+ * AgentOpsSideNav — persistent desktop left navigation for the Agent
+ * Ops Dashboard. Mirrors the mobile "All sections" menu but always
+ * visible on lg+. Advances is pinned to the top (Priority group).
+ * =================================================================== */
+function AgentOpsSideNav({
+  activeView,
+  onSelect,
+  onHome,
+}: {
+  activeView: ActiveView;
+  onSelect: (k: ActiveView) => void;
+  onHome: () => void;
+}) {
+  const SIDE_GROUPS: { title: string; keys: ActiveView[] }[] = [
+    { title: 'Priority', keys: ['advance-requests', 'bulk-ops', 'feature-flags', 'trust-capture'] },
+    { title: 'Operations', keys: ['escalations', 'tasks', 'pipeline'] },
+    { title: 'Agent Network', keys: ['sub-agents', 'promote-tenant', 'lending-agents', 'balances', 'directory'] },
+    { title: 'Business', keys: ['service-centres', 'connector'] },
+    { title: 'Insights', keys: ['leaderboard', 'performance-report', 'allocation-report', 'performance', 'lifecycle', 'alerts', 'brief'] },
+    { title: 'System', keys: ['transfers', 'float-payouts', 'earnings'] },
+  ];
+
+  return (
+    <aside className="hidden lg:flex flex-col w-56 shrink-0 sticky top-0 self-start max-h-[calc(100dvh-8.5rem)] overflow-y-auto pr-2">
+      <nav className="space-y-3 py-1">
+        <button
+          type="button"
+          onClick={onHome}
+          className={cn(
+            'w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition-colors',
+            !activeView ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted',
+          )}
+        >
+          <span className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 bg-primary">
+            <LayoutGrid className="h-3.5 w-3.5 text-white" />
+          </span>
+          <span className="truncate">Overview</span>
+        </button>
+
+        {SIDE_GROUPS.map((group) => (
+          <div key={group.title} className="space-y-1">
+            <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {group.title}
+            </p>
+            {group.keys.map((key) => {
+              const item = NAV_ITEMS.find((n) => n.key === key);
+              if (!item) return null;
+              const Icon = item.icon;
+              const active = activeView === key;
+              return (
+                <button
+                  key={key as string}
+                  type="button"
+                  onClick={() => onSelect(key)}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors',
+                    active ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted',
+                  )}
+                >
+                  <span className={cn('h-6 w-6 rounded-md flex items-center justify-center shrink-0', item.color)}>
+                    <Icon className="h-3.5 w-3.5 text-white" />
+                  </span>
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+    </aside>
   );
 }
 
