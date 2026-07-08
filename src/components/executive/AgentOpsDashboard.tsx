@@ -35,11 +35,12 @@ import { AgentDailyOverviewReportButton } from './AgentDailyOverviewReportButton
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { AgentEligibilityTransitionsPanel } from './AgentEligibilityTransitionsPanel';
 import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
+import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
-  LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge
+  LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -53,9 +54,10 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'advance-potential' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
+  { key: 'advance-potential', icon: Target, label: 'Advance Potential', color: 'bg-purple-700', priority: true },
   { key: 'bulk-ops', icon: Layers, label: 'Bulk Ops Console', color: 'bg-rose-700', priority: true },
   { key: 'feature-flags', icon: ToggleRight, label: 'Feature Flags', color: 'bg-rose-600', priority: true },
   { key: 'performance-report', icon: FileBarChart, label: 'Performance Report', color: 'bg-teal-600', priority: true },
@@ -225,6 +227,7 @@ export function AgentOpsDashboard() {
           <RentHistoryVerificationQueue dept="agent_ops" />
         </div>
       );
+      case 'advance-potential': return <AgentAdvancePotential />;
       case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
         <div className="rounded-2xl border border-border bg-card p-3">
@@ -277,7 +280,8 @@ export function AgentOpsDashboard() {
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
     { title: '👥 Agent Network', keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
-    { title: '🏢 Business', keys: ['service-centres', 'advance-requests', 'transfers', 'float-payouts'] },
+    { title: '💰 Advances', keys: ['advance-requests', 'advance-potential'] },
+    { title: '🏢 Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
     { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
     { title: '🔗 System', keys: ['bulk-ops'] },
   ];
@@ -446,7 +450,8 @@ function AgentOpsSideNav({
   // collapsible so the nav never over-scrolls. Agent Network sits right
   // below Priority and is open by default (this dashboard is agent-centric).
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
-    { title: 'Priority', pinned: true, keys: ['advance-requests', 'trust-capture', 'feature-flags'] },
+    { title: 'Advances', pinned: true, keys: ['advance-requests', 'advance-potential'] },
+    { title: 'Priority', pinned: true, keys: ['trust-capture', 'feature-flags'] },
     { title: 'Agent Network', defaultOpen: true, keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: 'Operations', keys: ['pipeline', 'escalations', 'tasks', 'connector'] },
     { title: 'Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
