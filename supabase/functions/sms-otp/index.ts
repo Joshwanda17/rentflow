@@ -358,7 +358,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 }
 
 /**
- * Send the OTP SMS. Provider chain: Yoola (primary) → Africa's Talking → LANA.
+ * Send the OTP SMS. Provider chain: Africa's Talking (primary) → Yoola → LANA.
  * Each provider is tried only if the previous one is unconfigured or fails, so
  * delivery is never blocked on a single provider. Returns the full ordered
  * trail of provider attempts (with timestamps) so we can prove a message was
@@ -387,23 +387,23 @@ async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
     return r;
   };
 
-  const yoola = await run("yoola", () => sendViaYoola(phone, message));
-  if (yoola.accepted) return { accepted: true, provider: "yoola", attempts };
-
-  // Yoola failed or is not configured — try Africa's Talking.
-  console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying Africa's Talking`);
   const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
   if (at.accepted) return { accepted: true, provider: "africastalking", attempts };
 
-  // AT failed or is not configured — try LANA as a final fallback.
-  console.warn(`[sms-otp] Africa's Talking not accepted (${at.reason}); trying LANA`);
+  // Africa's Talking failed or is not configured — try Yoola.
+  console.warn(`[sms-otp] Africa's Talking not accepted (${at.reason}); trying Yoola`);
+  const yoola = await run("yoola", () => sendViaYoola(phone, message));
+  if (yoola.accepted) return { accepted: true, provider: "yoola", attempts };
+
+  // Yoola failed or is not configured — try LANA as a final fallback.
+  console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying LANA`);
   const lana = await run("lana", () => sendViaLana(phone, message));
   if (lana.accepted) return { accepted: true, provider: "lana", attempts };
 
   // All failed — surface the most informative reason (skip "not_configured").
   let reason = lana.reason;
-  if (yoola.reason && yoola.reason !== "yoola_not_configured") reason = yoola.reason;
-  else if (at.reason && at.reason !== "missing_credentials") reason = at.reason;
+  if (at.reason && at.reason !== "missing_credentials") reason = at.reason;
+  else if (yoola.reason && yoola.reason !== "yoola_not_configured") reason = yoola.reason;
   return { accepted: false, reason, attempts };
 }
 
