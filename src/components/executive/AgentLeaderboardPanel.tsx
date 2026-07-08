@@ -100,7 +100,16 @@ export function AgentLeaderboardPanel() {
     );
   }, [data?.invitees, search]);
 
-  const periodNoun = period === 'daily' ? '30d' : period === 'weekly' ? '12w' : period === 'yearly' ? '5y' : '12mo';
+  // Label for the current selected period (Daily = today, etc.)
+  const periodNoun =
+    period === 'daily' ? 'today' :
+    period === 'weekly' ? 'this week' :
+    period === 'yearly' ? 'this year' : 'this month';
+  // Trailing window shown by the growth chart
+  const trendNoun =
+    period === 'daily' ? '30d' :
+    period === 'weekly' ? '12w' :
+    period === 'yearly' ? '5y' : '12mo';
 
   return (
     <div className="space-y-5">
@@ -137,7 +146,7 @@ export function AgentLeaderboardPanel() {
           title="Total Agents" icon={Users} loading={isLoading}
           value={(t?.total_agents ?? 0).toLocaleString()}
           color="bg-primary/10 text-primary"
-          subtitle={`${(t?.new_agents ?? 0).toLocaleString()} new · ${periodNoun}`}
+          subtitle={`${(t?.new_agents ?? 0).toLocaleString()} new ${periodNoun}`}
         />
         <KPICard
           title="Total Sub-Agents" icon={UsersRound} loading={isLoading}
@@ -162,7 +171,7 @@ export function AgentLeaderboardPanel() {
       {/* Growth chart */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold">Recruitment Growth</h4>
+          <h4 className="text-sm font-semibold">Recruitment Growth · trailing {trendNoun}</h4>
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> Agents</span>
             <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-violet-500" /> Sub-Agents</span>
