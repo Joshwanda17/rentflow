@@ -638,7 +638,7 @@ export function CFOAdvanceRequestPayments() {
                                   : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400'
                             )}
                           >
-                            {isCfoApproved ? 'CFO Approved' : isPending ? 'Agent Applied' : 'COO Approved'}
+                            {isCfoApproved ? 'CFO Approved' : isPending ? 'Agent Applied' : 'Agent Ops Approved'}
                           </Badge>
                           <span>{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</span>
                           {!isPending && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
