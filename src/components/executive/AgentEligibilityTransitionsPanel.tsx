@@ -26,8 +26,10 @@ export function AgentEligibilityTransitionsPanel({
 
   // Restrict the feed to real agents (behaviour-based qualifying set) — not
   // every platform user who happens to have an eligibility snapshot.
+  // Strictly filter: until the qualifying set has loaded we show nothing
+  // (never fall back to the full user population).
   const agentsOnly = useMemo(() => {
-    if (!qualifyingReady || qualifyingIds.size === 0) return data || [];
+    if (!qualifyingReady) return [];
     return (data || []).filter((t) => qualifyingIds.has(t.agent_id));
   }, [data, qualifyingIds, qualifyingReady]);
 
@@ -101,7 +103,7 @@ export function AgentEligibilityTransitionsPanel({
           </div>
         </div>
 
-        {isLoading ? (
+        {isLoading || !qualifyingReady ? (
           <div className="text-center py-6 text-xs text-muted-foreground">
             Loading transitions…
           </div>
