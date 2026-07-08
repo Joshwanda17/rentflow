@@ -1,18 +1,26 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   Users, Banknote, UserPlus, ShieldCheck, PackageCheck, Loader2,
-  TrendingUp, TrendingDown, Target,
+  TrendingUp, TrendingDown, Target, RefreshCw, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MonthlyRaw {
   month: string;
+  month_start: string;
+  is_current_month: boolean;
   total_agents: number;
   adv_agents_current: number;
+  adv_agents_current_prev: number;
   adv_agents_month: number;
   adv_agents_prev: number;
   new_adv_agents_month: number;
@@ -21,6 +29,8 @@ interface MonthlyRaw {
   volume_prev: number;
   principal_total: number;
   outstanding_total: number;
+  principal_total_prev: number;
+  outstanding_total_prev: number;
   deliveries_month: number;
   deliveries_prev: number;
 }
@@ -45,12 +55,44 @@ interface Pillar {
 const clampPct = (n: number) => Math.max(0, Math.min(100, n));
 const growth = (curr: number, prev: number) => (prev <= 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100);
 
+/** First day (YYYY-MM-01) of the month `offset` months before now. */
+function monthStart(offset: number): string {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - offset);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01`;
+}
+
+function monthLabel(iso: string): string {
+  const [y, m] = iso.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 export function AgentMonthlyKpis() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-monthly-kpis'],
-    staleTime: 60_000,
+  const thisMonth = monthStart(0);
+  const lastMonth = monthStart(1);
+  const [selected, setSelected] = useState<string>(thisMonth);
+
+  // Months of the current calendar year up to (and including) the current month.
+  const monthOptions = useMemo(() => {
+    const now = new Date();
+    const opts: string[] = [];
+    for (let m = now.getMonth(); m >= 0; m--) {
+      const iso = `${now.getFullYear()}-${String(m + 1).padStart(2, '0')}-01`;
+      opts.push(iso);
+    }
+    return opts;
+  }, []);
+
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['agent-ops-monthly-kpis', selected],
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)('get_agent_ops_monthly_kpis');
+      const { data, error } = await (supabase.rpc as any)('get_agent_ops_monthly_kpis', { _month: selected });
       if (error) throw error;
       return data as MonthlyRaw;
     },
@@ -58,8 +100,12 @@ export function AgentMonthlyKpis() {
 
   const d = data;
   const trackingShare = d && d.total_agents > 0 ? (d.adv_agents_current / d.total_agents) * 100 : 0;
+  const trackingSharePrev = d && d.total_agents > 0 ? (d.adv_agents_current_prev / d.total_agents) * 100 : 0;
   const repayRate = d && d.principal_total > 0
     ? ((d.principal_total - d.outstanding_total) / d.principal_total) * 100
+    : 0;
+  const repayRatePrev = d && d.principal_total_prev > 0
+    ? ((d.principal_total_prev - d.outstanding_total_prev) / d.principal_total_prev) * 100
     : 0;
 
   const pillars: Pillar[] = d
@@ -74,6 +120,7 @@ export function AgentMonthlyKpis() {
           display: `${trackingShare.toFixed(1)}%`,
           attainment: clampPct((trackingShare / 30) * 100),
           detail: `${d.adv_agents_current.toLocaleString()} of ${d.total_agents.toLocaleString()} agents · goal 30%`,
+          changePct: growth(trackingShare, trackingSharePrev),
         },
         {
           key: 'volume',
@@ -109,6 +156,7 @@ export function AgentMonthlyKpis() {
           display: `${repayRate.toFixed(1)}%`,
           attainment: clampPct(repayRate),
           detail: `${formatUGX(Math.max(d.principal_total - d.outstanding_total, 0))} repaid of ${formatUGX(d.principal_total)} · goal 15%`,
+          changePct: growth(repayRate, repayRatePrev),
         },
         {
           key: 'delivery',
@@ -127,6 +175,9 @@ export function AgentMonthlyKpis() {
 
   const overall = pillars.reduce((s, p) => s + (p.weight / 100) * p.attainment, 0);
 
+  const isThisMonth = selected === thisMonth;
+  const isLastMonth = selected === lastMonth;
+
   return (
     <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -136,7 +187,7 @@ export function AgentMonthlyKpis() {
             Monthly KPIs — Advance Program
           </h3>
           <p className="text-[11px] text-muted-foreground">
-            Weighted scorecard · {d?.month ?? '—'}
+            Live weighted scorecard · {d?.month ?? '—'} vs last month
           </p>
         </div>
         <div className="text-right shrink-0">
@@ -146,6 +197,49 @@ export function AgentMonthlyKpis() {
             {isLoading ? <Loader2 className="h-5 w-5 animate-spin inline" /> : `${overall.toFixed(0)}%`}
           </p>
         </div>
+      </div>
+
+      {/* Month filter controls */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <Button
+          size="sm"
+          variant={isThisMonth ? 'default' : 'outline'}
+          className="h-7 text-[11px] px-2.5"
+          onClick={() => setSelected(thisMonth)}
+        >
+          This Month
+        </Button>
+        <Button
+          size="sm"
+          variant={isLastMonth ? 'default' : 'outline'}
+          className="h-7 text-[11px] px-2.5"
+          onClick={() => setSelected(lastMonth)}
+        >
+          Last Month
+        </Button>
+        <Select value={selected} onValueChange={setSelected}>
+          <SelectTrigger className="h-7 text-[11px] w-[150px]">
+            <CalendarDays className="h-3 w-3 mr-1 shrink-0" />
+            <SelectValue placeholder="Pick a month" />
+          </SelectTrigger>
+          <SelectContent>
+            {monthOptions.map((iso) => (
+              <SelectItem key={iso} value={iso} className="text-xs">
+                {monthLabel(iso)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-[11px] px-2 ml-auto"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw className={cn('h-3 w-3 mr-1', isFetching && 'animate-spin')} />
+          Refresh
+        </Button>
       </div>
 
       {isLoading ? (
