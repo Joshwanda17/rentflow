@@ -10,10 +10,13 @@ import {
 } from 'recharts';
 import {
   Users, UsersRound, TrendingUp, UserPlus, Trophy, Search, Crown, Medal, ShieldCheck, Clock,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, FileDown, Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { generateAgentGrowthReportPdf } from '@/lib/agentGrowthReportPdf';
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -75,6 +78,8 @@ export function AgentLeaderboardPanel() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 15;
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-leaderboard-stats', period],
@@ -126,6 +131,36 @@ export function AgentLeaderboardPanel() {
     period === 'weekly' ? '12w' :
     period === 'yearly' ? '5y' : '12mo';
 
+  const handleExportPdf = async () => {
+    if (!data?.totals) return;
+    setExporting(true);
+    try {
+      const periodLabel = PERIODS.find((p) => p.value === period)?.label ?? 'Monthly';
+      const blob = await generateAgentGrowthReportPdf({
+        scopeLabel: `${periodLabel} · trailing ${trendNoun}`,
+        periodNoun,
+        totals: data.totals,
+        series: chartData.map((s) => ({ label: s.label, agents: s.agents, subagents: s.subagents })),
+        recruiters: (data.top_recruiters || []).map((r) => ({
+          name: r.name, phone: r.phone, invited: r.invited, verified: r.verified,
+        })),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Welile_Agent_Growth_${periodLabel}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[AgentLeaderboardPanel] PDF export failed:', err);
+      toast({ title: 'Export failed', description: 'Could not generate the growth report.', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Header + period filter */}
@@ -137,22 +172,33 @@ export function AgentLeaderboardPanel() {
             <p className="text-xs text-muted-foreground">Agents vs sub-agents recruitment & invitees</p>
           </div>
         </div>
-        <ToggleGroup
-          type="single"
-          value={period}
-          onValueChange={(v) => v && setPeriod(v as Period)}
-          className="rounded-xl border border-border bg-card p-1"
-        >
-          {PERIODS.map((p) => (
-            <ToggleGroupItem
-              key={p.value}
-              value={p.value}
-              className="h-8 px-3 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground rounded-lg"
-            >
-              {p.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        <div className="flex items-center gap-2">
+          <ToggleGroup
+            type="single"
+            value={period}
+            onValueChange={(v) => v && setPeriod(v as Period)}
+            className="rounded-xl border border-border bg-card p-1"
+          >
+            {PERIODS.map((p) => (
+              <ToggleGroupItem
+                key={p.value}
+                value={p.value}
+                className="h-8 px-3 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground rounded-lg"
+              >
+                {p.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <Button
+            onClick={handleExportPdf}
+            disabled={exporting || isLoading || !data?.totals}
+            size="sm"
+            className="h-9 gap-1.5"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            <span className="hidden sm:inline">Export PDF</span>
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
