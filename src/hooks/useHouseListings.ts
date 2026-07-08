@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { PUBLIC_HOUSE_LISTING_COLUMNS } from '@/lib/houseListingColumns';
 
 export interface HouseListing {
   id: string;
@@ -109,7 +110,7 @@ export function useHouseListings(options: UseHouseListingsOptions = {}) {
     try {
       let query = supabase
         .from('house_listings')
-        .select('*')
+        .select(PUBLIC_HOUSE_LISTING_COLUMNS)
         .order('created_at', { ascending: false })
         .limit(options.limit || 50);
 
@@ -398,7 +399,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         }
         let query = supabase
           .from('house_listings')
-          .select('*')
+          .select(PUBLIC_HOUSE_LISTING_COLUMNS)
           .eq('status', 'available')
           .eq('verified', true)
           .eq('is_hidden', false)
