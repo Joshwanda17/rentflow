@@ -330,7 +330,7 @@ export default function AgentLeaderboard() {
                       <div className="flex min-w-0 items-center gap-2.5">
                         <UserAvatar avatarUrl={myRank.avatar_url} fullName={myRank.agent_name} size="sm" />
                         <span className="truncate text-sm font-semibold text-slate-800">
-                          {myRank.agent_name}<span className="ml-1 text-xs font-medium" style={{ color: '#9334EB' }}>(You)</span>
+                          <span style={{ color: '#6D28D9' }}>You</span> ({myRank.agent_name})
                         </span>
                       </div>
                       <div className="text-right">
