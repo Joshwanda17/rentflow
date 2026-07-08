@@ -141,16 +141,15 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const BASE_LIMIT = 30_000;
   const HARD_CAP = 30_000_000;
 
-  // Breakdown of every component that contributes to the total credit limit.
+  // What actually raises an agent's advance limit, biggest driver first.
+  // Sub-agents are ~70% of the limit; rent collection is significant; houses
+  // listed and tenant rent requests each add on top.
   const breakdown = [
+    { key: 'subagents', label: 'Active sub-agents', value: limit?.bonusFromSubagents || 0, source: 'biggest driver — +1.5M per active sub-agent (up to 21M)' },
+    { key: 'collection', label: 'Rent you collect', value: allocBonus, source: 'half of the rent you collect (up to 6M)' },
+    { key: 'houses', label: 'Houses listed', value: limit?.bonusFromHousesListed || 0, source: '+100K per listing (up to 2.25M)' },
+    { key: 'rentRequests', label: 'Tenant rent requests', value: limit?.bonusFromRentHistory || 0, source: '+150K per rent request you raise (up to 2.25M)' },
     { key: 'base', label: 'Starter base', value: BASE_LIMIT, source: 'every agent starts here' },
-    { key: 'rentHistory', label: 'Rent history', value: limit?.bonusFromRentHistory || 0, source: 'completed rent plans + repayments' },
-    { key: 'landlordRent', label: 'Landlords you registered', value: limit?.bonusFromLandlordRent || 0, source: '2× rent on landlords you brought in' },
-    { key: 'houses', label: 'Houses listed', value: limit?.bonusFromHousesListed || 0, source: '50K per listing' },
-    { key: 'partners', label: 'Partners onboarded', value: limit?.bonusFromPartnersOnboarded || 0, source: '200K per active partner' },
-    { key: 'ratings', label: 'Tenant ratings', value: limit?.bonusFromRatings || 0, source: 'above 3★ average' },
-    { key: 'receipts', label: 'Verified receipts', value: limit?.bonusFromReceipts || 0, source: '50K per verified receipt' },
-    { key: 'allocations', label: 'Tenant allocations', value: allocBonus, source: '2× of every UGX you allocate to tenants' },
   ];
   const breakdownSum = breakdown.reduce((s, b) => s + b.value, 0);
   const isCapped = breakdownSum >= HARD_CAP;
