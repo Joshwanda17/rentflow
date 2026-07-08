@@ -92,21 +92,6 @@ const TERMINAL_UNPAID_STATUSES = ['rejected', 'expired', 'cancelled'] as const;
 
 type FilterMode = 'all' | 'inflight' | 'reattempt' | 'fresh';
 
-const getKampalaPayoutDayWindow = (date = new Date()) => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Kampala',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value || 0);
-  const startUtc = Date.UTC(get('year'), get('month') - 1, get('day')) - (3 * 60 * 60 * 1000);
-  return {
-    startIso: new Date(startUtc).toISOString(),
-    endIso: new Date(startUtc + 24 * 60 * 60 * 1000).toISOString(),
-  };
-};
-
 // Stable card key — one card per PORTFOLIO (a partner can hold several
 // portfolios with different payout methods that each carry their own ROI
 // payout; they MUST render as separate cards).
@@ -396,7 +381,6 @@ export function ProxyPartnerFunds() {
         v2PortfolioIds = (v2Portfolios || []).map((p: any) => p.id);
       }
 
-      const payoutDay = getKampalaPayoutDayWindow();
       const [legacyRes, v2Res] = await Promise.all([
         supabase
           .from('pending_wallet_operations')
@@ -405,8 +389,6 @@ export function ProxyPartnerFunds() {
           .eq('category', 'roi_payout')
           .eq('status', 'approved')
           .in('reviewed_by', cfoIds)
-          .gte('reviewed_at', payoutDay.startIso)
-          .lt('reviewed_at', payoutDay.endIso)
           .not('metadata->coo_approved_by', 'is', null)
           .not('source_id', 'is', null)
           .order('created_at', { ascending: false }),
@@ -416,8 +398,6 @@ export function ProxyPartnerFunds() {
               .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at, reviewed_at')
               .eq('category', 'roi_payout')
               .eq('status', 'approved')
-              .gte('reviewed_at', payoutDay.startIso)
-              .lt('reviewed_at', payoutDay.endIso)
               .not('metadata->coo_approved_by', 'is', null)
               .in('source_id', v2PortfolioIds)
               .order('created_at', { ascending: false })
@@ -1496,8 +1476,7 @@ export function ProxyPartnerFunds() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground px-1">
-        Mirrors the CFO ROI Payout Queue 1:1 — every card here is a return the CFO
-        has signed off for delivery to your proxy partner. Balances shown are
+        Shows every unsettled return the CFO has signed off for delivery to your proxy partner. Balances shown are
         <span className="font-medium text-foreground"> withdrawable now</span>.
       </p>
 

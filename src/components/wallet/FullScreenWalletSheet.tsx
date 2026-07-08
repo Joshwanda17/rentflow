@@ -90,22 +90,20 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     setPendingWithdrawals(counts.withdrawals);
   }, [user]);
 
-  // Check if user has proxy partner entries explicitly approved by a CFO
+  // Check if the agent has proxy partners or proxy ROI entries. Custody v2
+  // payouts can be approved directly to the partner wallet (target_wallet_user_id
+  // is null/partner), so gating the tab only on old agent-wallet approvals hides
+  // today's CFO-approved proxy partner list.
   useEffect(() => {
     const checkProxy = async () => {
       if (!user?.id) return;
-      const { getCfoUserIds } = await import('@/lib/cfoUserIds');
-      const cfoIds = await getCfoUserIds();
-      if (cfoIds.length === 0) { setHasProxyPartners(false); return; }
       const { count } = await supabase
-        .from('pending_wallet_operations')
+        .from('proxy_agent_assignments')
         .select('id', { count: 'exact', head: true })
-        .eq('target_wallet_user_id', user.id)
-        .in('category', ['roi_payout', 'supporter_platform_rewards'])
-        .eq('status', 'approved')
-        .in('reviewed_by', cfoIds)
-        .not('metadata->coo_approved_by', 'is', null)
-        .not('transaction_group_id', 'is', null);
+        .eq('agent_id', user.id)
+        .eq('beneficiary_role', 'supporter')
+        .eq('is_active', true)
+        .eq('approval_status', 'approved');
       setHasProxyPartners((count || 0) > 0);
     };
     if (open) checkProxy();
