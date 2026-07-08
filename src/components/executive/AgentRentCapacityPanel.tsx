@@ -388,7 +388,7 @@ export function AgentRentCapacityPanel({
             <Kpi
               icon={<Gauge className="h-3.5 w-3.5" />}
               label="Active Agents"
-              value={(data || []).length.toLocaleString()}
+              value={rows.length.toLocaleString()}
               tone="text-violet-600"
             />
             <Kpi
