@@ -131,7 +131,9 @@ function RequestRow({ req, tone }: { req: any; tone: 'approved' | 'rejected' }) 
           <p className="mt-1 text-[9px] text-muted-foreground">
             {paid
               ? 'Fully disbursed to the agent wallet.'
-              : `Awaiting ${PIPELINE[Math.min(idx + 1, PIPELINE.length - 1)].label} — not yet paid out.`}
+              : req.status === 'cfo_approved'
+                ? 'CFO approved — awaiting disbursement to the agent wallet.'
+                : 'Approved by Agent Ops — awaiting CFO evaluation & disbursement.'}
           </p>
         </>
       )}
