@@ -3916,7 +3916,7 @@ function InlineModerationActions({
 }
 
 // ─── Reusable Nav Card ───
-function NavCard({ item, onClick, badge }: { item: typeof navItems[number]; onClick: () => void; badge?: string }) {
+function NavCard({ item, onClick, badge, badgeAlert }: { item: typeof navItems[number]; onClick: () => void; badge?: string; badgeAlert?: boolean }) {
   return (
     <button
       onClick={onClick}
@@ -3930,7 +3930,14 @@ function NavCard({ item, onClick, badge }: { item: typeof navItems[number]; onCl
         <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {badge && <Badge variant="secondary" className="text-[10px] font-medium">{badge}</Badge>}
+        {badge && (
+          <Badge
+            variant={badgeAlert ? 'default' : 'secondary'}
+            className={badgeAlert ? 'text-[10px] font-bold bg-rose-600 text-white hover:bg-rose-600' : 'text-[10px] font-medium'}
+          >
+            {badge}
+          </Badge>
+        )}
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </div>
     </button>
