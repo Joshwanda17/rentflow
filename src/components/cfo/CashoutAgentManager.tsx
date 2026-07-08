@@ -724,7 +724,7 @@ export function CashoutAgentManager() {
     let credited = 0;      // what actually hit the wallet (ledger only)
     let expected = 0;      // what 0.5% says it should be
     let missingCount = 0;  // payouts with no commission leg
-    for (const py of selectedAgentPayouts as any[]) {
+    for (const py of visiblePayouts as any[]) {
       const amt = Number(py.amount || 0);
       expected += getCashoutCommission(amt);
       const leg = legs[String(py.id)];
@@ -732,7 +732,7 @@ export function CashoutAgentManager() {
       else credited += Number(leg || 0);
     }
     return { credited, expected, missingCount, gap: expected - credited };
-  }, [selectedAgentPayouts, commissionByWithdrawal]);
+  }, [visiblePayouts, commissionByWithdrawal]);
 
   const methodBadges = (a: any) => {
     const handlesMomoAny = a.handles_mtn || a.handles_airtel;
@@ -793,6 +793,27 @@ export function CashoutAgentManager() {
             onClick={() => setBreakdownOpen(true)}
           />
         </div>
+        {/* Date filter — scopes Commission Earned & Telecom Charges to a single day */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[160px]">
+            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              type="date"
+              value={txnDateFilter}
+              onChange={(e) => setTxnDateFilter(e.target.value)}
+              className="h-9 pl-8 text-xs"
+              aria-label="Filter commission & telecom charges by date"
+            />
+          </div>
+          {txnDateFilter && (
+            <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => setTxnDateFilter('')}>
+              <XCircle className="h-3.5 w-3.5 mr-1" /> Clear
+            </Button>
+          )}
+          <Badge variant="outline" className="text-[10px] shrink-0">
+            {txnDateFilter ? `${visiblePayouts.length} payout${visiblePayouts.length === 1 ? '' : 's'} on date` : 'All dates'}
+          </Badge>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
             icon={<Wallet className="h-4 w-4" />}
@@ -801,14 +822,14 @@ export function CashoutAgentManager() {
             tone="primary"
             sub={commissionSummary.missingCount > 0
               ? `${formatUGX(commissionSummary.expected)} expected · ${commissionSummary.missingCount} unpaid`
-              : `0.5% per payout · fully credited`}
+              : txnDateFilter ? `0.5% per payout · on selected date` : `0.5% per payout · fully credited`}
           />
           <KpiTile
             icon={<Banknote className="h-4 w-4" />}
             label="Telecom Charges"
-            value={formatUGX(selectedAgentPayouts.reduce((s: number, py: any) => s + getTelecomSendingCharge(Number(py.amount || 0)), 0))}
+            value={formatUGX(visiblePayouts.reduce((s: number, py: any) => s + getTelecomSendingCharge(Number(py.amount || 0)), 0))}
             tone="muted"
-            sub="sending fees"
+            sub={txnDateFilter ? 'sending fees · on date' : 'sending fees'}
           />
         </div>
         <div className="grid grid-cols-3 gap-2">
