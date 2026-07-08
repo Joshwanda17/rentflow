@@ -1371,6 +1371,23 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* === GROW TAB === Share, recruit, partners */}
         {activeTab === 'grow' && (
           <div className={cn("space-y-5", tabAnimClass)}>
+            {/* Leaderboard CTA — draws agents into the recruitment competition */}
+            <button
+              onClick={() => { hapticTap(); navigate('/dashboard/agents/leaderboard'); }}
+              className="w-full flex items-center gap-3.5 p-4 rounded-2xl text-left text-white shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
+              style={{ background: 'linear-gradient(135deg, #9334EB, #6D28D9)', WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20">
+                <Trophy className="h-5.5 w-5.5" strokeWidth={2.2} style={{ color: '#FACC15' }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-[15px] leading-tight">Agent Leaderboard</p>
+                <p className="text-[12px] text-white/85 leading-snug mt-0.5">
+                  See your rank, invite more sub-agents & climb to the top.
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-white/80" />
+            </button>
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { icon: Building2, label: 'Share Landlord', onClick: handleShareLandlordSignup },
