@@ -30,6 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import { COOScaleVisionView } from '@/components/coo/COOScaleVisionView';
 import { WelileOperationsHub } from '@/components/executive/WelileOperationsHub';
 import { AgentNetworkBadge } from '@/components/executive/tenant-ops/AgentNetworkBadge';
+import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
