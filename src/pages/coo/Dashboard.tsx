@@ -258,9 +258,7 @@ export default function COODashboardPage() {
         return (
           <div className="space-y-6">
             {isMobile && renderBackButton('Overview')}
-            {renderSectionHeader('Agent Advance Approvals', Banknote)}
-            <p className="text-sm text-muted-foreground -mt-2">Final operational approval before CFO payment.</p>
-            <AdvanceRequestsQueue stage="coo" />
+            {renderSectionHeader('Business Advances', Banknote)}
             <BusinessAdvanceQueue stage="coo" />
           </div>
         );
