@@ -411,6 +411,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [rentPosterOpen, setRentPosterOpen] = useState(false);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
+  const [advanceGuideOpen, setAdvanceGuideOpen] = useState(false);
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
   const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
   const [borrowOpen, setBorrowOpen] = useState(false);
@@ -957,12 +958,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* 0) Agent Advance — TOP priority on Home so every agent sees the cash
                 they can access instantly (hidden for payout-only Merchant Agents). */}
             {!isMerchant && (
-            <button
-              onClick={() => { hapticTap(); setAdvanceRequestOpen(true); }}
-              className="relative w-full overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-5 text-left text-card-foreground shadow-lg ring-1 ring-primary/20 active:scale-[0.98] transition-all touch-manipulation"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="absolute inset-y-0 right-0 w-28 bg-primary/10" />
+            <div className="relative w-full overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-5 text-card-foreground shadow-lg ring-1 ring-primary/20">
               <div className="relative">
                 <div className="flex items-center gap-2">
                   <div className="rounded-full bg-primary/15 p-1.5 text-primary">
@@ -974,14 +970,33 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <p className="mt-1 text-3xl font-black leading-none text-primary whitespace-pre-line">
                   {formatCreditAmount(advanceLimit?.totalLimit || 30000)}
                 </p>
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+                  <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
+                  Grow up to UGX 50,000,000 as you perform better
+                </div>
                 <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
                   Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
                 </p>
-                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm">
-                  Request advance <ChevronRight className="h-3.5 w-3.5" />
-                </span>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setAdvanceRequestOpen(true); }}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm active:scale-[0.97] transition-transform touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    Request advance <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setAdvanceGuideOpen(true); }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3.5 py-1.5 text-xs font-bold text-primary active:scale-[0.97] transition-transform touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> How to increase my limit
+                  </button>
+                </div>
               </div>
-            </button>
+            </div>
             )}
 
             {/* 1) Priorities first — Wallet · Collect Rent · Add Tenant · List House */}
@@ -1077,12 +1092,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className={cn("space-y-5", tabAnimClass)}>
             {/* Prominent Agent Advance promo — high-visibility entry point so
                 agents always see the cash they can access instantly. */}
-            <button
-              onClick={() => { hapticTap(); setAdvanceRequestOpen(true); }}
-              className="relative w-full overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-5 text-left text-card-foreground shadow-lg ring-1 ring-primary/20 active:scale-[0.98] transition-all touch-manipulation"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="absolute inset-y-0 right-0 w-28 bg-primary/10" />
+            <div className="relative w-full overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-5 text-card-foreground shadow-lg ring-1 ring-primary/20">
               <div className="relative">
                 <div className="flex items-center gap-2">
                   <div className="rounded-full bg-primary/15 p-1.5 text-primary">
@@ -1094,14 +1104,33 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <p className="mt-1 text-3xl font-black leading-none text-primary whitespace-pre-line">
                   {formatCreditAmount(advanceLimit?.totalLimit || 30000)}
                 </p>
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+                  <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
+                  Grow up to UGX 50,000,000 as you perform better
+                </div>
                 <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
                   Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
                 </p>
-                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm">
-                  Request advance <ChevronRight className="h-3.5 w-3.5" />
-                </span>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setAdvanceRequestOpen(true); }}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm active:scale-[0.97] transition-transform touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    Request advance <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setAdvanceGuideOpen(true); }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3.5 py-1.5 text-xs font-bold text-primary active:scale-[0.97] transition-transform touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> How to increase my limit
+                  </button>
+                </div>
               </div>
-            </button>
+            </div>
 
             {/* Quick-access money cards: 4 clear destinations */}
             {moneyTabLoading ? (
@@ -1814,6 +1843,48 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <LazyModal when={advanceRequestOpen}>
       <AgentAdvanceRequestForm open={advanceRequestOpen} onOpenChange={setAdvanceRequestOpen} />
       </LazyModal>
+
+      <Dialog open={advanceGuideOpen} onOpenChange={setAdvanceGuideOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Grow your advance limit
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <p className="text-muted-foreground">
+              Your advance limit grows with your track record — top-performing agents can
+              access up to <span className="font-bold text-primary">UGX 50,000,000</span>.
+              Do these consistently to unlock more:
+            </p>
+            <ul className="space-y-3">
+              <li className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
+                <span><span className="font-semibold text-foreground">Repay on time.</span> Clear each advance on or before its due date — early repayment unlocks a bigger limit fastest.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
+                <span><span className="font-semibold text-foreground">Collect rent steadily.</span> Consistent daily collections and funded tenants raise your Welile trust score.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
+                <span><span className="font-semibold text-foreground">Grow your book.</span> Onboard more tenants, list houses and keep them paying to prove sustained volume.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">4</span>
+                <span><span className="font-semibold text-foreground">Complete verification.</span> A verified ID and profile increase the limit we can safely extend to you.</span>
+              </li>
+            </ul>
+            <Button
+              className="w-full"
+              onClick={() => { setAdvanceGuideOpen(false); setAdvanceRequestOpen(true); }}
+            >
+              Request an advance
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
     </AgentFrozenGate>
