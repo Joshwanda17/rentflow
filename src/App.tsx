@@ -359,6 +359,7 @@ function AppRoutes() {
            <Route path="/internship" element={<Internship />} />
            <Route path="/careers" element={<Careers />} />
            <Route path="/auth" element={<Auth />} />
+          <Route path="/oauth-funnel" element={<OAuthFunnel />} />
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/funder-onboarding" element={<FunderOnboarding />} />
