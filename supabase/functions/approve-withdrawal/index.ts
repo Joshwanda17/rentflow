@@ -5,6 +5,10 @@ import {
   dispatchTransactionalEmail,
   buildWithdrawalPaidReceiptRequest,
 } from "../_shared/partnership-emails.ts";
+import {
+  buildReceiptCopyRecipients,
+  enforceArchiveOnly,
+} from "./receipt-copy-guard.ts";
 import { sendWhatsApp } from "../_shared/whatsapp.ts";
 import {
   logSmsDelivery,
@@ -2458,30 +2462,24 @@ Deno.serve(async (req) => {
           .then(() => {}, () => {});
       }
 
-      // ── Receipt copies to internal parties + records archive ────────────
-      // The SAME proof-of-payment receipt link is emailed to the merchant
-      // agent who processed the payout, to Financial Ops (operations role),
-      // to the CFO(s), and to the fixed records archive address. Each copy is
-      // idempotent per (withdrawal, recipient) so retries never duplicate.
+      // ── Receipt copy to the records archive ─────────────────────────────
+      // Policy (locked, unit-tested in receipt-copy-guard.test.ts): the ONLY
+      // internal recipient of a withdrawal-approval receipt copy is the shared
+      // records archive mailbox (weliletenants@gmail.com). No CFO / Financial
+      // Ops / manager / agent address may receive a copy. The customer still
+      // gets their own primary receipt separately. buildReceiptCopyRecipients()
+      // is the single source of truth; enforceArchiveOnly() is a defensive
+      // runtime net that drops any non-archive address before dispatch.
       try {
-        const copyRecipients: { email: string; role: string }[] = [];
-
-        // 1) Merchant agent / processor who confirmed the payout.
-        try {
-          const { data: procProfile } = await admin
-            .from("profiles")
-            .select("email")
-            .eq("id", user.id)
-            .maybeSingle();
-          const pe = (procProfile as any)?.email;
-          if (pe && /@/.test(pe)) copyRecipients.push({ email: pe, role: "Merchant Agent" });
-        } catch { /* non-fatal */ }
-
-        // 2) Fixed records archive mailbox.
-        // NOTE: Internal receipt copies deliberately do NOT fan out to CFO /
-        // Financial Ops / manager-line roles anymore. The single internal copy
-        // goes only to the shared records archive mailbox below.
-        copyRecipients.push({ email: "weliletenants@gmail.com", role: "Records Archive" });
+        const { allowed: copyRecipients, rejected } = enforceArchiveOnly(
+          buildReceiptCopyRecipients(),
+        );
+        if (rejected.length > 0) {
+          console.error(
+            "[approve-withdrawal] BLOCKED non-archive receipt copy recipients:",
+            rejected.map((r) => r.email),
+          );
+        }
 
         // Dedupe by email; the customer already received the primary receipt.
         const customerEmailLc = (recipientEmailForLog || "").trim().toLowerCase();
@@ -2502,9 +2500,7 @@ Deno.serve(async (req) => {
             receiptUrl,
             copyFor: rec.role,
             idempotencySuffix: key.replace(/[^a-z0-9]/g, "").slice(0, 40),
-          // Only the processing merchant agent's own copy shows the commission
-          // they earned (kept hidden from the customer & other parties).
-          commissionEarned: rec.role === "Merchant Agent" ? cashoutCommission : null,
+            commissionEarned: null,
           });
           dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
         }
