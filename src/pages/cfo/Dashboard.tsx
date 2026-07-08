@@ -75,6 +75,7 @@ import { SwipeSensitivityControl } from '@/components/cfo/SwipeSensitivityContro
 import { SwipeOnboardingHint } from '@/components/cfo/SwipeOnboardingHint';
 import { useSwipeSensitivity } from '@/hooks/useSwipeSensitivity';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
+import { useCfoAdvanceDisbursementCount } from '@/hooks/useCfoAdvanceDisbursementCount';
 
 // Ordered, swipeable tab ids derived from the CFO sidebar (route items excluded).
 const CFO_TAB_SEQUENCE = (executiveSidebarConfig.cfo ?? [])
@@ -90,6 +91,7 @@ export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('cfo', 'overview', CFO_TAB_IDS);
   const isMobile = useIsMobile();
   const { threshold: swipeThreshold, setThreshold: setSwipeThreshold } = useSwipeSensitivity('cfo');
+  const advanceDisbursementCount = useCfoAdvanceDisbursementCount();
 
   const goToOffset = (delta: number) => {
     const current = CFO_TAB_IDS.indexOf(activeTab);
@@ -384,7 +386,12 @@ export default function CFODashboardPage() {
   };
 
   return (
-    <ExecutiveDashboardLayout role="cfo" activeTab={activeTab} onTabChange={setActiveTab}>
+    <ExecutiveDashboardLayout
+      role="cfo"
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      badges={{ advances: advanceDisbursementCount }}
+    >
       <CFOBreadcrumbHeader
         activeTab={activeTab}
         onJump={setActiveTab}

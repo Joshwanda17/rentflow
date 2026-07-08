@@ -19,6 +19,8 @@ interface ExecutiveDashboardLayoutProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   children: ReactNode;
+  /** Optional badge counts keyed by sidebar item id (e.g. { advances: 3 }). */
+  badges?: Record<string, number>;
 }
 
 export default function ExecutiveDashboardLayout({
@@ -26,6 +28,7 @@ export default function ExecutiveDashboardLayout({
   activeTab,
   onTabChange,
   children,
+  badges,
 }: ExecutiveDashboardLayoutProps) {
   const { user, roles, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
@@ -249,6 +252,11 @@ export default function ExecutiveDashboardLayout({
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span className="truncate">{item.label}</span>
+                    {badges && badges[item.id] > 0 && (
+                      <span className="ml-auto shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none">
+                        {badges[item.id] > 99 ? '99+' : badges[item.id]}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
