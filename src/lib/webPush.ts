@@ -60,7 +60,23 @@ export function isPushSupported(): boolean {
 
 export type EnsurePushResult =
   | { ok: true; endpoint: string; p256dh: string; auth: string }
-  | { ok: false; reason: "unsupported" | "blocked" | "dismissed" | "error"; message: string };
+  | { ok: false; reason: "unsupported" | "blocked" | "dismissed" | "error" | "iframe"; message: string };
+
+/**
+ * True when the app is running inside an iframe (e.g. the Lovable preview).
+ * Browsers refuse Notification.requestPermission() inside a cross-origin iframe
+ * and return "denied" immediately — which looks like the user blocked the site
+ * even though they never did. Push must be tested in a full browser tab.
+ */
+export function isInIframe(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.self !== window.top;
+  } catch {
+    // Cross-origin access to window.top throws — that only happens in an iframe.
+    return true;
+  }
+}
 
 /**
  * Short, browser-aware instructions for re-allowing notifications after the user
@@ -113,6 +129,18 @@ export async function ensurePushSubscription(
   }
 
   try {
+    // Inside the preview iframe the permission prompt is silently denied by the
+    // browser's Permissions Policy. Detect that up front so we don't mislabel it
+    // as "blocked" — the user needs to open the app in a real browser tab.
+    if (isInIframe() && Notification.permission !== "granted") {
+      return {
+        ok: false,
+        reason: "iframe",
+        message:
+          "Notifications can't be enabled inside the in-app preview. Open the app in a full browser tab (or the published/installed app), then tap Test again.",
+      };
+    }
+
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
       return {
