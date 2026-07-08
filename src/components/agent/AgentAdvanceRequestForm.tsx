@@ -692,7 +692,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               </p>
               {allocBonus > 0 && (
                 <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                  +{formatUGX(allocBonus)} earned from tenant allocations
+                  +{formatUGX(allocBonus)} earned from rent you collected
                 </p>
               )}
             </div>
