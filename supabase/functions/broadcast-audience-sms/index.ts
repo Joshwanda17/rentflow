@@ -10,8 +10,9 @@ const VALID_AUDIENCES = ['tenant', 'agent', 'landlord'] as const;
 type Audience = (typeof VALID_AUDIENCES)[number];
 
 function formatPhoneInternational(phone: string): string {
-  const digits = (phone || '').replace(/[^0-9]/g, '');
+  let digits = (phone || '').replace(/[^0-9]/g, '');
   if (!digits) return '';
+  if (digits.startsWith('2560') && digits.length >= 13) digits = `256${digits.slice(4)}`;
   if (digits.startsWith('256')) return `+${digits}`;
   if (digits.startsWith('0')) return `+256${digits.slice(1)}`;
   if (digits.length === 9) return `+256${digits}`;
@@ -22,16 +23,27 @@ function isValidPhone(p: string | null | undefined): boolean {
   if (!p) return false;
   const t = String(p).trim();
   if (!t || t === '-') return false;
-  return t.replace(/\D/g, '').length >= 7;
+  return /^\+256\d{9}$/.test(formatPhoneInternational(t));
 }
 
 const toBareDigits = (p: string) => formatPhoneInternational(p).replace(/^\+/, '');
 
 type SmsResult = { accepted: boolean; provider?: string; reason?: string };
 
+function combineFailureReasons(results: SmsResult[]): string {
+  const reasons = results
+    .filter((r) => !r.accepted && r.reason)
+    .map((r) => r.provider ? `${r.provider}:${r.reason}` : r.reason!);
+  return Array.from(new Set(reasons)).join(' | ') || 'all_sms_providers_failed';
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function sendViaYoola(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get('YOOLA_SMS_API_KEY')?.trim();
-  if (!apiKey) return { accepted: false, reason: 'yoola_not_configured' };
+  if (!apiKey) return { accepted: false, provider: 'yoola', reason: 'not_configured' };
   try {
     const res = await fetch('https://yoolasms.com/api/v1/send', {
       method: 'POST',
@@ -46,16 +58,16 @@ async function sendViaYoola(phone: string, message: string): Promise<SmsResult> 
       return { accepted: true, provider: 'yoola' };
     }
     if (res.ok && !data?.error && status === '') return { accepted: true, provider: 'yoola' };
-    return { accepted: false, reason: `yoola_${res.status}_${status || 'rejected'}` };
+    return { accepted: false, provider: 'yoola', reason: `${res.status}_${status || 'rejected'}` };
   } catch (e) {
-    return { accepted: false, reason: (e as Error).message };
+    return { accepted: false, provider: 'yoola', reason: (e as Error).message };
   }
 }
 
 async function sendViaAfricasTalking(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
   const username = Deno.env.get('AFRICASTALKING_USERNAME');
-  if (!apiKey || !username) return { accepted: false, reason: 'missing_credentials' };
+  if (!apiKey || !username) return { accepted: false, provider: 'africastalking', reason: 'missing_credentials' };
   const isSandbox = username.toLowerCase() === 'sandbox';
   const url = isSandbox
     ? 'https://api.sandbox.africastalking.com/version1/messaging'
@@ -72,17 +84,17 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
     if (recipients && recipients.length > 0) {
       const s = recipients[0].statusCode;
       if (s === 101 || s === 100 || s === 102) return { accepted: true, provider: 'africastalking' };
-      return { accepted: false, reason: `at_status_${s}` };
+      return { accepted: false, provider: 'africastalking', reason: `status_${s}` };
     }
-    return { accepted: false, reason: 'at_no_recipients' };
+    return { accepted: false, provider: 'africastalking', reason: 'no_recipients' };
   } catch (e) {
-    return { accepted: false, reason: (e as Error).message };
+    return { accepted: false, provider: 'africastalking', reason: (e as Error).message };
   }
 }
 
 async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get('LANA_SMS_API_KEY')?.trim();
-  if (!apiKey) return { accepted: false, reason: 'lana_not_configured' };
+  if (!apiKey) return { accepted: false, provider: 'lana', reason: 'not_configured' };
   try {
     const res = await fetch('https://api.lanasms.com/v1/send', {
       method: 'POST',
@@ -97,22 +109,35 @@ async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
     if (res.ok && (raw === true || s === 'success' || s === 'true' || s === 'ok' || s === 'sent' || s === 'queued')) {
       return { accepted: true, provider: 'lana' };
     }
-    return { accepted: false, reason: `lana_${res.status}_rejected` };
+    return { accepted: false, provider: 'lana', reason: `${res.status}_rejected` };
   } catch (e) {
-    return { accepted: false, reason: (e as Error).message };
+    return { accepted: false, provider: 'lana', reason: (e as Error).message };
   }
 }
 
 async function sendSMS(phone: string, message: string): Promise<SmsResult> {
+  if (!isValidPhone(phone)) return { accepted: false, reason: 'invalid_ugandan_phone' };
+  const failures: SmsResult[] = [];
   const yoola = await sendViaYoola(phone, message);
   if (yoola.accepted) return yoola;
+  failures.push(yoola);
   const at = await sendViaAfricasTalking(phone, message);
   if (at.accepted) return at;
+  failures.push(at);
   const lana = await sendViaLana(phone, message);
   if (lana.accepted) return lana;
-  if (yoola.reason && yoola.reason !== 'yoola_not_configured') return yoola;
-  if (at.reason && at.reason !== 'missing_credentials') return at;
-  return lana;
+  failures.push(lana);
+  return { accepted: false, reason: combineFailureReasons(failures) };
+}
+
+async function sendSMSWithRetries(phone: string, message: string, attempts = 3): Promise<SmsResult> {
+  let last: SmsResult = { accepted: false, reason: 'not_attempted' };
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    last = await sendSMS(phone, message);
+    if (last.accepted) return last;
+    if (attempt < attempts) await delay(750 * attempt);
+  }
+  return last;
 }
 
 async function fetchRoleUserPhones(admin: any, role: Audience): Promise<{ user_id: string; phone: string }[]> {
@@ -305,11 +330,43 @@ Deno.serve(async (req) => {
 
       const pending = recipients.filter((r) => !alreadySent.has(r.phone));
 
+      // Older runs accepted loose phone formats (for example +2560...). Those
+      // rows cannot be flipped by a normalized retry because the unique key is
+      // campaign_key + phone. Preserve the audit row, but stop counting stale
+      // malformed/non-audience rows as retryable failures on the status page.
+      const validCampaignPhones = new Set(recipients.map((r) => r.phone));
+      const staleFailedIds: string[] = [];
+      from = 0;
+      while (true) {
+        const { data, error } = await admin
+          .from('sms_broadcast_log')
+          .select('id, phone')
+          .eq('campaign_key', campaignKey)
+          .eq('status', 'failed')
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        for (const r of data) {
+          if (!validCampaignPhones.has(r.phone)) {
+            staleFailedIds.push(r.id);
+          }
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      for (let i = 0; i < staleFailedIds.length; i += 200) {
+        await admin
+          .from('sms_broadcast_log')
+          .update({ status: 'invalid', reason: 'invalid_or_stale_phone' })
+          .in('id', staleFailedIds.slice(i, i + 200))
+          .then(() => {})
+          .catch(() => {});
+      }
+
       const process = async () => {
-        const BATCH = 40;
+        const BATCH = 8;
         for (let i = 0; i < pending.length; i += BATCH) {
           const batch = pending.slice(i, i + BATCH);
-          const results = await Promise.all(batch.map((r) => sendSMS(r.phone, message)));
+          const results = await Promise.all(batch.map((r) => sendSMSWithRetries(r.phone, message)));
           const rows = batch.map((r, idx) => ({
             campaign_key: campaignKey,
             phone: r.phone,
@@ -323,6 +380,7 @@ Deno.serve(async (req) => {
             .upsert(rows, { onConflict: 'campaign_key,phone' })
             .then(() => {})
             .catch(() => {});
+          await delay(500);
         }
         // Mark the campaign as complete once this pass drains its pending set.
         await admin
