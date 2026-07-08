@@ -57,3 +57,84 @@ export function isPushSupported(): boolean {
     "Notification" in window
   );
 }
+
+export type EnsurePushResult =
+  | { ok: true; endpoint: string; p256dh: string; auth: string }
+  | { ok: false; reason: "unsupported" | "denied" | "error"; message: string };
+
+/**
+ * Ensures the current device has a valid, up-to-date web push subscription and
+ * that it is saved to `push_subscriptions` for the given user.
+ *
+ * Flow:
+ *  1. Requests Notification permission (prompts the browser if not decided yet).
+ *  2. Registers the push service worker (`/sw.js`).
+ *  3. Reuses a valid subscription, or replaces a stale-key / missing one.
+ *  4. Upserts endpoint + keys via the provided saver.
+ *
+ * Returns a discriminated result so callers can react without duplicating the
+ * permission / subscription plumbing.
+ */
+export async function ensurePushSubscription(
+  saveSubscription: (sub: { endpoint: string; p256dh: string; auth: string }) => Promise<void>,
+  deleteByEndpoint?: (endpoint: string) => Promise<void>,
+): Promise<EnsurePushResult> {
+  if (!isPushSupported()) {
+    return {
+      ok: false,
+      reason: "unsupported",
+      message: "This browser or device does not support web push notifications.",
+    };
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      return {
+        ok: false,
+        reason: "denied",
+        message:
+          permission === "denied"
+            ? "Notifications are blocked for this site. Allow them in your browser's site settings, then tap Test again."
+            : "Notification permission was not granted. Tap Test again and choose Allow.",
+      };
+    }
+
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (subscription && !subscriptionUsesCurrentVapidKey(subscription)) {
+      if (deleteByEndpoint) await deleteByEndpoint(subscription.endpoint);
+      await subscription.unsubscribe();
+      subscription = null;
+    }
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+      });
+    }
+
+    const json = subscription.toJSON();
+    const p256dh = json.keys?.p256dh ?? arrayBufferToBase64(subscription.getKey("p256dh"));
+    const auth = json.keys?.auth ?? arrayBufferToBase64(subscription.getKey("auth"));
+    if (!p256dh || !auth) {
+      return {
+        ok: false,
+        reason: "error",
+        message: "This device subscription is incomplete. Turn notifications off and on again, then test.",
+      };
+    }
+
+    await saveSubscription({ endpoint: subscription.endpoint, p256dh, auth });
+    return { ok: true, endpoint: subscription.endpoint, p256dh, auth };
+  } catch (err) {
+    console.error("ensurePushSubscription failed:", err);
+    return {
+      ok: false,
+      reason: "error",
+      message: "Could not enable notifications on this device. Please try again.",
+    };
+  }
+}
