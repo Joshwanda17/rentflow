@@ -10,8 +10,9 @@ const VALID_AUDIENCES = ['tenant', 'agent', 'landlord'] as const;
 type Audience = (typeof VALID_AUDIENCES)[number];
 
 function formatPhoneInternational(phone: string): string {
-  const digits = (phone || '').replace(/[^0-9]/g, '');
+  let digits = (phone || '').replace(/[^0-9]/g, '');
   if (!digits) return '';
+  if (digits.startsWith('2560') && digits.length >= 13) digits = `256${digits.slice(4)}`;
   if (digits.startsWith('256')) return `+${digits}`;
   if (digits.startsWith('0')) return `+256${digits.slice(1)}`;
   if (digits.length === 9) return `+256${digits}`;
@@ -22,7 +23,7 @@ function isValidPhone(p: string | null | undefined): boolean {
   if (!p) return false;
   const t = String(p).trim();
   if (!t || t === '-') return false;
-  return t.replace(/\D/g, '').length >= 7;
+  return /^\+256\d{9}$/.test(formatPhoneInternational(t));
 }
 
 const toBareDigits = (p: string) => formatPhoneInternational(p).replace(/^\+/, '');
@@ -115,6 +116,7 @@ async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
 }
 
 async function sendSMS(phone: string, message: string): Promise<SmsResult> {
+  if (!isValidPhone(phone)) return { accepted: false, reason: 'invalid_ugandan_phone' };
   const failures: SmsResult[] = [];
   const yoola = await sendViaYoola(phone, message);
   if (yoola.accepted) return yoola;
