@@ -415,7 +415,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[92vh] w-full max-w-md mx-auto inset-x-0 overflow-y-auto rounded-t-2xl px-4 pb-6 pt-5">
+      <SheetContent side="bottom" className="h-[92vh] w-full max-w-lg mx-auto inset-x-0 overflow-y-auto rounded-t-2xl px-4 pb-6 pt-5">
         {/* Hero — clear, professional, minimalist value proposition */}
         <div className="mb-5 rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-6 text-card-foreground shadow-lg ring-1 ring-primary/20">
           <div className="flex items-center gap-2 mb-3">
