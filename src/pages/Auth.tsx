@@ -1094,6 +1094,7 @@ export default function Auth() {
                     isLoading={isAppleLoading}
                   />
                 </div>
+                <OAuthDomainNotice />
 
                 <div className="relative flex items-center py-1">
                   <div className="flex-1 border-t border-border/40" />
