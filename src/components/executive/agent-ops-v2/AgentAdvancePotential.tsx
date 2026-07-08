@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
   Search, TrendingUp, Users, Network, Home, FileText, Wallet, Phone,
-  MessageCircle, Sparkles, Info, ChevronRight, Target, Loader2,
+  MessageCircle, Sparkles, Info, ChevronRight, Target, Loader2, User,
 } from 'lucide-react';
 
 interface PotentialRow {
@@ -58,6 +58,24 @@ function tierLabel(score: number) {
   if (score >= 75) return 'High potential';
   if (score >= 50) return 'Growing';
   return 'Early stage';
+}
+
+function AgentAvatar({ src, name }: { src: string | null; name: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const showImg = !!src && !failed;
+  return showImg ? (
+    <img
+      src={src as string}
+      alt={name ?? ''}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="h-10 w-10 rounded-full object-cover bg-muted"
+    />
+  ) : (
+    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+      <User className="h-5 w-5" />
+    </div>
+  );
 }
 
 export function AgentAdvancePotential() {
@@ -170,13 +188,7 @@ export function AgentAdvancePotential() {
           >
             <div className="flex items-center gap-3">
               <div className="relative shrink-0">
-                {r.avatar_url ? (
-                  <img src={r.avatar_url} alt={r.full_name ?? ''} className="h-10 w-10 rounded-full object-cover" />
-                ) : (
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold">
-                    {(r.full_name ?? '?').charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <AgentAvatar src={r.avatar_url} name={r.full_name} />
                 <span className="absolute -top-1 -left-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                   {i + 1}
                 </span>
