@@ -313,24 +313,7 @@ export function ProxyPartnerFunds() {
     if (!user?.id) return;
     if (showSpinner) setLoading(true);
     try {
-      // Step 1: Get ROI payouts explicitly approved by a CFO-role user
-      const { getCfoUserIds } = await import('@/lib/cfoUserIds');
-      const cfoIds = await getCfoUserIds();
-      if (cfoIds.length === 0) {
-        setApprovedOps([]);
-        setProfiles({});
-        setCompletedWithdrawals([]);
-        setPortfolios([]);
-        setPartnerWithdrawalStatus({});
-        setActiveWithdrawalsByPartner({});
-        setActiveWithdrawalsByCard({});
-        setLastTerminalByPartner({});
-        setStrictWithdrawableByPartner({});
-        setPartnerIdsForRealtime([]);
-        setPortfolioIdsForRealtime([]);
-        setLoading(false);
-        return;
-      }
+      // Step 1: Get ROI payouts approved through the Partner Ops → COO → CFO flow.
       // Two sources of CFO-approved ROI payouts the agent should see:
       //
       //   (A) LEGACY custody — `pending_wallet_operations.target_wallet_user_id
