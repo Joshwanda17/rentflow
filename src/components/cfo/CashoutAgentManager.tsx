@@ -824,10 +824,33 @@ export function CashoutAgentManager() {
           </TabsList>
 
           <TabsContent value="transactions" className="space-y-2 mt-3">
-            {selectedAgentPayouts.length === 0 ? (
-              <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
+            {/* Date filter — narrow the payouts list to a single day */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  type="date"
+                  value={txnDateFilter}
+                  onChange={(e) => setTxnDateFilter(e.target.value)}
+                  className="h-9 pl-8 text-xs"
+                  aria-label="Filter payouts by date"
+                />
+              </div>
+              {txnDateFilter && (
+                <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => setTxnDateFilter('')}>
+                  <XCircle className="h-3.5 w-3.5 mr-1" /> Clear
+                </Button>
+              )}
+              <Badge variant="outline" className="text-[10px] shrink-0">
+                {visiblePayouts.length} payout{visiblePayouts.length === 1 ? '' : 's'}
+              </Badge>
+            </div>
+            {visiblePayouts.length === 0 ? (
+              <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
+                {txnDateFilter ? 'No payouts on the selected date' : 'No completed payouts yet'}
+              </CardContent></Card>
             ) : (
-              selectedAgentPayouts.map((py: any) => {
+              visiblePayouts.map((py: any) => {
                 const isDup = duplicatePayouts.flaggedIds.has(String(py.id));
                 return (
               <Card key={py.id} className={`cursor-pointer hover:bg-muted/40 transition-colors${isDup ? ' border-destructive/50 bg-destructive/5' : ''}`} onClick={() => setCommentClaim(py)}>
