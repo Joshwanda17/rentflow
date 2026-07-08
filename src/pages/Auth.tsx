@@ -321,6 +321,28 @@ export default function Auth() {
     await handleGoogleSignIn();
   };
 
+  // Deep-link auto-start: EnvironmentBanner (and shared links) can open
+  // `/auth?oauth=google|apple` on the correct origin to kick off that provider
+  // immediately. Consume the param once so a reload doesn't re-trigger it.
+  const oauthAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (oauthAutoStartedRef.current) return;
+    const provider = searchParams.get('oauth');
+    if (provider !== 'google' && provider !== 'apple') return;
+    oauthAutoStartedRef.current = true;
+    const next = new URLSearchParams(searchParams);
+    next.delete('oauth');
+    setSearchParams(next, { replace: true });
+    if (provider === 'google') {
+      void wrappedHandleGoogleSignIn();
+    } else {
+      localStorage.setItem('welile_last_login_method', 'apple');
+      setDeviceTrust(true);
+      void handleAppleSignIn();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
