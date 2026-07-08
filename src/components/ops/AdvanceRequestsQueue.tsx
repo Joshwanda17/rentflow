@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import {
   CheckCircle2, XCircle, Loader2, Clock, User, Sparkles, Info, TrendingUp,
   Users, Network, Wallet, Home, FileText, ChevronRight, Target, AlertTriangle,
+  PiggyBank, Coins, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
