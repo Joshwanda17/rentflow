@@ -314,23 +314,30 @@ export function AgentRentCapacityPanel({
     },
   });
 
+  // Only surface qualifying agents (behaviour-based agent definition) so the
+  // capacity list matches "who is an agent" everywhere in the dashboard.
+  const rows = useMemo(() => {
+    if (!qualifyingReady) return data || [];
+    return (data || []).filter((r) => qualifyingIds.has(r.agent_id));
+  }, [data, qualifyingIds, qualifyingReady]);
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return data || [];
-    return (data || []).filter(
+    if (!term) return rows;
+    return rows.filter(
       (r) =>
         r.name.toLowerCase().includes(term) ||
         (r.phone || '').toLowerCase().includes(term),
     );
-  }, [data, search]);
+  }, [rows, search]);
 
   const visible = showAll ? filtered : filtered.slice(0, defaultLimit);
 
   // Aggregate KPIs
-  const totalUsed = (data || []).reduce((s, r) => s + r.used, 0);
-  const totalCap = (data || []).length * AGENT_RENT_CAP_UGX;
+  const totalUsed = rows.reduce((s, r) => s + r.used, 0);
+  const totalCap = rows.length * AGENT_RENT_CAP_UGX;
   const totalHeadroom = Math.max(totalCap - totalUsed, 0);
-  const atRisk = (data || []).filter(
+  const atRisk = rows.filter(
     (r) => r.used / AGENT_RENT_CAP_UGX >= 0.85,
   ).length;
 
