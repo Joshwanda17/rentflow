@@ -1092,12 +1092,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className={cn("space-y-5", tabAnimClass)}>
             {/* Prominent Agent Advance promo — high-visibility entry point so
                 agents always see the cash they can access instantly. */}
-            <button
-              onClick={() => { hapticTap(); setAdvanceRequestOpen(true); }}
-              className="relative w-full overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-5 text-left text-card-foreground shadow-lg ring-1 ring-primary/20 active:scale-[0.98] transition-all touch-manipulation"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="absolute inset-y-0 right-0 w-28 bg-primary/10" />
+            <div className="relative w-full overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-5 text-card-foreground shadow-lg ring-1 ring-primary/20">
               <div className="relative">
                 <div className="flex items-center gap-2">
                   <div className="rounded-full bg-primary/15 p-1.5 text-primary">
@@ -1109,14 +1104,33 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <p className="mt-1 text-3xl font-black leading-none text-primary whitespace-pre-line">
                   {formatCreditAmount(advanceLimit?.totalLimit || 30000)}
                 </p>
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+                  <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
+                  Grow up to UGX 50,000,000 as you perform better
+                </div>
                 <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
                   Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
                 </p>
-                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm">
-                  Request advance <ChevronRight className="h-3.5 w-3.5" />
-                </span>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setAdvanceRequestOpen(true); }}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm active:scale-[0.97] transition-transform touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    Request advance <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setAdvanceGuideOpen(true); }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3.5 py-1.5 text-xs font-bold text-primary active:scale-[0.97] transition-transform touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> How to increase my limit
+                  </button>
+                </div>
               </div>
-            </button>
+            </div>
 
             {/* Quick-access money cards: 4 clear destinations */}
             {moneyTabLoading ? (
