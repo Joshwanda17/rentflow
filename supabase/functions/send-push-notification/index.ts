@@ -172,19 +172,9 @@ async function createVapidJwt(audience: string): Promise<string> {
     'pkcs8',
     pkcs8 as BufferSource,
     { name: 'ECDSA', namedCurve: 'P-256' },
-    true,
+    false,
     ['sign']
   );
-  try {
-    const jwk = await crypto.subtle.exportKey('jwk', key);
-    const pub = base64urlToBytes(VAPID_PUBLIC_KEY);
-    console.log('VAPID pair check', {
-      priv_x: jwk.x,
-      priv_y: jwk.y,
-      pub_x: base64urlEncode(pub.slice(1, 33)),
-      pub_y: base64urlEncode(pub.slice(33, 65)),
-    });
-  } catch (_e) { /* ignore */ }
 
   const signature = await crypto.subtle.sign(
     { name: 'ECDSA', hash: 'SHA-256' },
