@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import {
   Users, UsersRound, TrendingUp, UserPlus, Trophy, Search, Crown, Medal, ShieldCheck, Clock,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -72,6 +73,8 @@ const rankAccent = ['text-amber-500', 'text-slate-400', 'text-orange-600'];
 export function AgentLeaderboardPanel() {
   const [period, setPeriod] = useState<Period>('monthly');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-leaderboard-stats', period],
@@ -99,6 +102,18 @@ export function AgentLeaderboardPanel() {
       i.sub_agent_phone?.toLowerCase().includes(q),
     );
   }, [data?.invitees, search]);
+
+  // Reset to first page whenever the filter or period changes.
+  useEffect(() => { setPage(1); }, [search, period]);
+
+  const totalPages = Math.max(1, Math.ceil(invitees.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedInvitees = useMemo(
+    () => invitees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [invitees, currentPage],
+  );
+  const rangeStart = invitees.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, invitees.length);
 
   // Label for the current selected period (Daily = today, etc.)
   const periodNoun =
