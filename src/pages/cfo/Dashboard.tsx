@@ -386,8 +386,12 @@ export default function CFODashboardPage() {
   };
 
   return (
-    <ExecutiveDashboardLayout role="cfo" activeTab={activeTab} onTabChange={setActiveTab}>
-      {/* advanceDisbursementCount is applied below via badges */}
+    <ExecutiveDashboardLayout
+      role="cfo"
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      badges={{ advances: advanceDisbursementCount }}
+    >
       <CFOBreadcrumbHeader
         activeTab={activeTab}
         onJump={setActiveTab}
