@@ -27,6 +27,7 @@ import {
   Banknote, UserPlus, Loader2, XCircle, Building2, Smartphone, Phone, Mail, MapPin,
   CreditCard, Calendar, Shield, Wallet, Users, TrendingUp, ArrowLeft, Search, CheckCircle2, Clock,
   Network, Activity, Zap, Pencil, Trash2, FileCheck, FileWarning, Download, Monitor, Globe,
+  ChevronRight, ChevronDown, Hash, Inbox,
 } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
