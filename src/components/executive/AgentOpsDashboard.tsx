@@ -279,6 +279,7 @@ export function AgentOpsDashboard() {
   ) : bottomTab !== 'more' ? (
     <div className="space-y-4">
       <AgentMonthlyKpis />
+      <AdvanceAnalyticsPanel />
       <AgentOpsHomeView
         range={dateRange}
         onRangeChange={setDateRange}
