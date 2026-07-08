@@ -1,12 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
-  Megaphone, Send, XCircle, Clock, RefreshCw, CheckCircle2, Loader2, Radio,
+  Megaphone, Send, XCircle, Clock, RefreshCw, CheckCircle2, Loader2, Radio, RotateCw,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 interface CampaignStatus {
   campaign_key: string;
@@ -48,11 +51,39 @@ function StatusBadge({ status, queued }: { status: string; queued: number }) {
 }
 
 function CampaignCard({ c }: { c: CampaignStatus }) {
+  const queryClient = useQueryClient();
+  const [retrying, setRetrying] = useState(false);
   const processed = c.sent + c.failed;
   const queued = Math.max(0, c.total_recipients - processed);
   const retries = Math.max(0, c.run_count - 1);
   const pct = c.total_recipients > 0 ? Math.min(100, (processed / c.total_recipients) * 100) : 0;
   const failRate = processed > 0 ? (c.failed / processed) * 100 : 0;
+  const outstanding = c.failed + queued;
+
+  const handleRetry = async () => {
+    if (retrying) return;
+    if (!c.message || !c.audiences || c.audiences.length === 0) {
+      toast.error('Cannot retry — campaign is missing its message or audience.');
+      return;
+    }
+    setRetrying(true);
+    try {
+      const { error } = await supabase.functions.invoke('broadcast-audience-sms', {
+        body: {
+          campaign_key: c.campaign_key,
+          audiences: c.audiences,
+          message: c.message,
+        },
+      });
+      if (error) throw error;
+      toast.success(`Retry started — re-firing ${num(outstanding)} outstanding recipient${outstanding === 1 ? '' : 's'}.`);
+      queryClient.invalidateQueries({ queryKey: ['sms-broadcast-status'] });
+    } catch (e) {
+      toast.error(`Retry failed: ${(e as Error)?.message ?? 'unknown error'}`);
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
@@ -107,17 +138,33 @@ function CampaignCard({ c }: { c: CampaignStatus }) {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-        {c.last_activity && (
-          <span className="inline-flex items-center gap-1">
-            <Radio className="h-3 w-3" /> Last delivery {formatDistanceToNow(new Date(c.last_activity), { addSuffix: true })}
-          </span>
-        )}
-        {c.last_run_at && (
-          <span className="inline-flex items-center gap-1">
-            <RefreshCw className="h-3 w-3" /> Last run {formatDistanceToNow(new Date(c.last_run_at), { addSuffix: true })}
-          </span>
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+          {c.last_activity && (
+            <span className="inline-flex items-center gap-1">
+              <Radio className="h-3 w-3" /> Last delivery {formatDistanceToNow(new Date(c.last_activity), { addSuffix: true })}
+            </span>
+          )}
+          {c.last_run_at && (
+            <span className="inline-flex items-center gap-1">
+              <RefreshCw className="h-3 w-3" /> Last run {formatDistanceToNow(new Date(c.last_run_at), { addSuffix: true })}
+            </span>
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant={outstanding > 0 ? 'default' : 'outline'}
+          onClick={handleRetry}
+          disabled={retrying || outstanding === 0}
+          className="gap-1.5"
+        >
+          {retrying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+          {retrying
+            ? 'Retrying…'
+            : outstanding > 0
+              ? `Retry failed (${num(outstanding)})`
+              : 'All delivered'}
+        </Button>
       </div>
 
       {c.message && (
