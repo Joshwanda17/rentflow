@@ -21514,7 +21514,9 @@ export type Database = {
           earnings_total: number
         }[]
       }
-      get_agent_ops_monthly_kpis: { Args: never; Returns: Json }
+      get_agent_ops_monthly_kpis:
+        | { Args: never; Returns: Json }
+        | { Args: { _month?: string }; Returns: Json }
       get_agent_ops_totals: {
         Args: never
         Returns: {
