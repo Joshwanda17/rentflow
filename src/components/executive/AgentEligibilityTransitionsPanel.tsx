@@ -7,6 +7,7 @@ import {
   type EligibilityRating,
 } from '@/hooks/useAgentEligibilityHistory';
 import { formatUGX } from '@/lib/rentCalculations';
+import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 
 /**
  * Fleet-wide eligibility transitions feed: every time an agent moved between
@@ -21,10 +22,18 @@ export function AgentEligibilityTransitionsPanel({
   const [dir, setDir] = useState<'all' | 'up' | 'down'>('all');
   const [showAll, setShowAll] = useState(false);
   const { data, isLoading } = useAgentEligibilityTransitions(days, 500);
+  const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
+
+  // Restrict the feed to real agents (behaviour-based qualifying set) — not
+  // every platform user who happens to have an eligibility snapshot.
+  const agentsOnly = useMemo(() => {
+    if (!qualifyingReady || qualifyingIds.size === 0) return data || [];
+    return (data || []).filter((t) => qualifyingIds.has(t.agent_id));
+  }, [data, qualifyingIds, qualifyingReady]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return (data || []).filter((t) => {
+    return agentsOnly.filter((t) => {
       if (dir !== 'all' && t.direction !== dir) return false;
       if (!term) return true;
       return (
@@ -32,12 +41,12 @@ export function AgentEligibilityTransitionsPanel({
         (t.agent_phone || '').toLowerCase().includes(term)
       );
     });
-  }, [data, search, dir]);
+  }, [agentsOnly, search, dir]);
 
   const visible = showAll ? filtered : filtered.slice(0, defaultLimit);
 
-  const upCount = (data || []).filter(t => t.direction === 'up').length;
-  const downCount = (data || []).filter(t => t.direction === 'down').length;
+  const upCount = agentsOnly.filter(t => t.direction === 'up').length;
+  const downCount = agentsOnly.filter(t => t.direction === 'down').length;
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -57,7 +66,7 @@ export function AgentEligibilityTransitionsPanel({
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-3">
-          <Stat label="Total changes" value={(data || []).length} tone="text-violet-600" />
+          <Stat label="Total changes" value={agentsOnly.length} tone="text-violet-600" />
           <Stat label="Upgrades" value={upCount} tone="text-emerald-600" />
           <Stat label="Downgrades" value={downCount} tone="text-destructive" />
         </div>
