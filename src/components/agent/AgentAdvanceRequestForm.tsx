@@ -415,29 +415,29 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[92vh] overflow-y-auto rounded-t-2xl px-4 pb-6 pt-5">
+      <SheetContent side="bottom" className="h-[92vh] w-full max-w-md mx-auto inset-x-0 overflow-y-auto rounded-t-2xl px-4 pb-6 pt-5">
         {/* Hero — clear, professional, minimalist value proposition */}
-        <div className="mb-5 rounded-3xl bg-gradient-to-br from-primary via-primary to-primary/80 p-6 text-primary-foreground shadow-lg">
+        <div className="mb-5 rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-6 text-card-foreground shadow-lg ring-1 ring-primary/20">
           <div className="flex items-center gap-2 mb-3">
-            <div className="rounded-full bg-white/20 p-1.5">
+            <div className="rounded-full bg-primary/15 p-1.5 text-primary">
               <Banknote className="h-4 w-4" />
             </div>
-            <span className="text-[11px] font-bold uppercase tracking-widest opacity-90">Agent Advance</span>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-primary">Agent Advance</span>
           </div>
-          <h1 className="text-[22px] font-extrabold leading-tight">
+          <h1 className="text-[22px] font-extrabold leading-tight text-foreground">
             Welile lends money to active agents
           </h1>
-          <p className="text-sm font-medium opacity-90 mt-1.5 leading-snug">
-            Get up to <span className="font-extrabold">UGX 30M</span> sent straight to your wallet, and pay it back over a period of up to <span className="font-extrabold">12 months</span>.
+          <p className="text-sm font-medium text-muted-foreground mt-1.5 leading-snug">
+            Get up to <span className="font-extrabold text-primary">UGX 30M</span> sent straight to your wallet, and pay it back over a period of up to <span className="font-extrabold text-primary">12 months</span>.
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-white/15 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">Up to</p>
-              <p className="text-lg font-extrabold leading-none mt-0.5">UGX 30M</p>
+            <div className="rounded-2xl bg-primary/10 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Up to</p>
+              <p className="text-lg font-extrabold leading-none mt-0.5 text-primary">UGX 30M</p>
             </div>
-            <div className="rounded-2xl bg-white/15 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">Pay back over</p>
-              <p className="text-lg font-extrabold leading-none mt-0.5">12 months</p>
+            <div className="rounded-2xl bg-primary/10 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pay back over</p>
+              <p className="text-lg font-extrabold leading-none mt-0.5 text-primary">12 months</p>
             </div>
           </div>
         </div>
