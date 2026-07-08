@@ -134,20 +134,20 @@ export default function AgentLeaderboard() {
             <p className="mt-2 max-w-md text-sm text-white/85 sm:text-base">
               Invite more sub-agents, climb the rankings, and grow your earnings.
             </p>
-            <div className="mt-5 flex flex-wrap gap-2.5">
+            <div className="mt-5 flex flex-nowrap gap-2.5">
               <Button
                 onClick={() => { hapticTap(); navigate('/sub-agents'); }}
-                className="rounded-full font-semibold text-white shadow-lg"
+                className="flex-1 min-w-0 rounded-full px-3 text-sm font-semibold text-white shadow-lg sm:flex-none sm:px-4"
                 style={{ background: 'linear-gradient(135deg, #9334EB, #6D28D9)' }}
               >
-                <UserPlus className="mr-1.5 h-4 w-4" /> Invite Sub-Agent
+                <UserPlus className="mr-1.5 h-4 w-4 shrink-0" /> <span className="truncate">Invite Sub-Agent</span>
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => { hapticTap(); navigate('/sub-agents'); }}
-                className="rounded-full border border-white/40 bg-white/10 font-semibold text-white backdrop-blur-sm hover:bg-white/20"
+                className="flex-1 min-w-0 rounded-full border border-white/40 bg-white/10 px-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 sm:flex-none sm:px-4"
               >
-                <Users className="mr-1.5 h-4 w-4" /> View My Network
+                <Users className="mr-1.5 h-4 w-4 shrink-0" /> <span className="truncate">View My Network</span>
               </Button>
             </div>
           </motion.div>
