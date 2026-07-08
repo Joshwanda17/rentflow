@@ -32,7 +32,7 @@ export function CFOAdvanceRequestPayments() {
   const [adjustedCycles, setAdjustedCycles] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'coo_approved' | 'cfo_approved'>('all');
+  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   // Income Statement Impact preview — date range
@@ -49,14 +49,16 @@ export function CFOAdvanceRequestPayments() {
     },
   });
 
-  // Fetch ALL agent advance applications so CFO sees every stage (pending, coo_approved, etc.)
+  // Fetch ALL agent advance applications so CFO sees every stage. After Agent Ops
+  // approves, a request lands at 'agent_ops_approved' and comes straight to the CFO —
+  // there are no intermediate ops desks.
   const { data: allRequests = [], isLoading } = useQuery({
     queryKey: ['cfo-advance-requests'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advance_requests')
         .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
-        .in('status', ['pending', 'coo_approved', 'cfo_approved'])
+        .in('status', ['pending', 'agent_ops_approved', 'cfo_approved'])
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -64,11 +66,11 @@ export function CFOAdvanceRequestPayments() {
   });
 
   const pendingApplications = (allRequests as any[]).filter(r => r.status === 'pending');
-  const readyToPay = (allRequests as any[]).filter(r => r.status === 'coo_approved');
+  const readyToPay = (allRequests as any[]).filter(r => r.status === 'agent_ops_approved');
   const cfoApproved = (allRequests as any[]).filter(r => r.status === 'cfo_approved');
   const requests = stageFilter === 'pending'
     ? pendingApplications
-    : stageFilter === 'coo_approved'
+    : stageFilter === 'ready'
       ? readyToPay
       : stageFilter === 'cfo_approved'
         ? cfoApproved
@@ -380,9 +382,9 @@ export function CFOAdvanceRequestPayments() {
           </Button>
           <Button
             size="sm"
-            variant={stageFilter === 'coo_approved' ? 'default' : 'outline'}
+            variant={stageFilter === 'ready' ? 'default' : 'outline'}
             className="h-7 text-[11px]"
-            onClick={() => setStageFilter('coo_approved')}
+            onClick={() => setStageFilter('ready')}
           >
             Ready to Pay <span className="ml-1 opacity-70">{readyToPay.length}</span>
           </Button>
@@ -596,7 +598,7 @@ export function CFOAdvanceRequestPayments() {
         <>
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold">
-              {stageFilter === 'pending' ? 'Agent-Submitted Applications' : stageFilter === 'coo_approved' ? 'COO-Approved · Awaiting CFO Approval' : stageFilter === 'cfo_approved' ? 'CFO-Approved · Ready to Disburse' : 'All Agent Advance Applications'}
+              {stageFilter === 'pending' ? 'Agent-Submitted Applications' : stageFilter === 'ready' ? 'Agent Ops-Approved · Awaiting CFO Approval' : stageFilter === 'cfo_approved' ? 'CFO-Approved · Ready to Disburse' : 'All Agent Advance Applications'}
             </h3>
             <Badge variant="secondary">{requests.length} shown</Badge>
           </div>
