@@ -89,7 +89,7 @@ export function receiptMethodLabel(payoutMethod?: string) {
 
 export function receiptPublicUrl(data: PayoutReceiptData) {
   return data.receipt_token
-    ? `https://welilereceipts.com/r/${data.receipt_token}`
+    ? `https://welilereceipts-com.lovable.app/r/${data.receipt_token}`
     : (typeof window !== 'undefined' ? window.location.href : '');
 }
 
