@@ -365,6 +365,8 @@ function AgentDetailDialog({ row, onClose }: { row: PotentialRow | null; onClose
               {row.rent_collected < 2000000 && <li>Push daily rent collections to strengthen repayment capacity.</li>}
               {!row.has_active_advance && <li>Offer a starter advance now to activate them in the programme.</li>}
               {repayPct != null && repayPct >= 80 && <li>Strong repayer — safe to upsell a larger advance.</li>}
+              {row.advances_count === 0 && <li>Start with the small suggested amount — it grows automatically as they repay.</li>}
+              {row.outstanding_total > 0 && <li>Encourage clearing the outstanding balance early — it unlocks a higher next advance.</li>}
             </ul>
           </div>
         </div>
