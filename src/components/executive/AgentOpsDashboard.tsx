@@ -226,6 +226,7 @@ export function AgentOpsDashboard() {
         </div>
       );
       case 'advance-potential': return <AgentAdvancePotential />;
+      case 'advance-repayments': return <AdvanceRepaymentsPanel />;
       case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
         <div className="rounded-2xl border border-border bg-card p-3">
