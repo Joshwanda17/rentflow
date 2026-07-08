@@ -512,8 +512,11 @@ export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean 
         const rate = expected > 0 ? Math.round((collected / expected) * 100) : 0;
         return { id, name: names[id] || id.slice(0, 8), expected, collected, rate };
       })
-      .filter((r) => r.expected > 0 || r.collected > 0);
-  }, [agentIds, expectedByAgent, collectedByAgent, names, days]);
+      .filter((r) => r.expected > 0 || r.collected > 0)
+      // Only qualifying agents (behaviour-based definition) — consistent
+      // with every other agent list in the dashboard.
+      .filter((r) => !qualifyingReady || qualifyingIds.has(r.id));
+  }, [agentIds, expectedByAgent, collectedByAgent, names, days, qualifyingIds, qualifyingReady]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
