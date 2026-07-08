@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import type { AppRole } from './types';
-import { beginOAuthFunnel, trackOAuthRedirected, trackOAuthError } from '@/lib/oauthFunnel';
+import { beginOAuthFunnel, trackOAuthRedirected, trackOAuthError, completePendingOAuthFunnel } from '@/lib/oauthFunnel';
 
 // Maintenance lock removed 2026-05-08 — was silently returning a fake
 // "Welile is under maintenance" error on every sign-in / sign-up unless
@@ -138,6 +138,8 @@ export async function signInWithGoogle() {
   const funnelId = await beginOAuthFunnel('google');
   const result = await attemptOAuth('google', primaryUri);
   if (result.redirected) { await trackOAuthRedirected(funnelId, 'google'); return { error: null }; }
+  // Preview / popup flow: session set in-place without a full redirect.
+  if (!result.error) { await completePendingOAuthFunnel(); return { error: null }; }
 
   // If provider not supported error, retry with canonical public origin as fallback
   const errMsg = result.error?.message || '';
@@ -147,6 +149,7 @@ export async function signInWithGoogle() {
     if (fallbackUri !== primaryUri) {
       const retry = await attemptOAuth('google', fallbackUri);
       if (retry.redirected) { await trackOAuthRedirected(funnelId, 'google'); return { error: null }; }
+      if (!retry.error) { await completePendingOAuthFunnel(); return { error: null }; }
       await trackOAuthError(funnelId, 'google', retry.error?.message);
       return { error: retry.error ?? null };
     }
@@ -166,6 +169,7 @@ export async function signInWithApple() {
   const funnelId = await beginOAuthFunnel('apple');
   const result = await attemptOAuth('apple', primaryUri);
   if (result.redirected) { await trackOAuthRedirected(funnelId, 'apple'); return { error: null }; }
+  if (!result.error) { await completePendingOAuthFunnel(); return { error: null }; }
 
   const errMsg = result.error?.message || '';
   if (errMsg.toLowerCase().includes('not supported') || errMsg.toLowerCase().includes('provider')) {
@@ -174,6 +178,7 @@ export async function signInWithApple() {
     if (fallbackUri !== primaryUri) {
       const retry = await attemptOAuth('apple', fallbackUri);
       if (retry.redirected) { await trackOAuthRedirected(funnelId, 'apple'); return { error: null }; }
+      if (!retry.error) { await completePendingOAuthFunnel(); return { error: null }; }
       await trackOAuthError(funnelId, 'apple', retry.error?.message);
       return { error: retry.error ?? null };
     }
