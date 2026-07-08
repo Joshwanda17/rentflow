@@ -20484,6 +20484,12 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_ops_qualifying_agent_ids: {
+        Args: never
+        Returns: {
+          agent_id: string
+        }[]
+      }
       agent_per_tenant_max: { Args: { _agent_id: string }; Returns: number }
       agent_respond_payment_edit: {
         Args: { p_edit_id: string; p_note?: string; p_response: string }
@@ -21475,6 +21481,7 @@ export type Database = {
           earnings_total: number
         }[]
       }
+      get_agent_ops_monthly_kpis: { Args: never; Returns: Json }
       get_agent_ops_totals: {
         Args: never
         Returns: {
