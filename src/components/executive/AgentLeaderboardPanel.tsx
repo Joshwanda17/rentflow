@@ -288,7 +288,7 @@ export function AgentLeaderboardPanel() {
               ) : invitees.length === 0 ? (
                 <tr><td colSpan={4} className="py-8 text-center text-muted-foreground">No invitees found for this period.</td></tr>
               ) : (
-                invitees.map((inv) => (
+                pagedInvitees.map((inv) => (
                   <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="py-2.5 pr-3">
                       <p className="font-medium truncate max-w-[180px]">{inv.sub_agent_name}</p>
@@ -310,6 +310,36 @@ export function AgentLeaderboardPanel() {
             </tbody>
           </table>
         </div>
+        {/* Pagination — 15 per page */}
+        {!isLoading && invitees.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-1 border-t border-border/60">
+            <p className="text-[11px] text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{rangeStart}–{rangeEnd}</span> of{' '}
+              <span className="font-medium text-foreground">{invitees.length}</span>
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/40 transition-colors"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Prev
+              </button>
+              <span className="text-xs text-muted-foreground px-1 tabular-nums">
+                Page {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/40 transition-colors"
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
