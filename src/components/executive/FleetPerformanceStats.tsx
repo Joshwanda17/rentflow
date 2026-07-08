@@ -736,6 +736,8 @@ export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean 
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
           </p>
 
+          {detailed && (
+          <>
           {/* Search — placed prominently under summary stats */}
           <div className="mt-3 relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
