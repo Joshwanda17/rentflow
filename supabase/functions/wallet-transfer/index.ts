@@ -354,6 +354,7 @@ Deno.serve(async (req) => {
           reference_id: transferReference,
           linked_party: recipientLabel,
           recipient_type: 'user',
+          wallet_bucket: 'withdrawable',
         },
         {
           user_id: resolvedRecipientId,
@@ -368,6 +369,7 @@ Deno.serve(async (req) => {
           reference_id: transferReference,
           linked_party: senderLabel,
           recipient_type: 'user',
+          wallet_bucket: 'withdrawable',
         },
       ],
       idempotency_key: transferReference,
