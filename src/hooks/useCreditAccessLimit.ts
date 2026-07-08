@@ -34,7 +34,7 @@ export function convertFromUGX(amountUGX: number, currency: string): number {
 
 export function formatCreditAmount(amountUGX: number, currency: string = 'UGX'): string {
   if (currency === 'UGX') {
-    return `UGX${Math.round(amountUGX)}\n`;
+    return `UGX ${Math.round(amountUGX).toLocaleString('en-US')}\n`;
   }
   const converted = convertFromUGX(amountUGX, currency);
   const symbols: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', KES: 'KES ', TZS: 'TZS ', ZAR: 'R' };
