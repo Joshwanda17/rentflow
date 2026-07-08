@@ -348,7 +348,7 @@ export default function AgentLeaderboard() {
           <ul className="space-y-2 text-sm text-slate-600">
             {[
               'Rankings are based only on successful sub-agent registrations.',
-              'Every registered sub-agent earns you UGX 10,000.',
+              'A registered sub-agent must list at least 3 houses before you earn their registration reward.',
               "Continue earning a 2% lifetime override on your sub-agents' rent commissions.",
               'Earn UGX 3,000 whenever your referred sub-agent verifies a House Listing, Landlord, or LC1 Chairperson.',
               'Weekly rankings reset every Monday.',
