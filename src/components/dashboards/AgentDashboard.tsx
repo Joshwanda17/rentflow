@@ -8,6 +8,7 @@ import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard
 import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
 import { AgentCompanyDebtCard } from '@/components/agent/AgentCompanyDebtCard';
 import { AgentMyAdvancesCard } from '@/components/agent/AgentMyAdvancesCard';
+import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLastWithdrawalCard';
 import { EarningsSummaryCard } from '@/components/agent/EarningsSummaryCard';
 import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCard';
