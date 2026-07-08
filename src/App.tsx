@@ -650,9 +650,7 @@ const App = () => {
                       <DeferredErrorBoundary>
                         <Suspense fallback={null}>
                           <DeferredExtras />
-                          <FloatingToolbar />
-                          <AgentNavFAB />
-                          <PWAInstallPrompt />
+                          <GlobalFloatingWidgets />
                           <Toaster />
                           <SonnerToaster />
                           <ProfileCompletionGate />
