@@ -301,12 +301,12 @@ export function AgentOpsDashboard() {
     </div>
   ) : bottomTab !== 'more' ? (
     <div className="space-y-4">
+      <AgentMonthlyKpis />
       <AgentOpsHomeView
         range={dateRange}
         onRangeChange={setDateRange}
         onOpenSection={handleOpenSection}
       />
-      <AgentMonthlyKpis />
       <div className="space-y-4">
         <AgentRentCapacityPanel
           mode="summary"
