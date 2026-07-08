@@ -691,11 +691,8 @@ const App = () => {
                           <GlobalFloatingWidgets />
                           <Toaster />
                           <SonnerToaster />
-                          <ProfileCompletionGate />
                           <ForceResetPasswordGate />
-                          <LocationCaptureGate />
-                          <PushNotificationGate />
-                          <SubAgentInviteGate />
+                          <GlobalOnboardingGates />
                           <CreditLoadingDebugPanel />
                         </Suspense>
                       </DeferredErrorBoundary>
