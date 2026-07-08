@@ -79,7 +79,6 @@ export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const pendingAdvanceCount = usePendingAdvanceCount('tenant_ops');
   // Collapsible panel state — collapsed by default on phones so the
   // action grid + tenant list are reachable without scrolling past
   // heavy dashboards.
