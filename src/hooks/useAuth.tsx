@@ -162,6 +162,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
         if (event === 'SIGNED_IN') {
+            // Record OAuth funnel completion if this sign-in came back from a
+            // Google/Apple redirect (no-op when there is no pending funnel).
+            setTimeout(() => {
+              import('@/lib/oauthFunnel')
+                .then((m) => m.completePendingOAuthFunnel(session.user.id))
+                .catch(() => {});
+            }, 0);
             // Defer non-critical profile update — don't block login
             setTimeout(() => {
               supabase

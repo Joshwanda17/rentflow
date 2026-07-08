@@ -11715,6 +11715,48 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_funnel_events: {
+        Row: {
+          created_at: string
+          domain: string | null
+          env: string
+          error_message: string | null
+          funnel_id: string
+          id: string
+          origin: string | null
+          provider: string
+          stage: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          domain?: string | null
+          env?: string
+          error_message?: string | null
+          funnel_id: string
+          id?: string
+          origin?: string | null
+          provider: string
+          stage: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          domain?: string | null
+          env?: string
+          error_message?: string | null
+          funnel_id?: string
+          id?: string
+          origin?: string | null
+          provider?: string
+          stage?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       offline_collection_submissions: {
         Row: {
           agent_id: string
@@ -22210,6 +22252,18 @@ export type Database = {
           phone: string
           queue_count: number
           region: string
+        }[]
+      }
+      get_oauth_funnel_stats: {
+        Args: { p_days?: number }
+        Returns: {
+          attempts: number
+          completion_rate: number
+          env: string
+          errors: number
+          provider: string
+          redirected: number
+          successes: number
         }[]
       }
       get_outstanding_agent_float: {
