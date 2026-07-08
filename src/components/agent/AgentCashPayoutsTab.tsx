@@ -1496,52 +1496,6 @@ export function AgentCashPayoutsTab() {
         </div>
       )}
 
-      {/* Payout Code Verification — for users who came in person with a WPO code */}
-      <Card className="border-2 border-primary/30 bg-primary/5 rounded-2xl">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <QrCode className="h-5 w-5 text-primary" />
-            Verify Cash Pickup Code
-          </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Only when a customer arrives in person with their 4-digit cash code. Entering it debits their withdrawable balance and records the payout. Otherwise claim from the queue below.</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            placeholder="• • • •"
-            value={payoutCode}
-            inputMode="numeric"
-            maxLength={4}
-            onChange={e => setPayoutCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            className="h-16 text-center font-mono text-3xl tracking-[0.5em]"
-            onKeyDown={e => e.key === 'Enter' && handleVerify()}
-          />
-          <Button onClick={handleVerify} disabled={verifying || !payoutCode.trim()} className="h-12 w-full gap-2 font-bold" aria-label="Verify code">
-            {verifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
-            Verify &amp; Process
-          </Button>
-          {verifiedPayout && (
-            <Card className="border-green-500/30 bg-green-500/5 rounded-2xl">
-              <CardContent className="p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  <span className="font-bold text-lg text-green-700">Code Verified</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-base">
-                  <div><p className="text-muted-foreground text-sm">Name</p><p className="font-semibold">{verifiedPayout.profiles?.full_name}</p></div>
-                  <div><p className="text-muted-foreground text-sm">Phone</p><p className="font-semibold">{verifiedPayout.profiles?.phone}</p></div>
-                  <div><p className="text-muted-foreground text-sm">Amount</p><p className="font-bold text-xl text-primary">{formatUGX(verifiedPayout.amount)}</p></div>
-                  <div><p className="text-muted-foreground text-sm">Expires</p><p className="font-semibold">{format(new Date(verifiedPayout.expires_at), 'MMM d, HH:mm')}</p></div>
-                </div>
-                <Button className="w-full h-14 text-base font-bold" onClick={() => completePayout.mutate()} disabled={completePayout.isPending}>
-                  {completePayout.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Banknote className="h-5 w-5 mr-2" />}
-                  Confirm Cash Paid — {formatUGX(verifiedPayout.amount)}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Withdrawal Requests by channel — UNCLAIMED only */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
