@@ -33,6 +33,19 @@ export function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
   return btoa(binary);
 }
 
+/** Returns true when a browser PushSubscription was created with the current public VAPID key. */
+export function subscriptionUsesCurrentVapidKey(subscription: PushSubscription): boolean {
+  const key = subscription.options?.applicationServerKey;
+  if (!key) return false;
+
+  const encodedKey = arrayBufferToBase64(key)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  return encodedKey === VAPID_PUBLIC_KEY;
+}
+
 /** True when the current browser can register a SW and subscribe to push. */
 export function isPushSupported(): boolean {
   return (

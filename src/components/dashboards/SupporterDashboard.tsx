@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatUGX as _formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
-import { arrayBufferToBase64, isPushSupported } from '@/lib/webPush';
+import { arrayBufferToBase64, isPushSupported, subscriptionUsesCurrentVapidKey } from '@/lib/webPush';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 
@@ -234,12 +234,27 @@ export default function SupporterDashboard({
       }
 
       const registration = await navigator.serviceWorker.getRegistration('/sw.js');
-      const subscription = await registration?.pushManager.getSubscription();
+      let subscription = await registration?.pushManager.getSubscription();
 
       if (!subscription) {
         toast({
           title: 'Enable notifications first',
           description: 'No active web push subscription was found on this device. Please enable notifications, then test again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!subscriptionUsesCurrentVapidKey(subscription)) {
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('endpoint', subscription.endpoint);
+        await subscription.unsubscribe();
+        subscription = null;
+        toast({
+          title: 'Enable notifications again',
+          description: 'This device had an old push key. I reset it — enable notifications again, then test.',
           variant: 'destructive',
         });
         return;

@@ -9,6 +9,7 @@ import {
   VAPID_PUBLIC_KEY,
   arrayBufferToBase64,
   isPushSupported,
+  subscriptionUsesCurrentVapidKey,
   urlBase64ToUint8Array,
 } from "@/lib/webPush";
 
@@ -41,7 +42,7 @@ export function PushNotificationButton({ className }: { className?: string }) {
       .getRegistration("/sw.js")
       .then((reg) => reg?.pushManager.getSubscription())
       .then((sub) => {
-        if (sub) setState("subscribed");
+        if (sub && subscriptionUsesCurrentVapidKey(sub)) setState("subscribed");
       })
       .catch(() => {
         /* no existing registration — stay idle */
@@ -73,6 +74,14 @@ export function PushNotificationButton({ className }: { className?: string }) {
 
       // Reuse an existing subscription if present, otherwise create one.
       let subscription = await registration.pushManager.getSubscription();
+      if (subscription && !subscriptionUsesCurrentVapidKey(subscription)) {
+        await supabase
+          .from("push_subscriptions")
+          .delete()
+          .eq("endpoint", subscription.endpoint);
+        await subscription.unsubscribe();
+        subscription = null;
+      }
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
