@@ -39,6 +39,8 @@ import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
 import { AdvanceAnalyticsPanel } from './agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
+import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
+import { Badge } from '@/components/ui/badge';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
@@ -90,6 +92,7 @@ export function AgentOpsDashboard() {
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [bottomTab, setBottomTab] = useState<BottomTab>('home');
   const [dateRange, setDateRange] = useState<DateRange>('24h');
+  const pendingAdvanceCount = usePendingAdvanceCount();
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['agent-ops-kpis'],
@@ -305,6 +308,7 @@ export function AgentOpsDashboard() {
             {group.keys.map((key) => {
               const item = NAV_ITEMS.find((n) => n.key === key);
               if (!item) return null;
+              const showBadge = item.key === 'advance-requests' && pendingAdvanceCount > 0;
               return (
                 <button
                   key={item.key}
@@ -313,8 +317,14 @@ export function AgentOpsDashboard() {
                     'flex flex-col items-center gap-2 p-3 rounded-2xl border border-border bg-card',
                     'active:scale-95 transition-all touch-manipulation min-h-[84px]',
                     'hover:shadow-md hover:border-primary/30',
+                    'relative',
                   )}
                 >
+                  {showBadge && (
+                    <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+                      {pendingAdvanceCount > 99 ? '99+' : pendingAdvanceCount}
+                    </span>
+                  )}
                   <div className={cn('p-2.5 rounded-xl shadow-sm', item.color)}>
                     <item.icon className="h-4 w-4 text-white" />
                   </div>
@@ -365,6 +375,7 @@ export function AgentOpsDashboard() {
                     const item = NAV_ITEMS.find((n) => n.key === key);
                     if (!item) return null;
                     const Icon = item.icon;
+                    const showBadge = item.key === 'advance-requests' && pendingAdvanceCount > 0;
                     return (
                       <DropdownMenuItem
                         key={item.key as string}
@@ -375,6 +386,11 @@ export function AgentOpsDashboard() {
                           <Icon className="h-3.5 w-3.5 text-white" />
                         </span>
                         <span className="text-sm font-medium">{item.label}</span>
+                        {showBadge && (
+                          <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+                            {pendingAdvanceCount > 99 ? '99+' : pendingAdvanceCount}
+                          </span>
+                        )}
                       </DropdownMenuItem>
                     );
                   })}
@@ -426,6 +442,7 @@ function AgentOpsSideNav({
   onSelect: (k: ActiveView) => void;
   onHome: () => void;
 }) {
+  const pendingAdvanceCount = usePendingAdvanceCount();
   // Priority stays pinned & always exposed on top. Every other group is
   // collapsible so the nav never over-scrolls. Agent Network sits right
   // below Priority and is open by default (this dashboard is agent-centric).
@@ -451,6 +468,7 @@ function AgentOpsSideNav({
     if (!item) return null;
     const Icon = item.icon;
     const active = activeView === key;
+    const showBadge = item.key === 'advance-requests' && pendingAdvanceCount > 0;
     return (
       <button
         key={key as string}
@@ -465,6 +483,11 @@ function AgentOpsSideNav({
           <Icon className="h-3.5 w-3.5 text-white" />
         </span>
         <span className="truncate">{item.label}</span>
+        {showBadge && (
+          <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+            {pendingAdvanceCount > 99 ? '99+' : pendingAdvanceCount}
+          </span>
+        )}
       </button>
     );
   };
