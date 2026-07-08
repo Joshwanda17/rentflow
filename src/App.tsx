@@ -302,6 +302,8 @@ PageLoader.displayName = 'PageLoader';
 function AppRoutes() {
   const location = useLocation();
   const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
+  const location = useLocation();
+  const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
   const disablePullToRefresh = PTR_DISABLED_PREFIXES.some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
   );
