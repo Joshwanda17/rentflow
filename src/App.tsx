@@ -318,6 +318,25 @@ function GlobalFloatingWidgets() {
   );
 }
 
+// Onboarding / interruption gates (profile setup, location, push, invites).
+// Hidden on the public payout-receipt view so customers opening their receipt
+// from an SMS/QR link are never blocked by the "Quick setup" onboarding screen.
+function GlobalOnboardingGates() {
+  const location = useLocation();
+  const isReceiptRoute =
+    location.pathname.startsWith('/r/') ||
+    location.pathname.startsWith('/receipt/');
+  if (isReceiptRoute) return null;
+  return (
+    <>
+      <ProfileCompletionGate />
+      <LocationCaptureGate />
+      <PushNotificationGate />
+      <SubAgentInviteGate />
+    </>
+  );
+}
+
 function AppRoutes() {
   const location = useLocation();
   const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
@@ -672,11 +691,8 @@ const App = () => {
                           <GlobalFloatingWidgets />
                           <Toaster />
                           <SonnerToaster />
-                          <ProfileCompletionGate />
                           <ForceResetPasswordGate />
-                          <LocationCaptureGate />
-                          <PushNotificationGate />
-                          <SubAgentInviteGate />
+                          <GlobalOnboardingGates />
                           <CreditLoadingDebugPanel />
                         </Suspense>
                       </DeferredErrorBoundary>
