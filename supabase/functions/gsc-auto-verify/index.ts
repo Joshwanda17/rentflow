@@ -14,8 +14,8 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const SITE_URL = "https://welilereceipts.com/";
-const SITEMAP_URL = "https://welilereceipts.com/sitemap.xml";
+const SITE_URL = "https://welileapp.com/";
+const SITEMAP_URL = "https://welileapp.com/sitemap.xml";
 const VERIFICATION_TOKEN =
   "google-site-verification=kR0joJPuylC4guaD6Mpj3Bk_mBchayHvHlSEBlcGUpY";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_search_console";

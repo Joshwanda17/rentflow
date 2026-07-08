@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { supabase } from '@/integrations/supabase/client';
 
-const APP_URL = 'https://welilereceipts.com';
+const APP_URL = 'https://welileapp.com';
 
 interface ShareHouseButtonProps {
   listingId: string;

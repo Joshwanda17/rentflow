@@ -89,7 +89,7 @@ export function receiptMethodLabel(payoutMethod?: string) {
 
 export function receiptPublicUrl(data: PayoutReceiptData) {
   return data.receipt_token
-    ? `https://welilereceipts-com.lovable.app/r/${data.receipt_token}`
+    ? `https://welileapp.com/r/${data.receipt_token}`
     : (typeof window !== 'undefined' ? window.location.href : '');
 }
 
@@ -234,7 +234,7 @@ export async function downloadPayoutReceiptPdf(data: PayoutReceiptData) {
   y += 14;
   doc.text('This receipt was generated electronically. No signature is required.', cardX + cardW / 2, y, { align: 'center' });
   y += 12;
-  doc.text('Verify at welilereceipts.com', cardX + cardW / 2, y, { align: 'center' });
+  doc.text('Verify at welileapp.com', cardX + cardW / 2, y, { align: 'center' });
 
   // Authenticity e-stamp watermark, stamped over the receipt body.
   drawStampWatermark(doc, cardX + cardW / 2, 430);

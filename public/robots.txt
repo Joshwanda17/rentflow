@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://welilereceipts.com/sitemap.xml
+Sitemap: https://welileapp.com/sitemap.xml

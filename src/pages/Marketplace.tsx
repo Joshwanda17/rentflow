@@ -37,13 +37,13 @@ export default function Marketplace() {
           name="description"
           content="Browse the Welile Marketplace for everyday essentials, home goods, and more — shop trusted products and pay flexibly, delivered across Uganda."
         />
-        <link rel="canonical" href="https://welilereceipts.com/marketplace" />
+        <link rel="canonical" href="https://welileapp.com/marketplace" />
         <meta property="og:title" content="Welile Marketplace — Shop Essentials" />
         <meta
           property="og:description"
           content="Shop everyday essentials and home goods on the Welile Marketplace, with flexible payment options across Uganda."
         />
-        <meta property="og:url" content="https://welilereceipts.com/marketplace" />
+        <meta property="og:url" content="https://welileapp.com/marketplace" />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
@@ -51,11 +51,11 @@ export default function Marketplace() {
             name: 'Welile Marketplace',
             description:
               'Browse everyday essentials, home goods, and more on the Welile Marketplace with flexible payment options across Uganda.',
-            url: 'https://welilereceipts.com/marketplace',
+            url: 'https://welileapp.com/marketplace',
             isPartOf: {
               '@type': 'WebSite',
               name: 'Welile.com',
-              url: 'https://welilereceipts.com/',
+              url: 'https://welileapp.com/',
             },
           })}
         </script>

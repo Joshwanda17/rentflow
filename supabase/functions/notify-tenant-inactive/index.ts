@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const APP_URL = "https://welilereceipts.com";
+const APP_URL = "https://welileapp.com";
 
 async function sendEmail(
   to: string,

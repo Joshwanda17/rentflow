@@ -336,6 +336,6 @@ export function buildShareUrl(claim: BreadClaim, opts?: { from?: string }): stri
   const origin =
     typeof window !== 'undefined' && window.location?.origin
       ? window.location.origin
-      : 'https://welilereceipts.com';
+      : 'https://welileapp.com';
   return `${origin}/bread/${claim.code}#${token}`;
 }

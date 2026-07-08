@@ -6,8 +6,8 @@
 // All emails are sent via send-transactional-email which handles the unsubscribe
 // token and suppression list. These helpers build the request body only.
 
-const LOGO_URL = "https://welilereceipts.com/welile-logo.png";
-const DASHBOARD_URL = "https://welilereceipts.com/auth";
+const LOGO_URL = "https://welileapp.com/welile-logo.png";
+const DASHBOARD_URL = "https://welileapp.com/auth";
 const UNSUBSCRIBE_URL = "https://welile.com/unsubscribe";
 const CONTACT_URL = "https://welile.com/contact";
 

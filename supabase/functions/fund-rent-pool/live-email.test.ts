@@ -47,8 +47,8 @@ Deno.test({
         roi_payment_day: 21,
         currency: 'UGX',
         company_name: 'Welile',
-        logo_url: 'https://welilereceipts.com/welile-logo.png',
-        dashboard_url: 'https://welilereceipts.com/auth',
+        logo_url: 'https://welileapp.com/welile-logo.png',
+        dashboard_url: 'https://welileapp.com/auth',
       },
     };
 

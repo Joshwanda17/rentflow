@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       `Hi ${firstName}, your Welile Homes enrollment was updated. ` +
       `Monthly rent is now ${ugx(rent)}, due by the ${ordinal(Number(sub.payout_day) || 5)} of each month.` +
       `${outstandingPart}${modePart} ` +
-      `View details at welilereceipts.com. Thank you.`;
+      `View details at welileapp.com. Thank you.`;
 
     // Idempotent per edit: caller passes a unique audit_id when available so the
     // same edit never fires twice, otherwise dedupe within the same minute.

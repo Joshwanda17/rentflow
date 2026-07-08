@@ -25,9 +25,9 @@ export function PartnerAccountCreated({
   partner_name = 'Partner',
   partner_email = '',
   partner_reference = '',
-  agreement_download_url = 'https://welilereceipts.com/legal/welile-partnership-agreement.pdf',
+  agreement_download_url = 'https://welileapp.com/legal/welile-partnership-agreement.pdf',
   company_name = 'WELILE TECHNOLOGIES LTD',
-  logo_url = 'https://welilereceipts.com/welile-logo.png',
+  logo_url = 'https://welileapp.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
 }: PartnerAccountCreatedProps) {
   const year = new Date().getFullYear()
@@ -225,8 +225,8 @@ export function PartnerAccountCreated({
                     </Link>.
                   </Text>
                   <Text style={{ margin: '0 0 15px 0' }}>
-                    <Link href="https://welilereceipts.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
-                    <Link href="https://welilereceipts.com/partners-terms" style={footerLink}>Terms of Service</Link>
+                    <Link href="https://welileapp.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
+                    <Link href="https://welileapp.com/partners-terms" style={footerLink}>Terms of Service</Link>
                     <Link href={unsubscribe_url} style={footerLink}>Unsubscribe</Link>
                   </Text>
                   <Text style={footerCopyText}>
@@ -469,9 +469,9 @@ export const template = {
     partner_name: 'SSENKAALI PIUS',
     partner_email: 'pius@example.com',
     partner_reference: 'WLP-2026-00428',
-    agreement_download_url: 'https://welilereceipts.com/partners-terms',
+    agreement_download_url: 'https://welileapp.com/partners-terms',
     company_name: 'WELILE TECHNOLOGIES LTD',
-    logo_url: 'https://welilereceipts.com/welile-logo.png',
+    logo_url: 'https://welileapp.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
   },
 } satisfies TemplateEntry

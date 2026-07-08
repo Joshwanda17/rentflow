@@ -50,7 +50,7 @@ export function AgentTenantPaymentReceipt({
   tenants_still_owing = 0,
   remaining_for_tenant = 0,
   daily_for_tenant = 0,
-  dashboard_url = 'https://welilereceipts.com/dashboard/agent',
+  dashboard_url = 'https://welileapp.com/dashboard/agent',
 }: Props) {
   const amt = fmt(amount)
   const com = fmt(commission)

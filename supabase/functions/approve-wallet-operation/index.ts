@@ -827,7 +827,7 @@ Deno.serve(async (req) => {
                     wallet_id_last4: walletLast4,
                     source: "Platform",
                     company_name: "Welile",
-                    logo_url: "https://welilereceipts.com/welile-logo.png",
+                    logo_url: "https://welileapp.com/welile-logo.png",
                   },
                 }),
               });

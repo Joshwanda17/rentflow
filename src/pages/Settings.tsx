@@ -280,13 +280,13 @@ export default function Settings() {
           name="description"
           content="Manage your Welile account settings — profile, security, language, currency, notifications, and app preferences in one place."
         />
-        <link rel="canonical" href="https://welilereceipts.com/settings" />
+        <link rel="canonical" href="https://welileapp.com/settings" />
         <meta property="og:title" content="Account Settings | Welile" />
         <meta
           property="og:description"
           content="Manage your Welile profile, security, and app preferences."
         />
-        <meta property="og:url" content="https://welilereceipts.com/settings" />
+        <meta property="og:url" content="https://welileapp.com/settings" />
       </Helmet>
       <div className="container mx-auto px-4 py-4 max-w-2xl pb-24">
         {/* Header */}

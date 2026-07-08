@@ -5,7 +5,7 @@
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-const BASE_URL = 'https://welilereceipts.com';
+const BASE_URL = 'https://welileapp.com';
 
 interface SitemapEntry {
   path: string;

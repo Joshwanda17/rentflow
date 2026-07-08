@@ -10,8 +10,8 @@ import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z } from "npm:zod@^4.4.3";
 
 // src/lib/mcp-public/links.ts
-var SIGNUP_BASE = "https://welilereceipts.com/auth";
-var LANDING_BASE = "https://welilereceipts.com/ai";
+var SIGNUP_BASE = "https://welileapp.com/auth";
+var LANDING_BASE = "https://welileapp.com/ai";
 var SIGNUP_ROLES = ["tenant", "agent", "landlord", "supporter"];
 var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function buildSignupLinks(opts) {

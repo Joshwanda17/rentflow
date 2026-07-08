@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LOGIN_URL = "https://welilereceipts.com";
+const LOGIN_URL = "https://welileapp.com";
 
 // Roles allowed to issue a temporary password for another user.
 const ISSUER_ROLES = ["cto", "manager", "super_admin"];

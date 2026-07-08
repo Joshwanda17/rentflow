@@ -10,7 +10,7 @@ const SENDER_DOMAIN = 'notify.welile.com';
 const FROM_DOMAIN = 'welile.com';
 const FROM_HEADER = `Welile Partnerships <partnership@${FROM_DOMAIN}>`;
 const ALLOWED_ROLES = ['coo', 'ceo', 'cto', 'super_admin', 'manager'];
-const LOGO_URL = 'https://welilereceipts.com/welile-logo.png';
+const LOGO_URL = 'https://welileapp.com/welile-logo.png';
 const NOTIFICATION_TYPE_DEFAULT = 'Partner Communication';
 
 function generateToken(): string {

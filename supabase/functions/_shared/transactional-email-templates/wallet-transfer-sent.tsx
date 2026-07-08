@@ -31,7 +31,7 @@ export function WalletTransferSent({
   reference = '',
   date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
   description = '',
-  wallet_url = 'https://welilereceipts.com/dashboard/tenant',
+  wallet_url = 'https://welileapp.com/dashboard/tenant',
 }: Props) {
   const amt = fmt(amount, currency)
   return (

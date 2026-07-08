@@ -162,13 +162,13 @@ export default function SeoResults() {
           content="Per-route SEO results for Welile: Lighthouse performance, accessibility, best-practices, and SEO scores alongside structured-data validation status."
         />
         <meta name="robots" content="noindex" />
-        <link rel="canonical" href="https://welilereceipts.com/seo-results" />
+        <link rel="canonical" href="https://welileapp.com/seo-results" />
         <meta property="og:title" content="SEO Results — Lighthouse & Schema | Welile" />
         <meta
           property="og:description"
           content="Lighthouse scores and structured-data validation status for each public Welile route."
         />
-        <meta property="og:url" content="https://welilereceipts.com/seo-results" />
+        <meta property="og:url" content="https://welileapp.com/seo-results" />
       </Helmet>
 
       <div className="max-w-4xl mx-auto px-4 py-8">

@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
           if (profile?.phone) {
             const firstName = (profile.full_name || "there").split(" ")[0];
             const amountStr = Number(payout.amount).toLocaleString();
-            const msg = `Hi ${firstName}, UGX ${amountStr} has landed in your WELILE wallet (${payout.reason}). Log in to view & cash out: welilereceipts.com`;
+            const msg = `Hi ${firstName}, UGX ${amountStr} has landed in your WELILE wallet (${payout.reason}). Log in to view & cash out: welileapp.com`;
             await sendSMS(profile.phone, msg);
           }
         } catch (smsErr) {

@@ -112,7 +112,7 @@ export default function WelileAiIdCard({ onLendClick }: Props) {
 
   const shareOnWhatsApp = () => {
     if (!mySummary?.ai_id) return;
-    const message = `🔐 My Welile AI ID: *${mySummary.ai_id}*\n\nUse this ID to verify my credit profile on Welile. Open your Welile Supporter Dashboard → Look Up AI ID → Enter my ID to see my trust score and facilitate credit.\n\n✅ 100% Capital Protected by Welile AI Insurance\n📱 Download Welile: https://welilereceipts.com`;
+    const message = `🔐 My Welile AI ID: *${mySummary.ai_id}*\n\nUse this ID to verify my credit profile on Welile. Open your Welile Supporter Dashboard → Look Up AI ID → Enter my ID to see my trust score and facilitate credit.\n\n✅ 100% Capital Protected by Welile AI Insurance\n📱 Download Welile: https://welileapp.com`;
     const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };

@@ -55,7 +55,7 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
-const SITE_URL = 'https://welilereceipts.com';
+const SITE_URL = 'https://welileapp.com';
 
 type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
 

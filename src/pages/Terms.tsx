@@ -14,13 +14,13 @@ export default function Terms() {
           name="description"
           content="Read Welile's Terms & Conditions covering platform services, user accounts, rent facilitation, and your responsibilities when using Welile in Uganda."
         />
-        <link rel="canonical" href="https://welilereceipts.com/terms" />
+        <link rel="canonical" href="https://welileapp.com/terms" />
         <meta property="og:title" content="Terms & Conditions | Welile" />
         <meta
           property="og:description"
           content="The terms governing your use of Welile's rent facilitation platform."
         />
-        <meta property="og:url" content="https://welilereceipts.com/terms" />
+        <meta property="og:url" content="https://welileapp.com/terms" />
       </Helmet>
       <div className="max-w-2xl mx-auto px-4 py-8">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6 gap-2">

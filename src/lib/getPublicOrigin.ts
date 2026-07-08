@@ -6,7 +6,7 @@
 export function getPublicOrigin(): string {
   const hostname = window.location.hostname;
   const isPreview = hostname.includes('lovable.app') || hostname.includes('lovableproject.com');
-  // TEMP: custom-domain SSL is being renewed — use the Lovable published URL
-  // for shared/public links so they don't hit the broken certificate.
-  return isPreview ? 'https://welilereceipts-com.lovable.app' : window.location.origin;
+  // On the Lovable preview/published subdomain, use the custom domain so
+  // shared/public links resolve without a Lovable login.
+  return isPreview ? 'https://welileapp.com' : window.location.origin;
 }

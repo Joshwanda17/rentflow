@@ -159,13 +159,13 @@ export default function BusinessAdvanceTrack() {
           name="description"
           content="Track or apply for a Welile Rent Business Advance up to UGX 30,000,000. Your verified rent history is your collateral — fast, fair working capital for Ugandan business owners."
         />
-        <link rel="canonical" href="https://welilereceipts.com/business-advance/track" />
+        <link rel="canonical" href="https://welileapp.com/business-advance/track" />
         <meta property="og:title" content="Welile Rent Business Advance — Track & Apply" />
         <meta
           property="og:description"
           content="Get working capital up to UGX 30,000,000 with your rent history as collateral. Track every stage live."
         />
-        <meta property="og:url" content="https://welilereceipts.com/business-advance/track" />
+        <meta property="og:url" content="https://welileapp.com/business-advance/track" />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',

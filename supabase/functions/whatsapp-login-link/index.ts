@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     }, { onConflict: "phone" });
 
     // Build the deep link
-    const baseUrl = "https://welilereceipts.com";
+    const baseUrl = "https://welileapp.com";
     const linkParams = new URLSearchParams({
       phone: last9,
       token: otp,

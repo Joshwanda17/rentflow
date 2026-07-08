@@ -124,10 +124,10 @@ export default function Careers() {
       <Helmet>
         <title>Careers at Welile — Join Our Team</title>
         <meta name="description" content="Apply for a job at Welile. We are hiring 100+ developers, 1,000+ sales people, and more. Submit your details and our team will reach out." />
-        <link rel="canonical" href="https://welilereceipts.com/careers" />
+        <link rel="canonical" href="https://welileapp.com/careers" />
         <meta property="og:title" content="Careers at Welile — Join Our Team" />
         <meta property="og:description" content="We are hiring 100+ developers, 1,000+ sales people, and more. Apply in under 2 minutes." />
-        <meta property="og:url" content="https://welilereceipts.com/careers" />
+        <meta property="og:url" content="https://welileapp.com/careers" />
       </Helmet>
 
       {/* Hero */}

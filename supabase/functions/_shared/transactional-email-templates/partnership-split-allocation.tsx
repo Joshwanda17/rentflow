@@ -58,7 +58,7 @@ export function PartnershipSplitAllocation({
   new_cycle_duration = '12 months',
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welilereceipts.com/welile-logo.png',
+  logo_url = 'https://welileapp.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
 }: PartnershipSplitAllocationProps) {
   const year = new Date().getFullYear()
@@ -387,7 +387,7 @@ export const template = {
     new_cycle_duration: '12 months',
     currency: 'UGX',
     company_name: 'Welile',
-    logo_url: 'https://welilereceipts.com/welile-logo.png',
+    logo_url: 'https://welileapp.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
   },
 } satisfies TemplateEntry

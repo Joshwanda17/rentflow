@@ -62,8 +62,8 @@ export function AngelPoolSharePurchase({
   funded_by = 'investor',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
-  agreement_url = 'https://welilereceipts.com/legal/EARLY_ANGEL_POOL_SHAREHOLDERS_AGREEMENT.pdf',
-  dashboard_url = 'https://welilereceipts.com/auth',
+  agreement_url = 'https://welileapp.com/legal/EARLY_ANGEL_POOL_SHAREHOLDERS_AGREEMENT.pdf',
+  dashboard_url = 'https://welileapp.com/auth',
 }: AngelPoolSharePurchaseProps) {
   const year = new Date().getFullYear()
 
