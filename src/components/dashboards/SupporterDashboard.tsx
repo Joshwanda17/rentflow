@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatUGX as _formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
-import { arrayBufferToBase64, isPushSupported, subscriptionUsesCurrentVapidKey } from '@/lib/webPush';
+import { isPushSupported, ensurePushSubscription } from '@/lib/webPush';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 
