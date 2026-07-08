@@ -22089,6 +22089,17 @@ export type Database = {
           region: string
         }[]
       }
+      get_my_subagent_rank: {
+        Args: { p_period?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          avatar_url: string
+          invite_count: number
+          rank: number
+          total_ranked: number
+        }[]
+      }
       get_my_subagent_tenant_profiles: {
         Args: never
         Returns: {
@@ -22252,6 +22263,17 @@ export type Database = {
           other: number
           total: number
           yoola: number
+        }[]
+      }
+      get_subagent_leaderboard: {
+        Args: { p_limit?: number; p_offset?: number; p_period?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          avatar_url: string
+          invite_count: number
+          rank: number
+          total_matched: number
         }[]
       }
       get_subagent_recruiter_splits: {
