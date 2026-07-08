@@ -1,18 +1,26 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   Users, Banknote, UserPlus, ShieldCheck, PackageCheck, Loader2,
-  TrendingUp, TrendingDown, Target,
+  TrendingUp, TrendingDown, Target, RefreshCw, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MonthlyRaw {
   month: string;
+  month_start: string;
+  is_current_month: boolean;
   total_agents: number;
   adv_agents_current: number;
+  adv_agents_current_prev: number;
   adv_agents_month: number;
   adv_agents_prev: number;
   new_adv_agents_month: number;
@@ -21,6 +29,8 @@ interface MonthlyRaw {
   volume_prev: number;
   principal_total: number;
   outstanding_total: number;
+  principal_total_prev: number;
+  outstanding_total_prev: number;
   deliveries_month: number;
   deliveries_prev: number;
 }
@@ -45,12 +55,44 @@ interface Pillar {
 const clampPct = (n: number) => Math.max(0, Math.min(100, n));
 const growth = (curr: number, prev: number) => (prev <= 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100);
 
+/** First day (YYYY-MM-01) of the month `offset` months before now. */
+function monthStart(offset: number): string {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - offset);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01`;
+}
+
+function monthLabel(iso: string): string {
+  const [y, m] = iso.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 export function AgentMonthlyKpis() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-monthly-kpis'],
-    staleTime: 60_000,
+  const thisMonth = monthStart(0);
+  const lastMonth = monthStart(1);
+  const [selected, setSelected] = useState<string>(thisMonth);
+
+  // Months of the current calendar year up to (and including) the current month.
+  const monthOptions = useMemo(() => {
+    const now = new Date();
+    const opts: string[] = [];
+    for (let m = now.getMonth(); m >= 0; m--) {
+      const iso = `${now.getFullYear()}-${String(m + 1).padStart(2, '0')}-01`;
+      opts.push(iso);
+    }
+    return opts;
+  }, []);
+
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['agent-ops-monthly-kpis', selected],
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)('get_agent_ops_monthly_kpis');
+      const { data, error } = await (supabase.rpc as any)('get_agent_ops_monthly_kpis', { _month: selected });
       if (error) throw error;
       return data as MonthlyRaw;
     },
@@ -58,8 +100,12 @@ export function AgentMonthlyKpis() {
 
   const d = data;
   const trackingShare = d && d.total_agents > 0 ? (d.adv_agents_current / d.total_agents) * 100 : 0;
+  const trackingSharePrev = d && d.total_agents > 0 ? (d.adv_agents_current_prev / d.total_agents) * 100 : 0;
   const repayRate = d && d.principal_total > 0
     ? ((d.principal_total - d.outstanding_total) / d.principal_total) * 100
+    : 0;
+  const repayRatePrev = d && d.principal_total_prev > 0
+    ? ((d.principal_total_prev - d.outstanding_total_prev) / d.principal_total_prev) * 100
     : 0;
 
   const pillars: Pillar[] = d
@@ -74,6 +120,7 @@ export function AgentMonthlyKpis() {
           display: `${trackingShare.toFixed(1)}%`,
           attainment: clampPct((trackingShare / 30) * 100),
           detail: `${d.adv_agents_current.toLocaleString()} of ${d.total_agents.toLocaleString()} agents · goal 30%`,
+          changePct: growth(trackingShare, trackingSharePrev),
         },
         {
           key: 'volume',
@@ -109,6 +156,7 @@ export function AgentMonthlyKpis() {
           display: `${repayRate.toFixed(1)}%`,
           attainment: clampPct(repayRate),
           detail: `${formatUGX(Math.max(d.principal_total - d.outstanding_total, 0))} repaid of ${formatUGX(d.principal_total)} · goal 15%`,
+          changePct: growth(repayRate, repayRatePrev),
         },
         {
           key: 'delivery',
