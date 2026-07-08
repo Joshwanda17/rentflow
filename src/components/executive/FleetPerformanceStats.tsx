@@ -419,6 +419,7 @@ async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranular
 }
 
 export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean } = {}) {
+  const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // Restore last-used range from localStorage.
   const restored = useMemo(() => {
     try {
