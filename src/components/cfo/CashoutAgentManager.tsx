@@ -769,7 +769,14 @@ export function CashoutAgentManager() {
 
         <div className="grid grid-cols-2 gap-2">
           <KpiTile icon={<CheckCircle2 className="h-4 w-4" />} label="Completed Payouts" value={String(selectedAgentStats?.count || 0)} tone="primary" sub={`${selectedAgentStats?.todayCount || 0} today`} />
-          <KpiTile icon={<TrendingUp className="h-4 w-4" />} label="Volume Total" value={formatUGX(selectedAgentStats?.volume || 0)} tone="primary" />
+          <KpiTile
+            icon={<TrendingUp className="h-4 w-4" />}
+            label="Volume Total"
+            value={formatUGX(selectedAgentStats?.volume || 0)}
+            tone="primary"
+            hint="Tap to view daily volume"
+            onClick={() => setBreakdownOpen(true)}
+          />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
