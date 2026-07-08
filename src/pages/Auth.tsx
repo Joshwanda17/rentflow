@@ -11,6 +11,7 @@ import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
+import { OAuthDomainNotice } from '@/components/auth/OAuthDomainNotice';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 import { ArchivedAccountSupport } from '@/components/auth/ArchivedAccountSupport';
