@@ -35,3 +35,5 @@
 - [CMO Merchandise Management](mem://features/cmo/merchandise-management) — Merchandise tab on CMO dashboard: `merchandise_purchases`/`merchandise_sales` tables (cmo/manager/super_admin RLS), inventory (purchased-sold), COGS/gross-profit, client credit receivables, date/product/client filters; queried via `supabase as any`
 
 - [Payout proof-of-payment receipt](mem://features/financial-ops/payout-proof-receipt) — Public `/receipt/:id` page + `get_payout_receipt` RPC; merchant-agent payout confirmation SMS links to a verified receipt (amount, method destination, TID, date/time, processor name+phone)
+
+- [Agent Definition (Agent Ops)](mem://features/agent/agent-definition) — Behavior-based agent definition (listed house / promissory note / rent request for a tenant / added a qualifying sub-agent, recursive); RPC `get_agent_ops_agent_stats(p_days)` + Total Users→Agents→Active funnel in AgentDefinitionFunnel atop AgentOpsHomeView. Role='agent' is meaningless here (auto-assigned to ~all users).

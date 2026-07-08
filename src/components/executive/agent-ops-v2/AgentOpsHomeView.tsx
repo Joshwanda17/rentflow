@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bell, UserPlus, FileText, Banknote, Activity, TrendingUp, TrendingDown, Loader2, ChevronRight } from 'lucide-react';
 import { BriefDrillDownModal, type DrillMetric } from './BriefDrillDownModal';
+import { AgentDefinitionFunnel } from './AgentDefinitionFunnel';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -422,6 +423,9 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           Live
         </Badge>
       </div>
+
+      {/* Agent definition funnel — Total Users → Agents → Active Agents + trend */}
+      <AgentDefinitionFunnel range={range} />
 
       {/* Active Agents hero — most-visible KPI: agents who posted ≥1 rent request in range */}
       <ActiveAgentsHero
