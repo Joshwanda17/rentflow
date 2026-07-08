@@ -175,6 +175,9 @@ export function AgentMonthlyKpis() {
 
   const overall = pillars.reduce((s, p) => s + (p.weight / 100) * p.attainment, 0);
 
+  const isThisMonth = selected === thisMonth;
+  const isLastMonth = selected === lastMonth;
+
   return (
     <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -184,7 +187,7 @@ export function AgentMonthlyKpis() {
             Monthly KPIs — Advance Program
           </h3>
           <p className="text-[11px] text-muted-foreground">
-            Weighted scorecard · {d?.month ?? '—'}
+            Live weighted scorecard · {d?.month ?? '—'} vs last month
           </p>
         </div>
         <div className="text-right shrink-0">
@@ -194,6 +197,49 @@ export function AgentMonthlyKpis() {
             {isLoading ? <Loader2 className="h-5 w-5 animate-spin inline" /> : `${overall.toFixed(0)}%`}
           </p>
         </div>
+      </div>
+
+      {/* Month filter controls */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <Button
+          size="sm"
+          variant={isThisMonth ? 'default' : 'outline'}
+          className="h-7 text-[11px] px-2.5"
+          onClick={() => setSelected(thisMonth)}
+        >
+          This Month
+        </Button>
+        <Button
+          size="sm"
+          variant={isLastMonth ? 'default' : 'outline'}
+          className="h-7 text-[11px] px-2.5"
+          onClick={() => setSelected(lastMonth)}
+        >
+          Last Month
+        </Button>
+        <Select value={selected} onValueChange={setSelected}>
+          <SelectTrigger className="h-7 text-[11px] w-[150px]">
+            <CalendarDays className="h-3 w-3 mr-1 shrink-0" />
+            <SelectValue placeholder="Pick a month" />
+          </SelectTrigger>
+          <SelectContent>
+            {monthOptions.map((iso) => (
+              <SelectItem key={iso} value={iso} className="text-xs">
+                {monthLabel(iso)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-[11px] px-2 ml-auto"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw className={cn('h-3 w-3 mr-1', isFetching && 'animate-spin')} />
+          Refresh
+        </Button>
       </div>
 
       {isLoading ? (
