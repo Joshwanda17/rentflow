@@ -437,12 +437,12 @@ function AgentOpsSideNav({
   onHome: () => void;
 }) {
   const SIDE_GROUPS: { title: string; keys: ActiveView[] }[] = [
-    { title: 'Priority', keys: ['advance-requests', 'bulk-ops', 'feature-flags', 'trust-capture'] },
+    { title: 'Priority', keys: ['advance-requests', 'feature-flags', 'trust-capture'] },
     { title: 'Operations', keys: ['escalations', 'tasks', 'pipeline'] },
     { title: 'Agent Network', keys: ['sub-agents', 'promote-tenant', 'lending-agents', 'balances', 'directory'] },
     { title: 'Business', keys: ['service-centres', 'connector'] },
     { title: 'Insights', keys: ['leaderboard', 'performance-report', 'allocation-report', 'performance', 'lifecycle', 'alerts', 'brief'] },
-    { title: 'System', keys: ['transfers', 'float-payouts', 'earnings'] },
+    { title: 'System', keys: ['bulk-ops', 'transfers', 'float-payouts', 'earnings'] },
   ];
 
   return (
