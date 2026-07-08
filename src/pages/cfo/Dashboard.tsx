@@ -91,6 +91,7 @@ export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('cfo', 'overview', CFO_TAB_IDS);
   const isMobile = useIsMobile();
   const { threshold: swipeThreshold, setThreshold: setSwipeThreshold } = useSwipeSensitivity('cfo');
+  const advanceDisbursementCount = useCfoAdvanceDisbursementCount();
 
   const goToOffset = (delta: number) => {
     const current = CFO_TAB_IDS.indexOf(activeTab);
@@ -386,6 +387,7 @@ export default function CFODashboardPage() {
 
   return (
     <ExecutiveDashboardLayout role="cfo" activeTab={activeTab} onTabChange={setActiveTab}>
+      {/* advanceDisbursementCount is applied below via badges */}
       <CFOBreadcrumbHeader
         activeTab={activeTab}
         onJump={setActiveTab}
