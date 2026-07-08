@@ -27,6 +27,7 @@ import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
 import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
+import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
