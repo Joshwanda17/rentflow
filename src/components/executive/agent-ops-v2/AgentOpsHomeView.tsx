@@ -424,18 +424,11 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
         </Badge>
       </div>
 
-      {/* Agent definition funnel — Total Users → Agents → Active Agents + trend */}
+      {/* Summary: Total Users → Agents → Active Agents + trend */}
       <AgentDefinitionFunnel range={range} />
 
-      {/* Active Agents hero — most-visible KPI: agents who posted ≥1 rent request in range */}
-      <ActiveAgentsHero
-        value={data?.kpis.activeAgents.value ?? 0}
-        prev={data?.kpis.activeAgents.prev ?? 0}
-        totalAgents={data?.totalAgentCount ?? 0}
-        loading={isLoading}
-        range={range}
-        onClick={() => setActiveDrill('active-agents')}
-      />
+      {/* Compact Active Users stat — share of the whole platform active in range */}
+      <ActiveUsersStat range={range} />
 
       {/* Daily Briefs grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
