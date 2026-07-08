@@ -27,19 +27,19 @@ export function usePendingAdvanceCount() {
 
   useEffect(() => {
     const channel = supabase
-      .channel(`pending-advance-count-${stage}`)
+      .channel('pending-advance-count')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'agent_advance_requests' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['pending-advance-count', stage] });
+          queryClient.invalidateQueries({ queryKey: ['pending-advance-count'] });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient, stage]);
+  }, [queryClient]);
 
   return query.data ?? 0;
 }
