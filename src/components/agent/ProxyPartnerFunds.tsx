@@ -108,14 +108,14 @@ const chunkArray = <T,>(items: T[], size = QUERY_CHUNK_SIZE): T[][] => {
 
 const fetchChunks = async <T,>(
   items: string[],
-  buildQuery: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: any }>,
+  buildQuery: (chunk: string[]) => PromiseLike<{ data: any[] | null; error: any }>,
 ): Promise<T[]> => {
   const rows: T[] = [];
   for (const chunk of chunkArray(items)) {
     if (chunk.length === 0) continue;
     const { data, error } = await buildQuery(chunk);
     if (error) throw error;
-    rows.push(...(data || []));
+    rows.push(...((data || []) as T[]));
   }
   return rows;
 };
