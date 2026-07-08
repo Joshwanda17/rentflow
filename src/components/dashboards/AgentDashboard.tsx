@@ -146,6 +146,7 @@ const RentPosterDialog = lazy(() => import('@/components/agent/RentPosterDialog'
 const AgentDepositDialog = lazy(() => import('@/components/agent/AgentDepositDialog').then(m => ({ default: m.AgentDepositDialog })));
 const UnifiedRegistrationDialog = lazy(() => import('@/components/agent/UnifiedRegistrationDialog').then(m => ({ default: m.UnifiedRegistrationDialog })));
 const RegisterSubAgentDialog = lazy(() => import('@/components/agent/RegisterSubAgentDialog').then(m => ({ default: m.RegisterSubAgentDialog })));
+const AgentLeaderboardPromoDialog = lazy(() => import('@/components/agent/AgentLeaderboardPromoDialog').then(m => ({ default: m.AgentLeaderboardPromoDialog })));
 const AgentRentRequestDialog = lazy(() => import('@/components/agent/AgentRentRequestDialog'));
 const BusinessAdvanceRequestDialog = lazy(() => import('@/components/agent/BusinessAdvanceRequestDialog'));
 const CommissionCelebrationModal = lazy(() => import('@/components/agent/CommissionCelebrationModal').then(m => ({ default: m.CommissionCelebrationModal })));
@@ -290,6 +291,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, []);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
+  const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
@@ -1374,7 +1376,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className={cn("space-y-5", tabAnimClass)}>
             {/* Leaderboard CTA — draws agents into the recruitment competition */}
             <button
-              onClick={() => { hapticTap(); navigate('/dashboard/agents/leaderboard'); }}
+              onClick={() => { hapticTap(); setLeaderboardPromoOpen(true); }}
               className="w-full flex items-center gap-3.5 p-4 rounded-2xl text-left text-white shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
               style={{ background: 'linear-gradient(135deg, #9334EB, #6D28D9)', WebkitTapHighlightColor: 'transparent' }}
             >
@@ -1614,6 +1616,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={inviteSubAgentOpen}
         onOpenChange={setInviteSubAgentOpen}
         onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
+      />
+      </LazyModal>
+      <LazyModal when={leaderboardPromoOpen}>
+      <AgentLeaderboardPromoDialog
+        open={leaderboardPromoOpen}
+        onOpenChange={setLeaderboardPromoOpen}
+        onViewLeaderboard={() => navigate('/dashboard/agents/leaderboard')}
+        onInviteSubAgent={handleInviteSubAgent}
       />
       </LazyModal>
       <LazyModal when={rentRequestOpen}>
