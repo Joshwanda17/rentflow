@@ -827,22 +827,6 @@ export function CashoutAgentManager() {
                 </CardContent>
               </Card>
             )}
-            {duplicatePayouts.groupCount > 0 && (
-              <Card className="border-destructive/40 bg-destructive/5">
-                <CardContent className="p-3 flex items-start gap-2">
-                  <FileWarning className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-destructive">
-                      {duplicatePayouts.groupCount} possible duplicate payout{duplicatePayouts.groupCount > 1 ? 's' : ''} detected
-                    </p>
-                    <p className="text-xs text-destructive/80">
-                      This agent sent the same amount to the same beneficiary more than once.
-                      Suspected excess: <span className="font-bold">{formatUGX(duplicatePayouts.excess)}</span>. Review the flagged transactions below.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
             {selectedAgentPayouts.length === 0 ? (
               <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
             ) : (
