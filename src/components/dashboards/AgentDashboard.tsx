@@ -1844,6 +1844,48 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentAdvanceRequestForm open={advanceRequestOpen} onOpenChange={setAdvanceRequestOpen} />
       </LazyModal>
 
+      <Dialog open={advanceGuideOpen} onOpenChange={setAdvanceGuideOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Grow your advance limit
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <p className="text-muted-foreground">
+              Your advance limit grows with your track record — top-performing agents can
+              access up to <span className="font-bold text-primary">UGX 50,000,000</span>.
+              Do these consistently to unlock more:
+            </p>
+            <ul className="space-y-3">
+              <li className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
+                <span><span className="font-semibold text-foreground">Repay on time.</span> Clear each advance on or before its due date — early repayment unlocks a bigger limit fastest.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
+                <span><span className="font-semibold text-foreground">Collect rent steadily.</span> Consistent daily collections and funded tenants raise your Welile trust score.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
+                <span><span className="font-semibold text-foreground">Grow your book.</span> Onboard more tenants, list houses and keep them paying to prove sustained volume.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">4</span>
+                <span><span className="font-semibold text-foreground">Complete verification.</span> A verified ID and profile increase the limit we can safely extend to you.</span>
+              </li>
+            </ul>
+            <Button
+              className="w-full"
+              onClick={() => { setAdvanceGuideOpen(false); setAdvanceRequestOpen(true); }}
+            >
+              Request an advance
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
     </AgentFrozenGate>
   );
