@@ -36,6 +36,7 @@ import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { AgentEligibilityTransitionsPanel } from './AgentEligibilityTransitionsPanel';
 import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
+import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
@@ -50,7 +51,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -166,15 +166,6 @@ export function AgentOpsDashboard() {
   const totalCommissions = kpis?.commissions_total ?? 0;
   const uniqueAgents = kpis?.agents ?? 0;
 
-  const agentTotals: Record<string, number> = {};
-  (earnings || []).forEach(e => {
-    agentTotals[e.agent_id] = (agentTotals[e.agent_id] || 0) + e.amount;
-  });
-  const leaderboard = Object.entries(agentTotals)
-    .map(([id, total]) => ({ agent_id: id, agent_name: getName(id), total }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 10);
-
   const earningsColumns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
     { key: 'agent_id', label: 'Agent', render: (v) => (
@@ -232,21 +223,7 @@ export function AgentOpsDashboard() {
           <TenantTransferPanel />
         </div>
       );
-      case 'leaderboard': return (
-        <div className="rounded-2xl border border-border bg-card p-3 overflow-x-auto">
-          <h3 className="text-sm font-semibold mb-3">🏆 Agent Leaderboard</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={leaderboard} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis type="number" className="text-xs" />
-              <YAxis dataKey="agent_name" type="category" className="text-xs" width={80} />
-              <Tooltip />
-              <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} cursor="pointer"
-                onClick={(data: any) => { if (data?.agent_id) openAgentProfile(data.agent_id); }} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      );
+      case 'leaderboard': return <AgentLeaderboardPanel />;
       case 'earnings': return (
         <ExecutiveDataTable data={earnings || []} columns={earningsColumns} loading={isLoading} title="Agent Earnings"
           filters={[{ key: 'earning_type', label: 'Type', options: [
