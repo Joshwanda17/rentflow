@@ -809,24 +809,6 @@ export function CashoutAgentManager() {
           </TabsList>
 
           <TabsContent value="transactions" className="space-y-2 mt-3">
-            {commissionSummary.missingCount > 0 && (
-              <Card className="border-amber-500/40 bg-amber-500/5">
-                <CardContent className="p-3 flex items-start gap-2">
-                  <FileWarning className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-amber-700">
-                      {commissionSummary.missingCount} payout{commissionSummary.missingCount > 1 ? 's' : ''} missing a commission credit
-                    </p>
-                    <p className="text-xs text-amber-700/80">
-                      Credited so far: <span className="font-bold">{formatUGX(commissionSummary.credited)}</span> ·
-                      Expected at 0.5%: <span className="font-bold">{formatUGX(commissionSummary.expected)}</span> ·
-                      Shortfall: <span className="font-bold">{formatUGX(commissionSummary.gap)}</span>.
-                      These payouts settled without posting a commission leg to the wallet.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
             {selectedAgentPayouts.length === 0 ? (
               <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
             ) : (
