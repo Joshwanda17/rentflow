@@ -3,8 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { format } from 'date-fns';
-import { CheckCircle2, XCircle, Loader2, User, Inbox } from 'lucide-react';
+import { format, formatDistanceToNowStrict } from 'date-fns';
+import { CheckCircle2, XCircle, Loader2, User, Inbox, Clock, Wallet } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const num = (v: any) => Number(v ?? 0);
 
@@ -25,6 +26,42 @@ const STATUS_LABEL: Record<string, string> = {
   completed: 'Completed',
   overdue: 'Overdue',
 };
+
+// The full approval route an advance travels before it is paid out.
+// Each step maps to the status a request holds *after* that desk approves it.
+const PIPELINE: { key: string; label: string }[] = [
+  { key: 'pending', label: 'Submitted' },
+  { key: 'agent_ops_approved', label: 'Agent Ops' },
+  { key: 'tenant_ops_approved', label: 'Tenant Ops' },
+  { key: 'landlord_ops_approved', label: 'Landlord Ops' },
+  { key: 'coo_approved', label: 'COO' },
+  { key: 'cfo_approved', label: 'CFO' },
+  { key: 'disbursed', label: 'Paid out' },
+];
+
+// Statuses that mean the money has already left the building.
+const PAID_STATUSES = ['disbursed', 'active', 'repaying', 'completed', 'overdue'];
+
+/** Index of the current stage within PIPELINE (post-payout statuses collapse to the last step). */
+function stageIndex(status: string): number {
+  if (PAID_STATUSES.includes(status)) return PIPELINE.length - 1;
+  const i = PIPELINE.findIndex((s) => s.key === status);
+  return i < 0 ? 0 : i;
+}
+
+function isPaidOut(req: any): boolean {
+  return Boolean(req.cfo_paid_at) || PAID_STATUSES.includes(req.status);
+}
+
+/** The most recent moment this request moved forward — used to age how long it has been holding. */
+function lastActivityAt(req: any): Date {
+  const candidates = [
+    req.cfo_paid_at, req.cfo_approved_at, req.coo_approved_at,
+    req.landlord_ops_reviewed_at, req.tenant_ops_reviewed_at,
+    req.agent_ops_reviewed_at, req.updated_at, req.created_at,
+  ].filter(Boolean).map((v: string) => new Date(v).getTime());
+  return new Date(candidates.length ? Math.max(...candidates) : Date.now());
+}
 
 /** Best-effort human note for an approved request (latest stage note). */
 function approvalNote(req: any): string | null {
