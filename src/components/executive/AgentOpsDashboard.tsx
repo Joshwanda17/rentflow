@@ -395,13 +395,17 @@ export function AgentOpsDashboard() {
       {bottomTab !== 'more' ? (
         <>
           <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
-          <AgentRentCapacityPanel />
-          <AgentEligibilityTransitionsPanel />
+          {/* Graphs & KPIs first — desktop-first analytics layout */}
           <AgentOpsHomeView
             range={dateRange}
             onRangeChange={setDateRange}
             onOpenSection={handleOpenSection}
           />
+          {/* Detailed lists below the charts */}
+          <div className="space-y-4">
+            <AgentRentCapacityPanel />
+            <AgentEligibilityTransitionsPanel />
+          </div>
         </>
       ) : (
         <div className="space-y-5 pb-20 sm:pb-4">

@@ -433,13 +433,6 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
         onClick={() => setActiveDrill('active-agents')}
       />
 
-      {/* Active agents per-bucket trend — small time-series under the hero */}
-      <ActiveAgentsTrendChart
-        data={data?.trend ?? []}
-        range={range}
-        loading={isLoading}
-      />
-
       {/* Daily Briefs grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {cards.map((c) => (
@@ -457,80 +450,90 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
         ))}
       </div>
 
-      {/* Performance trend chart */}
-      <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-foreground">Performance Trend</h3>
-            <p className="text-[11px] text-muted-foreground">
-              {range === '24h' ? 'Last 24 hours' : range === '7d' ? 'Last 7 days' : 'Last 30 days'}
-            </p>
+      {/* Main charts — side by side on desktop for analysis */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4 items-stretch">
+        {/* Performance trend chart (wide) */}
+        <Card className="rounded-2xl border-border/50 p-3 sm:p-4 xl:col-span-2 flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-foreground">Performance Trend</h3>
+              <p className="text-[11px] text-muted-foreground">
+                {range === '24h' ? 'Last 24 hours' : range === '7d' ? 'Last 7 days' : 'Last 30 days'}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="h-56 sm:h-64 -mx-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data?.trend ?? []} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" width={32} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 12,
-                  fontSize: 12,
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="agents" name="New agents" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="requests" name="Rent requests" stroke="hsl(199 89% 48%)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="commission" name="Commission" stroke="hsl(160 84% 39%)" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+          <div className="h-56 sm:h-64 xl:flex-1 xl:min-h-[280px] -mx-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data?.trend ?? []} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" width={32} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 12,
+                    fontSize: 12,
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line type="monotone" dataKey="agents" name="New agents" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="requests" name="Rent requests" stroke="hsl(199 89% 48%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="commission" name="Commission" stroke="hsl(160 84% 39%)" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
 
-      {/* Activity distribution donut */}
-      <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-foreground">Agent Activity</h3>
-            <p className="text-[11px] text-muted-foreground">Active vs Inactive in selected window</p>
+        {/* Activity distribution donut (narrow) */}
+        <Card className="rounded-2xl border-border/50 p-3 sm:p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-foreground">Agent Activity</h3>
+              <p className="text-[11px] text-muted-foreground">Active vs Inactive in selected window</p>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onOpenSection('directory')}>
+              View
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onOpenSection('directory')}>
-            View
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-        <div className="h-48 sm:h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={[
-                  { name: 'Active', value: data?.activity.active ?? 0 },
-                  { name: 'Inactive', value: data?.activity.inactive ?? 0 },
-                ]}
-                innerRadius="55%"
-                outerRadius="85%"
-                paddingAngle={2}
-                dataKey="value"
-              >
-                <Cell fill="hsl(var(--primary))" />
-                <Cell fill="hsl(var(--muted))" />
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 12,
-                  fontSize: 12,
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+          <div className="h-48 sm:h-56 xl:flex-1 xl:min-h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Active', value: data?.activity.active ?? 0 },
+                    { name: 'Inactive', value: data?.activity.inactive ?? 0 },
+                  ]}
+                  innerRadius="55%"
+                  outerRadius="85%"
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  <Cell fill="hsl(var(--primary))" />
+                  <Cell fill="hsl(var(--muted))" />
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 12,
+                    fontSize: 12,
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
+
+      {/* Active agents per-bucket trend — full-width time-series */}
+      <ActiveAgentsTrendChart
+        data={data?.trend ?? []}
+        range={range}
+        loading={isLoading}
+      />
 
       {/* Drill-down modal */}
       <BriefDrillDownModal
