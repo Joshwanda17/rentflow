@@ -29,9 +29,20 @@ const toBareDigits = (p: string) => formatPhoneInternational(p).replace(/^\+/, '
 
 type SmsResult = { accepted: boolean; provider?: string; reason?: string };
 
+function combineFailureReasons(results: SmsResult[]): string {
+  const reasons = results
+    .filter((r) => !r.accepted && r.reason)
+    .map((r) => r.provider ? `${r.provider}:${r.reason}` : r.reason!);
+  return Array.from(new Set(reasons)).join(' | ') || 'all_sms_providers_failed';
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function sendViaYoola(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get('YOOLA_SMS_API_KEY')?.trim();
-  if (!apiKey) return { accepted: false, reason: 'yoola_not_configured' };
+  if (!apiKey) return { accepted: false, provider: 'yoola', reason: 'not_configured' };
   try {
     const res = await fetch('https://yoolasms.com/api/v1/send', {
       method: 'POST',
@@ -46,16 +57,16 @@ async function sendViaYoola(phone: string, message: string): Promise<SmsResult> 
       return { accepted: true, provider: 'yoola' };
     }
     if (res.ok && !data?.error && status === '') return { accepted: true, provider: 'yoola' };
-    return { accepted: false, reason: `yoola_${res.status}_${status || 'rejected'}` };
+    return { accepted: false, provider: 'yoola', reason: `${res.status}_${status || 'rejected'}` };
   } catch (e) {
-    return { accepted: false, reason: (e as Error).message };
+    return { accepted: false, provider: 'yoola', reason: (e as Error).message };
   }
 }
 
 async function sendViaAfricasTalking(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
   const username = Deno.env.get('AFRICASTALKING_USERNAME');
-  if (!apiKey || !username) return { accepted: false, reason: 'missing_credentials' };
+  if (!apiKey || !username) return { accepted: false, provider: 'africastalking', reason: 'missing_credentials' };
   const isSandbox = username.toLowerCase() === 'sandbox';
   const url = isSandbox
     ? 'https://api.sandbox.africastalking.com/version1/messaging'
@@ -72,17 +83,17 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
     if (recipients && recipients.length > 0) {
       const s = recipients[0].statusCode;
       if (s === 101 || s === 100 || s === 102) return { accepted: true, provider: 'africastalking' };
-      return { accepted: false, reason: `at_status_${s}` };
+      return { accepted: false, provider: 'africastalking', reason: `status_${s}` };
     }
-    return { accepted: false, reason: 'at_no_recipients' };
+    return { accepted: false, provider: 'africastalking', reason: 'no_recipients' };
   } catch (e) {
-    return { accepted: false, reason: (e as Error).message };
+    return { accepted: false, provider: 'africastalking', reason: (e as Error).message };
   }
 }
 
 async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get('LANA_SMS_API_KEY')?.trim();
-  if (!apiKey) return { accepted: false, reason: 'lana_not_configured' };
+  if (!apiKey) return { accepted: false, provider: 'lana', reason: 'not_configured' };
   try {
     const res = await fetch('https://api.lanasms.com/v1/send', {
       method: 'POST',
@@ -97,22 +108,24 @@ async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
     if (res.ok && (raw === true || s === 'success' || s === 'true' || s === 'ok' || s === 'sent' || s === 'queued')) {
       return { accepted: true, provider: 'lana' };
     }
-    return { accepted: false, reason: `lana_${res.status}_rejected` };
+    return { accepted: false, provider: 'lana', reason: `${res.status}_rejected` };
   } catch (e) {
-    return { accepted: false, reason: (e as Error).message };
+    return { accepted: false, provider: 'lana', reason: (e as Error).message };
   }
 }
 
 async function sendSMS(phone: string, message: string): Promise<SmsResult> {
+  const failures: SmsResult[] = [];
   const yoola = await sendViaYoola(phone, message);
   if (yoola.accepted) return yoola;
+  failures.push(yoola);
   const at = await sendViaAfricasTalking(phone, message);
   if (at.accepted) return at;
+  failures.push(at);
   const lana = await sendViaLana(phone, message);
   if (lana.accepted) return lana;
-  if (yoola.reason && yoola.reason !== 'yoola_not_configured') return yoola;
-  if (at.reason && at.reason !== 'missing_credentials') return at;
-  return lana;
+  failures.push(lana);
+  return { accepted: false, reason: combineFailureReasons(failures) };
 }
 
 async function fetchRoleUserPhones(admin: any, role: Audience): Promise<{ user_id: string; phone: string }[]> {
