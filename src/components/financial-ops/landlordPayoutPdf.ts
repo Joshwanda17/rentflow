@@ -154,7 +154,7 @@ function buildCardNode(d: LandlordPayoutShareData): HTMLDivElement {
           ${d.agent_name ? row('Agent', escapeHtml(d.agent_name)) : ''}
         </div>
         <div style="margin-top:14px;font-size:10px;text-align:center;color:rgba(237,221,255,0.8);">
-          Powered by Welile · welilereceipts.com
+          Powered by Welile · welileapp.com
         </div>
       </div>
     </div>
@@ -283,7 +283,7 @@ export async function buildBulkPayoutsPdfBlob(
       pdf.line(margin, footerY - 4, pageW - margin, footerY - 4);
       pdf.setFontSize(8);
       pdf.setTextColor(80, 80, 80);
-      pdf.text('Internal Welile payout reconciliation report · welilereceipts.com', margin, footerY);
+      pdf.text('Internal Welile payout reconciliation report · welileapp.com', margin, footerY);
       const pageNum = pdf.getNumberOfPages();
       pdf.text(`Page ${pageNum}`, pageW - margin, footerY, { align: 'right' });
       pdf.setTextColor(0, 0, 0);
@@ -423,7 +423,7 @@ export async function buildFundedSummaryPdfBlob(params: {
     pdf.line(margin, footerY - 4, pageW - margin, footerY - 4);
     pdf.setFontSize(8);
     pdf.setTextColor(80, 80, 80);
-    pdf.text('Internal Welile payout reconciliation report · welilereceipts.com', margin, footerY);
+    pdf.text('Internal Welile payout reconciliation report · welileapp.com', margin, footerY);
     pdf.text(`Page ${pdf.getNumberOfPages()}`, pageW - margin, footerY, { align: 'right' });
     pdf.setTextColor(0, 0, 0);
   };

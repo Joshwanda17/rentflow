@@ -283,9 +283,9 @@ Deno.serve(async (req) => {
               daily_repayment: request.daily_repayment || '',
               duration_days: request.duration_days || '',
               bonus_amount: bonusPaid ? RENT_FUNDED_BONUS : '',
-              withdraw_url: 'https://welilereceipts.com/dashboard/agent',
+              withdraw_url: 'https://welileapp.com/dashboard/agent',
               company_name: 'Welile',
-              logo_url: 'https://welilereceipts.com/welile-logo.png',
+              logo_url: 'https://welileapp.com/welile-logo.png',
             },
           }),
         })

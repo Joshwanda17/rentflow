@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const origin = typeof body?.origin === "string" && body.origin.startsWith("http")
       ? body.origin.replace(/\/+$/, "")
-      : "https://welilereceipts.com";
+      : "https://welileapp.com";
     const recipientsIn = Array.isArray(body?.recipients) ? body.recipients : [];
 
     const results: Array<{ role: string; phone: string; outcome: string }> = [];

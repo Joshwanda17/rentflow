@@ -16,7 +16,7 @@ const SITE_NAME = 'Welile'
 export function SubAgentInvite({
   recipient_name = 'there',
   parent_name = 'A Welile agent',
-  accept_url = 'https://welilereceipts.com/sub-agent-invite',
+  accept_url = 'https://welileapp.com/sub-agent-invite',
   invite_message = '',
 }: Props) {
   return (
@@ -63,7 +63,7 @@ export const template = {
   subject: (d: Record<string, any>) =>
     `${d?.parent_name || 'A Welile agent'} invited you to be their sub-agent`,
   displayName: 'Sub-agent invite',
-  previewData: { recipient_name: 'Jane', parent_name: 'John Doe', accept_url: 'https://welilereceipts.com/sub-agent-invite?token=abc' },
+  previewData: { recipient_name: 'Jane', parent_name: 'John Doe', accept_url: 'https://welileapp.com/sub-agent-invite?token=abc' },
 } satisfies TemplateEntry
 
 const BRAND = '#7b19d4'

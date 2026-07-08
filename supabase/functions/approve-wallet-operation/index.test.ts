@@ -77,7 +77,7 @@ async function simulateApproveRoiPayoutEmail(opts: {
         wallet_id_last4: walletLast4,
         source: "Platform",
         company_name: "Welile",
-        logo_url: "https://welilereceipts.com/welile-logo.png",
+        logo_url: "https://welileapp.com/welile-logo.png",
         // Diagnostic — included so the receiver knows which category triggered it
         _category_under_test: opts.category,
       },

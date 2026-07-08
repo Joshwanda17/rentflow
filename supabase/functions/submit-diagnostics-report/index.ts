@@ -6,7 +6,7 @@ const corsHeaders = {
 }
 
 // Public/customer-facing app URL where support can open the one-time link.
-const DEFAULT_APP_ORIGIN = 'https://welilereceipts.com'
+const DEFAULT_APP_ORIGIN = 'https://welileapp.com'
 // Fallback support inbox; override with the SUPPORT_INBOX_EMAIL secret.
 const DEFAULT_SUPPORT_INBOX = 'support@welile.com'
 const FROM_DOMAIN = 'welile.com'

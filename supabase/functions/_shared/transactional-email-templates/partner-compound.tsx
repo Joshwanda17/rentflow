@@ -82,9 +82,9 @@ export function PartnerCompound({
   new_total_partnership_value = 0,
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welilereceipts.com/welile-logo.png',
+  logo_url = 'https://welileapp.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
-  dashboard_url = 'https://welilereceipts.com/auth',
+  dashboard_url = 'https://welileapp.com/auth',
   compound_history,
 }: PartnerCompoundProps) {
   const year = new Date().getFullYear()
@@ -478,8 +478,8 @@ export const template = {
     new_total_partnership_value: 6_272_000,
     currency: 'UGX',
     company_name: 'Welile',
-    logo_url: 'https://welilereceipts.com/welile-logo.png',
+    logo_url: 'https://welileapp.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
-    dashboard_url: 'https://welilereceipts.com/auth',
+    dashboard_url: 'https://welileapp.com/auth',
   },
 } satisfies TemplateEntry

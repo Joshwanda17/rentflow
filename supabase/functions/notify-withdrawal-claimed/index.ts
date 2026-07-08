@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
     const smsMsg =
       `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} is being processed by our Merchant Agent ${merchantName}. ` +
       `Your money will arrive shortly. Thank you. ` +
-      `https://welilereceipts.com/ZQhyGb`;
+      `https://welileapp.com/ZQhyGb`;
 
     let sent = false;
     let smsAttempts = 0;

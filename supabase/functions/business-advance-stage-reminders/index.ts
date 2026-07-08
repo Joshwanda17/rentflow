@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PUBLIC_TRACK_BASE = "https://welilereceipts.com/business-advance/track";
+const PUBLIC_TRACK_BASE = "https://welileapp.com/business-advance/track";
 
 /**
  * Per-status reminder rules. Each entry tells us:

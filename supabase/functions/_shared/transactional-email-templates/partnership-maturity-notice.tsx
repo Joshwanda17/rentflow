@@ -65,8 +65,8 @@ export function PartnershipMaturityNotice({
   maturity_date = '',
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welilereceipts.com/welile-logo.png',
-  dashboard_url = 'https://welilereceipts.com/dashboard/funder',
+  logo_url = 'https://welileapp.com/welile-logo.png',
+  dashboard_url = 'https://welileapp.com/dashboard/funder',
   renew_url = '',
   redeem_url = '',
   unsubscribe_url = 'https://welile.com/unsubscribe',
@@ -75,8 +75,8 @@ export function PartnershipMaturityNotice({
 }: PartnershipMaturityNoticeProps) {
   const fmtAmount = formatAmount(partnership_amount, currency)
   const portfolioPath = encodeURIComponent(portfolio_id || '')
-  const renewHref = renew_url || `https://welilereceipts.com/portfolios/${portfolioPath}/renew`
-  const redeemHref = redeem_url || `https://welilereceipts.com/portfolios/${portfolioPath}/redeem`
+  const renewHref = renew_url || `https://welileapp.com/portfolios/${portfolioPath}/renew`
+  const redeemHref = redeem_url || `https://welileapp.com/portfolios/${portfolioPath}/redeem`
 
   return (
     <Html>
@@ -455,8 +455,8 @@ export const template = {
     maturity_date: '28 April 2026',
     currency: 'UGX',
     company_name: 'Welile',
-    logo_url: 'https://welilereceipts.com/welile-logo.png',
-    dashboard_url: 'https://welilereceipts.com/dashboard/funder',
+    logo_url: 'https://welileapp.com/welile-logo.png',
+    dashboard_url: 'https://welileapp.com/dashboard/funder',
     unsubscribe_url: 'https://welile.com/unsubscribe',
     privacy_url: 'https://welile.com/company-profile',
     terms_url: 'https://welile.com/company-profile',

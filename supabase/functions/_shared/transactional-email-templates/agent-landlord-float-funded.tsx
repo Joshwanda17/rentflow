@@ -53,9 +53,9 @@ export function AgentLandlordFloatFunded({
   daily_repayment,
   duration_days,
   bonus_amount,
-  withdraw_url = 'https://welilereceipts.com/dashboard/agent',
+  withdraw_url = 'https://welileapp.com/dashboard/agent',
   company_name = 'Welile',
-  logo_url = 'https://welilereceipts.com/welile-logo.png',
+  logo_url = 'https://welileapp.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
   contact_url = 'https://welile.com/contact',
 }: AgentLandlordFloatFundedProps) {
@@ -336,8 +336,8 @@ export function AgentLandlordFloatFunded({
                     This is an automated notification. Please do not reply directly to this email.
                   </Text>
                   <Text style={{ margin: '0 0 15px 0' }}>
-                    <Link href="https://welilereceipts.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
-                    <Link href="https://welilereceipts.com/partners-terms" style={footerLink}>Terms of Service</Link>
+                    <Link href="https://welileapp.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
+                    <Link href="https://welileapp.com/partners-terms" style={footerLink}>Terms of Service</Link>
                     <Link href={unsubscribe_url} style={footerLink}>Unsubscribe</Link>
                   </Text>
                   <Text style={footerCopyText}>
@@ -571,9 +571,9 @@ export const template = {
     daily_repayment: 12000,
     duration_days: 90,
     bonus_amount: 5000,
-    withdraw_url: 'https://welilereceipts.com/dashboard/agent',
+    withdraw_url: 'https://welileapp.com/dashboard/agent',
     company_name: 'Welile',
-    logo_url: 'https://welilereceipts.com/welile-logo.png',
+    logo_url: 'https://welileapp.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
     contact_url: 'https://welile.com/contact',
   },

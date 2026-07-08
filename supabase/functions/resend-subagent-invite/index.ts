@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     const { subAgentId } = reqBody;
     const origin = typeof reqBody?.origin === "string" && reqBody.origin.startsWith("http")
       ? reqBody.origin.replace(/\/+$/, "")
-      : "https://welilereceipts.com";
+      : "https://welileapp.com";
 
     if (!subAgentId || typeof subAgentId !== "string") {
       return json({ error: "Missing subAgentId" }, 400);

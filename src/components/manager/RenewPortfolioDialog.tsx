@@ -193,10 +193,10 @@ export function RenewPortfolioDialog({ open, onOpenChange, portfolio, onSuccess 
                   duration: `${newDuration} months`,
                   currency: 'UGX',
                   company_name: 'Welile',
-                  logo_url: 'https://welilereceipts.com/welile-logo.png',
+                  logo_url: 'https://welileapp.com/welile-logo.png',
                   unsubscribe_url: 'https://welile.com/unsubscribe',
-                  terms_url: 'https://welilereceipts.com/partners-terms',
-                  privacy_url: 'https://welilereceipts.com/privacy',
+                  terms_url: 'https://welileapp.com/partners-terms',
+                  privacy_url: 'https://welileapp.com/privacy',
                 },
               },
             });

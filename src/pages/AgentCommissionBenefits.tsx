@@ -48,7 +48,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
 
 💵 All your earnings go straight to your Welile Wallet.
 
-👉 Join Welile as an Agent: https://welilereceipts.com/join`;
+👉 Join Welile as an Agent: https://welileapp.com/join`;
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 

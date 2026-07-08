@@ -19,7 +19,7 @@ export function ShareRentRecorderCard() {
   // Permanent, never-expiring direct link. Works offline (no DB resolve needed),
   // opens on every device, no signup, no short-code lookup. Uses the canonical
   // production domain so the same link always resolves even if shared from preview.
-  const PUBLIC_BASE = 'https://welilereceipts.com';
+  const PUBLIC_BASE = 'https://welileapp.com';
   const shortUrl = user ? `${PUBLIC_BASE}/record-rent?a=${user.id}` : '';
   const isLoading = !user;
 

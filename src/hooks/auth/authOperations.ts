@@ -192,7 +192,7 @@ export async function resetPassword(email: string) {
   // Always redirect to the custom domain to avoid Lovable auth-bridge invalidating the token
   const isCustomDomain = !window.location.hostname.includes('lovable.app') && !window.location.hostname.includes('lovableproject.com');
   // TEMP: custom-domain SSL is being renewed — fall back to the Lovable URL.
-  const origin = isCustomDomain ? window.location.origin : 'https://welilereceipts-com.lovable.app';
+  const origin = isCustomDomain ? window.location.origin : 'https://welileapp.com';
   const redirectUrl = `${origin}/update-password`;
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
   return { error: error as Error | null };

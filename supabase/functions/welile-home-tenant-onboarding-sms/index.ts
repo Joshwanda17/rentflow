@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     const msg =
       `Hi ${firstName}, welcome to Welile Homes. Your agent has enrolled you${rentPart}${landlordPart}. ` +
       `You'll get an SMS receipt every time your rent is paid. ` +
-      `Confirm your details at welilereceipts.com. Thank you.`;
+      `Confirm your details at welileapp.com. Thank you.`;
 
     // One onboarding SMS per tenant, ever (idempotent).
     const ok = await sendSMS(tenant.phone, msg, {

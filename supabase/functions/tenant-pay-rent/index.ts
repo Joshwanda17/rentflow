@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
           console.warn("[tenant-pay-rent] Skipping SMS — AT credentials missing");
           return;
         }
-        const siteBase = Deno.env.get("PUBLIC_SITE_URL") || "https://welilereceipts.com";
+        const siteBase = Deno.env.get("PUBLIC_SITE_URL") || "https://welileapp.com";
         const shareUrl = `${siteBase.replace(/\/+$/, "")}/limit/${tenantId}`;
         const firstName = fullName.split(" ")[0];
         const fmt = (n: number) => `UGX ${Math.max(0, Math.round(n)).toLocaleString("en-UG")}`;

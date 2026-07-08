@@ -62,7 +62,7 @@ export async function generateLandlordRegistrationFormPdf(
   pdf.text("Welile — Africa's rent trust network", margin + 21, 18.5);
 
   pdf.setFontSize(7.5);
-  pdf.text('welilereceipts.com', pw - margin, 12, { align: 'right' });
+  pdf.text('welileapp.com', pw - margin, 12, { align: 'right' });
   pdf.text(`Date: ____ / ____ / ______`, pw - margin, 18.5, { align: 'right' });
 
   pdf.setTextColor(0, 0, 0);
@@ -235,7 +235,7 @@ export async function generateLandlordRegistrationFormPdf(
     margin,
     ph - 11,
   );
-  pdf.text('Powered by Welile  •  welilereceipts.com', margin, ph - 7);
+  pdf.text('Powered by Welile  •  welileapp.com', margin, ph - 7);
   pdf.text(`Generated ${new Date().toLocaleDateString('en-UG')}`, pw - margin, ph - 7, { align: 'right' });
 
   return pdf.output('blob');
@@ -249,7 +249,7 @@ export async function generateLandlordRegistrationFormPdf(
 export async function shareLandlordRegistrationFormPdf(
   blob: Blob,
   filename = 'Welile-Landlord-Registration-Form.pdf',
-  caption = 'Welile Landlord Registration Form — please print, fill in, and return to register the landlord. welilereceipts.com',
+  caption = 'Welile Landlord Registration Form — please print, fill in, and return to register the landlord. welileapp.com',
   phone?: string,
 ) {
   return sharePdfViaWhatsApp(blob, { filename, caption, phone });

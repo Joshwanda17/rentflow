@@ -568,7 +568,7 @@ function AppRoutes() {
           <Route path="/activate" element={<ActivatePartner />} />
           <Route path="/business-advance/track" element={<BusinessAdvanceTrack />} />
           <Route path="/rent-money" element={<RentMoney />} />
-          {/* Bot referral short links: welilereceipts.com/{CODE} — must be last before catch-all */}
+          {/* Bot referral short links: welileapp.com/{CODE} — must be last before catch-all */}
           <Route path="/:code" element={<TrackedRedirect />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

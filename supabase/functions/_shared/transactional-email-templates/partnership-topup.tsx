@@ -41,9 +41,9 @@ export function PartnershipTopup({
   monthly_return_amount,
   currency = 'UGX',
   company_name = 'Welile',
-  logo_url = 'https://welilereceipts.com/welile-logo.png',
+  logo_url = 'https://welileapp.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
-  dashboard_url = 'https://welilereceipts.com/auth',
+  dashboard_url = 'https://welileapp.com/auth',
 }: PartnershipTopupProps) {
   const year = new Date().getFullYear()
   const formattedTopup = formatAmount(topup_amount, currency)
@@ -368,8 +368,8 @@ export const template = {
     monthly_return_amount: 180_000,
     currency: 'UGX',
     company_name: 'Welile',
-    logo_url: 'https://welilereceipts.com/welile-logo.png',
+    logo_url: 'https://welileapp.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
-    dashboard_url: 'https://welilereceipts.com/auth',
+    dashboard_url: 'https://welileapp.com/auth',
   },
 } satisfies TemplateEntry

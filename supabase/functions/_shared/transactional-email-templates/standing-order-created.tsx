@@ -79,7 +79,7 @@ const Email = ({
 
             <Text style={body}>
               Log in any time to view and cash out your wallet at{' '}
-              <Link href="https://welilereceipts.com" style={link}>welilereceipts.com</Link>.
+              <Link href="https://welileapp.com" style={link}>welileapp.com</Link>.
             </Text>
           </Section>
           <Text style={footer}>© {year} {company_name} Technologies Ltd. This is an automated notification.</Text>
