@@ -1,0 +1,12 @@
+---
+name: Sub-agent registration reward requires 3 house listings
+description: Recruiting agent earns the subagent_registration bonus only after the invited sub-agent lists >= 3 valid houses
+type: feature
+---
+A recruiting agent earns the `subagent_registration` event bonus (credited via `credit_agent_event_bonus`, currently UGX 3,000; leaderboard "estimated earnings" displays a UGX 10,000 multiplier) ONLY once the invited/verified sub-agent has listed at least 3 valid house_listings (status <> 'rejected').
+
+Enforcement (DB):
+- `subagent_listing_count(uuid)` — counts a sub-agent's non-rejected `house_listings`.
+- `try_award_subagent_registration_bonus(uuid)` — gate: requires count >= 3, then pays each verified `agent_subagents.parent_agent_id` for that sub_agent. Idempotent via `credit_agent_event_bonus` (source_id = sub_agent_id).
+- Trigger `award_subagent_registration_bonus()` on `agent_subagents` (verify) now calls the gated helper instead of paying immediately.
+- Trigger `trg_award_subagent_bonus_on_listing` on `house_listings` (AFTER INSERT/UPDATE OF status) awards retroactively when a verified sub-agent crosses the 3rd valid listing.
