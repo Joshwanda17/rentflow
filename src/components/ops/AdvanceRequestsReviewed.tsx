@@ -79,6 +79,13 @@ function EmptyState({ label }: { label: string }) {
 
 function RequestRow({ req, tone }: { req: any; tone: 'approved' | 'rejected' }) {
   const note = tone === 'rejected' ? (req.rejection_reason || 'No reason recorded') : approvalNote(req);
+  const paid = tone === 'approved' && isPaidOut(req);
+  const idx = stageIndex(req.status);
+  const holdingFor = formatDistanceToNowStrict(lastActivityAt(req));
+  const holdDays = (Date.now() - lastActivityAt(req).getTime()) / 86_400_000;
+  const holdTone = paid
+    ? 'text-muted-foreground'
+    : holdDays >= 5 ? 'text-rose-600' : holdDays >= 2 ? 'text-amber-600' : 'text-emerald-600';
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex items-center gap-2.5">
@@ -95,9 +102,43 @@ function RequestRow({ req, tone }: { req: any; tone: 'approved' | 'rejected' }) 
         </div>
       </div>
       {tone === 'approved' && (
-        <Badge className="mt-2 text-[9px] px-1.5 py-0 h-4 font-bold bg-emerald-100 text-emerald-700 border-0">
-          {STATUS_LABEL[req.status] || req.status}
-        </Badge>
+        <>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Badge className="text-[9px] px-1.5 py-0 h-4 font-bold bg-emerald-100 text-emerald-700 border-0">
+              {STATUS_LABEL[req.status] || req.status}
+            </Badge>
+            <Badge className={cn(
+              'text-[9px] px-1.5 py-0 h-4 font-bold border-0 flex items-center gap-0.5',
+              paid ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-700',
+            )}>
+              <Wallet className="h-2.5 w-2.5" />{paid ? 'Paid out' : 'Not paid out'}
+            </Badge>
+            <span className={cn('text-[9px] font-semibold flex items-center gap-0.5', holdTone)}>
+              <Clock className="h-2.5 w-2.5" />{paid ? `Paid ${holdingFor} ago` : `Holding ${holdingFor}`}
+            </span>
+          </div>
+
+          {/* Approval route — which desk it's on now */}
+          <div className="mt-2 flex items-center gap-1">
+            {PIPELINE.map((s, i) => (
+              <div key={s.key} className="flex-1 flex flex-col items-center gap-0.5 min-w-0">
+                <div className={cn(
+                  'h-1.5 w-full rounded-full',
+                  i < idx ? 'bg-emerald-500' : i === idx ? (paid ? 'bg-emerald-600' : 'bg-amber-500') : 'bg-muted',
+                )} />
+                <span className={cn(
+                  'text-[7px] leading-none text-center truncate w-full',
+                  i === idx ? 'font-bold text-foreground' : 'text-muted-foreground',
+                )}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-[9px] text-muted-foreground">
+            {paid
+              ? 'Fully disbursed to the agent wallet.'
+              : `Awaiting ${PIPELINE[Math.min(idx + 1, PIPELINE.length - 1)].label} — not yet paid out.`}
+          </p>
+        </>
       )}
       {note && (
         <div className={
