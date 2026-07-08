@@ -280,8 +280,8 @@ export function AgentOpsDashboard() {
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
     { title: '👥 Agent Network', keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
-    { title: '🏢 Business', keys: ['service-centres', 'advance-requests', 'transfers', 'float-payouts'] },
     { title: '💰 Advances', keys: ['advance-requests', 'advance-potential'] },
+    { title: '🏢 Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
     { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
     { title: '🔗 System', keys: ['bulk-ops'] },
   ];
@@ -450,8 +450,8 @@ function AgentOpsSideNav({
   // collapsible so the nav never over-scrolls. Agent Network sits right
   // below Priority and is open by default (this dashboard is agent-centric).
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
-    { title: 'Priority', pinned: true, keys: ['advance-requests', 'trust-capture', 'feature-flags'] },
     { title: 'Advances', pinned: true, keys: ['advance-requests', 'advance-potential'] },
+    { title: 'Priority', pinned: true, keys: ['trust-capture', 'feature-flags'] },
     { title: 'Agent Network', defaultOpen: true, keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: 'Operations', keys: ['pipeline', 'escalations', 'tasks', 'connector'] },
     { title: 'Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
