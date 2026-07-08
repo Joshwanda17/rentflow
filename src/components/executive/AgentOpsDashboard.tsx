@@ -36,6 +36,7 @@ import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { AgentEligibilityTransitionsPanel } from './AgentEligibilityTransitionsPanel';
 import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
+import { AdvanceAnalyticsPanel } from './agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
