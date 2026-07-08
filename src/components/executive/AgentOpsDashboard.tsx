@@ -38,7 +38,7 @@ import {
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
-  LayoutGrid, ChevronDown, ToggleRight, Layers, Sparkles, ChevronRight as ChevronRightIcon, Loader2
+  LayoutGrid, ChevronDown, ToggleRight, Layers
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -294,7 +294,6 @@ export function AgentOpsDashboard() {
     </div>
   ) : bottomTab !== 'more' ? (
     <div className="space-y-4">
-      <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
       <AgentOpsHomeView
         range={dateRange}
         onRangeChange={setDateRange}
@@ -307,7 +306,6 @@ export function AgentOpsDashboard() {
     </div>
   ) : (
     <div className="space-y-5 pb-20 sm:pb-4">
-      <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
       {MORE_GROUPS.map((group) => (
         <section key={group.title} className="space-y-2">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
@@ -439,12 +437,12 @@ function AgentOpsSideNav({
   onHome: () => void;
 }) {
   const SIDE_GROUPS: { title: string; keys: ActiveView[] }[] = [
-    { title: 'Priority', keys: ['advance-requests', 'bulk-ops', 'feature-flags', 'trust-capture'] },
+    { title: 'Priority', keys: ['advance-requests', 'feature-flags', 'trust-capture'] },
     { title: 'Operations', keys: ['escalations', 'tasks', 'pipeline'] },
     { title: 'Agent Network', keys: ['sub-agents', 'promote-tenant', 'lending-agents', 'balances', 'directory'] },
     { title: 'Business', keys: ['service-centres', 'connector'] },
     { title: 'Insights', keys: ['leaderboard', 'performance-report', 'allocation-report', 'performance', 'lifecycle', 'alerts', 'brief'] },
-    { title: 'System', keys: ['transfers', 'float-payouts', 'earnings'] },
+    { title: 'System', keys: ['bulk-ops', 'transfers', 'float-payouts', 'earnings'] },
   ];
 
   return (
@@ -495,90 +493,5 @@ function AgentOpsSideNav({
         ))}
       </nav>
     </aside>
-  );
-}
-
-/* ===================================================================
- * BulkOpsHeroCard — prominent always-visible CTA for the Bulk Ops Console.
- * Surfaces live job activity (queued / running) so ops can spot in-flight
- * fleet-wide capability changes at a glance from the dashboard home.
- * =================================================================== */
-function BulkOpsHeroCard({ onOpen, onOpenFlags }: { onOpen: () => void; onOpenFlags: () => void }) {
-  const { data: liveJobs } = useQuery({
-    queryKey: ['agent-ops-bulk-jobs-live-summary'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('agent_capability_ops_jobs')
-        .select('id,status,total_agents,batches_done,total_batches')
-        .in('status', ['queued', 'running'])
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data || [];
-    },
-    refetchInterval: 5_000,
-    staleTime: 4_000,
-  });
-
-  const running = (liveJobs || []).filter((j: any) => j.status === 'running').length;
-  const queued = (liveJobs || []).filter((j: any) => j.status === 'queued').length;
-  const totalAgentsInFlight = (liveJobs || []).reduce((acc: number, j: any) => acc + (j.total_agents || 0), 0);
-  const hasActivity = (liveJobs?.length ?? 0) > 0;
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-rose-300/60 bg-gradient-to-br from-rose-600 via-rose-700 to-pink-700 p-4 sm:p-5 shadow-lg">
-      {/* decorative blur */}
-      <div className="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-pink-300/20 blur-3xl" />
-
-      <div className="relative flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div className="shrink-0 h-12 w-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/20">
-            <Layers className="h-6 w-6 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">Bulk Ops Console</h3>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold text-white uppercase tracking-wider">
-                <Sparkles className="h-2.5 w-2.5" /> Fleet-wide
-              </span>
-              {hasActivity && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-300 text-rose-900 text-[10px] font-extrabold">
-                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                  {running > 0 ? `${running} running` : `${queued} queued`}
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] sm:text-xs text-white/85 mt-0.5 leading-snug">
-              Enable or disable agent functions across segments or CSV lists at million-agent scale — with retries, dead-letter, and live progress.
-            </p>
-            {hasActivity && (
-              <p className="text-[10px] text-white/80 mt-1 tabular-nums">
-                {totalAgentsInFlight.toLocaleString()} agents in flight across {(liveJobs || []).length} job{(liveJobs || []).length === 1 ? '' : 's'}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onOpenFlags}
-            className="hidden sm:inline-flex items-center gap-1.5 h-10 px-3 rounded-xl border border-white/30 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition active:scale-95"
-          >
-            <ToggleRight className="h-4 w-4" />
-            Per-agent flags
-          </button>
-          <button
-            type="button"
-            onClick={onOpen}
-            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-white text-rose-700 text-sm font-bold shadow-md hover:bg-rose-50 active:scale-95 transition"
-          >
-            Open console
-            <ChevronRightIcon className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
