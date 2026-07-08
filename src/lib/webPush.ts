@@ -23,9 +23,11 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 /** Returns the base64-encoded value of a PushSubscription key (p256dh / auth). */
-export function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
+export function arrayBufferToBase64(buffer: BufferSource | null): string {
   if (!buffer) return "";
-  const bytes = new Uint8Array(buffer);
+  const bytes = ArrayBuffer.isView(buffer)
+    ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+    : new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i += 1) {
     binary += String.fromCharCode(bytes[i]);
