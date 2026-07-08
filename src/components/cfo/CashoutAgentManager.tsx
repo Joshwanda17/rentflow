@@ -748,6 +748,77 @@ export function CashoutAgentManager() {
     );
   };
 
+  // Export the Commission & Telecom report (plus the underlying transactions)
+  // for the currently selected date filter as a PDF.
+  const exportReportPdf = async () => {
+    if (!selectedAgent) return;
+    const { default: jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+    const legs = commissionByWithdrawal as Record<string, number>;
+    const rows = visiblePayouts as any[];
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const prof = selectedAgent.profiles || {};
+    const scopeLabel = txnDateFilter
+      ? new Date(`${txnDateFilter}T00:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+      : 'All dates';
+
+    doc.setFontSize(16);
+    doc.text('Commission & Telecom Report', 40, 40);
+    doc.setFontSize(10);
+    doc.setTextColor(90);
+    doc.text(`Merchant Agent: ${prof.full_name || 'Unknown'}  (${prof.phone || '—'})`, 40, 58);
+    doc.text(`Date scope: ${scopeLabel}`, 40, 72);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 86);
+
+    const telecomTotal = rows.reduce((s, py) => s + getTelecomSendingCharge(Number(py.amount || 0)), 0);
+    const volumeTotal = rows.reduce((s, py) => s + Number(py.amount || 0), 0);
+
+    autoTable(doc, {
+      startY: 100,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Payouts', String(rows.length)],
+        ['Volume total', formatUGX(volumeTotal)],
+        ['Commission credited', formatUGX(commissionSummary.credited)],
+        ['Commission expected (0.5%)', formatUGX(commissionSummary.expected)],
+        ['Commission unpaid / gap', `${commissionSummary.missingCount} payout(s) · ${formatUGX(commissionSummary.gap)}`],
+        ['Telecom charges', formatUGX(telecomTotal)],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [30, 41, 59] },
+      styles: { fontSize: 9 },
+      margin: { left: 40, right: 40 },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Date/Time', 'Recipient', 'Phone', 'Method', 'Amount', 'Commission', 'Telecom', 'Status', 'Reference']],
+      body: rows.map((py) => {
+        const leg = legs[String(py.id)];
+        return [
+          formatDateTime(py.processed_at || py.created_at),
+          py.beneficiary_name || py.mobile_money_name || 'Beneficiary',
+          py.beneficiary_phone || py.mobile_money_number || '—',
+          (py.payout_method || 'cash').replace(/_/g, ' '),
+          formatUGX(Number(py.amount || 0)),
+          leg === undefined ? 'not credited' : formatUGX(Number(leg || 0)),
+          formatUGX(getTelecomSendingCharge(Number(py.amount || 0))),
+          py.status || '—',
+          py.fin_ops_reference || '—',
+        ];
+      }),
+      theme: 'striped',
+      headStyles: { fillColor: [30, 41, 59] },
+      styles: { fontSize: 8, cellPadding: 3 },
+      margin: { left: 40, right: 40 },
+    });
+
+    const safeName = (prof.full_name || 'agent').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    doc.save(`commission-telecom-${safeName}-${txnDateFilter || 'all-dates'}.pdf`);
+    toast({ title: 'Report exported', description: `${rows.length} transaction(s) for ${scopeLabel}` });
+  };
+
   // ============ DRILL-DOWN VIEW ============
   if (selectedAgent) {
     const p = selectedAgent.profiles || {};
@@ -813,6 +884,15 @@ export function CashoutAgentManager() {
           <Badge variant="outline" className="text-[10px] shrink-0">
             {txnDateFilter ? `${visiblePayouts.length} payout${visiblePayouts.length === 1 ? '' : 's'} on date` : 'All dates'}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs"
+            onClick={exportReportPdf}
+            disabled={visiblePayouts.length === 0}
+          >
+            <Download className="h-3.5 w-3.5 mr-1" /> Export PDF
+          </Button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
