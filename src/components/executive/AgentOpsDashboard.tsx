@@ -45,7 +45,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
-  ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
+  ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target
 } from 'lucide-react';
 import {
