@@ -972,7 +972,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 </p>
                 <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
                   <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  Grow up to UGX 50,000,000 as you perform better
+                  Grow up to UGX 30,000,000 as you perform better
                 </div>
                 <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
                   Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
@@ -1106,7 +1106,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 </p>
                 <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
                   <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  Grow up to UGX 50,000,000 as you perform better
+                  Grow up to UGX 30,000,000 as you perform better
                 </div>
                 <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
                   Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
@@ -1855,7 +1855,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className="space-y-4 text-sm">
             <p className="text-muted-foreground">
               Your advance limit grows with your track record — top-performing agents can
-              access up to <span className="font-bold text-primary">UGX 50,000,000</span>.
+              access up to <span className="font-bold text-primary">UGX 30,000,000</span>.
               Do these consistently to unlock more:
             </p>
             <ul className="space-y-3">
