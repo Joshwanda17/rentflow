@@ -4,6 +4,7 @@ import { AgentOpsHomeView, type DateRange } from './agent-ops-v2/AgentOpsHomeVie
 import { AgentOpsBottomNav, type BottomTab } from './agent-ops-v2/AgentOpsBottomNav';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { AdvanceRequestsReviewed } from '@/components/ops/AdvanceRequestsReviewed';
+import { AdvanceRepaymentsPanel } from '@/components/ops/AdvanceRepaymentsPanel';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery } from '@tanstack/react-query';
