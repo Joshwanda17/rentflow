@@ -355,7 +355,6 @@ export function LandlordOpsDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [view, setView] = useState<View>('home');
-  const pendingAdvanceCount = usePendingAdvanceCount('landlord_ops');
   const [search, setSearch] = useState('');
   const [navSheetOpen, setNavSheetOpen] = useState(false);
   const [landlordPage, setLandlordPage] = useState(1);
