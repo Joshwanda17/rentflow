@@ -73,6 +73,7 @@ import Index from "./pages/Index";
 // Landing is only needed on /welcome — lazy load it
 const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
+const OAuthFunnel = lazy(() => import("./pages/OAuthFunnel"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const DashboardRedirect = lazy(() => import("./pages/DashboardRedirect"));
