@@ -38,7 +38,7 @@ import {
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
-  LayoutGrid, ChevronDown, ToggleRight, Layers
+  LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge
 } from 'lucide-react';
 import {
   DropdownMenu,
