@@ -273,6 +273,8 @@ Deno.serve(async (req) => {
                 amount: roiAmount,
                 category: 'roi_wallet_credit',
                 ledger_scope: 'wallet',
+                recipient_type: 'user',
+                wallet_bucket: 'withdrawable',
                 source_table: 'supporter_roi_payments',
                 source_id: rr.id,
                 description: walletDescription,
