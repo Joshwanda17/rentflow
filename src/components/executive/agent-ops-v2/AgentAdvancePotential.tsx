@@ -140,6 +140,11 @@ export function AgentAdvancePotential() {
               Potential estimates how much an agent can safely grow within the advance
               programme. The sub-agent network is the biggest driver.
             </p>
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+              <span className="font-semibold text-foreground">Suggested amounts start low</span> and grow
+              over time. New agents get a small starter; the amount only increases as they repay
+              advances well (repaying early raises their next offer).
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
               {[
                 { label: 'Sub-agent network', weight: '70%', icon: Network, note: 'Direct + grand sub-agents' },
