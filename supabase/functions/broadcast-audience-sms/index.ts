@@ -346,8 +346,7 @@ Deno.serve(async (req) => {
           .range(from, from + PAGE - 1);
         if (error || !data || data.length === 0) break;
         for (const r of data) {
-          const normalized = formatPhoneInternational(r.phone);
-          if (!validCampaignPhones.has(r.phone) && (!normalized || !validCampaignPhones.has(r.phone))) {
+          if (!validCampaignPhones.has(r.phone)) {
             staleFailedIds.push(r.id);
           }
         }
