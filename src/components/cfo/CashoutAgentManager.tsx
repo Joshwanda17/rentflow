@@ -107,6 +107,8 @@ export function CashoutAgentManager() {
   const [cashoutAgent, setCashoutAgent] = useState<any>(null);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [commentClaim, setCommentClaim] = useState<any>(null);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
