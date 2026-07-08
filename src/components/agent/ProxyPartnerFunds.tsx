@@ -381,36 +381,18 @@ export function ProxyPartnerFunds() {
         v2PortfolioIds = (v2Portfolios || []).map((p: any) => p.id);
       }
 
-      const [legacyRes, v2Res] = await Promise.all([
-        supabase
-          .from('pending_wallet_operations')
-          .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at, reviewed_at')
-          .eq('target_wallet_user_id', user.id)
-          .eq('category', 'roi_payout')
-          .eq('status', 'approved')
-          .in('reviewed_by', cfoIds)
-          .not('metadata->coo_approved_by', 'is', null)
-          .not('source_id', 'is', null)
-          .order('created_at', { ascending: false }),
-        v2PortfolioIds.length > 0
-          ? supabase
-              .from('pending_wallet_operations')
-              .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at, reviewed_at')
-              .eq('category', 'roi_payout')
-              .eq('status', 'approved')
-              .not('metadata->coo_approved_by', 'is', null)
-              .in('source_id', v2PortfolioIds)
-              .order('created_at', { ascending: false })
-          : Promise.resolve({ data: [], error: null } as any),
-      ]);
+      // Load through the backend helper instead of a browser-side
+      // `.in(source_id, hundreds...)` query. The long URL was returning 400,
+      // so the UI silently had zero v2 ROI rows even though CFO approvals
+      // existed. The RPC enforces the same active proxy-assignment bridge
+      // server-side and returns both legacy and Custody-v2 approvals.
+      const { data: proxyRoiRows, error: proxyRoiError } = await (supabase as any).rpc(
+        'get_agent_proxy_roi_payouts',
+        { p_agent_id: user.id },
+      );
+      if (proxyRoiError) throw proxyRoiError;
 
-      if (legacyRes.error) throw legacyRes.error;
-      if ((v2Res as any).error) throw (v2Res as any).error;
-
-      const mergedById = new Map<string, PwoEntry>();
-      ((legacyRes.data || []) as PwoEntry[]).forEach((op) => mergedById.set(op.id, op));
-      ((v2Res as any).data || []).forEach((op: PwoEntry) => mergedById.set(op.id, op));
-      let rawOps = Array.from(mergedById.values()).sort(
+      let rawOps = ((proxyRoiRows || []) as PwoEntry[]).sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
 
