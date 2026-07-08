@@ -12,6 +12,7 @@ export interface CreditAccessLimit {
   bonusFromHousesListed: number;
   bonusFromPartnersOnboarded: number;
   bonusFromAgentAllocations: number;
+  bonusFromSubagents: number;
 }
 
 const MIN_LIMIT = 30_000;
@@ -113,6 +114,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromHousesListed: 0,
           bonusFromPartnersOnboarded: 0,
           bonusFromAgentAllocations: 0,
+          bonusFromSubagents: 0,
         }
   );
   // If we have ANY cached value (memory or localStorage), don't show a
@@ -175,6 +177,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromHousesListed: Number((data as any).bonus_from_houses_listed) || 0,
           bonusFromPartnersOnboarded: Number((data as any).bonus_from_partners_onboarded) || 0,
           bonusFromAgentAllocations: Number((data as any).bonus_from_agent_allocations) || 0,
+          bonusFromSubagents: Number((data as any).bonus_from_subagents) || 0,
         };
         setLimit(parsed);
         hasLoadedOnce.current = true;
@@ -215,6 +218,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromHousesListed: Number((data as any).bonus_from_houses_listed) || 0,
           bonusFromPartnersOnboarded: Number((data as any).bonus_from_partners_onboarded) || 0,
           bonusFromAgentAllocations: Number((data as any).bonus_from_agent_allocations) || 0,
+          bonusFromSubagents: Number((data as any).bonus_from_subagents) || 0,
         };
         setLimit(parsed);
         hasLoadedOnce.current = true;

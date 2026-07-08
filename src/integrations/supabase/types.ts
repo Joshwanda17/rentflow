@@ -5431,6 +5431,7 @@ export type Database = {
           bonus_from_ratings: number
           bonus_from_receipts: number
           bonus_from_rent_history: number
+          bonus_from_subagents: number
           created_at: string
           id: string
           total_limit: number | null
@@ -5446,6 +5447,7 @@ export type Database = {
           bonus_from_ratings?: number
           bonus_from_receipts?: number
           bonus_from_rent_history?: number
+          bonus_from_subagents?: number
           created_at?: string
           id?: string
           total_limit?: number | null
@@ -5461,6 +5463,7 @@ export type Database = {
           bonus_from_ratings?: number
           bonus_from_receipts?: number
           bonus_from_rent_history?: number
+          bonus_from_subagents?: number
           created_at?: string
           id?: string
           total_limit?: number | null

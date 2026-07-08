@@ -119,9 +119,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const maxAmount = limit?.totalLimit || 0;
   const overLimit = principal > maxAmount;
 
-  // Recent tenant allocations (each one boosts the agent's credit limit
-  // by 2× its amount, capped at 30M total — see recalculate_credit_limit).
-  const ALLOC_MULTIPLIER = 2;
+  // Recent rent collections (each boosts the agent's advance limit by half
+  // its amount, capped at 6M total — see recalculate_credit_limit).
+  const ALLOC_MULTIPLIER = 0.5;
   const { data: recentAllocations = [] } = useQuery({
     queryKey: ['my-recent-allocations', user?.id],
     queryFn: async () => {
@@ -141,16 +141,15 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const BASE_LIMIT = 30_000;
   const HARD_CAP = 30_000_000;
 
-  // Breakdown of every component that contributes to the total credit limit.
+  // What actually raises an agent's advance limit, biggest driver first.
+  // Sub-agents are ~70% of the limit; rent collection is significant; houses
+  // listed and tenant rent requests each add on top.
   const breakdown = [
+    { key: 'subagents', label: 'Active sub-agents', value: limit?.bonusFromSubagents || 0, source: 'biggest driver — +1.5M per active sub-agent (up to 21M)' },
+    { key: 'collection', label: 'Rent you collect', value: allocBonus, source: 'half of the rent you collect (up to 6M)' },
+    { key: 'houses', label: 'Houses listed', value: limit?.bonusFromHousesListed || 0, source: '+100K per listing (up to 2.25M)' },
+    { key: 'rentRequests', label: 'Tenant rent requests', value: limit?.bonusFromRentHistory || 0, source: '+150K per rent request you raise (up to 2.25M)' },
     { key: 'base', label: 'Starter base', value: BASE_LIMIT, source: 'every agent starts here' },
-    { key: 'rentHistory', label: 'Rent history', value: limit?.bonusFromRentHistory || 0, source: 'completed rent plans + repayments' },
-    { key: 'landlordRent', label: 'Landlords you registered', value: limit?.bonusFromLandlordRent || 0, source: '2× rent on landlords you brought in' },
-    { key: 'houses', label: 'Houses listed', value: limit?.bonusFromHousesListed || 0, source: '50K per listing' },
-    { key: 'partners', label: 'Partners onboarded', value: limit?.bonusFromPartnersOnboarded || 0, source: '200K per active partner' },
-    { key: 'ratings', label: 'Tenant ratings', value: limit?.bonusFromRatings || 0, source: 'above 3★ average' },
-    { key: 'receipts', label: 'Verified receipts', value: limit?.bonusFromReceipts || 0, source: '50K per verified receipt' },
-    { key: 'allocations', label: 'Tenant allocations', value: allocBonus, source: '2× of every UGX you allocate to tenants' },
   ];
   const breakdownSum = breakdown.reduce((s, b) => s + b.value, 0);
   const isCapped = breakdownSum >= HARD_CAP;
@@ -693,7 +692,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               </p>
               {allocBonus > 0 && (
                 <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                  +{formatUGX(allocBonus)} earned from tenant allocations
+                  +{formatUGX(allocBonus)} earned from rent you collected
                 </p>
               )}
             </div>
@@ -757,14 +756,14 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               </div>
 
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground pt-2">
-                Recent tenant allocations
+                Recent rent collections
               </p>
               <p className="text-[10px] text-muted-foreground leading-snug">
-                Each allocation adds <span className="font-bold text-foreground">2× the amount</span> to your limit.
+                Each collection adds <span className="font-bold text-foreground">half the amount</span> to your limit. The biggest driver of your limit is your <span className="font-bold text-foreground">active sub-agents</span>.
               </p>
               {recentAllocations.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground text-center py-3">
-                  No allocations yet. Allocate to a tenant to grow your limit.
+                  No collections yet. Collect rent and recruit sub-agents to grow your limit.
                 </p>
               ) : (
                 <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
