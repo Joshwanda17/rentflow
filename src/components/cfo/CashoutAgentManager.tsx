@@ -1080,6 +1080,101 @@ export function CashoutAgentManager() {
         />
 
         <ClaimCommentDialog claim={commentClaim} onClose={() => setCommentClaim(null)} />
+
+        {/* Float Given Out Per Day — drill-down from the Volume Total card */}
+        <Dialog open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto p-0 gap-0">
+            <DialogHeader className="p-4 pb-3 border-b sticky top-0 bg-background z-10">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Calendar className="h-4 w-4 text-primary" /> Float Given Out Per Day
+              </DialogTitle>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <p className="text-xs text-muted-foreground">
+                  {selectedAgent?.label || 'Merchant Agent'}
+                  {selectedAgent?.territory ? ` · ${selectedAgent.territory}` : ''}
+                </p>
+                <p className="text-sm font-bold text-primary tabular-nums">
+                  {formatUGX(selectedAgentStats?.volume || 0)}
+                </p>
+              </div>
+            </DialogHeader>
+
+            <div className="p-3 space-y-2">
+              {dailyPayoutBreakdown.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Inbox className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                  <p className="text-sm font-medium">No float issued</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No float has been issued during the selected period.
+                  </p>
+                </div>
+              ) : (
+                dailyPayoutBreakdown.map((row) => {
+                  const isOpen = expandedDays.has(row.day);
+                  const dayPayouts = payoutsByDay.get(row.day) || [];
+                  return (
+                    <div key={row.day} className="rounded-lg border border-border/60 overflow-hidden">
+                      <button
+                        onClick={() => toggleDay(row.day)}
+                        className="w-full flex items-center justify-between gap-2 p-3 text-left transition-colors hover:bg-muted/50"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isOpen
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{formatDate(row.day)}</p>
+                            <p className="text-[10px] text-muted-foreground">{row.count} payout{row.count > 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm font-bold shrink-0 tabular-nums">{formatUGX(row.amount)}</p>
+                      </button>
+
+                      {isOpen && (
+                        <div className="divide-y divide-border/60 border-t border-border/60 bg-muted/20">
+                          {dayPayouts.map((py: any) => (
+                            <div key={py.id} className="p-3 space-y-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {py.beneficiary_name || py.mobile_money_name || 'Beneficiary'}
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground truncate">
+                                    {py.beneficiary_phone || py.mobile_money_number || '—'}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-bold shrink-0 tabular-nums">{formatUGX(py.amount)}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge variant="secondary" className="text-[10px] gap-1">
+                                  {isBank(py.payout_method) ? <Building2 className="h-2.5 w-2.5" /> :
+                                   isMomo(py.payout_method) ? <Smartphone className="h-2.5 w-2.5" /> :
+                                   <Banknote className="h-2.5 w-2.5" />}
+                                  {py.payout_method?.replace(/_/g, ' ') || 'cash'}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px] gap-1">
+                                  <CheckCircle2 className="h-2.5 w-2.5" /> {py.status}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                                  <Clock className="h-2.5 w-2.5" /> {formatDateTime(py.processed_at || py.created_at)}
+                                </span>
+                              </div>
+                              {py.fin_ops_reference && (
+                                <p className="text-[10px] text-muted-foreground font-mono truncate inline-flex items-center gap-1">
+                                  <Hash className="h-2.5 w-2.5 shrink-0" /> {py.fin_ops_reference}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
