@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatUGX as _formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
+import { arrayBufferToBase64, isPushSupported, subscriptionUsesCurrentVapidKey } from '@/lib/webPush';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 
@@ -210,6 +211,121 @@ export default function SupporterDashboard({
       setTimeout(() => setJustAccepted(false), 5000);
     }
     return success;
+  };
+
+  const handleTestPushNotification = async () => {
+    try {
+      if (!isPushSupported()) {
+        toast({
+          title: 'Push notifications unavailable',
+          description: 'This browser or device does not support web push notifications.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (Notification.permission !== 'granted') {
+        toast({
+          title: 'Enable notifications first',
+          description: 'Open Settings and enable web push notifications on this device, then test again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+      let subscription = await registration?.pushManager.getSubscription();
+
+      if (!subscription) {
+        toast({
+          title: 'Enable notifications first',
+          description: 'No active web push subscription was found on this device. Please enable notifications, then test again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!subscriptionUsesCurrentVapidKey(subscription)) {
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('endpoint', subscription.endpoint);
+        await subscription.unsubscribe();
+        subscription = null;
+        toast({
+          title: 'Enable notifications again',
+          description: 'This device had an old push key. I reset it — enable notifications again, then test.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const json = subscription.toJSON();
+      const p256dh = json.keys?.p256dh ?? arrayBufferToBase64(subscription.getKey('p256dh'));
+      const auth = json.keys?.auth ?? arrayBufferToBase64(subscription.getKey('auth'));
+
+      if (!p256dh || !auth) {
+        toast({
+          title: 'Enable notifications again',
+          description: 'This device subscription is incomplete. Turn notifications off and on again, then test.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const { error: saveError } = await supabase
+        .from('push_subscriptions')
+        .upsert(
+          {
+            user_id: user.id,
+            endpoint: subscription.endpoint,
+            p256dh,
+            auth,
+          },
+          { onConflict: 'user_id,endpoint' },
+        );
+
+      if (saveError) throw saveError;
+
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: {
+          userIds: [user.id],
+          payload: {
+            title: 'Welile test 🔔',
+            body: 'This is a test web push notification.',
+            url: '/dashboard/funder',
+            type: 'test',
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      const sent = Number(data?.sent ?? 0);
+      const failed = Number(data?.failed ?? 0);
+      const total = Number(data?.total ?? 0);
+
+      if (sent < 1) {
+        toast({
+          title: 'Test push not delivered',
+          description: total < 1
+            ? 'No saved subscription was found. Enable notifications on this device, then test again.'
+            : `The backend found ${total} subscription(s), but ${failed || total} failed to send. Re-enable notifications and test again.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Test push sent',
+        description: failed > 0
+          ? `Sent to ${sent} device(s); ${failed} failed.`
+          : 'Check this device’s notification tray.',
+      });
+    } catch (err) {
+      console.error('Test push failed:', err);
+      toast({ title: 'Test push failed', description: 'Please re-enable notifications, then test again.', variant: 'destructive' });
+    }
   };
 
   // Cache already loaded synchronously in useState init above
@@ -474,25 +590,7 @@ export default function SupporterDashboard({
             <Button
               size="sm"
               variant="outline"
-              onClick={async () => {
-                try {
-                  const { error } = await supabase.functions.invoke('send-push-notification', {
-                    body: {
-                      userIds: [user.id],
-                      payload: {
-                        title: 'Welile test 🔔',
-                        body: 'This is a test web push notification.',
-                        url: '/dashboard/funder',
-                      },
-                    },
-                  });
-                  if (error) throw error;
-                  toast({ title: 'Test push sent', description: 'Check your device notifications.' });
-                } catch (err) {
-                  console.error('Test push failed:', err);
-                  toast({ title: 'Test push failed', description: 'See console for details.', variant: 'destructive' });
-                }
-              }}
+              onClick={handleTestPushNotification}
             >
               Test push
             </Button>

@@ -23,14 +23,29 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 /** Returns the base64-encoded value of a PushSubscription key (p256dh / auth). */
-export function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
+export function arrayBufferToBase64(buffer: BufferSource | null): string {
   if (!buffer) return "";
-  const bytes = new Uint8Array(buffer);
+  const bytes = ArrayBuffer.isView(buffer)
+    ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+    : new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i += 1) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+/** Returns true when a browser PushSubscription was created with the current public VAPID key. */
+export function subscriptionUsesCurrentVapidKey(subscription: PushSubscription): boolean {
+  const key = subscription.options?.applicationServerKey;
+  if (!key) return false;
+
+  const encodedKey = arrayBufferToBase64(key)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  return encodedKey === VAPID_PUBLIC_KEY;
 }
 
 /** True when the current browser can register a SW and subscribe to push. */
