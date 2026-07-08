@@ -60,7 +60,32 @@ export function isPushSupported(): boolean {
 
 export type EnsurePushResult =
   | { ok: true; endpoint: string; p256dh: string; auth: string }
-  | { ok: false; reason: "unsupported" | "denied" | "error"; message: string };
+  | { ok: false; reason: "unsupported" | "blocked" | "dismissed" | "error"; message: string };
+
+/**
+ * Short, browser-aware instructions for re-allowing notifications after the user
+ * has *blocked* them. Once permission is "denied" the browser silently refuses
+ * every requestPermission() call — the only path back is the site settings, so
+ * we tell the user exactly where to look.
+ */
+export function getUnblockInstructions(): string {
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(ua);
+  const isFirefox = /firefox|fxios/i.test(ua);
+
+  if (isIOS) {
+    return "Open iOS Settings → Notifications → find this app/Safari, then allow notifications and reload.";
+  }
+  if (isSafari) {
+    return "Safari → Settings → Websites → Notifications → set this site to Allow, then reload.";
+  }
+  if (isFirefox) {
+    return "Tap the lock icon in the address bar → clear the Notifications block → reload, then tap Test again.";
+  }
+  // Chrome / Edge / most Chromium browsers
+  return "Tap the lock icon (left of the address bar) → Site settings → Notifications → Allow, then reload and tap Test again.";
+}
 
 /**
  * Ensures the current device has a valid, up-to-date web push subscription and
@@ -92,11 +117,11 @@ export async function ensurePushSubscription(
     if (permission !== "granted") {
       return {
         ok: false,
-        reason: "denied",
+        reason: permission === "denied" ? "blocked" : "dismissed",
         message:
           permission === "denied"
-            ? "Notifications are blocked for this site. Allow them in your browser's site settings, then tap Test again."
-            : "Notification permission was not granted. Tap Test again and choose Allow.",
+            ? `Notifications are blocked for this site. ${getUnblockInstructions()}`
+            : "Notification permission wasn't granted. Tap Test again and choose Allow.",
       };
     }
 
