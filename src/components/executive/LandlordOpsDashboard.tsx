@@ -3582,13 +3582,11 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navItems.filter(n => !n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)}
-              badgeAlert={item.id === 'advance-requests' && pendingAdvanceCount > 0}
               badge={
                 item.id === 'empty' ? `${emptyLandlords.length}` :
                 item.id === 'occupied' ? `${occupiedLandlords.length}` :
                 item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
-                item.id === 'agents' ? `${agentSummary.length}` :
-                item.id === 'advance-requests' ? (pendingAdvanceCount > 0 ? `${pendingAdvanceCount}` : undefined) : undefined
+                item.id === 'agents' ? `${agentSummary.length}` : undefined
               } />
           ))}
         </div>
