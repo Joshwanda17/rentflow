@@ -294,7 +294,6 @@ export function AgentOpsDashboard() {
     </div>
   ) : bottomTab !== 'more' ? (
     <div className="space-y-4">
-      <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
       <AgentOpsHomeView
         range={dateRange}
         onRangeChange={setDateRange}
@@ -307,7 +306,6 @@ export function AgentOpsDashboard() {
     </div>
   ) : (
     <div className="space-y-5 pb-20 sm:pb-4">
-      <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
       {MORE_GROUPS.map((group) => (
         <section key={group.title} className="space-y-2">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
