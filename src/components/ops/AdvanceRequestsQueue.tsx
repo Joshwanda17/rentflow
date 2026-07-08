@@ -507,8 +507,8 @@ function EvaluationDialog({
                 <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
                   <p className="text-xs font-bold flex items-center gap-1.5"><Info className="h-3.5 w-3.5" /> Performance breakdown</p>
                   <ScoreBar label="Sub-agent network" value={p.network_score} max={70} />
-                  <ScoreBar label="Rent collections" value={p.collections_score} max={12} />
-                  <ScoreBar label="Repayment performance" value={p.repayment_score} max={8} />
+                  <ScoreBar label="Rent collections" value={p.collections_score} max={15} />
+                  <ScoreBar label="Repayment performance" value={p.repayment_score} max={5} />
                   <ScoreBar label="House listings" value={p.listings_score} max={5} />
                   <ScoreBar label="Rent requests" value={p.requests_score} max={5} />
                 </div>
