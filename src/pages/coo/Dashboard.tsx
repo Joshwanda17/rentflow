@@ -30,6 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import { COOScaleVisionView } from '@/components/coo/COOScaleVisionView';
 import { WelileOperationsHub } from '@/components/executive/WelileOperationsHub';
 import { AgentNetworkBadge } from '@/components/executive/tenant-ops/AgentNetworkBadge';
+import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
@@ -72,6 +73,7 @@ export default function COODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('coo');
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const pendingAdvanceCount = usePendingAdvanceCount('coo');
 
   const handleNavTo = (tab: string) => {
     setActiveTab(tab);
@@ -323,11 +325,16 @@ export default function COODashboardPage() {
                     key={item.id}
                     onClick={() => item.route ? navigate(item.route) : handleNavTo(item.id)}
                     className={cn(
-                      'flex flex-col items-start gap-1.5 p-3.5 rounded-xl border transition-all text-left',
+                      'relative flex flex-col items-start gap-1.5 p-3.5 rounded-xl border transition-all text-left',
                       'hover:shadow-md active:scale-[0.97] active:shadow-none',
                       item.color
                     )}
                   >
+                    {item.id === 'advance-requests' && pendingAdvanceCount > 0 && (
+                      <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                        {pendingAdvanceCount > 99 ? '99+' : pendingAdvanceCount}
+                      </span>
+                    )}
                     <div className="flex items-center justify-between w-full">
                       <item.icon className="h-5 w-5" />
                       <ChevronRight className="h-3.5 w-3.5 opacity-40" />
