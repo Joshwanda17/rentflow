@@ -11,7 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import {
   ArrowLeft, UserPlus, Users, Crown, Medal, Award, Trophy,
-  ChevronLeft, ChevronRight, Info, Sparkles, Loader2,
+  Info, Sparkles, Loader2,
 } from 'lucide-react';
 import bannerImg from '@/assets/leaderboard-banner.jpg';
 
@@ -47,19 +47,15 @@ export default function AgentLeaderboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [period, setPeriod] = useState<Period>('weekly');
-  const [page, setPage] = useState(0);
 
   const { data: rows = [], isFetching } = useQuery({
-    queryKey: ['subagent-leaderboard', period, page],
+    queryKey: ['subagent-leaderboard', period],
     queryFn: async () => {
-      // Page 0 shows the top 3 (podium) + 20 list rows = 23 fetched.
-      // Later pages continue after those 23 and show 20 per page.
-      const limit = page === 0 ? PER_PAGE + 3 : PER_PAGE;
-      const offset = page === 0 ? 0 : page * PER_PAGE + 3;
+      // Only the top 20 overall (3 podium + 17 list). No pagination.
       const { data, error } = await supabase.rpc('get_subagent_leaderboard', {
         p_period: period,
-        p_limit: limit,
-        p_offset: offset,
+        p_limit: PER_PAGE,
+        p_offset: 0,
       });
       if (error) throw error;
       return (data ?? []) as Row[];
@@ -80,19 +76,14 @@ export default function AgentLeaderboard() {
   });
 
   const totalMatched = rows[0]?.total_matched ?? 0;
-  // First page holds 23 (3 podium + 20 list); each later page holds 20.
-  const totalPages = totalMatched <= PER_PAGE + 3
-    ? 1
-    : 1 + Math.ceil((totalMatched - (PER_PAGE + 3)) / PER_PAGE);
 
-  // Podium only on first page (top 3 overall)
-  const top3 = page === 0 ? rows.slice(0, 3) : [];
-  const tableRows = page === 0 ? rows.slice(3) : rows;
+  // Top 3 → podium bars, the rest of the top 20 → list.
+  const top3 = rows.slice(0, 3);
+  const tableRows = rows.slice(3);
 
   const changePeriod = (p: Period) => {
     hapticTap();
     setPeriod(p);
-    setPage(0);
   };
 
   const earnings = (n: number) => formatUGX(n * PER_INVITE);
@@ -298,13 +289,15 @@ export default function AgentLeaderboard() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: Math.min(i * 0.03, 0.4) }}
                       className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b px-4 py-3 last:border-b-0 transition-colors hover:bg-slate-50"
-                      style={isMe ? { background: 'rgba(147,52,235,0.08)' } : undefined}
+                      style={isMe ? { background: 'rgba(147,52,235,0.1)' } : undefined}
                     >
-                      <span className="text-sm font-bold text-slate-500">#{r.rank}</span>
+                      <span className="text-sm font-bold" style={{ color: isMe ? '#6D28D9' : '#64748b' }}>#{r.rank}</span>
                       <div className="flex min-w-0 items-center gap-2.5">
                         <UserAvatar avatarUrl={r.avatar_url} fullName={r.agent_name} size="sm" />
                         <span className="truncate text-sm font-semibold text-slate-800">
-                          {r.agent_name}{isMe && <span className="ml-1 text-xs font-medium" style={{ color: '#9334EB' }}>(You)</span>}
+                          {isMe
+                            ? <><span style={{ color: '#6D28D9' }}>You</span> ({r.agent_name})</>
+                            : r.agent_name}
                         </span>
                       </div>
                       <div className="text-right">
@@ -314,8 +307,8 @@ export default function AgentLeaderboard() {
                     </motion.div>
                   );
                 })}
-                {/* Pin the logged-in user as the last row when they're outside the podium + top 20 list */}
-                {page === 0 && myRank && !rows.some((r) => r.agent_id === user?.id) && (
+                {/* Pin the logged-in user as the last row when they're outside the top 20 */}
+                {myRank && !rows.some((r) => r.agent_id === user?.id) && (
                   <>
                     <div className="flex items-center justify-center gap-1.5 border-t bg-slate-50 py-2 text-slate-400">
                       <span className="h-1 w-1 rounded-full bg-slate-300" />
@@ -341,33 +334,6 @@ export default function AgentLeaderboard() {
                   </>
                 )}
               </Card>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mb-8 flex items-center justify-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => { hapticTap(); setPage((p) => Math.max(0, p - 1)); }}
-                  className="rounded-full"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Prev
-                </Button>
-                <span className="text-sm font-medium text-slate-500">
-                  Page {page + 1} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= totalPages}
-                  onClick={() => { hapticTap(); setPage((p) => p + 1); }}
-                  className="rounded-full"
-                >
-                  Next <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
             )}
           </>
         )}
