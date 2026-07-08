@@ -2055,8 +2055,8 @@ Deno.serve(async (req) => {
       console.error("[approve-withdrawal] receipt token fetch failed (non-fatal):", e);
     }
     const receiptUrl = receiptToken
-      ? `https://welilereceipts.com/r/${receiptToken}`
-      : `https://welilereceipts.com/receipt/${withdrawal_id}`;
+      ? `https://welilereceipts-com.lovable.app/r/${receiptToken}`
+      : `https://welilereceipts-com.lovable.app/receipt/${withdrawal_id}`;
 
     // Cashout agent 0.5% commission (when caller is an active cashout agent, including staff roles).
     // Company funds (platform cash_out) move INSTANTLY into the agent's own
