@@ -291,6 +291,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, []);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
+  const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
