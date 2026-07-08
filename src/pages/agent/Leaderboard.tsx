@@ -261,7 +261,6 @@ export default function AgentLeaderboard() {
                     <div>
                       <p className="text-xs font-medium text-white/80">Your Position</p>
                       <p className="text-xl font-extrabold">Rank #{myRank.rank}</p>
-                      <p className="text-xs text-white/80">{myRank.invite_count} Invites</p>
                     </div>
                   </div>
                   <div className="text-right">
