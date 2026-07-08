@@ -34,6 +34,7 @@ import { AgentBulkOpsConsole } from './AgentBulkOpsConsole';
 import { AgentDailyOverviewReportButton } from './AgentDailyOverviewReportButton';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { AgentEligibilityTransitionsPanel } from './AgentEligibilityTransitionsPanel';
+import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
@@ -205,6 +206,7 @@ export function AgentOpsDashboard() {
       case 'pipeline': return <AgentOpsPipelineHub />;
       case 'brief': return <AgentOpsBrief />;
       case 'directory': return <AgentDirectory />;
+      case 'rent-capacity': return <AgentRentCapacityPanel />;
       case 'connector': return <AgentTenantConnector />;
       case 'performance': return <AgentPerformanceTiers />;
       case 'lifecycle': return <AgentLifecyclePipeline />;
