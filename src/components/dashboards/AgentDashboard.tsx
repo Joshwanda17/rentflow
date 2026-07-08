@@ -1376,7 +1376,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className={cn("space-y-5", tabAnimClass)}>
             {/* Leaderboard CTA — draws agents into the recruitment competition */}
             <button
-              onClick={() => { hapticTap(); setLeaderboardPromoOpen(true); }}
+              onClick={() => { hapticTap(); navigate('/dashboard/agents/leaderboard'); }}
               className="w-full flex items-center gap-3.5 p-4 rounded-2xl text-left text-white shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
               style={{ background: 'linear-gradient(135deg, #9334EB, #6D28D9)', WebkitTapHighlightColor: 'transparent' }}
             >
