@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { PUBLIC_HOUSE_LISTING_COLUMNS } from '@/lib/houseListingColumns';
 
 export interface HouseListing {
   id: string;
