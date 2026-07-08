@@ -724,7 +724,7 @@ export function CashoutAgentManager() {
     let credited = 0;      // what actually hit the wallet (ledger only)
     let expected = 0;      // what 0.5% says it should be
     let missingCount = 0;  // payouts with no commission leg
-    for (const py of selectedAgentPayouts as any[]) {
+    for (const py of visiblePayouts as any[]) {
       const amt = Number(py.amount || 0);
       expected += getCashoutCommission(amt);
       const leg = legs[String(py.id)];
@@ -732,7 +732,7 @@ export function CashoutAgentManager() {
       else credited += Number(leg || 0);
     }
     return { credited, expected, missingCount, gap: expected - credited };
-  }, [selectedAgentPayouts, commissionByWithdrawal]);
+  }, [visiblePayouts, commissionByWithdrawal]);
 
   const methodBadges = (a: any) => {
     const handlesMomoAny = a.handles_mtn || a.handles_airtel;
