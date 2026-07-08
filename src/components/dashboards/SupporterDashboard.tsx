@@ -252,9 +252,10 @@ export default function SupporterDashboard({
 
       if (result.ok !== true) {
         toast({
-          title: result.reason === 'denied' ? 'Notifications blocked' : 'Could not enable notifications',
+          title: result.reason === 'blocked' ? 'Notifications blocked' : 'Could not enable notifications',
           description: result.message,
           variant: 'destructive',
+          duration: result.reason === 'blocked' ? 12000 : 6000,
         });
         return;
       }
