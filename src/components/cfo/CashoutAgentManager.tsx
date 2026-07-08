@@ -665,6 +665,20 @@ export function CashoutAgentManager() {
       return next;
     });
 
+  // Payouts shown in the "Payouts Processed" list, optionally narrowed to a
+  // single calendar day the CFO picks with the date filter above the list.
+  const visiblePayouts = useMemo(() => {
+    if (!txnDateFilter) return selectedAgentPayouts as any[];
+    return (selectedAgentPayouts as any[]).filter((py) => {
+      const stamp = py.processed_at || py.created_at;
+      if (!stamp) return false;
+      const d = new Date(stamp);
+      if (isNaN(d.getTime())) return false;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return key === txnDateFilter;
+    });
+  }, [selectedAgentPayouts, txnDateFilter]);
+
   // Latest comment per payout — inline note on each processed-payout card.
   const { data: latestClaimComments } = useLatestClaimComments(
     selectedAgentPayouts.map((p: any) => p.id),
