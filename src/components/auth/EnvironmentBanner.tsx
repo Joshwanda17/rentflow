@@ -132,6 +132,14 @@ export function EnvironmentBanner() {
   const env = detectEnv();
   const style = KIND_STYLES[env.kind];
 
+  // Base origin that can actually complete OAuth: the current origin when it
+  // works here, otherwise the published site. Provider links deep-link to the
+  // auth screen on that origin and auto-start the chosen provider.
+  const oauthBase = env.oauthUrl.replace(/\/$/, '');
+  const googleUrl = `${oauthBase}/auth?oauth=google`;
+  const appleUrl = `${oauthBase}/auth?oauth=apple`;
+  const linkTarget = env.oauthWorksHere ? '_self' : '_blank';
+
   return (
     <div
       role="status"
@@ -146,17 +154,33 @@ export function EnvironmentBanner() {
             <span className="font-normal opacity-70 break-all">· {window.location.host}</span>
           </p>
           <p className="opacity-90">{env.note}</p>
-          <a
-            href={env.oauthUrl}
-            target={env.oauthWorksHere ? '_self' : '_blank'}
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium underline underline-offset-2 break-all"
-          >
-            {env.oauthWorksHere ? 'Sign in with OAuth here' : `Open ${env.oauthUrl}`}
-            <ExternalLink className="h-3 w-3 shrink-0" />
-          </a>
+          <div className="flex flex-col gap-1.5 pt-0.5">
+            <a
+              href={googleUrl}
+              target={linkTarget}
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-medium underline underline-offset-2 break-all"
+            >
+              <GoogleGlyph />
+              {env.oauthWorksHere ? 'Continue with Google here' : 'Google sign-in on published site'}
+              <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+            </a>
+            <a
+              href={appleUrl}
+              target={linkTarget}
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-medium underline underline-offset-2 break-all"
+            >
+              <AppleGlyph />
+              {env.oauthWorksHere ? 'Continue with Apple here' : 'Apple sign-in on published site'}
+              <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+            </a>
+          </div>
+          <p className="opacity-70 break-all">
+            OAuth endpoint: <span className="font-medium">{oauthBase}/~oauth/initiate</span>
+          </p>
           {!env.oauthWorksHere && (
-            <p className="opacity-70">
+            <p className="opacity-70 break-all">
               Custom domains: {CUSTOM_URLS.join(' · ')}
             </p>
           )}
