@@ -59,10 +59,11 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'advance-potential' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'advance-potential' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'advance-potential', icon: Target, label: 'Advance Potential', color: 'bg-purple-700', priority: true },
+  { key: 'advance-repayments', icon: TrendingDown, label: 'Repayments', color: 'bg-emerald-700', priority: true },
   { key: 'bulk-ops', icon: Layers, label: 'Bulk Ops Console', color: 'bg-rose-700', priority: true },
   { key: 'performance-report', icon: FileBarChart, label: 'Performance Report', color: 'bg-teal-600', priority: true },
   { key: 'allocation-report', icon: Network, label: 'Allocations & Repayment', color: 'bg-indigo-600', priority: true },
