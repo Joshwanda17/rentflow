@@ -21470,6 +21470,10 @@ export type Database = {
           total_count: number
         }[]
       }
+      get_agent_leaderboard_stats: {
+        Args: { p_period?: string }
+        Returns: Json
+      }
       get_agent_listing_rejection_deficit: {
         Args: { p_agent_id: string }
         Returns: number
