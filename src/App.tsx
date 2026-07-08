@@ -299,9 +299,26 @@ PageLoader.displayName = 'PageLoader';
 
 // Stable routes wrapper — no RoutePrefetcher (DOM overhead), no JS page transitions
 // Global banner - lazy loaded
-function AppRoutes() {
+
+// Global floating widgets (WhatsApp FAB, agent nav FAB, PWA install prompt).
+// Hidden on the public payout-receipt view so customers reviewing their
+// receipt from an SMS/QR link see a clean, distraction-free page.
+function GlobalFloatingWidgets() {
   const location = useLocation();
-  const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
+  const isReceiptRoute =
+    location.pathname.startsWith('/r/') ||
+    location.pathname.startsWith('/receipt/');
+  if (isReceiptRoute) return null;
+  return (
+    <>
+      <FloatingToolbar />
+      <AgentNavFAB />
+      <PWAInstallPrompt />
+    </>
+  );
+}
+
+function AppRoutes() {
   const location = useLocation();
   const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
   const disablePullToRefresh = PTR_DISABLED_PREFIXES.some(
