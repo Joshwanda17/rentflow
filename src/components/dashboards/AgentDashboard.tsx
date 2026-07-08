@@ -968,6 +968,37 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* 2) Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
 
+            {/* 2a) Agent Advance — prominent on Home so every agent sees the cash
+                they can access instantly (hidden for payout-only Merchant Agents). */}
+            {!isMerchant && (
+            <button
+              onClick={() => { hapticTap(); setAdvanceRequestOpen(true); }}
+              className="relative w-full overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary/70 p-5 text-left text-primary-foreground shadow-lg ring-1 ring-primary/40 active:scale-[0.98] transition-all touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="absolute -top-10 -right-8 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
+              <div className="absolute -bottom-12 -left-6 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+              <div className="relative">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-white/20 p-1.5">
+                    <Briefcase className="h-4 w-4" strokeWidth={2.2} />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-90">Agent Advance</span>
+                </div>
+                <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider opacity-80">You can access now</p>
+                <p className="text-3xl font-black leading-none mt-1 whitespace-pre-line">
+                  {formatCreditAmount(advanceLimit?.totalLimit || 30000)}
+                </p>
+                <p className="mt-2 text-[13px] font-medium opacity-90 leading-snug">
+                  Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
+                </p>
+                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3.5 py-1.5 text-xs font-bold">
+                  Request advance <ChevronRight className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </button>
+            )}
+
             {/* 2b) Earnings summary — available rewards + lifetime total */}
             <EarningsSummaryCard />
 
