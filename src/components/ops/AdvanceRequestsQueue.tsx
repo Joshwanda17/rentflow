@@ -330,6 +330,49 @@ function EvaluationDialog({
   const overLimit = p && limit > 0 && requested > limit;
   const withinAll = p && !overSuggested && !overLimit;
 
+  const agentId: string | undefined = req?.agent_id || undefined;
+  const [showEarnings, setShowEarnings] = useState(false);
+
+  // Agent wallet snapshot — helps judge repayment capacity at a glance.
+  const { data: wallet, isLoading: walletLoading } = useQuery({
+    queryKey: ['advance-eval-wallet', agentId],
+    enabled: !!agentId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const [walletRes, availRes] = await Promise.all([
+        supabase
+          .from('wallets')
+          .select('withdrawable_balance, float_balance, advance_balance, balance')
+          .eq('user_id', agentId as string)
+          .maybeSingle(),
+        (supabase.rpc as any)('get_user_available_balance', { p_user_id: agentId }),
+      ]);
+      return {
+        withdrawable: num(walletRes.data?.withdrawable_balance),
+        float: num(walletRes.data?.float_balance),
+        advance: num(walletRes.data?.advance_balance),
+        available: num(availRes?.data),
+      };
+    },
+  });
+
+  // Recent earning activity — fetched lazily only when the reviewer expands it.
+  const { data: earnings = [], isLoading: earningsLoading } = useQuery({
+    queryKey: ['advance-eval-earnings', agentId],
+    enabled: !!agentId && showEarnings,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_earnings')
+        .select('id, amount, earning_type, description, created_at')
+        .eq('agent_id', agentId as string)
+        .order('created_at', { ascending: false })
+        .limit(15);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   return (
     <Dialog open={!!req} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -343,6 +386,62 @@ function EvaluationDialog({
             </DialogHeader>
 
             <div className="space-y-4">
+              {/* Wallet snapshot + recent earnings — repayment-capacity context */}
+              <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold flex items-center gap-1.5">
+                    <PiggyBank className="h-3.5 w-3.5 text-emerald-600" /> Wallet balance
+                  </p>
+                  {walletLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-2.5 text-center">
+                    <p className="text-[9px] uppercase tracking-wide text-emerald-700">Withdrawable</p>
+                    <p className="text-sm font-extrabold text-emerald-700 leading-tight">{formatUGX(wallet?.available ?? wallet?.withdrawable ?? 0)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/50 border border-border p-2.5 text-center">
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Float</p>
+                    <p className="text-sm font-extrabold leading-tight">{formatUGX(wallet?.float ?? 0)}</p>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-2.5 text-center">
+                    <p className="text-[9px] uppercase tracking-wide text-amber-700">Advance owed</p>
+                    <p className="text-sm font-extrabold text-amber-700 leading-tight">{formatUGX(wallet?.advance ?? 0)}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEarnings((s) => !s)}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-border bg-muted/40 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+                >
+                  <Coins className="h-3.5 w-3.5 text-primary" />
+                  {showEarnings ? 'Hide recent earnings' : 'See recent earnings activity'}
+                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showEarnings ? 'rotate-180' : '')} />
+                </button>
+                {showEarnings && (
+                  <div className="rounded-xl bg-muted/30 p-2 space-y-1 max-h-56 overflow-y-auto">
+                    {earningsLoading ? (
+                      <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                    ) : earnings.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground text-center py-3">No earnings recorded yet.</p>
+                    ) : (
+                      earnings.map((e: any) => (
+                        <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-1.5">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-semibold truncate">
+                              {e.description || (e.earning_type ? String(e.earning_type).replace(/_/g, ' ') : 'Earning')}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {e.earning_type ? String(e.earning_type).replace(/_/g, ' ') : ''} · {e.created_at ? format(new Date(e.created_at), 'MMM d, yyyy') : ''}
+                            </p>
+                          </div>
+                          <span className="text-[11px] font-bold text-emerald-600 tabular-nums shrink-0">+{formatUGX(num(e.amount))}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Requested vs suggested vs limit */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3 text-center">
