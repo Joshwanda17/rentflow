@@ -1058,6 +1058,8 @@ export function TenantOpsDashboard() {
       description: 'Review advance requests',
       icon: Banknote,
       color: 'bg-purple-500/10 text-purple-600 border-purple-200',
+      badge: pendingAdvanceCount,
+      badgeColor: 'bg-rose-600 text-white',
     },
     {
       id: 'agent-allocations' as ActiveView,
