@@ -69,9 +69,11 @@ function wasSkipped(reason?: string): boolean {
 }
 
 async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
-  // Provider chain: Yoola (primary) → Africa's Talking → LANA. Each provider is
-  // tried only if the previous one did not accept, and every attempt is
-  // timestamped so we can prove there was never a simultaneous double-send.
+  // Provider chain for auth-critical SMS: Africa's Talking (primary) → Yoola → LANA.
+  // Yoola can mark reset codes as accepted even when recipients report no handset
+  // delivery, so password reset must prefer the carrier-route provider first.
+  // Each provider is tried only if the previous one did not accept, and every
+  // attempt is timestamped so we can prove there was never a simultaneous double-send.
   const attempts: ProviderAttempt[] = [];
   const run = async (provider: string, fn: () => Promise<{ ok: boolean; reason?: string }>) => {
     const started_at = new Date().toISOString();
@@ -81,12 +83,12 @@ async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
     return r;
   };
 
-  const yoola = await run("yoola", () => sendViaYoola(phone, message));
-  if (yoola.ok) return { ok: true, provider: "yoola", attempts };
-  console.warn(`[password-reset-sms] Yoola not accepted (${yoola.reason}); trying Africa's Talking`);
   const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
   if (at.ok) return { ok: true, provider: "africastalking", attempts };
-  console.warn(`[password-reset-sms] Africa's Talking not accepted (${at.reason}); trying LANA`);
+  console.warn(`[password-reset-sms] Africa's Talking not accepted (${at.reason}); trying Yoola`);
+  const yoola = await run("yoola", () => sendViaYoola(phone, message));
+  if (yoola.ok) return { ok: true, provider: "yoola", attempts };
+  console.warn(`[password-reset-sms] Yoola not accepted (${yoola.reason}); trying LANA`);
   const lana = await run("lana", () => sendViaLana(phone, message));
   if (lana.ok) return { ok: true, provider: "lana", attempts };
   let reason = at.reason;
