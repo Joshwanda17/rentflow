@@ -375,6 +375,7 @@ export function AgentOpsDashboard() {
                     const item = NAV_ITEMS.find((n) => n.key === key);
                     if (!item) return null;
                     const Icon = item.icon;
+                    const showBadge = item.key === 'advance-requests' && pendingAdvanceCount > 0;
                     return (
                       <DropdownMenuItem
                         key={item.key as string}
@@ -385,6 +386,11 @@ export function AgentOpsDashboard() {
                           <Icon className="h-3.5 w-3.5 text-white" />
                         </span>
                         <span className="text-sm font-medium">{item.label}</span>
+                        {showBadge && (
+                          <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+                            {pendingAdvanceCount > 99 ? '99+' : pendingAdvanceCount}
+                          </span>
+                        )}
                       </DropdownMenuItem>
                     );
                   })}
