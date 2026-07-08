@@ -11,7 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import {
   ArrowLeft, UserPlus, Users, Crown, Medal, Award, Trophy,
-  ChevronLeft, ChevronRight, Info, Sparkles, Loader2,
+  Info, Sparkles, Loader2,
 } from 'lucide-react';
 import bannerImg from '@/assets/leaderboard-banner.jpg';
 
