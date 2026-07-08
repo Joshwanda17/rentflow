@@ -827,31 +827,6 @@ export function CashoutAgentManager() {
                 </CardContent>
               </Card>
             )}
-            {dailyPayoutBreakdown.length > 0 && (
-              <Card>
-                <CardContent className="p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5" /> Float Given Out Per Day
-                    </p>
-                    <Badge variant="outline" className="text-[10px]">
-                      {dailyPayoutBreakdown.length} day{dailyPayoutBreakdown.length > 1 ? 's' : ''}
-                    </Badge>
-                  </div>
-                  <div className="divide-y divide-border/60">
-                    {dailyPayoutBreakdown.map((row) => (
-                      <div key={row.day} className="flex items-center justify-between gap-2 py-1.5">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{formatDate(row.day)}</p>
-                          <p className="text-[10px] text-muted-foreground">{row.count} payout{row.count > 1 ? 's' : ''}</p>
-                        </div>
-                        <p className="text-sm font-bold shrink-0">{formatUGX(row.amount)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
             {duplicatePayouts.groupCount > 0 && (
               <Card className="border-destructive/40 bg-destructive/5">
                 <CardContent className="p-3 flex items-start gap-2">
