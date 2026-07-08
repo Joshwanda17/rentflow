@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { AgentOpsHomeView, type DateRange } from './agent-ops-v2/AgentOpsHomeView';
 import { AgentOpsBottomNav, type BottomTab } from './agent-ops-v2/AgentOpsBottomNav';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
+import { AdvanceRequestsReviewed } from '@/components/ops/AdvanceRequestsReviewed';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery } from '@tanstack/react-query';
@@ -214,6 +215,7 @@ export function AgentOpsDashboard() {
         <div className="space-y-6">
           <AdvanceAnalyticsPanel />
           <AdvanceRequestsQueue stage="agent_ops" />
+          <AdvanceRequestsReviewed />
           <BusinessAdvanceQueue stage="agent_ops" />
           <RentHistoryVerificationQueue dept="agent_ops" />
         </div>
