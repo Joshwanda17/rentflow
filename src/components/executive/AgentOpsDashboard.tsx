@@ -212,6 +212,7 @@ export function AgentOpsDashboard() {
       case 'lending-agents': return <LendingAgentsPanel />;
       case 'advance-requests': return (
         <div className="space-y-6">
+          <AdvanceAnalyticsPanel />
           <AdvanceRequestsQueue stage="agent_ops" />
           <BusinessAdvanceQueue stage="agent_ops" />
           <RentHistoryVerificationQueue dept="agent_ops" />
