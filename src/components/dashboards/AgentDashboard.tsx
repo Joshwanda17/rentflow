@@ -301,6 +301,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [topUpTenantOpen, setTopUpTenantOpen] = useState(false);
   const [businessAdvanceOpen, setBusinessAdvanceOpen] = useState(false);
   const { event: commissionEvent, dismiss: dismissCommission } = useBusinessAdvanceCommissionListener();
+  // Agent's personal advance credit limit — drives the prominent Money-tab promo.
+  const { limit: advanceLimit } = useCreditAccessLimit(user?.id);
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
   const [welileHomesOpen, setWelileHomesOpen] = useState(false);
   // When an agent taps a specific tenant in the inline list, open the sheet
