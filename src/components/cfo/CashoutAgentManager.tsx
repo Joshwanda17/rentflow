@@ -632,6 +632,38 @@ export function CashoutAgentManager() {
       .sort((a, b) => (a.day < b.day ? 1 : -1));
   }, [selectedAgentPayouts]);
 
+  // Individual payouts grouped by calendar day, most-recent day first, and each
+  // day's payouts sorted latest-first. Powers the expandable rows inside the
+  // "Float Given Out Per Day" drill-down modal.
+  const payoutsByDay = useMemo(() => {
+    const byDay = new Map<string, any[]>();
+    for (const py of selectedAgentPayouts as any[]) {
+      const stamp = py.processed_at || py.created_at;
+      if (!stamp) continue;
+      const d = new Date(stamp);
+      if (isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const arr = byDay.get(key) || [];
+      arr.push(py);
+      byDay.set(key, arr);
+    }
+    for (const arr of byDay.values()) {
+      arr.sort((a, b) => {
+        const ta = new Date(a.processed_at || a.created_at).getTime();
+        const tb = new Date(b.processed_at || b.created_at).getTime();
+        return tb - ta;
+      });
+    }
+    return byDay;
+  }, [selectedAgentPayouts]);
+
+  const toggleDay = (day: string) =>
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      next.has(day) ? next.delete(day) : next.add(day);
+      return next;
+    });
+
   // Latest comment per payout — inline note on each processed-payout card.
   const { data: latestClaimComments } = useLatestClaimComments(
     selectedAgentPayouts.map((p: any) => p.id),
