@@ -16167,6 +16167,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_broadcast_campaigns: {
+        Row: {
+          audiences: string[]
+          campaign_key: string
+          created_at: string
+          last_run_at: string | null
+          message: string | null
+          run_count: number
+          status: string
+          total_recipients: number
+          updated_at: string
+        }
+        Insert: {
+          audiences?: string[]
+          campaign_key: string
+          created_at?: string
+          last_run_at?: string | null
+          message?: string | null
+          run_count?: number
+          status?: string
+          total_recipients?: number
+          updated_at?: string
+        }
+        Update: {
+          audiences?: string[]
+          campaign_key?: string
+          created_at?: string
+          last_run_at?: string | null
+          message?: string | null
+          run_count?: number
+          status?: string
+          total_recipients?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sms_broadcast_log: {
         Row: {
           campaign_key: string
@@ -22304,6 +22340,23 @@ export type Database = {
           total_samples: number
         }[]
       }
+      get_sms_broadcast_status: {
+        Args: never
+        Returns: {
+          audiences: string[]
+          campaign_key: string
+          created_at: string
+          failed: number
+          last_activity: string
+          last_run_at: string
+          message: string
+          run_count: number
+          sent: number
+          status: string
+          total_recipients: number
+          updated_at: string
+        }[]
+      }
       get_sms_traffic_daily: {
         Args: { p_days?: number }
         Returns: {
@@ -22580,6 +22633,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_broadcast_run: {
+        Args: { p_campaign_key: string }
+        Returns: undefined
       }
       inspect_account_conflicts: {
         Args: { p_email?: string; p_national_id?: string; p_phone?: string }

@@ -39,6 +39,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Communication', icon: Mail, id: 'communication' },
         { label: 'OTP / SMS Logs', icon: MessageSquare, id: 'sms-delivery' },
         { label: 'SMS Exceptions', icon: ShieldCheck, id: 'sms-exceptions' },
+        { label: 'Broadcast Status', icon: Megaphone, id: 'broadcast-status' },
         { label: 'Security Logs', icon: Lock, id: 'security' },
         { label: 'Platform Controls', icon: SlidersHorizontal, id: 'platform-controls' },
         { label: 'Agent Freeze', icon: Snowflake, id: 'agent-freeze' },

@@ -265,6 +265,25 @@ Deno.serve(async (req) => {
 
     // ---- Idempotent + background mode (campaign_key provided) ----
     if (campaignKey && !isTest) {
+      // Record / refresh the campaign summary row (drives the CTO status page).
+      await admin
+        .from('sms_broadcast_campaigns')
+        .upsert({
+          campaign_key: campaignKey,
+          message,
+          audiences,
+          total_recipients: recipients.length,
+          status: 'running',
+          last_run_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'campaign_key' })
+        .then(() => {})
+        .catch(() => {});
+      // Increment run_count (each invocation is a send/retry pass).
+      await admin.rpc('increment_broadcast_run', { p_campaign_key: campaignKey })
+        .then(() => {})
+        .catch(() => {});
+
       // Load phones already marked sent for this campaign and skip them.
       const alreadySent = new Set<string>();
       const PAGE = 1000;
@@ -305,7 +324,24 @@ Deno.serve(async (req) => {
             .then(() => {})
             .catch(() => {});
         }
+        // Mark the campaign as complete once this pass drains its pending set.
+        await admin
+          .from('sms_broadcast_campaigns')
+          .update({ status: 'complete', updated_at: new Date().toISOString() })
+          .eq('campaign_key', campaignKey)
+          .then(() => {})
+          .catch(() => {});
       };
+
+      // Nothing left to send — campaign is already fully delivered.
+      if (pending.length === 0) {
+        await admin
+          .from('sms_broadcast_campaigns')
+          .update({ status: 'complete', updated_at: new Date().toISOString() })
+          .eq('campaign_key', campaignKey)
+          .then(() => {})
+          .catch(() => {});
+      }
 
       // Run in the background so the client connection can close immediately
       // without aborting the send.
