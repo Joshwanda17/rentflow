@@ -166,12 +166,23 @@ async function createVapidJwt(audience: string): Promise<string> {
   const claimsB64 = base64urlEncode(JSON.stringify(claims));
   const unsigned = `${headerB64}.${claimsB64}`;
 
-  // Import the private key
-  const privateKeyRaw = Uint8Array.from(atob(VAPID_PRIVATE_KEY.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-  
+  // Web Crypto cannot import an EC *private* key from 'raw' (raw is public-only).
+  // Build a JWK from the private scalar (d) plus the public key's x/y coords.
+  const dBytes = base64urlToBytes(VAPID_PRIVATE_KEY);
+  const pubBytes = base64urlToBytes(VAPID_PUBLIC_KEY); // 0x04 || x(32) || y(32)
+  const xBytes = pubBytes.slice(1, 33);
+  const yBytes = pubBytes.slice(33, 65);
+
   const key = await crypto.subtle.importKey(
-    'raw',
-    privateKeyRaw,
+    'jwk',
+    {
+      kty: 'EC',
+      crv: 'P-256',
+      d: base64urlEncode(dBytes),
+      x: base64urlEncode(xBytes),
+      y: base64urlEncode(yBytes),
+      ext: true,
+    },
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign']
