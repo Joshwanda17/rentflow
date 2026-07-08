@@ -308,6 +308,7 @@ export function AgentOpsDashboard() {
             {group.keys.map((key) => {
               const item = NAV_ITEMS.find((n) => n.key === key);
               if (!item) return null;
+              const showBadge = item.key === 'advance-requests' && pendingAdvanceCount > 0;
               return (
                 <button
                   key={item.key}
@@ -316,8 +317,14 @@ export function AgentOpsDashboard() {
                     'flex flex-col items-center gap-2 p-3 rounded-2xl border border-border bg-card',
                     'active:scale-95 transition-all touch-manipulation min-h-[84px]',
                     'hover:shadow-md hover:border-primary/30',
+                    'relative',
                   )}
                 >
+                  {showBadge && (
+                    <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+                      {pendingAdvanceCount > 99 ? '99+' : pendingAdvanceCount}
+                    </span>
+                  )}
                   <div className={cn('p-2.5 rounded-xl shadow-sm', item.color)}>
                     <item.icon className="h-4 w-4 text-white" />
                   </div>
