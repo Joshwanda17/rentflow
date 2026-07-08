@@ -250,7 +250,7 @@ export default function SupporterDashboard({
         },
       );
 
-      if (!result.ok) {
+      if (result.ok !== true) {
         toast({
           title: result.reason === 'denied' ? 'Notifications blocked' : 'Could not enable notifications',
           description: result.message,
