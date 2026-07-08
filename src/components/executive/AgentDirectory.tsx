@@ -15,6 +15,7 @@ import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
 import { cn } from '@/lib/utils';
 import { useAgentCapacityMap } from '@/hooks/useAgentCapacityMap';
 import { AgentCapacityBadge } from './AgentCapacityBadge';
+import { AgentAvatar } from './AgentAvatar';
 
 interface AgentRow {
   id: string;
@@ -272,13 +273,7 @@ export function AgentDirectory() {
                   onClick={() => openProfile(a)}
                   className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
                 >
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0 overflow-hidden">
-                    {a.avatar_url ? (
-                      <img src={a.avatar_url} alt="" loading="lazy" className="h-full w-full object-cover rounded-full" />
-                    ) : (
-                      (a.full_name || '?')[0]?.toUpperCase() || '?'
-                    )}
-                  </div>
+                  <AgentAvatar src={a.avatar_url} name={a.full_name} className="h-9 w-9" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className={`font-medium text-sm truncate ${(() => {
