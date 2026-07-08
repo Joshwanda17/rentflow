@@ -756,14 +756,14 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               </div>
 
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground pt-2">
-                Recent tenant allocations
+                Recent rent collections
               </p>
               <p className="text-[10px] text-muted-foreground leading-snug">
-                Each allocation adds <span className="font-bold text-foreground">2× the amount</span> to your limit.
+                Each collection adds <span className="font-bold text-foreground">half the amount</span> to your limit. The biggest driver of your limit is your <span className="font-bold text-foreground">active sub-agents</span>.
               </p>
               {recentAllocations.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground text-center py-3">
-                  No allocations yet. Allocate to a tenant to grow your limit.
+                  No collections yet. Collect rent and recruit sub-agents to grow your limit.
                 </p>
               ) : (
                 <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
