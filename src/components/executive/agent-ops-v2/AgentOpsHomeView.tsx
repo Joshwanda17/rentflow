@@ -686,7 +686,7 @@ function ActiveUsersStat({ range }: { range: DateRange }) {
     <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4 shadow-sm">
       <div className="flex items-center gap-3">
         <span className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-          <Activity className="h-4.5 w-4.5 text-primary" />
+          <Activity className="h-5 w-5 text-primary" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-medium text-muted-foreground leading-tight">
