@@ -212,14 +212,14 @@ export function AdvanceRepaymentsPanel() {
     <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPICard title="Active advances" value={String(stats.activeCount)} icon={Activity} accent="purple" />
-        <KPICard title="Outstanding (active)" value={formatUGX(stats.outstanding)} icon={CircleDollarSign} accent="blue" />
-        <KPICard title="Repaid (30d)" value={formatUGX(stats.repaid30)} icon={TrendingDown} accent="green" />
-        <KPICard title="Repaid (7d)" value={formatUGX(stats.repaid7)} icon={TrendingDown} accent="green" />
-        <KPICard title="Avg daily repayment" value={formatUGX(stats.avgDaily)} icon={Banknote} accent="teal" />
-        <KPICard title="Interest accrued (30d)" value={formatUGX(stats.interest30)} icon={Percent} accent="amber" />
-        <KPICard title="Overdue advances" value={String(stats.overdueCount)} icon={AlertTriangle} accent="red" />
-        <KPICard title="Overdue outstanding" value={formatUGX(stats.overdueOutstanding)} icon={AlertTriangle} accent="red" />
+        <KPICard title="Active advances" value={String(stats.activeCount)} icon={Activity} color="bg-purple-100 text-purple-700" />
+        <KPICard title="Outstanding (active)" value={formatUGX(stats.outstanding)} icon={CircleDollarSign} color="bg-blue-100 text-blue-700" />
+        <KPICard title="Repaid (30d)" value={formatUGX(stats.repaid30)} icon={TrendingDown} color="bg-emerald-100 text-emerald-700" />
+        <KPICard title="Repaid (7d)" value={formatUGX(stats.repaid7)} icon={TrendingDown} color="bg-emerald-100 text-emerald-700" />
+        <KPICard title="Avg daily repayment" value={formatUGX(stats.avgDaily)} icon={Banknote} color="bg-teal-100 text-teal-700" />
+        <KPICard title="Interest accrued (30d)" value={formatUGX(stats.interest30)} icon={Percent} color="bg-amber-100 text-amber-700" />
+        <KPICard title="Overdue advances" value={String(stats.overdueCount)} icon={AlertTriangle} color="bg-rose-100 text-rose-700" />
+        <KPICard title="Overdue outstanding" value={formatUGX(stats.overdueOutstanding)} icon={AlertTriangle} color="bg-rose-100 text-rose-700" />
       </div>
 
       {/* Daily repayment trend */}
