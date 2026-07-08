@@ -4,7 +4,7 @@
 // of the keypair. The matching private key lives only in the
 // `send-push-notification` edge function (VAPID_PRIVATE_KEY secret).
 export const VAPID_PUBLIC_KEY =
-  "BGtkbcjrO12YMoDuq2sCQeHlu47uPx3SHTgFKZFYiBW8Qr0D9vgyZSZPdw6_4ZFEI9Snk1VEAj2qTYI1I1YxBXE";
+  "BGBr-FpnY4VrB-Whq9rXDTjeiH7vGXCquZk1kmkET87x12qkW073Tx-J8qJHcLW-8j4534x05f80WdLHPmnsKz0";
 
 /**
  * Converts a base64url VAPID public key into the Uint8Array the

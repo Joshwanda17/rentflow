@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // VAPID keys for push notifications
-const VAPID_PUBLIC_KEY = "BGtkbcjrO12YMoDuq2sCQeHlu47uPx3SHTgFKZFYiBW8Qr0D9vgyZSZPdw6_4ZFEI9Snk1VEAj2qTYI1I1YxBXE";
+const VAPID_PUBLIC_KEY = "BGBr-FpnY4VrB-Whq9rXDTjeiH7vGXCquZk1kmkET87x12qkW073Tx-J8qJHcLW-8j4534x05f80WdLHPmnsKz0";
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || "";
 const VAPID_SUBJECT = "mailto:notifications@welile.com";
 
@@ -166,12 +166,11 @@ async function createVapidJwt(audience: string): Promise<string> {
   const claimsB64 = base64urlEncode(JSON.stringify(claims));
   const unsigned = `${headerB64}.${claimsB64}`;
 
-  // Import the private key
-  const privateKeyRaw = Uint8Array.from(atob(VAPID_PRIVATE_KEY.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-  
+  // VAPID_PRIVATE_KEY is a PKCS8-encoded (DER) EC private key in base64url.
+  const pkcs8 = base64urlToBytes(VAPID_PRIVATE_KEY);
   const key = await crypto.subtle.importKey(
-    'raw',
-    privateKeyRaw,
+    'pkcs8',
+    pkcs8 as BufferSource,
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign']
