@@ -884,6 +884,15 @@ export function CashoutAgentManager() {
           <Badge variant="outline" className="text-[10px] shrink-0">
             {txnDateFilter ? `${visiblePayouts.length} payout${visiblePayouts.length === 1 ? '' : 's'} on date` : 'All dates'}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs"
+            onClick={exportReportPdf}
+            disabled={visiblePayouts.length === 0}
+          >
+            <Download className="h-3.5 w-3.5 mr-1" /> Export PDF
+          </Button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
