@@ -292,6 +292,20 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
+
+  // Show the leaderboard promo once per session when an agent lands on their
+  // dashboard (agents only — this component only renders for agents). Snoozed
+  // per session so it doesn't reopen while switching tabs.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('welile-agent-leaderboard-promo-seen')) return;
+    } catch { /* ignore */ }
+    const t = setTimeout(() => {
+      setLeaderboardPromoOpen(true);
+      try { sessionStorage.setItem('welile-agent-leaderboard-promo-seen', '1'); } catch { /* ignore */ }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, []);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
@@ -1376,7 +1390,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className={cn("space-y-5", tabAnimClass)}>
             {/* Leaderboard CTA — draws agents into the recruitment competition */}
             <button
-              onClick={() => { hapticTap(); setLeaderboardPromoOpen(true); }}
+              onClick={() => { hapticTap(); navigate('/dashboard/agents/leaderboard'); }}
               className="w-full flex items-center gap-3.5 p-4 rounded-2xl text-left text-white shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
               style={{ background: 'linear-gradient(135deg, #9334EB, #6D28D9)', WebkitTapHighlightColor: 'transparent' }}
             >
