@@ -1303,8 +1303,13 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                           {format(new Date(req.created_at), 'MMM d, yyyy')}
                         </span>
                       </div>
-                      {req.rejection_reason && (
-                        <p className="text-[10px] text-red-500 mt-1 truncate">{req.rejection_reason}</p>
+                      {req.status === 'rejected' && (
+                        <div className="mt-1.5 rounded-lg bg-red-50 border border-red-100 p-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-red-600">Why it was rejected</p>
+                          <p className="text-[11px] text-red-700 leading-snug mt-0.5">
+                            {req.rejection_reason || 'No reason was provided. Please contact support for details.'}
+                          </p>
+                        </div>
                       )}
                     </div>
                     <div className="text-right shrink-0">
