@@ -135,8 +135,9 @@ export async function signInWithGoogle() {
 
   console.log('[OAuth:Google] domain:', window.location.hostname, '| redirect_uri:', primaryUri);
 
+  const funnelId = await beginOAuthFunnel('google');
   const result = await attemptOAuth('google', primaryUri);
-  if (result.redirected) return { error: null };
+  if (result.redirected) { await trackOAuthRedirected(funnelId, 'google'); return { error: null }; }
 
   // If provider not supported error, retry with canonical public origin as fallback
   const errMsg = result.error?.message || '';
@@ -145,11 +146,13 @@ export async function signInWithGoogle() {
     const fallbackUri = getPublicOrigin();
     if (fallbackUri !== primaryUri) {
       const retry = await attemptOAuth('google', fallbackUri);
-      if (retry.redirected) return { error: null };
+      if (retry.redirected) { await trackOAuthRedirected(funnelId, 'google'); return { error: null }; }
+      await trackOAuthError(funnelId, 'google', retry.error?.message);
       return { error: retry.error ?? null };
     }
   }
 
+  await trackOAuthError(funnelId, 'google', result.error?.message);
   return { error: result.error ?? null };
 }
 
@@ -160,8 +163,9 @@ export async function signInWithApple() {
 
   console.log('[OAuth:Apple] domain:', window.location.hostname, '| redirect_uri:', primaryUri);
 
+  const funnelId = await beginOAuthFunnel('apple');
   const result = await attemptOAuth('apple', primaryUri);
-  if (result.redirected) return { error: null };
+  if (result.redirected) { await trackOAuthRedirected(funnelId, 'apple'); return { error: null }; }
 
   const errMsg = result.error?.message || '';
   if (errMsg.toLowerCase().includes('not supported') || errMsg.toLowerCase().includes('provider')) {
@@ -169,11 +173,13 @@ export async function signInWithApple() {
     const fallbackUri = getPublicOrigin();
     if (fallbackUri !== primaryUri) {
       const retry = await attemptOAuth('apple', fallbackUri);
-      if (retry.redirected) return { error: null };
+      if (retry.redirected) { await trackOAuthRedirected(funnelId, 'apple'); return { error: null }; }
+      await trackOAuthError(funnelId, 'apple', retry.error?.message);
       return { error: retry.error ?? null };
     }
   }
 
+  await trackOAuthError(funnelId, 'apple', result.error?.message);
   return { error: result.error ?? null };
 }
 
