@@ -13,6 +13,7 @@ import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import {
   ComposedChart,
   Bar,
