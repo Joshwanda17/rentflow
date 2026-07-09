@@ -5085,6 +5085,66 @@ export type Database = {
         }
         Relationships: []
       }
+      change_of_address_monitor: {
+        Row: {
+          checks: Json
+          consecutive_healthy: number
+          created_at: string
+          gsc_snapshot: Json | null
+          id: string
+          last_action: string | null
+          last_action_at: string | null
+          last_checked_at: string | null
+          last_error: string | null
+          new_domain: string
+          old_domain: string
+          ready_at: string | null
+          redirect_first_seen_at: string | null
+          redirect_healthy: boolean
+          status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          checks?: Json
+          consecutive_healthy?: number
+          created_at?: string
+          gsc_snapshot?: Json | null
+          id?: string
+          last_action?: string | null
+          last_action_at?: string | null
+          last_checked_at?: string | null
+          last_error?: string | null
+          new_domain: string
+          old_domain: string
+          ready_at?: string | null
+          redirect_first_seen_at?: string | null
+          redirect_healthy?: boolean
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          checks?: Json
+          consecutive_healthy?: number
+          created_at?: string
+          gsc_snapshot?: Json | null
+          id?: string
+          last_action?: string | null
+          last_action_at?: string | null
+          last_checked_at?: string | null
+          last_error?: string | null
+          new_domain?: string
+          old_domain?: string
+          ready_at?: string | null
+          redirect_first_seen_at?: string | null
+          redirect_healthy?: boolean
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       client_error_reports: {
         Row: {
           component_stack: string | null
