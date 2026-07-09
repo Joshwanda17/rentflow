@@ -52,10 +52,17 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
   const hasStaffRole = roles.some((r) => STAFF_ROLES.includes(r));
   const staffRole = roles.find((r) => STAFF_ROLES.includes(r));
 
+  // A user who already holds every public persona (or an all-access staff role)
+  // should never be prompted to "request access" — they already have the role.
+  const hasAllPublicRoles = PUBLIC_ROLES.every(({ role }) => roles.includes(role));
+  const hasAllAccessStaffRole = roles.includes("super_admin") || roles.includes("manager");
+
   const isRoleGated = (role: AppRole): boolean => {
     // Strict ownership: a role is gated unless the user actually holds it.
     // The dev-only "unlock all" preference still bypasses the gate.
     if (areAllRolesUnlocked()) return false;
+    // Users who already have every role (or an all-access staff role) are never gated.
+    if (hasAllPublicRoles || hasAllAccessStaffRole) return false;
     if (roles.includes(role)) return false;
     return true;
   };
