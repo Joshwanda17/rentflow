@@ -31,10 +31,14 @@ import { template as newWithdrawalMerchantAlertTemplate } from './new-withdrawal
 import { template as withdrawalPaidReceiptTemplate } from './withdrawal-paid-receipt.tsx'
 import { template as tenantPartnershipAgreementTemplate } from './tenant-partnership-agreement.tsx'
 import { template as jobApplicationReceivedTemplate } from './job-application-received.tsx'
+import { template as directorRequisitionNewTemplate } from './director-requisition-new.tsx'
+import { template as directorRequisitionStatusTemplate } from './director-requisition-status.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'test-email': testTemplate,
+  'director-requisition-new': directorRequisitionNewTemplate,
+  'director-requisition-status': directorRequisitionStatusTemplate,
   'returns-disbursement-confirmation': returnsDisbursementTemplate,
   'partner-wallet-deposit': partnerWalletDepositTemplate,
   'partnership-agreement': partnershipAgreementTemplate,

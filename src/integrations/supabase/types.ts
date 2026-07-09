@@ -6413,6 +6413,101 @@ export type Database = {
         }
         Relationships: []
       }
+      director_requisition_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          comment: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          requisition_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          requisition_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          requisition_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "director_requisition_events_requisition_id_fkey"
+            columns: ["requisition_id"]
+            isOneToOne: false
+            referencedRelation: "director_requisitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      director_requisitions: {
+        Row: {
+          amount: number
+          approver_id: string | null
+          approver_name: string | null
+          created_at: string
+          decided_at: string | null
+          director_comment: string | null
+          id: string
+          reason: string
+          requester_id: string
+          requester_name: string | null
+          requester_role: string | null
+          requisition_code: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approver_id?: string | null
+          approver_name?: string | null
+          created_at?: string
+          decided_at?: string | null
+          director_comment?: string | null
+          id?: string
+          reason: string
+          requester_id: string
+          requester_name?: string | null
+          requester_role?: string | null
+          requisition_code?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approver_id?: string | null
+          approver_name?: string | null
+          created_at?: string
+          decided_at?: string | null
+          director_comment?: string | null
+          id?: string
+          reason?: string
+          requester_id?: string
+          requester_name?: string | null
+          requester_role?: string | null
+          requisition_code?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       disbursement_records: {
         Row: {
           agent_confirmed: boolean | null
@@ -22817,6 +22912,7 @@ export type Database = {
         | { Args: { p_user_id: string }; Returns: boolean }
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
       is_tenant_ops_staff: { Args: { _uid: string }; Returns: boolean }
+      is_welile_staff: { Args: { _user_id: string }; Returns: boolean }
       is_withdrawal_staff: { Args: { _user_id: string }; Returns: boolean }
       landlord_ops_bind_tenant_to_house: {
         Args: {
