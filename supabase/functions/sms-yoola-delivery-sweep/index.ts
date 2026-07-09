@@ -30,10 +30,11 @@ function firstString(...values: unknown[]): string | null {
 function extractYoolaMessageId(providerMessageId: string | null, providerResponse: unknown): string | null {
   if (providerMessageId && !providerMessageId.startsWith("YOOLA-")) return providerMessageId;
   const response = providerResponse as any;
+  const directResponse = response?.provider_response ?? response;
   const winningAttempt = Array.isArray(response?.attempts)
     ? response.attempts.find((attempt: any) => attempt?.provider === "yoola" && attempt?.ok)
     : null;
-  const yoolaResponse = winningAttempt?.response ?? response;
+  const yoolaResponse = winningAttempt?.response ?? directResponse;
   const recipient = Array.isArray(yoolaResponse?.per_recipient) ? yoolaResponse.per_recipient[0] : null;
   return firstString(yoolaResponse?.message_id, yoolaResponse?.messageId, yoolaResponse?.id, recipient?.message_id, recipient?.messageId);
 }
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
       .from("sms_delivery_log")
       .select("id, created_at, status, provider_message_id, provider_response")
       .eq("provider", "yoola")
-      .in("status", ["sent", "pending", "queued"])
+      .in("status", ["sent", "accepted", "pending", "queued"])
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false })
       .limit(limit);
