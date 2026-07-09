@@ -14,6 +14,7 @@ import RegisterEmployeeDialog from '@/components/admin/RegisterEmployeeDialog';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import JobApplicationsPanel from '@/components/admin/JobApplicationsPanel';
 import ShareCareersLink from '@/components/admin/ShareCareersLink';
+import CareersAnalyticsPanel from '@/components/admin/CareersAnalyticsPanel';
 
 interface StaffUser {
   id: string;
@@ -207,6 +208,9 @@ export default function AdminUsersPage() {
       <div className="px-4 py-4 print-area">
         {/* Priority: incoming job applications */}
         <JobApplicationsPanel />
+
+        {/* Careers link share analytics (which platform drives sign-ups) */}
+        <CareersAnalyticsPanel />
 
         {/* Print-only header */}
         <div className="hidden print-header">

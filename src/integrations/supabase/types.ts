@@ -4651,6 +4651,36 @@ export type Database = {
         }
         Relationships: []
       }
+      career_link_clicks: {
+        Row: {
+          created_at: string
+          id: string
+          landing_path: string | null
+          referrer: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          landing_path?: string | null
+          referrer?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          landing_path?: string | null
+          referrer?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           created_at: string
@@ -8841,6 +8871,9 @@ export type Database = {
           role_interest: string | null
           status: string
           updated_at: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
           whatsapp_number: string
         }
         Insert: {
@@ -8858,6 +8891,9 @@ export type Database = {
           role_interest?: string | null
           status?: string
           updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           whatsapp_number: string
         }
         Update: {
@@ -8875,6 +8911,9 @@ export type Database = {
           role_interest?: string | null
           status?: string
           updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           whatsapp_number?: string
         }
         Relationships: []

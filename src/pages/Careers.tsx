@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,12 @@ export default function Careers() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Capture UTM attribution once on mount (persists across form edits).
+  const utmRef = useRef<{ source: string | null; medium: string | null; campaign: string | null }>({
+    source: null,
+    medium: null,
+    campaign: null,
+  });
   const [form, setForm] = useState({
     fullName: '',
     whatsapp: '',
@@ -38,6 +44,32 @@ export default function Careers() {
     location: '',
     coverNote: '',
   });
+
+  // Read UTM params + log an anonymous click for platform attribution.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const source = params.get('utm_source');
+    const medium = params.get('utm_medium');
+    const campaign = params.get('utm_campaign');
+    utmRef.current = { source, medium, campaign };
+
+    // Only log clicks that arrived via a tagged share link.
+    if (source) {
+      const key = `career-click-${source}-${medium ?? ''}-${campaign ?? ''}`;
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        (supabase.from('career_link_clicks' as any) as any)
+          .insert({
+            utm_source: source,
+            utm_medium: medium,
+            utm_campaign: campaign,
+            referrer: document.referrer || null,
+            landing_path: window.location.pathname + window.location.search,
+          })
+          .then(() => {}, (err: any) => console.error('Failed to log careers click:', err));
+      }
+    }
+  }, []);
 
   const updateField = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -70,6 +102,9 @@ export default function Careers() {
         location: form.location.trim() || null,
         cover_note: form.coverNote.trim() || null,
         status: 'new',
+        utm_source: utmRef.current.source,
+        utm_medium: utmRef.current.medium,
+        utm_campaign: utmRef.current.campaign,
       }).select('id').single();
       if (error) throw error;
 
