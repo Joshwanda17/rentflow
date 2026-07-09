@@ -166,6 +166,7 @@ export function useOtpVerification() {
         return false;
       }
       setOtpVerified(true);
+      setVerifiedPhone(cleanPhoneNumber(phone));
       return true;
     } catch (e: any) {
       setOtpError(e?.message || 'Verification failed');
