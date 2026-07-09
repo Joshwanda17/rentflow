@@ -1215,6 +1215,111 @@ function RentBalanceEditor({
   );
 }
 
+function LandlordFundingEditor({
+  rentRequestId,
+  currentAmount,
+  onSaved,
+}: {
+  rentRequestId: string;
+  currentAmount: number;
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [amount, setAmount] = useState<string>(String(currentAmount || ''));
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const cancel = () => {
+    setEditing(false);
+    setAmount(String(currentAmount || ''));
+    setReason('');
+  };
+
+  const save = async () => {
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error('Enter a valid funding amount');
+      return;
+    }
+    if (reason.trim().length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc('ops_edit_landlord_funding', {
+        p_rent_request_id: rentRequestId,
+        p_new_amount: amt,
+        p_reason: reason.trim(),
+      } as any);
+      if (error) throw error;
+      toast.success('Landlord funding amount updated');
+      setEditing(false);
+      setReason('');
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message ?? 'Update failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-md border border-dashed px-2.5 py-2">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Landlord funding (requisition)</p>
+          <p className="text-sm font-semibold">{fmtUGX(currentAmount)}</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs gap-1 shrink-0"
+          onClick={() => { setAmount(String(currentAmount || '')); setEditing(true); }}
+        >
+          <Pencil className="h-3 w-3" /> Edit funding
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border px-2.5 py-2">
+      <div className="space-y-1">
+        <Label className="text-xs">Landlord funding amount (UGX)</Label>
+        <Input
+          type="number"
+          min={1}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="h-8 text-sm"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Only editable while the landlord has not yet been paid. Adjusts the open funding allocation and the ledger.
+        </p>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Reason (min 10 chars)</Label>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          className="text-sm"
+          placeholder="Why is the landlord funding amount being changed?"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={save} disabled={saving} className="h-7 px-3 text-xs">
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={cancel} disabled={saving} className="h-7 px-3 text-xs">
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function TenantPane({
   tenantId, isOps, onBackToAgent, onSelectLandlord, onSelectUser,
 }: { tenantId: string; isOps: boolean; onBackToAgent?: () => void; onSelectLandlord?: (id: string) => void; onSelectUser?: (id: string, name: string) => void }) {
@@ -1285,6 +1390,7 @@ function TenantPane({
       );
       const allocPaid = (allocs ?? []).reduce((s: number, a: any) => s + Number(a.paid_out_amount || 0), 0);
       const allocOutstanding = (allocs ?? []).reduce((s: number, a: any) => s + Number(a.remaining_amount || 0), 0);
+      const allocated = (allocs ?? []).reduce((s: number, a: any) => s + Number(a.allocated_amount || 0), 0);
       const totalPaid = paidPayout + allocPaid;
       const hasAllocation = (allocs ?? []).length > 0;
       let state: 'paid' | 'awaiting' | 'partial' | 'none';
@@ -1292,7 +1398,7 @@ function TenantPane({
       else if (totalPaid > 0) state = 'partial';
       else if (hasAllocation) state = 'awaiting';
       else state = 'none';
-      return { state, totalPaid, allocOutstanding, hasAllocation };
+      return { state, totalPaid, allocOutstanding, allocated, allocPaid, hasAllocation };
     },
   });
 
@@ -1408,6 +1514,16 @@ function TenantPane({
             balance={balance}
             canEdit={isOps}
             onSaved={() => qc.invalidateQueries({ queryKey: ['drilldown-tenant-rr', tenantId] })}
+          />
+        )}
+        {activeRr && isOps && landlordPayment && landlordPayment.hasAllocation && Number(landlordPayment.allocPaid || 0) === 0 && (
+          <LandlordFundingEditor
+            rentRequestId={activeRr.id}
+            currentAmount={Number(landlordPayment.allocated || 0)}
+            onSaved={() => {
+              qc.invalidateQueries({ queryKey: ['drilldown-tenant-landlord-payment', activeRr.id] });
+              qc.invalidateQueries({ queryKey: ['drilldown-tenant-rr', tenantId] });
+            }}
           />
         )}
       </Card>
