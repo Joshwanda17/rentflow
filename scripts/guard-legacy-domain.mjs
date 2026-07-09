@@ -46,6 +46,10 @@ const ALLOW_FILES = new Set([
   'supabase/functions/sitemap-resubmit/index.ts',
   'supabase/functions/seo-index-monitor/index.ts',
   'supabase/functions/seo-coverage-dashboard/index.ts',
+  'src/components/executive/CTODashboard.tsx',
+  'src/components/executive/ChangeOfAddressMonitorPanel.tsx',
+  'src/components/executive/RedirectHealthAlertsPanel.tsx',
+  'supabase/functions/_shared/transactional-email-templates/redirect-monitor-alert.tsx',
 ]);
 
 function* walk(target) {
