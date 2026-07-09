@@ -61,6 +61,14 @@ export interface AgentGrowthRecruiterRow {
   verified: number;
 }
 
+export interface AgentGrowthInviteeStatusCounts {
+  verified: number;
+  pending: number;
+  expired: number;
+  rejected: number;
+  total: number;
+}
+
 export interface AgentGrowthReportInput {
   scopeLabel: string;           // e.g. "Monthly · trailing 12mo"
   periodNoun: string;           // e.g. "this month"
@@ -77,6 +85,8 @@ export interface AgentGrowthReportInput {
   };
   series: AgentGrowthSeriesRow[];
   recruiters: AgentGrowthRecruiterRow[];
+  /** Optional invitee pipeline breakdown by status (rendered as a funnel table). */
+  inviteeStatus?: AgentGrowthInviteeStatusCounts;
 }
 
 export async function generateAgentGrowthReportPdf(
@@ -109,6 +119,9 @@ export async function generateAgentGrowthReportPdf(
   const verifiedRate = t.total_subagents > 0
     ? (t.verified_subagents / t.total_subagents) * 100 : 0;
   const subPerAgent = t.total_agents > 0 ? t.total_subagents / t.total_agents : 0;
+  const netNew = t.new_agents + t.new_subagents;
+  const prevNetNew = t.prev_agents + t.prev_subagents;
+  const netTrend = trendPct(netNew, prevNetNew);
 
   // ── Header band ──
   doc.setFillColor(...BRAND);
@@ -184,8 +197,49 @@ export async function generateAgentGrowthReportPdf(
     }
   });
 
+  // ── Executive summary (auto-generated insights) ──
+  const summaryTop = startY + 2 * (cardH + gap) + 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND_DARK);
+  doc.text('Executive Summary', margin, summaryTop);
+  doc.setDrawColor(...BRAND);
+  doc.setLineWidth(0.4);
+  doc.line(margin, summaryTop + 1.8, pageWidth - margin, summaryTop + 1.8);
+
+  const topRecruiter = input.recruiters[0];
+  const insights: string[] = [
+    `Network now spans ${fmtInt(t.total_agents)} agents and ${fmtInt(t.total_subagents)} sub-agents — a depth of ${fmtAvg(subPerAgent)} sub-agents per agent.`,
+    `${fmtInt(netNew)} new members joined ${input.periodNoun} (${fmtInt(t.new_agents)} agents, ${fmtInt(t.new_subagents)} sub-agents), ${netTrend >= 0 ? 'up' : 'down'} ${fmtPct(Math.abs(netTrend)).replace('+', '')} versus the previous period.`,
+    `${Math.round(verifiedRate)}% of sub-agents are verified (${fmtInt(t.verified_subagents)} verified, ${fmtInt(t.pending_subagents)} pending) — ${verifiedRate >= 70 ? 'a healthy activation rate' : 'an opportunity to tighten onboarding follow-up'}.`,
+  ];
+  if (topRecruiter && topRecruiter.invited > 0) {
+    insights.push(
+      `Top recruiter ${topRecruiter.name} brought in ${fmtInt(topRecruiter.invited)} invitees (${Math.round((topRecruiter.verified / topRecruiter.invited) * 100)}% verified) this period.`,
+    );
+  }
+
+  const boxTop = summaryTop + 5;
+  const lineH = 5.6;
+  const boxH = insights.length * lineH + 6;
+  doc.setFillColor(...tint(BRAND, 0.95));
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin, boxTop, pageWidth - margin * 2, boxH, 2, 2, 'FD');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.4);
+  doc.setTextColor(...INK);
+  let iy = boxTop + 6.5;
+  insights.forEach((line) => {
+    doc.setFillColor(...BRAND);
+    doc.circle(margin + 4, iy - 1.4, 0.9, 'F');
+    const wrapped = doc.splitTextToSize(line, pageWidth - margin * 2 - 12);
+    doc.text(wrapped, margin + 7, iy);
+    iy += lineH * wrapped.length;
+  });
+
   // ── Growth table ──
-  let sectionTop = startY + 2 * (cardH + gap) + 6;
+  let sectionTop = boxTop + boxH + 8;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...BRAND_DARK);
@@ -285,6 +339,53 @@ export async function generateAgentGrowthReportPdf(
       5: { cellWidth: 24, halign: 'right' },
     },
   });
+
+  // ── Invitee pipeline breakdown ──
+  if (input.inviteeStatus && input.inviteeStatus.total > 0) {
+    const s = input.inviteeStatus;
+    let pipeTop = (doc as any).lastAutoTable.finalY + 8;
+    if (pipeTop > pageHeight - 40) { doc.addPage(); pipeTop = 20; }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...BRAND_DARK);
+    doc.text('Invitee Pipeline', margin, pipeTop);
+    doc.setDrawColor(...BRAND);
+    doc.setLineWidth(0.4);
+    doc.line(margin, pipeTop + 1.8, pageWidth - margin, pipeTop + 1.8);
+
+    const pct = (n: number) => (s.total > 0 ? `${Math.round((n / s.total) * 100)}%` : '0%');
+    const pipeBody = [
+      ['Verified', fmtInt(s.verified), pct(s.verified)],
+      ['Pending acceptance', fmtInt(s.pending), pct(s.pending)],
+      ['Expired', fmtInt(s.expired), pct(s.expired)],
+      ['Rejected', fmtInt(s.rejected), pct(s.rejected)],
+    ];
+    autoTable(doc, {
+      startY: pipeTop + 4,
+      head: [['Stage', 'Invitees', 'Share']],
+      body: pipeBody,
+      foot: [['Total invitees', fmtInt(s.total), '100%']],
+      margin: { left: margin, right: margin },
+      tableWidth: pageWidth - margin * 2,
+      styles: { fontSize: 8, cellPadding: 2, valign: 'middle', textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
+      headStyles: { fillColor: TEAL, textColor: 255, fontSize: 8, fontStyle: 'bold', halign: 'left' },
+      footStyles: { fillColor: tint(TEAL, 0.85), textColor: [8, 74, 67], fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: STRIPE },
+      columnStyles: {
+        0: { cellWidth: 'auto', fontStyle: 'bold' },
+        1: { cellWidth: 40, halign: 'right' },
+        2: { cellWidth: 40, halign: 'right' },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 0) {
+          const raw = String(data.cell.raw || '');
+          if (raw === 'Verified') data.cell.styles.textColor = EMERALD;
+          else if (raw === 'Rejected') data.cell.styles.textColor = RED;
+          else if (raw === 'Pending acceptance') data.cell.styles.textColor = AMBER;
+        }
+      },
+    });
+  }
 
   // ── Footer on every page ──
   const pageCount = (doc as any).internal.getNumberOfPages();
