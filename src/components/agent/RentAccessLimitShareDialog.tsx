@@ -13,6 +13,7 @@ import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
 import { generateRentAccessLimitPdf, generateRentAccessLimitPng } from '@/lib/rentAccessLimitPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { recordRentAccessShare } from '@/lib/rentAccessShareAudit';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface Props {
   open: boolean;
@@ -85,7 +86,7 @@ export function RentAccessLimitShareDialog({
         if (!cancelled) setShareUrl(url);
       } catch {
         // Fallback: direct URL if short-link creation fails
-        if (!cancelled) setShareUrl(`${window.location.origin}/limit/${tenantId}`);
+        if (!cancelled) setShareUrl(`${getPublicOrigin()}/limit/${tenantId}`);
       } finally {
         if (!cancelled) setLinkLoading(false);
       }
