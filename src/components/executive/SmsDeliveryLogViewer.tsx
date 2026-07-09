@@ -337,23 +337,16 @@ export function SmsDeliveryLogViewer() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={testProvider} onValueChange={(v) => setTestProvider(v as 'yoola' | 'africastalking')}>
-          <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="yoola">Yoola (ATInfo)</SelectItem>
-            <SelectItem value="africastalking">Africa's Talking (WELILE)</SelectItem>
-          </SelectContent>
-        </Select>
         <Button
           size="sm"
           variant="outline"
           onClick={handleSendTestSms}
           disabled={sendingTest}
           className="h-8 text-xs gap-1.5"
-          title={`Send a test SMS to ${TEST_SMS_PHONE} via the selected provider`}
+          title={`Send a WELILE test SMS to ${TEST_SMS_PHONE} via both Yoola and Africa's Talking`}
         >
           {sendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-          Send test → {TEST_SMS_PHONE}
+          Send WELILE test (both) → {TEST_SMS_PHONE}
         </Button>
       </div>
 
