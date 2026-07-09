@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { formatUGX as _formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
-import { isPushSupported, ensurePushSubscription } from '@/lib/webPush';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 
@@ -211,99 +210,6 @@ export default function SupporterDashboard({
       setTimeout(() => setJustAccepted(false), 5000);
     }
     return success;
-  };
-
-  const handleTestPushNotification = async () => {
-    try {
-      if (!isPushSupported()) {
-        toast({
-          title: 'Push notifications unavailable',
-          description: 'This browser or device does not support web push notifications.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      // Ask the browser for permission and create/refresh the subscription
-      // right here — no need to visit Settings first. If the user allows,
-      // we immediately send the test push below.
-      const enabling = Notification.permission !== 'granted';
-      if (enabling) {
-        toast({
-          title: 'Enabling notifications…',
-          description: 'Choose "Allow" when your browser asks.',
-        });
-      }
-
-      const result = await ensurePushSubscription(
-        async ({ endpoint, p256dh, auth }) => {
-          const { error: saveError } = await supabase
-            .from('push_subscriptions')
-            .upsert(
-              { user_id: user.id, endpoint, p256dh, auth },
-              { onConflict: 'user_id,endpoint' },
-            );
-          if (saveError) throw saveError;
-        },
-        async (endpoint) => {
-          await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
-        },
-      );
-
-      if (result.ok !== true) {
-        toast({
-          title:
-            result.reason === 'iframe'
-              ? 'Open in a full browser tab'
-              : result.reason === 'blocked'
-                ? 'Notifications blocked'
-                : 'Could not enable notifications',
-          description: result.message,
-          variant: 'destructive',
-          duration: result.reason === 'blocked' || result.reason === 'iframe' ? 12000 : 6000,
-        });
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('send-push-notification', {
-        body: {
-          userIds: [user.id],
-          payload: {
-            title: 'Welile test 🔔',
-            body: 'This is a test web push notification.',
-            url: '/dashboard/funder',
-            type: 'test',
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      const sent = Number(data?.sent ?? 0);
-      const failed = Number(data?.failed ?? 0);
-      const total = Number(data?.total ?? 0);
-
-      if (sent < 1) {
-        toast({
-          title: 'Test push not delivered',
-          description: total < 1
-            ? 'No saved subscription was found. Enable notifications on this device, then test again.'
-            : `The backend found ${total} subscription(s), but ${failed || total} failed to send. Re-enable notifications and test again.`,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      toast({
-        title: enabling ? 'Notifications enabled — test sent 🔔' : 'Test push sent',
-        description: failed > 0
-          ? `Sent to ${sent} device(s); ${failed} failed.`
-          : 'Check this device’s notification tray.',
-      });
-    } catch (err) {
-      console.error('Test push failed:', err);
-      toast({ title: 'Test push failed', description: 'Please re-enable notifications, then test again.', variant: 'destructive' });
-    }
   };
 
   // Cache already loaded synchronously in useState init above
@@ -564,14 +470,6 @@ export default function SupporterDashboard({
               <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
             </div>
             <AiIdButton variant="compact" />
-            {/* TEMP: test web push — remove later */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleTestPushNotification}
-            >
-              Test push
-            </Button>
           </div>
 
           <MerchantCodePills />
