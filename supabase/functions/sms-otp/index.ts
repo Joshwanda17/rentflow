@@ -454,8 +454,13 @@ async function sendSMS(
   type SmsProviderRoute = { provider: SmsProviderName; fn: () => Promise<SmsResult> };
 
   const primaryChain: SmsProviderRoute[] = [
-    { provider: "africastalking", fn: () => sendViaAfricasTalking(phone, message) },
+    // Yoola is the PRIMARY OTP sender platform-wide: it delivers to the handset
+    // reliably. Africa's Talking frequently returns "accepted" (statusCode
+    // 101/100) without actually delivering, which traps users in a "code sent
+    // but never arrives" loop. Only fall back to AT/LANA if Yoola is
+    // unconfigured or rejects.
     { provider: "yoola", fn: () => sendViaYoola(phone, message) },
+    { provider: "africastalking", fn: () => sendViaAfricasTalking(phone, message) },
     { provider: "lana", fn: () => sendViaLana(phone, message) },
   ];
 
