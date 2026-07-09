@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!-- Host canonicalization: force legacy welilereceipts.com / welilereciept.com -> welileapp.com.
+    <!-- Host canonicalization: force legacy welilereceipts.com / welilereciept.com -> welileapp.com.  legacy-domain-guard-allow
          Runs before anything else so no legacy-domain content is ever rendered.
          (True HTTP 301 is served by Lovable hosting when the domain points here;
          this is the client-side guarantee for any request that reaches the app.) -->
@@ -9,7 +9,7 @@
       (function () {
         try {
           var host = window.location.hostname.replace(/^www\./, '').toLowerCase();
-          var LEGACY = ['welilereceipts.com', 'welilereciept.com'];
+          var LEGACY = ['welilereceipts.com', 'welilereciept.com']; // legacy-domain-guard-allow
           if (LEGACY.indexOf(host) !== -1) {
             var target =
               'https://welileapp.com' +
