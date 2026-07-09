@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, MailX, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Helmet } from 'react-helmet-async';
 
 type Status = 'validating' | 'valid' | 'invalid' | 'already' | 'submitting' | 'success' | 'error';
 
@@ -54,6 +55,11 @@ export default function Unsubscribe() {
   };
 
   return (
+    <>
+      <Helmet>
+        <link rel="canonical" href="https://welileapp.com/unsubscribe" />
+        <meta property="og:url" content="https://welileapp.com/unsubscribe" />
+      </Helmet>
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
@@ -117,5 +123,6 @@ export default function Unsubscribe() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }

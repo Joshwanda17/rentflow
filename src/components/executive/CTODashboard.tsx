@@ -23,6 +23,7 @@ import PlatformControlsPanel from '@/components/cto/PlatformControlsPanel';
 import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
 import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
 import { SeoCoverageDashboard } from './SeoCoverageDashboard';
+import { SeoRedirectAuditPanel } from './SeoRedirectAuditPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -266,8 +267,11 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
       {/* Google indexing monitor (welileapp.com SEO) */}
       <SeoIndexMonitorPanel />
 
-      {/* Search Console coverage comparison (welileapp.com vs welilereceipts.com) */}
+      {/* Search Console coverage comparison (welileapp.com vs the legacy domain) */}
       <SeoCoverageDashboard />
+
+      {/* Domain redirect audit (legacy + www -> welileapp.com) */}
+      <SeoRedirectAuditPanel />
 
       {/* Database Schema Export */}
       <ExtractSchemaCard />

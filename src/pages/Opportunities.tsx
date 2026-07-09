@@ -2,11 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Helmet } from 'react-helmet-async';
 
 export default function Opportunities() {
   const navigate = useNavigate();
 
   return (
+    <>
+      <Helmet>
+        <link rel="canonical" href="https://welileapp.com/opportunities" />
+        <meta property="og:url" content="https://welileapp.com/opportunities" />
+      </Helmet>
     <div className="min-h-screen bg-background flex flex-col">
       <div className="sticky top-0 z-40 bg-background border-b border-border/50 px-4 py-3 flex items-center gap-3">
         <Button
@@ -32,5 +38,6 @@ export default function Opportunities() {
         </div>
       </div>
     </div>
+    </>
   );
 }

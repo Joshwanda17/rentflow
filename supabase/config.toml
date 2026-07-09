@@ -162,3 +162,6 @@ verify_jwt = false
 
 [functions.seo-coverage-dashboard]
 verify_jwt = false
+
+[functions.seo-redirect-audit]
+verify_jwt = false

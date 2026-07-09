@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BellOff, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Helmet } from 'react-helmet-async';
 
 type Status = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -39,6 +40,11 @@ export default function StopSms() {
   };
 
   return (
+    <>
+      <Helmet>
+        <link rel="canonical" href="https://welileapp.com/stop-sms" />
+        <meta property="og:url" content="https://welileapp.com/stop-sms" />
+      </Helmet>
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
@@ -98,5 +104,6 @@ export default function StopSms() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }

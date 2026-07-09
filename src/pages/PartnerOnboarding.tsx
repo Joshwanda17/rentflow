@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
@@ -306,9 +307,15 @@ export default function FunderOnboarding() {
 
   if (loading || !user) {
     return (
+      <>
+      <Helmet>
+        <link rel="canonical" href="https://welileapp.com/partner-onboarding" />
+        <meta property="og:url" content="https://welileapp.com/partner-onboarding" />
+      </Helmet>
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
+      </>
     );
   }
 
@@ -370,6 +377,11 @@ export default function FunderOnboarding() {
   };
 
   return (
+    <>
+    <Helmet>
+      <link rel="canonical" href="https://welileapp.com/partner-onboarding" />
+      <meta property="og:url" content="https://welileapp.com/partner-onboarding" />
+    </Helmet>
     <COODetailLayout
       title="Partner Onboarding"
       subtitle="Self-Registered Funders"
@@ -744,6 +756,7 @@ export default function FunderOnboarding() {
         onOpenChange={setCompanyDefaultsOpen}
       />
     </COODetailLayout>
+    </>
   );
 }
 
