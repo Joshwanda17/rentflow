@@ -36,19 +36,23 @@ const num = (n: number) => Number(n || 0).toLocaleString();
  */
 export function CEORevenueGrowth() {
   // ---- 1. Revenue engine (ASC 606 fee ledger) ----
+  // Server-side aggregation via RPC so totals are EXACT — the Data API caps
+  // any row fetch at 1,000 rows, which silently under-counts once the ledger
+  // grows past that. Never sum fee rows client-side for headline figures.
   const { data: feeLedger, isLoading: loadingFees } = useQuery({
     queryKey: ['ceo-rev-fee-ledger'],
     staleTime: 600000,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('fee_revenue_ledger')
-        .select('fee_type, total_amount, recognized_amount, deferred_amount, created_at')
-        .limit(5000);
-      const rows = data || [];
-      const billed = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0);
-      const recognized = rows.reduce((s, r) => s + Number(r.recognized_amount || 0), 0);
-      const deferred = rows.reduce((s, r) => s + Number(r.deferred_amount || 0), 0);
-      return { billed, recognized, deferred, rows };
+      const { data, error } = await supabase.rpc('get_fee_revenue_summary', { p_months: 6 });
+      if (error) throw error;
+      const s = (data || {}) as any;
+      return {
+        billed: Number(s.billed || 0),
+        recognized: Number(s.recognized || 0),
+        deferred: Number(s.deferred || 0),
+        rowCount: Number(s.row_count || 0),
+        monthlyRaw: (s.monthly || []) as { month_start: string; access: number; platform: number; total: number }[],
+      };
     },
   });
 
@@ -104,28 +108,13 @@ export function CEORevenueGrowth() {
   });
 
   // ---- 4. Monthly revenue growth (fees billed by month) ----
-  const { data: monthly } = useQuery({
-    queryKey: ['ceo-rev-monthly'],
-    staleTime: 600000,
-    queryFn: async () => {
-      const months: { month: string; access: number; platform: number; total: number }[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const start = startOfMonth(subMonths(new Date(), i));
-        const end = startOfMonth(subMonths(new Date(), i - 1));
-        const { data } = await supabase
-          .from('fee_revenue_ledger')
-          .select('fee_type, total_amount')
-          .gte('created_at', start.toISOString())
-          .lt('created_at', end.toISOString())
-          .limit(5000);
-        const rows = data || [];
-        const access = rows.filter((r) => r.fee_type === 'access_fee').reduce((s, r) => s + Number(r.total_amount || 0), 0);
-        const platform = rows.filter((r) => r.fee_type !== 'access_fee').reduce((s, r) => s + Number(r.total_amount || 0), 0);
-        months.push({ month: format(start, 'MMM'), access, platform, total: access + platform });
-      }
-      return months;
-    },
-  });
+  // Derived from the same server-aggregated RPC (no client row cap).
+  const monthly = (feeLedger?.monthlyRaw || []).map((m) => ({
+    month: format(new Date(m.month_start), 'MMM'),
+    access: Number(m.access || 0),
+    platform: Number(m.platform || 0),
+    total: Number(m.total || 0),
+  }));
 
   const billed = feeLedger?.billed || 0;
   const totalUsers = dataAsset?.totalUsers || 0;
