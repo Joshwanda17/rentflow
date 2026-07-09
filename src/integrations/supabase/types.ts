@@ -22275,6 +22275,7 @@ export type Database = {
           email: string
         }[]
       }
+      get_fee_revenue_summary: { Args: { p_months?: number }; Returns: Json }
       get_field_deposit_commission_config: {
         Args: never
         Returns: {
