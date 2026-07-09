@@ -136,6 +136,14 @@ export function AgentLeaderboardPanel() {
     setExporting(true);
     try {
       const periodLabel = PERIODS.find((p) => p.value === period)?.label ?? 'Monthly';
+      const allInvitees = data.invitees || [];
+      const inviteeStatus = {
+        verified: allInvitees.filter((i) => i.status === 'verified').length,
+        pending: allInvitees.filter((i) => i.status === 'pending_acceptance').length,
+        expired: allInvitees.filter((i) => i.status === 'expired').length,
+        rejected: allInvitees.filter((i) => i.status === 'rejected').length,
+        total: allInvitees.length,
+      };
       const blob = await generateAgentGrowthReportPdf({
         scopeLabel: `${periodLabel} · trailing ${trendNoun}`,
         periodNoun,
@@ -144,6 +152,7 @@ export function AgentLeaderboardPanel() {
         recruiters: (data.top_recruiters || []).map((r) => ({
           name: r.name, phone: r.phone, invited: r.invited, verified: r.verified,
         })),
+        inviteeStatus,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
