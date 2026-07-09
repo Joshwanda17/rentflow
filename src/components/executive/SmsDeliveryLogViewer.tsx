@@ -75,21 +75,23 @@ export function SmsDeliveryLogViewer() {
   // Which provider to send the sender-id test through.
   const [testProvider, setTestProvider] = useState<'yoola' | 'africastalking'>('yoola');
 
-  // Test SMS that FORCES the WELILE sender id — only this button applies it,
+  // Test SMS that FORCES a registered sender id — only this button applies it,
   // the production SMS channels still omit the sender (registered default).
+  // Yoola's only approved sender on this account is ATInfo (UGPoll is not
+  // approved/paid and gets rejected 403). Africa's Talking also uses ATInfo.
   const TEST_SMS_PHONE = '0701355245';
-  const TEST_SMS_SENDER = 'WELILE';
+  const YOOLA_SENDER = 'ATInfo';
   const handleSendTestSms = async () => {
     if (sendingTest) return;
     setSendingTest(true);
-    const providerLabelText = testProvider === 'yoola' ? 'Yoola' : "Africa's Talking (ATInfo)";
+    const providerLabelText = testProvider === 'yoola' ? `Yoola (${YOOLA_SENDER})` : "Africa's Talking (ATInfo)";
     try {
       const { data, error } = await supabase.functions.invoke('sms-test-send', {
         body: {
           phone: TEST_SMS_PHONE,
           provider: testProvider,
           // Only Yoola honours a forced sender id; AT uses its registered ATInfo default.
-          ...(testProvider === 'yoola' ? { sender: TEST_SMS_SENDER } : {}),
+          ...(testProvider === 'yoola' ? { sender: YOOLA_SENDER } : {}),
           message: `[Welile] Test SMS via ${providerLabelText}. If you received this, delivery is healthy.`,
         },
       });
@@ -329,7 +331,7 @@ export function SmsDeliveryLogViewer() {
         <Select value={testProvider} onValueChange={(v) => setTestProvider(v as 'yoola' | 'africastalking')}>
           <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="yoola">Yoola (WELILE)</SelectItem>
+            <SelectItem value="yoola">Yoola (ATInfo)</SelectItem>
             <SelectItem value="africastalking">AT Info</SelectItem>
           </SelectContent>
         </Select>
