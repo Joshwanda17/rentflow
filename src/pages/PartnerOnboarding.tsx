@@ -756,6 +756,7 @@ export default function FunderOnboarding() {
         onOpenChange={setCompanyDefaultsOpen}
       />
     </COODetailLayout>
+    </>
   );
 }
 
