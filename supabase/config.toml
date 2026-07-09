@@ -156,3 +156,6 @@ verify_jwt = false
 
 [functions.seo-index-monitor]
 verify_jwt = false
+
+[functions.sitemap-resubmit]
+verify_jwt = false
