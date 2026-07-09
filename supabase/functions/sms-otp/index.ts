@@ -32,6 +32,16 @@ const KNOWN_COUNTRY_CODES = [
 function formatPhoneInternational(rawPhone: string): string {
   let digits = rawPhone.replace(/\D/g, "");
 
+  // Uganda local numbers must be normalized before the generic country-code
+  // matcher. A bare 9-digit number like 704825473 is Uganda (+256), not +7.
+  if (digits.startsWith("0")) {
+    digits = "256" + digits.slice(1);
+    return "+" + digits;
+  }
+  if (digits.length === 9) {
+    return "+256" + digits;
+  }
+
   // If already has a known country code prefix, just add +
   for (const code of KNOWN_COUNTRY_CODES) {
     if (digits.startsWith(code) && digits.length > code.length + 5) {
@@ -39,12 +49,42 @@ function formatPhoneInternational(rawPhone: string): string {
     }
   }
 
-  // Bare local number starting with 0 — default to Uganda (+256)
-  if (digits.startsWith("0")) {
-    digits = "256" + digits.slice(1);
-  }
-
   return "+" + digits;
+}
+
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+function extractProviderFields(data: Record<string, unknown>): { messageId: string | null; cost: string | null } {
+  const response = data as any;
+  const recipient = Array.isArray(response?.per_recipient)
+    ? response.per_recipient[0]
+    : Array.isArray(response?.SMSMessageData?.Recipients)
+      ? response.SMSMessageData.Recipients[0]
+      : null;
+
+  return {
+    messageId: firstString(
+      response?.message_id,
+      response?.messageId,
+      response?.id,
+      recipient?.message_id,
+      recipient?.messageId,
+      recipient?.reference,
+    ),
+    cost: firstString(
+      recipient?.cost,
+      response?.amount_charged,
+      response?.credits_used,
+      recipient?.credits,
+    ),
+  };
 }
 
 interface SmsResult {
@@ -52,6 +92,12 @@ interface SmsResult {
   accepted: boolean;
   /** Short reason when not accepted, for logging/debugging. */
   reason?: string;
+  /** Provider's raw response, retained for delivery-report lookups and audits. */
+  response?: unknown;
+  /** Provider message id/reference when supplied. */
+  messageId?: string | null;
+  /** Provider-reported send cost when supplied. */
+  cost?: string | null;
 }
 
 /** A single provider attempt within one logical SMS send. */
@@ -59,6 +105,9 @@ interface ProviderAttempt {
   provider: string;
   accepted: boolean;
   reason?: string;
+  response?: unknown;
+  messageId?: string | null;
+  cost?: string | null;
   /** ISO timestamp when this provider attempt started. */
   started_at: string;
   /** ISO timestamp when this provider attempt finished. */
@@ -147,14 +196,17 @@ async function sendLanaAttempt(
     const accepted = rawStatus === true ||
       statusStr === "success" || statusStr === "true" ||
       statusStr === "ok" || statusStr === "sent" || statusStr === "queued";
-    if (response.ok && accepted) return { accepted: true };
+    if (response.ok && accepted) {
+      const fields = extractProviderFields(data);
+      return { accepted: true, response: data, messageId: fields.messageId, cost: fields.cost };
+    }
 
     if (!response.ok && (response.status >= 500 || response.status === 429)) {
-      return { accepted: false, reason: "network_error" };
+      return { accepted: false, reason: "network_error", response: data };
     }
     const detail = String(data?.message ?? statusStr ?? "rejected")
       .toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40);
-    return { accepted: false, reason: `lana_${response.status}_${detail || "rejected"}` };
+    return { accepted: false, reason: `lana_${response.status}_${detail || "rejected"}`, response: data };
   } catch (error) {
     const aborted = (error as Error)?.name === "AbortError";
     console.error(`[sms-otp] LANA attempt ${aborted ? "timed out" : "failed"}:`, error);
@@ -200,16 +252,18 @@ async function sendYoolaAttempt(
 
     const status = String(data?.status ?? "").toLowerCase();
     if (response.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued")) {
-      return { accepted: true };
+      const fields = extractProviderFields(data);
+      return { accepted: true, response: data, messageId: fields.messageId, cost: fields.cost };
     }
     // HTTP-level success but ambiguous body — treat 2xx as accepted.
     if (response.ok && !data?.error && status === "") {
-      return { accepted: true };
+      const fields = extractProviderFields(data);
+      return { accepted: true, response: data, messageId: fields.messageId, cost: fields.cost };
     }
     if (!response.ok && (response.status >= 500 || response.status === 429)) {
-      return { accepted: false, reason: "network_error" };
+      return { accepted: false, reason: "network_error", response: data };
     }
-    return { accepted: false, reason: `yoola_${response.status}_${status || "rejected"}` };
+    return { accepted: false, reason: `yoola_${response.status}_${status || "rejected"}`, response: data };
   } catch (error) {
     const aborted = (error as Error)?.name === "AbortError";
     console.error(`[sms-otp] Yoola attempt ${aborted ? "timed out" : "failed"}:`, error);
@@ -249,11 +303,14 @@ async function sendSMSAttempt(
     if (recipients && recipients.length > 0) {
       const status = recipients[0].statusCode;
       // 101 = sent, 100 = queued (both mean the gateway accepted it)
-      if (status === 101 || status === 100) return { accepted: true };
+      if (status === 101 || status === 100) {
+        const fields = extractProviderFields(data);
+        return { accepted: true, response: data, messageId: fields.messageId, cost: fields.cost };
+      }
       // A definitive rejection from the gateway — retrying won't help.
-      return { accepted: false, reason: `status_${status}` };
+      return { accepted: false, reason: `status_${status}`, response: data };
     }
-    return { accepted: false, reason: "no_recipients" };
+    return { accepted: false, reason: "no_recipients", response: data };
   } catch (error) {
     const aborted = (error as Error)?.name === "AbortError";
     console.error(`[sms-otp] SMS attempt ${aborted ? "timed out" : "failed"}:`, error);
@@ -357,7 +414,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 }
 
 /**
- * Send the OTP SMS. Provider chain: Yoola (primary) → Africa's Talking → LANA.
+ * Send the OTP SMS. Provider chain: Africa's Talking (primary) → Yoola → LANA.
  * Each provider is tried only if the previous one is unconfigured or fails, so
  * delivery is never blocked on a single provider. Returns the full ordered
  * trail of provider attempts (with timestamps) so we can prove a message was
@@ -383,6 +440,9 @@ async function sendSMS(
       provider,
       accepted: r.accepted,
       reason: r.reason,
+      response: r.response,
+      messageId: r.messageId ?? null,
+      cost: r.cost ?? null,
       started_at,
       finished_at,
       attempted: !wasSkipped(r.reason),
@@ -394,8 +454,8 @@ async function sendSMS(
   type SmsProviderRoute = { provider: SmsProviderName; fn: () => Promise<SmsResult> };
 
   const primaryChain: SmsProviderRoute[] = [
-    { provider: "yoola", fn: () => sendViaYoola(phone, message) },
     { provider: "africastalking", fn: () => sendViaAfricasTalking(phone, message) },
+    { provider: "yoola", fn: () => sendViaYoola(phone, message) },
     { provider: "lana", fn: () => sendViaLana(phone, message) },
   ];
 
@@ -455,9 +515,12 @@ async function logSmsAttempts(
       provider: a.provider,
       status: a.accepted ? "accepted" : (a.attempted ? "failed" : "skipped"),
       error: a.accepted ? null : (a.reason ?? null),
+      provider_message_id: a.messageId ?? null,
+      cost: a.cost ?? null,
       reference_id: ctx.referenceId ?? null,
       source: ctx.source,
       provider_response: {
+        provider_response: a.response ?? null,
         attempt_sequence: i + 1,
         total_attempts: outcome.attempts.length,
         started_at: a.started_at,
