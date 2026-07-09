@@ -48,6 +48,7 @@ import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
 import { HandCoins } from 'lucide-react';
 import { ShieldCheck } from 'lucide-react';
 import { Trophy } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -710,6 +711,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   const menuItems = [
     { icon: UserPlus, label: 'Register User', onClick: handleRegisterUser },
+    { icon: ShoppingBag, label: 'Buy Merchandise', onClick: () => { hapticTap(); navigate('/merchandise'); } },
   ];
 
   const quickActions = [] as any[];
