@@ -121,15 +121,6 @@ import { AgentDailyCardEmailPrompt } from '@/components/agent/AgentDailyCardEmai
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 
 // PDF form generators
-import {
-  generateLandlordRegistrationFormPdf,
-  shareLandlordRegistrationFormPdf,
-} from '@/lib/landlordRegistrationFormPdf';
-import {
-  generateTenantRegistrationFormPdf,
-  shareTenantRegistrationFormPdf,
-} from '@/lib/tenantRegistrationFormPdf';
-
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
 import { AgentCashDepositCodesPanel } from '@/components/agent/AgentCashDepositCodesPanel';
