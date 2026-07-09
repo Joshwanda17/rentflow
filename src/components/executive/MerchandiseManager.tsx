@@ -19,7 +19,7 @@ import { format } from 'date-fns';
 import {
   Package, ShoppingCart, Boxes, TrendingUp, Wallet, Coins, Users, HandCoins,
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
-  Repeat, CheckCircle2, CircleDollarSign,
+  Repeat, CheckCircle2, CircleDollarSign, Store, ShoppingBag, Power,
 } from 'lucide-react';
 
 // The merchandise tables are new; the generated Supabase types don't include
@@ -72,6 +72,17 @@ interface RecoveryPlan {
   created_at: string;
 }
 
+interface CatalogItem {
+  id: string;
+  item_name: string;
+  description: string | null;
+  unit_price: number;
+  unit_cost: number;
+  image_url: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 const num = (v: string) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : 0;
@@ -120,6 +131,19 @@ export function MerchandiseManager() {
         .from('merchandise_recovery_plans')
         .select('*')
         .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+  });
+
+  const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogItem[]>({
+    queryKey: ['merchandise-catalog-admin'],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from('merchandise_catalog')
+        .select('*')
+        .order('item_name');
       if (error) throw error;
       return data || [];
     },
@@ -234,6 +258,7 @@ export function MerchandiseManager() {
     queryClient.invalidateQueries({ queryKey: ['merchandise-purchases'] });
     queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
     queryClient.invalidateQueries({ queryKey: ['merchandise-recovery-plans'] });
+    queryClient.invalidateQueries({ queryKey: ['merchandise-catalog-admin'] });
   };
 
   // ---- Wallet-recovery roll-ups ----
@@ -274,6 +299,7 @@ export function MerchandiseManager() {
         <div className="flex gap-2">
           <RecordPurchaseDialog userId={user?.id} productNames={productNames} onSaved={refresh} />
           <RecordSaleDialog userId={user?.id} inventory={inventoryByItem} purchases={purchases} onSaved={refresh} />
+          <AddCatalogItemDialog userId={user?.id} onSaved={refresh} />
         </div>
       </div>
 
@@ -341,7 +367,7 @@ export function MerchandiseManager() {
       </div>
 
       {/* Merchandise wallet recovery */}
-      <Section title="Merchandise Wallet Recovery (Daily 15%)" icon={Repeat}>
+      <Section title="Merchandise Wallet Recovery (15% · up to 4×/day)" icon={Repeat}>
         {recoveryPlans.length === 0 ? (
           <EmptyRow text="No wallet-recovery plans yet. Credit sales to registered customers are recovered automatically." />
         ) : (
@@ -373,6 +399,72 @@ export function MerchandiseManager() {
                       {p.last_recovery_at ? format(new Date(p.last_recovery_at), 'dd MMM yy') : '—'}
                     </td>
                     <td className="py-2 pl-3"><RecoveryBadge status={p.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
+      {/* Storefront catalog (items agents can buy) */}
+      <Section title="Storefront Catalog (what agents can buy)" icon={Store}>
+        {loadingCatalog ? (
+          <EmptyRow text="Loading catalog…" />
+        ) : catalog.length === 0 ? (
+          <EmptyRow text="No storefront items yet. Add items so agents can order them from their dashboard." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3">Item</th>
+                  <th className="py-2 px-3 text-right">Price</th>
+                  <th className="py-2 px-3 text-right">Cost</th>
+                  <th className="py-2 px-3">Status</th>
+                  <th className="py-2 pl-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {catalog.map((c) => (
+                  <tr key={c.id} className="border-b border-border/40">
+                    <td className="py-2 pr-3">
+                      <div className="font-medium">{c.item_name}</div>
+                      {c.description && <div className="text-[11px] text-muted-foreground line-clamp-1">{c.description}</div>}
+                    </td>
+                    <td className="py-2 px-3 text-right font-semibold">{formatUGX(Number(c.unit_price))}</td>
+                    <td className="py-2 px-3 text-right text-muted-foreground">{formatUGX(Number(c.unit_cost))}</td>
+                    <td className="py-2 px-3">
+                      <span className={c.is_active ? 'text-emerald-600 text-xs font-medium' : 'text-muted-foreground text-xs'}>
+                        {c.is_active ? 'Active' : 'Hidden'}
+                      </span>
+                    </td>
+                    <td className="py-2 pl-3">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost" size="sm" className="h-7 gap-1 text-xs"
+                          onClick={async () => {
+                            const { error } = await db.from('merchandise_catalog').update({ is_active: !c.is_active }).eq('id', c.id);
+                            if (error) { toast.error(error.message); return; }
+                            toast.success(c.is_active ? 'Item hidden' : 'Item shown to agents');
+                            refresh();
+                          }}
+                        >
+                          <Power className="h-3.5 w-3.5" /> {c.is_active ? 'Hide' : 'Show'}
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive"
+                          onClick={async () => {
+                            const { error } = await db.from('merchandise_catalog').delete().eq('id', c.id);
+                            if (error) { toast.error(error.message); return; }
+                            toast.success('Item removed');
+                            refresh();
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -857,6 +949,86 @@ function RecordSaleDialog({
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
           <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save Sale'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Add storefront catalog item dialog (items agents can order)
+// ---------------------------------------------------------------------------
+function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [itemName, setItemName] = useState('');
+  const [description, setDescription] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+
+  const reset = () => {
+    setItemName(''); setDescription(''); setUnitPrice(''); setUnitCost(''); setImageUrl('');
+  };
+
+  const save = async () => {
+    if (!itemName.trim()) { toast.error('Item name is required'); return; }
+    if (num(unitPrice) <= 0) { toast.error('Price must be greater than 0'); return; }
+    setSaving(true);
+    const { error } = await db.from('merchandise_catalog').insert({
+      item_name: itemName.trim(),
+      description: description.trim() || null,
+      unit_price: num(unitPrice),
+      unit_cost: num(unitCost),
+      image_url: imageUrl.trim() || null,
+      is_active: true,
+      created_by: userId ?? null,
+    });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Item added to storefront');
+    reset();
+    setOpen(false);
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1.5"><ShoppingBag className="h-4 w-4" /> Add Store Item</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Add Storefront Item</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Item name</Label>
+            <Input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g. Press Jacket" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" rows={2} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Selling price (UGX)</Label>
+              <Input type="number" min={0} value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} placeholder="0" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Cost / unit (for profit)</Label>
+              <Input type="number" min={0} value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Optional" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Image URL</Label>
+            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Optional https://…" />
+          </div>
+          <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2 text-[11px] text-muted-foreground">
+            Agents can order this from their dashboard. The cost is recorded as a credit sale and recovered from their wallet (15%, up to 4×/day).
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Add Item'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

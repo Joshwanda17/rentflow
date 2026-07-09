@@ -111,6 +111,7 @@ const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 // Chat feature removed
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
 const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
+const MerchandiseStore = lazy(() => import('./pages/MerchandiseStore'));
 const Join = lazy(() => import('./pages/Join'));
 const SubAgentInvite = lazy(() => import('./pages/SubAgentInvite'));
 const AgentLeaderboard = lazy(() => import('./pages/agent/Leaderboard'));
@@ -470,6 +471,7 @@ function AppRoutes() {
           {/* Chat feature removed */}
           <Route path="/agent-registrations" element={<AgentRegistrations />} />
           <Route path="/sub-agents" element={<SubAgentAnalytics />} />
+          <Route path="/merchandise" element={<MerchandiseStore />} />
           <Route path="/agent/partners" element={<AgentPartners />} />
           <Route path="/join" element={<Join />} />
           <Route path="/sub-agent-invite" element={<SubAgentInvite />} />
