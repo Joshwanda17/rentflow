@@ -137,6 +137,19 @@ export function MerchandiseManager() {
     staleTime: 60000,
   });
 
+  const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogItem[]>({
+    queryKey: ['merchandise-catalog-admin'],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from('merchandise_catalog')
+        .select('*')
+        .order('item_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+  });
+
   // ---- Product & client option lists (for filters + autocomplete) ----
   const productNames = useMemo(() => {
     const set = new Set<string>();
