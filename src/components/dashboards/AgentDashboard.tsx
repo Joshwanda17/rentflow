@@ -1036,6 +1036,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* 2b) Earnings summary — available rewards + lifetime total */}
             <EarningsSummaryCard />
 
+            {/* Merchandise store shortcut */}
+            <button
+              type="button"
+              onClick={() => { hapticTap(); navigate('/merchandise'); }}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-colors text-left touch-manipulation min-h-[56px]"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <ShoppingBag className="h-5 w-5 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-foreground">Buy Merchandise</div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    Order branded gear — paid off from your wallet
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-primary shrink-0">Shop →</span>
+            </button>
+
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
               <button
