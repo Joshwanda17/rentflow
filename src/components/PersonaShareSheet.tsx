@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { PERSONA_SLUGS, type PersonaSlug } from '@/lib/roleRoutes';
 import { cn } from '@/lib/utils';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 const PERSONA_META: Record<PersonaSlug, { label: string; tagline: string; Icon: typeof Home; accent: string }> = {
   '/dashboard/tenant': {
@@ -50,7 +51,7 @@ const PERSONA_META: Record<PersonaSlug, { label: string; tagline: string; Icon: 
 interface PersonaShareSheetProps {
   /** Used to highlight the current persona row. Defaults to no highlight. */
   currentSlug?: PersonaSlug | null;
-  /** Optional override for the shareable origin (defaults to window.location.origin). */
+  /** Optional override for the shareable origin (defaults to the canonical welileapp.com origin). */
   origin?: string;
 }
 
@@ -63,8 +64,7 @@ export default function PersonaShareSheet({ currentSlug = null, origin }: Person
   const [copiedSlug, setCopiedSlug] = useState<PersonaSlug | null>(null);
   const { toast } = useToast();
 
-  const baseOrigin =
-    origin ?? (typeof window !== 'undefined' ? window.location.origin : '');
+  const baseOrigin = origin ?? getPublicOrigin();
 
   const buildUrl = (slug: PersonaSlug) => `${baseOrigin}${slug}`;
 
