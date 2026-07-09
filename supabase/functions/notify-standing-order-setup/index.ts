@@ -100,7 +100,6 @@ async function sendSMSOnce(phone: string, message: string): Promise<boolean> {
     username,
     to: formatPhoneInternational(phone),
     message,
-    from: "WELILE",
   });
 
   let res: Response;

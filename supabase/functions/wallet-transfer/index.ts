@@ -58,7 +58,6 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<bo
       username,
       to: formatPhoneInternational(phone),
       message,
-      from: "WELILE",
     });
     const res = await fetch(url, {
       method: "POST",

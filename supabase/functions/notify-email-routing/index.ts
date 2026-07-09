@@ -35,7 +35,6 @@ async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; e
       username,
       to: formattedPhone,
       message,
-      from: "WELILE",
     });
     const res = await fetch(baseUrl, {
       method: "POST",

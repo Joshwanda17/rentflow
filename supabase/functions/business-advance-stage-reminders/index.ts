@@ -44,7 +44,7 @@ async function sendSMS(phone: string, message: string) {
   const baseUrl = isSandbox
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
-  const body = new URLSearchParams({ username, to: formatPhone(phone), message, from: "WELILE" });
+  const body = new URLSearchParams({ username, to: formatPhone(phone), message });
   const res = await fetch(baseUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", apiKey, Accept: "application/json" },

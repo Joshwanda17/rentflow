@@ -106,7 +106,6 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
     username,
     to: formatPhoneInternational(phone),
     message,
-    from: "WELILE",
   });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SMS_ATTEMPT_TIMEOUT_MS);

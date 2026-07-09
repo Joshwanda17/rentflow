@@ -62,7 +62,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<{ 
     : "https://api.africastalking.com/version1/messaging";
   const formattedPhone = formatPhoneInternational(phone);
   try {
-    const params = new URLSearchParams({ username, to: formattedPhone, message, from: "WELILE" });
+    const params = new URLSearchParams({ username, to: formattedPhone, message });
     const response = await fetch(baseUrl, {
       method: "POST",
       headers: { "apiKey": apiKey, "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },

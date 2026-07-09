@@ -335,7 +335,6 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
     username,
     to: formattedPhone,
     message,
-    from: "WELILE",
   });
 
   let last: SmsResult = { accepted: false, reason: "network_error" };

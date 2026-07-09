@@ -41,7 +41,6 @@ Deno.serve(async (req) => {
           username: AT_USERNAME!,
           to: formatPhone(to),
           message,
-          from: "WELILE",
         });
 
         await fetch("https://api.africastalking.com/version1/messaging", {
