@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import RegisterEmployeeDialog from '@/components/admin/RegisterEmployeeDialog';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import JobApplicationsPanel from '@/components/admin/JobApplicationsPanel';
+import ShareCareersLink from '@/components/admin/ShareCareersLink';
 
 interface StaffUser {
   id: string;
@@ -178,6 +179,7 @@ export default function AdminUsersPage() {
             <Printer className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Print</span>
           </Button>
+          <ShareCareersLink />
           <Button size="sm" onClick={() => setRegisterOpen(true)} className="gap-1.5 h-9">
             <UserPlus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Register</span>
