@@ -1364,6 +1364,42 @@ function TenantPane({
         <div className="flex items-center gap-2 text-sm font-medium">
           <Wallet className="h-4 w-4 text-primary" /> Rent balance
         </div>
+        {landlordPayment && landlordPayment.state !== 'paid' && (
+          <div
+            className={cn(
+              'flex items-start gap-2 rounded-md border px-2.5 py-2 text-[11px]',
+              landlordPayment.state === 'partial'
+                ? 'border-amber-300 bg-amber-50 text-amber-800'
+                : 'border-red-300 bg-red-50 text-red-700',
+            )}
+          >
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              {landlordPayment.state === 'partial' ? (
+                <>
+                  <span className="font-semibold">Landlord partially paid.</span>{' '}
+                  {fmtUGX(landlordPayment.totalPaid)} paid, {fmtUGX(landlordPayment.allocOutstanding)} still owed to the landlord.
+                </>
+              ) : landlordPayment.state === 'awaiting' ? (
+                <>
+                  <span className="font-semibold">Landlord NOT yet paid.</span>{' '}
+                  Rent shows as funded but the money is still an open float allocation ({fmtUGX(landlordPayment.allocOutstanding)} awaiting landlord payout).
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold">No landlord payment on record.</span>{' '}
+                  Rent shows as funded but no landlord payout or float allocation exists yet.
+                </>
+              )}
+            </span>
+          </div>
+        )}
+        {landlordPayment && landlordPayment.state === 'paid' && (
+          <div className="flex items-center gap-2 rounded-md border border-green-300 bg-green-50 px-2.5 py-1.5 text-[11px] text-green-700">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            <span><span className="font-semibold">Landlord paid</span> — {fmtUGX(landlordPayment.totalPaid)} disbursed.</span>
+          </div>
+        )}
         {!activeRr ? (
           <p className="text-xs text-muted-foreground">No rent requests on file.</p>
         ) : (
