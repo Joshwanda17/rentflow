@@ -26,13 +26,13 @@ export function GoogleSignInButton({ onClick, disabled, isLoading, variant = 'st
         size="icon"
         aria-label="Continue with Google"
         title="Continue with Google"
-        className="h-14 w-14 rounded-full border-2 bg-background hover:bg-muted/50 shadow-sm touch-manipulation active:scale-[0.95] transition-all"
+        className="h-16 w-16 rounded-full border-2 bg-background hover:bg-muted/50 shadow-sm touch-manipulation active:scale-[0.95] transition-all [&_svg]:!size-7"
         onClick={onClick}
         disabled={disabled}
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         {isLoading ? (
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Loader2 className="h-7 w-7 animate-spin" />
         ) : (
           <GoogleIcon />
         )}
