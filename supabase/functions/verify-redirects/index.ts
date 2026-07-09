@@ -19,9 +19,9 @@ const CANONICAL_HOST = "welileapp.com";
 const TARGETS: Array<{ url: string; expect: "canonical" | "redirect" }> = [
   { url: "https://welileapp.com/", expect: "canonical" },
   { url: "https://www.welileapp.com/", expect: "redirect" },
-  { url: "https://welilereceipts-com.lovable.app/", expect: "redirect" },
-  { url: "http://welilereceipts.com/", expect: "redirect" },
-  { url: "http://welilereciept.com/", expect: "redirect" },
+  { url: "https://welilereceipts-com.lovable.app/", expect: "redirect" }, // legacy-domain-guard-allow
+  { url: "http://welilereceipts.com/", expect: "redirect" }, // legacy-domain-guard-allow
+  { url: "http://welilereciept.com/", expect: "redirect" }, // legacy-domain-guard-allow
 ];
 
 interface HopInfo {
