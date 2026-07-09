@@ -2,6 +2,7 @@ import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayo
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import { CEODashboard } from '@/components/executive/CEODashboard';
 import { CEORevenueGrowth } from '@/components/executive/CEORevenueGrowth';
+import { RevenueRecognitionPanel } from '@/components/executive/RevenueRecognitionPanel';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManagementPanel';
 import { MissionGoalsEditor } from '@/components/executive/MissionGoalsEditor';
@@ -15,6 +16,8 @@ export default function CEODashboardPage() {
     switch (activeTab) {
       case 'revenue':
         return <CEORevenueGrowth />;
+      case 'revenue-recognition':
+        return <RevenueRecognitionPanel />;
       case 'staff-performance':
         return <StaffPerformancePanel />;
       case 'requisitions':

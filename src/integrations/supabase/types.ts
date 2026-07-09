@@ -15775,6 +15775,90 @@ export type Database = {
           },
         ]
       }
+      revenue_recognition_runs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          recognized_delta: number
+          rows_scanned: number
+          rows_updated: number
+          started_at: string
+          status: string
+          total_deferred_after: number
+          total_recognized_after: number
+          trigger_source: string
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          recognized_delta?: number
+          rows_scanned?: number
+          rows_updated?: number
+          started_at?: string
+          status?: string
+          total_deferred_after?: number
+          total_recognized_after?: number
+          trigger_source?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          recognized_delta?: number
+          rows_scanned?: number
+          rows_updated?: number
+          started_at?: string
+          status?: string
+          total_deferred_after?: number
+          total_recognized_after?: number
+          trigger_source?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_recognition_runs_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "revenue_recognition_runs_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_recognition_runs_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "revenue_recognition_runs_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "revenue_recognition_runs_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       review_images: {
         Row: {
           created_at: string
@@ -23626,6 +23710,7 @@ export type Database = {
         Args: { p_window_hours?: number }
         Returns: number
       }
+      run_fee_revenue_recognition: { Args: never; Returns: Json }
       run_layer_a_bulk: { Args: { p_dry_run?: boolean }; Returns: Json }
       run_phantom_clamp_pass: {
         Args: { p_dry_run?: boolean }

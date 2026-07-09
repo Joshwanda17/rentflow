@@ -4,6 +4,7 @@ import {
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
   ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark, KeyRound, SlidersHorizontal, HandCoins, Snowflake, ShoppingBag, MonitorSmartphone
+  , Gauge
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -198,6 +199,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Platform Overview', icon: Crown, id: 'overview' },
         { label: 'Revenue & Growth', icon: TrendingUp, id: 'revenue' },
+        { label: 'Revenue Recognition', icon: Gauge, id: 'revenue-recognition' },
         { label: 'Users & Coverage', icon: Globe, id: 'users' },
         { label: 'Financial Health', icon: Shield, id: 'financial' },
         { label: 'Requisitions', icon: ClipboardList, id: 'requisitions' },
