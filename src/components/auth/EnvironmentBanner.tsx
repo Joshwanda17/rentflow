@@ -17,7 +17,7 @@ const AppleGlyph = () => (
 
 // Publicly reachable domains where the Lovable OAuth broker (/~oauth/*) is
 // served and Google/Apple sign-in can complete.
-const PUBLISHED_URL = 'https://welilereceipts-com.lovable.app';
+const PUBLISHED_URL = 'https://welileapp.com';
 const CUSTOM_URLS = ['https://www.welileapp.com', 'https://welileapp.com'];
 
 type EnvKind = 'local' | 'preview' | 'published' | 'custom';
