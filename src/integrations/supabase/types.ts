@@ -21154,6 +21154,15 @@ export type Database = {
         Args: { _job_id: string }
         Returns: undefined
       }
+      capture_location_by_token: {
+        Args: {
+          p_accuracy?: number
+          p_latitude: number
+          p_longitude: number
+          p_token: string
+        }
+        Returns: boolean
+      }
       capture_trust_signal: {
         Args: {
           p_accuracy?: number
