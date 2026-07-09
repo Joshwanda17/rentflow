@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { DataCompletenessScorecard } from './DataCompletenessScorecard';
 import { MonetizationFunnel } from './MonetizationFunnel';
+import { RevenueMixDrivers } from './RevenueMixDrivers';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   DollarSign, TrendingUp, Banknote, Clock, Database, Activity,
@@ -214,6 +215,9 @@ export function CEORevenueGrowth() {
       {/* ============ 4. GROWTH TRAJECTORY ============ */}
       <section>
         <SectionHeader icon={TrendingUp} title="Growth Trajectory" subtitle="Revenue billed by month, split by stream" />
+        <div className="mb-3 sm:mb-4">
+          <RevenueMixDrivers />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
           <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
             <h4 className="text-sm font-semibold mb-3">Revenue Billed (6 months)</h4>
