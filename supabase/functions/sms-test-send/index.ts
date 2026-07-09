@@ -192,6 +192,7 @@ Deno.serve(async (req) => {
       "[Welile Test] Background SMS API test successful. If you received this, the SMS pipeline is healthy. — Welile Ops";
     let provider = "auto"; // 'auto' = AT then Twilio fallback | 'twilio' = force Twilio | 'africastalking' = force AT
     let no_sender = false; // when true (+ provider=yoola), omit the sender id
+    let sender: string | undefined = undefined; // when set (+ provider=yoola), force this sender id
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
@@ -199,12 +200,13 @@ Deno.serve(async (req) => {
       if (body?.message) message = String(body.message);
       if (body?.provider) provider = String(body.provider);
       if (typeof body?.no_sender === "boolean") no_sender = body.no_sender;
+      if (typeof body?.sender === "string" && body.sender.trim()) sender = body.sender.trim();
     }
 
     const startedAt = new Date().toISOString();
     const result =
       provider === "yoola"
-        ? { ...(await sendYoolaSMS(phone, message, no_sender ? { sender: null } : {})), fallbackUsed: false, forced: "yoola" }
+        ? { ...(await sendYoolaSMS(phone, message, sender !== undefined ? { sender } : (no_sender ? { sender: null } : {}))), fallbackUsed: false, forced: "yoola" }
         : provider === "twilio"
         ? { ...(await sendTwilioSMS(phone, message)), fallbackUsed: false, forced: "twilio" }
         : provider === "africastalking"

@@ -13,6 +13,7 @@ import {
 import { KPICard } from './KPICard';
 import { SmsFailoverAlerts } from './SmsFailoverAlerts';
 import { MessageSquare, Search, Loader2, CheckCircle2, XCircle, Radio, CalendarDays, CalendarRange, Calendar, FileDown } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { format, formatDistanceToNow, subDays, startOfWeek, startOfMonth, endOfMonth, startOfDay, subMonths, differenceInCalendarDays } from 'date-fns';
 import { downloadSmsTrafficPdf } from '@/lib/smsTrafficReportPdf';
 import { toast } from 'sonner';
@@ -68,8 +69,38 @@ export function SmsDeliveryLogViewer() {
   const [providerFilter, setProviderFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [generating, setGenerating] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   // 'current' = this month; otherwise a 'yyyy-MM' key for a past month.
   const [monthFilter, setMonthFilter] = useState('current');
+
+  // Test SMS that FORCES the WELILE sender id — only this button applies it,
+  // the production SMS channels still omit the sender (registered default).
+  const TEST_SMS_PHONE = '0701355235';
+  const TEST_SMS_SENDER = 'WELILE';
+  const handleSendTestSms = async () => {
+    if (sendingTest) return;
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-test-send', {
+        body: {
+          phone: TEST_SMS_PHONE,
+          provider: 'yoola',
+          sender: TEST_SMS_SENDER,
+          message: `[Welile] Test SMS from sender ID ${TEST_SMS_SENDER}. If you received this, the ${TEST_SMS_SENDER} sender id is delivering.`,
+        },
+      });
+      if (error) throw error;
+      if (data?.ok) {
+        toast.success(`Test SMS sent to ${TEST_SMS_PHONE} via "${TEST_SMS_SENDER}" sender id.`);
+      } else {
+        toast.error(data?.reason || 'Yoola did not accept the test SMS.');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to send test SMS.');
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   // Build the last 12 months as selectable options.
   const monthOptions = (() => {
@@ -279,8 +310,8 @@ export function SmsDeliveryLogViewer() {
 
       <SmsFailoverAlerts />
 
-      {/* Month scope selector */}
-      <div className="flex items-center gap-2">
+      {/* Month scope selector + sender-id test button */}
+      <div className="flex flex-wrap items-center gap-2">
         <Calendar className="h-4 w-4 text-muted-foreground" />
         <span className="text-xs text-muted-foreground">Viewing:</span>
         <Select value={monthFilter} onValueChange={setMonthFilter}>
@@ -291,6 +322,17 @@ export function SmsDeliveryLogViewer() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleSendTestSms}
+          disabled={sendingTest}
+          className="h-8 text-xs gap-1.5"
+          title={`Send a test SMS to ${TEST_SMS_PHONE} using the "${TEST_SMS_SENDER}" sender id`}
+        >
+          {sendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+          Test sender ID → {TEST_SMS_PHONE}
+        </Button>
       </div>
 
       {/* Traffic metrics — daily / weekly / monthly */}
