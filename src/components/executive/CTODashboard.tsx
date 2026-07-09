@@ -26,6 +26,7 @@ import { SeoCoverageDashboard } from './SeoCoverageDashboard';
 import { SeoRedirectAuditPanel } from './SeoRedirectAuditPanel';
 import { SemrushBrandTrackerPanel } from './SemrushBrandTrackerPanel';
 import { BrandSerpVisibilityPanel } from './BrandSerpVisibilityPanel';
+import { ChangeOfAddressMonitorPanel } from './ChangeOfAddressMonitorPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
