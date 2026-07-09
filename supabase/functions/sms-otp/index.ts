@@ -366,7 +366,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 async function sendSMS(
   phone: string,
   message: string,
-  options: { preferBackupRoute?: boolean } = {},
+  options: { preferBackupRoute?: boolean; previousAcceptedProvider?: string | null } = {},
 ): Promise<SmsOutcome> {
   const attempts: ProviderAttempt[] = [];
 
@@ -390,16 +390,28 @@ async function sendSMS(
     return r;
   };
 
-  const primaryChain = [
+  type SmsProviderName = "yoola" | "africastalking" | "lana";
+  type SmsProviderRoute = { provider: SmsProviderName; fn: () => Promise<SmsResult> };
+
+  const primaryChain: SmsProviderRoute[] = [
     { provider: "yoola", fn: () => sendViaYoola(phone, message) },
     { provider: "africastalking", fn: () => sendViaAfricasTalking(phone, message) },
     { provider: "lana", fn: () => sendViaLana(phone, message) },
   ];
 
   // If the user is resending a still-valid OTP after the previous network said
-  // "accepted" but the phone was not verified, rotate to backup routes first.
-  // That handles carrier/provider black holes where acceptance is not delivery.
-  const backupFirstChain = [primaryChain[1], primaryChain[2], primaryChain[0]];
+  // "accepted" but the phone was not verified, rotate away from the previous
+  // accepted provider. Gateway acceptance is not handset delivery; repeatedly
+  // trying the same accepted-but-undelivered carrier route can trap one phone in
+  // a delivery black hole.
+  const previousProvider = String(options.previousAcceptedProvider ?? "")
+    .replace(/^provider:/, "")
+    .trim()
+    .toLowerCase() as SmsProviderName;
+  const previousIndex = primaryChain.findIndex((p) => p.provider === previousProvider);
+  const backupFirstChain = previousIndex >= 0
+    ? [...primaryChain.slice(previousIndex + 1), ...primaryChain.slice(0, previousIndex + 1)]
+    : [primaryChain[1], primaryChain[2], primaryChain[0]];
   const chain = options.preferBackupRoute ? backupFirstChain : primaryChain;
 
   let bestReason: string | undefined;
@@ -501,7 +513,7 @@ Deno.serve(async (req) => {
       // decide whether we can REUSE a still-valid code (see below).
       const { data: existing } = await adminClient
         .from("otp_verifications")
-        .select("last_sent_at, send_count, send_window_start, otp_code, expires_at, verified, send_status")
+        .select("last_sent_at, send_count, send_window_start, otp_code, expires_at, verified, send_status, send_status_reason")
         .eq("phone", phoneKey)
         .maybeSingle();
 
@@ -620,7 +632,10 @@ Deno.serve(async (req) => {
         console.log(`[sms-otp] resend for ***${phoneKey.slice(-4)} rotating to backup SMS route first`);
       }
 
-      const smsPromise = sendSMS(phone, message, { preferBackupRoute });
+      const smsPromise = sendSMS(phone, message, {
+        preferBackupRoute,
+        previousAcceptedProvider: existing?.send_status_reason ?? null,
+      });
       const timeoutPromise = new Promise<typeof TIMED_OUT>((resolve) =>
         setTimeout(() => resolve(TIMED_OUT), ACCEPTANCE_TIMEOUT_MS),
       );
