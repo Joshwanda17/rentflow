@@ -495,7 +495,22 @@ export function useAuthForm() {
           signup_source: storedSignupSource || null,
         },
       });
-      const serverError = (fnData as { error?: string } | null)?.error || (fnError ? fnError.message : null);
+      // When the edge function returns a non-2xx status, supabase-js sets `fnError`
+      // to a FunctionsHttpError whose generic message is "Edge Function returned a
+      // non-2xx status code" and leaves `fnData` null. The real, friendly message
+      // lives in the JSON body, reachable via `fnError.context` (a Response). Parse
+      // it so the user sees "This phone number is already registered" etc.
+      let serverError = (fnData as { error?: string } | null)?.error || null;
+      if (!serverError && fnError) {
+        const ctx = (fnError as { context?: Response }).context;
+        if (ctx && typeof ctx.json === 'function') {
+          try {
+            const parsed = await ctx.clone().json();
+            serverError = (parsed as { error?: string })?.error || null;
+          } catch { /* body not JSON */ }
+        }
+        if (!serverError) serverError = fnError.message;
+      }
       if (serverError) {
         setIsLoading(false);
         toast({ title: 'Sign Up Failed', description: serverError, variant: 'destructive' });
