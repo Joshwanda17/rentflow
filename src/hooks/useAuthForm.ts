@@ -460,7 +460,17 @@ export function useAuthForm() {
     }
 
     const storedSignupSource = signupSourceState || sanitizeSignupSource((() => { try { return localStorage.getItem(SIGNUP_SOURCE_KEY); } catch { return null; } })());
-    const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined, storedSignupSource || undefined);
+    // Effective intended role. The sub-agent recruiting link uses `?become=agent`
+    // (not `?role=agent`), so also honour `become`/localStorage `become_role`.
+    // Passing `intended_role='agent'` + a referrer is what lets the server-side
+    // `handle_new_user` trigger reliably create the `agent_subagents` link,
+    // instead of depending on fragile localStorage in SelectRole.tsx (which is
+    // routinely wiped on WhatsApp/iOS Safari opens, dropping sub-agents to plain
+    // referrals).
+    const storedBecomeRole = ((becomeRole || (() => { try { return localStorage.getItem('become_role'); } catch { return null; } })()) || '').trim();
+    const effectiveIntendedRole = preSelectedRole
+      || (VALID_SIGNUP_ROLES.includes(storedBecomeRole as any) ? storedBecomeRole : null);
+    const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, effectiveIntendedRole || undefined, storedSignupSource || undefined);
     if (error) {
       setIsLoading(false);
       let errorMessage = error.message;
