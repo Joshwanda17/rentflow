@@ -330,7 +330,7 @@ export function SmsDeliveryLogViewer() {
         <Select value={testProvider} onValueChange={(v) => setTestProvider(v as 'yoola' | 'africastalking')}>
           <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="yoola">Yoola (WELILE)</SelectItem>
+            <SelectItem value="yoola">Yoola (UGPoll)</SelectItem>
             <SelectItem value="africastalking">AT Info</SelectItem>
           </SelectContent>
         </Select>
