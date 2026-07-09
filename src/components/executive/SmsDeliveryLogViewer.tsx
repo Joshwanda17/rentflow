@@ -72,28 +72,32 @@ export function SmsDeliveryLogViewer() {
   const [sendingTest, setSendingTest] = useState(false);
   // 'current' = this month; otherwise a 'yyyy-MM' key for a past month.
   const [monthFilter, setMonthFilter] = useState('current');
+  // Which provider to send the sender-id test through.
+  const [testProvider, setTestProvider] = useState<'yoola' | 'africastalking'>('yoola');
 
   // Test SMS that FORCES the WELILE sender id — only this button applies it,
   // the production SMS channels still omit the sender (registered default).
-  const TEST_SMS_PHONE = '0701355235';
+  const TEST_SMS_PHONE = '0701355245';
   const TEST_SMS_SENDER = 'WELILE';
   const handleSendTestSms = async () => {
     if (sendingTest) return;
     setSendingTest(true);
+    const providerLabelText = testProvider === 'yoola' ? 'Yoola' : "Africa's Talking (ATInfo)";
     try {
       const { data, error } = await supabase.functions.invoke('sms-test-send', {
         body: {
           phone: TEST_SMS_PHONE,
-          provider: 'yoola',
-          sender: TEST_SMS_SENDER,
-          message: `[Welile] Test SMS from sender ID ${TEST_SMS_SENDER}. If you received this, the ${TEST_SMS_SENDER} sender id is delivering.`,
+          provider: testProvider,
+          // Only Yoola honours a forced sender id; AT uses its registered ATInfo default.
+          ...(testProvider === 'yoola' ? { sender: TEST_SMS_SENDER } : {}),
+          message: `[Welile] Test SMS via ${providerLabelText}. If you received this, delivery is healthy.`,
         },
       });
       if (error) throw error;
       if (data?.ok) {
-        toast.success(`Test SMS sent to ${TEST_SMS_PHONE} via "${TEST_SMS_SENDER}" sender id.`);
+        toast.success(`Test SMS sent to ${TEST_SMS_PHONE} via ${providerLabelText}.`);
       } else {
-        toast.error(data?.reason || 'Yoola did not accept the test SMS.');
+        toast.error(data?.reason || `${providerLabelText} did not accept the test SMS.`);
       }
     } catch (e: any) {
       toast.error(e?.message || 'Failed to send test SMS.');
@@ -322,16 +326,23 @@ export function SmsDeliveryLogViewer() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={testProvider} onValueChange={(v) => setTestProvider(v as 'yoola' | 'africastalking')}>
+          <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="yoola">Yoola (WELILE)</SelectItem>
+            <SelectItem value="africastalking">AT Info</SelectItem>
+          </SelectContent>
+        </Select>
         <Button
           size="sm"
           variant="outline"
           onClick={handleSendTestSms}
           disabled={sendingTest}
           className="h-8 text-xs gap-1.5"
-          title={`Send a test SMS to ${TEST_SMS_PHONE} using the "${TEST_SMS_SENDER}" sender id`}
+          title={`Send a test SMS to ${TEST_SMS_PHONE} via the selected provider`}
         >
           {sendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-          Test sender ID → {TEST_SMS_PHONE}
+          Send test → {TEST_SMS_PHONE}
         </Button>
       </div>
 
