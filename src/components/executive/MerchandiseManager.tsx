@@ -407,10 +407,74 @@ export function MerchandiseManager() {
         )}
       </Section>
 
+      {/* Storefront catalog (items agents can buy) */}
+      <Section title="Storefront Catalog (what agents can buy)" icon={Store}>
+        {loadingCatalog ? (
+          <EmptyRow text="Loading catalog…" />
+        ) : catalog.length === 0 ? (
+          <EmptyRow text="No storefront items yet. Add items so agents can order them from their dashboard." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3">Item</th>
+                  <th className="py-2 px-3 text-right">Price</th>
+                  <th className="py-2 px-3 text-right">Cost</th>
+                  <th className="py-2 px-3">Status</th>
+                  <th className="py-2 pl-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {catalog.map((c) => (
+                  <tr key={c.id} className="border-b border-border/40">
+                    <td className="py-2 pr-3">
+                      <div className="font-medium">{c.item_name}</div>
+                      {c.description && <div className="text-[11px] text-muted-foreground line-clamp-1">{c.description}</div>}
+                    </td>
+                    <td className="py-2 px-3 text-right font-semibold">{formatUGX(Number(c.unit_price))}</td>
+                    <td className="py-2 px-3 text-right text-muted-foreground">{formatUGX(Number(c.unit_cost))}</td>
+                    <td className="py-2 px-3">
+                      <span className={c.is_active ? 'text-emerald-600 text-xs font-medium' : 'text-muted-foreground text-xs'}>
+                        {c.is_active ? 'Active' : 'Hidden'}
+                      </span>
+                    </td>
+                    <td className="py-2 pl-3">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost" size="sm" className="h-7 gap-1 text-xs"
+                          onClick={async () => {
+                            const { error } = await db.from('merchandise_catalog').update({ is_active: !c.is_active }).eq('id', c.id);
+                            if (error) { toast.error(error.message); return; }
+                            toast.success(c.is_active ? 'Item hidden' : 'Item shown to agents');
+                            refresh();
+                          }}
+                        >
+                          <Power className="h-3.5 w-3.5" /> {c.is_active ? 'Hide' : 'Show'}
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive"
+                          onClick={async () => {
+                            const { error } = await db.from('merchandise_catalog').delete().eq('id', c.id);
+                            if (error) { toast.error(error.message); return; }
+                            toast.success('Item removed');
+                            refresh();
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
       {/* Inventory by item */}
       <Section title="Inventory by Item" icon={Boxes}>
-
-      {/* placeholder */}
         {inventoryByItem.length === 0 ? (
           <EmptyRow text="No merchandise recorded yet." />
         ) : (
