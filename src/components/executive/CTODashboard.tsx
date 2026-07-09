@@ -24,6 +24,7 @@ import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
 import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
 import { SeoCoverageDashboard } from './SeoCoverageDashboard';
 import { SeoRedirectAuditPanel } from './SeoRedirectAuditPanel';
+import { SemrushBrandTrackerPanel } from './SemrushBrandTrackerPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -272,6 +273,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
 
       {/* Domain redirect audit (legacy + www -> welileapp.com) */}
       <SeoRedirectAuditPanel />
+
+      {/* Semrush branded-keyword & backlink tracking (welile / welile.com) */}
+      <SemrushBrandTrackerPanel />
 
       {/* Database Schema Export */}
       <ExtractSchemaCard />
