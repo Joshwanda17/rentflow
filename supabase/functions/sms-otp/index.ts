@@ -196,14 +196,17 @@ async function sendLanaAttempt(
     const accepted = rawStatus === true ||
       statusStr === "success" || statusStr === "true" ||
       statusStr === "ok" || statusStr === "sent" || statusStr === "queued";
-    if (response.ok && accepted) return { accepted: true };
+    if (response.ok && accepted) {
+      const fields = extractProviderFields(data);
+      return { accepted: true, response: data, messageId: fields.messageId, cost: fields.cost };
+    }
 
     if (!response.ok && (response.status >= 500 || response.status === 429)) {
-      return { accepted: false, reason: "network_error" };
+      return { accepted: false, reason: "network_error", response: data };
     }
     const detail = String(data?.message ?? statusStr ?? "rejected")
       .toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40);
-    return { accepted: false, reason: `lana_${response.status}_${detail || "rejected"}` };
+    return { accepted: false, reason: `lana_${response.status}_${detail || "rejected"}`, response: data };
   } catch (error) {
     const aborted = (error as Error)?.name === "AbortError";
     console.error(`[sms-otp] LANA attempt ${aborted ? "timed out" : "failed"}:`, error);
@@ -249,16 +252,18 @@ async function sendYoolaAttempt(
 
     const status = String(data?.status ?? "").toLowerCase();
     if (response.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued")) {
-      return { accepted: true };
+      const fields = extractProviderFields(data);
+      return { accepted: true, response: data, messageId: fields.messageId, cost: fields.cost };
     }
     // HTTP-level success but ambiguous body — treat 2xx as accepted.
     if (response.ok && !data?.error && status === "") {
-      return { accepted: true };
+      const fields = extractProviderFields(data);
+      return { accepted: true, response: data, messageId: fields.messageId, cost: fields.cost };
     }
     if (!response.ok && (response.status >= 500 || response.status === 429)) {
-      return { accepted: false, reason: "network_error" };
+      return { accepted: false, reason: "network_error", response: data };
     }
-    return { accepted: false, reason: `yoola_${response.status}_${status || "rejected"}` };
+    return { accepted: false, reason: `yoola_${response.status}_${status || "rejected"}`, response: data };
   } catch (error) {
     const aborted = (error as Error)?.name === "AbortError";
     console.error(`[sms-otp] Yoola attempt ${aborted ? "timed out" : "failed"}:`, error);
@@ -298,11 +303,14 @@ async function sendSMSAttempt(
     if (recipients && recipients.length > 0) {
       const status = recipients[0].statusCode;
       // 101 = sent, 100 = queued (both mean the gateway accepted it)
-      if (status === 101 || status === 100) return { accepted: true };
+      if (status === 101 || status === 100) {
+        const fields = extractProviderFields(data);
+        return { accepted: true, response: data, messageId: fields.messageId, cost: fields.cost };
+      }
       // A definitive rejection from the gateway — retrying won't help.
-      return { accepted: false, reason: `status_${status}` };
+      return { accepted: false, reason: `status_${status}`, response: data };
     }
-    return { accepted: false, reason: "no_recipients" };
+    return { accepted: false, reason: "no_recipients", response: data };
   } catch (error) {
     const aborted = (error as Error)?.name === "AbortError";
     console.error(`[sms-otp] SMS attempt ${aborted ? "timed out" : "failed"}:`, error);
