@@ -954,3 +954,83 @@ function RecordSaleDialog({
     </Dialog>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Add storefront catalog item dialog (items agents can order)
+// ---------------------------------------------------------------------------
+function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [itemName, setItemName] = useState('');
+  const [description, setDescription] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+
+  const reset = () => {
+    setItemName(''); setDescription(''); setUnitPrice(''); setUnitCost(''); setImageUrl('');
+  };
+
+  const save = async () => {
+    if (!itemName.trim()) { toast.error('Item name is required'); return; }
+    if (num(unitPrice) <= 0) { toast.error('Price must be greater than 0'); return; }
+    setSaving(true);
+    const { error } = await db.from('merchandise_catalog').insert({
+      item_name: itemName.trim(),
+      description: description.trim() || null,
+      unit_price: num(unitPrice),
+      unit_cost: num(unitCost),
+      image_url: imageUrl.trim() || null,
+      is_active: true,
+      created_by: userId ?? null,
+    });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Item added to storefront');
+    reset();
+    setOpen(false);
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1.5"><ShoppingBag className="h-4 w-4" /> Add Store Item</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Add Storefront Item</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Item name</Label>
+            <Input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g. Press Jacket" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" rows={2} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Selling price (UGX)</Label>
+              <Input type="number" min={0} value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} placeholder="0" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Cost / unit (for profit)</Label>
+              <Input type="number" min={0} value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Optional" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Image URL</Label>
+            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Optional https://…" />
+          </div>
+          <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2 text-[11px] text-muted-foreground">
+            Agents can order this from their dashboard. The cost is recorded as a credit sale and recovered from their wallet (15%, up to 4×/day).
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Add Item'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
