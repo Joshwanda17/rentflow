@@ -438,7 +438,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         // the proxy agent only. NEVER set `linked_party` for new proxy rows —
         // that's the legacy v1 shape that pins the hold to the agent's wallet.
         const isProxy = !!linkedParty;
-        const { error } = await supabase.from('withdrawal_requests').insert({
+        let submittedWithdrawalId: string | null = null;
+        const { data: insertedWithdrawal, error } = await supabase.from('withdrawal_requests').insert({
           user_id: isProxy ? linkedParty! : user.id,
           ...(isProxy
             ? {
@@ -469,7 +470,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
             ? `[Proxy initiated by agent ${user.id}] ${reason.trim()}`
             : reason.trim(),
           client_request_id: clientRequestId,
-        } as any);
+        } as any).select('id').maybeSingle();
+        submittedWithdrawalId = insertedWithdrawal?.id ?? null;
         if (error) {
           // 23505 = unique_violation. Means a previous attempt already committed
           // this exact submission server-side. Treat as success.
@@ -495,6 +497,12 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               return;
             }
             console.info('[WithdrawRequestDialog] Duplicate suppressed by idempotency key');
+            const { data: existingWithdrawal } = await supabase
+              .from('withdrawal_requests')
+              .select('id')
+              .eq('client_request_id', clientRequestId)
+              .maybeSingle();
+            submittedWithdrawalId = existingWithdrawal?.id ?? null;
           } else {
             throw error;
           }
@@ -513,6 +521,15 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         // It is sent by the `approve-withdrawal` edge function only after the
         // merchant agent confirms payment, so partners are never emailed for
         // a release/rejected/unconfirmed payout.
+
+        if (!isProxy && submittedWithdrawalId) {
+          const { error: smsError } = await supabase.functions.invoke('notify-withdrawal-submitted', {
+            body: { withdrawal_id: submittedWithdrawalId },
+          });
+          if (smsError) {
+            console.warn('[WithdrawRequestDialog] Withdrawal submission SMS failed:', smsError);
+          }
+        }
 
         setSuccess(true);
         toast.success('Withdrawal request submitted! 🎉');
