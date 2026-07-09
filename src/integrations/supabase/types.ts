@@ -16209,6 +16209,90 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_index_monitor_settings: {
+        Row: {
+          alert_email: string
+          alerts_enabled: boolean
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          alert_email?: string
+          alerts_enabled?: boolean
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          alert_email?: string
+          alerts_enabled?: boolean
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      seo_index_monitor_snapshots: {
+        Row: {
+          alert_sent: boolean
+          alert_type: string | null
+          checked_at: string
+          coverage_state: string | null
+          created_at: string
+          google_canonical: string | null
+          has_errors: boolean
+          id: string
+          indexing_state: string | null
+          pages_indexed: boolean
+          raw: Json | null
+          robots_state: string | null
+          site_url: string
+          sitemap_errors: number | null
+          sitemap_indexed_count: number | null
+          sitemap_submitted_count: number | null
+          sitemap_warnings: number | null
+          url_verdict: string | null
+        }
+        Insert: {
+          alert_sent?: boolean
+          alert_type?: string | null
+          checked_at?: string
+          coverage_state?: string | null
+          created_at?: string
+          google_canonical?: string | null
+          has_errors?: boolean
+          id?: string
+          indexing_state?: string | null
+          pages_indexed?: boolean
+          raw?: Json | null
+          robots_state?: string | null
+          site_url: string
+          sitemap_errors?: number | null
+          sitemap_indexed_count?: number | null
+          sitemap_submitted_count?: number | null
+          sitemap_warnings?: number | null
+          url_verdict?: string | null
+        }
+        Update: {
+          alert_sent?: boolean
+          alert_type?: string | null
+          checked_at?: string
+          coverage_state?: string | null
+          created_at?: string
+          google_canonical?: string | null
+          has_errors?: boolean
+          id?: string
+          indexing_state?: string | null
+          pages_indexed?: boolean
+          raw?: Json | null
+          robots_state?: string | null
+          site_url?: string
+          sitemap_errors?: number | null
+          sitemap_indexed_count?: number | null
+          sitemap_submitted_count?: number | null
+          sitemap_warnings?: number | null
+          url_verdict?: string | null
+        }
+        Relationships: []
+      }
       service_centre_setups: {
         Row: {
           agent_id: string
