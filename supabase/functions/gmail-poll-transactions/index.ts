@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { logDepositDecision } from '../_shared/depositDecisionAudit.ts';
 import { resolvePayoutDebitTarget, logProxyFallbackAudit } from '../_shared/partnership-emails.ts';
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1955,6 +1956,7 @@ async function loadMomoSignupSmsTemplate(
 }
 
 async function sendSmsViaAfricasTalking(phone: string, message: string): Promise<boolean> {
+  if (await attemptYoolaPrimary(phone, message, { source: "gmail-poll-transactions" })) return true;
   const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
   const username = Deno.env.get('AFRICASTALKING_USERNAME');
   if (!apiKey || !username) {

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 // Manual CORS headers (per project convention — never import a cors package).
 const corsHeaders = {
@@ -23,6 +24,7 @@ function formatPhoneInternational(phone: string): string {
 }
 
 async function sendSMS(phone: string, message: string): Promise<boolean> {
+  if (await attemptYoolaPrimary(phone, message, { source: "expire-subagent-invites" })) return true;
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {

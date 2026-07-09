@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,6 +83,7 @@ async function withRetry<T>(
 }
 
 async function sendSMSOnce(phone: string, message: string): Promise<boolean> {
+  if (await attemptYoolaPrimary(phone, message, { source: "notify-standing-order-setup" })) return true;
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {

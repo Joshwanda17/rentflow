@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -257,6 +258,9 @@ Deno.serve(async (req) => {
           "",
           "Pay on time, your rent limit increases daily!",
         ].join("\n");
+
+        // Yoola is the primary SMS provider; fall through to AT only if it fails.
+        if (await attemptYoolaPrimary(phone, message, { source: "tenant-pay-rent" })) return;
 
         const digits = phone.replace(/[^0-9]/g, "");
         const to = digits.startsWith("256")

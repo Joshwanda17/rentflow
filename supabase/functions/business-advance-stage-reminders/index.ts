@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +36,7 @@ function formatPhone(phone: string): string {
 }
 
 async function sendSMS(phone: string, message: string) {
+  if (await attemptYoolaPrimary(phone, message, { source: "business-advance-stage-reminders" })) return { ok: true, status: 200, raw: "yoola" };
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) return { ok: false, status: 0, raw: "missing-at-creds" };

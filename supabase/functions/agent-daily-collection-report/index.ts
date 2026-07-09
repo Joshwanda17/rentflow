@@ -53,6 +53,7 @@ function formatPhoneInternational(phone: string): string {
 }
 
 async function sendSMS(phone: string, message: string): Promise<boolean> {
+  if (await attemptYoolaPrimary(phone, message, { source: "agent-daily-collection-report" })) return true;
   if (!AT_API_KEY || !AT_USERNAME) {
     console.warn("[agent-daily-collection-report] AT creds missing — skipping SMS");
     return false;

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,8 @@ Deno.serve(async (req) => {
 
     const sendSms = async (to: string, message: string) => {
       try {
+        // Yoola is the primary SMS provider; fall through to AT only if it fails.
+        if (await attemptYoolaPrimary(to, message, { source: "viewing-confirmation-sms" })) return;
         const params = new URLSearchParams({
           username: AT_USERNAME!,
           to: formatPhone(to),
