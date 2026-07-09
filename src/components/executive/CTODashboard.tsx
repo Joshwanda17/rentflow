@@ -27,6 +27,7 @@ import { SeoRedirectAuditPanel } from './SeoRedirectAuditPanel';
 import { SemrushBrandTrackerPanel } from './SemrushBrandTrackerPanel';
 import { BrandSerpVisibilityPanel } from './BrandSerpVisibilityPanel';
 import { ChangeOfAddressMonitorPanel } from './ChangeOfAddressMonitorPanel';
+import { RedirectHealthAlertsPanel } from './RedirectHealthAlertsPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -278,6 +279,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
 
       {/* Change of Address readiness monitor (welilereceipts.com -> welileapp.com) */}
       <ChangeOfAddressMonitorPanel />
+
+      {/* Redirect uptime alerting (welilereceipts.com -> welileapp.com) */}
+      <RedirectHealthAlertsPanel />
 
       {/* Branded SERP visibility (Search Console demand + Semrush rank + profile presence) */}
       <BrandSerpVisibilityPanel />

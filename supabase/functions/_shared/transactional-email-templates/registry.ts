@@ -33,6 +33,7 @@ import { template as tenantPartnershipAgreementTemplate } from './tenant-partner
 import { template as jobApplicationReceivedTemplate } from './job-application-received.tsx'
 import { template as directorRequisitionNewTemplate } from './director-requisition-new.tsx'
 import { template as directorRequisitionStatusTemplate } from './director-requisition-status.tsx'
+import { template as redirectMonitorAlertTemplate } from './redirect-monitor-alert.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -71,4 +72,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'withdrawal-paid-receipt': withdrawalPaidReceiptTemplate,
   'tenant-partnership-agreement': tenantPartnershipAgreementTemplate,
   'job-application-received': jobApplicationReceivedTemplate,
+  'redirect-monitor-alert': redirectMonitorAlertTemplate,
 }

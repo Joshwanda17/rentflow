@@ -15000,6 +15000,114 @@ export type Database = {
         }
         Relationships: []
       }
+      redirect_monitor: {
+        Row: {
+          alert_emails: string[]
+          consecutive_failures: number
+          consecutive_healthy: number
+          created_at: string
+          currently_healthy: boolean | null
+          enabled: boolean
+          ever_healthy: boolean
+          failure_threshold: number
+          id: string
+          last_checked_at: string | null
+          last_healthy_at: string | null
+          last_status: Json | null
+          new_domain: string
+          notify_managers: boolean
+          old_domain: string
+          open_alert_id: string | null
+          paths: Json
+          require_ever_healthy: boolean
+          updated_at: string
+        }
+        Insert: {
+          alert_emails?: string[]
+          consecutive_failures?: number
+          consecutive_healthy?: number
+          created_at?: string
+          currently_healthy?: boolean | null
+          enabled?: boolean
+          ever_healthy?: boolean
+          failure_threshold?: number
+          id?: string
+          last_checked_at?: string | null
+          last_healthy_at?: string | null
+          last_status?: Json | null
+          new_domain: string
+          notify_managers?: boolean
+          old_domain: string
+          open_alert_id?: string | null
+          paths?: Json
+          require_ever_healthy?: boolean
+          updated_at?: string
+        }
+        Update: {
+          alert_emails?: string[]
+          consecutive_failures?: number
+          consecutive_healthy?: number
+          created_at?: string
+          currently_healthy?: boolean | null
+          enabled?: boolean
+          ever_healthy?: boolean
+          failure_threshold?: number
+          id?: string
+          last_checked_at?: string | null
+          last_healthy_at?: string | null
+          last_status?: Json | null
+          new_domain?: string
+          notify_managers?: boolean
+          old_domain?: string
+          open_alert_id?: string | null
+          paths?: Json
+          require_ever_healthy?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      redirect_monitor_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          detail: Json | null
+          email_sent: boolean
+          id: string
+          new_domain: string
+          old_domain: string
+          push_sent: boolean
+          recipients: string[]
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          detail?: Json | null
+          email_sent?: boolean
+          id?: string
+          new_domain: string
+          old_domain: string
+          push_sent?: boolean
+          recipients?: string[]
+          resolved_at?: string | null
+          severity?: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          detail?: Json | null
+          email_sent?: boolean
+          id?: string
+          new_domain?: string
+          old_domain?: string
+          push_sent?: boolean
+          recipients?: string[]
+          resolved_at?: string | null
+          severity?: string
+        }
+        Relationships: []
+      }
       referral_rewards: {
         Row: {
           created_at: string
