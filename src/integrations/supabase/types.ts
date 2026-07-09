@@ -22948,6 +22948,14 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_edit_landlord_funding: {
+        Args: {
+          p_new_amount: number
+          p_reason: string
+          p_rent_request_id: string
+        }
+        Returns: Json
+      }
       ops_edit_tenant_balance: {
         Args: {
           p_new_outstanding: number
