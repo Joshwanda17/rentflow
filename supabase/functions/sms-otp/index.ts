@@ -32,6 +32,16 @@ const KNOWN_COUNTRY_CODES = [
 function formatPhoneInternational(rawPhone: string): string {
   let digits = rawPhone.replace(/\D/g, "");
 
+  // Uganda local numbers must be normalized before the generic country-code
+  // matcher. A bare 9-digit number like 704825473 is Uganda (+256), not +7.
+  if (digits.startsWith("0")) {
+    digits = "256" + digits.slice(1);
+    return "+" + digits;
+  }
+  if (digits.length === 9) {
+    return "+256" + digits;
+  }
+
   // If already has a known country code prefix, just add +
   for (const code of KNOWN_COUNTRY_CODES) {
     if (digits.startsWith(code) && digits.length > code.length + 5) {
@@ -39,12 +49,42 @@ function formatPhoneInternational(rawPhone: string): string {
     }
   }
 
-  // Bare local number starting with 0 — default to Uganda (+256)
-  if (digits.startsWith("0")) {
-    digits = "256" + digits.slice(1);
-  }
-
   return "+" + digits;
+}
+
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+function extractProviderFields(data: Record<string, unknown>): { messageId: string | null; cost: string | null } {
+  const response = data as any;
+  const recipient = Array.isArray(response?.per_recipient)
+    ? response.per_recipient[0]
+    : Array.isArray(response?.SMSMessageData?.Recipients)
+      ? response.SMSMessageData.Recipients[0]
+      : null;
+
+  return {
+    messageId: firstString(
+      response?.message_id,
+      response?.messageId,
+      response?.id,
+      recipient?.message_id,
+      recipient?.messageId,
+      recipient?.reference,
+    ),
+    cost: firstString(
+      recipient?.cost,
+      response?.amount_charged,
+      response?.credits_used,
+      recipient?.credits,
+    ),
+  };
 }
 
 interface SmsResult {
@@ -52,6 +92,12 @@ interface SmsResult {
   accepted: boolean;
   /** Short reason when not accepted, for logging/debugging. */
   reason?: string;
+  /** Provider's raw response, retained for delivery-report lookups and audits. */
+  response?: unknown;
+  /** Provider message id/reference when supplied. */
+  messageId?: string | null;
+  /** Provider-reported send cost when supplied. */
+  cost?: string | null;
 }
 
 /** A single provider attempt within one logical SMS send. */
@@ -59,6 +105,9 @@ interface ProviderAttempt {
   provider: string;
   accepted: boolean;
   reason?: string;
+  response?: unknown;
+  messageId?: string | null;
+  cost?: string | null;
   /** ISO timestamp when this provider attempt started. */
   started_at: string;
   /** ISO timestamp when this provider attempt finished. */
