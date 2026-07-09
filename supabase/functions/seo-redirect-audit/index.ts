@@ -1,4 +1,4 @@
-// Runtime redirect audit: confirms the legacy domain (welilereceipts.com) and
+// Runtime redirect audit: confirms the legacy domain (welilereceipts.com) and  legacy-domain-guard-allow
 // the www / staging variants always 301 to the matching welileapp.com URL.
 //
 // For each check it issues a manual-redirect request (to read the 3xx +
@@ -15,8 +15,8 @@ const TARGET = "welileapp.com";
 
 // Origins that must redirect to https://welileapp.com<path>.
 const SOURCES = [
-  { origin: "https://welilereceipts.com", label: "Legacy apex" },
-  { origin: "https://www.welilereceipts.com", label: "Legacy www" },
+  { origin: "https://welilereceipts.com", label: "Legacy apex" }, // legacy-domain-guard-allow
+  { origin: "https://www.welilereceipts.com", label: "Legacy www" }, // legacy-domain-guard-allow
   { origin: "https://www.welileapp.com", label: "welileapp www" },
 ];
 
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     const passing = checks.filter((c) => c.verdict === "pass").length;
     const failing = total - passing;
     // Legacy domain is the critical one for SEO consolidation.
-    const legacyChecks = checks.filter((c) => (c.url as string).includes("welilereceipts.com"));
+    const legacyChecks = checks.filter((c) => (c.url as string).includes("welilereceipts.com")); // legacy-domain-guard-allow
     const legacyOk = legacyChecks.length > 0 && legacyChecks.every((c) => c.verdict === "pass");
 
     return new Response(
