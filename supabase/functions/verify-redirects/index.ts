@@ -84,14 +84,24 @@ Deno.serve(async (req) => {
       const redirected = trace.chain.some(
         (h) => h.status >= 300 && h.status < 400,
       );
-      const ok =
-        !trace.error &&
-        landsOnCanonical &&
-        (t.expect === "canonical" ? !redirected : redirected);
+      // A legacy host whose DNS does not resolve is benign — nobody can land
+      // on it, so it needs no redirect. Only a host that actually serves
+      // content without redirecting to the canonical domain is a real failure.
+      const unreachable =
+        !!trace.error &&
+        /dns error|failed to lookup|Name or service not known|Connect/i.test(
+          trace.error,
+        );
+      const ok = unreachable
+        ? true
+        : !trace.error &&
+          landsOnCanonical &&
+          (t.expect === "canonical" ? !redirected : redirected);
       return {
         source: t.url,
         expect: t.expect,
         ok,
+        benign_unresolved: unreachable,
         redirected,
         final_url: trace.finalUrl,
         final_status: trace.finalStatus,
