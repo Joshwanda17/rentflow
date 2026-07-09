@@ -34,6 +34,24 @@ const SCANNABLE_EXT = new Set([
 const LEGACY_RE = /\b(?:www\.)?welilereceipts?\.com\b|welilereceipts-com\.lovable\.app/i;
 const ALLOW_MARKER = 'legacy-domain-guard-allow';
 
+// Files whose entire purpose is to reference the legacy domain (redirect
+// monitors, change-of-address tooling, and the legacy-domain sitemap that is
+// submitted to Search Console so old URLs get a proper 301 to welileapp.com).
+const ALLOW_FILES = new Set([
+  'public/sitemap-welilereceipts.xml',
+  'supabase/functions/change-of-address-monitor/index.ts',
+  'supabase/functions/redirect-health-monitor/index.ts',
+  'supabase/functions/verify-redirects/index.ts',
+  'supabase/functions/seo-redirect-audit/index.ts',
+  'supabase/functions/sitemap-resubmit/index.ts',
+  'supabase/functions/seo-index-monitor/index.ts',
+  'supabase/functions/seo-coverage-dashboard/index.ts',
+  'src/components/executive/CTODashboard.tsx',
+  'src/components/executive/ChangeOfAddressMonitorPanel.tsx',
+  'src/components/executive/RedirectHealthAlertsPanel.tsx',
+  'supabase/functions/_shared/transactional-email-templates/redirect-monitor-alert.tsx',
+]);
+
 function* walk(target) {
   const st = statSync(target);
   if (st.isFile()) { yield target; return; }
@@ -52,6 +70,7 @@ for (const rel of SCAN_TARGETS) {
   const abs = join(REPO_ROOT, rel);
   if (!existsSync(abs)) continue;
   for (const file of walk(abs)) {
+    if (ALLOW_FILES.has(relative(REPO_ROOT, file))) continue;
     const src = readFileSync(file, 'utf8');
     src.split('\n').forEach((line, idx) => {
       if (!LEGACY_RE.test(line)) return;
