@@ -669,43 +669,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const handleDeposit = () => { hapticTap(); setShowQuickDeposit(true); };
   const handleInviteSubAgent = () => { hapticTap(); setInviteSubAgentOpen(true); };
 
-  // Downloadable PDF form handlers
-  const handleDownloadLandlordForm = async () => {
+  // Registration form handlers — open a choice dialog offering both an explicit
+  // Download and a Share on WhatsApp action (not share-only).
+  const handleDownloadLandlordForm = () => {
     hapticTap();
     setMenuOpen(false);
-    try {
-      const { toast } = await import('sonner');
-      toast.info('Preparing landlord form...');
-      const blob = await generateLandlordRegistrationFormPdf();
-      // Native share sheet attaches the PDF (WhatsApp on mobile); otherwise the
-      // file downloads and a WhatsApp deep link opens for manual attach.
-      const result = await shareLandlordRegistrationFormPdf(blob);
-      if (result === 'deeplink') {
-        toast.success('Form downloaded — attach it in WhatsApp');
-      }
-    } catch {
-      const { toast } = await import('sonner');
-      toast.error('Could not generate form');
-    }
+    setRegFormKind('landlord');
   };
 
-  const handleDownloadTenantForm = async () => {
+  const handleDownloadTenantForm = () => {
     hapticTap();
     setMenuOpen(false);
-    try {
-      const { toast } = await import('sonner');
-      toast.info('Preparing tenant form...');
-      const blob = await generateTenantRegistrationFormPdf();
-      // Native share sheet attaches the PDF (WhatsApp on mobile); otherwise the
-      // file downloads and a WhatsApp deep link opens for manual attach.
-      const result = await shareTenantRegistrationFormPdf(blob);
-      if (result === 'deeplink') {
-        toast.success('Form downloaded — attach it in WhatsApp');
-      }
-    } catch {
-      const { toast } = await import('sonner');
-      toast.error('Could not generate form');
-    }
+    setRegFormKind('tenant');
   };
 
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
