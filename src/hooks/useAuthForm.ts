@@ -470,6 +470,50 @@ export function useAuthForm() {
     const storedBecomeRole = ((becomeRole || (() => { try { return localStorage.getItem('become_role'); } catch { return null; } })()) || '').trim();
     const effectiveIntendedRole = preSelectedRole
       || (VALID_SIGNUP_ROLES.includes(storedBecomeRole as any) ? storedBecomeRole : null);
+
+    // Phone-only recruits (synthetic @welile.user address) are created entirely
+    // server-side via the `phone-signup` edge function. This bypasses the built-in
+    // mailer completely, so they are NEVER blocked by "email rate limit exceeded"
+    // when the shared SMTP quota is exhausted. Their number is already SMS-verified
+    // (otpVerified gate above), and the account is created pre-confirmed so they can
+    // sign in immediately. Real-email signups keep the normal client signUp +
+    // email-verification flow.
+    if (!hasRealEmail) {
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('phone-signup', {
+        body: {
+          email: authEmail,
+          password,
+          full_name: trimmedFullName,
+          phone: fullPhone,
+          referrer_id: storedReferrerId || null,
+          intended_role: effectiveIntendedRole || null,
+          signup_source: storedSignupSource || null,
+        },
+      });
+      const serverError = (fnData as { error?: string } | null)?.error || (fnError ? fnError.message : null);
+      if (serverError) {
+        setIsLoading(false);
+        toast({ title: 'Sign Up Failed', description: serverError, variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: 'Account Created!', description: 'Welcome to Welile' });
+      saveLocationInBackground();
+      try { localStorage.removeItem(SIGNUP_SOURCE_KEY); } catch { /* ignore */ }
+
+      const { error: signInError } = await signIn(authEmail, password);
+      if (signInError) {
+        setIsLoading(false);
+        toast({
+          title: 'Almost there',
+          description: 'Your account was created. Please sign in to continue.',
+        });
+        return;
+      }
+      setIsLoading(false);
+      return;
+    }
+
     const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, effectiveIntendedRole || undefined, storedSignupSource || undefined);
     if (error) {
       setIsLoading(false);
@@ -500,24 +544,9 @@ export function useAuthForm() {
     // can't leak onto a later, unrelated signup on the same device.
     try { localStorage.removeItem(SIGNUP_SOURCE_KEY); } catch { /* ignore */ }
 
-    // If auto-confirm did not return a session, sign the user in immediately
-    // so the auth-state redirect hooks fire and send them to the dashboard.
+    // If the session was not returned, sign the real-email user in so the
+    // auth-state redirect hooks fire and send them to the dashboard.
     if (!data?.session) {
-      // Phone-only signups have ALREADY verified their number via SMS OTP, so
-      // there is no email to confirm. The synthetic `<phone>@welile.user` auth
-      // identifier would otherwise sit unconfirmed (email confirmation is on at
-      // the project level) and block sign-in. Confirm it server-side so the
-      // recruit logs in directly — real-email signups skip this and keep their
-      // normal email verification.
-      if (!hasRealEmail && data?.user?.id) {
-        try {
-          await supabase.functions.invoke('confirm-phone-account', {
-            body: { phone: fullPhone, user_id: data.user.id },
-          });
-        } catch {
-          // Non-fatal — the sign-in attempt below still surfaces any real issue.
-        }
-      }
       const { error: signInError } = await signIn(authEmail, password);
       if (signInError) {
         setIsLoading(false);
