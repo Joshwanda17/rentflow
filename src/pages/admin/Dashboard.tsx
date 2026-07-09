@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   Crown, Cpu, Megaphone, MessageSquare, Users, Home, Building2,
-  Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft, Gift, LayoutDashboard
+  Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft, Gift, LayoutDashboard,
+  ShieldCheck, ChevronRight
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
