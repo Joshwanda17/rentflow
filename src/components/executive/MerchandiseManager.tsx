@@ -299,6 +299,7 @@ export function MerchandiseManager() {
         <div className="flex gap-2">
           <RecordPurchaseDialog userId={user?.id} productNames={productNames} onSaved={refresh} />
           <RecordSaleDialog userId={user?.id} inventory={inventoryByItem} purchases={purchases} onSaved={refresh} />
+          <AddCatalogItemDialog userId={user?.id} onSaved={refresh} />
         </div>
       </div>
 
