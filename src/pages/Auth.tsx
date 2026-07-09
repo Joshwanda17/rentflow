@@ -565,7 +565,7 @@ export default function Auth() {
                   <div className="flex-1 border-t border-border/40" />
                 </div>
 
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex w-full flex-wrap items-center justify-center gap-4">
                   <GoogleSignInButton
                     onClick={wrappedHandleGoogleSignIn}
                     disabled={isGoogleLoading || isAppleLoading || isLoading}
