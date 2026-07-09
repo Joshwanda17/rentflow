@@ -13,7 +13,6 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { OAuthDomainNotice } from '@/components/auth/OAuthDomainNotice';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
-import { EnvironmentBanner } from '@/components/auth/EnvironmentBanner';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 import { ArchivedAccountSupport } from '@/components/auth/ArchivedAccountSupport';
 import { useAuthForm } from '@/hooks/useAuthForm';
@@ -392,8 +391,6 @@ export default function Auth() {
             <p className="text-lg font-semibold text-foreground mt-3 animate-in fade-in duration-300">Create your account</p>
           )}
         </div>
-
-        <EnvironmentBanner />
 
         {/* Agent deeplink banner */}
         {deepLinkAgent && (
