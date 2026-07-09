@@ -82,15 +82,20 @@ function toYoolaDigits(phone: string): string {
   else if (d.length === 9) d = "256" + d;
   return d;
 }
-async function sendYoolaSMS(phone: string, message: string) {
+async function sendYoolaSMS(phone: string, message: string, opts: { sender?: string | null } = {}) {
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) return { ok: false, reason: "Yoola not configured", provider: "yoola" };
   const bareDigits = toYoolaDigits(phone);
+  // When sender is explicitly null/empty, omit the sender field entirely so we
+  // can test whether an unregistered "WELILE" sender id is blocking delivery.
+  const useSender = opts.sender === undefined ? "WELILE" : (opts.sender || null);
+  const payload: Record<string, unknown> = { phone: bareDigits, message, api_key: apiKey };
+  if (useSender) payload.sender = useSender;
   try {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: bareDigits, message, api_key: apiKey, sender: "WELILE" }),
+      body: JSON.stringify(payload),
     });
     const rawText = await res.text();
     let parsed: any = null;
@@ -104,7 +109,7 @@ async function sendYoolaSMS(phone: string, message: string) {
       ok: accepted,
       httpStatus: res.status,
       formattedPhone: bareDigits,
-      sender: "WELILE",
+      sender: useSender ?? "(none)",
       status: parsed?.status ?? null,
       reason: accepted ? undefined : (parsed?.error || parsed?.message || `Yoola status ${parsed?.status ?? res.status}`),
       raw: parsed ?? rawText,
@@ -184,18 +189,20 @@ Deno.serve(async (req) => {
     let message =
       "[Welile Test] Background SMS API test successful. If you received this, the SMS pipeline is healthy. — Welile Ops";
     let provider = "auto"; // 'auto' = AT then Twilio fallback | 'twilio' = force Twilio | 'africastalking' = force AT
+    let no_sender = false; // when true (+ provider=yoola), omit the sender id
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       if (body?.phone) phone = String(body.phone);
       if (body?.message) message = String(body.message);
       if (body?.provider) provider = String(body.provider);
+      if (typeof body?.no_sender === "boolean") no_sender = body.no_sender;
     }
 
     const startedAt = new Date().toISOString();
     const result =
       provider === "yoola"
-        ? { ...(await sendYoolaSMS(phone, message)), fallbackUsed: false, forced: "yoola" }
+        ? { ...(await sendYoolaSMS(phone, message, no_sender ? { sender: null } : {})), fallbackUsed: false, forced: "yoola" }
         : provider === "twilio"
         ? { ...(await sendTwilioSMS(phone, message)), fallbackUsed: false, forced: "twilio" }
         : provider === "africastalking"
