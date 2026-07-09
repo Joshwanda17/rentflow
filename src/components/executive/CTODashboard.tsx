@@ -274,6 +274,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
       {/* Domain redirect audit (legacy + www -> welileapp.com) */}
       <SeoRedirectAuditPanel />
 
+      {/* Semrush branded-keyword & backlink tracking (welile / welile.com) */}
+      <SemrushBrandTrackerPanel />
+
       {/* Database Schema Export */}
       <ExtractSchemaCard />
 
