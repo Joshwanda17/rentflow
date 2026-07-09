@@ -13,6 +13,7 @@ import FinancialReportsPanel from '@/components/coo/FinancialReportsPanel';
 import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
+import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
@@ -101,6 +102,8 @@ export default function COODashboardPage() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'requisitions':
+        return <DirectorRequisitionsPanel />;
       case 'rent-approvals':
         return (
           <div className="space-y-3">
