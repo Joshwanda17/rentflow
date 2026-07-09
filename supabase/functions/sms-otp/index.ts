@@ -239,7 +239,6 @@ async function sendYoolaAttempt(
         phone: formatPhoneYoola(phone),
         message,
         api_key: apiKey,
-        sender: "WELILE",
       }),
       signal: controller.signal,
     });

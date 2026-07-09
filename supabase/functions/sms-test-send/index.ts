@@ -74,8 +74,10 @@ async function sendSMS(phone: string, message: string) {
 const TWILIO_GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_SENDER = "WELILE";
 
-// Yoola — the PRIMARY production SMS provider. Posts JSON to /api/v1/send with
-// sender:"WELILE" so this is a true end-to-end check of the configured sender id.
+// Yoola — the PRIMARY production SMS provider. Posts JSON to /api/v1/send.
+// By default we OMIT the sender field so Yoola uses its registered default
+// (ATInfo). "WELILE" is not registered and gets silently dropped by carriers,
+// so it must only be sent when explicitly requested for testing.
 function toYoolaDigits(phone: string): string {
   let d = phone.replace(/\D/g, "");
   if (d.startsWith("0")) d = "256" + d.slice(1);
@@ -86,9 +88,9 @@ async function sendYoolaSMS(phone: string, message: string, opts: { sender?: str
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) return { ok: false, reason: "Yoola not configured", provider: "yoola" };
   const bareDigits = toYoolaDigits(phone);
-  // When sender is explicitly null/empty, omit the sender field entirely so we
-  // can test whether an unregistered "WELILE" sender id is blocking delivery.
-  const useSender = opts.sender === undefined ? "WELILE" : (opts.sender || null);
+  // Default: omit the sender field entirely so Yoola uses its registered default
+  // (ATInfo). Pass an explicit sender only to test a specific sender id.
+  const useSender = opts.sender === undefined ? null : (opts.sender || null);
   const payload: Record<string, unknown> = { phone: bareDigits, message, api_key: apiKey };
   if (useSender) payload.sender = useSender;
   try {
