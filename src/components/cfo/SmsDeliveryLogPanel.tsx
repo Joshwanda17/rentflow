@@ -57,6 +57,7 @@ export function SmsDeliveryLogPanel() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [detail, setDetail] = useState<SmsRow | null>(null);
+  const [isSweepingYoola, setIsSweepingYoola] = useState(false);
 
   const { data: rows, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['sms-delivery-log', statusFilter],
@@ -118,6 +119,19 @@ export function SmsDeliveryLogPanel() {
     URL.revokeObjectURL(url);
   };
 
+  const handleRefreshDeliveryReports = async () => {
+    setIsSweepingYoola(true);
+    try {
+      const { error } = await supabase.functions.invoke('sms-yoola-delivery-sweep', {
+        body: { limit: 150, since_hours: 96 },
+      });
+      if (error) console.warn('[SmsDeliveryLogPanel] Yoola delivery sweep failed:', error);
+    } finally {
+      setIsSweepingYoola(false);
+      refetch();
+    }
+  };
+
   if (isLoading) {
     return (
       <Card className="rounded-2xl">
@@ -147,8 +161,8 @@ export function SmsDeliveryLogPanel() {
               <Badge variant="secondary" className="text-[10px] gap-1">
                 <XCircle className="h-3 w-3 text-destructive" /> {failedCount} failed
               </Badge>
-              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => refetch()} disabled={isFetching}>
-                <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={handleRefreshDeliveryReports} disabled={isFetching || isSweepingYoola}>
+                <RefreshCw className={`h-3 w-3 ${isFetching || isSweepingYoola ? 'animate-spin' : ''}`} />
               </Button>
               <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={handleExportCSV} disabled={!filtered.length}>
                 <Download className="h-3 w-3" /> CSV
