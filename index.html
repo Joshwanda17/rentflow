@@ -1,6 +1,26 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- Host canonicalization: force legacy welilereceipts.com / welilereciept.com -> welileapp.com.
+         Runs before anything else so no legacy-domain content is ever rendered.
+         (True HTTP 301 is served by Lovable hosting when the domain points here;
+         this is the client-side guarantee for any request that reaches the app.) -->
+    <script>
+      (function () {
+        try {
+          var host = window.location.hostname.replace(/^www\./, '').toLowerCase();
+          var LEGACY = ['welilereceipts.com', 'welilereciept.com'];
+          if (LEGACY.indexOf(host) !== -1) {
+            var target =
+              'https://welileapp.com' +
+              window.location.pathname +
+              window.location.search +
+              window.location.hash;
+            window.location.replace(target);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
