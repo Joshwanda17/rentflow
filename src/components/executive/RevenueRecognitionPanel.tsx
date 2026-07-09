@@ -10,6 +10,7 @@ import {
   RefreshCw, CheckCircle2, AlertTriangle, Clock, Play, TrendingUp, Gauge, CalendarClock,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import { FeeRevenueReconciliationCheck } from './FeeRevenueReconciliationCheck';
 
 const db = supabase as any;
 
@@ -237,6 +238,9 @@ export function RevenueRecognitionPanel() {
           </div>
         </div>
       </div>
+
+      {/* Server vs client fallback reconciliation (row-cap guard) */}
+      <FeeRevenueReconciliationCheck />
 
       {/* Recent runs */}
       <div>
