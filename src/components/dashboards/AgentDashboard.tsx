@@ -429,6 +429,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
   const [rentPosterOpen, setRentPosterOpen] = useState(false);
+  const [regFormKind, setRegFormKind] = useState<'landlord' | 'tenant' | null>(null);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
   const [advanceGuideOpen, setAdvanceGuideOpen] = useState(false);
