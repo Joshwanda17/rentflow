@@ -91,7 +91,7 @@ async function sendYoolaSMS(phone: string, message: string) {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: bareDigits, message, api_key: apiKey, sender: "WELILE" }),
+      body: JSON.stringify({ phone: bareDigits, message, api_key: apiKey, sender: "ATInfo" }),
     });
     const rawText = await res.text();
     let parsed: any = null;
@@ -105,7 +105,7 @@ async function sendYoolaSMS(phone: string, message: string) {
       ok: accepted,
       httpStatus: res.status,
       formattedPhone: bareDigits,
-      sender: "WELILE",
+      sender: "ATInfo",
       status: parsed?.status ?? null,
       reason: accepted ? undefined : (parsed?.error || parsed?.message || `Yoola status ${parsed?.status ?? res.status}`),
       raw: parsed ?? rawText,
