@@ -198,6 +198,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Platform Overview', icon: Crown, id: 'overview' },
         { label: 'Revenue & Growth', icon: TrendingUp, id: 'revenue' },
+        { label: 'Revenue Recognition', icon: Gauge, id: 'revenue-recognition' },
         { label: 'Users & Coverage', icon: Globe, id: 'users' },
         { label: 'Financial Health', icon: Shield, id: 'financial' },
         { label: 'Requisitions', icon: ClipboardList, id: 'requisitions' },
