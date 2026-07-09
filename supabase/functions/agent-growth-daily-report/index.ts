@@ -528,7 +528,7 @@ async function run(admin: ReturnType<typeof createClient>, period: Period, force
   });
   const t = stats.totals;
   const netNew = t.new_agents + t.new_subagents;
-  const subject = `Agent Growth — ${prettyDate}: ${fmtInt(t.total_agents)} agents, ${fmtInt(t.total_subagents)} sub-agents (+${fmtInt(netNew)} new)`;
+  const subject = `Agent Growth Report - ${prettyDate}: ${fmtInt(t.total_agents)} agents, ${fmtInt(t.total_subagents)} sub-agents (+${fmtInt(netNew)} new)`;
   const html = buildHtml(stats, period, prettyDate);
   const filename = `Welile_Agent_Growth_${period}_${dateStr}.pdf`;
 
