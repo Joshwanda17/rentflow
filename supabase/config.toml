@@ -153,3 +153,6 @@ verify_jwt = false
 
 [functions.verify-redirects]
 verify_jwt = false
+
+[functions.seo-index-monitor]
+verify_jwt = false
