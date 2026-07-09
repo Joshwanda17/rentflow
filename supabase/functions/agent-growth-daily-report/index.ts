@@ -401,9 +401,13 @@ async function sendWithAttachment(
   }
   const boundary = `welile_${crypto.randomUUID().replace(/-/g, "")}`;
   const pdfB64 = chunk76(bytesToBase64(pdf));
+  // RFC 2047 encode the subject so non-ASCII chars render correctly in all clients.
+  const encodedSubject = /[^\x00-\x7F]/.test(subject)
+    ? `=?UTF-8?B?${bytesToBase64(new TextEncoder().encode(subject))}?=`
+    : subject;
   const raw = [
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodedSubject}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     "",
@@ -524,7 +528,7 @@ async function run(admin: ReturnType<typeof createClient>, period: Period, force
   });
   const t = stats.totals;
   const netNew = t.new_agents + t.new_subagents;
-  const subject = `Agent Growth — ${prettyDate}: ${fmtInt(t.total_agents)} agents, ${fmtInt(t.total_subagents)} sub-agents (+${fmtInt(netNew)} new)`;
+  const subject = `Agent Growth Report - ${prettyDate}: ${fmtInt(t.total_agents)} agents, ${fmtInt(t.total_subagents)} sub-agents (+${fmtInt(netNew)} new)`;
   const html = buildHtml(stats, period, prettyDate);
   const filename = `Welile_Agent_Growth_${period}_${dateStr}.pdf`;
 
