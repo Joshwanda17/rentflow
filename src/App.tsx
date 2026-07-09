@@ -137,7 +137,7 @@ const RegisterTenantPublic = lazy(() => import('./pages/RegisterTenantPublic'));
 const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic'));
 const ActivatePartner = lazy(() => import('./pages/ActivatePartner'));
 const BusinessAdvanceTrack = lazy(() => import('./pages/BusinessAdvanceTrack'));
-const ResolveShortLink = lazy(() => import('./pages/ResolveShortLink'));
+const ResolveRLink = lazy(() => import('./pages/ResolveRLink'));
 const TrackedRedirect = lazy(() => import('./pages/TrackedRedirect'));
 const RentAccessLimitPublic = lazy(() => import('./pages/RentAccessLimitPublic'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
@@ -367,9 +367,8 @@ function AppRoutes() {
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/stop-sms" element={<StopSms />} />
           <Route path="/receipt/:id" element={<PayoutReceipt />} />
-          <Route path="/r/:token" element={<PayoutReceipt />} />
           <Route path="/resume-sms" element={<ResumeSms />} />
-          <Route path="/r/:code" element={<ResolveShortLink />} />
+          <Route path="/r/:code" element={<ResolveRLink />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
           <Route path="/id/:aiId" element={<HolisticProfile publicMode />} />
           {/* Persona-specific dashboards. URL is the source of truth for which
