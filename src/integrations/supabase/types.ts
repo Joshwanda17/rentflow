@@ -22902,6 +22902,10 @@ export type Database = {
       is_landlord_ops: { Args: { _user_id: string }; Returns: boolean }
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
+      is_proxy_agent_for_partner: {
+        Args: { _agent: string; _partner: string }
+        Returns: boolean
+      }
       is_proxy_for: {
         Args: { _agent_id: string; _beneficiary_id: string }
         Returns: boolean
