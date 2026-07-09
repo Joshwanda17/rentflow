@@ -1,5 +1,5 @@
 // Live Search Console coverage comparison: welileapp.com (primary) vs
-// welilereceipts.com (legacy). For each verified property it pulls the sitemap
+// welilereceipts.com (legacy). For each verified property it pulls the sitemap  legacy-domain-guard-allow
 // summary and runs URL Inspection on a shared set of key paths, returning a
 // structured side-by-side view: coverage state, last crawl, robots/indexing
 // eligibility, and Google's chosen canonical (so we can tell which way Google
@@ -16,7 +16,7 @@ const corsHeaders = {
 const GATEWAY = "https://connector-gateway.lovable.dev/google_search_console";
 
 const PRIMARY = "https://welileapp.com/";
-const LEGACY = "https://welilereceipts.com/";
+const LEGACY = "https://welilereceipts.com/"; // legacy-domain-guard-allow
 
 // Shared key paths inspected on both domains.
 const KEY_PATHS = ["", "welcome", "find-a-house", "rent-money", "opportunities"];
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
   try {
     const verified = await listVerifiedSites();
     const primaryVerified = verified.some((s) => s.includes("welileapp.com"));
-    const legacyVerified = verified.some((s) => s.includes("welilereceipts.com"));
+    const legacyVerified = verified.some((s) => s.includes("welilereceipts.com")); // legacy-domain-guard-allow
 
     const [primary, legacy] = await Promise.all([
       analyzeProperty(PRIMARY, primaryVerified),
