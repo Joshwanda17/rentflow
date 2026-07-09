@@ -6,6 +6,10 @@ import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
 const BASE_URL = 'https://welileapp.com';
+// Legacy domain being consolidated into BASE_URL via 301 redirects.
+// A dedicated sitemap of these URLs helps Google recrawl the old domain,
+// discover each 301, and transfer signals to the canonical welileapp.com pages.
+const LEGACY_BASE_URL = 'https://welilereceipts.com';
 
 interface SitemapEntry {
   path: string;
@@ -100,11 +104,11 @@ async function fetchLiveHouses(): Promise<SitemapEntry[]> {
   }
 }
 
-function generateSitemap(entries: SitemapEntry[]) {
+function generateSitemap(entries: SitemapEntry[], baseUrl: string = BASE_URL) {
   const urls = entries.map((e) =>
     [
       '  <url>',
-      `    <loc>${BASE_URL}${xmlEscape(e.path)}</loc>`,
+      `    <loc>${baseUrl}${xmlEscape(e.path)}</loc>`,
       e.lastmod ? `    <lastmod>${e.lastmod}</lastmod>` : null,
       e.changefreq ? `    <changefreq>${e.changefreq}</changefreq>` : null,
       e.priority ? `    <priority>${e.priority}</priority>` : null,
@@ -126,6 +130,14 @@ async function main() {
   const entries = [...staticEntries, ...houses];
   writeFileSync(resolve('public/sitemap.xml'), generateSitemap(entries));
   console.log(`sitemap.xml written (${entries.length} entries, ${houses.length} houses)`);
+
+  // Legacy-domain sitemap: same paths on welilereceipts.com so Google recrawls
+  // them and picks up the 301 redirects to their canonical welileapp.com targets.
+  writeFileSync(
+    resolve('public/sitemap-welilereceipts.xml'),
+    generateSitemap(entries, LEGACY_BASE_URL),
+  );
+  console.log(`sitemap-welilereceipts.xml written (${entries.length} entries, base ${LEGACY_BASE_URL})`);
 }
 
 main();
