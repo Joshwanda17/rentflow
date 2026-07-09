@@ -36,6 +36,45 @@ export interface SmsDeliveryLogInput {
   error?: string | null;
 }
 
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+function extractProviderFields(attempt?: SmsAttemptRecord): { messageId: string | null; cost: string | null } {
+  const response = (attempt?.response ?? null) as any;
+  if (!response || typeof response !== "object") return { messageId: null, cost: null };
+
+  const recipient = Array.isArray(response?.per_recipient)
+    ? response.per_recipient[0]
+    : Array.isArray(response?.SMSMessageData?.Recipients)
+      ? response.SMSMessageData.Recipients[0]
+      : null;
+
+  const messageId = firstString(
+    response?.message_id,
+    response?.messageId,
+    response?.id,
+    recipient?.message_id,
+    recipient?.messageId,
+    // Yoola also returns a YOOLA-* per-recipient reference; keep it only when
+    // the numeric message id is absent so audit rows still have a provider id.
+    recipient?.reference,
+  );
+  const cost = firstString(
+    recipient?.cost,
+    response?.amount_charged,
+    response?.credits_used,
+    recipient?.credits,
+  );
+
+  return { messageId, cost };
+}
+
 // Minimal shape of the supabase-js client we rely on.
 type AdminLike = {
   from: (table: string) => {
@@ -63,6 +102,8 @@ export async function logSmsDelivery(
             .map((a) => `${a.provider}: ${a.error}`)
             .join(" | ") || null);
 
+    const providerFields = extractProviderFields(winning ?? input.attempts[input.attempts.length - 1]);
+
     await admin.from("sms_delivery_log").insert({
       recipient_phone: input.recipient_phone || "unknown",
       recipient_user_id: input.recipient_user_id ?? null,
@@ -70,13 +111,13 @@ export async function logSmsDelivery(
       message: input.message ?? null,
       status: input.status,
       provider,
-      provider_message_id: input.provider_message_id ?? null,
+      provider_message_id: input.provider_message_id ?? providerFields.messageId,
       provider_response: {
         attempts: input.attempts,
         retries: input.retries ?? 0,
         total_provider_calls: input.attempts.length,
       },
-      cost: input.cost ?? null,
+      cost: input.cost ?? providerFields.cost,
       reference_id: input.reference_id ?? null,
       source: input.source,
       error: combinedError,
@@ -209,18 +250,20 @@ export async function finalizeSmsDelivery(
             .map((a) => `${a.provider}: ${a.error}`)
             .join(" | ") || null);
 
+    const providerFields = extractProviderFields(winning ?? input.attempts[input.attempts.length - 1]);
+
     await admin
       .from("sms_delivery_log")
       .update({
         status: input.status,
         provider,
-        provider_message_id: input.provider_message_id ?? null,
+        provider_message_id: input.provider_message_id ?? providerFields.messageId,
         provider_response: {
           attempts: input.attempts,
           retries: input.retries ?? 0,
           total_provider_calls: input.attempts.length,
         },
-        cost: input.cost ?? null,
+        cost: input.cost ?? providerFields.cost,
         error: combinedError,
       })
       .eq("id", logId);
