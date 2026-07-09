@@ -41,6 +41,11 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://welileapp.com/join</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://welileapp.com/internship</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
