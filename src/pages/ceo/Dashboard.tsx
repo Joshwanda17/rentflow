@@ -5,6 +5,7 @@ import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePa
 import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManagementPanel';
 import { MissionGoalsEditor } from '@/components/executive/MissionGoalsEditor';
 import { RoleManagementPanel } from '@/components/executive/RoleManagementPanel';
+import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 
 export default function CEODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('ceo');
@@ -13,6 +14,8 @@ export default function CEODashboardPage() {
     switch (activeTab) {
       case 'staff-performance':
         return <StaffPerformancePanel />;
+      case 'requisitions':
+        return <DirectorRequisitionsPanel />;
       case 'angel-pool':
         return <AngelPoolManagementPanel userRole="ceo" />;
       case 'mission-goals':

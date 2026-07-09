@@ -144,3 +144,9 @@ verify_jwt = false
 
 [functions.agent-growth-daily-report]
 verify_jwt = false
+
+[functions.create-director-requisition]
+verify_jwt = false
+
+[functions.director-requisition-action]
+verify_jwt = false

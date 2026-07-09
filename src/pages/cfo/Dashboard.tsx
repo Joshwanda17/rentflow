@@ -14,6 +14,7 @@ import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
 import { CFOPayoutsShareButton } from '@/components/cfo/CFOPayoutsShareButton';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
+import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
@@ -151,6 +152,8 @@ export default function CFODashboardPage() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'requisitions':
+        return <DirectorRequisitionsPanel />;
       case 'wallet-payout':
         return (
           <div className="space-y-4">
