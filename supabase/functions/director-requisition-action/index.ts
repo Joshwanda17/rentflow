@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const REVIEW_URL = "https://welileapp.com/admin/dashboard";
+const REVIEW_URL = "https://welileapp.com/director/dashboard";
 // Roles that may act as the Director until a dedicated Director dashboard exists.
 const DIRECTOR_ROLES = ["ceo", "super_admin", "manager"];
 

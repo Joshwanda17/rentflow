@@ -23,7 +23,7 @@ export function DirectorRequisitionNew({
   requester = 'Staff',
   requested_at = '',
   reason = '',
-  review_url = 'https://welileapp.com/admin/dashboard',
+  review_url = 'https://welileapp.com/director/dashboard',
 }: Props) {
   return (
     <Html>
@@ -76,7 +76,7 @@ export const template = {
     requester: 'CFO',
     requested_at: '9 Jul 2026, 14:30',
     reason: 'Kindly requesting UGX 8,000,000 to top up the merchant lines to ensure uninterrupted operations and maintain sufficient transaction liquidity.',
-    review_url: 'https://welileapp.com/admin/dashboard',
+    review_url: 'https://welileapp.com/director/dashboard',
   },
 } satisfies TemplateEntry
 
