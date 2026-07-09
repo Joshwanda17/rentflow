@@ -11,9 +11,31 @@ interface AppleSignInButtonProps {
   onClick: () => void;
   disabled: boolean;
   isLoading: boolean;
+  variant?: 'standard' | 'icon';
 }
 
-export function AppleSignInButton({ onClick, disabled, isLoading }: AppleSignInButtonProps) {
+export function AppleSignInButton({ onClick, disabled, isLoading, variant = 'standard' }: AppleSignInButtonProps) {
+  if (variant === 'icon') {
+    return (
+      <Button
+        type="button"
+        size="icon"
+        aria-label="Continue with Apple"
+        title="Continue with Apple"
+        className="h-14 w-14 rounded-full bg-black text-white hover:bg-black/90 hover:text-white border-2 border-black shadow-sm touch-manipulation active:scale-[0.95] transition-all"
+        onClick={onClick}
+        disabled={disabled}
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+      >
+        {isLoading ? (
+          <Loader2 className="h-6 w-6 animate-spin" />
+        ) : (
+          <AppleIcon />
+        )}
+      </Button>
+    );
+  }
+
   return (
     <Button
       type="button"
