@@ -21,6 +21,7 @@ import ExportUsersWithHashesCard from '@/components/cto/ExportUsersWithHashesCar
 import { CTOPasswordResetPanel } from '@/components/cto/CTOPasswordResetPanel';
 import PlatformControlsPanel from '@/components/cto/PlatformControlsPanel';
 import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
+import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -260,6 +261,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
     <div className="space-y-4 sm:space-y-6">
       {/* Maintenance Mode Control (CTO) */}
       <MaintenanceToggleCard />
+
+      {/* Google indexing monitor (welileapp.com SEO) */}
+      <SeoIndexMonitorPanel />
 
       {/* Database Schema Export */}
       <ExtractSchemaCard />
