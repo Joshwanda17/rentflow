@@ -267,7 +267,7 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
       {/* Google indexing monitor (welileapp.com SEO) */}
       <SeoIndexMonitorPanel />
 
-      {/* Search Console coverage comparison (welileapp.com vs welilereceipts.com) */}
+      {/* Search Console coverage comparison (welileapp.com vs the legacy domain) */}
       <SeoCoverageDashboard />
 
       {/* Domain redirect audit (legacy + www -> welileapp.com) */}
