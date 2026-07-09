@@ -194,7 +194,10 @@ Deno.serve(async (req) => {
     });
     if (rpcErr) throw rpcErr;
 
-    await adminClient.from('audit_logs').insert({
+    // Fire-and-forget the audit write so the CFO's approve action returns as
+    // soon as the money has actually moved (ledger posted above). The audit
+    // row still lands; it just no longer blocks the response.
+    adminClient.from('audit_logs').insert({
       user_id: approverId,
       action_type: 'cfo_credit_draw_approved',
       table_name: 'credit_access_draws',
@@ -208,7 +211,7 @@ Deno.serve(async (req) => {
         total_payable: totalPayable,
         daily_charge: dailyCharge,
       },
-    });
+    }).then(() => {}, (e: unknown) => console.error('[cfo-approve-credit-draw] audit insert failed:', e));
 
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
       method: 'POST',
