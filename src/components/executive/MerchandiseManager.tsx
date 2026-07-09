@@ -409,6 +409,8 @@ export function MerchandiseManager() {
 
       {/* Inventory by item */}
       <Section title="Inventory by Item" icon={Boxes}>
+
+      {/* placeholder */}
         {inventoryByItem.length === 0 ? (
           <EmptyRow text="No merchandise recorded yet." />
         ) : (
