@@ -25,6 +25,7 @@ import { hapticTap, hapticWarning } from '@/lib/haptics';
 import FormStepHeader from '@/components/shared/FormStepHeader';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -618,7 +619,7 @@ export default function LandlordRegistrationForm({
         .single();
 
       if (invite) {
-        setActivationLink(`${window.location.origin}/join?t=${invite.activation_token}`);
+        setActivationLink(`${getPublicOrigin()}/join?t=${invite.activation_token}`);
       }
 
       setSuccess(true);
