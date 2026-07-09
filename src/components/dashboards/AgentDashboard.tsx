@@ -1612,6 +1612,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <RentPosterDialog open={rentPosterOpen} onOpenChange={setRentPosterOpen} />
       </LazyModal>
 
+      <LazyModal when={regFormKind !== null}>
+      <RegFormActionDialog
+        open={regFormKind !== null}
+        onOpenChange={(o) => { if (!o) setRegFormKind(null); }}
+        form={regFormKind}
+      />
+      </LazyModal>
+
       {/* Existing Dialogs */}
       <LazyModal when={depositOpen}>
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
