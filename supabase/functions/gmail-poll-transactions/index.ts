@@ -1979,7 +1979,6 @@ async function sendSmsViaAfricasTalking(phone: string, message: string): Promise
         username,
         to: formatPhoneIntl(phone),
         message,
-        from: 'WELILE',
       }).toString(),
     });
     const txt = await res.text();

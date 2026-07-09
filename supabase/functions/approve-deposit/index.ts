@@ -1610,7 +1610,6 @@ async function sendSmsViaAfricasTalking(
         username,
         to: formatPhoneIntl(phone),
         message,
-        from: 'WELILE',
       }).toString(),
     });
     const txt = await res.text();

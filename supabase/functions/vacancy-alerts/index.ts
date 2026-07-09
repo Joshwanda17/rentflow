@@ -35,7 +35,6 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
       username,
       to: formattedPhone,
       message,
-      from: "WELILE",
     };
     const body = new URLSearchParams(params);
 

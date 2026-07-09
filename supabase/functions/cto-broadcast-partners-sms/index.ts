@@ -65,7 +65,6 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
     username,
     to: formatPhoneInternational(phone),
     message,
-    from: 'WELILE',
   });
   try {
     const res = await fetch(url, {

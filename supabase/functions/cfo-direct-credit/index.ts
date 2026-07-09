@@ -77,7 +77,6 @@ async function sendSMS(phone: string, message: string, meta: SmsLogMeta = {}): P
       username,
       to: formatPhoneInternational(phone),
       message,
-      from: "WELILE",
     });
     const res = await fetch(baseUrl, {
       method: "POST",

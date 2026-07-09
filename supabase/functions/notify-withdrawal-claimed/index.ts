@@ -72,7 +72,6 @@ async function sendViaAT(
       username,
       to: formatPhoneInternational(phone),
       message,
-      from: "WELILE",
     });
     const res = await fetch(baseUrl, {
       method: "POST",

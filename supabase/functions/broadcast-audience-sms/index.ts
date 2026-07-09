@@ -72,7 +72,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
   const url = isSandbox
     ? 'https://api.sandbox.africastalking.com/version1/messaging'
     : 'https://api.africastalking.com/version1/messaging';
-  const params = new URLSearchParams({ username, to: formatPhoneInternational(phone), message, from: 'WELILE' });
+  const params = new URLSearchParams({ username, to: formatPhoneInternational(phone), message });
   try {
     const res = await fetch(url, {
       method: 'POST',
