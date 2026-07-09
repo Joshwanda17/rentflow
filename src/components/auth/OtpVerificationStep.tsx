@@ -97,7 +97,7 @@ export function OtpVerificationStep({
       {sendStatus === 'accepted' && (
         <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="h-3 w-3" />
-          Code accepted — it should arrive shortly.
+          SMS network accepted it. If it does not arrive, resend will try another route.
         </div>
       )}
 
@@ -153,7 +153,7 @@ export function OtpVerificationStep({
         </button>
         {cooldownSeconds > 0 && (
           <p className="mt-1 text-[11px] text-muted-foreground">
-            To avoid duplicate texts, you can request a new code once the timer ends.
+            If this SMS does not arrive, request another once the timer ends.
           </p>
         )}
       </div>

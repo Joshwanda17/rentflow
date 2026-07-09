@@ -363,7 +363,11 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
  * trail of provider attempts (with timestamps) so we can prove a message was
  * only routed to ONE provider at a time and never double-sent.
  */
-async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
+async function sendSMS(
+  phone: string,
+  message: string,
+  options: { preferBackupRoute?: boolean } = {},
+): Promise<SmsOutcome> {
   const attempts: ProviderAttempt[] = [];
 
   // Run a single provider, capturing precise start/finish timestamps so the
@@ -386,24 +390,30 @@ async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
     return r;
   };
 
-  const yoola = await run("yoola", () => sendViaYoola(phone, message));
-  if (yoola.accepted) return { accepted: true, provider: "yoola", attempts };
+  const primaryChain = [
+    { provider: "yoola", fn: () => sendViaYoola(phone, message) },
+    { provider: "africastalking", fn: () => sendViaAfricasTalking(phone, message) },
+    { provider: "lana", fn: () => sendViaLana(phone, message) },
+  ];
 
-  // Yoola failed or is not configured — try Africa's Talking.
-  console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying Africa's Talking`);
-  const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
-  if (at.accepted) return { accepted: true, provider: "africastalking", attempts };
+  // If the user is resending a still-valid OTP after the previous network said
+  // "accepted" but the phone was not verified, rotate to backup routes first.
+  // That handles carrier/provider black holes where acceptance is not delivery.
+  const backupFirstChain = [primaryChain[1], primaryChain[2], primaryChain[0]];
+  const chain = options.preferBackupRoute ? backupFirstChain : primaryChain;
 
-  // AT failed or is not configured — try LANA as a final fallback.
-  console.warn(`[sms-otp] Africa's Talking not accepted (${at.reason}); trying LANA`);
-  const lana = await run("lana", () => sendViaLana(phone, message));
-  if (lana.accepted) return { accepted: true, provider: "lana", attempts };
+  let bestReason: string | undefined;
+  for (let i = 0; i < chain.length; i++) {
+    const current = chain[i];
+    if (i > 0) {
+      console.warn(`[sms-otp] ${chain[i - 1].provider} not accepted; trying ${current.provider}`);
+    }
+    const result = await run(current.provider, current.fn);
+    if (result.accepted) return { accepted: true, provider: current.provider, attempts };
+    if (result.reason && !wasSkipped(result.reason)) bestReason = result.reason;
+  }
 
-  // All failed — surface the most informative reason (skip "not_configured").
-  let reason = lana.reason;
-  if (yoola.reason && yoola.reason !== "yoola_not_configured") reason = yoola.reason;
-  else if (at.reason && at.reason !== "missing_credentials") reason = at.reason;
-  return { accepted: false, reason, attempts };
+  return { accepted: false, reason: bestReason ?? attempts.at(-1)?.reason, attempts };
 }
 
 /**
@@ -491,7 +501,7 @@ Deno.serve(async (req) => {
       // decide whether we can REUSE a still-valid code (see below).
       const { data: existing } = await adminClient
         .from("otp_verifications")
-        .select("last_sent_at, send_count, send_window_start, otp_code, expires_at, verified")
+        .select("last_sent_at, send_count, send_window_start, otp_code, expires_at, verified, send_status")
         .eq("phone", phoneKey)
         .maybeSingle();
 
@@ -605,19 +615,24 @@ Deno.serve(async (req) => {
       const ACCEPTANCE_TIMEOUT_MS = 4000;
       const TIMED_OUT = Symbol("timed_out");
 
-      const smsPromise = sendSMS(phone, message);
+      const preferBackupRoute = existingCodeUsable && existing?.send_status === "accepted";
+      if (preferBackupRoute) {
+        console.log(`[sms-otp] resend for ***${phoneKey.slice(-4)} rotating to backup SMS route first`);
+      }
+
+      const smsPromise = sendSMS(phone, message, { preferBackupRoute });
       const timeoutPromise = new Promise<typeof TIMED_OUT>((resolve) =>
         setTimeout(() => resolve(TIMED_OUT), ACCEPTANCE_TIMEOUT_MS),
       );
 
       // Persist the gateway-acceptance outcome so the client can poll for it
       // via the "status" action without ever waiting on carrier delivery.
-      const recordSendStatus = (result: SmsResult) =>
+      const recordSendStatus = (result: SmsOutcome) =>
         adminClient
           .from("otp_verifications")
           .update({
             send_status: result.accepted ? "accepted" : "failed",
-            send_status_reason: result.reason ?? null,
+            send_status_reason: result.accepted ? `provider:${result.provider ?? "unknown"}` : (result.reason ?? null),
             send_status_at: new Date().toISOString(),
           })
           .eq("phone", phoneKey);
