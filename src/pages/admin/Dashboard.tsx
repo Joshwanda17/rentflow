@@ -152,6 +152,25 @@ export default function AdminDashboardPage() {
           <p className="text-sm text-muted-foreground mt-1">Open any executive or operations dashboard you have access to</p>
         </div>
 
+        {(role === 'ceo' || role === 'manager' || role === 'super_admin') && (
+          <button
+            onClick={() => navigate('/director/dashboard')}
+            className={cn(
+              'w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md hover:scale-[1.005] active:scale-[0.995]',
+              'bg-primary/10 text-primary border-primary/30'
+            )}
+          >
+            <div className="h-11 w-11 rounded-lg flex items-center justify-center bg-background/60">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-sm">Director Dashboard</p>
+              <p className="text-xs text-muted-foreground truncate">Review, approve &amp; audit funding requisitions</p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0" />
+          </button>
+        )}
+
         {visibleExecutive.length > 0 && (
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Executive Dashboards</p>
