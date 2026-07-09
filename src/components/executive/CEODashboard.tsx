@@ -62,11 +62,11 @@ export function CEODashboard() {
     queryKey: ['exec-revenue'],
     queryFn: async () => {
       // Revenue = fees billed via the ASC 606 fee ledger (access + platform fees).
-      const { data } = await supabase
-        .from('fee_revenue_ledger')
-        .select('total_amount')
-        .limit(5000);
-      return (data || []).reduce((s, r) => s + Number(r.total_amount || 0), 0);
+      // Uses the server-aggregated RPC — the Data API caps row fetches at 1,000,
+      // which silently under-counts once the ledger grows past that.
+      const { data, error } = await supabase.rpc('get_fee_revenue_summary', { p_months: 6 });
+      if (error) throw error;
+      return Number((data as any)?.billed || 0);
     },
     staleTime: 600000,
   });

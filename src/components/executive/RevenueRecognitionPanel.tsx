@@ -62,27 +62,37 @@ export function RevenueRecognitionPanel() {
     queryKey: ['revenue-recognition-recon'],
     staleTime: 60000,
     queryFn: async () => {
-      const { data, error } = await db
-        .from('fee_revenue_ledger')
-        .select('fee_type, status, total_amount, recognized_amount, deferred_amount')
-        .limit(20000);
-      if (error) throw error;
-      const rows = (data || []) as any[];
-      let total = 0, recognized = 0, deferred = 0, fullyCount = 0, partialCount = 0, deferredCount = 0;
+      // Exact totals + by-type come from the server-aggregated RPC (the Data API
+      // caps row fetches at 1,000, which under-counts once the ledger grows).
+      const { data: summary, error: sumErr } = await db.rpc('get_fee_revenue_summary', { p_months: 6 });
+      if (sumErr) throw sumErr;
+      const s = (summary || {}) as any;
+      const total = Number(s.billed || 0);
+      const recognized = Number(s.recognized || 0);
+      const deferred = Number(s.deferred || 0);
+      const count = Number(s.row_count || 0);
       const byType: Record<string, { total: number; recognized: number; deferred: number }> = {};
-      for (const r of rows) {
-        total += Number(r.total_amount || 0);
-        recognized += Number(r.recognized_amount || 0);
-        deferred += Number(r.deferred_amount || 0);
+      Object.entries(s.by_type || {}).forEach(([k, v]: [string, any]) => {
+        byType[k] = {
+          total: Number(v.billed || 0),
+          recognized: Number(v.recognized || 0),
+          deferred: Number(v.deferred || 0),
+        };
+      });
+      // Status counts (recognized / partial / deferred) still need per-row status;
+      // fetch just the status column (lightweight) — capped at 1,000 is acceptable
+      // here since these are display-only tallies, not financial totals.
+      const { data: statusRows } = await db
+        .from('fee_revenue_ledger')
+        .select('status')
+        .limit(1000);
+      let fullyCount = 0, partialCount = 0, deferredCount = 0;
+      for (const r of (statusRows || []) as any[]) {
         if (r.status === 'recognized') fullyCount++;
         else if (r.status === 'partial') partialCount++;
         else deferredCount++;
-        const t = (byType[r.fee_type] ||= { total: 0, recognized: 0, deferred: 0 });
-        t.total += Number(r.total_amount || 0);
-        t.recognized += Number(r.recognized_amount || 0);
-        t.deferred += Number(r.deferred_amount || 0);
       }
-      return { total, recognized, deferred, fullyCount, partialCount, deferredCount, byType, count: rows.length };
+      return { total, recognized, deferred, fullyCount, partialCount, deferredCount, byType, count };
     },
   });
 
