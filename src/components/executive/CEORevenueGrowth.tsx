@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
+import { DataCompletenessScorecard } from './DataCompletenessScorecard';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   DollarSign, TrendingUp, Banknote, Clock, Database, Activity,
@@ -181,6 +182,9 @@ export function CEORevenueGrowth() {
             color="bg-orange-500/10 text-orange-600" subtitle="The proprietary credit dataset" />
           <KPICard title="Rent Journeys Tracked" value={num(dataAsset?.rentRequests || 0)} icon={Layers} loading={loadingData}
             color="bg-slate-500/10 text-slate-600" subtitle="End-to-end financed journeys" />
+        </div>
+        <div className="mt-2 sm:mt-3">
+          <DataCompletenessScorecard />
         </div>
       </section>
 
