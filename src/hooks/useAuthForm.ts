@@ -82,7 +82,7 @@ export function useAuthForm() {
 
   const { signUpWithoutRole, signIn, signInWithGoogle, signInWithApple, resetPassword, user, roles } = useAuth();
   const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
-  const { otpSent, otpVerified, otpLoading, otpError, sendStatus: otpSendStatus, cooldownSeconds: otpCooldownSeconds, sendOtp, verifyOtp, resetOtp: resetOtpState } = useOtpVerification();
+  const { otpSent, otpVerified, verifiedPhone, otpLoading, otpError, sendStatus: otpSendStatus, cooldownSeconds: otpCooldownSeconds, sendOtp, verifyOtp, resetOtp: resetOtpState } = useOtpVerification();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -376,7 +376,12 @@ export function useAuthForm() {
     // the account (no email confirmation will be sent because the auth
     // identifier becomes a synthetic @welile.user placeholder and the
     // project is configured with auto_confirm_email = true).
-    if (!hasRealEmail && !otpVerified) {
+    // The verified phone must match the number being submitted — otherwise a
+    // user who verified one number then edited the field would send a stale
+    // `otpVerified=true` and hit the server's "Phone not verified recently" 403.
+    const verifiedMatchesCurrent =
+      otpVerified && !!verifiedPhone && verifiedPhone.slice(-9) === fullPhone.replace(/\D/g, '').slice(-9);
+    if (!hasRealEmail && !verifiedMatchesCurrent) {
       setIsLoading(false);
       toast({
         title: 'Verify your phone',
