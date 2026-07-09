@@ -565,12 +565,12 @@ export default function Auth() {
                   <div className="flex-1 border-t border-border/40" />
                 </div>
 
-                <div className="space-y-2.5">
+                <div className="flex items-center justify-center gap-4">
                   <GoogleSignInButton
                     onClick={wrappedHandleGoogleSignIn}
                     disabled={isGoogleLoading || isAppleLoading || isLoading}
                     isLoading={isGoogleLoading}
-                    variant="standard"
+                    variant="icon"
                   />
                   <AppleSignInButton
                     onClick={() => {
@@ -581,6 +581,7 @@ export default function Auth() {
                     }}
                     disabled={isGoogleLoading || isAppleLoading || isLoading}
                     isLoading={isAppleLoading}
+                    variant="icon"
                   />
                 </div>
 
