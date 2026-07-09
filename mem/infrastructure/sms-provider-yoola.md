@@ -27,6 +27,11 @@ blocked on one provider.
 - **Auth is the `api_key` field in the JSON body ONLY.** Do NOT add an
   `Authorization: Bearer` header — Yoola returns `403 invalidkey`.
 - Success body: `{ "status": "success", "code": 200, ... }`.
+- **APPROVED SENDER (2026-07-09):** The Yoola account only has `ATInfo`
+  approved/paid. Forcing `UGPoll` (or `WELILE`) returns HTTP 403
+  `{"status":"sender_not_allowed"}` and is silently NOT delivered. A live test
+  to `0701355245` with `sender:"ATInfo"` returned `status:"success"` (msg id
+  184975, UGX 30). Omit the sender or use `ATInfo` — never `UGPoll`/`WELILE`.
 
 ## 2. Africa's Talking (fallback)
 - `AFRICASTALKING_API_KEY` / `AFRICASTALKING_USERNAME`, sender `WELILE`.
