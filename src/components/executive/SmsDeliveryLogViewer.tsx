@@ -72,37 +72,46 @@ export function SmsDeliveryLogViewer() {
   const [sendingTest, setSendingTest] = useState(false);
   // 'current' = this month; otherwise a 'yyyy-MM' key for a past month.
   const [monthFilter, setMonthFilter] = useState('current');
-  // Which provider to send the sender-id test through.
-  const [testProvider, setTestProvider] = useState<'yoola' | 'africastalking'>('yoola');
 
-  // Test SMS that FORCES a registered sender id — only this button applies it,
-  // the production SMS channels still omit the sender (registered default).
-  // Yoola's only approved sender on this account is ATInfo (UGPoll is not
-  // approved/paid and gets rejected 403). Africa's Talking also uses ATInfo.
+  // Test SMS that FORCES the WELILE sender id on BOTH providers — only this
+  // button applies it; the production SMS channels still omit the sender
+  // (registered default). Fires one message per provider so we can compare
+  // which gateway actually delivers WELILE end-to-end.
   const TEST_SMS_PHONE = '0701355245';
-  const YOOLA_SENDER = 'ATInfo';
+  const TEST_SMS_SENDER = 'WELILE';
+  const TEST_PROVIDERS: { id: 'yoola' | 'africastalking'; label: string }[] = [
+    { id: 'yoola', label: 'Yoola' },
+    { id: 'africastalking', label: "Africa's Talking" },
+  ];
   const handleSendTestSms = async () => {
     if (sendingTest) return;
     setSendingTest(true);
-    const providerLabelText = testProvider === 'yoola' ? `Yoola (${YOOLA_SENDER})` : "Africa's Talking (WELILE)";
     try {
-      const { data, error } = await supabase.functions.invoke('sms-test-send', {
-        body: {
-          phone: TEST_SMS_PHONE,
-          provider: testProvider,
-          // Only Yoola honours a forced sender id; AT uses its registered ATInfo default.
-          ...(testProvider === 'yoola' ? { sender: YOOLA_SENDER } : {}),
-          message: `[Welile] Test SMS via ${providerLabelText}. If you received this, delivery is healthy.`,
-        },
-      });
-      if (error) throw error;
-      if (data?.ok) {
-        toast.success(`Test SMS sent to ${TEST_SMS_PHONE} via ${providerLabelText}.`);
-      } else {
-        toast.error(data?.reason || `${providerLabelText} did not accept the test SMS.`);
+      const results = await Promise.all(
+        TEST_PROVIDERS.map(async ({ id, label }) => {
+          try {
+            const { data, error } = await supabase.functions.invoke('sms-test-send', {
+              body: {
+                phone: TEST_SMS_PHONE,
+                provider: id,
+                sender: TEST_SMS_SENDER,
+                message: `This is from ${label} test message`,
+              },
+            });
+            if (error) throw error;
+            return { label, ok: !!data?.ok, reason: data?.reason as string | undefined };
+          } catch (e: any) {
+            return { label, ok: false, reason: e?.message as string | undefined };
+          }
+        }),
+      );
+      for (const r of results) {
+        if (r.ok) {
+          toast.success(`${r.label} (WELILE) sent to ${TEST_SMS_PHONE}.`);
+        } else {
+          toast.error(`${r.label} (WELILE): ${r.reason || 'did not accept the test SMS.'}`);
+        }
       }
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to send test SMS.');
     } finally {
       setSendingTest(false);
     }
