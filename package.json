@@ -7,7 +7,7 @@
     "dev": "vite",
     "predev": "bunx tsx scripts/generate-sitemap.ts",
     "prebuild": "bunx tsx scripts/generate-sitemap.ts",
-    "build": "node scripts/guard-frontend-ledger-writes.mjs && node scripts/guard-deposit-purpose.mjs && vite build",
+    "build": "node scripts/guard-frontend-ledger-writes.mjs && node scripts/guard-deposit-purpose.mjs && node scripts/guard-legacy-domain.mjs && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "guard:persona-routes": "node scripts/guard-persona-routes.mjs",
@@ -15,7 +15,8 @@
     "guard:deposit-purpose": "node scripts/guard-deposit-purpose.mjs",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:e2e:install": "playwright install chromium"
+    "test:e2e:install": "playwright install chromium",
+    "guard:legacy-domain": "node scripts/guard-legacy-domain.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
