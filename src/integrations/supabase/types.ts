@@ -16293,6 +16293,39 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_sitemap_resubmit_log: {
+        Row: {
+          changed: boolean
+          created_at: string
+          detail: Json | null
+          gsc_status: string | null
+          id: string
+          resubmitted: boolean
+          sitemap_hash: string
+          url_count: number | null
+        }
+        Insert: {
+          changed?: boolean
+          created_at?: string
+          detail?: Json | null
+          gsc_status?: string | null
+          id?: string
+          resubmitted?: boolean
+          sitemap_hash: string
+          url_count?: number | null
+        }
+        Update: {
+          changed?: boolean
+          created_at?: string
+          detail?: Json | null
+          gsc_status?: string | null
+          id?: string
+          resubmitted?: boolean
+          sitemap_hash?: string
+          url_count?: number | null
+        }
+        Relationships: []
+      }
       service_centre_setups: {
         Row: {
           agent_id: string
