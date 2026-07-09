@@ -447,7 +447,7 @@ function buildHtml(stats: LeaderboardStats, period: Period, prettyDate: string):
   const verifiedRate = t.total_subagents > 0 ? Math.round((t.verified_subagents / t.total_subagents) * 100) : 0;
   const top = stats.top_recruiters?.[0];
   return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f5f3fa;margin:0;padding:24px;color:#1e1b2e">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #e2dee c;border-radius:14px;overflow:hidden">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #e2deec;border-radius:14px;overflow:hidden">
     <div style="background:#6900cc;color:#fff;padding:22px 26px">
       <div style="font-size:13px;letter-spacing:.4px;opacity:.85;text-transform:uppercase">Welile · Agent Ops</div>
       <h1 style="margin:6px 0 0;font-size:21px">Agent Growth Leaderboard</h1>
@@ -496,7 +496,7 @@ function buildHtml(stats: LeaderboardStats, period: Period, prettyDate: string):
     <div style="border-top:1px solid #e2deec;padding:16px 26px;font-size:11px;color:#94a3b8">
       Automated report from Welile Agent Ops · Generated ${esc(prettyDate)}.
     </div>
-  </div></body></html>`.replace("#e2dee c", "#e2deec");
+  </div></body></html>`;
 }
 
 async function run(admin: ReturnType<typeof createClient>, period: Period, force: boolean) {
