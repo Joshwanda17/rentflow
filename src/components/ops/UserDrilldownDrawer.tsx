@@ -1256,6 +1256,46 @@ function TenantPane({
     },
   });
 
+  // Whether the landlord has ACTUALLY been paid for the active (funded) rent
+  // request. A request can be status=funded while the landlord money still sits
+  // as an OPEN float allocation (paid_out_amount = 0) with no landlord_payouts
+  // row — i.e. the landlord was never actually paid. Surface that here so the
+  // tenant ops record tells the truth instead of just echoing "funded".
+  const FUNDED_LIKE = ['funded', 'disbursed', 'repaying', 'active', 'completed'];
+  const { data: landlordPayment } = useQuery({
+    queryKey: ['drilldown-tenant-landlord-payment', activeRr?.id],
+    enabled: !!activeRr?.id && FUNDED_LIKE.includes((activeRr?.status ?? '').toLowerCase()),
+    queryFn: async () => {
+      const [{ data: payouts }, { data: allocs }] = await Promise.all([
+        supabase
+          .from('landlord_payouts')
+          .select('amount, status, disbursed_at')
+          .eq('rent_request_id', activeRr.id),
+        supabase
+          .from('agent_landlord_float_allocations')
+          .select('allocated_amount, paid_out_amount, remaining_amount, status')
+          .eq('rent_request_id', activeRr.id),
+      ]);
+      const paidPayout = (payouts ?? []).reduce(
+        (s: number, p: any) =>
+          ['disbursed', 'completed', 'paid', 'success'].includes((p.status ?? '').toLowerCase())
+            ? s + Number(p.amount || 0)
+            : s,
+        0,
+      );
+      const allocPaid = (allocs ?? []).reduce((s: number, a: any) => s + Number(a.paid_out_amount || 0), 0);
+      const allocOutstanding = (allocs ?? []).reduce((s: number, a: any) => s + Number(a.remaining_amount || 0), 0);
+      const totalPaid = paidPayout + allocPaid;
+      const hasAllocation = (allocs ?? []).length > 0;
+      let state: 'paid' | 'awaiting' | 'partial' | 'none';
+      if (totalPaid > 0 && allocOutstanding <= 0) state = 'paid';
+      else if (totalPaid > 0) state = 'partial';
+      else if (hasAllocation) state = 'awaiting';
+      else state = 'none';
+      return { state, totalPaid, allocOutstanding, hasAllocation };
+    },
+  });
+
   const [reassignAgent, setReassignAgent] = useState<UserBrief | null>(null);
   const [reassignReason, setReassignReason] = useState('');
   const reassign = useMutation({
@@ -1324,6 +1364,42 @@ function TenantPane({
         <div className="flex items-center gap-2 text-sm font-medium">
           <Wallet className="h-4 w-4 text-primary" /> Rent balance
         </div>
+        {landlordPayment && landlordPayment.state !== 'paid' && (
+          <div
+            className={cn(
+              'flex items-start gap-2 rounded-md border px-2.5 py-2 text-[11px]',
+              landlordPayment.state === 'partial'
+                ? 'border-amber-300 bg-amber-50 text-amber-800'
+                : 'border-red-300 bg-red-50 text-red-700',
+            )}
+          >
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              {landlordPayment.state === 'partial' ? (
+                <>
+                  <span className="font-semibold">Landlord partially paid.</span>{' '}
+                  {fmtUGX(landlordPayment.totalPaid)} paid, {fmtUGX(landlordPayment.allocOutstanding)} still owed to the landlord.
+                </>
+              ) : landlordPayment.state === 'awaiting' ? (
+                <>
+                  <span className="font-semibold">Landlord NOT yet paid.</span>{' '}
+                  Rent shows as funded but the money is still an open float allocation ({fmtUGX(landlordPayment.allocOutstanding)} awaiting landlord payout).
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold">No landlord payment on record.</span>{' '}
+                  Rent shows as funded but no landlord payout or float allocation exists yet.
+                </>
+              )}
+            </span>
+          </div>
+        )}
+        {landlordPayment && landlordPayment.state === 'paid' && (
+          <div className="flex items-center gap-2 rounded-md border border-green-300 bg-green-50 px-2.5 py-1.5 text-[11px] text-green-700">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            <span><span className="font-semibold">Landlord paid</span> — {fmtUGX(landlordPayment.totalPaid)} disbursed.</span>
+          </div>
+        )}
         {!activeRr ? (
           <p className="text-xs text-muted-foreground">No rent requests on file.</p>
         ) : (
