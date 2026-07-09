@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const REVIEW_URL = "https://welileapp.com/admin/dashboard";
+const REVIEW_URL = "https://welileapp.com/director/dashboard";
 const STAFF_ROLES = ["ceo","cfo","coo","cto","cmo","crm","hr","manager","super_admin","operations","employee"];
 
 function fmtUGX(n: number) {

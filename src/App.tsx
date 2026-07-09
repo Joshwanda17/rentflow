@@ -166,6 +166,7 @@ const PhantomDriftDetailPage = lazy(() => import('./pages/cfo/PhantomDriftDetail
 const COODashboardPage = lazy(() => import('./pages/coo/Dashboard'));
 const HRDashboardPage = lazy(() => import('./pages/hr/Dashboard'));
 const HREmployeeProfilePage = lazy(() => import('./pages/hr/EmployeeProfile'));
+const DirectorDashboardPage = lazy(() => import('./pages/director/Dashboard'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/Dashboard'));
 const AdminUsersPage = lazy(() => import('./pages/admin/Users'));
 const AdminAccessAuditPage = lazy(() => import('./pages/admin/AccessAudit'));
@@ -521,6 +522,7 @@ function AppRoutes() {
           <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRDashboardPage /></RoleGuard>} />
           <Route path="/hr/profiles/:userId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HREmployeeProfilePage /></RoleGuard>} />
           <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'employee']}><AdminDashboardPage /></RoleGuard>} />
+          <Route path="/director/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']}><DirectorDashboardPage /></RoleGuard>} />
           <Route path="/admin/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminUsersPage /></RoleGuard>} />
           <Route path="/admin/access-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminAccessAuditPage /></RoleGuard>} />
           <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo']}><AdminFinancialOpsPage /></RoleGuard>} />
