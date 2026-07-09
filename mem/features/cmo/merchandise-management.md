@@ -38,20 +38,30 @@ automatically from their Withdrawable Wallet — no more manual `CFO Debit [🔧
 - **`merchandise_recovery_plans`**: sale_id, customer_id, item_name, original_amount,
   outstanding_balance, amount_recovered, daily_rate (0.15), status (active|completed|cancelled),
   last_recovery_at. **`merchandise_recovery_deductions`**: per-deduction audit log.
-- **`recover_merchandise_from_wallets()`** (SECURITY DEFINER, EXECUTE→service_role) — daily
-  pg_cron `recover-merchandise-from-wallets` at `0 9 * * *` (12:00 EAT). For each active plan reads STRICT
-  withdrawable via `get_user_available_balance`, deducts
+- **`recover_merchandise_from_wallets()`** (SECURITY DEFINER, EXECUTE→service_role) — pg_cron
+  `recover-merchandise-from-wallets` runs **4×/day** at `0 5,11,17,23 * * *`. For each active plan reads
+  STRICT withdrawable via `get_user_available_balance`, deducts
   `least(outstanding, available, greatest(round(available*0.15),1))` via
   `create_ledger_transaction`: wallet leg (`cash_out`, category `wallet_deduction`,
   recipient_type `user`, bucket `withdrawable`, description
-  `Merchandise Payment – <item> (Daily 15% Recovery)` — production, shows in wallet statement)
-  + CMO credit leg: wallet `cash_in` to **CMO Keith Asea** (`aseakeith@gmail.com`,
-  `475c6ccb-166c-41cd-b2a8-386c99777138`), category `wallet_transfer`, recipient_type `user`,
-  bucket `withdrawable`, description `Merchandise Recovery` — the recovered money is deposited
-  into Keith Asea's wallet and shows in his statement as "Merchandise Recovery" (NOT the
-  operational wallet anymore).
-  Idempotent per plan per day (`merch_recover_<plan>_<YYYYMMDD>`). Updates the plan, logs the
-  deduction, and keeps the originating sale's `amount_outstanding`/`payment_status` in sync.
+  `Merchandise Payment – <item> (15% Wallet Recovery)` — production, shows in wallet statement)
+  + **company credit leg: `platform` `cash_in`, category `debt_recovery`, recipient_type
+  `operational_wallet`** — recovered money now flows into the COMPANY cash ("money we have",
+  CFO `get_platform_cash_summary` totalCash), NOT a personal wallet.
+  Idempotency is **per plan per hour-slot** (`merch_recover_<plan>_<YYYYMMDDHH24>`) so the 4 daily
+  runs each recover once. On every deduction it inserts a `notifications` row for the paying agent
+  (type `merchandise_recovery`, metadata.kind `merchandise_recovery`) — the global
+  `block_all_notification_inserts` trigger now allows type `merchandise_recovery` through. Updates
+  the plan, logs the deduction, keeps the originating sale in sync.
+- **Storefront (agent self-order)**: `merchandise_catalog` table (item_name, description,
+  unit_price, unit_cost, image_url, is_active) — leadership manage, authenticated read active.
+  `agent_order_merchandise(p_catalog_id, p_quantity)` (SECURITY DEFINER, EXECUTE→authenticated)
+  inserts a `credit` `merchandise_sales` row with `customer_id = auth.uid()`, so the AFTER INSERT
+  trigger auto-creates a recovery plan and it shows in the CMO merchandise page. Agent UI:
+  `/merchandise` (`src/pages/MerchandiseStore.tsx`) — catalog grid + "buy" + My payments
+  (plans + deductions). Linked from AgentDashboard (visible card + header menu "Buy Merchandise");
+  `AgentNotificationBell` taps a merchandise notification → `/merchandise`.
 - RLS: cmo/cfo/manager/super_admin manage; customers can read their own plans + deductions.
 - Dashboard: MerchandiseManager shows Recovered-to-Date / Customers-Repaying /
-  Remaining-to-Recover / Fully-Paid KPIs + a "Merchandise Wallet Recovery (Daily 15%)" table.
+  Remaining-to-Recover / Fully-Paid KPIs, a "Merchandise Wallet Recovery (15% · up to 4×/day)"
+  table, and a "Storefront Catalog" manager (Add Store Item / hide / delete).
