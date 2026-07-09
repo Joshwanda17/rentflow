@@ -1,3 +1,4 @@
+import { attemptYoolaPrimary } from "./yoolaPrimary.ts";
 // Shared notifier for the two-stage LC1 chairperson registration reward.
 // Sends an in-app notification (notifications table, realtime) AND an
 // SMS/WhatsApp text via Africa's Talking to the registering agent's phone.
@@ -26,6 +27,7 @@ function formatPhoneInternational(phone: string): string {
 }
 
 async function sendSMS(phone: string, message: string): Promise<boolean> {
+  if (await attemptYoolaPrimary(phone, message, { source: "notifyLc1Bonus" })) return true;
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {

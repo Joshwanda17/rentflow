@@ -1,3 +1,4 @@
+import { attemptYoolaPrimary } from "./yoolaPrimary.ts";
 // Shared helpers for Angel Pool onboarding notifications.
 //
 // 1) isPlaceholderEmail() — detects synthetic addresses we mint for users who
@@ -59,6 +60,7 @@ function formatPhoneInternational(phone: string): string {
 }
 
 async function sendSMS(phone: string, message: string): Promise<boolean> {
+  if (await attemptYoolaPrimary(phone, message, { source: "angelPoolNotify" })) return true;
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {

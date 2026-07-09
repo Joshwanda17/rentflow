@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { formatPhoneInternational, isUgandanPhone } from "./phone.ts";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,7 @@ async function sendSMSOnce(
   phone: string,
   message: string,
 ): Promise<{ ok: boolean; retryable: boolean; error: string | null }> {
+  if (await attemptYoolaPrimary(phone, message, { source: "notify-withdrawal-released" })) return { ok: true, retryable: false, error: null };
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {

@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,7 @@ function formatPhoneInternational(phone: string): string {
 }
 
 async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; error?: string }> {
+  if (await attemptYoolaPrimary(phone, message, { source: "notify-email-routing" })) return { ok: true };
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) return { ok: false, error: "Missing AT credentials" };

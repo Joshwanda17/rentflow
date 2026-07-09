@@ -4,6 +4,7 @@ import { shadowValidateCfoAdjustment } from "../_shared/shadowValidation.ts";
 import { fetchShadowConfig, shouldSample } from "../_shared/shadowConfig.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import { resolveManagedProxy } from "../_shared/partnership-emails.ts";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +47,7 @@ async function logSmsDelivery(row: Record<string, unknown>): Promise<void> {
 }
 
 async function sendSMS(phone: string, message: string, meta: SmsLogMeta = {}): Promise<boolean> {
+  if (await attemptYoolaPrimary(phone, message, { source: "cfo-direct-credit" })) return true;
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   const source = meta.source ?? "cfo-direct-credit";
