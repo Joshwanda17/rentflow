@@ -22,6 +22,7 @@ import { CTOPasswordResetPanel } from '@/components/cto/CTOPasswordResetPanel';
 import PlatformControlsPanel from '@/components/cto/PlatformControlsPanel';
 import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
 import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
+import { SeoCoverageDashboard } from './SeoCoverageDashboard';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -264,6 +265,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
 
       {/* Google indexing monitor (welileapp.com SEO) */}
       <SeoIndexMonitorPanel />
+
+      {/* Search Console coverage comparison (welileapp.com vs welilereceipts.com) */}
+      <SeoCoverageDashboard />
 
       {/* Database Schema Export */}
       <ExtractSchemaCard />
