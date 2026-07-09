@@ -11227,6 +11227,45 @@ export type Database = {
         }
         Relationships: []
       }
+      merchandise_catalog: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          item_name: string
+          unit_cost: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          item_name: string
+          unit_cost?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          item_name?: string
+          unit_cost?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       merchandise_purchases: {
         Row: {
           buyer_id: string | null
@@ -20600,6 +20639,10 @@ export type Database = {
         Returns: {
           agent_id: string
         }[]
+      }
+      agent_order_merchandise: {
+        Args: { p_catalog_id: string; p_quantity: number }
+        Returns: Json
       }
       agent_per_tenant_max: { Args: { _agent_id: string }; Returns: number }
       agent_respond_payment_edit: {

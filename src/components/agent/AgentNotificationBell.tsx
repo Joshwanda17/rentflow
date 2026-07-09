@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, Check, Info, AlertTriangle, CheckCircle2, XCircle, Home } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatDistanceToNow } from 'date-fns';
@@ -23,6 +24,7 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string 
   error: { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
   info: { icon: Info, color: 'text-blue-600', bg: 'bg-blue-500/10' },
   listing: { icon: Home, color: 'text-primary', bg: 'bg-primary/10' },
+  merchandise_recovery: { icon: ShoppingBag, color: 'text-purple-600', bg: 'bg-purple-500/10' },
 };
 
 export function AgentNotificationBell({ userId }: { userId: string }) {
@@ -78,6 +80,9 @@ export function AgentNotificationBell({ userId }: { userId: string }) {
     if (meta.kind === 'landlord_verification_request' && meta.request_id) {
       setOpen(false);
       navigate(`/verification-request/${meta.request_id}`);
+    } else if (meta.kind === 'merchandise_recovery' || n.type === 'merchandise_recovery') {
+      setOpen(false);
+      navigate('/merchandise');
     }
   };
 
