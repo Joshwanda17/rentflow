@@ -34,7 +34,7 @@ function buildWhatsAppLink(caption: string, phone?: string): string {
     : `https://wa.me/?text=${text}`;
 }
 
-function downloadBlob(blob: Blob, filename: string) {
+export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

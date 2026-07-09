@@ -121,15 +121,6 @@ import { AgentDailyCardEmailPrompt } from '@/components/agent/AgentDailyCardEmai
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 
 // PDF form generators
-import {
-  generateLandlordRegistrationFormPdf,
-  shareLandlordRegistrationFormPdf,
-} from '@/lib/landlordRegistrationFormPdf';
-import {
-  generateTenantRegistrationFormPdf,
-  shareTenantRegistrationFormPdf,
-} from '@/lib/tenantRegistrationFormPdf';
-
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
 import { AgentCashDepositCodesPanel } from '@/components/agent/AgentCashDepositCodesPanel';
@@ -144,6 +135,7 @@ const SendMoneyDialog = lazy(() => import('@/components/wallet/SendMoneyDialog')
 const CollectFromReferenceDialog = lazy(() => import('@/components/agent/CollectFromReferenceDialog').then(m => ({ default: m.CollectFromReferenceDialog })));
 const AgentMenuDrawer = lazy(() => import('@/components/agent/AgentMenuDrawer').then(m => ({ default: m.AgentMenuDrawer })));
 const RentPosterDialog = lazy(() => import('@/components/agent/RentPosterDialog'));
+const RegFormActionDialog = lazy(() => import('@/components/agent/RegFormActionDialog'));
 const AgentDepositDialog = lazy(() => import('@/components/agent/AgentDepositDialog').then(m => ({ default: m.AgentDepositDialog })));
 const UnifiedRegistrationDialog = lazy(() => import('@/components/agent/UnifiedRegistrationDialog').then(m => ({ default: m.UnifiedRegistrationDialog })));
 const RegisterSubAgentDialog = lazy(() => import('@/components/agent/RegisterSubAgentDialog').then(m => ({ default: m.RegisterSubAgentDialog })));
@@ -428,6 +420,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
   const [rentPosterOpen, setRentPosterOpen] = useState(false);
+  const [regFormKind, setRegFormKind] = useState<'landlord' | 'tenant' | null>(null);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
   const [advanceGuideOpen, setAdvanceGuideOpen] = useState(false);
@@ -667,43 +660,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const handleDeposit = () => { hapticTap(); setShowQuickDeposit(true); };
   const handleInviteSubAgent = () => { hapticTap(); setInviteSubAgentOpen(true); };
 
-  // Downloadable PDF form handlers
-  const handleDownloadLandlordForm = async () => {
+  // Registration form handlers — open a choice dialog offering both an explicit
+  // Download and a Share on WhatsApp action (not share-only).
+  const handleDownloadLandlordForm = () => {
     hapticTap();
     setMenuOpen(false);
-    try {
-      const { toast } = await import('sonner');
-      toast.info('Preparing landlord form...');
-      const blob = await generateLandlordRegistrationFormPdf();
-      // Native share sheet attaches the PDF (WhatsApp on mobile); otherwise the
-      // file downloads and a WhatsApp deep link opens for manual attach.
-      const result = await shareLandlordRegistrationFormPdf(blob);
-      if (result === 'deeplink') {
-        toast.success('Form downloaded — attach it in WhatsApp');
-      }
-    } catch {
-      const { toast } = await import('sonner');
-      toast.error('Could not generate form');
-    }
+    setRegFormKind('landlord');
   };
 
-  const handleDownloadTenantForm = async () => {
+  const handleDownloadTenantForm = () => {
     hapticTap();
     setMenuOpen(false);
-    try {
-      const { toast } = await import('sonner');
-      toast.info('Preparing tenant form...');
-      const blob = await generateTenantRegistrationFormPdf();
-      // Native share sheet attaches the PDF (WhatsApp on mobile); otherwise the
-      // file downloads and a WhatsApp deep link opens for manual attach.
-      const result = await shareTenantRegistrationFormPdf(blob);
-      if (result === 'deeplink') {
-        toast.success('Form downloaded — attach it in WhatsApp');
-      }
-    } catch {
-      const { toast } = await import('sonner');
-      toast.error('Could not generate form');
-    }
+    setRegFormKind('tenant');
   };
 
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
@@ -1633,6 +1601,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
       <LazyModal when={rentPosterOpen}>
       <RentPosterDialog open={rentPosterOpen} onOpenChange={setRentPosterOpen} />
+      </LazyModal>
+
+      <LazyModal when={regFormKind !== null}>
+      <RegFormActionDialog
+        open={regFormKind !== null}
+        onOpenChange={(o) => { if (!o) setRegFormKind(null); }}
+        form={regFormKind}
+      />
       </LazyModal>
 
       {/* Existing Dialogs */}
