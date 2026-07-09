@@ -77,9 +77,10 @@ export function SmsDeliveryLogViewer() {
 
   // Test SMS that FORCES a registered sender id — only this button applies it,
   // the production SMS channels still omit the sender (registered default).
-  // Yoola's registered sender is UGPoll; Africa's Talking uses ATInfo.
+  // Yoola's only approved sender on this account is ATInfo (UGPoll is not
+  // approved/paid and gets rejected 403). Africa's Talking also uses ATInfo.
   const TEST_SMS_PHONE = '0701355245';
-  const YOOLA_SENDER = 'UGPoll';
+  const YOOLA_SENDER = 'ATInfo';
   const handleSendTestSms = async () => {
     if (sendingTest) return;
     setSendingTest(true);
