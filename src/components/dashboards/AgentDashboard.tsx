@@ -144,6 +144,7 @@ const SendMoneyDialog = lazy(() => import('@/components/wallet/SendMoneyDialog')
 const CollectFromReferenceDialog = lazy(() => import('@/components/agent/CollectFromReferenceDialog').then(m => ({ default: m.CollectFromReferenceDialog })));
 const AgentMenuDrawer = lazy(() => import('@/components/agent/AgentMenuDrawer').then(m => ({ default: m.AgentMenuDrawer })));
 const RentPosterDialog = lazy(() => import('@/components/agent/RentPosterDialog'));
+const RegFormActionDialog = lazy(() => import('@/components/agent/RegFormActionDialog'));
 const AgentDepositDialog = lazy(() => import('@/components/agent/AgentDepositDialog').then(m => ({ default: m.AgentDepositDialog })));
 const UnifiedRegistrationDialog = lazy(() => import('@/components/agent/UnifiedRegistrationDialog').then(m => ({ default: m.UnifiedRegistrationDialog })));
 const RegisterSubAgentDialog = lazy(() => import('@/components/agent/RegisterSubAgentDialog').then(m => ({ default: m.RegisterSubAgentDialog })));
