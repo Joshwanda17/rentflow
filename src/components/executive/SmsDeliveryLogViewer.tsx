@@ -332,7 +332,7 @@ export function SmsDeliveryLogViewer() {
           <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="yoola">Yoola (ATInfo)</SelectItem>
-            <SelectItem value="africastalking">AT Info</SelectItem>
+            <SelectItem value="africastalking">Africa's Talking (WELILE)</SelectItem>
           </SelectContent>
         </Select>
         <Button
