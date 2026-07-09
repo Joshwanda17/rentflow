@@ -564,14 +564,6 @@ export default function SupporterDashboard({
               <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
             </div>
             <AiIdButton variant="compact" />
-            {/* TEMP: test web push — remove later */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleTestPushNotification}
-            >
-              Test push
-            </Button>
           </div>
 
           <MerchantCodePills />
