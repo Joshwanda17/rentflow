@@ -414,7 +414,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 }
 
 /**
- * Send the OTP SMS. Provider chain: Africa's Talking (primary) → Yoola → LANA.
+ * Send the OTP SMS. Provider chain: Yoola (primary) → Africa's Talking → LANA.
  * Each provider is tried only if the previous one is unconfigured or fails, so
  * delivery is never blocked on a single provider. Returns the full ordered
  * trail of provider attempts (with timestamps) so we can prove a message was
