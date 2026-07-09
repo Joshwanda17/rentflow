@@ -102,6 +102,7 @@ export function SeoRedirectAuditPanel() {
           <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
             <span>
+              {/* legacy-domain-guard-allow */}
               <strong>welilereceipts.com is not redirecting to welileapp.com.</strong> It must issue a 301 at the
               DNS/host level (repoint to Lovable and add it as a custom domain, or add an <code>.htaccess</code> 301
               on the current host). Until then Google keeps ranking signals on the legacy domain.
