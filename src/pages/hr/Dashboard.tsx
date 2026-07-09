@@ -9,12 +9,14 @@ import HRDisciplinary from '@/components/hr/HRDisciplinary';
 import HRAudit from '@/components/hr/HRAudit';
 import HRDepartments from '@/components/hr/HRDepartments';
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
+import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 
 export default function HRDashboard() {
   const [activeSection, setActiveSection] = usePersistedActiveTab('hr');
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'requisitions': return <DirectorRequisitionsPanel />;
       case 'overview': return <HROverview onNavigate={setActiveSection} />;
       case 'employees': return <HREmployeeDirectory />;
       case 'user-management': return <HRUserManagement />;
