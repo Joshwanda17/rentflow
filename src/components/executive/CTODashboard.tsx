@@ -24,6 +24,7 @@ import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
 import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
 import { SeoCoverageDashboard } from './SeoCoverageDashboard';
 import { SeoRedirectAuditPanel } from './SeoRedirectAuditPanel';
+import { SemrushBrandTrackerPanel } from './SemrushBrandTrackerPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
