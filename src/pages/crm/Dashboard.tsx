@@ -5,12 +5,15 @@ import { CRMDirectoryPanel } from '@/components/executive/CRMDirectoryPanel';
 import { CRMLandlordsPanel } from '@/components/executive/CRMLandlordsPanel';
 import { CRMSupportLogPanel } from '@/components/executive/CRMSupportLogPanel';
 import { CTOCommunicationOverview } from '@/components/executive/CTOCommunicationOverview';
+import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
 
 export default function CRMDashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('crm');
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'requisitions':
+        return <DirectorRequisitionsPanel />;
       case 'all-tenants':
         return (
           <CRMDirectoryPanel
