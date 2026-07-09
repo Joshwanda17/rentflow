@@ -391,6 +391,21 @@ export function ProxyPartnerFunds() {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
 
+      // ── Daily (today-only) filter ─────────────────────────────────────
+      // The proxy pay-out list must show ONLY partners the CFO approved
+      // TODAY. Old CFO approvals from previous days are stale and were
+      // cluttering the queue (the bug Lillian reported). We scope to the
+      // CFO approval timestamp (`reviewed_at`, falling back to `created_at`)
+      // and keep only rows whose approval landed on the current local day.
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const startOfTodayMs = startOfToday.getTime();
+      rawOps = rawOps.filter((o) => {
+        const approvedAt = o.reviewed_at || o.created_at;
+        if (!approvedAt) return false;
+        return new Date(approvedAt).getTime() >= startOfTodayMs;
+      });
+
       // ── Settlement filter ─────────────────────────────────────────────
       // Drop any approval already settled by a delivered withdrawal.
       // This is the SOLE source of truth for "this approval is closed" — no
