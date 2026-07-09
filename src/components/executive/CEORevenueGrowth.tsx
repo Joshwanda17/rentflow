@@ -13,7 +13,7 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, Legend,
 } from 'recharts';
-import { format, subMonths, startOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 
 /** Compact UGX for chart axes / dense KPIs */
 const compact = (n: number) => {
