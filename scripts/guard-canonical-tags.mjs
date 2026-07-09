@@ -70,11 +70,13 @@ function resolveConst(src, name) {
   const m = src.match(re);
   if (!m) return null;
   const raw = m[1] ?? m[2] ?? m[3];
+  if (raw == null) return null;
   return resolveTemplate(src, raw);
 }
 
 /** Substitute ${...} placeholders in a template using in-file consts/tokens. */
 function resolveTemplate(src, tpl) {
+  if (tpl == null) return '';
   return tpl.replace(/\$\{([^}]+)\}/g, (_, inner) => {
     const token = inner.trim();
     if (ORIGIN_TOKENS.test(token)) return BASE;
