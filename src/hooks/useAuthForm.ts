@@ -503,6 +503,21 @@ export function useAuthForm() {
     // If auto-confirm did not return a session, sign the user in immediately
     // so the auth-state redirect hooks fire and send them to the dashboard.
     if (!data?.session) {
+      // Phone-only signups have ALREADY verified their number via SMS OTP, so
+      // there is no email to confirm. The synthetic `<phone>@welile.user` auth
+      // identifier would otherwise sit unconfirmed (email confirmation is on at
+      // the project level) and block sign-in. Confirm it server-side so the
+      // recruit logs in directly — real-email signups skip this and keep their
+      // normal email verification.
+      if (!hasRealEmail && data?.user?.id) {
+        try {
+          await supabase.functions.invoke('confirm-phone-account', {
+            body: { phone: fullPhone, user_id: data.user.id },
+          });
+        } catch {
+          // Non-fatal — the sign-in attempt below still surfaces any real issue.
+        }
+      }
       const { error: signInError } = await signIn(authEmail, password);
       if (signInError) {
         setIsLoading(false);

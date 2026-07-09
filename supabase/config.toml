@@ -33,6 +33,8 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.check-repayment-status]
     verify_jwt = false
+  [functions.confirm-phone-account]
+    verify_jwt = false
   [functions.coo-invest-for-partner]
     verify_jwt = false
   [functions.create-investor-portfolio]
