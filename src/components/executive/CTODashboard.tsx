@@ -280,6 +280,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
       {/* Change of Address readiness monitor (welilereceipts.com -> welileapp.com) */}
       <ChangeOfAddressMonitorPanel />
 
+      {/* Redirect uptime alerting (welilereceipts.com -> welileapp.com) */}
+      <RedirectHealthAlertsPanel />
+
       {/* Branded SERP visibility (Search Console demand + Semrush rank + profile presence) */}
       <BrandSerpVisibilityPanel />
 
