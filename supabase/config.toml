@@ -138,3 +138,6 @@ verify_jwt = false
 
 [functions.merchant-cashout-daily-report]
 verify_jwt = false
+
+[functions.agent-ops-daily-report]
+verify_jwt = false
