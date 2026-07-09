@@ -247,10 +247,11 @@ Deno.serve(async (req) => {
     // Resolve requester phone and merchant agent name.
     const [{ data: requester }, { data: merchant }] = await Promise.all([
       admin.from("profiles").select("full_name, phone").eq("id", w.user_id).maybeSingle(),
-      admin.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+      admin.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle(),
     ]);
 
     const merchantName = (merchant as any)?.full_name?.trim() || "a Welile merchant agent";
+    const merchantPhone = formatPhoneInternational((merchant as any)?.phone || "");
     const amount = Number(w.amount) || 0;
 
     // For mobile-money withdrawals, the SMS must go to the MoMo number the user
@@ -280,7 +281,8 @@ Deno.serve(async (req) => {
       : (profileValid ? profilePhone : (momoValid ? formattedMomo : ""));
 
     const smsMsg =
-      `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} is being processed by our Merchant Agent ${merchantName}. ` +
+      `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} is being processed by our Merchant Agent ${merchantName}` +
+      `${merchantPhone ? ` (${merchantPhone})` : ""}. ` +
       `Your money will arrive shortly. Thank you. ` +
       `https://welileapp.com/ZQhyGb`;
 
