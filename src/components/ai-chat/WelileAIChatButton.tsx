@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { cn } from '@/lib/utils';
 import WelileAIChatDrawer from './WelileAIChatDrawer';
 import { isAiRole } from './roleLanding';
@@ -88,6 +89,11 @@ export function WelileAIPage() {
   const referralCode = searchParams.get('ref');
 
   return (
+    <>
+    <Helmet>
+      <link rel="canonical" href="https://welileapp.com/ai" />
+      <meta property="og:url" content="https://welileapp.com/ai" />
+    </Helmet>
     <WelileAIChatDrawer
       open={open}
       initialRole={initialRole}
@@ -98,5 +104,6 @@ export function WelileAIPage() {
         if (!v) navigate('/welcome');
       }}
     />
+    </>
   );
 }
