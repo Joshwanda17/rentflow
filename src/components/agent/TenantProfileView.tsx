@@ -380,15 +380,25 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     const totalFunded = requests.reduce((s, r) => s + (r.total_repayment || 0), 0);
     const totalRepaid = requests.reduce((s, r) => s + (r.amount_repaid || 0), 0);
     const completedCount = requests.filter(r => r.status === 'completed').length;
-    // Active = standard funded/repaying cycles, OR an outstanding-balance row that
-    // was rejected (still owes money, agent should be able to reopen + collect).
+    // A cycle only counts as "active" (i.e. blocks renewal and shows an
+    // outstanding balance) when it still owes money. A funded/repaying cycle
+    // that has been fully repaid — or an empty/stub cycle with a zero total —
+    // is effectively paid up and must NOT keep the tenant looking unpaid or
+    // block a renewal.
+    const stillOwes = (r: RentRequestRow) =>
+      (Number(r.total_repayment || 0) - Number(r.amount_repaid || 0)) > 0;
+    // Active = standard funded/repaying cycles that still owe, OR an
+    // outstanding-balance row that was rejected (still owes money, agent
+    // should be able to reopen + collect).
     const activeRequest =
-      requests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status || '')) ||
+      requests.find(
+        r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status || '') && stillOwes(r),
+      ) ||
       requests.find(
         r =>
           r.status === 'rejected' &&
           r.registration_type === 'outstanding_balance' &&
-          (r.total_repayment - r.amount_repaid) > 0,
+          stillOwes(r),
       );
     const outstanding = activeRequest ? (activeRequest.total_repayment - activeRequest.amount_repaid) : 0;
     const latest = requests[0];
