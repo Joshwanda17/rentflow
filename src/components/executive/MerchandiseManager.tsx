@@ -258,6 +258,7 @@ export function MerchandiseManager() {
     queryClient.invalidateQueries({ queryKey: ['merchandise-purchases'] });
     queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
     queryClient.invalidateQueries({ queryKey: ['merchandise-recovery-plans'] });
+    queryClient.invalidateQueries({ queryKey: ['merchandise-catalog-admin'] });
   };
 
   // ---- Wallet-recovery roll-ups ----
