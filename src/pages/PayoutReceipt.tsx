@@ -18,22 +18,25 @@ import { WelileStamp } from '@/components/receipts/WelileStamp';
  * resolves back to the same URL and a one-tap PDF download.
  */
 export default function PayoutReceipt() {
-  const { id, token } = useParams<{ id?: string; token?: string }>();
+  const { id, token, code } = useParams<{ id?: string; token?: string; code?: string }>();
+  // The public `/r/:code` route shares its namespace with short links; when it
+  // falls through to this receipt view the param arrives as `code`.
+  const receiptToken = token ?? code;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ReceiptData | null>(null);
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    if (!id && !token) {
+    if (!id && !receiptToken) {
       setError('Missing receipt reference');
       setLoading(false);
       return;
     }
     (async () => {
       try {
-        const { data: res, error: rpcErr } = token
-          ? await supabase.rpc('get_payout_receipt_by_token' as any, { p_token: token })
+        const { data: res, error: rpcErr } = receiptToken
+          ? await supabase.rpc('get_payout_receipt_by_token' as any, { p_token: receiptToken })
           : await supabase.rpc('get_payout_receipt', { p_withdrawal_id: id as string });
         if (rpcErr) throw rpcErr;
         if (!res) setError('Receipt not found');
@@ -44,7 +47,7 @@ export default function PayoutReceipt() {
         setLoading(false);
       }
     })();
-  }, [id, token]);
+  }, [id, receiptToken]);
 
   // Canonical QR value for this receipt — the public URL plus an authenticity
   // checksum, used by both the on-screen QR and the PDF.
