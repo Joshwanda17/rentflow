@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { createClient } from '@supabase/supabase-js';
 import { MapPin, Loader2, CheckCircle, XCircle, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -40,27 +39,18 @@ export default function ShareLocation() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
-        // The RLS policy on `location_requests` requires the row's secret
-        // token to be supplied in the `x-location-token` request header so
-        // anonymous clients cannot overwrite arbitrary pending captures.
-        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-        const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-        const tokenClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
-          global: { headers: { 'x-location-token': token } },
+        // The token is validated server-side inside the SECURITY DEFINER
+        // `capture_location_by_token` function, so anonymous clients can only
+        // fill in the coordinates of the exact pending request their secret
+        // link belongs to.
+        const { data, error } = await supabase.rpc('capture_location_by_token', {
+          p_token: token,
+          p_latitude: latitude,
+          p_longitude: longitude,
+          p_accuracy: accuracy ?? null,
         });
-        const { error } = await tokenClient
-          .from('location_requests')
-          .update({
-            latitude,
-            longitude,
-            accuracy,
-            captured_at: new Date().toISOString(),
-            status: 'captured',
-          })
-          .eq('token', token)
-          .eq('status', 'pending');
 
-        if (error) {
+        if (error || data !== true) {
           setErrorMsg('Failed to save location. Please try again.');
           setStatus('error');
         } else {
