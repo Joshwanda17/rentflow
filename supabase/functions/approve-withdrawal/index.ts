@@ -2243,21 +2243,42 @@ Deno.serve(async (req) => {
             merchantName = mName;
           }
           if (mPhone) merchantPhone = mPhone;
-          merchantLine = merchantPhone
-            ? ` Processed by a Welile merchant agent (${merchantPhone}).`
+          const agentLabel = merchantName
+            ? `${merchantName}${merchantPhone ? ` (${merchantPhone})` : ""}`
+            : merchantPhone || "";
+          merchantLine = agentLabel
+            ? ` Processed by Welile merchant agent ${agentLabel}.`
             : ` Processed by a Welile merchant agent.`;
         } catch (e) {
           console.error("[approve-withdrawal] merchant name fetch for SMS failed (non-fatal):", e);
         }
       }
 
+      // Payout recipient name — the destination account holder the money was
+      // sent to (MoMo name / bank account name), falling back to the customer's
+      // own name. Shown on the receipt so the user can confirm who was paid.
+      const recipientName =
+        String((wr as any).mobile_money_name || "").trim() ||
+        String((wr as any).bank_account_name || "").trim() ||
+        String(profile?.full_name || "").trim() ||
+        "";
+      const recipientLine = recipientName ? ` Recipient: ${recipientName}.` : "";
+
+      // Date & time of payment in East Africa Time (UTC+3).
+      const paidAtEat = new Date(Date.now() + 3 * 60 * 60 * 1000);
+      const paidAtLabel =
+        `${paidAtEat.toISOString().slice(0, 10)} ` +
+        `${paidAtEat.toISOString().slice(11, 16)} EAT`;
+
       const customerFirstName = (profile?.full_name || "").toString().trim().split(/\s+/)[0] || "Customer";
       const smsMsg =
         `WELILE: Withdrawal Successful. Dear ${customerFirstName}, your cash withdrawal of ` +
         `UGX ${amount.toLocaleString()} has been completed successfully.\n` +
         `Transaction ID: ${refUpper}.` +
+        `${recipientLine}` +
         `${bankLine}` +
         `${merchantLine}` +
+        ` Date: ${paidAtLabel}.` +
         `${balanceLine}` +
         `\n\nYour digital receipt is ready (no sign-in required):\n` +
         `${receiptUrl}` +
