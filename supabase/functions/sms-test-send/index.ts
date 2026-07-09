@@ -32,6 +32,9 @@ async function sendSMS(phone: string, message: string) {
     username,
     to: formattedPhone,
     message,
+    // WELILE is a registered alphanumeric sender on Africa's Talking
+    // (unlike Yoola, which rejects it). Force it here for the test path.
+    from: "WELILE",
   });
 
   const res = await fetch(baseUrl, {
