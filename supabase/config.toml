@@ -150,3 +150,6 @@ verify_jwt = false
 
 [functions.director-requisition-action]
 verify_jwt = false
+
+[functions.verify-redirects]
+verify_jwt = false

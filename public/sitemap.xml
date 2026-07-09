@@ -46,6 +46,16 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://welileapp.com/careers</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://welileapp.com/landlord-signup</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://welileapp.com/rent-calculator</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -94,6 +104,18 @@
     <loc>https://welileapp.com/resume-sms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://welileapp.com/house/uyRB7w</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://welileapp.com/house/p9D3La</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://welileapp.com/house/9RMRCv</loc>
@@ -846,12 +868,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://welileapp.com/house/etQswq</loc>
-    <lastmod>2026-07-08</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://welileapp.com/house/5StTng</loc>
     <lastmod>2026-07-08</lastmod>
     <changefreq>weekly</changefreq>
@@ -913,12 +929,6 @@
   </url>
   <url>
     <loc>https://welileapp.com/house/vrBbwQ</loc>
-    <lastmod>2026-07-08</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://welileapp.com/house/rJcrq4</loc>
     <lastmod>2026-07-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
