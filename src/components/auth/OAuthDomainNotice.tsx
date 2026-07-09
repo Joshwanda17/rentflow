@@ -4,7 +4,6 @@ import { AlertCircle } from 'lucide-react';
 // served. On any other host (local dev, sandbox) Google/Apple sign-in cannot
 // complete because the broker path returns 404.
 const PUBLISHED_URLS = [
-  'https://welilereceipts-com.lovable.app',
   'https://www.welileapp.com',
   'https://welileapp.com',
 ];
