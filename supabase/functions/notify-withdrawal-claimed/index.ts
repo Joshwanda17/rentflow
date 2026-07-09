@@ -378,7 +378,7 @@ Deno.serve(async (req) => {
         type: "info",
         title: "Withdrawal is being processed",
         message:
-          `Welile merchant agent ${merchantName} is now processing your withdrawal ` +
+          `Welile merchant agent ${merchantName}${merchantPhone ? ` (${merchantPhone})` : ""} is now processing your withdrawal ` +
           `of UGX ${amount.toLocaleString()}. You'll be notified again once the payout is complete.`,
         metadata: {
           kind: "withdrawal_update",
@@ -386,6 +386,7 @@ Deno.serve(async (req) => {
           withdrawal_id: w.id,
           amount,
           merchant_agent: merchantName,
+          merchant_phone: merchantPhone || null,
         },
       });
     } catch (e) {
