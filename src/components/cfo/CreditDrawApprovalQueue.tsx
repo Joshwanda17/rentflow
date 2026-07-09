@@ -97,13 +97,26 @@ export function CreditDrawApprovalQueue() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => {
-      toast.success('Credit approved & disbursed to wallet');
+    // Optimistically drop the approved card from the queue so the action feels
+    // instant — the CFO no longer waits on the full disbursement round-trip.
+    onMutate: async (draw: PendingDraw) => {
+      await qc.cancelQueries({ queryKey: ['credit-draw-approval-queue'] });
+      const prev = qc.getQueryData<PendingDraw[]>(['credit-draw-approval-queue']);
+      qc.setQueryData<PendingDraw[]>(['credit-draw-approval-queue'], (old) =>
+        (old || []).filter((d) => d.id !== draw.id));
+      toast.success('Credit approved & disbursing to wallet');
+      return { prev };
+    },
+    onError: (err: any, _draw, ctx) => {
+      // Roll back the optimistic removal if the disbursement failed.
+      if (ctx?.prev) qc.setQueryData(['credit-draw-approval-queue'], ctx.prev);
+      toast.error(err.message || 'Approval failed');
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['credit-draw-approval-queue'] });
       qc.invalidateQueries({ queryKey: ['treasury-cash-snapshot'] });
       qc.invalidateQueries({ queryKey: ['cfo-overview'] });
     },
-    onError: (err: any) => toast.error(err.message || 'Approval failed'),
   });
 
   const reject = useMutation({
