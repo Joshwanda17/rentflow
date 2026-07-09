@@ -8,6 +8,8 @@ const corsHeaders = {
 // In-memory rate limiting
 const resetAttempts = new Map<string, { count: number; firstAt: number }>();
 const MAX_RESETS_PER_HOUR = 3;
+const TWILIO_GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
+const TWILIO_SENDER = "WELILE";
 
 function checkRateLimit(key: string): boolean {
   const now = Date.now();
@@ -53,6 +55,9 @@ interface ProviderAttempt {
   provider: string;
   accepted: boolean;
   reason?: string;
+  response?: unknown;
+  messageId?: string | null;
+  cost?: string | null;
   started_at: string;
   finished_at: string;
   attempted: boolean;
@@ -63,36 +68,109 @@ interface SmsOutcome {
   provider?: string;
   attempts: ProviderAttempt[];
 }
+
+interface SmsResult {
+  ok: boolean;
+  reason?: string;
+  response?: unknown;
+  messageId?: string | null;
+  cost?: string | null;
+}
+
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+function extractProviderFields(data: Record<string, unknown>): { messageId: string | null; cost: string | null } {
+  const response = data as any;
+  const recipient = Array.isArray(response?.per_recipient)
+    ? response.per_recipient[0]
+    : Array.isArray(response?.SMSMessageData?.Recipients)
+      ? response.SMSMessageData.Recipients[0]
+      : null;
+
+  return {
+    messageId: firstString(
+      response?.message_id,
+      response?.messageId,
+      response?.id,
+      recipient?.message_id,
+      recipient?.messageId,
+      recipient?.reference,
+    ),
+    cost: firstString(
+      recipient?.cost,
+      response?.amount_charged,
+      response?.credits_used,
+      recipient?.credits,
+    ),
+  };
+}
+
 function wasSkipped(reason?: string): boolean {
   return reason === "SMS service not configured" ||
     (typeof reason === "string" && reason.endsWith("not_configured"));
 }
 
-async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
-  // Provider chain: Yoola (primary) → Africa's Talking → LANA.
-  // Each provider is tried only if the previous one did not accept, and every
-  // attempt is timestamped so we can prove there was never a simultaneous double-send.
+async function sendSMS(
+  phone: string,
+  message: string,
+  options: { preferBackupRoute?: boolean; previousAcceptedProvider?: string | null } = {},
+): Promise<SmsOutcome> {
+  // Default chain: Yoola (primary) → Africa's Talking → LANA.
+  // For resends where Yoola accepted but the handset never got the SMS, rotate
+  // to the next provider first. Gateway acceptance is not handset delivery.
   const attempts: ProviderAttempt[] = [];
-  const run = async (provider: string, fn: () => Promise<{ ok: boolean; reason?: string }>) => {
+  const run = async (provider: string, fn: () => Promise<SmsResult>) => {
     const started_at = new Date().toISOString();
     const r = await fn();
     const finished_at = new Date().toISOString();
-    attempts.push({ provider, accepted: r.ok, reason: r.reason, started_at, finished_at, attempted: !wasSkipped(r.reason) });
+    attempts.push({
+      provider,
+      accepted: r.ok,
+      reason: r.reason,
+      response: r.response,
+      messageId: r.messageId ?? null,
+      cost: r.cost ?? null,
+      started_at,
+      finished_at,
+      attempted: !wasSkipped(r.reason),
+    });
     return r;
   };
 
-  const yoola = await run("yoola", () => sendViaYoola(phone, message));
-  if (yoola.ok) return { ok: true, provider: "yoola", attempts };
-  console.warn(`[password-reset-sms] Yoola not accepted (${yoola.reason}); trying Africa's Talking`);
-  const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
-  if (at.ok) return { ok: true, provider: "africastalking", attempts };
-  console.warn(`[password-reset-sms] Africa's Talking not accepted (${at.reason}); trying LANA`);
-  const lana = await run("lana", () => sendViaLana(phone, message));
-  if (lana.ok) return { ok: true, provider: "lana", attempts };
-  let reason = yoola.reason;
-  if (at.reason && at.reason !== "missing_credentials") reason = at.reason;
-  else if (lana.reason && lana.reason !== "lana_not_configured") reason = lana.reason;
-  return { ok: false, reason, attempts };
+  type ProviderName = "yoola" | "africastalking" | "lana" | "twilio";
+  const primaryChain: Array<{ provider: ProviderName; fn: () => Promise<SmsResult> }> = [
+    { provider: "yoola", fn: () => sendViaYoola(phone, message) },
+    { provider: "africastalking", fn: () => sendViaAfricasTalking(phone, message) },
+    { provider: "lana", fn: () => sendViaLana(phone, message) },
+    { provider: "twilio", fn: () => sendViaTwilio(phone, message) },
+  ];
+  const previousProvider = String(options.previousAcceptedProvider ?? "")
+    .replace(/^provider:/, "")
+    .trim()
+    .toLowerCase() as ProviderName;
+  const previousIndex = primaryChain.findIndex((p) => p.provider === previousProvider);
+  const backupFirstChain = previousIndex >= 0
+    ? [...primaryChain.slice(previousIndex + 1), ...primaryChain.slice(0, previousIndex + 1)]
+    : [primaryChain[1], primaryChain[2], primaryChain[0]];
+  const chain = options.preferBackupRoute ? backupFirstChain : primaryChain;
+
+  let bestReason: string | undefined;
+  for (let i = 0; i < chain.length; i++) {
+    const current = chain[i];
+    if (i > 0) console.warn(`[password-reset-sms] ${chain[i - 1].provider} not accepted; trying ${current.provider}`);
+    const result = await run(current.provider, current.fn);
+    if (result.ok) return { ok: true, provider: current.provider, attempts };
+    if (result.reason && !wasSkipped(result.reason)) bestReason = result.reason;
+  }
+
+  return { ok: false, reason: bestReason ?? attempts.at(-1)?.reason, attempts };
 }
 
 /** Best-effort per-provider attempt audit trail into sms_delivery_log. */
@@ -111,9 +189,12 @@ async function logSmsAttempts(
       provider: a.provider,
       status: a.accepted ? "accepted" : (a.attempted ? "failed" : "skipped"),
       error: a.accepted ? null : (a.reason ?? null),
+      provider_message_id: a.messageId ?? null,
+      cost: a.cost ?? null,
       reference_id: ctx.referenceId ?? null,
       source: ctx.source,
       provider_response: {
+        provider_response: a.response ?? null,
         attempt_sequence: i + 1,
         total_attempts: outcome.attempts.length,
         started_at: a.started_at,
@@ -129,7 +210,7 @@ async function logSmsAttempts(
   }
 }
 
-async function sendViaLana(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
+async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
   if (!apiKey) return { ok: false, reason: "lana_not_configured" };
   try {
@@ -152,15 +233,18 @@ async function sendViaLana(phone: string, message: string): Promise<{ ok: boolea
     const accepted = rawStatus === true ||
       statusStr === "success" || statusStr === "true" ||
       statusStr === "ok" || statusStr === "sent" || statusStr === "queued";
-    if (response.ok && accepted) return { ok: true };
-    return { ok: false, reason: `LANA rejected (${response.status}: ${data?.message ?? statusStr})` };
+    if (response.ok && accepted) {
+      const fields = extractProviderFields(data);
+      return { ok: true, response: data, messageId: fields.messageId, cost: fields.cost };
+    }
+    return { ok: false, reason: `LANA rejected (${response.status}: ${data?.message ?? statusStr})`, response: data };
   } catch (error) {
     console.error("[password-reset-sms] LANA error:", error);
     return { ok: false, reason: "Network error contacting SMS provider" };
   }
 }
 
-async function sendViaYoola(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
+async function sendViaYoola(phone: string, message: string): Promise<SmsResult> {
   // Trim to defend against stray whitespace/newlines pasted into the secret —
   // Yoola returns 403 "invalidkey" if the key has any surrounding whitespace.
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
@@ -181,16 +265,17 @@ async function sendViaYoola(phone: string, message: string): Promise<{ ok: boole
     try { data = JSON.parse(text); } catch { /* non-JSON */ }
     const status = String(data?.status ?? "").toLowerCase();
     if (response.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued" || (!data?.error && status === ""))) {
-      return { ok: true };
+      const fields = extractProviderFields(data);
+      return { ok: true, response: data, messageId: fields.messageId, cost: fields.cost };
     }
-    return { ok: false, reason: `Yoola rejected (${response.status})` };
+    return { ok: false, reason: `Yoola rejected (${response.status})`, response: data };
   } catch (error) {
     console.error("[password-reset-sms] Yoola error:", error);
     return { ok: false, reason: "Network error contacting SMS provider" };
   }
 }
 
-async function sendViaAfricasTalking(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
+async function sendViaAfricasTalking(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
@@ -217,15 +302,51 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<{ 
     if (recipients?.length > 0) {
       const r = recipients[0];
       const status = r.statusCode;
-      if (status === 101 || status === 100) return { ok: true };
-      if (status === 405 || /InsufficientBalance/i.test(r.status || "")) {
-        return { ok: false, reason: "SMS service is temporarily out of credit. Please try email reset or contact support." };
+      if (status === 101 || status === 100) {
+        const fields = extractProviderFields(data);
+        return { ok: true, response: data, messageId: fields.messageId, cost: fields.cost };
       }
-      return { ok: false, reason: r.status || "SMS provider rejected the request" };
+      if (status === 405 || /InsufficientBalance/i.test(r.status || "")) {
+        return { ok: false, reason: "SMS service is temporarily out of credit. Please try email reset or contact support.", response: data };
+      }
+      return { ok: false, reason: r.status || "SMS provider rejected the request", response: data };
     }
-    return { ok: false, reason: "No recipient response from SMS provider" };
+    return { ok: false, reason: "No recipient response from SMS provider", response: data };
   } catch (error) {
     console.error("[password-reset-sms] SMS error:", error);
+    return { ok: false, reason: "Network error contacting SMS provider" };
+  }
+}
+
+async function sendViaTwilio(phone: string, message: string): Promise<SmsResult> {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const twilioKey = Deno.env.get("TWILIO_API_KEY");
+  if (!lovableKey || !twilioKey) return { ok: false, reason: "twilio_not_configured" };
+
+  try {
+    const formattedPhone = formatPhoneInternational(phone);
+    const response = await fetch(`${TWILIO_GATEWAY_URL}/Messages.json`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": twilioKey,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+      },
+      body: new URLSearchParams({ To: formattedPhone, From: TWILIO_SENDER, Body: message }).toString(),
+    });
+    const text = await response.text();
+    console.log(`[password-reset-sms] Twilio response (${response.status}):`, text);
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { data = { raw: text.slice(0, 500) }; }
+    const status = String(data?.status ?? "").toLowerCase();
+    const accepted = ["queued", "accepted", "sending", "sent", "delivered"].includes(status);
+    if (response.ok && accepted) {
+      return { ok: true, response: data, messageId: firstString(data?.sid, data?.messageId, data?.message_id), cost: null };
+    }
+    return { ok: false, reason: String(data?.error_message ?? data?.message ?? `Twilio rejected (${response.status})`), response: data };
+  } catch (error) {
+    console.error("[password-reset-sms] Twilio error:", error);
     return { ok: false, reason: "Network error contacting SMS provider" };
   }
 }
@@ -361,11 +482,29 @@ Deno.serve(async (req) => {
         });
       }
 
-      const otp = generateOTP();
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const resetKey = `reset_${phoneKey}`;
+      const now = Date.now();
+      const { data: existingReset } = await adminClient
+        .from("otp_verifications")
+        .select("otp_code, expires_at, verified, send_status, send_status_reason")
+        .eq("phone", resetKey)
+        .maybeSingle();
+
+      // Password reset SMS can also arrive late/out of order. Reuse a still-valid
+      // reset code so every SMS currently on the user's phone contains a working
+      // code, then rotate provider if the previous accepted route didn't reach
+      // the handset.
+      const existingCodeUsable =
+        !!existingReset?.otp_code &&
+        existingReset?.verified === false &&
+        !!existingReset?.expires_at &&
+        new Date(existingReset.expires_at).getTime() > now;
+      const otp = existingCodeUsable ? existingReset!.otp_code as string : generateOTP();
+      const expiresAt = existingCodeUsable
+        ? existingReset!.expires_at as string
+        : new Date(now + 60 * 60 * 1000).toISOString();
 
       // Store OTP using otp_verifications table with a reset-specific phone key
-      const resetKey = `reset_${phoneKey}`;
       const { error: upsertError } = await adminClient
         .from("otp_verifications")
         .upsert({
@@ -374,6 +513,9 @@ Deno.serve(async (req) => {
           expires_at: expiresAt,
           attempts: 0,
           verified: false,
+          send_status: "pending",
+          send_status_reason: null,
+          send_status_at: new Date(now).toISOString(),
         }, { onConflict: "phone" });
 
       if (upsertError) {
@@ -384,7 +526,22 @@ Deno.serve(async (req) => {
       }
 
       const message = `Your Welile password reset code is: ${otp}. It expires in 1 hour. Do not share this code with anyone.`;
-      const sent = await sendSMS(phone, message);
+      const preferBackupRoute = existingCodeUsable && existingReset?.send_status === "accepted";
+      if (preferBackupRoute) {
+        console.log(`[password-reset-sms] resend for ***${phoneKey.slice(-4)} rotating to backup SMS route first`);
+      }
+      const sent = await sendSMS(phone, message, {
+        preferBackupRoute,
+        previousAcceptedProvider: existingReset?.send_status_reason ?? null,
+      });
+      await adminClient
+        .from("otp_verifications")
+        .update({
+          send_status: sent.ok ? "accepted" : "failed",
+          send_status_reason: sent.ok ? `provider:${sent.provider ?? "unknown"}` : (sent.reason ?? null),
+          send_status_at: new Date().toISOString(),
+        })
+        .eq("phone", resetKey);
       await logSmsAttempts(adminClient, {
         phone,
         message,
