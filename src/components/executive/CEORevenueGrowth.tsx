@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { DataCompletenessScorecard } from './DataCompletenessScorecard';
+import { MonetizationFunnel } from './MonetizationFunnel';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   DollarSign, TrendingUp, Banknote, Clock, Database, Activity,
@@ -204,6 +205,9 @@ export function CEORevenueGrowth() {
             color="bg-primary/10 text-primary" subtitle="Billed ÷ 30-day events" />
           <KPICard title="Data Coverage" value={`${trustCoverage}%`} icon={Gauge} loading={loadingData}
             color="bg-violet-500/10 text-violet-600" subtitle="Users converted to scored data" />
+        </div>
+        <div className="mt-2 sm:mt-3">
+          <MonetizationFunnel />
         </div>
       </section>
 
