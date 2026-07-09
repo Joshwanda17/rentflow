@@ -25,6 +25,7 @@ import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
 import { SeoCoverageDashboard } from './SeoCoverageDashboard';
 import { SeoRedirectAuditPanel } from './SeoRedirectAuditPanel';
 import { SemrushBrandTrackerPanel } from './SemrushBrandTrackerPanel';
+import { BrandSerpVisibilityPanel } from './BrandSerpVisibilityPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -273,6 +274,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
 
       {/* Domain redirect audit (legacy + www -> welileapp.com) */}
       <SeoRedirectAuditPanel />
+
+      {/* Branded SERP visibility (Search Console demand + Semrush rank + profile presence) */}
+      <BrandSerpVisibilityPanel />
 
       {/* Semrush branded-keyword & backlink tracking (welile / welile.com) */}
       <SemrushBrandTrackerPanel />
