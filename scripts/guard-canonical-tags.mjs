@@ -59,7 +59,9 @@ const ORIGIN_TOKENS = /^(getPublicOrigin\(\)|CANONICAL_ORIGIN)$/;
 function extractHref(line) {
   const lit = line.match(/rel="canonical"\s+href="([^"]+)"/);
   if (lit) return { kind: 'literal', value: lit[1] };
-  const expr = line.match(/rel="canonical"\s+href=\{([^}]+)\}/) || line.match(/rel="canonical"\s+href=\{`([^`]+)`\}/);
+  const tmpl = line.match(/rel="canonical"\s+href=\{`([^`]+)`\}/);
+  if (tmpl) return { kind: 'expr', value: '`' + tmpl[1] + '`' };
+  const expr = line.match(/rel="canonical"\s+href=\{([^}]+)\}/);
   if (expr) return { kind: 'expr', value: expr[1].trim() };
   return null;
 }
@@ -68,10 +70,14 @@ function extractHref(line) {
 function resolveConst(src, name) {
   const re = new RegExp(`const\\s+${name}\\s*=\\s*(?:'([^']*)'|"([^"]*)"|\`([^\`]*)\`)`);
   const m = src.match(re);
-  if (!m) return null;
-  const raw = m[1] ?? m[2] ?? m[3];
-  if (raw == null) return null;
-  return resolveTemplate(src, raw);
+  if (m) {
+    const raw = m[1] ?? m[2] ?? m[3];
+    if (raw != null) return resolveTemplate(src, raw);
+  }
+  // `const NAME = getPublicOrigin()` / `const NAME = CANONICAL_ORIGIN`
+  const originRe = new RegExp(`const\\s+${name}\\s*=\\s*(?:getPublicOrigin\\(\\)|CANONICAL_ORIGIN)`);
+  if (originRe.test(src)) return BASE;
+  return null;
 }
 
 /** Substitute ${...} placeholders in a template using in-file consts/tokens. */
