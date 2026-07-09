@@ -393,8 +393,6 @@ export default function Auth() {
           )}
         </div>
 
-        <EnvironmentBanner />
-
         {/* Agent deeplink banner */}
         {deepLinkAgent && (
           <div className="mb-4 p-3 rounded-xl bg-accent/50 border border-accent flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
