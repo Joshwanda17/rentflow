@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { motion } from 'framer-motion';
 import { formatUGX } from '@/lib/rentCalculations';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface InviteAndEarnCardProps {
   variant?: 'tenant' | 'landlord' | 'supporter' | 'default';
@@ -48,8 +49,8 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
   const roleLabel = variant === 'supporter' ? 'supporter' : variant === 'landlord' ? 'landlord' : 'tenant';
   
   const shareLink = user 
-    ? `${window.location.origin}/auth?role=${roleLabel}&ref=${user.id}`
-    : `${window.location.origin}/auth?role=${roleLabel}`;
+    ? `${getPublicOrigin()}/auth?role=${roleLabel}&ref=${user.id}`
+    : `${getPublicOrigin()}/auth?role=${roleLabel}`;
 
   const messages: Record<string, string> = {
     tenant: `🏠 Struggling with rent? I use Welile to get my rent paid upfront!\n\n💰 Get your full rent today\n📅 Pay back in small daily amounts\n✅ Quick signup - just 2 minutes\n🎁 We BOTH get 500 UGX bonus!\n\nJoin now: ${shareLink}`,
