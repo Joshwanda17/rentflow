@@ -414,7 +414,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 }
 
 /**
- * Send the OTP SMS. Provider chain: Yoola (primary) → Africa's Talking → LANA.
+ * Send the OTP SMS. Provider chain: Africa's Talking (primary) → Yoola → LANA.
  * Each provider is tried only if the previous one is unconfigured or fails, so
  * delivery is never blocked on a single provider. Returns the full ordered
  * trail of provider attempts (with timestamps) so we can prove a message was
@@ -454,8 +454,8 @@ async function sendSMS(
   type SmsProviderRoute = { provider: SmsProviderName; fn: () => Promise<SmsResult> };
 
   const primaryChain: SmsProviderRoute[] = [
-    { provider: "yoola", fn: () => sendViaYoola(phone, message) },
     { provider: "africastalking", fn: () => sendViaAfricasTalking(phone, message) },
+    { provider: "yoola", fn: () => sendViaYoola(phone, message) },
     { provider: "lana", fn: () => sendViaLana(phone, message) },
   ];
 
