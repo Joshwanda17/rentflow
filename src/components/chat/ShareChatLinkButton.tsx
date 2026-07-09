@@ -12,6 +12,7 @@ import {
 import { Share2, Copy, Check, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface ShareChatLinkButtonProps {
   variant?: 'default' | 'ghost' | 'outline';
@@ -32,7 +33,7 @@ export default function ShareChatLinkButton({
 
   if (!user) return null;
 
-  const chatInviteUrl = `${window.location.origin}/chat`;
+  const chatInviteUrl = `${getPublicOrigin()}/chat`;
 
   const handleCopy = async () => {
     try {
