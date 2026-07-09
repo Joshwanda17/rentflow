@@ -16209,6 +16209,42 @@ export type Database = {
         }
         Relationships: []
       }
+      semrush_brand_snapshots: {
+        Row: {
+          backlinks_summary: Json | null
+          brand_keywords: Json
+          captured_at: string
+          created_at: string
+          domain: string
+          domain_summary: Json | null
+          id: string
+          raw: Json | null
+          source: string
+        }
+        Insert: {
+          backlinks_summary?: Json | null
+          brand_keywords?: Json
+          captured_at?: string
+          created_at?: string
+          domain?: string
+          domain_summary?: Json | null
+          id?: string
+          raw?: Json | null
+          source?: string
+        }
+        Update: {
+          backlinks_summary?: Json | null
+          brand_keywords?: Json
+          captured_at?: string
+          created_at?: string
+          domain?: string
+          domain_summary?: Json | null
+          id?: string
+          raw?: Json | null
+          source?: string
+        }
+        Relationships: []
+      }
       seo_index_monitor_settings: {
         Row: {
           alert_email: string
