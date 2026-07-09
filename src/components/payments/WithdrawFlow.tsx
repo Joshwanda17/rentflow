@@ -681,6 +681,18 @@ export default function WithdrawFlow({
       );
       onSuccess?.();
 
+      // Confirmation SMS to the requester (server-side, idempotent). Fire-and-
+      // forget — never block or fail the submission on an SMS hiccup.
+      if (newId) {
+        try {
+          supabase.functions
+            .invoke('notify-withdrawal-submitted', { body: { withdrawal_id: newId } })
+            .catch((e) => console.warn('[WithdrawFlow] submit SMS dispatch failed', e));
+        } catch (e) {
+          console.warn('[WithdrawFlow] submit SMS dispatch threw', e);
+        }
+      }
+
       // Persist destination so the user doesn't re-type next time. Skip
       // for cash pickup (no destination details to save) and skip when
       // they reused an existing saved method (just bump last_used_at).
