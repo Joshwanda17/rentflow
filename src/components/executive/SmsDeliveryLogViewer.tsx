@@ -84,7 +84,7 @@ export function SmsDeliveryLogViewer() {
   const handleSendTestSms = async () => {
     if (sendingTest) return;
     setSendingTest(true);
-    const providerLabelText = testProvider === 'yoola' ? `Yoola (${YOOLA_SENDER})` : "Africa's Talking (ATInfo)";
+    const providerLabelText = testProvider === 'yoola' ? `Yoola (${YOOLA_SENDER})` : "Africa's Talking (WELILE)";
     try {
       const { data, error } = await supabase.functions.invoke('sms-test-send', {
         body: {
