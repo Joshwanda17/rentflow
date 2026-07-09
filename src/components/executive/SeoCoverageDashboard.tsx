@@ -170,7 +170,7 @@ export function SeoCoverageDashboard() {
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <div className="flex items-center gap-2">
           <GitCompareArrows className="w-5 h-5 text-primary" />
-          <CardTitle className="text-base sm:text-lg">Search Console Coverage · welileapp.com vs welilereceipts.com</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Search Console Coverage · welileapp.com vs welilereceipts.com</CardTitle>{/* legacy-domain-guard-allow */}
         </div>
         <Button size="sm" variant="outline" onClick={run} disabled={isFetching}>
           <RefreshCw className={`w-4 h-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
@@ -204,7 +204,7 @@ export function SeoCoverageDashboard() {
               {consolidation === 'reversed' && (
                 <span className="flex flex-wrap items-center gap-1">
                   <strong>Consolidation is reversed.</strong> Google currently picks
-                  <span className="font-mono">welilereceipts.com</span>
+                  <span className="font-mono">welilereceipts.com</span>{/* legacy-domain-guard-allow */}
                   <ArrowRight className="w-3 h-3" /> as canonical for welileapp.com pages.
                   Fix the legacy 301 redirect + submit a Change of Address so signals flow to welileapp.com.
                 </span>
