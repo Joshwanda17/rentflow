@@ -107,11 +107,27 @@ Deno.serve(async (req) => {
       const newFeeCollected = Math.round(advAccessFee * feeCollectionRatio);
       const feeStatus = newFeeCollected >= advAccessFee ? 'settled' : newFeeCollected > 0 ? 'partial' : 'unpaid';
 
+      // Arrears accrual: track missed scheduled daily repayments so the credit-time
+      // recovery trigger can claw them back from the agent's NEXT earning before it
+      // becomes withdrawable. Meeting/exceeding today's installment pays arrears down;
+      // missing it grows arrears. Arrears can never exceed what is still owed.
+      const cycleDays = Number(advance.cycle_days) || 30;
+      const scheduledDaily = cycleDays > 0 ? Math.round(totalPayable / cycleDays) : 0;
+      const currentArrears = Number(advance.arrears_balance || 0);
+      let newArrears: number;
+      if (amountDeducted >= scheduledDaily) {
+        newArrears = Math.max(0, currentArrears - (amountDeducted - scheduledDaily));
+      } else {
+        newArrears = currentArrears + (scheduledDaily - amountDeducted);
+      }
+      newArrears = Math.min(newArrears, Math.max(0, closingBalance));
+
       await supabase.from('agent_advances').update({
         outstanding_balance: Math.max(0, closingBalance),
         status: newStatus,
         access_fee_collected: newFeeCollected,
         access_fee_status: feeStatus,
+        arrears_balance: newArrears,
       }).eq('id', advance.id);
 
       if (amountDeducted <= 0) {
