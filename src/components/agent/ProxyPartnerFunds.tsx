@@ -605,7 +605,10 @@ export function ProxyPartnerFunds() {
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
       profileRows.forEach(p => {
-        profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
+        // Store the raw name (empty when missing) so downstream resolution can
+        // fall back to portfolio account names / metadata instead of prematurely
+        // locking the card to the literal string "Unknown".
+        profileMap[p.id] = { full_name: p.full_name || '', phone: p.phone || '' };
       });
       setProfiles(profileMap);
       const strictMap: Record<string, number> = {};
