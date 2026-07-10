@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
         email_confirm: true,
         user_metadata: {
           full_name: finalFullName,
-          phone: invite.phone,
+          phone: safePhone,
           role: userRole,
           referrer_id: invite.created_by,
         },
@@ -279,7 +279,7 @@ Deno.serve(async (req) => {
           email_confirm: true,
           user_metadata: {
             full_name: finalFullName,
-            phone: invite.phone,
+            phone: safePhone,
             role: userRole,
             referrer_id: invite.created_by,
           },
@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
       .upsert({
         id: userId,
         full_name: finalFullName,
-        phone: invite.phone,
+        phone: safePhone,
         email: finalEmail,
         verified: true,
       }, { onConflict: 'id' });
@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
     await adminClient.auth.admin.updateUserById(userId, {
       user_metadata: {
         full_name: finalFullName,
-        phone: invite.phone,
+        phone: safePhone,
         role: userRole,
         intended_role: userRole,
         referrer_id: invite.created_by,
@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
         .from("landlords")
         .insert({
           name: finalFullName,
-          phone: invite.phone,
+          phone: safePhone,
           property_address: invite.property_address || 'Address not provided',
           latitude: invite.latitude || null,
           longitude: invite.longitude || null,
