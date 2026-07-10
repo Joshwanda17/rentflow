@@ -284,7 +284,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                     </>
                   ) : (
                     <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1.5">
-                      <Info className="h-3 w-3" /> No potential score yet — review manually.
+                      <Info className="h-3 w-3" /> Not ranked yet — tap to generate this agent's evaluation.
                     </p>
                   )}
                 </div>
