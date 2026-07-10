@@ -1,0 +1,415 @@
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Banknote,
+  Loader2,
+  Search,
+  X,
+  User,
+  Calendar,
+  Percent,
+  TrendingUp,
+  Receipt,
+  HandCoins,
+  FileClock,
+} from 'lucide-react';
+import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
+import { differenceInDays, format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+type StatusFilter = 'all' | 'active' | 'overdue' | 'completed';
+
+interface AdvanceRow {
+  id: string;
+  agent_id: string;
+  principal: number;
+  outstanding_balance: number;
+  arrears_balance: number | null;
+  access_fee: number | null;
+  access_fee_collected: number | null;
+  access_fee_status: string | null;
+  registration_fee: number | null;
+  monthly_rate: number | null;
+  cycle_days: number | null;
+  daily_installment: number | null;
+  status: string;
+  issued_at: string;
+  expires_at: string;
+  issued_by: string | null;
+  profiles: { full_name: string | null; phone: string | null } | null;
+}
+
+function statusBadge(status: string) {
+  switch (status) {
+    case 'active':
+      return <Badge>Active</Badge>;
+    case 'completed':
+      return <Badge variant="secondary">Completed</Badge>;
+    case 'overdue':
+      return <Badge variant="destructive">Overdue</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
+
+export function DisbursedAdvancesRegister() {
+  const [status, setStatus] = useState<StatusFilter>('all');
+  const [agentQuery, setAgentQuery] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [selected, setSelected] = useState<AdvanceRow | null>(null);
+
+  const { data: advances = [], isLoading } = useQuery({
+    queryKey: ['disbursed-advances-register'],
+    queryFn: async (): Promise<AdvanceRow[]> => {
+      const { data, error } = await supabase
+        .from('agent_advances')
+        .select(
+          'id, agent_id, principal, outstanding_balance, arrears_balance, access_fee, access_fee_collected, access_fee_status, registration_fee, monthly_rate, cycle_days, daily_installment, status, issued_at, expires_at, issued_by, profiles:agent_id (full_name, phone)',
+        )
+        .order('issued_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as AdvanceRow[];
+    },
+  });
+
+  const filtered = useMemo(() => {
+    const q = agentQuery.trim().toLowerCase();
+    const from = fromDate ? new Date(fromDate + 'T00:00:00') : null;
+    const to = toDate ? new Date(toDate + 'T23:59:59') : null;
+    return advances.filter((a) => {
+      if (status !== 'all' && a.status !== status) return false;
+      if (q) {
+        const name = (a.profiles?.full_name || '').toLowerCase();
+        const phone = (a.profiles?.phone || '').toLowerCase();
+        if (!name.includes(q) && !phone.includes(q)) return false;
+      }
+      const issued = new Date(a.issued_at);
+      if (from && issued < from) return false;
+      if (to && issued > to) return false;
+      return true;
+    });
+  }, [advances, status, agentQuery, fromDate, toDate]);
+
+  const totals = useMemo(() => {
+    const principal = filtered.reduce((s, a) => s + Number(a.principal || 0), 0);
+    const outstanding = filtered.reduce((s, a) => s + Number(a.outstanding_balance || 0), 0);
+    const fees = filtered.reduce((s, a) => s + Number(a.access_fee || 0) + Number(a.registration_fee || 0), 0);
+    const agents = new Set(filtered.map((a) => a.agent_id)).size;
+    return { principal, outstanding, fees, agents, count: filtered.length };
+  }, [filtered]);
+
+  const hasFilters = status !== 'all' || !!agentQuery || !!fromDate || !!toDate;
+  const clearFilters = () => {
+    setStatus('all');
+    setAgentQuery('');
+    setFromDate('');
+    setToDate('');
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Banknote className="h-4 w-4 text-primary" />
+          Disbursed Advances Register
+          <Badge variant="outline" className="text-[10px] ml-1">{advances.length} total</Badge>
+        </CardTitle>
+        <p className="text-[11px] text-muted-foreground">
+          Every advance disbursed to an agent wallet. Filter by date, agent, or status and open any row for the full disbursement detail.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Summary */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="rounded-lg border p-2">
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1"><HandCoins className="h-3 w-3" /> Principal Disbursed</p>
+            <p className="text-sm font-bold">{formatUGX(totals.principal)}</p>
+          </div>
+          <div className="rounded-lg border p-2">
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3 text-amber-600" /> Outstanding</p>
+            <p className="text-sm font-bold text-amber-600">{formatUGX(totals.outstanding)}</p>
+          </div>
+          <div className="rounded-lg border p-2">
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Receipt className="h-3 w-3 text-emerald-600" /> Fees Charged</p>
+            <p className="text-sm font-bold text-emerald-600">{formatUGX(totals.fees)}</p>
+          </div>
+          <div className="rounded-lg border p-2">
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" /> Agents</p>
+            <p className="text-sm font-bold">{totals.agents}</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end">
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Agent</Label>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={agentQuery}
+                onChange={(e) => setAgentQuery(e.target.value)}
+                placeholder="Name or phone"
+                className="h-8 pl-7 text-sm"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Status</Label>
+            <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Disbursed from</Label>
+            <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Disbursed to</Label>
+            <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-8 text-sm" />
+          </div>
+        </div>
+        {hasFilters && (
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {advances.length}
+            </p>
+            <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={clearFilters}>
+              <X className="h-3 w-3 mr-1" /> Clear filters
+            </Button>
+          </div>
+        )}
+
+        {/* Table */}
+        {isLoading ? (
+          <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground text-sm">No disbursed advances match your filters.</div>
+        ) : (
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agent</TableHead>
+                  <TableHead className="text-right">Principal</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Outstanding</TableHead>
+                  <TableHead className="hidden md:table-cell">Disbursed</TableHead>
+                  <TableHead className="hidden lg:table-cell">Days Left</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((a) => {
+                  const daysLeft = Math.max(0, differenceInDays(new Date(a.expires_at), new Date()));
+                  const risk = getRiskLevel(a);
+                  return (
+                    <TableRow key={a.id} className="cursor-pointer" onClick={() => setSelected(a)}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className={cn('h-2 w-2 rounded-full shrink-0', risk === 'green' ? 'bg-green-500' : risk === 'yellow' ? 'bg-amber-500' : 'bg-red-500')} />
+                          <div className="min-w-0">
+                            <p className="truncate">{a.profiles?.full_name || 'Unknown'}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{a.profiles?.phone || '—'}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">{formatUGX(a.principal)}</TableCell>
+                      <TableCell className="text-right font-mono hidden sm:table-cell text-amber-600">{formatUGX(a.outstanding_balance)}</TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground text-xs">{format(new Date(a.issued_at), 'dd MMM yyyy')}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{daysLeft}d</TableCell>
+                      <TableCell>{statusBadge(a.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="ghost" className="h-7 text-[11px]">View</Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+
+      <DisbursementDetailDrawer advance={selected} onClose={() => setSelected(null)} />
+    </Card>
+  );
+}
+
+function DisbursementDetailDrawer({ advance, onClose }: { advance: AdvanceRow | null; onClose: () => void }) {
+  const { data: ledger = [], isLoading } = useQuery({
+    queryKey: ['advance-ledger', advance?.id],
+    enabled: !!advance?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_advance_ledger')
+        .select('id, date, opening_balance, interest_accrued, amount_deducted, closing_balance, deduction_status')
+        .eq('advance_id', advance!.id)
+        .order('date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: issuer } = useQuery({
+    queryKey: ['advance-issuer', advance?.issued_by],
+    enabled: !!advance?.issued_by,
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('full_name').eq('id', advance!.issued_by!).maybeSingle();
+      return data?.full_name || null;
+    },
+  });
+
+  if (!advance) return null;
+
+  const interest = Math.max(0, Number(advance.outstanding_balance) - Number(advance.principal));
+  const totalPayable = Number(advance.principal) + Number(advance.access_fee || 0) + Number(advance.registration_fee || 0);
+  const repaid = Math.max(0, totalPayable - Number(advance.outstanding_balance));
+  const progress = totalPayable > 0 ? Math.min(100, Math.round((repaid / totalPayable) * 100)) : 0;
+  const totalDeducted = ledger.reduce((s, l) => s + Number(l.amount_deducted || 0), 0);
+
+  const rows: Array<[string, React.ReactNode]> = [
+    ['Principal', formatUGX(advance.principal)],
+    ['Access Fee', formatUGX(Number(advance.access_fee || 0))],
+    ['Registration Fee', formatUGX(Number(advance.registration_fee || 0))],
+    ['Total Payable', formatUGX(totalPayable)],
+    ['Outstanding', formatUGX(advance.outstanding_balance)],
+    ['Arrears', formatUGX(Number(advance.arrears_balance || 0))],
+    ['Accrued Interest', formatUGX(interest)],
+    ['Daily Installment', formatUGX(Number(advance.daily_installment || 0))],
+    ['Monthly Rate', `${Math.round(Number(advance.monthly_rate || 0) * 100)}%`],
+    ['Cycle Days', `${advance.cycle_days ?? '—'} days`],
+    ['Fee Status', advance.access_fee_status || '—'],
+  ];
+
+  return (
+    <Sheet open={!!advance} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent className="w-full sm:max-w-md p-0">
+        <ScrollArea className="h-full">
+          <div className="p-5 space-y-5">
+            <SheetHeader className="space-y-1 text-left">
+              <SheetTitle className="flex items-center gap-2 text-base">
+                <User className="h-4 w-4 text-primary" />
+                {advance.profiles?.full_name || 'Unknown agent'}
+              </SheetTitle>
+              <SheetDescription className="text-xs">
+                {advance.profiles?.phone || '—'} · {statusBadge(advance.status)}
+              </SheetDescription>
+            </SheetHeader>
+
+            {/* Repayment progress */}
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Repaid {formatUGX(repaid)}</span>
+                <span className="font-semibold">{progress}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
+              </div>
+              <p className="text-[10px] text-muted-foreground">of {formatUGX(totalPayable)} total payable</p>
+            </div>
+
+            {/* Disbursement dates */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border p-2">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Disbursed</p>
+                <p className="text-xs font-semibold">{format(new Date(advance.issued_at), 'dd MMM yyyy, HH:mm')}</p>
+              </div>
+              <div className="rounded-lg border p-2">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1"><FileClock className="h-3 w-3" /> Expires</p>
+                <p className="text-xs font-semibold">{format(new Date(advance.expires_at), 'dd MMM yyyy')}</p>
+              </div>
+            </div>
+
+            {/* Key figures */}
+            <div className="rounded-lg border divide-y text-xs">
+              {rows.map(([label, value]) => (
+                <div key={label} className="flex justify-between px-3 py-1.5">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="font-mono font-semibold">{value}</span>
+                </div>
+              ))}
+              {issuer && (
+                <div className="flex justify-between px-3 py-1.5">
+                  <span className="text-muted-foreground">Disbursed by</span>
+                  <span className="font-semibold">{issuer}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Repayment ledger */}
+            <div className="space-y-2">
+              <p className="text-xs font-bold flex items-center gap-1.5">
+                <Percent className="h-3.5 w-3.5 text-primary" /> Repayment History
+                {ledger.length > 0 && <Badge variant="outline" className="text-[10px]">{formatUGX(totalDeducted)} recovered</Badge>}
+              </p>
+              {isLoading ? (
+                <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+              ) : ledger.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground py-2">No repayment entries recorded yet.</p>
+              ) : (
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-[10px]">Date</TableHead>
+                        <TableHead className="text-[10px] text-right">Deducted</TableHead>
+                        <TableHead className="text-[10px] text-right">Balance</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {ledger.map((l) => (
+                        <TableRow key={l.id}>
+                          <TableCell className="text-[11px]">{format(new Date(l.date), 'dd MMM')}</TableCell>
+                          <TableCell className="text-[11px] text-right font-mono text-emerald-600">{formatUGX(Number(l.amount_deducted || 0))}</TableCell>
+                          <TableCell className="text-[11px] text-right font-mono">{formatUGX(Number(l.closing_balance || 0))}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+
+            <Button variant="outline" className="w-full" onClick={onClose}>Close</Button>
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+}
