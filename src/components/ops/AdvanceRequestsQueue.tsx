@@ -110,6 +110,30 @@ export function useAgentPotentialMap() {
   });
 }
 
+/** Map a raw scoring RPC row into PotentialInfo. */
+function mapPotentialRow(r: any): PotentialInfo {
+  return {
+    potential_score: num(r.potential_score),
+    suggested_amount: num(r.suggested_amount),
+    current_limit: num(r.current_limit),
+    direct_subagents: num(r.direct_subagents),
+    active_subagents: num(r.active_subagents),
+    grand_subagents: num(r.grand_subagents),
+    rent_collected: num(r.rent_collected),
+    collections_count: num(r.collections_count),
+    house_listings: num(r.house_listings),
+    rent_requests: num(r.rent_requests),
+    advances_count: num(r.advances_count),
+    outstanding_total: num(r.outstanding_total),
+    repayment_rate: r.repayment_rate == null ? null : Number(r.repayment_rate),
+    network_score: num(r.network_score),
+    collections_score: num(r.collections_score),
+    repayment_score: num(r.repayment_score),
+    listings_score: num(r.listings_score),
+    requests_score: num(r.requests_score),
+  };
+}
+
 export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
