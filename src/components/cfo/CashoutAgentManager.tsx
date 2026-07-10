@@ -979,9 +979,9 @@ export function CashoutAgentManager() {
           />
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <KpiTile icon={<Smartphone className="h-4 w-4" />} label="MoMo" value={formatUGX(selectedAgentStats?.momo || 0)} tone="muted" sub={`${selectedAgentStats?.momoCount || 0}`} compact />
-          <KpiTile icon={<Building2 className="h-4 w-4" />} label="Bank" value={formatUGX(selectedAgentStats?.bank || 0)} tone="muted" sub={`${selectedAgentStats?.bankCount || 0}`} compact />
-          <KpiTile icon={<Banknote className="h-4 w-4" />} label="Cash" value={formatUGX(selectedAgentStats?.cash || 0)} tone="muted" sub={`${selectedAgentStats?.cashCount || 0}`} compact />
+          <KpiTile icon={<Smartphone className="h-4 w-4" />} label="MoMo" value={formatUGX(methodTiles.momo)} tone="muted" sub={`${methodTiles.momoCount}`} compact />
+          <KpiTile icon={<Building2 className="h-4 w-4" />} label="Bank" value={formatUGX(methodTiles.bank)} tone="muted" sub={`${methodTiles.bankCount}`} compact />
+          <KpiTile icon={<Banknote className="h-4 w-4" />} label="Cash" value={formatUGX(methodTiles.cash)} tone="muted" sub={`${methodTiles.cashCount}`} compact />
         </div>
 
         <Tabs defaultValue="transactions">
