@@ -766,6 +766,31 @@ export function CashoutAgentManager() {
     [visiblePayouts],
   );
 
+  // Method breakdown (MoMo / Bank / Cash) scoped to the visible payouts so the
+  // tiles honour the selected-date filter. Without this they showed all-time
+  // totals while the KPIs above described only the picked day.
+  const visibleMethodBreakdown = useMemo(() => {
+    let bank = 0, momo = 0, cash = 0, bankCount = 0, momoCount = 0, cashCount = 0;
+    for (const py of visiblePayouts as any[]) {
+      const amt = Number(py.amount || 0);
+      if (isBank(py.payout_method)) { bank += amt; bankCount += 1; }
+      else if (isMomo(py.payout_method)) { momo += amt; momoCount += 1; }
+      else { cash += amt; cashCount += 1; }
+    }
+    return { bank, momo, cash, bankCount, momoCount, cashCount };
+  }, [visiblePayouts]);
+
+  // When a date is picked, the method tiles reflect only that day; otherwise
+  // they fall back to the agent's all-time stats.
+  const methodTiles = txnDateFilter ? visibleMethodBreakdown : {
+    bank: selectedAgentStats?.bank || 0,
+    momo: selectedAgentStats?.momo || 0,
+    cash: selectedAgentStats?.cash || 0,
+    bankCount: selectedAgentStats?.bankCount || 0,
+    momoCount: selectedAgentStats?.momoCount || 0,
+    cashCount: selectedAgentStats?.cashCount || 0,
+  };
+
   // Commission accuracy reconciliation. Rather than silently masking gaps with
   // the 0.5% estimate, compare what actually landed in the merchant's wallet
   // (ledger legs) against what SHOULD have been credited (0.5% of each payout).
@@ -954,9 +979,9 @@ export function CashoutAgentManager() {
           />
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <KpiTile icon={<Smartphone className="h-4 w-4" />} label="MoMo" value={formatUGX(selectedAgentStats?.momo || 0)} tone="muted" sub={`${selectedAgentStats?.momoCount || 0}`} compact />
-          <KpiTile icon={<Building2 className="h-4 w-4" />} label="Bank" value={formatUGX(selectedAgentStats?.bank || 0)} tone="muted" sub={`${selectedAgentStats?.bankCount || 0}`} compact />
-          <KpiTile icon={<Banknote className="h-4 w-4" />} label="Cash" value={formatUGX(selectedAgentStats?.cash || 0)} tone="muted" sub={`${selectedAgentStats?.cashCount || 0}`} compact />
+          <KpiTile icon={<Smartphone className="h-4 w-4" />} label="MoMo" value={formatUGX(methodTiles.momo)} tone="muted" sub={`${methodTiles.momoCount}`} compact />
+          <KpiTile icon={<Building2 className="h-4 w-4" />} label="Bank" value={formatUGX(methodTiles.bank)} tone="muted" sub={`${methodTiles.bankCount}`} compact />
+          <KpiTile icon={<Banknote className="h-4 w-4" />} label="Cash" value={formatUGX(methodTiles.cash)} tone="muted" sub={`${methodTiles.cashCount}`} compact />
         </div>
 
         <Tabs defaultValue="transactions">
