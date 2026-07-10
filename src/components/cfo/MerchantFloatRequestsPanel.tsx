@@ -309,34 +309,55 @@ export function MerchantFloatRequestsPanel() {
     enabled: !!active && mode === 'fund',
     queryFn: async () => {
       const agentId = active!.agent_id;
-      const [walletRes, allocRes, usedRes] = await Promise.all([
+      // Source of truth = the double-entry ledger float bucket, NOT withdrawal_requests.
+      // Merchant float is credited via `agent_float_deposit` (cash_in) and consumed via
+      // `agent_float_settlement` (cash_out) when the agent settles a customer cash-out.
+      const [walletRes, ledgerRes] = await Promise.all([
         supabase.from('wallets').select('float_balance').eq('user_id', agentId).maybeSingle(),
-        supabase.from('float_requests').select('requested_amount').eq('agent_id', agentId).eq('status', 'approved'),
         supabase
-          .from('withdrawal_requests')
-          .select('id, amount, payout_method, mobile_money_provider, mobile_money_name, processed_at')
-          .eq('processed_by', agentId)
-          .eq('status', 'completed')
-          .not('processed_at', 'is', null)
-          .order('processed_at', { ascending: false })
-          .limit(200),
+          .from('general_ledger')
+          .select('id, category, amount, transaction_date, source_id, description')
+          .eq('user_id', agentId)
+          .eq('ledger_scope', 'wallet')
+          .eq('wallet_bucket', 'float')
+          .in('category', ['agent_float_deposit', 'agent_float_settlement'])
+          .order('transaction_date', { ascending: false })
+          .limit(300),
       ]);
+      const rows = (ledgerRes.data ?? []) as any[];
+      const deposits = rows.filter((r) => r.category === 'agent_float_deposit');
+      const settlements = rows.filter((r) => r.category === 'agent_float_settlement');
       const floatBalance = Number(walletRes.data?.float_balance) || 0;
-      const totalAllocated = (allocRes.data ?? []).reduce((s: number, a: any) => s + (Number(a.requested_amount) || 0), 0);
-      const used = (usedRes.data ?? []) as any[];
-      const totalUsed = used.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+      const totalAllocated = deposits.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+      const totalUsed = settlements.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+      // Enrich the most recent settlements with the cash-out recipient details.
+      const recentSettlements = settlements.slice(0, 6);
+      const wrIds = Array.from(new Set(recentSettlements.map((r) => r.source_id).filter(Boolean)));
+      const wrMap: Record<string, any> = {};
+      if (wrIds.length) {
+        const { data: wrs } = await supabase
+          .from('withdrawal_requests')
+          .select('id, mobile_money_name, mobile_money_provider, payout_method')
+          .in('id', wrIds as string[]);
+        for (const w of (wrs ?? []) as any[]) wrMap[String(w.id)] = w;
+      }
       return {
         floatBalance,
         totalAllocated,
         totalUsed,
-        usedCount: used.length,
-        recent: used.slice(0, 6).map((t) => ({
-          id: String(t.id),
-          amount: Number(t.amount) || 0,
-          method: t.mobile_money_provider || t.payout_method || 'Wallet',
-          recipient: t.mobile_money_name || null,
-          at: t.processed_at as string,
-        })),
+        usedCount: settlements.length,
+        depositCount: deposits.length,
+        recent: recentSettlements.map((r) => {
+          const wr = wrMap[String(r.source_id)] || {};
+          return {
+            id: String(r.id),
+            amount: Number(r.amount) || 0,
+            method: wr.mobile_money_provider || wr.payout_method || 'Customer cash-out',
+            recipient: wr.mobile_money_name || null,
+            at: r.transaction_date as string,
+          };
+        }),
       };
     },
   });
@@ -616,11 +637,11 @@ export function MerchantFloatRequestsPanel() {
                   <>
                     <div className="mt-2 grid grid-cols-3 gap-2">
                       <div className="rounded-md border border-border/60 bg-card p-2 text-center">
-                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Float on hand</p>
+                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Float left</p>
                         <p className="text-sm font-bold tabular-nums text-amber-700 dark:text-amber-400">{formatUGX(floatStatus?.floatBalance ?? 0)}</p>
                       </div>
                       <div className="rounded-md border border-border/60 bg-card p-2 text-center">
-                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Total allocated</p>
+                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Allocated ({floatStatus?.depositCount ?? 0})</p>
                         <p className="text-sm font-bold tabular-nums">{formatUGX(floatStatus?.totalAllocated ?? 0)}</p>
                       </div>
                       <div className="rounded-md border border-border/60 bg-card p-2 text-center">
@@ -628,6 +649,9 @@ export function MerchantFloatRequestsPanel() {
                         <p className="text-sm font-bold tabular-nums">{formatUGX(floatStatus?.totalUsed ?? 0)}</p>
                       </div>
                     </div>
+                    <p className="mt-1.5 text-center text-[10px] text-muted-foreground tabular-nums">
+                      {formatUGX(floatStatus?.totalAllocated ?? 0)} allocated − {formatUGX(floatStatus?.totalUsed ?? 0)} used = {formatUGX(floatStatus?.floatBalance ?? 0)} left
+                    </p>
                     {(floatStatus?.floatBalance ?? 0) > 0 && (
                       <p className="mt-2 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-300">
                         ⚠ This agent still holds {formatUGX(floatStatus?.floatBalance ?? 0)} of unspent float.
@@ -647,7 +671,7 @@ export function MerchantFloatRequestsPanel() {
                       </div>
                     )}
                     {floatStatus && floatStatus.usedCount === 0 && (
-                      <p className="mt-2 text-[11px] text-muted-foreground">No payouts settled from float yet.</p>
+                      <p className="mt-2 text-[11px] text-muted-foreground">No float settled to customer cash-outs yet.</p>
                     )}
                   </>
                 )}
