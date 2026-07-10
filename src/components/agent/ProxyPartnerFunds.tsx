@@ -1882,7 +1882,7 @@ export function ProxyPartnerFunds() {
               return (
                 <div key={restoreKey} className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{profile?.full_name || 'Unknown partner'}</p>
+                    <p className="text-sm font-medium truncate">{profile?.full_name || portfolio?.account_name || portfolio?.bank_account_name || 'Unknown partner'}</p>
                     <p className="text-[11px] text-muted-foreground truncate">
                       {portfolio?.account_name || portfolio?.portfolio_code || '—'} · Snapshot {formatAmount(Number(d.snapshot_amount))}
                     </p>
