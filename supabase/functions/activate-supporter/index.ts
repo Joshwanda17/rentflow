@@ -265,7 +265,8 @@ Deno.serve(async (req) => {
         console.log("[activate-supporter] Linked to existing auth user:", userId);
       } else {
         console.error("[activate-supporter] Auth error:", authError);
-        return new Response(JSON.stringify({ error: "Failed to create account: " + authError.message }), {
+        const detail = authError.message || authError.name || "auth service unavailable, please try again";
+        return new Response(JSON.stringify({ error: "Failed to create account: " + detail }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
