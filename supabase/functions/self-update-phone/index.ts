@@ -87,15 +87,37 @@ serve(async (req) => {
       return json({ error: "Please verify this phone number with an SMS code before saving." }, 403);
     }
 
-    // Duplicate check (other users)
-    const { data: dup } = await adminClient
+    // Duplicate handling — the caller has proven ownership of this SIM via a
+    // recent OTP, so any OTHER account still holding this number is revoked
+    // (its phone is cleared) before we assign the number to the caller.
+    const { data: dupProfiles } = await adminClient
       .from("profiles")
       .select("id")
       .or(`phone.eq.${normalized},phone.eq.${authPhone}`)
-      .neq("id", caller.id)
-      .limit(1);
-    if (dup && dup.length > 0) {
-      return json({ error: "This phone number is already used by another account" }, 409);
+      .neq("id", caller.id);
+
+    const revokedFrom: string[] = [];
+    for (const dup of dupProfiles ?? []) {
+      // Clear the phone on the previous owner's auth account so the unique
+      // auth.users phone constraint doesn't block the caller's update.
+      const { error: revokeAuthErr } = await adminClient.auth.admin.updateUserById(dup.id, {
+        phone: "",
+      });
+      if (revokeAuthErr) {
+        console.error("failed to revoke auth phone for", dup.id, revokeAuthErr);
+      }
+      // Clear the mirrored profile phone.
+      await adminClient.from("profiles").update({ phone: null }).eq("id", dup.id);
+      // Audit the revocation against the previous owner.
+      await adminClient.from("audit_logs").insert({
+        actor_id: caller.id,
+        action_type: "user_phone_revoked",
+        table_name: "profiles",
+        record_id: dup.id,
+        reason: "reassigned_after_otp",
+        details: { revoked_phone: normalized, reassigned_to: caller.id },
+      });
+      revokedFrom.push(dup.id);
     }
 
     // Update auth.users
@@ -119,10 +141,10 @@ serve(async (req) => {
       table_name: "auth.users",
       record_id: caller.id,
       reason: "settings_self_service",
-      details: { phone: normalized },
+      details: { phone: normalized, revoked_from: revokedFrom },
     });
 
-    return json({ success: true, phone: normalized });
+    return json({ success: true, phone: normalized, revoked_from: revokedFrom });
   } catch (error: any) {
     console.error("self-update-phone error:", error);
     return json({ error: error?.message || "Failed to update phone" }, 400);
