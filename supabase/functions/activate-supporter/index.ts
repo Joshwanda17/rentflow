@@ -190,6 +190,10 @@ Deno.serve(async (req) => {
 
     const userRole = invite.role || 'supporter';
 
+    // The profiles phone trigger rejects malformed numbers and aborts the whole
+    // account-creation transaction. Normalize once; store null when invalid.
+    const safePhone = normalizePhoneForStorage(invite.phone);
+
     // Check if the creator is an agent (for sub-agent creation)
     let isSubAgent = false;
     let parentAgentId: string | null = null;
