@@ -132,7 +132,7 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
               <WalletBuckets wallet={data.wallet} />
 
               {/* Tabs */}
-              <Tabs defaultValue="overview" className="w-full">
+              <Tabs defaultValue="evaluation" className="w-full">
                 <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
                   <TabsTrigger value="evaluation" className="text-xs">Evaluation</TabsTrigger>
                   <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
