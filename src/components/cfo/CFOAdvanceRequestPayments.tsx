@@ -39,6 +39,19 @@ export function CFOAdvanceRequestPayments() {
   const [evalReq, setEvalReq] = useState<any | null>(null);
   const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // Post-disbursement success dialog payload — shows the CFO what was sent and
+  // a shortcut to the full list of disbursed advances.
+  const [disbursed, setDisbursed] = useState<null | {
+    agentName: string;
+    agentPhone: string;
+    principal: number;
+    cycleDays: number;
+    rate: number;
+    accessFee: number;
+    registrationFee: number;
+    totalPayable: number;
+    daily: number;
+  }>(null);
 
   // Income Statement Impact preview — date range
   const today = new Date();
@@ -218,8 +231,26 @@ export function CFOAdvanceRequestPayments() {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, req: any) => {
+      const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      const registrationFee = calculateRegistrationFee(principal);
+      const accessFee = calculateAccessFee(principal, cycleDays, adjustedRate);
+      const totalPayable = principal + accessFee + registrationFee;
+      const daily = Math.ceil(totalPayable / cycleDays);
       toast.success('Advance paid to agent wallet!');
+      setDisbursed({
+        agentName: req.profiles?.full_name || 'Agent',
+        agentPhone: req.profiles?.phone || '',
+        principal,
+        cycleDays,
+        rate: adjustedRate,
+        accessFee,
+        registrationFee,
+        totalPayable,
+        daily,
+      });
       queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -1026,6 +1057,77 @@ export function CFOAdvanceRequestPayments() {
           </Button>
         ) : null}
       />
+
+      {/* Disbursement success dialog — shows the CFO confirmation, key stats,
+          and a shortcut to review all disbursed advances. */}
+      <Dialog open={!!disbursed} onOpenChange={(open) => !open && setDisbursed(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
+              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+            </div>
+            <DialogTitle className="text-center text-base">Advance Disbursed</DialogTitle>
+            <DialogDescription className="text-center text-xs">
+              {disbursed?.principal !== undefined && (
+                <>
+                  <span className="font-semibold text-foreground">{formatUGX(disbursed.principal)}</span>{' '}
+                  credited to <span className="font-semibold text-foreground">{disbursed?.agentName}</span>&apos;s withdrawable wallet.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {disbursed && (
+            <div className="rounded-lg border divide-y text-xs">
+              <div className="flex justify-between px-3 py-2">
+                <span className="text-muted-foreground">Principal to Wallet</span>
+                <span className="font-mono font-bold text-emerald-600">{formatUGX(disbursed.principal)}</span>
+              </div>
+              <div className="flex justify-between px-3 py-2">
+                <span className="text-muted-foreground">Cycle Days</span>
+                <span className="font-mono font-bold">{disbursed.cycleDays} days</span>
+              </div>
+              <div className="flex justify-between px-3 py-2">
+                <span className="text-muted-foreground">Access + Registration Fees</span>
+                <span className="font-mono font-bold text-emerald-600">+{formatUGX(disbursed.accessFee + disbursed.registrationFee)}</span>
+              </div>
+              <div className="flex justify-between px-3 py-2 bg-muted/30">
+                <span className="font-bold">Total Payable by Agent</span>
+                <span className="font-mono font-bold text-primary">{formatUGX(disbursed.totalPayable)}</span>
+              </div>
+              <div className="flex justify-between px-3 py-2 bg-muted/30">
+                <span className="font-bold">Daily Deduction</span>
+                <span className="font-mono font-bold text-red-500">{formatUGX(disbursed.daily)}/d</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setDisbursed(null)}
+              className="w-full sm:w-auto"
+            >
+              <X className="h-4 w-4 mr-1" /> Dismiss
+            </Button>
+            <Button
+              onClick={() => {
+                setDisbursed(null);
+                // Jump to the full disbursed-advances register on the same tab.
+                requestAnimationFrame(() => {
+                  document.getElementById('cfo-disbursed-advances')?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                  });
+                });
+              }}
+              className="w-full sm:w-auto gap-2"
+            >
+              <Banknote className="h-4 w-4" /> View all disbursed advances
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
