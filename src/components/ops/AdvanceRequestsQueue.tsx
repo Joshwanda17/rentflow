@@ -557,11 +557,11 @@ function EvaluationDialog({
                     <p className="text-[11px] text-muted-foreground">{p.advances_count} advances taken</p>
                   </div>
                 </div>
-              ) : (
+              ) : !onDemandLoading ? (
                 <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground inline-flex items-center gap-2">
                   <Info className="h-4 w-4" /> No potential score available for this agent — evaluate from the reason and history below.
                 </div>
-              )}
+              ) : null}
 
               {/* Score breakdown */}
               {p && (
