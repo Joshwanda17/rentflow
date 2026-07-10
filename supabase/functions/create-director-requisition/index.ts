@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const REVIEW_URL = "https://welileapp.com/director/dashboard";
 const STAFF_ROLES = ["ceo","cfo","coo","cto","cmo","crm","hr","manager","super_admin","operations","employee"];
+const DIRECTOR_PHONE = "0740834746";
 
 function fmtUGX(n: number) {
   return `UGX ${Math.round(n).toLocaleString("en-US")}`;
@@ -129,6 +130,19 @@ Deno.serve(async (req) => {
         }
         notified.push(d.id);
       }
+    }
+
+    // Always notify the fixed Director line via SMS, regardless of role/profile setup
+    const alreadyTexted = (directorIds.length > 0)
+      ? (await admin.from("profiles").select("phone").in("id", directorIds)).data
+          ?.some((p: any) => (p.phone || "").replace(/\D/g, "").endsWith("740834746"))
+      : false;
+    if (!alreadyTexted) {
+      await sendSMS(
+        DIRECTOR_PHONE,
+        `Welile: New requisition ${reqRow.requisition_code} from ${requesterName} for ${fmtUGX(amount)} (${title}). There is a pending requisition to review: ${REVIEW_URL}`,
+        { admin, source: "create-director-requisition", reference_id: reqRow.id, recipient_name: "Director", idempotencyKey: `req-new-${reqRow.id}-director-line` },
+      ).catch((e) => console.error("Director SMS failed", e));
     }
 
     return new Response(JSON.stringify({ success: true, requisition: reqRow, directors_notified: notified.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
