@@ -277,6 +277,11 @@ export function AgentMyAdvancesCard() {
                       Includes {formatUGX(interest)} access fee
                     </p>
                   )}
+                  {Number(adv.arrears_balance || 0) > 0 && adv.status !== 'completed' && (
+                    <p className="rounded-md bg-amber-500/10 px-2 py-1 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                      ⚠ {formatUGX(Number(adv.arrears_balance))} in missed repayments will be auto-recovered from your next earning(s) before they reach your wallet.
+                    </p>
+                  )}
                 </div>
               );
             })}
