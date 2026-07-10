@@ -116,11 +116,17 @@ async function handleLogin(req: Request): Promise<Response> {
   if (rawEmail.includes("@")) {
     candidates.push(rawEmail);
   } else if (rawPhone) {
-    const { data: resolved } = await admin.rpc("get_email_by_phone", {
-      phone_variants: phoneVariants(rawPhone),
+    const variants = phoneVariants(rawPhone);
+    const { data: resolved, error: rpcErr } = await admin.rpc("get_email_by_phone", {
+      phone_variants: variants,
     });
+    console.log("[api/login] variants", JSON.stringify(variants),
+      "resolved", JSON.stringify(resolved), "err", rpcErr?.message);
     const list = Array.isArray(resolved) ? resolved : resolved ? [resolved] : [];
-    for (const e of list) if (typeof e === "string" && e) candidates.push(e.toLowerCase());
+    for (const e of list) {
+      const val = typeof e === "string" ? e : (e && typeof e === "object" ? Object.values(e)[0] : null);
+      if (typeof val === "string" && val) candidates.push(val.toLowerCase());
+    }
   }
   if (candidates.length === 0) return fail("No account found for that phone or email", 401);
 
