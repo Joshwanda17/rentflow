@@ -65,7 +65,9 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
           .select('id, full_name')
           .in('id', uniqueIds);
         const map: Record<string, string> = {};
-        (profileData || []).forEach(p => { map[p.id] = p.full_name || 'Unknown'; });
+        // Keep empty when the name is missing so the render can fall back to the
+        // payout (momo / bank) name instead of showing the literal "Unknown".
+        (profileData || []).forEach(p => { map[p.id] = p.full_name || ''; });
         setProfiles(map);
       }
     } catch (err) {
