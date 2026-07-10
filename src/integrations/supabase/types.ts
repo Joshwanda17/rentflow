@@ -551,8 +551,10 @@ export type Database = {
           access_fee_collected: number | null
           access_fee_status: string | null
           agent_id: string
+          arrears_balance: number
           created_at: string
           cycle_days: number
+          daily_installment: number
           daily_rate: number
           expires_at: string
           id: string
@@ -570,8 +572,10 @@ export type Database = {
           access_fee_collected?: number | null
           access_fee_status?: string | null
           agent_id: string
+          arrears_balance?: number
           created_at?: string
           cycle_days?: number
+          daily_installment?: number
           daily_rate?: number
           expires_at?: string
           id?: string
@@ -589,8 +593,10 @@ export type Database = {
           access_fee_collected?: number | null
           access_fee_status?: string | null
           agent_id?: string
+          arrears_balance?: number
           created_at?: string
           cycle_days?: number
+          daily_installment?: number
           daily_rate?: number
           expires_at?: string
           id?: string
@@ -23941,6 +23947,14 @@ export type Database = {
       record_short_link_click: {
         Args: { p_code: string; p_referrer?: string; p_user_agent?: string }
         Returns: undefined
+      }
+      recover_agent_arrears_from_credit: {
+        Args: {
+          p_agent_id: string
+          p_credit_amount: number
+          p_trigger_ledger_id?: string
+        }
+        Returns: number
       }
       recover_merchandise_from_wallets: { Args: never; Returns: Json }
       redeem_staff_access_code: { Args: { p_code: string }; Returns: Json }
