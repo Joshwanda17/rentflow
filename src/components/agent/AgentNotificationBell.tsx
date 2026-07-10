@@ -25,6 +25,7 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string 
   info: { icon: Info, color: 'text-blue-600', bg: 'bg-blue-500/10' },
   listing: { icon: Home, color: 'text-primary', bg: 'bg-primary/10' },
   merchandise_recovery: { icon: ShoppingBag, color: 'text-purple-600', bg: 'bg-purple-500/10' },
+  advance_arrears: { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-500/10' },
 };
 
 export function AgentNotificationBell({ userId }: { userId: string }) {
