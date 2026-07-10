@@ -13,6 +13,7 @@ interface AdvanceRow {
   agent_id: string;
   principal: number;
   outstanding_balance: number;
+  arrears_balance: number;
   status: string;
   issued_at: string;
   expires_at: string;
@@ -25,7 +26,7 @@ export function AgentAdvancesOutstandingPanel() {
     queryFn: async (): Promise<AdvanceRow[]> => {
       const { data, error } = await supabase
         .from('agent_advances')
-        .select('id, agent_id, principal, outstanding_balance, status, issued_at, expires_at, profiles:agent_id (full_name, phone)')
+        .select('id, agent_id, principal, outstanding_balance, arrears_balance, status, issued_at, expires_at, profiles:agent_id (full_name, phone)')
         .in('status', ['active', 'overdue'])
         .gt('outstanding_balance', 0)
         .order('outstanding_balance', { ascending: false });
@@ -135,6 +136,11 @@ export function AgentAdvancesOutstandingPanel() {
                       <TableCell className="text-right tabular-nums">{formatUGX(Number(r.principal))}</TableCell>
                       <TableCell className="text-right tabular-nums font-semibold">
                         {formatUGX(Number(r.outstanding_balance))}
+                        {Number(r.arrears_balance || 0) > 0 && (
+                          <div className="text-[10px] font-medium text-amber-600" title="Missed repayments — auto-recovered from the agent's next earnings">
+                            {formatUGX(Number(r.arrears_balance))} arrears
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
                         {r.status === 'overdue' && overdueDays > 0 ? `+${overdueDays}d over` : '—'}
