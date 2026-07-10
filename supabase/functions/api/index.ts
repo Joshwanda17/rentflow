@@ -105,27 +105,40 @@ async function handleLogin(req: Request): Promise<Response> {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // Accept either an email or a phone number as the identifier.
-  let email: string | null = null;
+  // Accept either an email or a phone number as the identifier. A single phone
+  // can resolve to more than one auth identity (e.g. a synthetic `@welile.user`
+  // placeholder AND a real email), so we collect every candidate and prefer the
+  // real email, then try each until the password matches.
+  const candidates: string[] = [];
   const rawEmail = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const rawPhone = typeof body?.phone === "string" ? body.phone.trim() : "";
 
   if (rawEmail.includes("@")) {
-    email = rawEmail;
+    candidates.push(rawEmail);
   } else if (rawPhone) {
     const { data: resolved } = await admin.rpc("get_email_by_phone", {
       phone_variants: phoneVariants(rawPhone),
     });
-    email = typeof resolved === "string" ? resolved : Array.isArray(resolved) ? resolved[0] : null;
+    const list = Array.isArray(resolved) ? resolved : resolved ? [resolved] : [];
+    for (const e of list) if (typeof e === "string" && e) candidates.push(e.toLowerCase());
   }
-  if (!email) return fail("No account found for that phone or email", 401);
+  if (candidates.length === 0) return fail("No account found for that phone or email", 401);
+
+  const isSynthetic = (e: string) => e.endsWith("@welile.user") || e.endsWith("@welile.agent");
+  const ordered = [...new Set(candidates)].sort((a, b) =>
+    Number(isSynthetic(a)) - Number(isSynthetic(b))
+  );
 
   // Public anon client to actually mint the session.
   const publicClient = createClient(SUPABASE_URL, ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: signIn, error } = await publicClient.auth.signInWithPassword({ email, password });
-  if (error || !signIn?.session) return fail("Invalid phone/email or password", 401);
+  let signIn: AnyClient = null;
+  for (const candidate of ordered) {
+    const { data, error } = await publicClient.auth.signInWithPassword({ email: candidate, password });
+    if (!error && data?.session) { signIn = data; break; }
+  }
+  if (!signIn?.session) return fail("Invalid phone/email or password", 401);
 
   const { session, user } = signIn;
   const { data: profile } = await admin
