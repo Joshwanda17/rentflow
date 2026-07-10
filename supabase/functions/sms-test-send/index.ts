@@ -94,7 +94,7 @@ async function sendYoolaSMS(phone: string, message: string, opts: { sender?: str
   // Default: omit the sender field entirely so Yoola uses its registered default
   // (ATInfo). Pass an explicit sender only to test a specific sender id.
   const useSender = opts.sender === undefined ? null : (opts.sender || null);
-  const payload: Record<string, unknown> = { phone: bareDigits, message, api_key: apiKey };
+  const payload: Record<string, unknown> = { phone: bareDigits, message, api_key: apiKey, sender: "WELILE" };
   if (useSender) payload.sender = useSender;
   try {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
