@@ -49,6 +49,28 @@ function normalizeEmail(email: unknown): string {
   return typeof email === 'string' ? email.trim().toLowerCase() : '';
 }
 
+/**
+ * Normalize a phone number to bare E.164 digits (e.g. "256759229748"), or
+ * return null when it can't be made into a valid Ugandan/international number.
+ * The `profiles` table has a phone-validation trigger that ABORTS the whole
+ * transaction (and thus fails account creation with an empty {} error) on an
+ * invalid phone. Passing null keeps activation working when an invite was
+ * created with a malformed number (e.g. "078500000").
+ */
+function normalizePhoneForStorage(raw: unknown): string | null {
+  if (raw == null) return null;
+  let digits = String(raw).replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('256')) {
+    // already international
+  } else if (digits.startsWith('0')) {
+    digits = `256${digits.slice(1)}`;
+  } else if (digits.length === 9) {
+    digits = `256${digits}`;
+  }
+  return /^256[3-9][0-9]{8}$/.test(digits) ? digits : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -168,6 +190,10 @@ Deno.serve(async (req) => {
 
     const userRole = invite.role || 'supporter';
 
+    // The profiles phone trigger rejects malformed numbers and aborts the whole
+    // account-creation transaction. Normalize once; store null when invalid.
+    const safePhone = normalizePhoneForStorage(invite.phone);
+
     // Check if the creator is an agent (for sub-agent creation)
     let isSubAgent = false;
     let parentAgentId: string | null = null;
@@ -200,7 +226,7 @@ Deno.serve(async (req) => {
         email_confirm: true,
         user_metadata: {
           full_name: finalFullName,
-          phone: invite.phone,
+          phone: safePhone,
           role: userRole,
           referrer_id: invite.created_by,
         },
@@ -257,7 +283,7 @@ Deno.serve(async (req) => {
           email_confirm: true,
           user_metadata: {
             full_name: finalFullName,
-            phone: invite.phone,
+            phone: safePhone,
             role: userRole,
             referrer_id: invite.created_by,
           },
@@ -280,7 +306,7 @@ Deno.serve(async (req) => {
       .upsert({
         id: userId,
         full_name: finalFullName,
-        phone: invite.phone,
+        phone: safePhone,
         email: finalEmail,
         verified: true,
       }, { onConflict: 'id' });
@@ -325,7 +351,7 @@ Deno.serve(async (req) => {
     await adminClient.auth.admin.updateUserById(userId, {
       user_metadata: {
         full_name: finalFullName,
-        phone: invite.phone,
+        phone: safePhone,
         role: userRole,
         intended_role: userRole,
         referrer_id: invite.created_by,
@@ -338,7 +364,7 @@ Deno.serve(async (req) => {
         .from("landlords")
         .insert({
           name: finalFullName,
-          phone: invite.phone,
+          phone: safePhone,
           property_address: invite.property_address || 'Address not provided',
           latitude: invite.latitude || null,
           longitude: invite.longitude || null,
