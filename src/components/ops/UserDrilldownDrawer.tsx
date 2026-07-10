@@ -735,6 +735,19 @@ function TenantQuickActions({
   );
 }
 
+// Full set of rent-lifecycle ledger categories that make up a tenant's
+// transaction statement. Most live tenants use `rent_receivable_created`
+// and `rent_payment_for_tenant`; the older set is kept for back-compat.
+const TENANT_STATEMENT_CATEGORIES = [
+  'rent_receivable_created',
+  'rent_payment_for_tenant',
+  'rent_obligation',
+  'rent_obligation_reversal',
+  'tenant_repayment',
+  'rent_repayment',
+  'rent_principal_collected',
+] as const;
+
 function TenantExportButtons({
   tenantId, profile, activeRr, balance, activeLandlord, dateRange,
 }: {
@@ -753,7 +766,7 @@ function TenantExportButtons({
       .from('general_ledger')
       .select('transaction_date, amount, direction, category, description')
       .eq('user_id', tenantId)
-      .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
+      .in('category', TENANT_STATEMENT_CATEGORIES)
       .neq('classification', 'admin_correction');
     if (gte) q = q.gte('transaction_date', gte);
     if (lte) q = q.lte('transaction_date', lte);
@@ -825,16 +838,40 @@ function TenantExportButtons({
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
-      let y = 14;
 
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(14);
-      pdf.text('Tenant Profile Statement', 14, y); y += 6;
-      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-      pdf.text(`Generated ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, 14, y); y += 8;
+      // ── Brand palette ───────────────────────────────────────
+      const GREEN: [number, number, number] = [34, 197, 94];
+      const INK: [number, number, number] = [30, 30, 30];
+      const MUTE: [number, number, number] = [110, 110, 110];
+      const LINE: [number, number, number] = [225, 225, 225];
 
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
-      pdf.text('Profile', 14, y); y += 5;
+      // ── Branded header band ─────────────────────────────────
+      pdf.setFillColor(...GREEN);
+      pdf.rect(0, 0, pageW, 30, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+      pdf.text('WELILE', 14, 15);
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+      pdf.text('Tenant Profile Statement', 14, 22);
+      pdf.setFontSize(8);
+      pdf.text(`Generated ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, pageW - 14, 15, { align: 'right' });
+      pdf.text('welileapp.com', pageW - 14, 21, { align: 'right' });
+
+      pdf.setTextColor(...INK);
+      let y = 40;
+
+      const sectionHeader = (label: string) => {
+        pdf.setFillColor(240, 253, 244);
+        pdf.rect(12, y - 4.5, pageW - 24, 7, 'F');
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10.5);
+        pdf.setTextColor(...GREEN);
+        pdf.text(label, 14, y);
+        pdf.setTextColor(...INK);
+        y += 7;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+      };
+
+      sectionHeader('Profile');
       const profileLines = [
         ['Name', profile?.full_name ?? '—'],
         ['Phone', profile?.phone ?? '—'],
@@ -842,14 +879,13 @@ function TenantExportButtons({
         ['Country', profile?.country ?? '—'],
       ];
       for (const [k, v] of profileLines) {
-        pdf.text(`${k}:`, 14, y); pdf.text(String(v), 50, y); y += 5;
+        pdf.setTextColor(...MUTE); pdf.text(`${k}`, 14, y);
+        pdf.setTextColor(...INK); pdf.text(String(v), 50, y); y += 5.5;
       }
-      y += 3;
+      y += 4;
 
       if (activeRr) {
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
-        pdf.text('Active Rent Plan', 14, y); y += 5;
-        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+        sectionHeader('Active Rent Plan');
         const rentLines: [string, string][] = [
           ['Rent amount', fmtUGX(activeRr.rent_amount)],
           ['Daily repayment', fmtUGX(activeRr.daily_repayment)],
@@ -859,47 +895,75 @@ function TenantExportButtons({
           ['Status', String(activeRr.status ?? '—')],
         ];
         for (const [k, v] of rentLines) {
-          pdf.text(`${k}:`, 14, y); pdf.text(v, 60, y); y += 5;
+          pdf.setTextColor(...MUTE); pdf.text(`${k}`, 14, y);
+          pdf.setTextColor(...INK); pdf.text(v, 60, y); y += 5.5;
         }
-        y += 3;
+        y += 4;
       }
 
       if (activeLandlord) {
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
-        pdf.text('Landlord', 14, y); y += 5;
-        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+        sectionHeader('Landlord');
         const llLines: [string, string][] = [
           ['Name', activeLandlord.name ?? '—'],
           ['Phone', activeLandlord.phone ?? '—'],
           ['Address', activeLandlord.property_address ?? '—'],
         ];
         for (const [k, v] of llLines) {
-          pdf.text(`${k}:`, 14, y); pdf.text(String(v).slice(0, 80), 50, y); y += 5;
+          pdf.setTextColor(...MUTE); pdf.text(`${k}`, 14, y);
+          pdf.setTextColor(...INK); pdf.text(String(v).slice(0, 80), 50, y); y += 5.5;
         }
-        y += 3;
+        y += 4;
       }
 
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
-      pdf.text(`Statements (${(statements as any[]).length})`, 14, y); y += 5;
+      sectionHeader(`Transactions & Statements (${(statements as any[]).length})`);
+      // table head
+      pdf.setFillColor(...GREEN);
+      pdf.rect(12, y - 4.5, pageW - 24, 7, 'F');
+      pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
       pdf.text('Date', 14, y);
       pdf.text('Category', 50, y);
-      pdf.text('Dir', 100, y);
+      pdf.text('Dir', 108, y);
       pdf.text('Amount (UGX)', pageW - 14, y, { align: 'right' });
-      y += 4;
-      pdf.setLineWidth(0.2); pdf.line(14, y, pageW - 14, y); y += 3;
+      y += 7;
+      pdf.setTextColor(...INK);
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      let zebra = false;
+      if ((statements as any[]).length === 0) {
+        pdf.setTextColor(...MUTE);
+        pdf.text('No rent transactions on file for the selected period.', 14, y);
+        pdf.setTextColor(...INK);
+        y += 6;
+      }
       for (const e of statements as any[]) {
-        if (y > pageH - 14) { pdf.addPage(); y = 14; }
+        if (y > pageH - 18) { pdf.addPage(); y = 18; }
+        if (zebra) { pdf.setFillColor(247, 250, 248); pdf.rect(12, y - 4, pageW - 24, 6, 'F'); }
+        zebra = !zebra;
         const date = e.transaction_date ? format(parseISO(e.transaction_date), 'dd MMM yy HH:mm') : '—';
         const cat = String(e.category ?? '').replace(/_/g, ' ');
-        const dir = e.direction === 'cash_in' ? 'IN' : 'OUT';
+        const isIn = e.direction === 'cash_in';
+        const dir = isIn ? 'IN' : 'OUT';
         const amt = Number(e.amount || 0).toLocaleString();
         pdf.text(date, 14, y);
-        pdf.text(cat.slice(0, 28), 50, y);
-        pdf.text(dir, 100, y);
+        pdf.text(cat.slice(0, 30), 50, y);
+        isIn ? pdf.setTextColor(...GREEN) : pdf.setTextColor(220, 60, 60);
+        pdf.text(dir, 108, y);
         pdf.text(amt, pageW - 14, y, { align: 'right' });
-        y += 4.5;
+        pdf.setTextColor(...INK);
+        y += 6;
+      }
+
+      // ── Footer on every page ────────────────────────────────
+      const pageCount = pdf.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        pdf.setPage(p);
+        pdf.setDrawColor(...LINE); pdf.setLineWidth(0.2);
+        pdf.line(14, pageH - 12, pageW - 14, pageH - 12);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5);
+        pdf.setTextColor(...MUTE);
+        pdf.text('Welile — Rent made possible. This statement is generated for internal operational use.', 14, pageH - 7);
+        pdf.text(`Page ${p} of ${pageCount}`, pageW - 14, pageH - 7, { align: 'right' });
+        pdf.setTextColor(...INK);
       }
 
       pdf.save(`tenant_${safeName}_${todayStr}.pdf`);
@@ -3196,7 +3260,7 @@ function TenantStatements({
         .from('general_ledger')
         .select('id, transaction_date, amount, direction, category, description')
         .eq('user_id', tenantId)
-        .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
+        .in('category', TENANT_STATEMENT_CATEGORIES)
         .neq('classification', 'admin_correction');
       if (gte) q = q.gte('transaction_date', gte);
       if (lte) q = q.lte('transaction_date', lte);
