@@ -24284,6 +24284,10 @@ export type Database = {
         Args: { p_sub_agent_id: string }
         Returns: undefined
       }
+      try_credit_qualified_referrals: {
+        Args: { p_referred_id: string }
+        Returns: undefined
+      }
       try_link_gmail_for_deposit: {
         Args: { p_deposit_id: string }
         Returns: Json
