@@ -753,7 +753,7 @@ function TenantExportButtons({
       .from('general_ledger')
       .select('transaction_date, amount, direction, category, description')
       .eq('user_id', tenantId)
-      .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
+      .in('category', TENANT_STATEMENT_CATEGORIES)
       .neq('classification', 'admin_correction');
     if (gte) q = q.gte('transaction_date', gte);
     if (lte) q = q.lte('transaction_date', lte);
