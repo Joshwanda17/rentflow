@@ -604,6 +604,55 @@ export function MerchantFloatRequestsPanel() {
                 <p className="font-semibold">{active.agent?.full_name || 'Merchant agent'}</p>
                 <p className="text-muted-foreground">Requested {formatUGX(Number(active.requested_amount))} · routes to Float (operational_wallet)</p>
               </div>
+
+              {/* Float position — how much they still hold + how prior float was used */}
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  <History className="h-3.5 w-3.5" /> Float position before funding
+                </p>
+                {floatStatusLoading ? (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading float usage…</p>
+                ) : (
+                  <>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      <div className="rounded-md border border-border/60 bg-card p-2 text-center">
+                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Float on hand</p>
+                        <p className="text-sm font-bold tabular-nums text-amber-700 dark:text-amber-400">{formatUGX(floatStatus?.floatBalance ?? 0)}</p>
+                      </div>
+                      <div className="rounded-md border border-border/60 bg-card p-2 text-center">
+                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Total allocated</p>
+                        <p className="text-sm font-bold tabular-nums">{formatUGX(floatStatus?.totalAllocated ?? 0)}</p>
+                      </div>
+                      <div className="rounded-md border border-border/60 bg-card p-2 text-center">
+                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Used ({floatStatus?.usedCount ?? 0})</p>
+                        <p className="text-sm font-bold tabular-nums">{formatUGX(floatStatus?.totalUsed ?? 0)}</p>
+                      </div>
+                    </div>
+                    {(floatStatus?.floatBalance ?? 0) > 0 && (
+                      <p className="mt-2 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-300">
+                        ⚠ This agent still holds {formatUGX(floatStatus?.floatBalance ?? 0)} of unspent float.
+                      </p>
+                    )}
+                    {floatStatus?.recent && floatStatus.recent.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Recent float usage</p>
+                        {floatStatus.recent.map((t) => (
+                          <div key={t.id} className="flex items-center justify-between gap-2 text-[11px]">
+                            <span className="min-w-0 truncate text-muted-foreground">
+                              {t.method}{t.recipient ? ` · ${t.recipient}` : ''} · {new Date(t.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <span className="shrink-0 font-semibold tabular-nums">{formatUGX(t.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {floatStatus && floatStatus.usedCount === 0 && (
+                      <p className="mt-2 text-[11px] text-muted-foreground">No payouts settled from float yet.</p>
+                    )}
+                  </>
+                )}
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Amount to send (UGX)</label>
                 <Input type="number" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} />
