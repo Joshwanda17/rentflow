@@ -714,6 +714,14 @@ export function CashoutAgentManager() {
 
   const selectedAgentStats = selectedAgent ? agentStats.get(selectedAgent.id) || { count: 0, volume: 0, bank: 0, momo: 0, cash: 0, bankCount: 0, momoCount: 0, cashCount: 0, lastAt: null, todayCount: 0 } : null;
 
+  // Volume + count scoped to the picked date. When a date filter is active the
+  // "Volume Total" and "Completed Payouts" tiles must reflect ONLY that day so
+  // volume, commission and telecom charges all describe the same set of payouts.
+  const visibleVolume = useMemo(
+    () => (visiblePayouts as any[]).reduce((s, py) => s + Number(py.amount || 0), 0),
+    [visiblePayouts],
+  );
+
   // Commission accuracy reconciliation. Rather than silently masking gaps with
   // the 0.5% estimate, compare what actually landed in the merchant's wallet
   // (ledger legs) against what SHOULD have been credited (0.5% of each payout).
@@ -840,14 +848,20 @@ export function CashoutAgentManager() {
         </Card>
 
         <div className="grid grid-cols-2 gap-2">
-          <KpiTile icon={<CheckCircle2 className="h-4 w-4" />} label="Completed Payouts" value={String(selectedAgentStats?.count || 0)} tone="primary" sub={`${selectedAgentStats?.todayCount || 0} today`} />
+          <KpiTile
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            label="Completed Payouts"
+            value={String(txnDateFilter ? visiblePayouts.length : (selectedAgentStats?.count || 0))}
+            tone="primary"
+            sub={txnDateFilter ? 'on selected date' : `${selectedAgentStats?.todayCount || 0} today`}
+          />
           <KpiTile
             icon={<TrendingUp className="h-4 w-4" />}
             label="Volume Total"
-            value={formatUGX(selectedAgentStats?.volume || 0)}
+            value={formatUGX(txnDateFilter ? visibleVolume : (selectedAgentStats?.volume || 0))}
             tone="primary"
-            hint="Tap to view daily volume"
-            onClick={() => setBreakdownOpen(true)}
+            hint={txnDateFilter ? 'volume on selected date' : 'Tap to view daily volume'}
+            onClick={txnDateFilter ? undefined : () => setBreakdownOpen(true)}
           />
         </div>
         {/* Date filter — scopes Commission Earned & Telecom Charges to a single day */}
