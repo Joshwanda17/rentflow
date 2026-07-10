@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
 import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
+import { validateFullName } from '@/lib/authValidation';
 
 interface QuickRegisterTenantDialogProps {
   open: boolean;
@@ -65,6 +66,11 @@ export function QuickRegisterTenantDialog({
       toast.error('Please fill in name, phone and national ID');
       return;
     }
+    const nameCheck = validateFullName(fullName);
+    if (!nameCheck.valid) {
+      toast.error(nameCheck.error || 'Please enter a real full name');
+      return;
+    }
     if (nationalId.trim().length < 10) {
       toast.error('National ID must be 10–14 characters');
       return;
@@ -74,7 +80,7 @@ export function QuickRegisterTenantDialog({
     try {
       const { data, error } = await supabase.functions.invoke('register-tenant', {
         body: {
-          full_name: fullName.trim(),
+          full_name: nameCheck.trimmed,
           phone: phone.trim(),
           national_id: nationalId.trim().toUpperCase(),
         },
