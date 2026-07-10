@@ -132,9 +132,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Always notify the fixed Director line via SMS, regardless of role/profile setup
+    const alreadyTexted = (directorIds.length > 0)
+      ? (await admin.from("profiles").select("phone").in("id", directorIds)).data
+          ?.some((p: any) => (p.phone || "").replace(/\D/g, "").endsWith("740834746"))
+      : false;
+    if (!alreadyTexted) {
+      await sendSMS(
+        DIRECTOR_PHONE,
+        `Welile: New requisition ${reqRow.requisition_code} from ${requesterName} for ${fmtUGX(amount)} (${title}). There is a pending requisition to review: ${REVIEW_URL}`,
+        { admin, source: "create-director-requisition", reference_id: reqRow.id, recipient_name: "Director", idempotencyKey: `req-new-${reqRow.id}-director-line` },
+      ).catch((e) => console.error("Director SMS failed", e));
+    }
+
     return new Response(JSON.stringify({ success: true, requisition: reqRow, directors_notified: notified.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } finally {
-    // no-op
   } catch (err) {
     console.error("create-director-requisition error", err);
     return new Response(JSON.stringify({ error: (err as Error).message || "Unexpected error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
