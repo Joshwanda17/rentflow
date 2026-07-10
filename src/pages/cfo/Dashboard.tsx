@@ -296,7 +296,9 @@ export default function CFODashboardPage() {
           <div className="space-y-6">
             <BusinessAdvanceQueue stage="cfo" />
             <CFOAdvanceRequestPayments />
-            <CFOAdvancesManager />
+            <div id="cfo-disbursed-advances" className="scroll-mt-24">
+              <CFOAdvancesManager />
+            </div>
           </div>
         );
       case 'approval-audit':
