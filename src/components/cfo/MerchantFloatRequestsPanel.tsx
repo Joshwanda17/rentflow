@@ -302,6 +302,45 @@ export function MerchantFloatRequestsPanel() {
   };
   const close = () => { setActive(null); setMode(null); setAmount(''); setNote(''); };
 
+  // Float snapshot for the agent being funded — shows how much float they still
+  // hold and how the previously allocated float was spent, BEFORE we issue more.
+  const { data: floatStatus, isLoading: floatStatusLoading } = useQuery({
+    queryKey: ['cfo-agent-float-status', active?.agent_id],
+    enabled: !!active && mode === 'fund',
+    queryFn: async () => {
+      const agentId = active!.agent_id;
+      const [walletRes, allocRes, usedRes] = await Promise.all([
+        supabase.from('wallets').select('float_balance').eq('user_id', agentId).maybeSingle(),
+        supabase.from('float_requests').select('requested_amount').eq('agent_id', agentId).eq('status', 'approved'),
+        supabase
+          .from('withdrawal_requests')
+          .select('id, amount, payout_method, mobile_money_provider, mobile_money_name, processed_at')
+          .eq('processed_by', agentId)
+          .eq('status', 'completed')
+          .not('processed_at', 'is', null)
+          .order('processed_at', { ascending: false })
+          .limit(200),
+      ]);
+      const floatBalance = Number(walletRes.data?.float_balance) || 0;
+      const totalAllocated = (allocRes.data ?? []).reduce((s: number, a: any) => s + (Number(a.requested_amount) || 0), 0);
+      const used = (usedRes.data ?? []) as any[];
+      const totalUsed = used.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+      return {
+        floatBalance,
+        totalAllocated,
+        totalUsed,
+        usedCount: used.length,
+        recent: used.slice(0, 6).map((t) => ({
+          id: String(t.id),
+          amount: Number(t.amount) || 0,
+          method: t.mobile_money_provider || t.payout_method || 'Wallet',
+          recipient: t.mobile_money_name || null,
+          at: t.processed_at as string,
+        })),
+      };
+    },
+  });
+
   const fund = useMutation({
     mutationFn: async () => {
       if (!active) return;
