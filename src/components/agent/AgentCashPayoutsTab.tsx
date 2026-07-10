@@ -1701,7 +1701,11 @@ export function AgentCashPayoutsTab() {
                     typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
                   const name = isLandlordPayout
                     ? (w.mobile_money_name || 'Landlord')
-                    : (w.profiles?.full_name || 'Unknown');
+                    : (w.profiles?.full_name
+                        || w.linked_party_profile?.full_name
+                        || w.mobile_money_name
+                        || w.bank_account_name
+                        || 'Unknown');
                   return (
                     <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
                       <CardContent className="p-4 space-y-3.5">
