@@ -1006,6 +1006,26 @@ export function CFOAdvanceRequestPayments() {
           </Dialog>
         );
       })()}
+
+      {/* Shared advance-eligibility evaluation popup — identical to Agent Ops */}
+      <AgentAdvanceEvaluationDialog
+        req={evalReq}
+        agentId={evalReq?.agent_id}
+        agentName={evalReq?.profiles?.full_name}
+        onClose={() => setEvalReq(null)}
+        footer={evalReq ? (
+          <Button
+            className="w-full gap-1.5"
+            onClick={() => {
+              const id = evalReq.id;
+              setEvalReq(null);
+              setExpandedId(id);
+            }}
+          >
+            <Pencil className="h-4 w-4" /> Edit &amp; disburse this advance
+          </Button>
+        ) : null}
+      />
     </div>
   );
 }
