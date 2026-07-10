@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,15 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
-  CheckCircle2, XCircle, Loader2, Clock, User, Sparkles, Info, TrendingUp,
-  Users, Network, Wallet, Home, FileText, ChevronRight, Target, AlertTriangle,
-  PiggyBank, Coins, ChevronDown,
+  CheckCircle2, XCircle, Loader2, Clock, User, Info,
+  Users, ChevronRight, Target, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  AgentAdvanceEvaluationDialog,
+  type PotentialInfo,
+  scoreColor,
+  tierLabel,
+} from '@/components/agent/AgentAdvanceEvaluationDialog';
 
 // Agent advances now have a single operational approval desk: Agent Ops.
 // Once Agent Ops approves, the request goes straight to the CFO for final
@@ -32,43 +36,6 @@ const STAGE_CONFIG: Record<ApprovalStage, { filterStatus: string; nextStatus: st
 };
 
 const num = (v: any) => Number(v ?? 0);
-
-function scoreColor(score: number) {
-  if (score >= 75) return 'text-emerald-600';
-  if (score >= 50) return 'text-amber-600';
-  return 'text-rose-600';
-}
-function scoreBg(score: number) {
-  if (score >= 75) return 'bg-emerald-500';
-  if (score >= 50) return 'bg-amber-500';
-  return 'bg-rose-500';
-}
-function tierLabel(score: number) {
-  if (score >= 75) return 'High potential';
-  if (score >= 50) return 'Growing';
-  return 'Early stage';
-}
-
-export interface PotentialInfo {
-  potential_score: number;
-  suggested_amount: number;
-  current_limit: number;
-  direct_subagents: number;
-  active_subagents: number;
-  grand_subagents: number;
-  rent_collected: number;
-  collections_count: number;
-  house_listings: number;
-  rent_requests: number;
-  advances_count: number;
-  outstanding_total: number;
-  repayment_rate: number | null;
-  network_score: number;
-  collections_score: number;
-  repayment_score: number;
-  listings_score: number;
-  requests_score: number;
-}
 
 /** Shared hook: builds a map of agent_id -> potential info from the scoring RPC. */
 export function useAgentPotentialMap() {
@@ -108,30 +75,6 @@ export function useAgentPotentialMap() {
       return map;
     },
   });
-}
-
-/** Map a raw scoring RPC row into PotentialInfo. */
-function mapPotentialRow(r: any): PotentialInfo {
-  return {
-    potential_score: num(r.potential_score),
-    suggested_amount: num(r.suggested_amount),
-    current_limit: num(r.current_limit),
-    direct_subagents: num(r.direct_subagents),
-    active_subagents: num(r.active_subagents),
-    grand_subagents: num(r.grand_subagents),
-    rent_collected: num(r.rent_collected),
-    collections_count: num(r.collections_count),
-    house_listings: num(r.house_listings),
-    rent_requests: num(r.rent_requests),
-    advances_count: num(r.advances_count),
-    outstanding_total: num(r.outstanding_total),
-    repayment_rate: r.repayment_rate == null ? null : Number(r.repayment_rate),
-    network_score: num(r.network_score),
-    collections_score: num(r.collections_score),
-    repayment_score: num(r.repayment_score),
-    listings_score: num(r.listings_score),
-    requests_score: num(r.requests_score),
-  };
 }
 
 export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
@@ -294,354 +237,45 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         );
       })}
 
-      <EvaluationDialog
+      <AgentAdvanceEvaluationDialog
         req={selected}
+        agentName={selected?.agent_full_name}
         potential={selected?.agent_id ? potentialMap[selected.agent_id] : undefined}
-        note={selected ? (notes[selected.id] || '') : ''}
-        onNoteChange={(v) => selected && setNotes((prev) => ({ ...prev, [selected.id]: v }))}
         onClose={() => setSelected(null)}
-        onDecision={(approve) => selected && approveMutation.mutate({ id: selected.id, approve })}
-        pending={approveMutation.isPending}
-      />
-    </div>
-  );
-}
-
-function ScoreBar({ label, value, max }: { label: string; value: number; max: number }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  return (
-    <div>
-      <div className="flex items-center justify-between text-[11px] mb-1">
-        <span className="font-medium">{label} <span className="text-muted-foreground">(max {max})</span></span>
-        <span className="font-bold">{value.toFixed(1)}</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className={cn('h-full rounded-full', scoreBg(pct))} style={{ width: `${Math.min(pct, 100)}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function StatBlock({ icon: Icon, label, value, sub }: { icon: any; label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <span className="text-[11px] font-semibold uppercase tracking-wide">{label}</span>
-      </div>
-      <p className="text-base font-bold mt-1">{value}</p>
-      {sub && <p className="text-[11px] text-muted-foreground">{sub}</p>}
-    </div>
-  );
-}
-
-function EvaluationDialog({
-  req, potential: potentialProp, note, onNoteChange, onClose, onDecision, pending,
-}: {
-  req: any | null;
-  potential?: PotentialInfo;
-  note: string;
-  onNoteChange: (v: string) => void;
-  onClose: () => void;
-  onDecision: (approve: boolean) => void;
-  pending: boolean;
-}) {
-  const agentId: string | undefined = req?.agent_id || undefined;
-
-  // Every requester must get an evaluation — even agents who have not yet met
-  // the "who is an agent" criteria and therefore aren't in the ranked map.
-  // When the map has no score, compute one on demand for this exact agent.
-  const { data: onDemand, isLoading: onDemandLoading } = useQuery({
-    queryKey: ['advance-eval-potential-on-demand', agentId],
-    enabled: !!agentId && !potentialProp,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)('get_agent_advance_potential_for', {
-        _agent_id: agentId,
-      });
-      if (error) throw error;
-      const row = ((data ?? []) as any[])[0];
-      if (!row) return null;
-      return { info: mapPotentialRow(row), isQualifying: !!row.is_qualifying };
-    },
-  });
-
-  const p: PotentialInfo | undefined = potentialProp ?? onDemand?.info ?? undefined;
-  // The agent didn't rank (not in the qualifying set) but we built an ad-hoc score.
-  const generatedEval = !potentialProp && !!onDemand?.info;
-
-  const requested = num(req?.principal);
-  const suggested = p ? p.suggested_amount : 0;
-  const limit = p ? p.current_limit : 0;
-  const repayPct = p?.repayment_rate == null ? null : Math.round((p!.repayment_rate as number) * 100);
-  const overSuggested = p && requested > suggested;
-  const overLimit = p && limit > 0 && requested > limit;
-  const withinAll = p && !overSuggested && !overLimit;
-
-  const [showEarnings, setShowEarnings] = useState(false);
-
-  // Agent wallet snapshot — helps judge repayment capacity at a glance.
-  const { data: wallet, isLoading: walletLoading } = useQuery({
-    queryKey: ['advance-eval-wallet', agentId],
-    enabled: !!agentId,
-    staleTime: 30_000,
-    queryFn: async () => {
-      const [walletRes, availRes] = await Promise.all([
-        supabase
-          .from('wallets')
-          .select('withdrawable_balance, float_balance, advance_balance, balance')
-          .eq('user_id', agentId as string)
-          .maybeSingle(),
-        (supabase.rpc as any)('get_user_available_balance', { p_user_id: agentId }),
-      ]);
-      return {
-        withdrawable: num(walletRes.data?.withdrawable_balance),
-        float: num(walletRes.data?.float_balance),
-        advance: num(walletRes.data?.advance_balance),
-        available: num(availRes?.data),
-      };
-    },
-  });
-
-  // Recent earning activity — fetched lazily only when the reviewer expands it.
-  const { data: earnings = [], isLoading: earningsLoading } = useQuery({
-    queryKey: ['advance-eval-earnings', agentId],
-    enabled: !!agentId && showEarnings,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('agent_earnings')
-        .select('id, amount, earning_type, description, created_at')
-        .eq('agent_id', agentId as string)
-        .order('created_at', { ascending: false })
-        .limit(15);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  return (
-    <Dialog open={!!req} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        {req && (
+        footer={selected ? (
           <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                {req.agent_full_name || 'Agent'} — advance evaluation
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              {/* On-demand evaluation status for non-ranked agents */}
-              {!potentialProp && (
-                onDemandLoading ? (
-                  <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground inline-flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Building an evaluation for this agent…
-                  </div>
-                ) : generatedEval ? (
-                  <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800 inline-flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 shrink-0" />
-                    Generated evaluation — this agent hasn't met the full agent criteria yet, so we scored them on demand from their live activity.
-                  </div>
-                ) : null
-              )}
-
-              {/* Wallet snapshot + recent earnings — repayment-capacity context */}
-              <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold flex items-center gap-1.5">
-                    <PiggyBank className="h-3.5 w-3.5 text-emerald-600" /> Wallet balance
-                  </p>
-                  {walletLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-2.5 text-center">
-                    <p className="text-[9px] uppercase tracking-wide text-emerald-700">Withdrawable</p>
-                    <p className="text-sm font-extrabold text-emerald-700 leading-tight">{formatUGX(wallet?.available ?? wallet?.withdrawable ?? 0)}</p>
-                  </div>
-                  <div className="rounded-xl bg-muted/50 border border-border p-2.5 text-center">
-                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Float</p>
-                    <p className="text-sm font-extrabold leading-tight">{formatUGX(wallet?.float ?? 0)}</p>
-                  </div>
-                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-2.5 text-center">
-                    <p className="text-[9px] uppercase tracking-wide text-amber-700">Advance owed</p>
-                    <p className="text-sm font-extrabold text-amber-700 leading-tight">{formatUGX(wallet?.advance ?? 0)}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowEarnings((s) => !s)}
-                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-border bg-muted/40 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
-                >
-                  <Coins className="h-3.5 w-3.5 text-primary" />
-                  {showEarnings ? 'Hide recent earnings' : 'See recent earnings activity'}
-                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showEarnings ? 'rotate-180' : '')} />
-                </button>
-                {showEarnings && (
-                  <div className="rounded-xl bg-muted/30 p-2 space-y-1 max-h-56 overflow-y-auto">
-                    {earningsLoading ? (
-                      <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-                    ) : earnings.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground text-center py-3">No earnings recorded yet.</p>
-                    ) : (
-                      earnings.map((e: any) => (
-                        <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-1.5">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-semibold truncate">
-                              {e.description || (e.earning_type ? String(e.earning_type).replace(/_/g, ' ') : 'Earning')}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {e.earning_type ? String(e.earning_type).replace(/_/g, ' ') : ''} · {e.created_at ? format(new Date(e.created_at), 'MMM d, yyyy') : ''}
-                            </p>
-                          </div>
-                          <span className="text-[11px] font-bold text-emerald-600 tabular-nums shrink-0">+{formatUGX(num(e.amount))}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Requested vs suggested vs limit */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3 text-center">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Requested</p>
-                  <p className="text-lg font-extrabold text-primary leading-tight">{formatUGX(requested)}</p>
-                  <p className="text-[10px] text-muted-foreground">{req.cycle_days} days</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
-                  <p className="text-[10px] uppercase tracking-wide text-emerald-700">Suggested</p>
-                  <p className="text-lg font-extrabold text-emerald-600 leading-tight">{p ? formatUGX(suggested) : '—'}</p>
-                  <p className="text-[10px] text-emerald-700">safe amount</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card p-3 text-center">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Limit</p>
-                  <p className="text-lg font-extrabold leading-tight">{p ? formatUGX(limit) : '—'}</p>
-                  <p className="text-[10px] text-muted-foreground">current cap</p>
-                </div>
-              </div>
-
-              {/* Verdict banner */}
-              {p && (
-                <div className={cn(
-                  'rounded-xl p-3 text-xs font-semibold flex items-start gap-2',
-                  withinAll ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : overLimit ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                      : 'bg-amber-50 text-amber-800 border border-amber-200',
-                )}>
-                  {withinAll ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" /> : <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />}
-                  <span>
-                    {withinAll && 'Requested amount is within both the suggested amount and the current limit — safe to approve.'}
-                    {overLimit && `Requested amount exceeds the current limit by ${formatUGX(requested - limit)}. Consider rejecting or asking the agent to lower it.`}
-                    {overSuggested && !overLimit && `Requested amount is ${formatUGX(requested - suggested)} above the suggested (safe) amount but within the limit. Approve with caution.`}
-                  </span>
-                </div>
-              )}
-
-              {/* Potential headline */}
-              {p ? (
-                <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-transparent p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Potential score</p>
-                    <p className={cn('text-3xl font-extrabold leading-none', scoreColor(p.potential_score))}>
-                      {p.potential_score.toFixed(0)}<span className="text-base text-muted-foreground">/100</span>
-                    </p>
-                    <p className="text-[11px] font-semibold mt-1">{tierLabel(p.potential_score)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Repayment</p>
-                    <p className="text-2xl font-extrabold leading-tight">
-                      {repayPct == null ? 'New' : `${repayPct}%`}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">{p.advances_count} advances taken</p>
-                  </div>
-                </div>
-              ) : !onDemandLoading ? (
-                <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground inline-flex items-center gap-2">
-                  <Info className="h-4 w-4" /> No potential score available for this agent — evaluate from the reason and history below.
-                </div>
-              ) : null}
-
-              {/* Score breakdown */}
-              {p && (
-                <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                  <p className="text-xs font-bold flex items-center gap-1.5"><Info className="h-3.5 w-3.5" /> Performance breakdown</p>
-                  <ScoreBar label="Sub-agent network" value={p.network_score} max={70} />
-                  <ScoreBar label="Rent collections" value={p.collections_score} max={15} />
-                  <ScoreBar label="Repayment performance" value={p.repayment_score} max={5} />
-                  <ScoreBar label="House listings" value={p.listings_score} max={5} />
-                  <ScoreBar label="Rent requests" value={p.requests_score} max={5} />
-                </div>
-              )}
-
-              {/* Stats grid */}
-              {p && (
-                <div className="grid grid-cols-2 gap-2">
-                  <StatBlock icon={Users} label="Direct sub-agents" value={String(p.direct_subagents)} sub={`${p.active_subagents} active`} />
-                  <StatBlock icon={Network} label="Grand sub-agents" value={String(p.grand_subagents)} sub="Under their subs" />
-                  <StatBlock icon={Wallet} label="Rent collected" value={formatUGX(p.rent_collected)} sub={`${p.collections_count} collections`} />
-                  <StatBlock icon={Home} label="Houses listed" value={String(p.house_listings)} />
-                  <StatBlock icon={FileText} label="Rent requests" value={String(p.rent_requests)} sub="For tenants" />
-                  <StatBlock icon={TrendingUp} label="Repayment" value={repayPct == null ? 'No history' : `${repayPct}%`} sub={p.advances_count > 0 ? `${p.advances_count} advances` : 'Never taken advance'} />
-                </div>
-              )}
-
-              {p && p.outstanding_total > 0 && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                  Outstanding advance balance: <strong>{formatUGX(p.outstanding_total)}</strong>. Factor this into the decision.
-                </div>
-              )}
-
-              {/* Cost breakdown of THIS request */}
-              <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-muted/50 text-xs">
-                <div><span className="text-muted-foreground">Access Fee</span><br /><span className="font-bold">{formatUGX(num(req.access_fee))}</span></div>
-                <div><span className="text-muted-foreground">Reg Fee</span><br /><span className="font-bold">{formatUGX(num(req.registration_fee))}</span></div>
-                <div><span className="text-muted-foreground">Total Payable</span><br /><span className="font-bold text-primary">{formatUGX(num(req.total_payable))}</span></div>
-                <div><span className="text-muted-foreground">Daily Deduction</span><br /><span className="font-bold text-rose-500">{formatUGX(num(req.daily_payment))}/d</span></div>
-              </div>
-
-              {/* Reason */}
-              <div className="p-3 rounded-xl bg-muted/30">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Agent's reason</p>
-                <p className="text-sm">{req.reason || '—'}</p>
-              </div>
-
-              {/* Decision note */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                  Decision note / rejection reason
-                </p>
-                <Textarea
-                  placeholder="Add a note. If rejecting, this reason is shown to the agent."
-                  value={note}
-                  onChange={(e) => onNoteChange(e.target.value)}
-                  rows={2}
-                  className="text-sm"
-                />
-              </div>
-
-              <div className="flex gap-2 sticky bottom-0 bg-background pt-1">
-                <Button
-                  onClick={() => onDecision(true)}
-                  disabled={pending}
-                  className="flex-1 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Approve
-                </Button>
-                <Button
-                  onClick={() => onDecision(false)}
-                  disabled={pending}
-                  variant="destructive"
-                  className="flex-1 gap-1.5"
-                >
-                  <XCircle className="h-4 w-4" /> Reject
-                </Button>
-              </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                Decision note / rejection reason
+              </p>
+              <Textarea
+                placeholder="Add a note. If rejecting, this reason is shown to the agent."
+                value={notes[selected.id] || ''}
+                onChange={(e) => setNotes((prev) => ({ ...prev, [selected.id]: e.target.value }))}
+                rows={2}
+                className="text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => approveMutation.mutate({ id: selected.id, approve: true })}
+                disabled={approveMutation.isPending}
+                className="flex-1 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Approve
+              </Button>
+              <Button
+                onClick={() => approveMutation.mutate({ id: selected.id, approve: false })}
+                disabled={approveMutation.isPending}
+                variant="destructive"
+                className="flex-1 gap-1.5"
+              >
+                <XCircle className="h-4 w-4" /> Reject
+              </Button>
             </div>
           </>
-        )}
-      </DialogContent>
-    </Dialog>
+        ) : null}
+      />
+    </div>
   );
 }
