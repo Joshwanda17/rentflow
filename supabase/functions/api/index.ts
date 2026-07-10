@@ -67,13 +67,14 @@ function phoneVariants(raw: string): string[] {
   return [...set].filter(Boolean);
 }
 
-// Extract the API sub-path (`/v1/...`) regardless of how the function is mounted.
+// Extract the API sub-path (`/v1/...`) regardless of how the function is mounted
+// (direct `/functions/v1/api/api/v1/...`, custom-domain `/api/v1/...`, etc.).
+// We anchor on the version segment so all mount prefixes collapse to `/v1/...`.
 function apiPath(url: URL): string {
-  let p = url.pathname;
-  p = p.replace(/^\/functions\/v1\/api/, "");
-  p = p.replace(/^\/api/, "");
-  if (!p.startsWith("/")) p = `/${p}`;
-  return p.replace(/\/+$/, "") || "/";
+  const p = url.pathname.replace(/\/+$/, "");
+  const idx = p.indexOf("/v1");
+  if (idx >= 0) return p.slice(idx) || "/";
+  return "/";
 }
 
 // Resolve the caller from the Bearer token. Returns the user + a request-scoped
