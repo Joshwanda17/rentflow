@@ -35,6 +35,9 @@ const AvailableHousesHarness = lazyWithRetry(
 const ExistingTenantNoticeHarness = lazyWithRetry(
   () => import("@/pages/__e2e/ExistingTenantNoticeHarness"),
 );
+const ProxyPartnerWithdrawalHarness = lazyWithRetry(
+  () => import("@/pages/__e2e/ProxyPartnerWithdrawalHarness"),
+);
 
 // Deferred language — not needed for first paint
 const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
@@ -433,6 +436,16 @@ function AppRoutes() {
               element={
                 <Suspense fallback={null}>
                   <ExistingTenantNoticeHarness />
+                </Suspense>
+              }
+            />
+          )}
+          {import.meta.env.DEV && (
+            <Route
+              path="/__e2e/proxy-partner-withdrawal"
+              element={
+                <Suspense fallback={null}>
+                  <ProxyPartnerWithdrawalHarness />
                 </Suspense>
               }
             />
