@@ -440,6 +440,16 @@ function AppRoutes() {
               }
             />
           )}
+          {import.meta.env.DEV && (
+            <Route
+              path="/__e2e/proxy-partner-withdrawal"
+              element={
+                <Suspense fallback={null}>
+                  <ProxyPartnerWithdrawalHarness />
+                </Suspense>
+              }
+            />
+          )}
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/transactions" element={<TransactionHistory />} />
           <Route path="/financial-statement" element={<FinancialStatement />} />
