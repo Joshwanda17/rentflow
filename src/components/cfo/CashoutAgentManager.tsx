@@ -46,6 +46,7 @@ import {
   SUPPORTED_BANKS, defaultCashoutAgentConfig, normalizeCashoutAgentConfig,
   type CashoutAgentConfig, type ApprovalRule,
 } from '@/lib/cashoutAgentConfig';
+import { AgentEvaluationSection } from '@/components/executive/AgentEvaluationSection';
 
 // Calendar-driven date filter. Value/onChange use the 'yyyy-MM-dd' string the
 // rest of the component already filters on, so it's a drop-in replacement for
