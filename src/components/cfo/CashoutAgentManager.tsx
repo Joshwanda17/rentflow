@@ -872,7 +872,11 @@ export function CashoutAgentManager() {
               type="date"
               value={txnDateFilter}
               onChange={(e) => setTxnDateFilter(e.target.value)}
-              className="h-9 pl-8 text-xs"
+              onClick={(e) => {
+                const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void };
+                try { el.showPicker?.(); } catch { /* not supported */ }
+              }}
+              className="h-9 pl-8 text-xs cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
               aria-label="Filter commission & telecom charges by date"
             />
           </div>
