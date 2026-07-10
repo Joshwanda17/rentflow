@@ -934,7 +934,7 @@ export function LandlordOpsDashboard() {
     && l.status !== 'delisted'
     && !optimisticallyVerifiedIds.has(l.id)
   );
-  const verifiedListings = rows.filter(l => l.verified);
+  const verifiedListings = rows.filter(l => l.verified && l.status !== 'rejected' && l.status !== 'delisted');
   const hiddenListings = rows.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted');
   const rejectedListings = rows.filter(l => l.status === 'rejected');
   const withImages = rows.filter(l => l.image_urls && l.image_urls.length > 0);
