@@ -333,7 +333,6 @@ function GlobalOnboardingGates() {
   return (
     <>
       <ProfileCompletionGate />
-      <LocationCaptureGate />
       <PushNotificationGate />
       <SubAgentInviteGate />
     </>
