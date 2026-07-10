@@ -11,6 +11,7 @@ import {
   Wallet, ArrowUpFromLine, Banknote, CreditCard, Phone, Mail, MapPin, Calendar,
   CheckCircle2, XCircle, AlertTriangle, Receipt, Award, Activity,
 } from 'lucide-react';
+import { AgentEvaluationSection } from './AgentEvaluationSection';
 
 type Props = {
   agentId: string | null;
@@ -133,6 +134,7 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
               {/* Tabs */}
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
+                  <TabsTrigger value="evaluation" className="text-xs">Evaluation</TabsTrigger>
                   <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
                   <TabsTrigger value="float" className="text-xs">Float</TabsTrigger>
                   <TabsTrigger value="allocations" className="text-xs">Allocations</TabsTrigger>
@@ -143,6 +145,10 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
                   <TabsTrigger value="ops" className="text-xs">Ops</TabsTrigger>
                   <TabsTrigger value="landlords" className="text-xs">Landlords</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="evaluation" className="mt-3">
+                  <AgentEvaluationSection agentId={agentId} />
+                </TabsContent>
 
                 <TabsContent value="overview" className="mt-3 space-y-3">
                   <ContactCard profile={data.profile} />
