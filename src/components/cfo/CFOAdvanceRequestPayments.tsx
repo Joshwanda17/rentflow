@@ -22,6 +22,8 @@ import { toast } from 'sonner';
 import { format, addDays, differenceInCalendarDays, max as dateMax, min as dateMin, isAfter, startOfMonth, endOfMonth } from 'date-fns';
 import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, Wallet, Users, FileText, CalendarRange, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Sparkles } from 'lucide-react';
+import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
 
 export function CFOAdvanceRequestPayments() {
   const { user } = useAuth();
@@ -32,6 +34,9 @@ export function CFOAdvanceRequestPayments() {
   const [adjustedCycles, setAdjustedCycles] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // The same advance-eligibility evaluation popup used by Agent Ops. The CFO
+  // opens it on any request to see the agent's 360° evaluation before acting.
+  const [evalReq, setEvalReq] = useState<any | null>(null);
   const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
@@ -619,7 +624,7 @@ export function CFOAdvanceRequestPayments() {
             return (
               <Card key={req.id}>
                 <CardContent className="p-4">
-                  <button onClick={() => setExpandedId(isExpanded ? null : req.id)} className="w-full text-left">
+                  <button onClick={() => setEvalReq(req)} className="w-full text-left">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
                         <User className="h-5 w-5 text-emerald-600" />
@@ -650,6 +655,26 @@ export function CFOAdvanceRequestPayments() {
                       </div>
                     </div>
                   </button>
+
+                  {/* Eligibility evaluation + edit toggle */}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] gap-1"
+                      onClick={() => setEvalReq(req)}
+                    >
+                      <Sparkles className="h-3 w-3 text-primary" /> View evaluation
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={isExpanded ? 'default' : 'outline'}
+                      className="h-7 text-[11px] gap-1"
+                      onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                    >
+                      <Pencil className="h-3 w-3" /> {isExpanded ? 'Close editor' : 'Edit & disburse'}
+                    </Button>
+                  </div>
 
                   {isExpanded && (
                     <div className="mt-4 space-y-3">
@@ -981,6 +1006,26 @@ export function CFOAdvanceRequestPayments() {
           </Dialog>
         );
       })()}
+
+      {/* Shared advance-eligibility evaluation popup — identical to Agent Ops */}
+      <AgentAdvanceEvaluationDialog
+        req={evalReq}
+        agentId={evalReq?.agent_id}
+        agentName={evalReq?.profiles?.full_name}
+        onClose={() => setEvalReq(null)}
+        footer={evalReq ? (
+          <Button
+            className="w-full gap-1.5"
+            onClick={() => {
+              const id = evalReq.id;
+              setEvalReq(null);
+              setExpandedId(id);
+            }}
+          >
+            <Pencil className="h-4 w-4" /> Edit &amp; disburse this advance
+          </Button>
+        ) : null}
+      />
     </div>
   );
 }
