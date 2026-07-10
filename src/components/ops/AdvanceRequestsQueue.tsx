@@ -433,6 +433,20 @@ function EvaluationDialog({
             </DialogHeader>
 
             <div className="space-y-4">
+              {/* On-demand evaluation status for non-ranked agents */}
+              {!potentialProp && (
+                onDemandLoading ? (
+                  <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Building an evaluation for this agent…
+                  </div>
+                ) : generatedEval ? (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800 inline-flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    Generated evaluation — this agent hasn't met the full agent criteria yet, so we scored them on demand from their live activity.
+                  </div>
+                ) : null
+              )}
+
               {/* Wallet snapshot + recent earnings — repayment-capacity context */}
               <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
