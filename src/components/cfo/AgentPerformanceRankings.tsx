@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { Loader2, Trophy, TrendingUp, Users, Target } from 'lucide-react';
 import { subDays, startOfMonth } from 'date-fns';
+import { AgentDetailDialog } from '@/components/executive/AgentDetailDialog';
 
 interface AgentRank {
   agentId: string;
@@ -25,6 +26,7 @@ interface Props {
 
 export function AgentPerformanceRankings({ compact = false }: Props) {
   const [period, setPeriod] = useState<'week' | 'month' | 'all'>('month');
+  const [openAgentId, setOpenAgentId] = useState<string | null>(null);
 
   const dateFrom = useMemo(() => {
     if (period === 'week') return subDays(new Date(), 7).toISOString();
@@ -123,7 +125,8 @@ export function AgentPerformanceRankings({ compact = false }: Props) {
             {displayList.map((agent, idx) => (
               <div
                 key={agent.agentId}
-                className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                onClick={() => setOpenAgentId(agent.agentId)}
+                className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
               >
                 {/* Rank */}
                 <div className="w-8 text-center text-lg font-bold shrink-0">
@@ -156,6 +159,11 @@ export function AgentPerformanceRankings({ compact = false }: Props) {
           </div>
         )}
       </CardContent>
+      <AgentDetailDialog
+        agentId={openAgentId}
+        open={!!openAgentId}
+        onOpenChange={(o) => !o && setOpenAgentId(null)}
+      />
     </Card>
   );
 }
