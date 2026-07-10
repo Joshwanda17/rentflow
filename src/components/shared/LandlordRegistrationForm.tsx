@@ -26,6 +26,7 @@ import FormStepHeader from '@/components/shared/FormStepHeader';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { validateFullName } from '@/lib/authValidation';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -107,7 +108,10 @@ export default function LandlordRegistrationForm({
     let msg = '';
     if (name === 'landlordName') {
       if (!trimmed) msg = 'Landlord name is required';
-      else if (trimmed.length < 2) msg = 'Enter the landlord\u2019s full name (at least 2 letters).';
+      else {
+        const r = validateFullName(trimmed);
+        if (!r.valid) msg = r.error || 'Enter the landlord\u2019s real full name.';
+      }
     }
     if (name === 'landlordPhone') {
       if (!trimmed) msg = 'Phone number is required';
@@ -119,7 +123,10 @@ export default function LandlordRegistrationForm({
     }
     if (name === 'lc1Name') {
       if (!trimmed) msg = 'LC1 name is required';
-      else if (trimmed.length < 2) msg = 'Enter the LC1 chairperson\u2019s name (at least 2 letters).';
+      else {
+        const r = validateFullName(trimmed);
+        if (!r.valid) msg = r.error || 'Enter the LC1 chairperson\u2019s real full name.';
+      }
     }
     if (name === 'lc1Phone') {
       if (!trimmed) msg = 'LC1 phone is required';
