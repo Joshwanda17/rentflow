@@ -637,11 +637,11 @@ export function MerchantFloatRequestsPanel() {
                   <>
                     <div className="mt-2 grid grid-cols-3 gap-2">
                       <div className="rounded-md border border-border/60 bg-card p-2 text-center">
-                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Float on hand</p>
+                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Float left</p>
                         <p className="text-sm font-bold tabular-nums text-amber-700 dark:text-amber-400">{formatUGX(floatStatus?.floatBalance ?? 0)}</p>
                       </div>
                       <div className="rounded-md border border-border/60 bg-card p-2 text-center">
-                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Total allocated</p>
+                        <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Allocated ({floatStatus?.depositCount ?? 0})</p>
                         <p className="text-sm font-bold tabular-nums">{formatUGX(floatStatus?.totalAllocated ?? 0)}</p>
                       </div>
                       <div className="rounded-md border border-border/60 bg-card p-2 text-center">
@@ -649,6 +649,9 @@ export function MerchantFloatRequestsPanel() {
                         <p className="text-sm font-bold tabular-nums">{formatUGX(floatStatus?.totalUsed ?? 0)}</p>
                       </div>
                     </div>
+                    <p className="mt-1.5 text-center text-[10px] text-muted-foreground tabular-nums">
+                      {formatUGX(floatStatus?.totalAllocated ?? 0)} allocated − {formatUGX(floatStatus?.totalUsed ?? 0)} used = {formatUGX(floatStatus?.floatBalance ?? 0)} left
+                    </p>
                     {(floatStatus?.floatBalance ?? 0) > 0 && (
                       <p className="mt-2 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-300">
                         ⚠ This agent still holds {formatUGX(floatStatus?.floatBalance ?? 0)} of unspent float.
@@ -668,7 +671,7 @@ export function MerchantFloatRequestsPanel() {
                       </div>
                     )}
                     {floatStatus && floatStatus.usedCount === 0 && (
-                      <p className="mt-2 text-[11px] text-muted-foreground">No payouts settled from float yet.</p>
+                      <p className="mt-2 text-[11px] text-muted-foreground">No float settled to customer cash-outs yet.</p>
                     )}
                   </>
                 )}
