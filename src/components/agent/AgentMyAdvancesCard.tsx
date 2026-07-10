@@ -47,7 +47,7 @@ export function AgentMyAdvancesCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advances')
-        .select('id, principal, outstanding_balance, status, issued_at, expires_at, created_at')
+        .select('id, principal, outstanding_balance, arrears_balance, status, issued_at, expires_at, created_at')
         .eq('agent_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
