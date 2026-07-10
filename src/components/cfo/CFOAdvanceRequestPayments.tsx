@@ -218,8 +218,26 @@ export function CFOAdvanceRequestPayments() {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, req: any) => {
+      const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      const registrationFee = calculateRegistrationFee(principal);
+      const accessFee = calculateAccessFee(principal, cycleDays, adjustedRate);
+      const totalPayable = principal + accessFee + registrationFee;
+      const daily = Math.ceil(totalPayable / cycleDays);
       toast.success('Advance paid to agent wallet!');
+      setDisbursed({
+        agentName: req.profiles?.full_name || 'Agent',
+        agentPhone: req.profiles?.phone || '',
+        principal,
+        cycleDays,
+        rate: adjustedRate,
+        accessFee,
+        registrationFee,
+        totalPayable,
+        daily,
+      });
       queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
     },
     onError: (err: Error) => toast.error(err.message),
