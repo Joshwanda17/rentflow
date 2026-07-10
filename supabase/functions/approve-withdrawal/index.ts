@@ -128,7 +128,7 @@ async function sendViaLana(
     const res = await fetch("https://api.lanasms.com/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ phone: toMsisdn(phone), message }),
+      body: JSON.stringify({ phone: toMsisdn(phone), message, sender_id: "WELILE" }),
     });
     const raw = await res.text();
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }

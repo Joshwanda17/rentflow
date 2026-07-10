@@ -109,7 +109,7 @@ async function sendViaLana(phone: string, message: string): Promise<boolean> {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ phone: formatPhoneDigits(phone), message }),
+      body: JSON.stringify({ phone: formatPhoneDigits(phone), message, sender_id: "WELILE" }),
     });
     const text = await res.text();
     console.log(`[send-rent-access-sms] LANA (${res.status}):`, text);
