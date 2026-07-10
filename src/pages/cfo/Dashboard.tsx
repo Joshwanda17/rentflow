@@ -300,9 +300,7 @@ export default function CFODashboardPage() {
             <div id="cfo-disbursed-advances" className="scroll-mt-24">
               <DisbursedAdvancesRegister />
             </div>
-            <div id="cfo-disbursed-advances" className="scroll-mt-24">
-              <CFOAdvancesManager />
-            </div>
+            <CFOAdvancesManager />
           </div>
         );
       case 'approval-audit':
