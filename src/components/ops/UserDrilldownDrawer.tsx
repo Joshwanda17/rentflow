@@ -735,6 +735,19 @@ function TenantQuickActions({
   );
 }
 
+// Full set of rent-lifecycle ledger categories that make up a tenant's
+// transaction statement. Most live tenants use `rent_receivable_created`
+// and `rent_payment_for_tenant`; the older set is kept for back-compat.
+const TENANT_STATEMENT_CATEGORIES = [
+  'rent_receivable_created',
+  'rent_payment_for_tenant',
+  'rent_obligation',
+  'rent_obligation_reversal',
+  'tenant_repayment',
+  'rent_repayment',
+  'rent_principal_collected',
+] as const;
+
 function TenantExportButtons({
   tenantId, profile, activeRr, balance, activeLandlord, dateRange,
 }: {
