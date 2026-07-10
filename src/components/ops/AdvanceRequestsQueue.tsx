@@ -336,7 +336,7 @@ function StatBlock({ icon: Icon, label, value, sub }: { icon: any; label: string
 }
 
 function EvaluationDialog({
-  req, potential: p, note, onNoteChange, onClose, onDecision, pending,
+  req, potential: potentialProp, note, onNoteChange, onClose, onDecision, pending,
 }: {
   req: any | null;
   potential?: PotentialInfo;
@@ -346,6 +346,30 @@ function EvaluationDialog({
   onDecision: (approve: boolean) => void;
   pending: boolean;
 }) {
+  const agentId: string | undefined = req?.agent_id || undefined;
+
+  // Every requester must get an evaluation — even agents who have not yet met
+  // the "who is an agent" criteria and therefore aren't in the ranked map.
+  // When the map has no score, compute one on demand for this exact agent.
+  const { data: onDemand, isLoading: onDemandLoading } = useQuery({
+    queryKey: ['advance-eval-potential-on-demand', agentId],
+    enabled: !!agentId && !potentialProp,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('get_agent_advance_potential_for', {
+        _agent_id: agentId,
+      });
+      if (error) throw error;
+      const row = ((data ?? []) as any[])[0];
+      if (!row) return null;
+      return { info: mapPotentialRow(row), isQualifying: !!row.is_qualifying };
+    },
+  });
+
+  const p: PotentialInfo | undefined = potentialProp ?? onDemand?.info ?? undefined;
+  // The agent didn't rank (not in the qualifying set) but we built an ad-hoc score.
+  const generatedEval = !potentialProp && !!onDemand?.info;
+
   const requested = num(req?.principal);
   const suggested = p ? p.suggested_amount : 0;
   const limit = p ? p.current_limit : 0;
@@ -354,7 +378,6 @@ function EvaluationDialog({
   const overLimit = p && limit > 0 && requested > limit;
   const withinAll = p && !overSuggested && !overLimit;
 
-  const agentId: string | undefined = req?.agent_id || undefined;
   const [showEarnings, setShowEarnings] = useState(false);
 
   // Agent wallet snapshot — helps judge repayment capacity at a glance.
