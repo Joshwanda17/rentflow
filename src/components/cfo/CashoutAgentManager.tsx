@@ -969,13 +969,10 @@ export function CashoutAgentManager() {
             {/* Date filter — narrow the payouts list to a single day */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative flex-1 min-w-[160px]">
-                <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <Input
-                  type="date"
+                <DateFilterPicker
                   value={txnDateFilter}
-                  onChange={(e) => setTxnDateFilter(e.target.value)}
-                  className="h-9 pl-8 text-xs"
-                  aria-label="Filter payouts by date"
+                  onChange={setTxnDateFilter}
+                  label="Filter by date"
                 />
               </div>
               {txnDateFilter && (
