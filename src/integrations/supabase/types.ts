@@ -24791,6 +24791,7 @@ export type Database = {
         | "agent.allocation_return.requested"
         | "agent.allocation_return.approved"
         | "agent.allocation_return.rejected"
+        | "agent_advances_daily_report"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -25059,6 +25060,7 @@ export const Constants = {
         "agent.allocation_return.requested",
         "agent.allocation_return.approved",
         "agent.allocation_return.rejected",
+        "agent_advances_daily_report",
       ],
     },
   },
