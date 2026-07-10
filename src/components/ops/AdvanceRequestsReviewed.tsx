@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
@@ -6,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import { CheckCircle2, XCircle, Loader2, User, Inbox, Clock, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
 
 const num = (v: any) => Number(v ?? 0);
 
@@ -72,7 +74,7 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
-function RequestRow({ req, tone }: { req: any; tone: 'approved' | 'rejected' }) {
+function RequestRow({ req, tone, onOpen }: { req: any; tone: 'approved' | 'rejected'; onOpen: (req: any) => void }) {
   const note = tone === 'rejected' ? (req.rejection_reason || 'No reason recorded') : approvalNote(req);
   const paid = tone === 'approved' && isPaidOut(req);
   const idx = stageIndex(req.status);
@@ -82,7 +84,11 @@ function RequestRow({ req, tone }: { req: any; tone: 'approved' | 'rejected' }) 
     ? 'text-muted-foreground'
     : holdDays >= 5 ? 'text-rose-600' : holdDays >= 2 ? 'text-amber-600' : 'text-emerald-600';
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <button
+      type="button"
+      onClick={() => onOpen(req)}
+      className="w-full text-left rounded-xl border border-border bg-card p-3 hover:border-primary/40 hover:shadow-md active:scale-[0.99] transition-all"
+    >
       <div className="flex items-center gap-2.5">
         <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
           <User className="h-4 w-4 text-muted-foreground" />
@@ -145,11 +151,12 @@ function RequestRow({ req, tone }: { req: any; tone: 'approved' | 'rejected' }) 
           <span className="font-semibold">{tone === 'rejected' ? 'Reason: ' : 'Note: '}</span>{note}
         </div>
       )}
-    </div>
+    </button>
   );
 }
 
 export function AdvanceRequestsReviewed() {
+  const [evalReq, setEvalReq] = useState<any | null>(null);
   const { data: approved = [], isLoading: loadingApproved } = useQuery({
     queryKey: ['advance-requests-reviewed', 'approved'],
     queryFn: async () => {
@@ -195,7 +202,7 @@ export function AdvanceRequestsReviewed() {
             <EmptyState label="No approved requests yet" />
           ) : (
             <div className="space-y-2">
-              {approved.map((req: any) => <RequestRow key={req.id} req={req} tone="approved" />)}
+              {approved.map((req: any) => <RequestRow key={req.id} req={req} tone="approved" onOpen={setEvalReq} />)}
             </div>
           )}
         </CardContent>
@@ -216,11 +223,18 @@ export function AdvanceRequestsReviewed() {
             <EmptyState label="No rejected requests" />
           ) : (
             <div className="space-y-2">
-              {rejected.map((req: any) => <RequestRow key={req.id} req={req} tone="rejected" />)}
+              {rejected.map((req: any) => <RequestRow key={req.id} req={req} tone="rejected" onOpen={setEvalReq} />)}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Shared advance-eligibility evaluation popup */}
+      <AgentAdvanceEvaluationDialog
+        req={evalReq}
+        agentName={evalReq?.agent_full_name}
+        onClose={() => setEvalReq(null)}
+      />
     </div>
   );
 }
