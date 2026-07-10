@@ -37,11 +37,55 @@ import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/me
 import { ClaimCommentTimeline } from './ClaimCommentTimeline';
 import { useLatestClaimComments, type CashoutClaimComment } from '@/hooks/useCashoutClaimComments';
 import { MessageSquare } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import {
   PAYOUT_CATEGORY_GROUPS, ALL_PAYOUT_CATEGORIES, APPROVAL_RULES, AGENT_STATUSES,
   SUPPORTED_BANKS, defaultCashoutAgentConfig, normalizeCashoutAgentConfig,
   type CashoutAgentConfig, type ApprovalRule,
 } from '@/lib/cashoutAgentConfig';
+
+// Calendar-driven date filter. Value/onChange use the 'yyyy-MM-dd' string the
+// rest of the component already filters on, so it's a drop-in replacement for
+// the old native <input type="date">.
+function DateFilterPicker({
+  value,
+  onChange,
+  label = 'Pick a date',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label?: string;
+}) {
+  const selected = value ? new Date(`${value}T00:00:00`) : undefined;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            'h-9 w-full justify-start text-left font-normal text-xs pl-8 relative',
+            !value && 'text-muted-foreground',
+          )}
+        >
+          <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          {selected ? format(selected, 'PPP') : label}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <CalendarPicker
+          mode="single"
+          selected={selected}
+          onSelect={(d) => onChange(d ? format(d, 'yyyy-MM-dd') : '')}
+          initialFocus
+          className={cn('p-3 pointer-events-auto')}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 // A payout only counts as "processed" once the Merchant Agent has executed disbursement.
 // `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
