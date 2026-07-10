@@ -116,12 +116,11 @@ async function handleLogin(req: Request): Promise<Response> {
   if (rawEmail.includes("@")) {
     candidates.push(rawEmail);
   } else if (rawPhone) {
-    const variants = phoneVariants(rawPhone);
-    const { data: resolved, error: rpcErr } = await admin.rpc("get_email_by_phone", {
-      phone_variants: variants,
+    const { data: resolved } = await admin.rpc("get_email_by_phone", {
+      phone_variants: phoneVariants(rawPhone),
     });
-    console.log("[api/login] variants", JSON.stringify(variants),
-      "resolved", JSON.stringify(resolved), "err", rpcErr?.message);
+    // A SETOF-scalar RPC comes back as [{ get_email_by_phone: "..." }]; also
+    // tolerate plain-string or plain-array shapes.
     const list = Array.isArray(resolved) ? resolved : resolved ? [resolved] : [];
     for (const e of list) {
       const val = typeof e === "string" ? e : (e && typeof e === "object" ? Object.values(e)[0] : null);
