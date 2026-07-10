@@ -443,7 +443,7 @@ function buildHtml(r: Report, prettyDate: string): string {
       <h2 style="font-size:15px;margin:2px 0 8px;">Agent base &amp; adoption</h2>
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
-          ${kpiCell("Total agents", r.totalAgents.toLocaleString("en-US"))}
+          ${kpiCell("Qualifying agents", r.totalAgents.toLocaleString("en-US"), "#1a1a2e", "Meet the agent criteria")}
           ${kpiCell("Agents with advances", String(r.agentsWithAdvances), PURPLE)}
           ${kpiCell("Adoption", pct(adoption), adoption < 1 ? RED : GREEN)}
           ${kpiCell("Paying back", String(r.payingBackCount), GREEN)}
