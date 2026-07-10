@@ -139,8 +139,21 @@ export function WithdrawalPayoutCard({
   const methodLabel = isBank ? 'Bank Transfer' : isMoMo ? 'Mobile Money' : 'Cash';
   const MethodIcon = isBank ? Building2 : isMoMo ? Smartphone : Banknote;
 
-  const recipientName = withdrawal.profiles?.full_name || 'Unknown';
-  const recipientPhone = withdrawal.profiles?.phone || '—';
+  // Resolve the recipient name through every available signal so proxy /
+  // partner payouts never collapse to the literal "Unknown". For proxy partner
+  // withdrawals the requesting `user_id` is the agent, so the actual payee lives
+  // on the linked partner profile and the registered payout name.
+  const recipientName =
+    (withdrawal.profiles?.full_name || '').trim()
+    || (withdrawal.linked_party_profile?.full_name || '').trim()
+    || (withdrawal.partner_name || '').trim()
+    || (withdrawal.mobile_money_name || '').trim()
+    || (withdrawal.bank_account_name || '').trim()
+    || 'Unknown';
+  const recipientPhone =
+    withdrawal.profiles?.phone
+    || withdrawal.linked_party_profile?.phone
+    || '—';
 
   const momoNumber = withdrawal.mobile_money_number || recipientPhone;
   const momoRegisteredName = withdrawal.mobile_money_name || '';

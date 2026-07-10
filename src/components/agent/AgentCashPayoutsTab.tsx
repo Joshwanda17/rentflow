@@ -230,14 +230,25 @@ async function resolveFrozenUserIds(): Promise<string[]> {
 /** Attach profile name/phone to a small page of withdrawal rows (no FK embed). */
 async function attachProfiles(rows: any[]) {
   if (!rows || rows.length === 0) return rows || [];
-  const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
-  if (userIds.length === 0) return rows;
+  // Resolve BOTH the requesting user and any linked partner (proxy partner
+  // withdrawals set `linked_party`), so merchant agents see the real partner
+  // name instead of "Unknown".
+  const ids = Array.from(
+    new Set(
+      rows.flatMap((r: any) => [r.user_id, r.linked_party]).filter(Boolean),
+    ),
+  );
+  if (ids.length === 0) return rows;
   const { data: profs } = await supabase
     .from('profiles')
     .select('id, full_name, phone')
-    .in('id', userIds);
+    .in('id', ids);
   const map = new Map((profs || []).map((p: any) => [p.id, p]));
-  return rows.map((r: any) => ({ ...r, profiles: map.get(r.user_id) || null }));
+  return rows.map((r: any) => ({
+    ...r,
+    profiles: map.get(r.user_id) || null,
+    linked_party_profile: r.linked_party ? map.get(r.linked_party) || null : null,
+  }));
 }
 
 export function AgentCashPayoutsTab() {
@@ -1690,7 +1701,11 @@ export function AgentCashPayoutsTab() {
                     typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
                   const name = isLandlordPayout
                     ? (w.mobile_money_name || 'Landlord')
-                    : (w.profiles?.full_name || 'Unknown');
+                    : (w.profiles?.full_name
+                        || w.linked_party_profile?.full_name
+                        || w.mobile_money_name
+                        || w.bank_account_name
+                        || 'Unknown');
                   return (
                     <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
                       <CardContent className="p-4 space-y-3.5">

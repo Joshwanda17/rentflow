@@ -605,7 +605,10 @@ export function ProxyPartnerFunds() {
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
       profileRows.forEach(p => {
-        profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
+        // Store the raw name (empty when missing) so downstream resolution can
+        // fall back to portfolio account names / metadata instead of prematurely
+        // locking the card to the literal string "Unknown".
+        profileMap[p.id] = { full_name: p.full_name || '', phone: p.phone || '' };
       });
       setProfiles(profileMap);
       const strictMap: Record<string, number> = {};
@@ -913,11 +916,18 @@ export function ProxyPartnerFunds() {
       .filter(([, g]) => g.totalAmount > 0)
       .map(([, group]) => {
         const pInfo = group.portfolioId ? portfolioMap[group.portfolioId] : null;
-        const partnerName = profiles[group.partnerId]?.full_name
-          || approvedOps.find(op => {
+        // Resolve the partner name through every signal we have so cards never
+        // fall back to "Unknown Partner" when a real name exists somewhere:
+        //   1. the partner's profile full_name
+        //   2. partner_name stamped on the CFO approval metadata
+        //   3. the portfolio's account / bank account name (payout identity)
+        const partnerName = (profiles[group.partnerId]?.full_name || '').trim()
+          || (approvedOps.find(op => {
             const m = op.metadata || {};
             return m.initiated_by === group.partnerId || op.linked_party === group.partnerId;
-          })?.metadata?.partner_name as string
+          })?.metadata?.partner_name as string | undefined)?.trim()
+          || (pInfo?.account_name || '').trim()
+          || (pInfo?.bank_account_name || '').trim()
           || 'Unknown Partner';
 
         return {
@@ -1872,7 +1882,7 @@ export function ProxyPartnerFunds() {
               return (
                 <div key={restoreKey} className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{profile?.full_name || 'Unknown partner'}</p>
+                    <p className="text-sm font-medium truncate">{profile?.full_name || portfolio?.account_name || portfolio?.bank_account_name || 'Unknown partner'}</p>
                     <p className="text-[11px] text-muted-foreground truncate">
                       {portfolio?.account_name || portfolio?.portfolio_code || '—'} · Snapshot {formatAmount(Number(d.snapshot_amount))}
                     </p>

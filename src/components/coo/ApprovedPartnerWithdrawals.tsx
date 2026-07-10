@@ -65,7 +65,9 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
           .select('id, full_name')
           .in('id', uniqueIds);
         const map: Record<string, string> = {};
-        (profileData || []).forEach(p => { map[p.id] = p.full_name || 'Unknown'; });
+        // Keep empty when the name is missing so the render can fall back to the
+        // payout (momo / bank) name instead of showing the literal "Unknown".
+        (profileData || []).forEach(p => { map[p.id] = p.full_name || ''; });
         setProfiles(map);
       }
     } catch (err) {
@@ -165,8 +167,13 @@ export function ApprovedPartnerWithdrawals({ onBack }: Props) {
         <div className="space-y-2">
           {filtered.map(w => {
             const agentName = profiles[w.user_id] || 'Unknown Agent';
-            const partnerName = w.linked_party ? (profiles[w.linked_party] || 'Unknown Partner') : '—';
             const payeeName = w.mobile_money_name || w.bank_account_name || '—';
+            const partnerName = w.linked_party
+              ? (profiles[w.linked_party]
+                  || w.mobile_money_name
+                  || w.bank_account_name
+                  || 'Unknown Partner')
+              : '—';
             const method = (w.fin_ops_payment_method || w.payout_method || '—').replace(/_/g, ' ');
 
             return (
