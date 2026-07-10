@@ -39,6 +39,19 @@ export function CFOAdvanceRequestPayments() {
   const [evalReq, setEvalReq] = useState<any | null>(null);
   const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // Post-disbursement success dialog payload — shows the CFO what was sent and
+  // a shortcut to the full list of disbursed advances.
+  const [disbursed, setDisbursed] = useState<null | {
+    agentName: string;
+    agentPhone: string;
+    principal: number;
+    cycleDays: number;
+    rate: number;
+    accessFee: number;
+    registrationFee: number;
+    totalPayable: number;
+    daily: number;
+  }>(null);
 
   // Income Statement Impact preview — date range
   const today = new Date();
