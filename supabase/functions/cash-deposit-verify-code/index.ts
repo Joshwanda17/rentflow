@@ -79,6 +79,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<{ 
   try {
     const body = new URLSearchParams({
       username,
+      from: "WELILE",
       to: formattedPhone,
       message,
     });

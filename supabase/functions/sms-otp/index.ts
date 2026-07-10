@@ -390,6 +390,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 
   const params = new URLSearchParams({
     username,
+    from: "WELILE",
     to: formattedPhone,
     message,
   });

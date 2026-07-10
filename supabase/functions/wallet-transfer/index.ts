@@ -56,6 +56,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<bo
   try {
     const params = new URLSearchParams({
       username,
+      from: "WELILE",
       to: formatPhoneInternational(phone),
       message,
     });

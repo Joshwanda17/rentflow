@@ -63,6 +63,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
     : 'https://api.africastalking.com/version1/messaging';
   const params = new URLSearchParams({
     username,
+    from: "WELILE",
     to: formatPhoneInternational(phone),
     message,
   });

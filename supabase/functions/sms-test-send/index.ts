@@ -30,6 +30,7 @@ async function sendSMS(phone: string, message: string) {
   const formattedPhone = formatPhoneInternational(phone);
   const body = new URLSearchParams({
     username,
+    from: "WELILE",
     to: formattedPhone,
     message,
     // WELILE is a registered alphanumeric sender on Africa's Talking

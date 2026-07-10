@@ -290,7 +290,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
   const formattedPhone = formatPhoneInternational(phone);
 
   try {
-    const params = new URLSearchParams({ username, to: formattedPhone, message });
+    const params = new URLSearchParams({ username, from: "WELILE", to: formattedPhone, message });
     const response = await fetch(baseUrl, {
       method: "POST",
       headers: { "apiKey": apiKey, "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },
