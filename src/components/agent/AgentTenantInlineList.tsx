@@ -29,6 +29,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
   const [activeTenantIds, setActiveTenantIds] = useState<Set<string>>(new Set());
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const fetchSeqRef = useRef(0);
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     if (!user) return;
@@ -96,6 +98,13 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
     });
     return list;
   }, [tenants, search, activeFilter, tenantBalances, activeTenantIds]);
+
+  // Reset pagination whenever the filtered result set changes.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, activeFilter, tenants]);
+
+  const visible = useMemo(() => processed.slice(0, visibleCount), [processed, visibleCount]);
 
   const activeCount = useMemo(
     () => tenants.filter((t) => activeTenantIds.has(t.id)).length,
@@ -244,7 +253,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
             )}
           </div>
         ) : (
-          processed.map((tenant) => {
+          <>
+          {visible.map((tenant) => {
             const balance = tenantBalances[tenant.id] || 0;
             const hasDebt = balance > 0;
             const initial = (tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase();
@@ -283,7 +293,17 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                 </div>
               </button>
             );
-          })
+          })}
+          {processed.length > visibleCount && (
+            <Button
+              variant="outline"
+              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              className="w-full h-14 text-base font-bold rounded-2xl"
+            >
+              Load more ({processed.length - visibleCount} remaining)
+            </Button>
+          )}
+          </>
         )}
       </div>
     </div>
