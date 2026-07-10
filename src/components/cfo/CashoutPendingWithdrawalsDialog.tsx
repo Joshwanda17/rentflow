@@ -30,13 +30,21 @@ export function CashoutPendingWithdrawalsDialog({ open, onOpenChange, agent }: P
       if (error) throw error;
       const rows = data || [];
       if (rows.length === 0) return rows;
-      const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
+      // Resolve both the requester and any linked partner (proxy partner
+      // withdrawals) so the payout card shows the real partner name.
+      const ids = Array.from(new Set(
+        rows.flatMap((r: any) => [r.user_id, r.linked_party]).filter(Boolean),
+      ));
       const { data: profs } = await supabase
         .from('profiles')
         .select('id, full_name, phone')
-        .in('id', userIds);
+        .in('id', ids);
       const map = new Map((profs || []).map((p: any) => [p.id, p]));
-      return rows.map((r: any) => ({ ...r, profiles: map.get(r.user_id) || null }));
+      return rows.map((r: any) => ({
+        ...r,
+        profiles: map.get(r.user_id) || null,
+        linked_party_profile: r.linked_party ? map.get(r.linked_party) || null : null,
+      }));
     },
     enabled: open,
     staleTime: 15_000,
