@@ -48,6 +48,7 @@ import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManage
 import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 import { CFOAdvancesManager } from '@/components/cfo/CFOAdvancesManager';
 import { CFOAdvanceRequestPayments } from '@/components/cfo/CFOAdvanceRequestPayments';
+import { DisbursedAdvancesRegister } from '@/components/cfo/DisbursedAdvancesRegister';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -296,6 +297,9 @@ export default function CFODashboardPage() {
           <div className="space-y-6">
             <BusinessAdvanceQueue stage="cfo" />
             <CFOAdvanceRequestPayments />
+            <div id="cfo-disbursed-advances" className="scroll-mt-24">
+              <DisbursedAdvancesRegister />
+            </div>
             <div id="cfo-disbursed-advances" className="scroll-mt-24">
               <CFOAdvancesManager />
             </div>
