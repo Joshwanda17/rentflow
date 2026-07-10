@@ -911,17 +911,10 @@ export function CashoutAgentManager() {
         {/* Date filter — scopes Commission Earned & Telecom Charges to a single day */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[160px]">
-            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              type="date"
+            <DateFilterPicker
               value={txnDateFilter}
-              onChange={(e) => setTxnDateFilter(e.target.value)}
-              onClick={(e) => {
-                const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void };
-                try { el.showPicker?.(); } catch { /* not supported */ }
-              }}
-              className="h-9 pl-8 text-xs cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-              aria-label="Filter commission & telecom charges by date"
+              onChange={setTxnDateFilter}
+              label="Filter by date"
             />
           </div>
           {txnDateFilter && (
