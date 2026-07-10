@@ -98,6 +98,7 @@ async function sendSMSOnce(phone: string, message: string): Promise<boolean> {
 
   const body = new URLSearchParams({
     username,
+    from: "WELILE",
     to: formatPhoneInternational(phone),
     message,
   });

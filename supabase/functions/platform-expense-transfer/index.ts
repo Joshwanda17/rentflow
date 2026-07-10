@@ -64,6 +64,7 @@ async function sendSMS(
   try {
     const body = new URLSearchParams({
       username,
+      from: "WELILE",
       to: formatPhoneInternational(phone),
       message,
     });

@@ -61,7 +61,7 @@ async function sendYoolaAttempt(apiKey: string, phone: string, message: string):
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey }),
+      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey, sender: "WELILE" }),
       signal: controller.signal,
     });
     const text = await res.text();
@@ -104,6 +104,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
     : "https://api.africastalking.com/version1/messaging";
   const params = new URLSearchParams({
     username,
+    from: "WELILE",
     to: formatPhoneInternational(phone),
     message,
   });
@@ -141,7 +142,7 @@ async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
     const res = await fetch("https://api.lanasms.com/v1/send", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: toBareDigits(phone), message }),
+      body: JSON.stringify({ phone: toBareDigits(phone), message, sender_id: "WELILE" }),
       signal: controller.signal,
     });
     const text = await res.text();

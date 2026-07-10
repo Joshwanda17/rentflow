@@ -33,6 +33,7 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
   try {
     const params: Record<string, string> = {
       username,
+      from: "WELILE",
       to: formattedPhone,
       message,
     };

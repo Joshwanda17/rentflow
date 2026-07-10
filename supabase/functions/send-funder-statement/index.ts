@@ -31,7 +31,7 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
   const formattedPhone = formatPhoneInternational(phone);
 
   try {
-    const params: Record<string, string> = { username, to: formattedPhone, message };
+    const params: Record<string, string> = { username, from: "WELILE", to: formattedPhone, message };
     const body = new URLSearchParams(params);
 
     const res = await fetch(baseUrl, {
