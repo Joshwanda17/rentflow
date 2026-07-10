@@ -188,17 +188,30 @@ Deno.serve(async (req) => {
 
     // Create the user account with final details
     let userId: string;
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email: finalEmail,
-      password: finalPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: finalFullName,
-        phone: invite.phone,
-        role: userRole,
-        referrer_id: invite.created_by,
-      },
-    });
+    // createUser can fail with a transient AuthRetryableFetchError (empty
+    // message, status 500) when the auth server is briefly unreachable. Retry
+    // a few times with backoff before surfacing the error.
+    let authData: any = null;
+    let authError: any = null;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      const res = await adminClient.auth.admin.createUser({
+        email: finalEmail,
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: finalFullName,
+          phone: invite.phone,
+          role: userRole,
+          referrer_id: invite.created_by,
+        },
+      });
+      authData = res.data;
+      authError = res.error;
+      const isRetryable = authError?.name === 'AuthRetryableFetchError' || authError?.status === 500;
+      if (!authError || !isRetryable) break;
+      console.warn(`[activate-supporter] createUser transient failure (attempt ${attempt}):`, authError?.name);
+      if (attempt < 4) await new Promise((r) => setTimeout(r, attempt * 500));
+    }
 
     if (authError) {
       // If email already exists, look up the existing user and proceed
@@ -252,7 +265,8 @@ Deno.serve(async (req) => {
         console.log("[activate-supporter] Linked to existing auth user:", userId);
       } else {
         console.error("[activate-supporter] Auth error:", authError);
-        return new Response(JSON.stringify({ error: "Failed to create account: " + authError.message }), {
+        const detail = authError.message || authError.name || "auth service unavailable, please try again";
+        return new Response(JSON.stringify({ error: "Failed to create account: " + detail }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
