@@ -848,14 +848,20 @@ export function CashoutAgentManager() {
         </Card>
 
         <div className="grid grid-cols-2 gap-2">
-          <KpiTile icon={<CheckCircle2 className="h-4 w-4" />} label="Completed Payouts" value={String(selectedAgentStats?.count || 0)} tone="primary" sub={`${selectedAgentStats?.todayCount || 0} today`} />
+          <KpiTile
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            label="Completed Payouts"
+            value={String(txnDateFilter ? visiblePayouts.length : (selectedAgentStats?.count || 0))}
+            tone="primary"
+            sub={txnDateFilter ? 'on selected date' : `${selectedAgentStats?.todayCount || 0} today`}
+          />
           <KpiTile
             icon={<TrendingUp className="h-4 w-4" />}
             label="Volume Total"
-            value={formatUGX(selectedAgentStats?.volume || 0)}
+            value={formatUGX(txnDateFilter ? visibleVolume : (selectedAgentStats?.volume || 0))}
             tone="primary"
-            hint="Tap to view daily volume"
-            onClick={() => setBreakdownOpen(true)}
+            hint={txnDateFilter ? 'volume on selected date' : 'Tap to view daily volume'}
+            onClick={txnDateFilter ? undefined : () => setBreakdownOpen(true)}
           />
         </div>
         {/* Date filter — scopes Commission Earned & Telecom Charges to a single day */}
