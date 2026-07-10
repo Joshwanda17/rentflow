@@ -1,6 +1,8 @@
 project_id = "wirntoujqoyjobfhyelc"
 
 [functions]
+  [functions.api]
+    verify_jwt = false
   [functions.submit-diagnostics-report]
     verify_jwt = false
   [functions.view-diagnostics-report]
