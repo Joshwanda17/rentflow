@@ -46,6 +46,7 @@ import {
   SUPPORTED_BANKS, defaultCashoutAgentConfig, normalizeCashoutAgentConfig,
   type CashoutAgentConfig, type ApprovalRule,
 } from '@/lib/cashoutAgentConfig';
+import { AgentEvaluationSection } from '@/components/executive/AgentEvaluationSection';
 
 // Calendar-driven date filter. Value/onChange use the 'yyyy-MM-dd' string the
 // rest of the component already filters on, so it's a drop-in replacement for
@@ -915,6 +916,16 @@ export function CashoutAgentManager() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Work evaluation — same rich advance-potential analysis shown across ops */}
+        {selectedAgent.agent_id && (
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Work evaluation</p>
+              <AgentEvaluationSection agentId={selectedAgent.agent_id} />
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
