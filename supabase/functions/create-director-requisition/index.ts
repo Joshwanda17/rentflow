@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const REVIEW_URL = "https://welileapp.com/director/dashboard";
 const STAFF_ROLES = ["ceo","cfo","coo","cto","cmo","crm","hr","manager","super_admin","operations","employee"];
+const DIRECTOR_PHONE = "0740834746";
 
 function fmtUGX(n: number) {
   return `UGX ${Math.round(n).toLocaleString("en-US")}`;
@@ -132,6 +133,8 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ success: true, requisition: reqRow, directors_notified: notified.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } finally {
+    // no-op
   } catch (err) {
     console.error("create-director-requisition error", err);
     return new Response(JSON.stringify({ error: (err as Error).message || "Unexpected error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
