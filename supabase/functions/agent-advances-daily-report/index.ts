@@ -194,7 +194,7 @@ async function buildReport(
   ).toISOString();
   const monthStartDate = `${dateStr.slice(0, 7)}-01`;
 
-  const [reqRes, advRes, ledgerRes, agentCountRes] = await Promise.all([
+  const [reqRes, advRes, ledgerRes, qualifyingRes] = await Promise.all([
     admin
       .from("agent_advance_requests")
       .select("id, agent_id, principal, total_payable, status, rejection_reason, cfo_paid_at, created_at"),
@@ -204,16 +204,21 @@ async function buildReport(
     admin
       .from("agent_advance_ledger")
       .select("amount_deducted, date"),
-    admin
-      .from("user_roles")
-      .select("user_id", { count: "exact", head: true })
-      .eq("role", "agent"),
+    // "Who is an agent" — the canonical behaviour-based set (listed a house,
+    // posted a promissory note, made a rent request for a tenant, or has a
+    // qualifying sub-agent). This is the same source of truth the Agent Ops
+    // dashboard uses, NOT the raw user_roles count (which is ~22k).
+    admin.rpc("agent_ops_qualifying_agent_ids"),
   ]);
 
   const requests = reqRes.data ?? [];
   const advances = advRes.data ?? [];
   const ledger = ledgerRes.data ?? [];
-  const totalAgents = agentCountRes.count ?? 0;
+  const totalAgents = new Set(
+    ((qualifyingRes.data ?? []) as Array<{ agent_id: string }>)
+      .map((r) => r.agent_id)
+      .filter(Boolean),
+  ).size;
 
   // ---- Requests ----
   const requestsTotal = requests.length;
@@ -438,7 +443,7 @@ function buildHtml(r: Report, prettyDate: string): string {
       <h2 style="font-size:15px;margin:2px 0 8px;">Agent base &amp; adoption</h2>
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
-          ${kpiCell("Total agents", r.totalAgents.toLocaleString("en-US"))}
+          ${kpiCell("Qualifying agents", r.totalAgents.toLocaleString("en-US"), "#1a1a2e", "Meet the agent criteria")}
           ${kpiCell("Agents with advances", String(r.agentsWithAdvances), PURPLE)}
           ${kpiCell("Adoption", pct(adoption), adoption < 1 ? RED : GREEN)}
           ${kpiCell("Paying back", String(r.payingBackCount), GREEN)}

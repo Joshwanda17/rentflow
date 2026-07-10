@@ -110,6 +110,30 @@ export function useAgentPotentialMap() {
   });
 }
 
+/** Map a raw scoring RPC row into PotentialInfo. */
+function mapPotentialRow(r: any): PotentialInfo {
+  return {
+    potential_score: num(r.potential_score),
+    suggested_amount: num(r.suggested_amount),
+    current_limit: num(r.current_limit),
+    direct_subagents: num(r.direct_subagents),
+    active_subagents: num(r.active_subagents),
+    grand_subagents: num(r.grand_subagents),
+    rent_collected: num(r.rent_collected),
+    collections_count: num(r.collections_count),
+    house_listings: num(r.house_listings),
+    rent_requests: num(r.rent_requests),
+    advances_count: num(r.advances_count),
+    outstanding_total: num(r.outstanding_total),
+    repayment_rate: r.repayment_rate == null ? null : Number(r.repayment_rate),
+    network_score: num(r.network_score),
+    collections_score: num(r.collections_score),
+    repayment_score: num(r.repayment_score),
+    listings_score: num(r.listings_score),
+    requests_score: num(r.requests_score),
+  };
+}
+
 export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -260,7 +284,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                     </>
                   ) : (
                     <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1.5">
-                      <Info className="h-3 w-3" /> No potential score yet — review manually.
+                      <Info className="h-3 w-3" /> Not ranked yet — tap to generate this agent's evaluation.
                     </p>
                   )}
                 </div>
@@ -312,7 +336,7 @@ function StatBlock({ icon: Icon, label, value, sub }: { icon: any; label: string
 }
 
 function EvaluationDialog({
-  req, potential: p, note, onNoteChange, onClose, onDecision, pending,
+  req, potential: potentialProp, note, onNoteChange, onClose, onDecision, pending,
 }: {
   req: any | null;
   potential?: PotentialInfo;
@@ -322,6 +346,30 @@ function EvaluationDialog({
   onDecision: (approve: boolean) => void;
   pending: boolean;
 }) {
+  const agentId: string | undefined = req?.agent_id || undefined;
+
+  // Every requester must get an evaluation — even agents who have not yet met
+  // the "who is an agent" criteria and therefore aren't in the ranked map.
+  // When the map has no score, compute one on demand for this exact agent.
+  const { data: onDemand, isLoading: onDemandLoading } = useQuery({
+    queryKey: ['advance-eval-potential-on-demand', agentId],
+    enabled: !!agentId && !potentialProp,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('get_agent_advance_potential_for', {
+        _agent_id: agentId,
+      });
+      if (error) throw error;
+      const row = ((data ?? []) as any[])[0];
+      if (!row) return null;
+      return { info: mapPotentialRow(row), isQualifying: !!row.is_qualifying };
+    },
+  });
+
+  const p: PotentialInfo | undefined = potentialProp ?? onDemand?.info ?? undefined;
+  // The agent didn't rank (not in the qualifying set) but we built an ad-hoc score.
+  const generatedEval = !potentialProp && !!onDemand?.info;
+
   const requested = num(req?.principal);
   const suggested = p ? p.suggested_amount : 0;
   const limit = p ? p.current_limit : 0;
@@ -330,7 +378,6 @@ function EvaluationDialog({
   const overLimit = p && limit > 0 && requested > limit;
   const withinAll = p && !overSuggested && !overLimit;
 
-  const agentId: string | undefined = req?.agent_id || undefined;
   const [showEarnings, setShowEarnings] = useState(false);
 
   // Agent wallet snapshot — helps judge repayment capacity at a glance.
@@ -386,6 +433,20 @@ function EvaluationDialog({
             </DialogHeader>
 
             <div className="space-y-4">
+              {/* On-demand evaluation status for non-ranked agents */}
+              {!potentialProp && (
+                onDemandLoading ? (
+                  <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Building an evaluation for this agent…
+                  </div>
+                ) : generatedEval ? (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800 inline-flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    Generated evaluation — this agent hasn't met the full agent criteria yet, so we scored them on demand from their live activity.
+                  </div>
+                ) : null
+              )}
+
               {/* Wallet snapshot + recent earnings — repayment-capacity context */}
               <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -496,11 +557,11 @@ function EvaluationDialog({
                     <p className="text-[11px] text-muted-foreground">{p.advances_count} advances taken</p>
                   </div>
                 </div>
-              ) : (
+              ) : !onDemandLoading ? (
                 <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground inline-flex items-center gap-2">
                   <Info className="h-4 w-4" /> No potential score available for this agent — evaluate from the reason and history below.
                 </div>
-              )}
+              ) : null}
 
               {/* Score breakdown */}
               {p && (
