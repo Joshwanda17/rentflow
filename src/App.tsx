@@ -35,6 +35,9 @@ const AvailableHousesHarness = lazyWithRetry(
 const ExistingTenantNoticeHarness = lazyWithRetry(
   () => import("@/pages/__e2e/ExistingTenantNoticeHarness"),
 );
+const ProxyPartnerWithdrawalHarness = lazyWithRetry(
+  () => import("@/pages/__e2e/ProxyPartnerWithdrawalHarness"),
+);
 
 // Deferred language — not needed for first paint
 const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
