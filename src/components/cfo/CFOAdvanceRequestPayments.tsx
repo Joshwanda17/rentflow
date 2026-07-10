@@ -624,7 +624,7 @@ export function CFOAdvanceRequestPayments() {
             return (
               <Card key={req.id}>
                 <CardContent className="p-4">
-                  <button onClick={() => setExpandedId(isExpanded ? null : req.id)} className="w-full text-left">
+                  <button onClick={() => setEvalReq(req)} className="w-full text-left">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
                         <User className="h-5 w-5 text-emerald-600" />
@@ -655,6 +655,26 @@ export function CFOAdvanceRequestPayments() {
                       </div>
                     </div>
                   </button>
+
+                  {/* Eligibility evaluation + edit toggle */}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] gap-1"
+                      onClick={() => setEvalReq(req)}
+                    >
+                      <Sparkles className="h-3 w-3 text-primary" /> View evaluation
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={isExpanded ? 'default' : 'outline'}
+                      className="h-7 text-[11px] gap-1"
+                      onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                    >
+                      <Pencil className="h-3 w-3" /> {isExpanded ? 'Close editor' : 'Edit & disburse'}
+                    </Button>
+                  </div>
 
                   {isExpanded && (
                     <div className="mt-4 space-y-3">
