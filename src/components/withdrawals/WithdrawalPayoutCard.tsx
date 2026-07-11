@@ -214,6 +214,21 @@ export function WithdrawalPayoutCard({
   const platformServiceFee = 0; // Welile takes no cut from the agent commission
   const agentEarning = Math.max(0, grossCommission - platformServiceFee);
 
+  // ── Parse the pasted confirmation SMS ─────────────────────────────────────
+  // The merchant pastes the raw "you have sent…" SMS from their MTN/Airtel/bank
+  // app. We extract the TID and the sent amount so the agent can't fat-finger
+  // the reference and so we can prove the amount they sent equals the amount the
+  // user requested. The DB reference guard remains the authoritative gate.
+  const parsedSms = useMemo(
+    () => (pastedSms.trim() ? parseSMS(pastedSms) : null),
+    [pastedSms],
+  );
+  const parsedTid = parsedSms?.transactionId ?? null;
+  const parsedAmount = parsedSms?.amount ?? null;
+  const hasPastedSms = pastedSms.trim().length > 0;
+  const amountMatches = parsedAmount != null && parsedAmount === payoutAmount;
+  const amountMismatch = parsedAmount != null && parsedAmount !== payoutAmount;
+
   // ── What is the user actually withdrawing? ────────────────────────────────
   // Mirror the classification used by the approve-withdrawal SMS so the merchant
   // agent sees the same purpose the recipient is told about. NOT every payout is
