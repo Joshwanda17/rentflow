@@ -486,7 +486,7 @@ Deno.serve(async (req) => {
           : null;
     const pasteSms = pasteSmsRaw && pasteSmsRaw.trim().length > 0 ? pasteSmsRaw : null;
     if (pasteSms && actingAsMerchant && !isCashPayout) {
-      const parsed = parseSMS(pasteSms);
+      const parsed = parsePayoutConfirmationSms(pasteSms);
       const requestedAmount = Math.round(Number((wr as any).amount || 0));
 
       // Fire-and-forget audit log for EVERY pasted SMS (matched or not) so
