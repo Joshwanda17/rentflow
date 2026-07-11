@@ -391,7 +391,7 @@ export function AgentCashPayoutsTab() {
     });
   };
 
-  const handleComplete = (data: { id: string; reference: string; method: string }) => {
+  const handleComplete = (data: { id: string; reference: string; method: string; sms?: string }) => {
     if (completeLockRef.current.has(data.id)) return; // already submitting this request
     completeLockRef.current.add(data.id);
     setCompletingIds(new Set(completeLockRef.current));
