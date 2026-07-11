@@ -52,6 +52,10 @@ export function WithdrawalPayoutCard({
   // enforce that the sent amount matches the amount the user requested.
   const [pastedSms, setPastedSms] = useState('');
   const [open, setOpen] = useState(false);
+  // Specific, inline reason the LAST confirmation attempt was rejected by the
+  // server (amount mismatch / TID mismatch / unreadable). Drives the retry
+  // prompt so the agent knows exactly what to fix and can paste again.
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const [confirmClaimOpen, setConfirmClaimOpen] = useState(false);
   const [claimDetailsConfirmed, setClaimDetailsConfirmed] = useState(false);
   const [enteredPayoutName, setEnteredPayoutName] = useState('');
