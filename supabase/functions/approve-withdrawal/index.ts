@@ -16,7 +16,7 @@ import {
   finalizeSmsDelivery,
   type SmsAttemptRecord,
 } from "../_shared/smsDeliveryLog.ts";
-import { parseSMS } from "./smsParser.ts";
+import { parsePayoutConfirmationSms } from "./smsParser.ts";
 
 /** Digit-tail normalizer: collapses carrier prefixes (MP/AT) + separators so
  *  "MP40781351736", "40781351736" and "40781351-736" all compare equal.
