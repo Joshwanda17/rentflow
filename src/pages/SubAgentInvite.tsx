@@ -327,6 +327,29 @@ export default function SubAgentInvite() {
             </>
           )}
 
+          {phase === 'already-sub-agent' && existingParent && (
+            <>
+              <div className="flex flex-col items-center gap-3">
+                <Avatar className="h-16 w-16 border-2 border-primary/20">
+                  <AvatarImage src={existingParent.avatar_url || undefined} />
+                  <AvatarFallback className="text-lg">{getInitials(existingParent.full_name)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h1 className="text-lg font-bold">You're already a sub-agent</h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You are already a sub-agent to <span className="font-semibold text-foreground">{existingParent.full_name || 'your agent'}</span>.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    You can only belong to one agent team at a time. If this looks wrong, contact support.
+                  </p>
+                </div>
+              </div>
+              <Button className="w-full h-11" onClick={() => navigate('/dashboard/agent')}>
+                Go to my dashboard
+              </Button>
+            </>
+          )}
+
           {phase === 'error' && (
             <>
               <div>
