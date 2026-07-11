@@ -660,9 +660,11 @@ export function WithdrawalPayoutCard({
                       Confirmation rejected
                     </p>
                     <p className="text-xs text-destructive/90 leading-snug">{completeError}</p>
-                    <p className="text-xs text-destructive/80 leading-snug font-medium">
-                      This payout is still yours — fix the transaction ID / amount, paste the correct SMS, and confirm again.
-                    </p>
+                    {/[Tt]ID|amount|SMS|mismatch|match|read/.test(completeError) && (
+                      <p className="text-xs text-destructive/80 leading-snug font-medium">
+                        This payout is still yours — fix the transaction ID / amount, paste the correct SMS, and confirm again.
+                      </p>
+                    )}
                     <Button
                       type="button"
                       variant="outline"
