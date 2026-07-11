@@ -943,13 +943,15 @@ export function AgentCashPayoutsTab() {
 
   // Complete withdrawal via edge function (ledger-backed)
   const completeWithdrawal = useMutation({
-    mutationFn: async ({ id, reference, method }: { id: string; reference: string; method: string }) => {
+    mutationFn: async ({ id, reference, method, sms }: { id: string; reference: string; method: string; sms?: string }) => {
       const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
         // `acting_as_merchant` tells the server this payout is being settled by a
         // merchant agent paying with their OWN MoMo/cash — so they earn the
         // principal reimbursement + 0.5% commission + confirmation SMS. The
         // Financial Ops desk never sends this flag.
-        body: { withdrawal_id: id, reference: reference.trim(), payment_method: method, acting_as_merchant: true },
+        // `paste_sms` carries the raw confirmation SMS so the server can
+        // re-verify the TID + amount against the withdrawal request.
+        body: { withdrawal_id: id, reference: reference.trim(), payment_method: method, acting_as_merchant: true, paste_sms: sms ?? null },
       });
       if (error || data?.error) {
         const msg = await extractEdgeFunctionError({ data, error }, 'Failed to process withdrawal');
