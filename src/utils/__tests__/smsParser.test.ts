@@ -96,3 +96,174 @@ describe('parseSMS', () => {
     expect(r.transactionId).toBe('TID88776655');
   });
 });
+
+describe('parseSMS · amount formatting (commas / spacing / decimals)', () => {
+  it('parses a plain amount with no thousands comma', () => {
+    expect(parseSMS('You have sent UGX 5000 to JOHN. TID 12345678.').amount).toBe(5000);
+  });
+
+  it('parses millions with multiple comma groups', () => {
+    expect(parseSMS('You have received UGX 1,234,567 from JANE. TID 12345678.').amount).toBe(1234567);
+  });
+
+  it('parses decimals and rounds to the nearest shilling', () => {
+    expect(parseSMS('You have sent UGX 50,000.00 to JOHN. TID 12345678.').amount).toBe(50000);
+    expect(parseSMS('You have sent UGX 1,500.50 to JOHN. TID 12345678.').amount).toBe(1501);
+  });
+
+  it('tolerates extra spaces between the currency and the number', () => {
+    expect(parseSMS('You have sent UGX    75,000 to JOHN. TID 12345678.').amount).toBe(75000);
+  });
+
+  it('collapses newlines and tabs before parsing', () => {
+    const sms = 'You have sent\n\tUGX 42,000\nto JOHN.\nTID 12345678.';
+    expect(parseSMS(sms).amount).toBe(42000);
+  });
+
+  it('handles a dot separator between currency and amount ("UGX. 12,000")', () => {
+    expect(parseSMS('Paid UGX. 12,000 to SHOP. TID 12345678.').amount).toBe(12000);
+  });
+});
+
+describe('parseSMS · currency wording variants', () => {
+  const cases: Array<[string, string]> = [
+    ['UGX', 'You have sent UGX 30,000 to X. TID 12345678.'],
+    ['USh', 'You have sent USh 30,000 to X. TID 12345678.'],
+    ['UShs', 'You have sent UShs 30,000 to X. TID 12345678.'],
+    ['U.Sh', 'You have sent U.Sh 30,000 to X. TID 12345678.'],
+    ['U.Shs', 'You have sent U.Shs 30,000 to X. TID 12345678.'],
+    ['Shs', 'You have sent Shs 30,000 to X. TID 12345678.'],
+    ['Sh', 'You have sent Sh 30,000 to X. TID 12345678.'],
+    ['Ush.', 'You have sent Ush. 30,000 to X. TID 12345678.'],
+    ['UG.Shs', 'You have sent UG.Shs 30,000 to X. TID 12345678.'],
+  ];
+  it.each(cases)('recognises the "%s" currency spelling', (_label, sms) => {
+    expect(parseSMS(sms).amount).toBe(30000);
+  });
+
+  it('recognises the trailing "/-" currency form', () => {
+    expect(parseSMS('Withdrawn 15,000/- from agent. Ref 12345678.').amount).toBe(15000);
+  });
+
+  it('recognises the trailing "/=" currency form', () => {
+    expect(parseSMS('Withdrawn 15,000/= from agent. Ref 12345678.').amount).toBe(15000);
+  });
+});
+
+describe('parseSMS · transaction id formats', () => {
+  it('extracts an Airtel "TID" and normalises with a TID prefix', () => {
+    expect(parseSMS('PAID. TID 146525101664. UGX 300,000 to X.').transactionId).toBe('TID146525101664');
+  });
+
+  it('extracts a legacy MTN "MP…" reference', () => {
+    expect(parseSMS('Received UGX 10,000. MP260504A12345 confirmed.').transactionId).toBe('MP260504A12345');
+  });
+
+  it('extracts a Flutterwave "FLW…" reference', () => {
+    expect(parseSMS('Payment of UGX 25,000 received. FLW1234567 recorded.').transactionId).toBe('FLW1234567');
+  });
+
+  it('extracts bank "FT…" style references', () => {
+    expect(parseSMS('You have received UGX 500,000. Ref FT98765432. Bal UGX 1,000,000.').transactionId).toBe('FT98765432');
+  });
+
+  it('extracts an MTN numeric "ID :" reference', () => {
+    expect(parseSMS('You have sent UGX 150000 to X on 2026-05-05. ID :40479927536.').transactionId).toBe('40479927536');
+  });
+
+  it('extracts a "Financial Transaction Id" label', () => {
+    expect(parseSMS('Financial Transaction Id: 40479927536. You have sent UGX 150,000.').transactionId).toBe('40479927536');
+  });
+
+  it('extracts a generic "Txn ID" label', () => {
+    expect(parseSMS('Cash out UGX 40,000. Txn ID: ABC12345. Charge UGX 800.').transactionId).toBe('ABC12345');
+  });
+});
+
+describe('parseSMS · fee and balance', () => {
+  it('extracts fee and balance without confusing them for the amount', () => {
+    const r = parseSMS('You have sent UGX 150,000 to X. Fee UGX 1,000. New balance UGX 4,736,158. ID :40479927536.');
+    expect(r.amount).toBe(150000);
+    expect(r.fee).toBe(1000);
+    expect(r.balance).toBe(4736158);
+  });
+
+  it('treats a zero charge as no charge (still detects the real amount)', () => {
+    const r = parseSMS('PAID. TID 12345678. UGX 300,000 to X. Charge UGX 0. Bal UGX 323,546.');
+    expect(r.amount).toBe(300000);
+    expect(r.fee).toBe(undefined);
+    expect(r.balance).toBe(323546);
+  });
+});
+
+describe('parseSMS · direction and channel', () => {
+  it('detects an inbound (received) direction', () => {
+    expect(parseSMS('You have received UGX 50,000 from JOHN. TID 12345678.').direction).toBe('in');
+  });
+
+  it('detects an outbound (sent) direction', () => {
+    expect(parseSMS('You have sent UGX 50,000 to JOHN. TID 12345678.').direction).toBe('out');
+  });
+
+  it('detects a charge direction', () => {
+    expect(parseSMS('A charge of UGX 500 was applied for airtime.').direction).toBe('charge');
+  });
+
+  it('detects the MTN MoMo channel', () => {
+    expect(parseSMS('MTN MoMo: you have received UGX 10,000.').channel).toBe('mtn_momo');
+  });
+
+  it('detects the bank channel from a bank name', () => {
+    expect(parseSMS('Stanbic Bank: your account was credited UGX 500,000. Ref FT98765432.').channel).toBe('bank');
+  });
+});
+
+describe('parseSMS · counterparty', () => {
+  it('extracts a person name after "from"', () => {
+    expect(parseSMS('You have received UGX 50,000 from JANE AKELLO on 2026-05-05. TID 12345678.').counterparty)
+      .toBe('JANE AKELLO');
+  });
+
+  it('falls back to a phone number when no name is present', () => {
+    expect(parseSMS('You have received UGX 20,000 from 0700123456. TID 9988776655.').counterparty)
+      .toBe('0700123456');
+  });
+});
+
+describe('parseSMS · date and time', () => {
+  it('parses an ISO date + 24h time', () => {
+    const r = parseSMS('Sent UGX 10,000 to X on 2026-05-05 15:08:28. ID :40479927536.');
+    expect(r.date).toBe('2026-05-05');
+    expect(r.time).toBe('15:08');
+  });
+
+  it('parses a DD/MM/YYYY date', () => {
+    expect(parseSMS('Sent UGX 10,000. TID 12345678. 05/05/2026 09:05').date).toBe('2026-05-05');
+  });
+
+  it('parses a 2-digit year (D-M-YY)', () => {
+    expect(parseSMS('Sent UGX 10,000. TID 12345678. 5-5-26').date).toBe('2026-05-05');
+  });
+
+  it('parses a named-month date', () => {
+    expect(parseSMS('Sent UGX 10,000. TID 12345678. 04-May-2026 16:20').date).toBe('2026-05-04');
+  });
+
+  it('parses a 12h AM/PM time into 24h', () => {
+    expect(parseSMS('Sent UGX 10,000. TID 12345678. 04-May-2026 3:08 PM').time).toBe('15:08');
+  });
+});
+
+describe('parseSMS · edge cases / robustness', () => {
+  it('returns an empty object for empty input', () => {
+    expect(parseSMS('')).toEqual({});
+  });
+
+  it('leaves amount undefined for text with no monetary value', () => {
+    expect(parseSMS('Welcome to MoMo. Dial *165# to get started.').amount).toBeUndefined();
+  });
+
+  it('does not throw on random noise', () => {
+    expect(() => parseSMS('!!! ??? @@@ ... 12:99 99:99')).not.toThrow();
+  });
+});
