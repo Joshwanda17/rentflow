@@ -13,7 +13,7 @@ import {
 } from '@/lib/pendingSubAgentInvite';
 import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Users, TrendingUp, Info } from 'lucide-react';
 
-type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login';
+type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login' | 'already-sub-agent';
 
 interface ParentAgent {
   full_name: string;
