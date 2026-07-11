@@ -230,6 +230,11 @@ export function CFOAdvanceRequestPayments() {
           ],
         });
       }
+
+      // 5. Notify the agent by SMS that the advance was disbursed (fire-and-forget).
+      supabase.functions.invoke('notify-agent-advance-disbursed', {
+        body: { agent_id: req.agent_id, amount: principal, request_id: req.id },
+      }).catch((e) => console.error('advance disbursement SMS failed', e));
     },
     onSuccess: (_data, req: any) => {
       const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
