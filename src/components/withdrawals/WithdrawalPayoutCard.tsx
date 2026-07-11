@@ -233,6 +233,26 @@ export function WithdrawalPayoutCard({
   const amountMatches = parsedAmount != null && parsedAmount === payoutAmount;
   const amountMismatch = parsedAmount != null && parsedAmount !== payoutAmount;
 
+  // Structured client-side parse log — one line whenever the pasted SMS
+  // changes — so support can reproduce/debug failures from the browser
+  // console without needing the raw message. No raw SMS body is logged.
+  useEffect(() => {
+    if (!hasPastedSms) return;
+    console.info('[payout] sms_parse', {
+      withdrawal_id: request?.id ?? null,
+      merchant_id: currentUserId ?? null,
+      payout_method: request?.payout_method ?? null,
+      extracted_amount: parsedAmount,
+      extracted_tid: parsedTid,
+      requested_amount: payoutAmount,
+      sms_length: pastedSms.length,
+      amount_pattern_matched: parsedAmount != null,
+      tid_pattern_matched: parsedTid != null,
+      amount_matches_expected: amountMatches,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pastedSms]);
+
   // ── Retry workflow ────────────────────────────────────────────────────────
   // Wipe the pasted SMS + auto-filled reference so the agent gets a clean slate
   // to paste the correct confirmation message again.
