@@ -584,10 +584,13 @@ export function WithdrawalPayoutCard({
                           // Auto-fill the reference from the extracted TID.
                           if (p?.transactionId) setReference(p.transactionId);
                         }}
-                        placeholder="Paste the full 'you have sent…' SMS here — we'll pull out the TID and the amount automatically."
+                        placeholder="Paste any SMS that contains the amount sent and the TID / reference — we only extract those two values."
                         rows={3}
                         className="text-sm resize-none"
                       />
+                      <p className="text-[10px] text-muted-foreground">
+                        We only read the amount and transaction ID from this message.
+                      </p>
                     </div>
                     {hasPastedSms && (
                       <div className="rounded-xl border bg-muted/40 p-3 space-y-2 text-xs self-start">
