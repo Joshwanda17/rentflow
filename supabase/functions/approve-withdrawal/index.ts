@@ -469,6 +469,69 @@ Deno.serve(async (req) => {
     const wrPayoutMethod = String((wr as any).payout_method || "").toLowerCase();
     const isCashPayout =
       wrPayoutMethod === "cash" || wrPayoutMethod === "cash_pickup";
+
+    // ── Server-side confirmation-SMS verification ───────────────────────
+    // When a merchant agent settles a MoMo/bank payout they paste the raw
+    // "you have sent…" SMS from their telecom/bank app. We re-parse it HERE
+    // (never trusting the client's extraction) and enforce that:
+    //   1. the TID in the SMS matches the `reference` submitted, and
+    //   2. the amount sent in the SMS equals the amount the user requested.
+    // Only enforced for non-cash merchant completions that actually carry an
+    // SMS; cash pickups use the WPO code and never provide one.
+    const pasteSmsRaw =
+      typeof (body as any)?.paste_sms === "string"
+        ? (body as any).paste_sms
+        : typeof (body as any)?.sms_text === "string"
+          ? (body as any).sms_text
+          : null;
+    const pasteSms = pasteSmsRaw && pasteSmsRaw.trim().length > 0 ? pasteSmsRaw : null;
+    if (pasteSms && actingAsMerchant && !isCashPayout) {
+      const parsed = parseSMS(pasteSms);
+      const requestedAmount = Math.round(Number((wr as any).amount || 0));
+
+      // (2) Amount sent must equal the amount requested.
+      if (parsed.amount == null) {
+        return new Response(
+          JSON.stringify({
+            error:
+              "Could not read the amount from the pasted SMS. Paste the full confirmation message.",
+            code: "sms_amount_unreadable",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (Math.round(parsed.amount) !== requestedAmount) {
+        return new Response(
+          JSON.stringify({
+            error: `Amount mismatch: the SMS shows UGX ${Math.round(parsed.amount).toLocaleString()} sent, but the user requested UGX ${requestedAmount.toLocaleString()}. They must match.`,
+            code: "sms_amount_mismatch",
+            sms_amount: Math.round(parsed.amount),
+            requested_amount: requestedAmount,
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      // (1) TID in the SMS must match the reference submitted (digit-tail
+      // comparison so carrier prefixes/separators don't cause false negatives).
+      if (parsed.transactionId) {
+        const smsTid = normalizeMomoTid(parsed.transactionId);
+        const refTid = normalizeMomoTid(reference);
+        if (smsTid.length > 0 && refTid.length > 0 && smsTid !== refTid) {
+          return new Response(
+            JSON.stringify({
+              error:
+                "TID mismatch: the transaction ID in the pasted SMS does not match the reference entered.",
+              code: "sms_tid_mismatch",
+              sms_tid: parsed.transactionId,
+              reference,
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    }
+
     // Hoisted so the post-completion success-burn block can also write
     // an "approved" audit log entry referencing the resolved code row.
     let resolvedPayoutCodeId: string | null = null;
