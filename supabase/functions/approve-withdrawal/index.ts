@@ -489,8 +489,57 @@ Deno.serve(async (req) => {
       const parsed = parseSMS(pasteSms);
       const requestedAmount = Math.round(Number((wr as any).amount || 0));
 
+      // Fire-and-forget audit log for EVERY pasted SMS (matched or not) so
+      // there is a durable record of the raw text, what we extracted, and the
+      // validation verdict. Never let an audit hiccup block a real payout.
+      const smsAuditIp =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("cf-connecting-ip") ||
+        req.headers.get("x-real-ip") ||
+        null;
+      const smsAuditUa = req.headers.get("user-agent") || null;
+      const smsAuditRole = hasStaffRole
+        ? "staff"
+        : isCashoutAgent
+        ? "cashout_agent"
+        : "unknown";
+      const logSmsPaste = async (
+        result: string,
+        code: string | null,
+        message: string | null,
+      ) => {
+        try {
+          await admin.from("payout_claim_sms_audit_log").insert({
+            withdrawal_request_id: withdrawal_id,
+            request_owner_id: (wr as any)?.user_id ?? null,
+            raw_sms: pasteSms,
+            extracted_tid: parsed.transactionId ?? null,
+            extracted_amount: parsed.amount ?? null,
+            reference_entered: reference ?? null,
+            requested_amount: requestedAmount,
+            validation_result: result,
+            validation_code: code,
+            validation_message: message,
+            approver_id: user?.id ?? null,
+            approver_email: (user && (user.email as string)) || null,
+            approver_role: smsAuditRole,
+            payout_method: wrPayoutMethod,
+            ip_address: smsAuditIp,
+            user_agent: smsAuditUa,
+            metadata: { payment_method: payment_method ?? null },
+          });
+        } catch (e) {
+          console.warn("[approve-withdrawal] sms audit log insert failed", e);
+        }
+      };
+
       // (2) Amount sent must equal the amount requested.
       if (parsed.amount == null) {
+        await logSmsPaste(
+          "mismatch",
+          "sms_amount_unreadable",
+          "Amount could not be read from the pasted SMS.",
+        );
         return new Response(
           JSON.stringify({
             error:
@@ -501,6 +550,11 @@ Deno.serve(async (req) => {
         );
       }
       if (Math.round(parsed.amount) !== requestedAmount) {
+        await logSmsPaste(
+          "mismatch",
+          "sms_amount_mismatch",
+          `SMS amount ${Math.round(parsed.amount)} does not match requested ${requestedAmount}.`,
+        );
         return new Response(
           JSON.stringify({
             error: `Amount mismatch: the SMS shows UGX ${Math.round(parsed.amount).toLocaleString()} sent, but the user requested UGX ${requestedAmount.toLocaleString()}. They must match.`,
@@ -518,6 +572,11 @@ Deno.serve(async (req) => {
         const smsTid = normalizeMomoTid(parsed.transactionId);
         const refTid = normalizeMomoTid(reference);
         if (smsTid.length > 0 && refTid.length > 0 && smsTid !== refTid) {
+          await logSmsPaste(
+            "mismatch",
+            "sms_tid_mismatch",
+            "TID in SMS does not match the reference entered.",
+          );
           return new Response(
             JSON.stringify({
               error:
@@ -530,6 +589,9 @@ Deno.serve(async (req) => {
           );
         }
       }
+
+      // All checks passed for this paste.
+      await logSmsPaste("matched", null, null);
     }
 
     // Hoisted so the post-completion success-burn block can also write
