@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -232,6 +232,25 @@ export function WithdrawalPayoutCard({
   const hasPastedSms = pastedSms.trim().length > 0;
   const amountMatches = parsedAmount != null && parsedAmount === payoutAmount;
   const amountMismatch = parsedAmount != null && parsedAmount !== payoutAmount;
+
+  // Structured client-side parse log — one line whenever the pasted SMS
+  // changes — so support can reproduce/debug failures from the browser
+  // console without needing the raw message. No raw SMS body is logged.
+  useEffect(() => {
+    if (!hasPastedSms) return;
+    console.info('[payout] sms_parse', {
+      withdrawal_id: withdrawal.id ?? null,
+      payout_method: withdrawal.payout_method ?? null,
+      extracted_amount: parsedAmount,
+      extracted_tid: parsedTid,
+      requested_amount: payoutAmount,
+      sms_length: pastedSms.length,
+      amount_pattern_matched: parsedAmount != null,
+      tid_pattern_matched: parsedTid != null,
+      amount_matches_expected: amountMatches,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pastedSms]);
 
   // ── Retry workflow ────────────────────────────────────────────────────────
   // Wipe the pasted SMS + auto-filled reference so the agent gets a clean slate

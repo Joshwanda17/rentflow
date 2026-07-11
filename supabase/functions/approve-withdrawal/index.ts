@@ -489,6 +489,47 @@ Deno.serve(async (req) => {
       const parsed = parsePayoutConfirmationSms(pasteSms);
       const requestedAmount = Math.round(Number((wr as any).amount || 0));
 
+      // ── Structured parse log (one line per SMS paste) ──────────────────
+      // Emitted for EVERY attempt so failures are trivial to grep in the
+      // edge-function logs. Never includes the raw SMS body (PII / secrets);
+      // only the extracted fields and whether each pattern matched.
+      const smsAmtMatched = parsed.amount != null;
+      const smsTidMatched = !!parsed.transactionId;
+      const smsAmountOk = smsAmtMatched && Math.round(parsed.amount as number) === requestedAmount;
+      const smsTidOk =
+        smsTidMatched &&
+        (() => {
+          const s = normalizeMomoTid(parsed.transactionId as string);
+          const r = normalizeMomoTid(reference);
+          return !(s.length > 0 && r.length > 0 && s !== r);
+        })();
+      const logSmsParse = (verdict: string, code: string | null) => {
+        try {
+          console.log(
+            "[approve-withdrawal] sms_parse " +
+              JSON.stringify({
+                withdrawal_id,
+                merchant_id: (agentRow as any)?.id ?? user?.id ?? null,
+                merchant_email: (user && (user.email as string)) || null,
+                payout_method: wrPayoutMethod,
+                extracted_amount: parsed.amount ?? null,
+                extracted_tid: parsed.transactionId ?? null,
+                requested_amount: requestedAmount,
+                reference_entered: reference ?? null,
+                sms_length: pasteSms.length,
+                amount_pattern_matched: smsAmtMatched,
+                tid_pattern_matched: smsTidMatched,
+                amount_matches_expected: smsAmountOk,
+                tid_matches_expected: smsTidOk,
+                verdict,
+                code,
+              }),
+          );
+        } catch (_e) {
+          /* logging must never block a payout */
+        }
+      };
+
       // Fire-and-forget audit log for EVERY pasted SMS (matched or not) so
       // there is a durable record of the raw text, what we extracted, and the
       // validation verdict. Never let an audit hiccup block a real payout.
@@ -508,6 +549,7 @@ Deno.serve(async (req) => {
         code: string | null,
         message: string | null,
       ) => {
+        logSmsParse(result, code);
         try {
           await admin.from("payout_claim_sms_audit_log").insert({
             withdrawal_request_id: withdrawal_id,
