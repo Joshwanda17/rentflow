@@ -27,7 +27,7 @@ export interface WithdrawalPayoutCardProps {
   isClaimed?: boolean;
   isClaimedByOther?: boolean;
   onClaim?: (confirm?: { momoNumber?: string | null; momoName?: string | null }) => void;
-  onComplete?: (data: { id: string; reference: string; method: string; sms?: string }) => void;
+  onComplete?: (data: { id: string; reference: string; method: string; sms?: string }) => void | Promise<any>;
   /** ID of the withdrawal currently being claimed (for per-request loading) */
   claimingId?: string | null;
   /** ID of the withdrawal currently being completed (for per-request loading) */
@@ -52,6 +52,10 @@ export function WithdrawalPayoutCard({
   // enforce that the sent amount matches the amount the user requested.
   const [pastedSms, setPastedSms] = useState('');
   const [open, setOpen] = useState(false);
+  // Specific, inline reason the LAST confirmation attempt was rejected by the
+  // server (amount mismatch / TID mismatch / unreadable). Drives the retry
+  // prompt so the agent knows exactly what to fix and can paste again.
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const [confirmClaimOpen, setConfirmClaimOpen] = useState(false);
   const [claimDetailsConfirmed, setClaimDetailsConfirmed] = useState(false);
   const [enteredPayoutName, setEnteredPayoutName] = useState('');
@@ -228,6 +232,26 @@ export function WithdrawalPayoutCard({
   const hasPastedSms = pastedSms.trim().length > 0;
   const amountMatches = parsedAmount != null && parsedAmount === payoutAmount;
   const amountMismatch = parsedAmount != null && parsedAmount !== payoutAmount;
+
+  // ── Retry workflow ────────────────────────────────────────────────────────
+  // Wipe the pasted SMS + auto-filled reference so the agent gets a clean slate
+  // to paste the correct confirmation message again.
+  function clearPaste() {
+    setPastedSms('');
+    setReference('');
+    setCompleteError(null);
+  }
+
+  // Submit the payout and, on server-side rejection, surface the SPECIFIC reason
+  // inline (instead of only a transient toast) so the agent can fix and retry.
+  async function handleConfirmPaid() {
+    setCompleteError(null);
+    try {
+      await onComplete?.({ id: withdrawal.id, reference, method: methodLabel, sms: pastedSms.trim() || undefined });
+    } catch (e: any) {
+      setCompleteError(e?.message || 'Payout could not be confirmed. Check the details and try again.');
+    }
+  }
 
   // ── What is the user actually withdrawing? ────────────────────────────────
   // Mirror the classification used by the approve-withdrawal SMS so the merchant
@@ -555,6 +579,7 @@ export function WithdrawalPayoutCard({
                         onChange={(e) => {
                           const text = e.target.value;
                           setPastedSms(text);
+                          setCompleteError(null);
                           const p = text.trim() ? parseSMS(text) : null;
                           // Auto-fill the reference from the extracted TID.
                           if (p?.transactionId) setReference(p.transactionId);
@@ -603,6 +628,9 @@ export function WithdrawalPayoutCard({
                               <p className="text-destructive font-medium">
                                 Sent {formatUGX(parsedAmount!)} ≠ requested {formatUGX(payoutAmount)}.
                               </p>
+                              <p className="text-muted-foreground">
+                                Paste the SMS for the correct transaction, or clear and try again.
+                              </p>
                             </div>
                           ) : (
                             <Badge variant="secondary" className="gap-1.5">
@@ -611,21 +639,55 @@ export function WithdrawalPayoutCard({
                             </Badge>
                           )}
                         </div>
+                        {hasPastedSms && (
+                          <button
+                            type="button"
+                            onClick={clearPaste}
+                            className="text-[11px] font-semibold text-primary hover:underline"
+                          >
+                            Clear &amp; paste again
+                          </button>
+                        )}
                       </div>
                     )}
+                  </div>
+                )}
+                {/* Server-side validation rejection — specific reason + retry prompt */}
+                {completeError && (
+                  <div className="rounded-xl border-2 border-destructive/50 bg-destructive/10 p-3 space-y-2">
+                    <p className="text-sm font-bold text-destructive flex items-start gap-1.5">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      Confirmation rejected
+                    </p>
+                    <p className="text-xs text-destructive/90 leading-snug">{completeError}</p>
+                    {/[Tt]ID|amount|SMS|mismatch|match|read/.test(completeError) && (
+                      <p className="text-xs text-destructive/80 leading-snug font-medium">
+                        This payout is still yours — fix the transaction ID / amount, paste the correct SMS, and confirm again.
+                      </p>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5"
+                      onClick={clearPaste}
+                    >
+                      <ClipboardPaste className="h-3.5 w-3.5" />
+                      Clear &amp; paste again
+                    </Button>
                   </div>
                 )}
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     placeholder={isBank ? 'Bank reference / TID...' : isMoMo ? 'MoMo Transaction ID (TID)...' : 'Payout code from user...'}
                     value={reference}
-                    onChange={e => setReference(e.target.value)}
+                    onChange={e => { setReference(e.target.value); setCompleteError(null); }}
                     className="text-base h-12 font-mono flex-1 min-w-0"
                   />
                   <Button
                     className="h-12 gap-1.5 px-5 sm:w-auto w-full text-base font-semibold"
                     disabled={!reference.trim() || reference.trim().length < 3 || completingId === withdrawal.id || amountMismatch}
-                    onClick={() => onComplete?.({ id: withdrawal.id, reference, method: methodLabel, sms: pastedSms.trim() || undefined })}
+                    onClick={handleConfirmPaid}
                     title={completingId === withdrawal.id ? 'Request is being processed…' : 'Confirm this payout'}
                   >
                     {completingId === withdrawal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
