@@ -158,6 +158,11 @@ export default function CFODashboard() {
             <MerchantFloatRequestsPanel />
           </TabsContent>
 
+          {/* Money Sources Breakdown Tab */}
+          <TabsContent value="money-sources" className="space-y-6">
+            <MoneySourcesBreakdown />
+          </TabsContent>
+
           {/* ROI Requests Tab */}
           <TabsContent value="roi" className="space-y-6">
             <CFOROIRequests />
