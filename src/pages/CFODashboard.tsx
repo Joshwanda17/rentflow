@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, BarChart3, Shield, Banknote, ClipboardList, 
   BookOpen, AlertTriangle, TrendingUp, Loader2, Scale, ArrowDownToLine,
-  Receipt, Wallet, Bell, Layers, DollarSign, FileText, HandCoins, MessageSquare
+  Receipt, Wallet, Bell, Layers, DollarSign, FileText, HandCoins, MessageSquare, Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
