@@ -20,7 +20,7 @@ import {
   UserCheck, ArrowRight, Phone, CreditCard, ChevronDown, XCircle,
   Copy, AlertTriangle, ClipboardPaste,
 } from 'lucide-react';
-import { parseSMS } from '@/utils/smsParser';
+import { parsePayoutConfirmationSms } from '@/utils/smsParser';
 
 export interface WithdrawalPayoutCardProps {
   withdrawal: any;
@@ -224,7 +224,7 @@ export function WithdrawalPayoutCard({
   // the reference and so we can prove the amount they sent equals the amount the
   // user requested. The DB reference guard remains the authoritative gate.
   const parsedSms = useMemo(
-    () => (pastedSms.trim() ? parseSMS(pastedSms) : null),
+    () => (pastedSms.trim() ? parsePayoutConfirmationSms(pastedSms) : null),
     [pastedSms],
   );
   const parsedTid = parsedSms?.transactionId ?? null;
@@ -580,14 +580,17 @@ export function WithdrawalPayoutCard({
                           const text = e.target.value;
                           setPastedSms(text);
                           setCompleteError(null);
-                          const p = text.trim() ? parseSMS(text) : null;
+                          const p = text.trim() ? parsePayoutConfirmationSms(text) : null;
                           // Auto-fill the reference from the extracted TID.
                           if (p?.transactionId) setReference(p.transactionId);
                         }}
-                        placeholder="Paste the full 'you have sent…' SMS here — we'll pull out the TID and the amount automatically."
+                        placeholder="Paste any SMS that contains the amount sent and the TID / reference — we only extract those two values."
                         rows={3}
                         className="text-sm resize-none"
                       />
+                      <p className="text-[10px] text-muted-foreground">
+                        We only read the amount and transaction ID from this message.
+                      </p>
                     </div>
                     {hasPastedSms && (
                       <div className="rounded-xl border bg-muted/40 p-3 space-y-2 text-xs self-start">

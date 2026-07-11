@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSMS } from '../smsParser';
+import { parseSMS, parsePayoutConfirmationSms } from '../smsParser';
 
 describe('parseSMS', () => {
   it('parses Airtel-style SMS with space-separated TID and month-name date', () => {
@@ -265,5 +265,62 @@ describe('parseSMS · edge cases / robustness', () => {
 
   it('does not throw on random noise', () => {
     expect(() => parseSMS('!!! ??? @@@ ... 12:99 99:99')).not.toThrow();
+  });
+});
+
+describe('parsePayoutConfirmationSms · merchant payout focus', () => {
+  it('extracts only amount and TID from an Airtel SMS', () => {
+    const r = parsePayoutConfirmationSms(
+      'PAID.TID 146525101664. UGX 300,000 to WELILE TECHNOLOGIES LIMITED Charge UGX 0. Bal UGX 323,546. 04-May-2026 16:20',
+    );
+    expect(r.amount).toBe(300000);
+    expect(r.transactionId).toBe('TID146525101664');
+    expect(Object.keys(r)).toEqual(['transactionId', 'amount']);
+  });
+
+  it('extracts only amount and TID from an MTN sent SMS', () => {
+    const r = parsePayoutConfirmationSms(
+      'You have sent UGX 150000 to LYDIA NAMUGENYI, 256767652611 on 2026-05-05 15:08:28, fee: 1000. Reason: Rent Paid. New balance: 4736158. ID :40479927536.',
+    );
+    expect(r.amount).toBe(150000);
+    expect(r.transactionId).toBe('40479927536');
+  });
+
+  it('picks the largest currency-prefixed amount when no strong verb is present', () => {
+    const r = parsePayoutConfirmationSms(
+      'Bal UGX 4,736,158. Fee UGX 1,000. UGX 150,000 to LYDIA. TID 40479927536.',
+    );
+    expect(r.amount).toBe(150000);
+    expect(r.transactionId).toBe('TID40479927536');
+  });
+
+  it('ignores balance and fee labels even when they are larger', () => {
+    const r = parsePayoutConfirmationSms(
+      'Sent UGX 25,000. Charge UGX 0. New balance UGX 999,000. TID 12345678.',
+    );
+    expect(r.amount).toBe(25000);
+    expect(r.transactionId).toBe('TID12345678');
+  });
+
+  it('extracts bank references', () => {
+    const r = parsePayoutConfirmationSms(
+      'Bank transfer of UGX 500,000 to JOHN DOE. Reference FT98765432.',
+    );
+    expect(r.amount).toBe(500000);
+    expect(r.transactionId).toBe('FT98765432');
+  });
+
+  it('extracts trailing-currency amounts', () => {
+    const r = parsePayoutConfirmationSms('You have sent 75,000/= to MARY. TID 55667788.');
+    expect(r.amount).toBe(75000);
+    expect(r.transactionId).toBe('TID55667788');
+  });
+
+  it('returns an empty object for empty input', () => {
+    expect(parsePayoutConfirmationSms('')).toEqual({});
+  });
+
+  it('does not throw on random noise', () => {
+    expect(() => parsePayoutConfirmationSms('!!! ??? @@@ ... 12:99 99:99')).not.toThrow();
   });
 });

@@ -16,7 +16,7 @@ import {
   finalizeSmsDelivery,
   type SmsAttemptRecord,
 } from "../_shared/smsDeliveryLog.ts";
-import { parseSMS } from "./smsParser.ts";
+import { parsePayoutConfirmationSms } from "./smsParser.ts";
 
 /** Digit-tail normalizer: collapses carrier prefixes (MP/AT) + separators so
  *  "MP40781351736", "40781351736" and "40781351-736" all compare equal.
@@ -486,7 +486,7 @@ Deno.serve(async (req) => {
           : null;
     const pasteSms = pasteSmsRaw && pasteSmsRaw.trim().length > 0 ? pasteSmsRaw : null;
     if (pasteSms && actingAsMerchant && !isCashPayout) {
-      const parsed = parseSMS(pasteSms);
+      const parsed = parsePayoutConfirmationSms(pasteSms);
       const requestedAmount = Math.round(Number((wr as any).amount || 0));
 
       // Fire-and-forget audit log for EVERY pasted SMS (matched or not) so
