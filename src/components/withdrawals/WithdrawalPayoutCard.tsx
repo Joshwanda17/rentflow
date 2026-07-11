@@ -606,7 +606,7 @@ export function WithdrawalPayoutCard({
                   <Button
                     className="h-12 gap-1.5 px-5 sm:w-auto w-full text-base font-semibold"
                     disabled={!reference.trim() || reference.trim().length < 3 || completingId === withdrawal.id || amountMismatch}
-                    onClick={() => onComplete?.({ id: withdrawal.id, reference, method: methodLabel })}
+                    onClick={() => onComplete?.({ id: withdrawal.id, reference, method: methodLabel, sms: pastedSms.trim() || undefined })}
                     title={completingId === withdrawal.id ? 'Request is being processed…' : 'Confirm this payout'}
                   >
                     {completingId === withdrawal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
