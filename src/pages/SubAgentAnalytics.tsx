@@ -1406,6 +1406,10 @@ export default function SubAgentAnalytics() {
                                     <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-success/10 text-success border-success/20">
                                       <CheckCircle2 className="h-3 w-3" /> Accepted
                                     </Badge>
+                                  ) : subAgent.status === 'expired' ? (
+                                    <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20">
+                                      <Clock className="h-3 w-3" /> Expired
+                                    </Badge>
                                   ) : smsStatus === 'failed' ? (
                                     <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20">
                                       <AlertCircle className="h-3 w-3" /> Failed
