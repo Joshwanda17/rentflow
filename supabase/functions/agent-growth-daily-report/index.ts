@@ -161,16 +161,15 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
     pageWidth - margin, 17, { align: "right" },
   );
 
-  // KPI strip
+  // KPI strip — focused on the current period (today), not cumulative network totals.
+  const prevNet = t.prev_agents + t.prev_subagents;
   const cards: { label: string; value: string; sub?: string; accent: RGB }[] = [
-    { label: "Total Agents", value: fmtInt(t.total_agents), sub: `${fmtInt(t.new_agents)} new ${periodNoun}`, accent: BRAND },
-    { label: "Total Sub-Agents", value: fmtInt(t.total_subagents), sub: `${fmtInt(t.verified_subagents)} verified · ${fmtInt(t.pending_subagents)} pending`, accent: VIOLET },
-    { label: `New Agents (${periodNoun})`, value: fmtInt(t.new_agents), sub: `${fmtPct(agentTrend)} vs prev`, accent: EMERALD },
-    { label: `New Sub-Agents (${periodNoun})`, value: fmtInt(t.new_subagents), sub: `${fmtPct(subTrend)} vs prev`, accent: AMBER },
+    { label: `New Agents ${periodNoun}`, value: fmtInt(t.new_agents), sub: `${fmtPct(agentTrend)} vs prev`, accent: BRAND },
+    { label: `New Sub-Agents ${periodNoun}`, value: fmtInt(t.new_subagents), sub: `${fmtPct(subTrend)} vs prev`, accent: VIOLET },
+    { label: `Net New ${periodNoun}`, value: fmtInt(netNew), sub: `${fmtPct(netTrend)} vs prev`, accent: EMERALD },
+    { label: "Previous Period", value: fmtInt(prevNet), sub: `${fmtInt(t.prev_agents)} agents · ${fmtInt(t.prev_subagents)} subs`, accent: AMBER },
     { label: "Avg Agents / period", value: fmtAvg(avgAgents), sub: `over ${buckets} periods`, accent: BLUE },
     { label: "Avg Sub-Agents / period", value: fmtAvg(avgSubs), sub: `over ${buckets} periods`, accent: TEAL },
-    { label: "Verified Rate", value: `${Math.round(verifiedRate)}%`, sub: "of all sub-agents", accent: EMERALD },
-    { label: "Sub-Agents / Agent", value: fmtAvg(subPerAgent), sub: "network depth", accent: SLATE },
   ];
   const cols = 4, gap = 4;
   const cardW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
