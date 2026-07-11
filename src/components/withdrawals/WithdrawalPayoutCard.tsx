@@ -20,7 +20,7 @@ import {
   UserCheck, ArrowRight, Phone, CreditCard, ChevronDown, XCircle,
   Copy, AlertTriangle, ClipboardPaste,
 } from 'lucide-react';
-import { parseSMS } from '@/utils/smsParser';
+import { parsePayoutConfirmationSms } from '@/utils/smsParser';
 
 export interface WithdrawalPayoutCardProps {
   withdrawal: any;
