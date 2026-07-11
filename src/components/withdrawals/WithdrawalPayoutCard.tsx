@@ -21,7 +21,6 @@ import {
   Copy, AlertTriangle, ClipboardPaste,
 } from 'lucide-react';
 import { parseSMS } from '@/utils/smsParser';
-import { formatUGX as _formatUGX } from '@/lib/rentCalculations';
 
 export interface WithdrawalPayoutCardProps {
   withdrawal: any;
