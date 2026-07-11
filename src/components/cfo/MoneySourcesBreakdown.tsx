@@ -7,7 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { Loader2, Coins, Wallet, ArrowDownLeft, TrendingUp } from 'lucide-react';
+import { Loader2, Coins, Wallet, ArrowDownLeft } from 'lucide-react';
 
 interface UserResult {
   id: string;
