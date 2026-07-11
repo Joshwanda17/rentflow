@@ -211,3 +211,78 @@ export function parseSMS(text: string): ParsedSMS {
 
   return out;
 }
+
+/**
+ * Focused payout-confirmation parser.
+ *
+ * Merchant agents paste their raw "you have sent…" MoMo/bank SMS after paying
+ * a customer. We ONLY need the amount they sent and the transaction ID (TID /
+ * bank reference). Everything else in the SMS — date, time, balance, fees,
+ * counterparty — is ignored.
+ */
+export interface ParsedPayoutSMS {
+  amount?: number;
+  transactionId?: string;
+}
+
+export function parsePayoutConfirmationSms(text: string): ParsedPayoutSMS {
+  const out: ParsedPayoutSMS = {};
+  if (!text) return out;
+  const t = text.replace(/\s+/g, ' ').trim();
+
+  // ── Transaction ID (same provider order as parseSMS) ─────────────────
+  const mtnId = t.match(/(?:^|[^A-Za-z])(?:Financial\s+)?(?:Transaction\s+)?ID[:\s.#-]+(\d{8,18})\b/i);
+  const airtel = t.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);
+  const mtnLegacy = t.match(/\bMP[A-Z0-9]{8,}\b/i);
+  const flutter = t.match(/\b(?:FLW|FW)[A-Z0-9]{6,}\b/i);
+  const bankRef = t.match(/\b(?:FT|TXN|CR|DR|TRF|REF)[A-Z0-9]{6,}\b/i);
+  const generic = t.match(/\b(?:Txn\s?ID|Transaction\s?ID|Trans\.?\s?ID|Ref(?:erence)?|Receipt(?:\s?No)?|Confirmation(?:\s?code)?)(?:\s+(?:number|no|code|id|is))?[:\s#.\-]*([A-Za-z0-9][A-Za-z0-9-]{3,})\b/i);
+  const hasDigit = (s: string | undefined) => !!s && /\d/.test(s);
+  if (mtnId) out.transactionId = mtnId[1];
+  else if (airtel) out.transactionId = `TID${airtel[1]}`;
+  else if (mtnLegacy) out.transactionId = mtnLegacy[0].toUpperCase();
+  else if (flutter) out.transactionId = flutter[0].toUpperCase();
+  else if (bankRef && hasDigit(bankRef[0])) out.transactionId = bankRef[0].toUpperCase();
+  else if (generic && hasDigit(generic[1])) out.transactionId = generic[1].toUpperCase();
+
+  // ── Amount ─────────────────────────────────────────────────────────
+  const CUR = String.raw`(?:UGX|UG\.?Shs?|U\.?Shs?|U\.?Sh\.?|Shs?|Ush\.?)`;
+  const CUR_SUFFIX = String.raw`(?:${CUR}|/[=-])`;
+  const AMT = String.raw`${CUR}?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`;
+
+  function toInt(raw: string): number | undefined {
+    const n = Math.round(parseFloat(raw.replace(/,/g, '')));
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }
+
+  const verbAmt = t.match(new RegExp(
+    String.raw`(?:sent|paid|withdrew|withdrawn|debited|transferred|payment of|amount of|sum of|of)\s+` + AMT,
+    'i',
+  ));
+  if (verbAmt) out.amount = toInt(verbAmt[1]);
+
+  if (out.amount === undefined) {
+    const amountRe = new RegExp(String.raw`${CUR}\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`, 'gi');
+    const skipRe = /(bal(?:ance)?|charge|fee|fees|tax|levy|new\s*balance)\s*[:.\-]?\s*$/i;
+    let largest = 0;
+    for (const m of t.matchAll(amountRe)) {
+      const n = toInt(m[1]); if (n === undefined) continue;
+      const lookback = t.slice(Math.max(0, (m.index ?? 0) - 16), m.index ?? 0);
+      if (skipRe.test(lookback)) continue;
+      if (n > largest) largest = n;
+    }
+    if (largest > 0) out.amount = largest;
+  }
+
+  if (out.amount === undefined) {
+    const suffixRe = new RegExp(String.raw`([\d][\d,]*(?:\.\d+)?)\s*${CUR_SUFFIX}`, 'gi');
+    let largest = 0;
+    for (const m of t.matchAll(suffixRe)) {
+      const n = toInt(m[1]); if (n === undefined) continue;
+      if (n > largest) largest = n;
+    }
+    if (largest > 0) out.amount = largest;
+  }
+
+  return out;
+}
