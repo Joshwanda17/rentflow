@@ -975,7 +975,11 @@ export default function SubAgentAnalytics() {
     if (inviteStatusFilter === 'accepted') {
       result = result.filter(sa => sa.status === 'verified' || !!sa.accepted_at);
     } else if (inviteStatusFilter === 'pending') {
-      result = result.filter(sa => sa.status === 'pending' && !sa.accepted_at);
+      result = result.filter(
+        sa => (sa.status === 'pending' || sa.status === 'pending_acceptance') && !sa.accepted_at,
+      );
+    } else if (inviteStatusFilter === 'expired') {
+      result = result.filter(sa => sa.status === 'expired');
     } else if (inviteStatusFilter === 'declined') {
       result = result.filter(sa => sa.status === 'rejected');
     } else if (inviteStatusFilter === 'switched') {
