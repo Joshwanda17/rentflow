@@ -74,6 +74,7 @@ export default function CFODashboard() {
   const tabs = [
     { id: 'overview', label: 'Pending Approvals', icon: Bell },
     { id: 'wallet-payout', label: 'Pay to Wallet', icon: Wallet },
+    { id: 'money-sources', label: 'Money Sources', icon: Coins },
     { id: 'merchant-float', label: 'Merchant Float', icon: HandCoins },
     { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'payouts', label: 'Rent Payouts', icon: Banknote },
