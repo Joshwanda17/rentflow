@@ -38,12 +38,40 @@ export default function SubAgentInvite() {
   const [existingParent, setExistingParent] = useState<ParentAgent | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
-  // Fetch invite preview (lead agent name, avatar, status) when user is known
+  // If the user is already a verified sub-agent, show that clearly instead of
+  // letting them try to accept another invitation (which would fail or replace
+  // their existing relationship).
   useEffect(() => {
-    async function fetchInvite() {
-      if (!token || !user) return;
+    async function fetchInviteState() {
+      if (!user) return;
       setInviteLoading(true);
       try {
+        const { data: existing } = await supabase
+          .from('agent_subagents')
+          .select('parent_agent_id, status')
+          .eq('sub_agent_id', user.id)
+          .eq('status', 'verified')
+          .order('verified_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existing?.parent_agent_id) {
+          const { data: parent } = await supabase
+            .from('profiles')
+            .select('full_name, avatar_url')
+            .eq('id', existing.parent_agent_id)
+            .maybeSingle();
+
+          if (parent) {
+            setExistingParent(parent);
+            setParentName(parent.full_name || 'your agent');
+          }
+          setPhase('already-sub-agent');
+          return;
+        }
+
+        if (!token) return;
+
         const { data: row, error } = await supabase
           .from('agent_subagents')
           .select('status, parent_agent_id')
@@ -52,7 +80,6 @@ export default function SubAgentInvite() {
           .maybeSingle();
 
         if (error || !row) {
-          setInviteLoading(false);
           return;
         }
 
@@ -71,7 +98,7 @@ export default function SubAgentInvite() {
       }
     }
 
-    if (user && token) fetchInvite();
+    if (user) fetchInviteState();
   }, [token, user]);
 
   const handleAccept = async () => {
