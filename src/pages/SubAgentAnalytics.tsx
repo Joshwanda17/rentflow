@@ -327,7 +327,7 @@ export default function SubAgentAnalytics() {
   // Search & filter state
   const [subAgentSearch, setSubAgentSearch] = useState('');
   const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
-  const [inviteStatusFilter, setInviteStatusFilter] = useState<'all' | 'accepted' | 'pending' | 'declined' | 'switched'>('all');
+  const [inviteStatusFilter, setInviteStatusFilter] = useState<'all' | 'accepted' | 'pending' | 'expired' | 'declined' | 'switched'>('all');
   const [tenantSearch, setTenantSearch] = useState('');
   const [subAgentSort, setSubAgentSort] = useState<'newest' | 'name_asc' | 'withdrawable_desc'>('newest');
 
