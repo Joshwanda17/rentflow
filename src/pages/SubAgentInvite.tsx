@@ -35,6 +35,7 @@ export default function SubAgentInvite() {
   const [message, setMessage] = useState('');
   const [parentName, setParentName] = useState('your agent');
   const [invite, setInvite] = useState<InviteInfo | null>(null);
+  const [existingParent, setExistingParent] = useState<ParentAgent | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
   // Fetch invite preview (lead agent name, avatar, status) when user is known
