@@ -38,6 +38,7 @@ import { CFOPartnerInvestments } from '@/components/cfo/CFOPartnerInvestments';
 import { CronJobsHealthPanel } from '@/components/cfo/CronJobsHealthPanel';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
+import { SmsVerificationMonitorPanel } from '@/components/cfo/SmsVerificationMonitorPanel';
 import { AgentAdvancesOutstandingPanel } from '@/components/cfo/AgentAdvancesOutstandingPanel';
 import { MoneySourcesBreakdown } from '@/components/cfo/MoneySourcesBreakdown';
 export default function CFODashboard() {
