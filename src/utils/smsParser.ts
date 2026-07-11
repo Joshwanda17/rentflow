@@ -71,8 +71,15 @@ function toInt(raw: string): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
+// Currency token covering every common Ugandan spelling/spacing seen on MoMo,
+// Airtel Money and bank SMS: UGX, USh, UShs, U.Sh, U.Shs, UGShs, Shs, Sh,
+// Ush. — case-insensitive at the call sites. Keep this shared so amount, fee
+// and balance extraction all recognise the same set.
+const CUR = String.raw`(?:UGX|UG\.?Shs?|U\.?Shs?|U\.?Sh\.?|Shs?|Ush\.?)`;
+// Trailing currency form ("50,000/=", "50,000 UGX", "50,000/-").
+const CUR_SUFFIX = String.raw`(?:${CUR}|/[=-])`;
 // One amount token: optional currency prefix, digits with commas, optional decimals.
-const AMT = String.raw`(?:UGX|USh|UShs?|Shs?|Ush\.)?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`;
+const AMT = String.raw`${CUR}?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`;
 
 // ─── main parser ─────────────────────────────────────────────────────────
 export function parseSMS(text: string): ParsedSMS {
@@ -109,13 +116,15 @@ export function parseSMS(text: string): ParsedSMS {
   // deposited/withdrawn/of). Fall back to the first currency-prefixed amount
   // that is NOT the fee or balance we already extracted.
   const verbAmt = t.match(new RegExp(
-    String.raw`(?:received|deposited|credited|sent|paid|withdrew|withdrawn|debited|payment of|amount of|sum of|of)\s+(?:UGX|USh|UShs?|Shs?)?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`,
+    String.raw`(?:received|deposited|credited|sent|paid|withdrew|withdrawn|debited|transferred|payment of|amount of|sum of|of)\s+` + AMT,
     'i',
   ));
   if (verbAmt) out.amount = toInt(verbAmt[1]);
 
   if (out.amount === undefined) {
-    const amountRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
+    // First try currency-prefixed amounts, then amounts with a trailing
+    // currency/"/=" suffix — always skipping fee/balance/charge tokens.
+    const amountRe = new RegExp(String.raw`${CUR}\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`, 'gi');
     const skipRe = /(bal(?:ance)?|charge|fee|fees|tax|levy|new\s*balance)\s*[:.\-]?\s*$/i;
     let firstAmt: number | undefined; let chosen: number | undefined;
     for (const m of t.matchAll(amountRe)) {
@@ -127,22 +136,42 @@ export function parseSMS(text: string): ParsedSMS {
       if (out.balance && n === out.balance) continue;
       chosen = n; break;
     }
+    // Trailing-currency form as a secondary fallback.
+    if (chosen === undefined && firstAmt === undefined) {
+      const suffixRe = new RegExp(String.raw`([\d][\d,]*(?:\.\d+)?)\s*${CUR_SUFFIX}`, 'gi');
+      for (const m of t.matchAll(suffixRe)) {
+        const n = toInt(m[1]); if (n === undefined) continue;
+        if (firstAmt === undefined) firstAmt = n;
+        if (out.fee && n === out.fee) continue;
+        if (out.balance && n === out.balance) continue;
+        chosen = n; break;
+      }
+    }
     out.amount = chosen ?? firstAmt;
   }
 
   // ── Transaction ID (provider-specific then generic) ────────────────
-  const mtnId = t.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);            // MTN MoMo "ID: 4047…"
+  // MTN MoMo "ID: 4047…" / "Financial Transaction Id: 4047…" (optional label
+  // words in front, then the digit id).
+  const mtnId = t.match(/(?:^|[^A-Za-z])(?:Financial\s+)?(?:Transaction\s+)?ID[:\s.#-]+(\d{8,18})\b/i);
   const airtel = t.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);                     // Airtel "TID 1465…"
   const mtnLegacy = t.match(/\bMP[A-Z0-9]{8,}\b/i);                          // legacy "MP…"
   const flutter = t.match(/\b(?:FLW|FW)[A-Z0-9]{6,}\b/i);                    // Flutterwave
   const bankRef = t.match(/\b(?:FT|TXN|CR|DR|TRF|REF)[A-Z0-9]{6,}\b/i);      // bank refs
-  const generic = t.match(/\b(?:Txn\s?ID|Transaction\s?ID|Trans\s?ID|Ref(?:erence)?|Receipt(?:\s?No)?|Confirmation)[:\s#]*([A-Z0-9-]{4,})\b/i);
+  // Generic labelled refs. Allow connective filler ("number", "no", "code",
+  // "id", "is") between the label and the value so "Reference number 5647…"
+  // captures the value, not the filler word.
+  const generic = t.match(/\b(?:Txn\s?ID|Transaction\s?ID|Trans\.?\s?ID|Ref(?:erence)?|Receipt(?:\s?No)?|Confirmation(?:\s?code)?)(?:\s+(?:number|no|code|id|is))?[:\s#.\-]*([A-Za-z0-9][A-Za-z0-9-]{3,})\b/i);
+  // A real transaction reference always carries at least one digit — this
+  // rejects false positives like the English word "Reference" matching a
+  // bank-ref prefix, or a filler word being captured generically.
+  const hasDigit = (s: string | undefined) => !!s && /\d/.test(s);
   if (mtnId) out.transactionId = mtnId[1];
   else if (airtel) out.transactionId = `TID${airtel[1]}`;
   else if (mtnLegacy) out.transactionId = mtnLegacy[0].toUpperCase();
   else if (flutter) out.transactionId = flutter[0].toUpperCase();
-  else if (bankRef) out.transactionId = bankRef[0].toUpperCase();
-  else if (generic) out.transactionId = generic[1].toUpperCase();
+  else if (bankRef && hasDigit(bankRef[0])) out.transactionId = bankRef[0].toUpperCase();
+  else if (generic && hasDigit(generic[1])) out.transactionId = generic[1].toUpperCase();
 
   // ── Counterparty (name + optional phone) ───────────────────────────
   // "from <NAME> (256...)", "to <NAME> 256...", "from 256..."
