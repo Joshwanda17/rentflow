@@ -327,7 +327,7 @@ export default function SubAgentAnalytics() {
   // Search & filter state
   const [subAgentSearch, setSubAgentSearch] = useState('');
   const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
-  const [inviteStatusFilter, setInviteStatusFilter] = useState<'all' | 'accepted' | 'pending' | 'declined' | 'switched'>('all');
+  const [inviteStatusFilter, setInviteStatusFilter] = useState<'all' | 'accepted' | 'pending' | 'expired' | 'declined' | 'switched'>('all');
   const [tenantSearch, setTenantSearch] = useState('');
   const [subAgentSort, setSubAgentSort] = useState<'newest' | 'name_asc' | 'withdrawable_desc'>('newest');
 
@@ -975,7 +975,11 @@ export default function SubAgentAnalytics() {
     if (inviteStatusFilter === 'accepted') {
       result = result.filter(sa => sa.status === 'verified' || !!sa.accepted_at);
     } else if (inviteStatusFilter === 'pending') {
-      result = result.filter(sa => sa.status === 'pending' && !sa.accepted_at);
+      result = result.filter(
+        sa => (sa.status === 'pending' || sa.status === 'pending_acceptance') && !sa.accepted_at,
+      );
+    } else if (inviteStatusFilter === 'expired') {
+      result = result.filter(sa => sa.status === 'expired');
     } else if (inviteStatusFilter === 'declined') {
       result = result.filter(sa => sa.status === 'rejected');
     } else if (inviteStatusFilter === 'switched') {
@@ -1342,6 +1346,7 @@ export default function SubAgentAnalytics() {
                       { key: 'all', label: 'All Invites' },
                       { key: 'accepted', label: 'Accepted' },
                       { key: 'pending', label: 'Pending' },
+                      { key: 'expired', label: 'Expired' },
                       { key: 'declined', label: 'Declined' },
                       { key: 'switched', label: 'Switched' },
                     ].map((opt) => (
@@ -1400,6 +1405,10 @@ export default function SubAgentAnalytics() {
                                   {accepted ? (
                                     <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-success/10 text-success border-success/20">
                                       <CheckCircle2 className="h-3 w-3" /> Accepted
+                                    </Badge>
+                                  ) : subAgent.status === 'expired' ? (
+                                    <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20">
+                                      <Clock className="h-3 w-3" /> Expired
                                     </Badge>
                                   ) : smsStatus === 'failed' ? (
                                     <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20">
