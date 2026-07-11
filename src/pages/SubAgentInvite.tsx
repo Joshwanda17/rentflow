@@ -13,7 +13,7 @@ import {
 } from '@/lib/pendingSubAgentInvite';
 import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Users, TrendingUp, Info } from 'lucide-react';
 
-type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login';
+type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login' | 'already-sub-agent';
 
 interface ParentAgent {
   full_name: string;
@@ -35,14 +35,43 @@ export default function SubAgentInvite() {
   const [message, setMessage] = useState('');
   const [parentName, setParentName] = useState('your agent');
   const [invite, setInvite] = useState<InviteInfo | null>(null);
+  const [existingParent, setExistingParent] = useState<ParentAgent | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
-  // Fetch invite preview (lead agent name, avatar, status) when user is known
+  // If the user is already a verified sub-agent, show that clearly instead of
+  // letting them try to accept another invitation (which would fail or replace
+  // their existing relationship).
   useEffect(() => {
-    async function fetchInvite() {
-      if (!token || !user) return;
+    async function fetchInviteState() {
+      if (!user) return;
       setInviteLoading(true);
       try {
+        const { data: existing } = await supabase
+          .from('agent_subagents')
+          .select('parent_agent_id, status')
+          .eq('sub_agent_id', user.id)
+          .eq('status', 'verified')
+          .order('verified_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existing?.parent_agent_id) {
+          const { data: parent } = await supabase
+            .from('profiles')
+            .select('full_name, avatar_url')
+            .eq('id', existing.parent_agent_id)
+            .maybeSingle();
+
+          if (parent) {
+            setExistingParent(parent);
+            setParentName(parent.full_name || 'your agent');
+          }
+          setPhase('already-sub-agent');
+          return;
+        }
+
+        if (!token) return;
+
         const { data: row, error } = await supabase
           .from('agent_subagents')
           .select('status, parent_agent_id')
@@ -51,7 +80,6 @@ export default function SubAgentInvite() {
           .maybeSingle();
 
         if (error || !row) {
-          setInviteLoading(false);
           return;
         }
 
@@ -70,7 +98,7 @@ export default function SubAgentInvite() {
       }
     }
 
-    if (user && token) fetchInvite();
+    if (user) fetchInviteState();
   }, [token, user]);
 
   const handleAccept = async () => {
@@ -292,6 +320,29 @@ export default function SubAgentInvite() {
                 <p className="text-sm text-muted-foreground mt-1">
                   You're now a sub-agent of {parentName}. Welcome aboard!
                 </p>
+              </div>
+              <Button className="w-full h-11" onClick={() => navigate('/dashboard/agent')}>
+                Go to my dashboard
+              </Button>
+            </>
+          )}
+
+          {phase === 'already-sub-agent' && existingParent && (
+            <>
+              <div className="flex flex-col items-center gap-3">
+                <Avatar className="h-16 w-16 border-2 border-primary/20">
+                  <AvatarImage src={existingParent.avatar_url || undefined} />
+                  <AvatarFallback className="text-lg">{getInitials(existingParent.full_name)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h1 className="text-lg font-bold">You're already a sub-agent</h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You are already a sub-agent to <span className="font-semibold text-foreground">{existingParent.full_name || 'your agent'}</span>.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    You can only belong to one agent team at a time. If this looks wrong, contact support.
+                  </p>
+                </div>
               </div>
               <Button className="w-full h-11" onClick={() => navigate('/dashboard/agent')}>
                 Go to my dashboard
