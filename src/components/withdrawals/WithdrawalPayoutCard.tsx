@@ -47,6 +47,10 @@ export function WithdrawalPayoutCard({
   readOnly = false,
 }: WithdrawalPayoutCardProps) {
   const [reference, setReference] = useState('');
+  // Raw confirmation SMS the merchant agent pastes after sending the money.
+  // We parse out the TID (auto-fills the reference) and the sent amount, then
+  // enforce that the sent amount matches the amount the user requested.
+  const [pastedSms, setPastedSms] = useState('');
   const [open, setOpen] = useState(false);
   const [confirmClaimOpen, setConfirmClaimOpen] = useState(false);
   const [claimDetailsConfirmed, setClaimDetailsConfirmed] = useState(false);
