@@ -550,17 +550,29 @@ Deno.serve(async (req) => {
         );
       }
       if (Math.round(parsed.amount) !== requestedAmount) {
+        const smsAmt = Math.round(parsed.amount);
+        const diff = smsAmt - requestedAmount;
+        const diffLabel =
+          diff > 0
+            ? `UGX ${Math.abs(diff).toLocaleString()} too much`
+            : `UGX ${Math.abs(diff).toLocaleString()} too little`;
         await logSmsPaste(
           "mismatch",
           "sms_amount_mismatch",
-          `SMS amount ${Math.round(parsed.amount)} does not match requested ${requestedAmount}.`,
+          `Amount mismatch — expected ${requestedAmount}, SMS shows ${smsAmt} (${diff > 0 ? "+" : "-"}${Math.abs(diff)}).`,
         );
         return new Response(
           JSON.stringify({
-            error: `Amount mismatch: the SMS shows UGX ${Math.round(parsed.amount).toLocaleString()} sent, but the user requested UGX ${requestedAmount.toLocaleString()}. They must match.`,
+            error:
+              `AMOUNT MISMATCH — the amount does not match.\n` +
+              `• Expected (requested): UGX ${requestedAmount.toLocaleString()}\n` +
+              `• Received (in SMS): UGX ${smsAmt.toLocaleString()}\n` +
+              `That is ${diffLabel}. Paste the SMS for the correct transaction.`,
             code: "sms_amount_mismatch",
+            mismatch_field: "amount",
             sms_amount: Math.round(parsed.amount),
             requested_amount: requestedAmount,
+            difference: diff,
           }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
@@ -575,13 +587,17 @@ Deno.serve(async (req) => {
           await logSmsPaste(
             "mismatch",
             "sms_tid_mismatch",
-            "TID in SMS does not match the reference entered.",
+            `TID mismatch — entered ${reference}, SMS shows ${parsed.transactionId}.`,
           );
           return new Response(
             JSON.stringify({
               error:
-                "TID mismatch: the transaction ID in the pasted SMS does not match the reference entered.",
+                `TID MISMATCH — the transaction ID does not match.\n` +
+                `• Expected (entered reference): ${reference}\n` +
+                `• Received (in SMS): ${parsed.transactionId}\n` +
+                `Enter the reference that matches this SMS, or paste the SMS for the correct transaction.`,
               code: "sms_tid_mismatch",
+              mismatch_field: "tid",
               sms_tid: parsed.transactionId,
               reference,
             }),
