@@ -12757,6 +12757,72 @@ export type Database = {
           },
         ]
       }
+      payout_claim_sms_audit_log: {
+        Row: {
+          approver_email: string | null
+          approver_id: string | null
+          approver_role: string | null
+          created_at: string
+          extracted_amount: number | null
+          extracted_tid: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json
+          payout_method: string | null
+          raw_sms: string | null
+          reference_entered: string | null
+          request_owner_id: string | null
+          requested_amount: number | null
+          user_agent: string | null
+          validation_code: string | null
+          validation_message: string | null
+          validation_result: string
+          withdrawal_request_id: string | null
+        }
+        Insert: {
+          approver_email?: string | null
+          approver_id?: string | null
+          approver_role?: string | null
+          created_at?: string
+          extracted_amount?: number | null
+          extracted_tid?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          payout_method?: string | null
+          raw_sms?: string | null
+          reference_entered?: string | null
+          request_owner_id?: string | null
+          requested_amount?: number | null
+          user_agent?: string | null
+          validation_code?: string | null
+          validation_message?: string | null
+          validation_result: string
+          withdrawal_request_id?: string | null
+        }
+        Update: {
+          approver_email?: string | null
+          approver_id?: string | null
+          approver_role?: string | null
+          created_at?: string
+          extracted_amount?: number | null
+          extracted_tid?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          payout_method?: string | null
+          raw_sms?: string | null
+          reference_entered?: string | null
+          request_owner_id?: string | null
+          requested_amount?: number | null
+          user_agent?: string | null
+          validation_code?: string | null
+          validation_message?: string | null
+          validation_result?: string
+          withdrawal_request_id?: string | null
+        }
+        Relationships: []
+      }
       payout_code_audit_log: {
         Row: {
           amount: number | null
