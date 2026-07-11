@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -239,9 +239,8 @@ export function WithdrawalPayoutCard({
   useEffect(() => {
     if (!hasPastedSms) return;
     console.info('[payout] sms_parse', {
-      withdrawal_id: request?.id ?? null,
-      merchant_id: currentUserId ?? null,
-      payout_method: request?.payout_method ?? null,
+      withdrawal_id: withdrawal.id ?? null,
+      payout_method: withdrawal.payout_method ?? null,
       extracted_amount: parsedAmount,
       extracted_tid: parsedTid,
       requested_amount: payoutAmount,
