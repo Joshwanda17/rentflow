@@ -257,8 +257,10 @@ export async function generateMerchantFloatStatementPdf(
   const telecomOf = (t: MerchantFloatTransaction) =>
     t.telecomCharge != null ? Number(t.telecomCharge) || 0 : getTelecomSendingCharge(Number(t.amount) || 0);
   const grandTelecom = entries.reduce((s, e) => s + e.transactions.reduce((a, t) => a + telecomOf(t), 0), 0);
+  const commissionOf = (t: MerchantFloatTransaction) => Number(t.commission) || 0;
+  const grandCommission = entries.reduce((s, e) => s + e.transactions.reduce((a, t) => a + commissionOf(t), 0), 0);
   doc.text(`${entries.length} merchant agent${entries.length === 1 ? '' : 's'}`, margin, y);
-  doc.text(`Allocated: ${fmtUGX(grandAllocated)}   |   Spent: ${fmtUGX(grandSpent)}   |   Telecom: ${fmtUGX(grandTelecom)}`, pageWidth - margin, y, { align: 'right' });
+  doc.text(`Allocated: ${fmtUGX(grandAllocated)}   |   Spent: ${fmtUGX(grandSpent)}   |   Commission: ${fmtUGX(grandCommission)}   |   Telecom: ${fmtUGX(grandTelecom)}`, pageWidth - margin, y, { align: 'right' });
   y += 6;
 
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -269,6 +271,7 @@ export async function generateMerchantFloatStatementPdf(
     const allocated = entry.allocations.reduce((a, r) => a + (Number(r.amount) || 0), 0);
     const spent = entry.transactions.reduce((a, t) => a + (Number(t.amount) || 0), 0);
     const telecomTotal = entry.transactions.reduce((a, t) => a + telecomOf(t), 0);
+    const commissionTotal = entry.transactions.reduce((a, t) => a + commissionOf(t), 0);
 
     // Agent heading band
     doc.setFillColor(...THEME_PRIMARY_DARK);
@@ -279,7 +282,7 @@ export async function generateMerchantFloatStatementPdf(
     doc.text(`${entry.agent}${entry.phone ? '  ·  ' + entry.phone : ''}`, margin + 2, y + 6);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
-    doc.text(`In ${fmtUGX(allocated)}  /  Out ${fmtUGX(spent)}  /  Telecom ${fmtUGX(telecomTotal)}`, pageWidth - margin - 2, y + 6, { align: 'right' });
+    doc.text(`In ${fmtUGX(allocated)}  /  Out ${fmtUGX(spent)}  /  Commission ${fmtUGX(commissionTotal)}  /  Telecom ${fmtUGX(telecomTotal)}`, pageWidth - margin - 2, y + 6, { align: 'right' });
     y += 12;
 
     // Float allocated to this agent
