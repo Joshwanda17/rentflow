@@ -1346,6 +1346,7 @@ export default function SubAgentAnalytics() {
                       { key: 'all', label: 'All Invites' },
                       { key: 'accepted', label: 'Accepted' },
                       { key: 'pending', label: 'Pending' },
+                      { key: 'expired', label: 'Expired' },
                       { key: 'declined', label: 'Declined' },
                       { key: 'switched', label: 'Switched' },
                     ].map((opt) => (
