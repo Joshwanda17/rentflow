@@ -224,7 +224,7 @@ export function WithdrawalPayoutCard({
   // the reference and so we can prove the amount they sent equals the amount the
   // user requested. The DB reference guard remains the authoritative gate.
   const parsedSms = useMemo(
-    () => (pastedSms.trim() ? parseSMS(pastedSms) : null),
+    () => (pastedSms.trim() ? parsePayoutConfirmationSms(pastedSms) : null),
     [pastedSms],
   );
   const parsedTid = parsedSms?.transactionId ?? null;
