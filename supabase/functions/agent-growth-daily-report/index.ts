@@ -239,53 +239,80 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
     iy += lineH * wrapped.length;
   });
 
-  // Growth table
-  let sectionTop = boxTop + boxH + 8;
+  // Daily growth line chart — Agents vs Sub-Agents.
+  const chartTop = boxTop + boxH + 8;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BRAND_DARK);
-  doc.text("Growth by Period", margin, sectionTop);
+  doc.text(`${periodLabel} Growth — Agents vs Sub-Agents`, margin, chartTop);
   doc.setDrawColor(...BRAND);
   doc.setLineWidth(0.4);
-  doc.line(margin, sectionTop + 1.8, pageWidth - margin, sectionTop + 1.8);
-  const totalAgentsSeries = series.reduce((s, r) => s + r.agents, 0);
-  const totalSubsSeries = series.reduce((s, r) => s + r.subagents, 0);
-  const growthBody = series.map((r, i) => {
-    const prev = i > 0 ? series[i - 1] : null;
-    const total = r.agents + r.subagents;
-    const prevTotal = prev ? prev.agents + prev.subagents : 0;
-    const g = prev ? trendPct(total, prevTotal) : 0;
-    return [r.label, fmtInt(r.agents), fmtInt(r.subagents), fmtInt(total), i === 0 ? "—" : fmtPct(g)];
-  });
-  autoTable(doc, {
-    startY: sectionTop + 4,
-    head: [["Period", "New Agents", "New Sub-Agents", "Total", "Growth %"]],
-    body: growthBody,
-    foot: [["Totals", fmtInt(totalAgentsSeries), fmtInt(totalSubsSeries), fmtInt(totalAgentsSeries + totalSubsSeries), ""]],
-    margin: { left: margin, right: margin },
-    tableWidth: pageWidth - margin * 2,
-    styles: { fontSize: 8, cellPadding: 2, valign: "middle", textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
-    headStyles: { fillColor: BRAND, textColor: 255, fontSize: 8, fontStyle: "bold", halign: "left" },
-    footStyles: { fillColor: tint(BRAND, 0.85), textColor: BRAND_DARK, fontStyle: "bold", fontSize: 8 },
-    alternateRowStyles: { fillColor: STRIPE },
-    columnStyles: {
-      0: { cellWidth: "auto" },
-      1: { cellWidth: 34, halign: "right" },
-      2: { cellWidth: 40, halign: "right" },
-      3: { cellWidth: 28, halign: "right", fontStyle: "bold" },
-      4: { cellWidth: 28, halign: "right" },
-    },
-    didParseCell: (data: any) => {
-      if (data.section === "body" && data.column.index === 4) {
-        const raw = String(data.cell.raw || "");
-        if (raw.startsWith("+")) { data.cell.styles.textColor = EMERALD; data.cell.styles.fontStyle = "bold"; }
-        else if (raw.startsWith("-")) { data.cell.styles.textColor = RED; data.cell.styles.fontStyle = "bold"; }
+  doc.line(margin, chartTop + 1.8, pageWidth - margin, chartTop + 1.8);
+
+  const chartX = margin;
+  const chartY = chartTop + 5;
+  const chartW = pageWidth - margin * 2;
+  const chartH = 64;
+  doc.setFillColor(...tint(BRAND, 0.97));
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(chartX, chartY, chartW, chartH, 2, 2, "FD");
+
+  // Legend (top-right, inside the panel).
+  const lgY = chartY + 5;
+  const lgX = chartX + chartW - 62;
+  doc.setFillColor(...BLUE); doc.circle(lgX, lgY - 0.8, 1.1, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.2); doc.setTextColor(...INK);
+  doc.text("Agents", lgX + 2.5, lgY);
+  doc.setFillColor(...VIOLET); doc.circle(lgX + 24, lgY - 0.8, 1.1, "F");
+  doc.text("Sub-Agents", lgX + 26.5, lgY);
+
+  const padL = 16, padR = 6, padT = 10, padB = 12;
+  const plotX = chartX + padL;
+  const plotW = chartW - padL - padR;
+  const plotY = chartY + padT;
+  const plotH = chartH - padT - padB;
+  const n = series.length;
+
+  if (n === 0) {
+    doc.setFont("helvetica", "italic"); doc.setFontSize(9); doc.setTextColor(...MUTED);
+    doc.text("No growth data for this period.", chartX + chartW / 2, chartY + chartH / 2, { align: "center" });
+  } else {
+    const maxRaw = Math.max(1, ...series.map((s) => Math.max(s.agents, s.subagents)));
+    const yMax = Math.max(1, Math.ceil(maxRaw * 1.15));
+    const gridN = 4;
+    doc.setFont("helvetica", "normal");
+    for (let g = 0; g <= gridN; g++) {
+      const gy = plotY + plotH - (plotH * g) / gridN;
+      doc.setDrawColor(...BORDER); doc.setLineWidth(0.1);
+      doc.line(plotX, gy, plotX + plotW, gy);
+      doc.setFontSize(6.2); doc.setTextColor(...MUTED);
+      doc.text(fmtInt((yMax * g) / gridN), plotX - 2, gy + 1.4, { align: "right" });
+    }
+    const xAt = (i: number) => (n <= 1 ? plotX + plotW / 2 : plotX + (plotW * i) / (n - 1));
+    const yAt = (v: number) => plotY + plotH - (plotH * Math.min(v, yMax)) / yMax;
+    const plotLine = (get: (s: { agents: number; subagents: number }) => number, color: RGB) => {
+      doc.setDrawColor(...color); doc.setLineWidth(0.8);
+      for (let i = 1; i < n; i++) {
+        doc.line(xAt(i - 1), yAt(get(series[i - 1])), xAt(i), yAt(get(series[i])));
       }
-    },
-  });
+      doc.setFillColor(...color);
+      for (let i = 0; i < n; i++) doc.circle(xAt(i), yAt(get(series[i])), 0.6, "F");
+    };
+    plotLine((s) => s.agents, BLUE);
+    plotLine((s) => s.subagents, VIOLET);
+    // Sparse x-axis labels to avoid clutter.
+    doc.setFontSize(6); doc.setTextColor(...MUTED);
+    const labelEvery = Math.max(1, Math.ceil(n / 8));
+    for (let i = 0; i < n; i++) {
+      if (i % labelEvery === 0 || i === n - 1) {
+        doc.text(String(series[i].label), xAt(i), plotY + plotH + 4.5, { align: "center" });
+      }
+    }
+  }
 
   // Top recruiters
-  let afterTop = (doc as any).lastAutoTable.finalY + 8;
+  let afterTop = chartY + chartH + 8;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BRAND_DARK);
