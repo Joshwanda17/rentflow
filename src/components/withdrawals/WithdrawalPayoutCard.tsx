@@ -544,54 +544,73 @@ export function WithdrawalPayoutCard({
                     proves the amount sent equals the amount requested. Only shown
                     for MoMo/bank payouts (cash uses a payout code, no SMS). */}
                 {(isMoMo || isBank) && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <ClipboardPaste className="h-3.5 w-3.5" />
-                      Paste your confirmation SMS (recommended)
-                    </label>
-                    <Textarea
-                      value={pastedSms}
-                      onChange={(e) => {
-                        const text = e.target.value;
-                        setPastedSms(text);
-                        const p = text.trim() ? parseSMS(text) : null;
-                        // Auto-fill the reference from the extracted TID.
-                        if (p?.transactionId) setReference(p.transactionId);
-                      }}
-                      placeholder="Paste the full 'you have sent…' SMS here — we'll pull out the TID and the amount automatically."
-                      rows={3}
-                      className="text-sm resize-none"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <ClipboardPaste className="h-3.5 w-3.5" />
+                        Paste your confirmation SMS (recommended)
+                      </label>
+                      <Textarea
+                        value={pastedSms}
+                        onChange={(e) => {
+                          const text = e.target.value;
+                          setPastedSms(text);
+                          const p = text.trim() ? parseSMS(text) : null;
+                          // Auto-fill the reference from the extracted TID.
+                          if (p?.transactionId) setReference(p.transactionId);
+                        }}
+                        placeholder="Paste the full 'you have sent…' SMS here — we'll pull out the TID and the amount automatically."
+                        rows={3}
+                        className="text-sm resize-none"
+                      />
+                    </div>
                     {hasPastedSms && (
-                      <div className="rounded-lg border bg-muted/40 p-2.5 space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-muted-foreground">Extracted TID</span>
-                          <span className="font-mono font-semibold">
-                            {parsedTid || <span className="text-warning">Not found — enter manually below</span>}
-                          </span>
+                      <div className="rounded-xl border bg-muted/40 p-3 space-y-2 text-xs self-start">
+                        <p className="font-semibold text-foreground flex items-center gap-1.5">
+                          <ClipboardPaste className="h-3.5 w-3.5 text-muted-foreground" />
+                          Extracted from SMS
+                        </p>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">TID</span>
+                            <span className="font-mono font-semibold">
+                              {parsedTid || <span className="text-warning">Not found</span>}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">Amount sent</span>
+                            <span className="font-semibold tabular-nums">
+                              {parsedAmount != null ? formatUGX(parsedAmount) : <span className="text-warning">Not found</span>}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">Amount requested</span>
+                            <span className="font-semibold tabular-nums">{formatUGX(payoutAmount)}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-muted-foreground">Amount sent</span>
-                          <span className="font-semibold tabular-nums">
-                            {parsedAmount != null ? formatUGX(parsedAmount) : <span className="text-warning">Not found</span>}
-                          </span>
+                        <div className="pt-1 border-t border-border/50">
+                          {amountMatches && parsedTid ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15 gap-1.5 border-0">
+                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                              Matched
+                            </Badge>
+                          ) : amountMismatch ? (
+                            <div className="space-y-1">
+                              <Badge variant="destructive" className="gap-1.5 border-0">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                Mismatched
+                              </Badge>
+                              <p className="text-destructive font-medium">
+                                Sent {formatUGX(parsedAmount!)} ≠ requested {formatUGX(payoutAmount)}.
+                              </p>
+                            </div>
+                          ) : (
+                            <Badge variant="secondary" className="gap-1.5">
+                              <Clock className="h-3.5 w-3.5 shrink-0" />
+                              Waiting for valid SMS
+                            </Badge>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-muted-foreground">Amount requested</span>
-                          <span className="font-semibold tabular-nums">{formatUGX(payoutAmount)}</span>
-                        </div>
-                        {amountMatches && (
-                          <p className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400 pt-0.5">
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                            Amount sent matches the amount requested.
-                          </p>
-                        )}
-                        {amountMismatch && (
-                          <p className="flex items-start gap-1.5 font-semibold text-destructive pt-0.5">
-                            <AlertTriangle className="h-3.5 w-3.5 mt-px shrink-0" />
-                            The amount you sent ({formatUGX(parsedAmount!)}) does not match the amount requested ({formatUGX(payoutAmount)}). You cannot confirm until they match.
-                          </p>
-                        )}
                       </div>
                     )}
                   </div>
