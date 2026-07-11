@@ -10,7 +10,7 @@
 // Scheduled every morning at 07:00 EAT (04:00 UTC) via pg_cron.
 // Idempotent per EAT day via an `agent_growth_daily_report` system_event
 // (bypass with { force: true }). Period configurable via { period } — defaults
-// to "monthly" (matches the leaderboard's default view).
+// to "daily" so the morning email carries a day-by-day breakdown.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
