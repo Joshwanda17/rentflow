@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,8 +18,10 @@ import { format } from 'date-fns';
 import {
   Banknote, CheckCircle2, Loader2, Building2, Clock, Smartphone,
   UserCheck, ArrowRight, Phone, CreditCard, ChevronDown, XCircle,
-  Copy, AlertTriangle,
+  Copy, AlertTriangle, ClipboardPaste,
 } from 'lucide-react';
+import { parseSMS } from '@/utils/smsParser';
+import { formatUGX as _formatUGX } from '@/lib/rentCalculations';
 
 export interface WithdrawalPayoutCardProps {
   withdrawal: any;
