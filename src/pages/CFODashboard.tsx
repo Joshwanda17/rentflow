@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, BarChart3, Shield, Banknote, ClipboardList, 
   BookOpen, AlertTriangle, TrendingUp, Loader2, Scale, ArrowDownToLine,
-  Receipt, Wallet, Bell, Layers, DollarSign, FileText, HandCoins, MessageSquare
+  Receipt, Wallet, Bell, Layers, DollarSign, FileText, HandCoins, MessageSquare, Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,6 +39,7 @@ import { CronJobsHealthPanel } from '@/components/cfo/CronJobsHealthPanel';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
 import { AgentAdvancesOutstandingPanel } from '@/components/cfo/AgentAdvancesOutstandingPanel';
+import { MoneySourcesBreakdown } from '@/components/cfo/MoneySourcesBreakdown';
 export default function CFODashboard() {
   const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
@@ -73,6 +74,7 @@ export default function CFODashboard() {
   const tabs = [
     { id: 'overview', label: 'Pending Approvals', icon: Bell },
     { id: 'wallet-payout', label: 'Pay to Wallet', icon: Wallet },
+    { id: 'money-sources', label: 'Money Sources', icon: Coins },
     { id: 'merchant-float', label: 'Merchant Float', icon: HandCoins },
     { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'payouts', label: 'Rent Payouts', icon: Banknote },
@@ -154,6 +156,11 @@ export default function CFODashboard() {
           {/* Merchant Float Requisitions Tab */}
           <TabsContent value="merchant-float" className="space-y-6">
             <MerchantFloatRequestsPanel />
+          </TabsContent>
+
+          {/* Money Sources Breakdown Tab */}
+          <TabsContent value="money-sources" className="space-y-6">
+            <MoneySourcesBreakdown />
           </TabsContent>
 
           {/* ROI Requests Tab */}
