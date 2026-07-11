@@ -580,7 +580,7 @@ export function WithdrawalPayoutCard({
                           const text = e.target.value;
                           setPastedSms(text);
                           setCompleteError(null);
-                          const p = text.trim() ? parseSMS(text) : null;
+                          const p = text.trim() ? parsePayoutConfirmationSms(text) : null;
                           // Auto-fill the reference from the extracted TID.
                           if (p?.transactionId) setReference(p.transactionId);
                         }}
