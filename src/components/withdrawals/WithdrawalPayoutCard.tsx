@@ -568,7 +568,7 @@ export function WithdrawalPayoutCard({
                     proves the amount sent equals the amount requested. Only shown
                     for MoMo/bank payouts (cash uses a payout code, no SMS). */}
                 {(isMoMo || isBank) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                         <ClipboardPaste className="h-3.5 w-3.5" />
@@ -592,67 +592,65 @@ export function WithdrawalPayoutCard({
                         We only read the amount and transaction ID from this message.
                       </p>
                     </div>
-                    {hasPastedSms && (
-                      <div className="rounded-xl border bg-muted/40 p-3 space-y-2 text-xs self-start">
-                        <p className="font-semibold text-foreground flex items-center gap-1.5">
-                          <ClipboardPaste className="h-3.5 w-3.5 text-muted-foreground" />
-                          Extracted from SMS
-                        </p>
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-muted-foreground">TID</span>
-                            <span className="font-mono font-semibold">
-                              {parsedTid || <span className="text-warning">Not found</span>}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-muted-foreground">Amount sent</span>
-                            <span className="font-semibold tabular-nums">
-                              {parsedAmount != null ? formatUGX(parsedAmount) : <span className="text-warning">Not found</span>}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-muted-foreground">Amount requested</span>
-                            <span className="font-semibold tabular-nums">{formatUGX(payoutAmount)}</span>
-                          </div>
+                    <div className="rounded-xl border bg-muted/40 p-3 space-y-2 text-xs self-start">
+                      <p className="font-semibold text-foreground flex items-center gap-1.5">
+                        <ClipboardPaste className="h-3.5 w-3.5 text-muted-foreground" />
+                        Extracted from SMS
+                      </p>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-muted-foreground">TID</span>
+                          <span className="font-mono font-semibold">
+                            {parsedTid || <span className="text-warning">Not found</span>}
+                          </span>
                         </div>
-                        <div className="pt-1 border-t border-border/50">
-                          {amountMatches && parsedTid ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15 gap-1.5 border-0">
-                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                              Matched
-                            </Badge>
-                          ) : amountMismatch ? (
-                            <div className="space-y-1">
-                              <Badge variant="destructive" className="gap-1.5 border-0">
-                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                Mismatched
-                              </Badge>
-                              <p className="text-destructive font-medium">
-                                Sent {formatUGX(parsedAmount!)} ≠ requested {formatUGX(payoutAmount)}.
-                              </p>
-                              <p className="text-muted-foreground">
-                                Paste the SMS for the correct transaction, or clear and try again.
-                              </p>
-                            </div>
-                          ) : (
-                            <Badge variant="secondary" className="gap-1.5">
-                              <Clock className="h-3.5 w-3.5 shrink-0" />
-                              Waiting for valid SMS
-                            </Badge>
-                          )}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-muted-foreground">Amount sent</span>
+                          <span className="font-semibold tabular-nums">
+                            {parsedAmount != null ? formatUGX(parsedAmount) : <span className="text-warning">Not found</span>}
+                          </span>
                         </div>
-                        {hasPastedSms && (
-                          <button
-                            type="button"
-                            onClick={clearPaste}
-                            className="text-[11px] font-semibold text-primary hover:underline"
-                          >
-                            Clear &amp; paste again
-                          </button>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-muted-foreground">Amount requested</span>
+                          <span className="font-semibold tabular-nums">{formatUGX(payoutAmount)}</span>
+                        </div>
+                      </div>
+                      <div className="pt-1 border-t border-border/50">
+                        {amountMatches && parsedTid ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15 gap-1.5 border-0">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            Matched
+                          </Badge>
+                        ) : amountMismatch ? (
+                          <div className="space-y-1">
+                            <Badge variant="destructive" className="gap-1.5 border-0">
+                              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                              Mismatched
+                            </Badge>
+                            <p className="text-destructive font-medium">
+                              Sent {formatUGX(parsedAmount!)} ≠ requested {formatUGX(payoutAmount)}.
+                            </p>
+                            <p className="text-muted-foreground">
+                              Paste the SMS for the correct transaction, or clear and try again.
+                            </p>
+                          </div>
+                        ) : (
+                          <Badge variant="secondary" className="gap-1.5">
+                            <Clock className="h-3.5 w-3.5 shrink-0" />
+                            Waiting for valid SMS
+                          </Badge>
                         )}
                       </div>
-                    )}
+                      {hasPastedSms && (
+                        <button
+                          type="button"
+                          onClick={clearPaste}
+                          className="text-[11px] font-semibold text-primary hover:underline"
+                        >
+                          Clear &amp; paste again
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
                 {/* Server-side validation rejection — specific reason + retry prompt */}
