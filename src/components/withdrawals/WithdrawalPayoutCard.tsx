@@ -233,6 +233,26 @@ export function WithdrawalPayoutCard({
   const amountMatches = parsedAmount != null && parsedAmount === payoutAmount;
   const amountMismatch = parsedAmount != null && parsedAmount !== payoutAmount;
 
+  // ── Retry workflow ────────────────────────────────────────────────────────
+  // Wipe the pasted SMS + auto-filled reference so the agent gets a clean slate
+  // to paste the correct confirmation message again.
+  function clearPaste() {
+    setPastedSms('');
+    setReference('');
+    setCompleteError(null);
+  }
+
+  // Submit the payout and, on server-side rejection, surface the SPECIFIC reason
+  // inline (instead of only a transient toast) so the agent can fix and retry.
+  async function handleConfirmPaid() {
+    setCompleteError(null);
+    try {
+      await onComplete?.({ id: withdrawal.id, reference, method: methodLabel, sms: pastedSms.trim() || undefined });
+    } catch (e: any) {
+      setCompleteError(e?.message || 'Payout could not be confirmed. Check the details and try again.');
+    }
+  }
+
   // ── What is the user actually withdrawing? ────────────────────────────────
   // Mirror the classification used by the approve-withdrawal SMS so the merchant
   // agent sees the same purpose the recipient is told about. NOT every payout is
