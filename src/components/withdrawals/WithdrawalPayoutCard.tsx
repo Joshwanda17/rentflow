@@ -27,7 +27,7 @@ export interface WithdrawalPayoutCardProps {
   isClaimed?: boolean;
   isClaimedByOther?: boolean;
   onClaim?: (confirm?: { momoNumber?: string | null; momoName?: string | null }) => void;
-  onComplete?: (data: { id: string; reference: string; method: string }) => void;
+  onComplete?: (data: { id: string; reference: string; method: string; sms?: string }) => void;
   /** ID of the withdrawal currently being claimed (for per-request loading) */
   claimingId?: string | null;
   /** ID of the withdrawal currently being completed (for per-request loading) */
@@ -606,7 +606,7 @@ export function WithdrawalPayoutCard({
                   <Button
                     className="h-12 gap-1.5 px-5 sm:w-auto w-full text-base font-semibold"
                     disabled={!reference.trim() || reference.trim().length < 3 || completingId === withdrawal.id || amountMismatch}
-                    onClick={() => onComplete?.({ id: withdrawal.id, reference, method: methodLabel })}
+                    onClick={() => onComplete?.({ id: withdrawal.id, reference, method: methodLabel, sms: pastedSms.trim() || undefined })}
                     title={completingId === withdrawal.id ? 'Request is being processed…' : 'Confirm this payout'}
                   >
                     {completingId === withdrawal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
