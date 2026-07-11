@@ -193,6 +193,7 @@ export default function CFODashboard() {
 
           {/* SMS Delivery Log Tab */}
           <TabsContent value="sms" className="space-y-6">
+            <SmsVerificationMonitorPanel />
             <SmsFailureAlertsPanel />
             <SmsDeliveryLogPanel />
           </TabsContent>
