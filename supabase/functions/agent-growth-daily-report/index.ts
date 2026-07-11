@@ -10,7 +10,7 @@
 // Scheduled every morning at 07:00 EAT (04:00 UTC) via pg_cron.
 // Idempotent per EAT day via an `agent_growth_daily_report` system_event
 // (bypass with { force: true }). Period configurable via { period } — defaults
-// to "monthly" (matches the leaderboard's default view).
+// to "daily" so the morning email carries a day-by-day breakdown.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
@@ -562,7 +562,7 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch (_) { body = {}; }
     const force = body?.force === true;
-    const period: Period = ["daily", "weekly", "monthly", "yearly"].includes(body?.period) ? body.period : "monthly";
+    const period: Period = ["daily", "weekly", "monthly", "yearly"].includes(body?.period) ? body.period : "daily";
     const out = await run(admin, period, force);
     return new Response(JSON.stringify({ success: true, ...out }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
