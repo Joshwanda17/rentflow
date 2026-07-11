@@ -392,11 +392,13 @@ export function AgentCashPayoutsTab() {
   };
 
   const handleComplete = (data: { id: string; reference: string; method: string; sms?: string }) => {
-    if (completeLockRef.current.has(data.id)) return; // already submitting this request
+    if (completeLockRef.current.has(data.id)) return Promise.resolve(); // already submitting this request
     completeLockRef.current.add(data.id);
     setCompletingIds(new Set(completeLockRef.current));
     toast.info('Confirming payout… please wait', { id: `complete-${data.id}`, duration: 4000 });
-    completeWithdrawal.mutate(data);
+    // Return the promise so the payout card can surface a specific, inline
+    // retry prompt when server-side SMS validation rejects the paste.
+    return completeWithdrawal.mutateAsync(data);
   };
 
   // Invalidate every Pending Queue query (page, counts, available total, my claims).
