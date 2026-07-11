@@ -562,7 +562,7 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch (_) { body = {}; }
     const force = body?.force === true;
-    const period: Period = ["daily", "weekly", "monthly", "yearly"].includes(body?.period) ? body.period : "monthly";
+    const period: Period = ["daily", "weekly", "monthly", "yearly"].includes(body?.period) ? body.period : "daily";
     const out = await run(admin, period, force);
     return new Response(JSON.stringify({ success: true, ...out }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
