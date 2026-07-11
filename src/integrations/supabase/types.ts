@@ -17123,6 +17123,96 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_verification_alert_config: {
+        Row: {
+          enabled: boolean
+          failure_count_threshold: number
+          id: number
+          min_attempts: number
+          updated_at: string
+          updated_by: string | null
+          window_minutes: number
+        }
+        Insert: {
+          enabled?: boolean
+          failure_count_threshold?: number
+          id?: number
+          min_attempts?: number
+          updated_at?: string
+          updated_by?: string | null
+          window_minutes?: number
+        }
+        Update: {
+          enabled?: boolean
+          failure_count_threshold?: number
+          id?: number
+          min_attempts?: number
+          updated_at?: string
+          updated_by?: string | null
+          window_minutes?: number
+        }
+        Relationships: []
+      }
+      sms_verification_failure_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string
+          dedup_bucket: string
+          failed_count: number
+          failure_rate_pct: number
+          id: string
+          matched_count: number
+          severity: string
+          status: string
+          subject_id: string
+          subject_label: string | null
+          subject_type: string
+          top_failure_codes: Json
+          total_attempts: number
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          dedup_bucket: string
+          failed_count?: number
+          failure_rate_pct?: number
+          id?: string
+          matched_count?: number
+          severity?: string
+          status?: string
+          subject_id: string
+          subject_label?: string | null
+          subject_type: string
+          top_failure_codes?: Json
+          total_attempts?: number
+          window_end: string
+          window_start: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          dedup_bucket?: string
+          failed_count?: number
+          failure_rate_pct?: number
+          id?: string
+          matched_count?: number
+          severity?: string
+          status?: string
+          subject_id?: string
+          subject_label?: string | null
+          subject_type?: string
+          top_failure_codes?: Json
+          total_attempts?: number
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       staff_access_passwords: {
         Row: {
           created_at: string | null
@@ -21899,6 +21989,7 @@ export type Database = {
         }[]
       }
       detect_sms_failure_alerts: { Args: never; Returns: Json }
+      detect_sms_verification_failures: { Args: never; Returns: Json }
       detect_tenant_phone_near_duplicates: { Args: never; Returns: number }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
@@ -23119,6 +23210,10 @@ export type Database = {
           total: number
           yoola: number
         }[]
+      }
+      get_sms_verification_metrics: {
+        Args: { p_hours?: number }
+        Returns: Json
       }
       get_subagent_leaderboard: {
         Args: { p_limit?: number; p_offset?: number; p_period?: string }
@@ -24905,6 +25000,7 @@ export type Database = {
         | "agent.allocation_return.approved"
         | "agent.allocation_return.rejected"
         | "agent_advances_daily_report"
+        | "sms_verification_failure_alert_raised"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -25174,6 +25270,7 @@ export const Constants = {
         "agent.allocation_return.approved",
         "agent.allocation_return.rejected",
         "agent_advances_daily_report",
+        "sms_verification_failure_alert_raised",
       ],
     },
   },
