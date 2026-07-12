@@ -62,6 +62,34 @@ Deno.serve(async (req) => {
       return json({ ok: true, alreadyAccepted: true, parentName });
     }
 
+    // Enforce the single-parent rule: a user can only be a VERIFIED sub-agent
+    // of ONE agent at a time. If they already accepted another agent's invite,
+    // block accepting this one and tell them clearly who they belong to.
+    const { data: existingVerified } = await adminClient
+      .from("agent_subagents")
+      .select("parent_agent_id")
+      .eq("sub_agent_id", user.id)
+      .eq("status", "verified")
+      .neq("parent_agent_id", link.parent_agent_id)
+      .limit(1)
+      .maybeSingle();
+    if (existingVerified?.parent_agent_id) {
+      const { data: currentParent } = await adminClient
+        .from("profiles")
+        .select("full_name")
+        .eq("id", existingVerified.parent_agent_id)
+        .maybeSingle();
+      const currentName = currentParent?.full_name || "another agent";
+      return json(
+        {
+          error: `You are already a sub-agent of ${currentName}. You can only be a sub-agent of one agent at a time.`,
+          alreadySubAgent: true,
+          currentParentName: currentName,
+        },
+        409,
+      );
+    }
+
     // Ensure the accepting user holds the agent role (idempotent).
     const { data: existingRole } = await adminClient
       .from("user_roles")
