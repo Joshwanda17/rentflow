@@ -13,6 +13,8 @@ import {
   RotateCcw,
   ShoppingBag,
   ChevronRight,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +44,7 @@ interface WalletTransactionTimelineProps {
 }
 
 type TabValue = 'all' | 'in' | 'out';
+type CategoryFilter = 'all' | string;
 
 interface CategoryMeta {
   label: string;
@@ -95,6 +98,11 @@ function getDateLabel(date: Date): string {
   return format(date, 'EEE, MMM d, yyyy');
 }
 
+function getCategoryLabel(tx: TimelineTransaction, currentUserId: string): string {
+  const isSent = tx.sender_id === currentUserId;
+  return deriveCategory(tx.description, isSent).label;
+}
+
 export function WalletTransactionTimeline({
   transactions,
   currentUserId,
@@ -104,8 +112,9 @@ export function WalletTransactionTimeline({
   onViewAll,
 }: WalletTransactionTimelineProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
-  const { runningBalances, groupedTransactions, filteredCount } = useMemo(() => {
+  const { runningBalances, groupedTransactions, filteredCount, availableCategories } = useMemo(() => {
     // Newest first — matches how people read their wallet activity.
     const sorted = [...transactions].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -124,10 +133,18 @@ export function WalletTransactionTimeline({
     }
 
     const filtered = sorted.filter((tx) => {
-      if (activeTab === 'in') return tx.sender_id !== currentUserId;
-      if (activeTab === 'out') return tx.sender_id === currentUserId;
+      const isSent = tx.sender_id === currentUserId;
+      if (activeTab === 'in') return !isSent;
+      if (activeTab === 'out') return isSent;
       return true;
+    }).filter((tx) => {
+      if (categoryFilter === 'all') return true;
+      return getCategoryLabel(tx, currentUserId) === categoryFilter;
     });
+
+    const categories = Array.from(
+      new Set(sorted.map((tx) => getCategoryLabel(tx, currentUserId)))
+    ).sort();
 
     const grouped: Record<string, TimelineTransaction[]> = {};
     for (const tx of filtered) {
@@ -140,8 +157,9 @@ export function WalletTransactionTimeline({
       runningBalances: balances,
       groupedTransactions: grouped,
       filteredCount: filtered.length,
+      availableCategories: categories,
     };
-  }, [transactions, currentUserId, currentBalance, activeTab]);
+  }, [transactions, currentUserId, currentBalance, activeTab, categoryFilter]);
 
   const dateEntries = useMemo(
     () =>
@@ -152,11 +170,13 @@ export function WalletTransactionTimeline({
   );
 
   const emptyMessage =
-    activeTab === 'all'
-      ? 'No transactions yet'
-      : activeTab === 'in'
-        ? 'No cash in yet'
-        : 'No cash out yet';
+    categoryFilter !== 'all'
+      ? `No ${categoryFilter.toLowerCase()} transactions`
+      : activeTab === 'all'
+        ? 'No transactions yet'
+        : activeTab === 'in'
+          ? 'No cash in yet'
+          : 'No cash out yet';
 
   return (
     <div>
@@ -195,6 +215,50 @@ export function WalletTransactionTimeline({
           </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {availableCategories.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">Filter by category</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+            <button
+              onClick={() => {
+                hapticTap();
+                setCategoryFilter('all');
+              }}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                categoryFilter === 'all'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              All
+            </button>
+            {availableCategories.map((category) => {
+              const active = categoryFilter === category;
+              return (
+                <button
+                  key={category}
+                  onClick={() => {
+                    hapticTap();
+                    setCategoryFilter(active ? 'all' : category);
+                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {category}
+                  {active && <X className="h-3 w-3" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {filteredCount === 0 ? (
         <Card className="border-border/50">
