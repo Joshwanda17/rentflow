@@ -218,7 +218,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 </div>
               </Card>
 
-              {/* Sticky, high-visibility transaction filter tabs */}
+              {/* Sticky, high-visibility accessible transaction filter tabs */}
               <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-muted/30 backdrop-blur-sm">
                 <Card className="border-border/60 shadow-sm">
                   <CardContent className="p-2">
@@ -227,25 +227,29 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                       onValueChange={(v) => setActiveTab(v as TabValue)}
                       className="w-full"
                     >
-                      <TabsList variant="pills" className="w-full h-auto min-h-[44px] p-1 bg-muted/50 rounded-xl">
+                      <TabsList
+                        variant="pills"
+                        className="w-full h-auto min-h-[44px] p-1 bg-muted/50 rounded-xl"
+                        aria-label="Filter transactions by direction"
+                      >
                         <TabsTrigger
                           value="all"
                           variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-sm"
+                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
                         >
                           All
                         </TabsTrigger>
                         <TabsTrigger
                           value="in"
                           variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-sm"
+                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
                         >
                           Cash In
                         </TabsTrigger>
                         <TabsTrigger
                           value="out"
                           variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-sm"
+                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
                         >
                           Cash Out
                         </TabsTrigger>
@@ -264,43 +268,19 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                             Quick filters
                           </span>
                         </div>
-                        <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2 scrollbar-hide">
-                          <button
-                            onClick={() => {
-                              hapticTap();
-                              setCategoryFilter('all');
-                            }}
-                            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[32px] ${
-                              categoryFilter === 'all'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                            }`}
-                          >
-                            All
-                          </button>
-                          {availableCategories.map((category) => {
-                            const active = categoryFilter === category;
-                            return (
-                              <button
-                                key={category}
-                                onClick={() => {
-                                  hapticTap();
-                                  setCategoryFilter(active ? 'all' : category);
-                                }}
-                                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 min-h-[32px] ${
-                                  active
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                }`}
-                              >
-                                {category}
-                                {active && <X className="h-3 w-3" />}
-                              </button>
-                            );
-                          })}
-                        </div>
+                        <CategoryFilterChips
+                          categories={availableCategories}
+                          selected={categoryFilter}
+                          onSelect={setCategoryFilter}
+                        />
                       </div>
                     )}
+
+                    {/* Live region announces filter changes to screen readers */}
+                    <p className="sr-only" aria-live="polite" aria-atomic="true">
+                      Showing {activeTab === 'all' ? 'all transactions' : activeTab === 'in' ? 'cash in transactions' : 'cash out transactions'}
+                      {categoryFilter !== 'all' ? ` filtered by ${categoryFilter}` : ''}
+                    </p>
                   </CardContent>
                 </Card>
               </div>
