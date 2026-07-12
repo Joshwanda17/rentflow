@@ -212,6 +212,9 @@ export default function MerchandiseStore() {
           </CardContent>
         </Card>
 
+        {/* Smartphone order status */}
+        <SmartphoneOrderStatus userId={user?.id} />
+
         {/* Catalog */}
         <div>
           <h2 className="text-sm font-bold mb-2 flex items-center gap-2">
