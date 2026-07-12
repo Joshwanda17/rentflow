@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone,
+  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone, Bike,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -61,6 +61,9 @@ export default function MerchandiseStore() {
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [phoneAmount, setPhoneAmount] = useState('');
   const [orderingPhone, setOrderingPhone] = useState(false);
+  const [bikeOpen, setBikeOpen] = useState(false);
+  const [bikeAmount, setBikeAmount] = useState('');
+  const [orderingBike, setOrderingBike] = useState(false);
   const { withdrawableBalance } = useAgentBalances(user?.id);
   const availableWallet = Math.max(0, withdrawableBalance);
 
@@ -160,6 +163,33 @@ export default function MerchandiseStore() {
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
   };
 
+  const bikeAmountNum = Math.max(0, parseInt(bikeAmount || '0', 10) || 0);
+
+  const orderSpiroBike = async () => {
+    if (bikeAmountNum < 1000) {
+      toast.error('Enter an amount of at least UGX 1,000');
+      return;
+    }
+    if (bikeAmountNum > availableWallet) {
+      toast.error(
+        `Amount exceeds your available wallet balance of ${formatUGX(availableWallet)}. Enter ${formatUGX(availableWallet)} or less.`
+      );
+      return;
+    }
+    setOrderingBike(true);
+    const { error } = await db.rpc('agent_order_spiro_bike', { p_amount: bikeAmountNum });
+    setOrderingBike(false);
+    if (error) {
+      toast.error(error.message || 'Could not place Spiro bike order');
+      return;
+    }
+    toast.success(`Welile Spiro Bike requested. ${formatUGX(bikeAmountNum)} will be recovered from your wallet.`);
+    setBikeOpen(false);
+    setBikeAmount('');
+    queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
+  };
+
   return (
     <div className="min-h-[100dvh] bg-background pb-24">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
@@ -224,6 +254,27 @@ export default function MerchandiseStore() {
 
         {/* Smartphone order status */}
         <SmartphoneOrderStatus userId={user?.id} />
+
+        {/* Order a Welile Spiro Bike */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <Bike className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold leading-tight">Order a Welile Spiro Bike</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Get a Spiro bike on credit. Choose how much can be deducted from your wallet — final price is set by marketing.
+              </p>
+            </div>
+            <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setBikeAmount(''); setBikeOpen(true); }}>
+              Order
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Spiro bike order status */}
+        <SmartphoneOrderStatus userId={user?.id} itemName="Welile Spiro Bike" title="Spiro bike order status" />
 
         {/* Catalog */}
         <div>
