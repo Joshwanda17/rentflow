@@ -171,7 +171,7 @@ export function useAuthForm() {
 
   const saveLocationInBackground = () => {
     getLocationData().then(async (locationData) => {
-      if (locationData.country || locationData.city) {
+      if (locationData?.country || locationData?.city) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase
@@ -250,6 +250,32 @@ export function useAuthForm() {
   const [resetOtp, setResetOtpCode] = useState('');
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+
+  const clearPhoneLoginCache = (rawPhone: string) => {
+    const last9 = rawPhone.replace(/\D/g, '').slice(-9);
+    if (!last9) return;
+    try {
+      localStorage.removeItem(`welile_phone_email_cache_v2_${last9}`);
+      localStorage.removeItem(`welile_phone_email_cache_${last9}`);
+    } catch { /* non-critical */ }
+  };
+
+  const markRecentPasswordReset = (rawPhone: string) => {
+    const last9 = rawPhone.replace(/\D/g, '').slice(-9);
+    if (!last9) return;
+    try { localStorage.setItem(`welile_recent_password_reset_${last9}`, String(Date.now())); } catch { /* non-critical */ }
+  };
+
+  const wasRecentlyReset = (rawPhone: string) => {
+    const last9 = rawPhone.replace(/\D/g, '').slice(-9);
+    if (!last9) return false;
+    try {
+      const at = Number(localStorage.getItem(`welile_recent_password_reset_${last9}`) || 0);
+      return at > 0 && Date.now() - at < 15 * 60 * 1000;
+    } catch {
+      return false;
+    }
+  };
 
   const handleForgotPasswordSubmit = async () => {
     if (resetStep === 'phone') {
@@ -339,13 +365,23 @@ export function useAuthForm() {
           }
           toast({ title: 'Reset Failed', description: data.error || 'Failed to reset password', variant: 'destructive' });
         } else {
-          toast({ title: 'Password Reset!', description: 'You can now sign in with your new password' });
+          const last9 = cleanedPhone.slice(-9);
+          clearPhoneLoginCache(cleanedPhone);
+          markRecentPasswordReset(cleanedPhone);
+          setPhone(last9 ? `0${last9}` : resetPhone);
+          setCountryCode('256');
+          setPassword('');
+          setShowPassword(false);
+          setLoginError(null);
+          setFailedAttempts(0);
+          toast({ title: 'Password Reset!', description: 'Enter your new password below to sign in.' });
           setIsForgotPassword(false);
           setResetStep('phone');
           setResetPhone('');
           setResetOtpCode('');
           setResetNewPassword('');
           setResetConfirmPassword('');
+          setTimeout(() => passwordInputRef.current?.focus(), 150);
         }
       } catch {
         toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
@@ -737,6 +773,21 @@ export function useAuthForm() {
       return [];
     })();
 
+    const recentReset = wasRecentlyReset(phone);
+    const earlyRpcEmails = recentReset
+      ? await Promise.race<string[] | null>([
+        rpcLookup,
+        sleep(3000).then(() => null),
+      ])
+      : null;
+    const phase1Candidates = earlyRpcEmails?.length
+      ? [...new Set([
+        ...earlyRpcEmails.filter((e) => !e.includes('@welile.')),
+        ...earlyRpcEmails.filter((e) => e.includes('@welile.')),
+      ])].slice(0, 4)
+      : placeholderCandidates;
+    if (earlyRpcEmails?.length) accountExists = true;
+
     const tryOne = async (emailToTry: string): Promise<{ ok: boolean; email: string; error: Error | null }> => {
       const tStart = performance.now();
       try {
@@ -764,10 +815,10 @@ export function useAuthForm() {
       }
     };
 
-    // Phase 1 — race the 3 placeholders in parallel.
+    // Phase 1 — race the most likely auth identifiers in parallel.
     setLoginStage('trying-fast');
     const p1Start = performance.now();
-    const phase1 = await Promise.all(placeholderCandidates.map(tryOne));
+    const phase1 = await Promise.all(phase1Candidates.map(tryOne));
     metrics.phase1Ms = Math.round(performance.now() - p1Start);
     const phase1Winner = phase1.find(r => r.ok);
     if (phase1Winner) {
@@ -793,7 +844,7 @@ export function useAuthForm() {
         `0${last9}@welile.agent`,
         `256${last9}@welile.agent`,
         `${last9}@welile.agent`,
-      ])].filter(e => !placeholderCandidates.includes(e)).slice(0, 4);
+      ])].filter(e => !phase1Candidates.includes(e)).slice(0, 4);
 
       if (remaining.length) {
         if (rpcEmails.length) accountExists = true;
