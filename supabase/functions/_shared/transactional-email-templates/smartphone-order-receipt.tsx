@@ -14,6 +14,7 @@ interface Props {
   ordered_at?: string
   generated_at?: string
   item_label?: string
+  tracking_reference?: string
 }
 
 const fmt = (a: string | number | undefined | null, c: string) => {
@@ -41,6 +42,7 @@ export function SmartphoneOrderReceipt({
   ordered_at = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
   generated_at = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
   item_label = 'Welile Smartphone',
+  tracking_reference = '',
 }: Props) {
   const amt = fmt(amount, currency)
   const statusLabel = STATUS_LABEL[String(order_status)] ?? 'Submitted'
@@ -68,6 +70,7 @@ export function SmartphoneOrderReceipt({
             <Section style={metaCard}>
               <Row label="Item" value={item_label} />
               {order_reference ? <Row label="Reference" value={order_reference} mono /> : null}
+              {tracking_reference ? <Row label="Tracking reference" value={tracking_reference} mono /> : null}
               <Row label="Order status" value={statusLabel} />
               <Row label="Amount ordered" value={amt} />
               {hasOutstanding ? <Row label="Amount outstanding" value={fmt(outstanding as any, currency)} /> : null}
