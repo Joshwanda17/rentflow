@@ -359,6 +359,33 @@ export function WalletTransactionTimeline({
         </Card>
       ) : (
         <Card className="border-border/50 shadow-sm overflow-hidden">
+          {/* Sticky running balance line */}
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/50 px-4 py-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Running balance
+              </span>
+              <span
+                className="text-sm font-black tabular-nums text-foreground"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {visibleBalance !== null ? formatCurrency(visibleBalance) : formatCurrency(currentBalance)}
+              </span>
+            </div>
+            <div className="mt-1 h-0.5 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-150 ease-out"
+                style={{
+                  width:
+                    visibleTxId && filteredCount > 1
+                      ? `${((filtered.findIndex((t) => t.id === visibleTxId) / (filteredCount - 1)) * 100).toFixed(1)}%`
+                      : '0%',
+                }}
+              />
+            </div>
+          </div>
+
           <div className="divide-y divide-border/50">
             {dateEntries.map(([dateKey, dayTransactions], dayIndex) => {
               const date = new Date(dateKey);
