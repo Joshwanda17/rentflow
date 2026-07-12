@@ -55,6 +55,7 @@ interface Sale {
   sale_date: string;
   notes: string | null;
   created_at: string;
+  order_status?: OrderStatus;
 }
 
 type OrderStatus = 'submitted' | 'processing' | 'completed' | 'failed';
