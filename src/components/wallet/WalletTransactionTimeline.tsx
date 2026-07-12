@@ -243,20 +243,35 @@ export function WalletTransactionTimeline({
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-bold text-foreground">Recent Transactions</h3>
-        {onViewAll && (
+        <div className="flex items-center gap-1">
           <Button
             variant="link"
             size="sm"
+            disabled={filteredCount === 0 || exporting}
             onClick={() => {
               hapticTap();
-              onViewAll();
+              handleExportPdf();
             }}
             className="gap-1 h-auto p-0 text-xs text-primary font-semibold"
           >
-            View All
-            <ChevronRight className="h-3.5 w-3.5" />
+            <FileDown className="h-3.5 w-3.5" />
+            {exporting ? 'Exporting…' : 'Export PDF'}
           </Button>
-        )}
+          {onViewAll && (
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => {
+                hapticTap();
+                onViewAll();
+              }}
+              className="gap-1 h-auto p-0 text-xs text-primary font-semibold"
+            >
+              View All
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs
