@@ -108,6 +108,21 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
     },
   });
 
+  // Classify an existing link's pending state. A pending invite that has passed
+  // its expiry (or is explicitly `expired`) may be re-sent; a still-valid
+  // pending invite must NOT be re-invited/re-selected.
+  const classifyLink = (link?: ExistingLink | null) => {
+    if (!link) return { isVerified: false, isPendingActive: false, isExpired: false };
+    const isVerified = link.status === 'verified';
+    const expired =
+      link.status === 'expired' ||
+      (link.status === 'pending_acceptance' &&
+        !!link.expires_at &&
+        new Date(link.expires_at).getTime() <= Date.now());
+    const isPendingActive = link.status === 'pending_acceptance' && !expired;
+    return { isVerified, isPendingActive, isExpired: expired && !isVerified };
+  };
+
   const handleAdd = async () => {
     if (!selected) return;
     setSubmitting(true);
