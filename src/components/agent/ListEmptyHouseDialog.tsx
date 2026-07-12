@@ -1564,7 +1564,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* Draft restored notice — shown when we recovered a previous session */}
           {draftRestored && !successListing && (
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-              <RotateCcwIcon className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <RotateCcw className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-blue-700 leading-tight">
                   We restored your earlier progress
