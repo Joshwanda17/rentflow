@@ -52,6 +52,7 @@ import { ShieldCheck } from 'lucide-react';
 import { Trophy } from 'lucide-react';
 import { ShoppingBag, Smartphone } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
