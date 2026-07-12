@@ -113,11 +113,39 @@ Deno.serve(async (req) => {
     // commission) becomes active.
     const acceptanceToken = crypto.randomUUID();
     const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
-    const { data: existingLink } = await adminClient
+
+    // A sub-agent may have multiple historical rows (one per parent). Fetch all
+    // of them so we can (a) enforce the single-parent rule and (b) pick the
+    // correct row to re-issue for THIS agent.
+    const { data: allLinks } = await adminClient
       .from("agent_subagents")
       .select("id, parent_agent_id, status, acceptance_token, expires_at")
-      .eq("sub_agent_id", subAgentId)
-      .maybeSingle();
+      .eq("sub_agent_id", subAgentId);
+
+    // Single-parent rule: if the target is already a VERIFIED sub-agent of a
+    // different agent, they cannot be invited/re-assigned.
+    const verifiedElsewhere = (allLinks || []).find(
+      (l) => l.status === "verified" && l.parent_agent_id !== user.id,
+    );
+    if (verifiedElsewhere) {
+      const { data: otherParent } = await adminClient
+        .from("profiles")
+        .select("full_name")
+        .eq("id", verifiedElsewhere.parent_agent_id)
+        .maybeSingle();
+      return json(
+        {
+          error: `${targetProfile.full_name || "This user"} is already a sub-agent of ${otherParent?.full_name || "another agent"} and can only belong to one agent.`,
+        },
+        409,
+      );
+    }
+
+    // Prefer the caller's own row (verified or pending) when re-issuing.
+    const existingLink =
+      (allLinks || []).find((l) => l.parent_agent_id === user.id) ??
+      (allLinks || [])[0] ??
+      null;
 
     let effectiveToken = acceptanceToken;
 
