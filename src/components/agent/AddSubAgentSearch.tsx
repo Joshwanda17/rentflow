@@ -31,6 +31,7 @@ interface ExistingLink {
   parent_agent_id: string;
   parent_name: string | null;
   status: string | null;
+  expires_at: string | null;
 }
 
 interface AddSubAgentSearchProps {
