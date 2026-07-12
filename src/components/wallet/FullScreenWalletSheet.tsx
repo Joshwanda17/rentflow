@@ -13,7 +13,8 @@ import {
   Send, Plus, HandCoins, 
   Bell, TrendingUp, ArrowDownToLine,
   X, Calendar, ChevronRight,
-  ChevronDown, FileDown, CreditCard
+  ChevronDown, FileDown, CreditCard,
+  SlidersHorizontal
 } from 'lucide-react';
 import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
 import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
