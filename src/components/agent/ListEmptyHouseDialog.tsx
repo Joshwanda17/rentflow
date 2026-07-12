@@ -402,6 +402,64 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // ─── Restore a saved draft when the dialog opens ───
+  // Lets an agent whose page reloaded (e.g. the OS took over for the camera)
+  // pick up exactly where they left off. Photos can't survive a reload, so only
+  // the typed/text portion is restored. Skipped when opened with context-specific
+  // pre-fills (landlord/LC1) so those always win.
+  useEffect(() => {
+    if (!open) {
+      draftReadyRef.current = false;
+      setDraftRestored(false);
+      return;
+    }
+    const hasContextPrefill = !!(
+      initialLandlordName || initialLandlordPhone || initialLc1Name || initialLc1Phone || initialLc1Village
+    );
+    if (!hasContextPrefill) {
+      const draft = loadHouseListingDraft();
+      if (draft) {
+        if (draft.form) setForm((f) => ({ ...f, ...(draft.form as typeof f) }));
+        if (typeof draft.step === 'number') setStep(draft.step);
+        if (typeof draft.showOptional === 'boolean') setShowOptional(draft.showOptional);
+        if (typeof draft.manualLandlord === 'boolean') setManualLandlord(draft.manualLandlord);
+        if (draft.selectedLandlord) setSelectedLandlord(draft.selectedLandlord as LandlordHit);
+        if (draft.lc1Selection) setLc1Selection(draft.lc1Selection as Lc1Selection);
+        if (draft.geo) setGeo(draft.geo);
+        if (typeof draft.geoConfirmed === 'boolean') setGeoConfirmed(draft.geoConfirmed);
+        if (typeof draft.landlordQuery === 'string') setLandlordQuery(draft.landlordQuery);
+        setDraftRestored(true);
+      }
+    }
+    // Persistence may begin now that the restore attempt is done.
+    draftReadyRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // ─── Persist the draft (debounced) as the agent fills the form ───
+  useEffect(() => {
+    if (!open || !draftReadyRef.current) return;
+    if (successListing || listingBlock?.blocked) return;
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    draftSaveTimer.current = setTimeout(() => {
+      saveHouseListingDraft({
+        form,
+        step,
+        showOptional,
+        manualLandlord,
+        selectedLandlord,
+        lc1Selection,
+        geo,
+        geoConfirmed,
+        landlordQuery,
+      });
+    }, 400);
+    return () => {
+      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form, step, showOptional, manualLandlord, selectedLandlord, lc1Selection, geo, geoConfirmed, landlordQuery, successListing, listingBlock?.blocked]);
+
   // ─── Auto-detect an existing landlord from the typed phone number ───
   // While the agent is keying a new landlord's phone, quietly check the system.
   // If that number already belongs to a registered landlord (even one with only
