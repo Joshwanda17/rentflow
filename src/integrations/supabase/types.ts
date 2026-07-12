@@ -11643,6 +11643,7 @@ export type Database = {
           quantity: number
           sale_date: string
           total_revenue: number
+          tracking_reference: string | null
           unit_cost: number
           unit_price: number
           updated_at: string
@@ -11663,6 +11664,7 @@ export type Database = {
           quantity: number
           sale_date?: string
           total_revenue: number
+          tracking_reference?: string | null
           unit_cost?: number
           unit_price: number
           updated_at?: string
@@ -11683,6 +11685,7 @@ export type Database = {
           quantity?: number
           sale_date?: string
           total_revenue?: number
+          tracking_reference?: string | null
           unit_cost?: number
           unit_price?: number
           updated_at?: string
