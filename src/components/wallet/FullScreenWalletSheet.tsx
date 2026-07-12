@@ -149,6 +149,12 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const spentGoal = 500000; // Example goal
   const spentPercent = spentGoal > 0 ? Math.min((recentStats.sent / spentGoal) * 100, 100) : 0;
 
+  const filteredTransactions = transactions.filter((tx) => {
+    if (transactionTab === 'in') return tx.sender_id !== user?.id;
+    if (transactionTab === 'out') return tx.sender_id === user?.id;
+    return true;
+  });
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
