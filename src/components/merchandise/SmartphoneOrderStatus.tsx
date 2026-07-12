@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { Smartphone, Clock, Loader2, CheckCircle2, XCircle, Download, Mail } from 'lucide-react';
+import { Smartphone, Clock, Loader2, CheckCircle2, XCircle, Download, Mail, Copy } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
