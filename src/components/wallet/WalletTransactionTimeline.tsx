@@ -98,6 +98,11 @@ function getDateLabel(date: Date): string {
   return format(date, 'EEE, MMM d, yyyy');
 }
 
+function getCategoryLabel(tx: TimelineTransaction, currentUserId: string): string {
+  const isSent = tx.sender_id === currentUserId;
+  return deriveCategory(tx.description, isSent).label;
+}
+
 export function WalletTransactionTimeline({
   transactions,
   currentUserId,
