@@ -830,7 +830,7 @@ export function useAuthForm() {
         `0${last9}@welile.agent`,
         `256${last9}@welile.agent`,
         `${last9}@welile.agent`,
-      ])].filter(e => !placeholderCandidates.includes(e)).slice(0, 4);
+      ])].filter(e => !phase1Candidates.includes(e)).slice(0, 4);
 
       if (remaining.length) {
         if (rpcEmails.length) accountExists = true;
