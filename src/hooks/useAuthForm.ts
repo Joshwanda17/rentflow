@@ -705,25 +705,6 @@ export function useAuthForm() {
       `${last9}@welile.user`,
     ];
 
-    // Give the backend phone→auth-email resolver a short head start. Real-email
-    // accounts should try their true auth email before placeholder fallbacks;
-    // otherwise a freshly reset password can still show as "incorrect" after
-    // burning several invalid placeholder attempts first.
-    const earlyRpcEmails = await Promise.race<string[] | null>([
-      rpcLookup,
-      sleep(900).then(() => null),
-    ]);
-    const earlyEmailCandidates = earlyRpcEmails?.length
-      ? [...new Set([
-        ...earlyRpcEmails.filter((e) => !e.includes('@welile.')),
-        ...earlyRpcEmails.filter((e) => e.includes('@welile.')),
-      ])]
-      : [];
-    if (earlyEmailCandidates.length) accountExists = true;
-    const phase1Candidates = earlyEmailCandidates.length
-      ? earlyEmailCandidates.slice(0, 4)
-      : placeholderCandidates;
-
     const rpcLookup = (async (): Promise<string[]> => {
       const rpcStart = performance.now();
       // Short-TTL cache: repeated logins on the same device should not
@@ -774,6 +755,25 @@ export function useAuthForm() {
       return [];
     })();
 
+    // Give the backend phone→auth-email resolver a short head start. Real-email
+    // accounts should try their true auth email before placeholder fallbacks;
+    // otherwise a freshly reset password can still show as "incorrect" after
+    // burning several invalid placeholder attempts first.
+    const earlyRpcEmails = await Promise.race<string[] | null>([
+      rpcLookup,
+      sleep(900).then(() => null),
+    ]);
+    const earlyEmailCandidates = earlyRpcEmails?.length
+      ? [...new Set([
+        ...earlyRpcEmails.filter((e) => !e.includes('@welile.')),
+        ...earlyRpcEmails.filter((e) => e.includes('@welile.')),
+      ])]
+      : [];
+    if (earlyEmailCandidates.length) accountExists = true;
+    const phase1Candidates = earlyEmailCandidates.length
+      ? earlyEmailCandidates.slice(0, 4)
+      : placeholderCandidates;
+
     const tryOne = async (emailToTry: string): Promise<{ ok: boolean; email: string; error: Error | null }> => {
       const tStart = performance.now();
       try {
@@ -801,10 +801,10 @@ export function useAuthForm() {
       }
     };
 
-    // Phase 1 — race the 3 placeholders in parallel.
+    // Phase 1 — race the most likely auth identifiers in parallel.
     setLoginStage('trying-fast');
     const p1Start = performance.now();
-    const phase1 = await Promise.all(placeholderCandidates.map(tryOne));
+    const phase1 = await Promise.all(phase1Candidates.map(tryOne));
     metrics.phase1Ms = Math.round(performance.now() - p1Start);
     const phase1Winner = phase1.find(r => r.ok);
     if (phase1Winner) {
