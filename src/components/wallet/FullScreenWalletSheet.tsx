@@ -209,6 +209,46 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 </div>
               </Card>
 
+              {/* Sticky, high-visibility transaction filter tabs */}
+              <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-muted/30 backdrop-blur-sm">
+                <Card className="border-border/60 shadow-sm">
+                  <CardContent className="p-2">
+                    <Tabs
+                      value={activeTab}
+                      onValueChange={(v) => setActiveTab(v as TabValue)}
+                      className="w-full"
+                    >
+                      <TabsList variant="pills" className="w-full h-auto min-h-[44px] p-1 bg-muted/50 rounded-xl">
+                        <TabsTrigger
+                          value="all"
+                          variant="pills"
+                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-sm"
+                        >
+                          All
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="in"
+                          variant="pills"
+                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-sm"
+                        >
+                          Cash In
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="out"
+                          variant="pills"
+                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-sm"
+                        >
+                          Cash Out
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    <p className="text-center text-[10px] text-muted-foreground mt-1.5 font-medium">
+                      Tap to filter your transactions
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
               {/* Plain-language money breakdown (agents only) */}
               {isAgent && (
                 <AgentMoneyMapCard
