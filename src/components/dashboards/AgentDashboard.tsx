@@ -1072,6 +1072,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </CardContent>
             </Card>
 
+            {/* Smartphone order status */}
+            <SmartphoneOrderStatus userId={user.id} />
+
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
               <button
