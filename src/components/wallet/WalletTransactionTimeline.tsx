@@ -44,6 +44,7 @@ interface WalletTransactionTimelineProps {
 }
 
 type TabValue = 'all' | 'in' | 'out';
+type CategoryFilter = 'all' | string;
 
 interface CategoryMeta {
   label: string;
