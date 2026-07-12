@@ -279,24 +279,6 @@ export function WalletTransactionTimeline({
         </div>
       </div>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as TabValue)}
-        className="mb-3"
-      >
-        <TabsList variant="pills" className="w-full">
-          <TabsTrigger value="all" variant="pills">
-            All
-          </TabsTrigger>
-          <TabsTrigger value="in" variant="pills">
-            Cash In
-          </TabsTrigger>
-          <TabsTrigger value="out" variant="pills">
-            Cash Out
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       {availableCategories.length > 0 && (
         <div className="mb-3">
           <div className="flex items-center gap-2 mb-2">
