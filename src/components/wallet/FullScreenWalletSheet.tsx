@@ -246,6 +246,12 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     }
   }, [open, fetchAllPendingCounts, refreshWallet, refreshTransactions]);
 
+  // Persist the user's chosen tab and category filter so reopening the wallet
+  // restores their last view.
+  useEffect(() => {
+    writeStoredFilters({ activeTab, categoryFilter });
+  }, [activeTab, categoryFilter]);
+
   const { formatAmount: formatCurrency } = useCurrency();
 
   const handlePendingClose = (isOpen: boolean) => {
