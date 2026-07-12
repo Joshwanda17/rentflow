@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Smartphone, Clock, Loader2, CheckCircle2, XCircle, Download } from 'lucide-react';
+import { useState } from 'react';
+import { Smartphone, Clock, Loader2, CheckCircle2, XCircle, Download, Mail } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -42,6 +43,7 @@ interface Props {
 }
 
 export default function SmartphoneOrderStatus({ userId }: Props) {
+  const [emailingId, setEmailingId] = useState<string | null>(null);
   const { data: orders = [] } = useQuery<SmartphoneOrder[]>({
     queryKey: ['my-smartphone-orders', userId],
     enabled: !!userId,
@@ -57,7 +59,24 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
     },
   });
 
+  const { data: profile } = useQuery<{ email: string | null; full_name: string | null } | null>({
+    queryKey: ['my-profile-email', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await db
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   if (!userId || orders.length === 0) return null;
+
+  const isRealEmail = (email?: string | null) =>
+    !!email && !email.endsWith('@welile.user') && !email.endsWith('@noapp.welile.user');
 
   const getReceipt = (o: SmartphoneOrder) => ({
     orderId: o.id,
@@ -80,6 +99,44 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
     } catch (e: any) {
       console.error('[SmartphoneOrderStatus] receipt error', e);
       toast.error('Could not generate receipt');
+    }
+  };
+
+  const handleEmail = async (o: SmartphoneOrder) => {
+    const email = profile?.email ?? null;
+    if (!isRealEmail(email)) {
+      toast.error('Add a valid email to your profile to receive receipts by email');
+      return;
+    }
+    setEmailingId(o.id);
+    try {
+      const status = normalizeStatus(o.order_status);
+      const fmtDate = (d: Date) =>
+        d.toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const { error } = await supabase.functions.invoke('send-transactional-email', {
+        body: {
+          templateName: 'smartphone-order-receipt',
+          recipientEmail: email,
+          idempotencyKey: `smartphone-order-receipt-${o.id}-${status}`,
+          templateData: {
+            recipient_name: profile?.full_name || o.client_name || 'there',
+            amount: Number(o.unit_price),
+            outstanding: Number(o.amount_outstanding),
+            currency: 'UGX',
+            order_status: status,
+            order_reference: o.id,
+            ordered_at: fmtDate(new Date(o.created_at)),
+            generated_at: fmtDate(new Date()),
+          },
+        },
+      });
+      if (error) throw error;
+      toast.success(`Receipt emailed to ${email}`);
+    } catch (e: any) {
+      console.error('[SmartphoneOrderStatus] email error', e);
+      toast.error('Could not email receipt');
+    } finally {
+      setEmailingId(null);
     }
   };
 
@@ -115,14 +172,27 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
                     {meta.label}
                   </Badge>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 w-full gap-1.5 text-xs"
-                  onClick={() => handleReceipt(o)}
-                >
-                  <Download className="h-3.5 w-3.5" /> Download receipt
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 flex-1 gap-1.5 text-xs"
+                    onClick={() => handleReceipt(o)}
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 flex-1 gap-1.5 text-xs"
+                    disabled={emailingId === o.id}
+                    onClick={() => handleEmail(o)}
+                  >
+                    {emailingId === o.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Mail className="h-3.5 w-3.5" />} Email
+                  </Button>
+                </div>
               </div>
             );
           })}
