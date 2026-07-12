@@ -29,6 +29,8 @@ export interface SmartphoneOrderReceiptData {
   customerPhone?: string | null;
   /** Item label, e.g. 'Welile Smartphone' or 'Welile Spiro Bike'. */
   itemLabel?: string;
+  /** Optional tracking reference (e.g. Spiro bike orders). */
+  trackingReference?: string | null;
 }
 
 const CURRENCY = 'UGX';
@@ -87,6 +89,7 @@ async function renderReceipt(data: SmartphoneOrderReceiptData) {
   const rows: Array<[string, string]> = [
     ['Item', itemLabel],
     ['Reference', data.orderId],
+    ...(data.trackingReference ? [['Tracking reference', data.trackingReference] as [string, string]] : []),
     ['Order status', STATUS_LABELS[data.status] ?? 'Submitted'],
     ['Amount ordered', ugx(data.amount)],
     ['Amount outstanding', data.outstanding > 0 ? ugx(data.outstanding) : `${CURRENCY} 0 (fully recovered)`],
