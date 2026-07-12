@@ -562,6 +562,7 @@ export function MerchandiseManager() {
                   <th className="py-2 px-3 text-right">Revenue</th>
                   <th className="py-2 px-3">Client</th>
                   <th className="py-2 px-3">Status</th>
+                  <th className="py-2 px-3">Order</th>
                   <th className="py-2 px-3 text-right">Owed</th>
                   <th className="py-2 pl-3" />
                 </tr>
@@ -575,6 +576,20 @@ export function MerchandiseManager() {
                     <td className="py-2 px-3 text-right">{formatUGX(Number(s.total_revenue))}</td>
                     <td className="py-2 px-3">{s.client_name || '—'}</td>
                     <td className="py-2 px-3"><StatusBadge status={s.payment_status} /></td>
+                    <td className="py-2 px-3">
+                      <Select
+                        value={s.order_status || 'submitted'}
+                        onValueChange={(v) => updateOrderStatus(s.id, v as OrderStatus)}
+                      >
+                        <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="submitted">Submitted</SelectItem>
+                          <SelectItem value="processing">Processing</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="failed">Failed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </td>
                     <td className="py-2 px-3 text-right">{Number(s.amount_outstanding) > 0 ? formatUGX(Number(s.amount_outstanding)) : '—'}</td>
                     <td className="py-2 pl-3 text-right">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteSale(s.id)}>
