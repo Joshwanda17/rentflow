@@ -178,6 +178,72 @@ export function WalletTransactionTimeline({
     };
   }, [transactions, currentUserId, currentBalance, activeTab, categoryFilter]);
 
+  const findScrollableParent = useCallback((el: HTMLElement | null): HTMLElement | null => {
+    let node = el?.parentElement;
+    while (node && node !== document.body) {
+      const style = window.getComputedStyle(node);
+      const overflowY = style.overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }, []);
+
+  const updateVisibleBalance = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || filteredCount === 0) {
+      setVisibleBalance(null);
+      setVisibleTxId(null);
+      return;
+    }
+
+    const scrollable = findScrollableParent(container);
+    const viewportTop = scrollable ? scrollable.getBoundingClientRect().top : 0;
+    const stickyOffset = 64; // room for sticky header + safe margin
+
+    let bestId: string | null = null;
+    let bestTop = Infinity;
+
+    for (const tx of filtered) {
+      const el = txRefs.current.get(tx.id);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const top = rect.top - viewportTop;
+      if (top >= stickyOffset && top < bestTop) {
+        bestTop = top;
+        bestId = tx.id;
+      }
+    }
+
+    if (bestId) {
+      setVisibleBalance(runningBalances.get(bestId) ?? null);
+      setVisibleTxId(bestId);
+    } else {
+      // If nothing is below the offset yet, anchor to the first transaction.
+      const first = filtered[0];
+      setVisibleBalance(runningBalances.get(first.id) ?? null);
+      setVisibleTxId(first.id);
+    }
+  }, [filtered, filteredCount, runningBalances, findScrollableParent]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const scrollable = findScrollableParent(container);
+    const target = scrollable ?? window;
+
+    updateVisibleBalance();
+    target.addEventListener('scroll', updateVisibleBalance, { passive: true });
+    window.addEventListener('resize', updateVisibleBalance, { passive: true });
+
+    return () => {
+      target.removeEventListener('scroll', updateVisibleBalance);
+      window.removeEventListener('resize', updateVisibleBalance);
+    };
+  }, [updateVisibleBalance, findScrollableParent]);
+
   const handleExportPdf = async () => {
     if (exporting || filteredCount === 0) return;
     setExporting(true);
