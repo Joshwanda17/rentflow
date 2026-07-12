@@ -405,6 +405,8 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   onOpenChange(false);
                   navigate('/transactions');
                 }}
+                ownerName={profile?.full_name || undefined}
+                ownerPhone={profile?.phone || undefined}
               />
 
               {/* Agent Rent Requests — verify inline */}

@@ -15,12 +15,14 @@ import {
   ChevronRight,
   SlidersHorizontal,
   X,
+  FileDown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { hapticTap } from '@/lib/haptics';
+import { generateWalletStatementPdf } from '@/lib/walletStatementPdf';
 
 export interface TimelineTransaction {
   id: string;
@@ -41,6 +43,8 @@ interface WalletTransactionTimelineProps {
   formatCurrency: (amount: number) => string;
   onSelectTransaction: (tx: TimelineTransaction) => void;
   onViewAll?: () => void;
+  ownerName?: string;
+  ownerPhone?: string | null;
 }
 
 type TabValue = 'all' | 'in' | 'out';
@@ -110,11 +114,14 @@ export function WalletTransactionTimeline({
   formatCurrency,
   onSelectTransaction,
   onViewAll,
+  ownerName = 'Welile User',
+  ownerPhone,
 }: WalletTransactionTimelineProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [exporting, setExporting] = useState(false);
 
-  const { runningBalances, groupedTransactions, filteredCount, availableCategories } = useMemo(() => {
+  const { runningBalances, groupedTransactions, filteredCount, availableCategories, filtered } = useMemo(() => {
     // Newest first — matches how people read their wallet activity.
     const sorted = [...transactions].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -158,8 +165,62 @@ export function WalletTransactionTimeline({
       groupedTransactions: grouped,
       filteredCount: filtered.length,
       availableCategories: categories,
+      filtered,
     };
   }, [transactions, currentUserId, currentBalance, activeTab, categoryFilter]);
+
+  const handleExportPdf = async () => {
+    if (exporting || filteredCount === 0) return;
+    setExporting(true);
+    try {
+      const totalIn = filtered
+        .filter((tx) => tx.sender_id !== currentUserId)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      const totalOut = filtered
+        .filter((tx) => tx.sender_id === currentUserId)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+      const entries = filtered.map((tx) => {
+        const isSent = tx.sender_id === currentUserId;
+        const category = deriveCategory(tx.description, isSent);
+        const counterparty = isSent ? tx.recipient_name : tx.sender_name;
+        return {
+          transaction_date: tx.created_at,
+          label: category.label,
+          description: counterparty
+            ? `${isSent ? 'To' : 'From'} ${counterparty}${tx.description ? ` — ${tx.description}` : ''}`
+            : (tx.description || undefined),
+          direction: (isSent ? 'cash_out' : 'cash_in') as 'cash_in' | 'cash_out',
+          amount: tx.amount,
+        };
+      });
+
+      const blob = await generateWalletStatementPdf({
+        bucketTitle: 'Wallet Activity',
+        bucketSubtitle: `${filteredCount} transaction${filteredCount === 1 ? '' : 's'} — ${activeTab === 'all' ? 'All' : activeTab === 'in' ? 'Cash In' : 'Cash Out'}${categoryFilter !== 'all' ? ` · ${categoryFilter}` : ''}`,
+        ownerName,
+        ownerPhone,
+        balance: currentBalance,
+        totalIn,
+        totalOut,
+        entries,
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStamp = new Date().toISOString().split('T')[0];
+      a.download = `Welile_Wallet_${dateStamp}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to export wallet PDF:', e);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const dateEntries = useMemo(
     () =>
@@ -182,20 +243,35 @@ export function WalletTransactionTimeline({
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-bold text-foreground">Recent Transactions</h3>
-        {onViewAll && (
+        <div className="flex items-center gap-1">
           <Button
             variant="link"
             size="sm"
+            disabled={filteredCount === 0 || exporting}
             onClick={() => {
               hapticTap();
-              onViewAll();
+              handleExportPdf();
             }}
             className="gap-1 h-auto p-0 text-xs text-primary font-semibold"
           >
-            View All
-            <ChevronRight className="h-3.5 w-3.5" />
+            <FileDown className="h-3.5 w-3.5" />
+            {exporting ? 'Exporting…' : 'Export PDF'}
           </Button>
-        )}
+          {onViewAll && (
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => {
+                hapticTap();
+                onViewAll();
+              }}
+              className="gap-1 h-auto p-0 text-xs text-primary font-semibold"
+            >
+              View All
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs

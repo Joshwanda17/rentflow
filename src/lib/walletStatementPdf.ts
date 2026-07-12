@@ -183,7 +183,7 @@ export async function generateWalletStatementPdf(
       pdf.setFontSize(10);
       pdf.text(e.label, margin, y);
 
-      const sign = e.direction === 'cash_in' ? '+' : '−';
+      const sign = e.direction === 'cash_in' ? '+' : '-';
       if (e.direction === 'cash_in') pdf.setTextColor(35, 130, 80);
       else pdf.setTextColor(20, 20, 20);
       pdf.text(`${sign}${fmtUGX(Number(e.amount || 0))}`, pw - margin, y, { align: 'right' });
