@@ -19,6 +19,8 @@ export interface WalletStatementInput {
   totalIn: number;
   totalOut: number;
   entries: WalletStatementEntry[];
+  activeTab?: 'all' | 'in' | 'out';
+  categoryFilter?: 'all' | string;
 }
 
 function fmtDateTime(iso: string) {
@@ -27,6 +29,15 @@ function fmtDateTime(iso: string) {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+function formatFilterSummary(
+  activeTab: 'all' | 'in' | 'out' = 'all',
+  categoryFilter: 'all' | string = 'all',
+): string {
+  const direction = activeTab === 'in' ? 'Cash In' : activeTab === 'out' ? 'Cash Out' : 'All directions';
+  const category = categoryFilter && categoryFilter !== 'all' ? categoryFilter : 'All categories';
+  return `Filters: ${direction} · ${category}`;
 }
 
 async function loadLogo(): Promise<string | null> {
@@ -108,8 +119,10 @@ export async function generateWalletStatementPdf(
   y += 12;
 
   // ── Headline card ──
+  const hasFilters = input.activeTab !== undefined || (input.categoryFilter !== undefined && input.categoryFilter !== 'all');
+  const cardH = hasFilters ? 38 : 30;
   pdf.setFillColor(245, 240, 255);
-  pdf.roundedRect(margin, y, pw - margin * 2, 30, 3, 3, 'F');
+  pdf.roundedRect(margin, y, pw - margin * 2, cardH, 3, 3, 'F');
   pdf.setTextColor(90, 90, 90);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(8);
@@ -121,7 +134,13 @@ export async function generateWalletStatementPdf(
   pdf.setFontSize(9);
   pdf.setTextColor(90, 90, 90);
   pdf.text(input.bucketSubtitle, margin + 5, y + 25);
-  y += 36;
+  if (hasFilters) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(formatFilterSummary(input.activeTab, input.categoryFilter), margin + 5, y + 33);
+  }
+  y += cardH + 6;
 
   // ── In / Out summary ──
   const colW = (pw - margin * 2 - 4) / 2;

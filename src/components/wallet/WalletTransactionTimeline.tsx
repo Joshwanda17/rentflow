@@ -276,13 +276,15 @@ export function WalletTransactionTimeline({
 
       const blob = await generateWalletStatementPdf({
         bucketTitle: 'Wallet Activity',
-        bucketSubtitle: `${filteredCount} transaction${filteredCount === 1 ? '' : 's'} — ${activeTab === 'all' ? 'All' : activeTab === 'in' ? 'Cash In' : 'Cash Out'}${categoryFilter !== 'all' ? ` · ${categoryFilter}` : ''}`,
+        bucketSubtitle: `${filteredCount} transaction${filteredCount === 1 ? '' : 's'}`,
         ownerName,
         ownerPhone,
         balance: currentBalance,
         totalIn,
         totalOut,
         entries,
+        activeTab,
+        categoryFilter,
       });
 
       const url = URL.createObjectURL(blob);
