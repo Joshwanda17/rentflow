@@ -53,6 +53,33 @@ interface FullScreenWalletSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const WALLET_FILTER_STORAGE_KEY = 'welile-wallet-filters';
+
+function readStoredFilters(): { activeTab: TabValue; categoryFilter: 'all' | string } | null {
+  try {
+    const raw = localStorage.getItem(WALLET_FILTER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const activeTab = ['all', 'in', 'out'].includes(parsed?.activeTab)
+      ? (parsed.activeTab as TabValue)
+      : 'all';
+    const categoryFilter = typeof parsed?.categoryFilter === 'string'
+      ? parsed.categoryFilter
+      : 'all';
+    return { activeTab, categoryFilter };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredFilters(filters: { activeTab: TabValue; categoryFilter: 'all' | string }) {
+  try {
+    localStorage.setItem(WALLET_FILTER_STORAGE_KEY, JSON.stringify(filters));
+  } catch {
+    // Ignore storage errors (e.g. private mode).
+  }
+}
+
 interface CategoryFilterChipsProps {
   categories: string[];
   selected: 'all' | string;
@@ -174,8 +201,9 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabValue>('all');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
+  const storedFilters = useMemo(() => readStoredFilters(), []);
+  const [activeTab, setActiveTab] = useState<TabValue>(storedFilters?.activeTab ?? 'all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | string>(storedFilters?.categoryFilter ?? 'all');
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
@@ -217,6 +245,12 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
       refreshTransactions();
     }
   }, [open, fetchAllPendingCounts, refreshWallet, refreshTransactions]);
+
+  // Persist the user's chosen tab and category filter so reopening the wallet
+  // restores their last view.
+  useEffect(() => {
+    writeStoredFilters({ activeTab, categoryFilter });
+  }, [activeTab, categoryFilter]);
 
   const { formatAmount: formatCurrency } = useCurrency();
 
