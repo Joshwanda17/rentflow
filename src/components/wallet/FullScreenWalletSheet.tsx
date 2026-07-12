@@ -37,6 +37,7 @@ import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingC
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { WalletTransactionTimeline } from './WalletTransactionTimeline';
 import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
