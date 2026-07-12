@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info,
+  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -56,6 +56,9 @@ export default function MerchandiseStore() {
   const [selected, setSelected] = useState<CatalogItem | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [ordering, setOrdering] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [phoneAmount, setPhoneAmount] = useState('');
+  const [orderingPhone, setOrderingPhone] = useState(false);
 
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogItem[]>({
     queryKey: ['merchandise-catalog'],
@@ -126,6 +129,27 @@ export default function MerchandiseStore() {
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
   };
 
+  const phoneAmountNum = Math.max(0, parseInt(phoneAmount || '0', 10) || 0);
+
+  const orderSmartphone = async () => {
+    if (phoneAmountNum < 1000) {
+      toast.error('Enter an amount of at least UGX 1,000');
+      return;
+    }
+    setOrderingPhone(true);
+    const { error } = await db.rpc('agent_order_smartphone', { p_amount: phoneAmountNum });
+    setOrderingPhone(false);
+    if (error) {
+      toast.error(error.message || 'Could not place smartphone order');
+      return;
+    }
+    toast.success(`Welile Smartphone requested. ${formatUGX(phoneAmountNum)} will be recovered from your wallet.`);
+    setPhoneOpen(false);
+    setPhoneAmount('');
+    queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
+  };
+
   return (
     <div className="min-h-[100dvh] bg-background pb-24">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
@@ -169,6 +193,24 @@ export default function MerchandiseStore() {
           <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
           <p>Anything you order is repaid automatically — 15% of your withdrawable wallet is deducted up to 4 times a day until it's cleared. You'll get a notification each time.</p>
         </div>
+
+        {/* Order a Welile Smartphone */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <Smartphone className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold leading-tight">Order a Welile Smartphone</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Get a company smartphone on credit. Choose how much can be deducted from your wallet — final price is set by marketing.
+              </p>
+            </div>
+            <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setPhoneAmount(''); setPhoneOpen(true); }}>
+              Order
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Catalog */}
         <div>
@@ -295,6 +337,50 @@ export default function MerchandiseStore() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelected(null)} disabled={ordering}>Cancel</Button>
             <Button onClick={placeOrder} disabled={ordering}>{ordering ? 'Ordering…' : 'Confirm order'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Smartphone order dialog */}
+      <Dialog open={phoneOpen} onOpenChange={(o) => { if (!o) setPhoneOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="h-4 w-4 text-primary" /> Order a Welile Smartphone
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Marketing sets the final phone price. Enter the amount you're comfortable having recovered
+              from your wallet toward the smartphone.
+            </p>
+            <div className="space-y-1">
+              <Label className="text-xs">Amount to deduct (UGX)</Label>
+              <Input
+                type="number"
+                min={1000}
+                step={1000}
+                inputMode="numeric"
+                placeholder="e.g. 50000"
+                value={phoneAmount}
+                onChange={(e) => setPhoneAmount(e.target.value)}
+              />
+            </div>
+            {phoneAmountNum > 0 && (
+              <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
+                <span className="text-muted-foreground">Will be recovered from wallet</span>
+                <span className="font-bold">{formatUGX(phoneAmountNum)}</span>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              This amount is recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPhoneOpen(false)} disabled={orderingPhone}>Cancel</Button>
+            <Button onClick={orderSmartphone} disabled={orderingPhone || phoneAmountNum < 1000}>
+              {orderingPhone ? 'Ordering…' : 'Confirm order'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
