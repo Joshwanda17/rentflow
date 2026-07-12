@@ -225,6 +225,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     }
   }
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { profile, loading: profileLoading } = useProfile();
   // Celebratory toast the moment the agent crosses today's 20% eligibility
   // threshold (fires once per Kampala day, on mount or via realtime).
