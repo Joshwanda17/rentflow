@@ -448,6 +448,8 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 }}
                 ownerName={profile?.full_name || undefined}
                 ownerPhone={profile?.phone || undefined}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
               />
 
               {/* Agent Rent Requests — verify inline */}
