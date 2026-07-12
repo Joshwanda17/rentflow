@@ -393,7 +393,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, { password: newPassword });
+      const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
+        password: newPassword,
+        email_confirm: true,
+      });
       if (updateError) {
         console.error("[password-reset-sms] Admin reset error:", updateError);
         return new Response(JSON.stringify({ error: "Failed to reset password" }), {
@@ -418,7 +421,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { error: resetError } = await adminClient.auth.admin.updateUserById(userId, { password: newPassword });
+      const { error: resetError } = await adminClient.auth.admin.updateUserById(userId, {
+        password: newPassword,
+        email_confirm: true,
+      });
       if (resetError) {
         console.error("[password-reset-sms] Admin reset error:", resetError);
         return new Response(JSON.stringify({ error: "Failed to reset password: " + resetError.message }), {
