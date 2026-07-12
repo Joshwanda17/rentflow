@@ -201,18 +201,22 @@ export function WalletTransactionTimeline({
 
     const scrollable = findScrollableParent(container);
     const viewportTop = scrollable ? scrollable.getBoundingClientRect().top : 0;
-    const stickyOffset = 64; // room for sticky header + safe margin
+    const stickyOffset = 80; // room for sticky header + safe margin
 
     let bestId: string | null = null;
-    let bestTop = Infinity;
+    let bestScore = Infinity;
 
     for (const tx of filtered) {
       const el = txRefs.current.get(tx.id);
       if (!el) continue;
       const rect = el.getBoundingClientRect();
       const top = rect.top - viewportTop;
-      if (top >= stickyOffset && top < bestTop) {
-        bestTop = top;
+      // Score: how close the item's top is to just below the sticky header.
+      // Prefer the first item whose top is at or below the offset; otherwise
+      // the last item still partially visible.
+      const score = top >= stickyOffset ? top - stickyOffset : stickyOffset - top + 1000;
+      if (score < bestScore) {
+        bestScore = score;
         bestId = tx.id;
       }
     }
