@@ -19,6 +19,8 @@ export interface WalletStatementInput {
   totalIn: number;
   totalOut: number;
   entries: WalletStatementEntry[];
+  activeTab?: 'all' | 'in' | 'out';
+  categoryFilter?: 'all' | string;
 }
 
 function fmtDateTime(iso: string) {
