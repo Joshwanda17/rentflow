@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles, User, ImagePlus, CheckCircle2, AlertTriangle, GripVertical } from 'lucide-react';
+import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles, User, ImagePlus, CheckCircle2, AlertTriangle, GripVertical, RotateCcw } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -25,6 +25,11 @@ import type { LandlordOption } from './LandlordSearchSelect';
 import { reverseGeocode } from '@/lib/reverseGeocode';
 import { GpsQualityIndicator } from '@/components/shared/GpsQualityIndicator';
 import { captureSmartLocation } from '@/hooks/useSmartLocation';
+import {
+  saveHouseListingDraft,
+  loadHouseListingDraft,
+  clearHouseListingDraft,
+} from '@/lib/houseListingDraft';
 
 const APP_URL = 'https://welileapp.com';
 
@@ -195,6 +200,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Location quick-search (search & choose a specific known area).
   const [locQuery, setLocQuery] = useState('');
   const [locFocused, setLocFocused] = useState(false);
+  // ─── Draft persistence (survives a camera-triggered page reload on mobile) ───
+  // When true, the form was restored from a saved draft, so we show a banner.
+  const [draftRestored, setDraftRestored] = useState(false);
+  // Guards the auto-save effect so it never overwrites the stored draft before
+  // the restore attempt has run for this open.
+  const draftReadyRef = useRef(false);
+  const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Capture a fresh, unique GPS pin for this house from the device.
   // Uses the resilient smart-location helper: high-accuracy first, automatic
@@ -389,6 +401,64 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // ─── Restore a saved draft when the dialog opens ───
+  // Lets an agent whose page reloaded (e.g. the OS took over for the camera)
+  // pick up exactly where they left off. Photos can't survive a reload, so only
+  // the typed/text portion is restored. Skipped when opened with context-specific
+  // pre-fills (landlord/LC1) so those always win.
+  useEffect(() => {
+    if (!open) {
+      draftReadyRef.current = false;
+      setDraftRestored(false);
+      return;
+    }
+    const hasContextPrefill = !!(
+      initialLandlordName || initialLandlordPhone || initialLc1Name || initialLc1Phone || initialLc1Village
+    );
+    if (!hasContextPrefill) {
+      const draft = loadHouseListingDraft();
+      if (draft) {
+        if (draft.form) setForm((f) => ({ ...f, ...(draft.form as typeof f) }));
+        if (typeof draft.step === 'number') setStep(draft.step);
+        if (typeof draft.showOptional === 'boolean') setShowOptional(draft.showOptional);
+        if (typeof draft.manualLandlord === 'boolean') setManualLandlord(draft.manualLandlord);
+        if (draft.selectedLandlord) setSelectedLandlord(draft.selectedLandlord as LandlordHit);
+        if (draft.lc1Selection) setLc1Selection(draft.lc1Selection as Lc1Selection);
+        if (draft.geo) setGeo(draft.geo);
+        if (typeof draft.geoConfirmed === 'boolean') setGeoConfirmed(draft.geoConfirmed);
+        if (typeof draft.landlordQuery === 'string') setLandlordQuery(draft.landlordQuery);
+        setDraftRestored(true);
+      }
+    }
+    // Persistence may begin now that the restore attempt is done.
+    draftReadyRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // ─── Persist the draft (debounced) as the agent fills the form ───
+  useEffect(() => {
+    if (!open || !draftReadyRef.current) return;
+    if (successListing || listingBlock?.blocked) return;
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    draftSaveTimer.current = setTimeout(() => {
+      saveHouseListingDraft({
+        form,
+        step,
+        showOptional,
+        manualLandlord,
+        selectedLandlord,
+        lc1Selection,
+        geo,
+        geoConfirmed,
+        landlordQuery,
+      });
+    }, 400);
+    return () => {
+      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form, step, showOptional, manualLandlord, selectedLandlord, lc1Selection, geo, geoConfirmed, landlordQuery, successListing, listingBlock?.blocked]);
 
   // ─── Auto-detect an existing landlord from the typed phone number ───
   // While the agent is keying a new landlord's phone, quietly check the system.
@@ -1232,6 +1302,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         dailyRate: pricing.dailyRate,
       });
       setAttempted(false);
+      // The listing is committed — the saved draft is no longer needed.
+      clearHouseListingDraft();
+      setDraftRestored(false);
     } catch (err: any) {
       console.error('[ListEmptyHouseDialog] submit failed:', err);
       const raw = String(err?.message || '');
@@ -1285,6 +1358,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setPreviewIndex(0);
     setDragOverIndex(null);
     setIsDragging(false);
+    // Discard any persisted draft — a reset is an explicit "start over".
+    clearHouseListingDraft();
+    setDraftRestored(false);
   };
 
   const buildShare = () => {
@@ -1335,7 +1411,17 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   return (
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) closeAll(); else onOpenChange(v); }}>
-      <DialogContent className={`w-[calc(100vw-1rem)] sm:max-w-md overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl p-4 sm:p-6 ${successListing ? 'max-h-[92vh]' : 'h-[92vh] h-[92dvh] max-h-[92vh] max-h-[92dvh]'}`}>
+      <DialogContent
+        stable
+        // Keep the wizard open when the OS file picker / camera steals focus, or
+        // when the agent taps outside / interacts with a nested picker. The only
+        // ways to close are the X button and the explicit Cancel/Done actions,
+        // so a half-filled form is never lost by an accidental tap.
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => { if (!successListing) e.preventDefault(); }}
+        className={`w-[calc(100vw-1rem)] sm:max-w-md overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl p-4 sm:p-6 ${successListing ? 'max-h-[92vh]' : 'h-[92vh] h-[92dvh] max-h-[92vh] max-h-[92dvh]'}`}
+      >
         {listingBlock?.blocked ? (
           (() => {
             const until = listingBlock.blocked_until ? new Date(listingBlock.blocked_until).getTime() : 0;
@@ -1475,6 +1561,29 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         )}
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* Draft restored notice — shown when we recovered a previous session */}
+          {draftRestored && !successListing && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+              <RotateCcw className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-blue-700 leading-tight">
+                  We restored your earlier progress
+                </p>
+                <p className="text-xs text-blue-600/80 leading-snug mt-0.5">
+                  Please re-add your photos — they can't be saved between sessions.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 shrink-0 text-blue-700 hover:text-blue-800"
+                onClick={() => { resetForm(); }}
+              >
+                Start fresh
+              </Button>
+            </div>
+          )}
           {/* Progress stepper — big, visual, minimal reading */}
           <div className="flex items-stretch gap-1.5">
             {STEP_LABELS.map((label, i) => {
