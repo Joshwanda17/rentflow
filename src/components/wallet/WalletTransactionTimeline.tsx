@@ -130,6 +130,11 @@ export function WalletTransactionTimeline({
   const setCategoryFilter = onCategoryChange ?? setInternalCategoryFilter;
   const [exporting, setExporting] = useState(false);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const txRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [visibleBalance, setVisibleBalance] = useState<number | null>(null);
+  const [visibleTxId, setVisibleTxId] = useState<string | null>(null);
+
   const { runningBalances, groupedTransactions, filteredCount, filtered } = useMemo(() => {
     // Newest first — matches how people read their wallet activity.
     const sorted = [...transactions].sort(
