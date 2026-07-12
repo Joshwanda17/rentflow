@@ -53,6 +53,33 @@ interface FullScreenWalletSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const WALLET_FILTER_STORAGE_KEY = 'welile-wallet-filters';
+
+function readStoredFilters(): { activeTab: TabValue; categoryFilter: 'all' | string } | null {
+  try {
+    const raw = localStorage.getItem(WALLET_FILTER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const activeTab = ['all', 'in', 'out'].includes(parsed?.activeTab)
+      ? (parsed.activeTab as TabValue)
+      : 'all';
+    const categoryFilter = typeof parsed?.categoryFilter === 'string'
+      ? parsed.categoryFilter
+      : 'all';
+    return { activeTab, categoryFilter };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredFilters(filters: { activeTab: TabValue; categoryFilter: 'all' | string }) {
+  try {
+    localStorage.setItem(WALLET_FILTER_STORAGE_KEY, JSON.stringify(filters));
+  } catch {
+    // Ignore storage errors (e.g. private mode).
+  }
+}
+
 interface CategoryFilterChipsProps {
   categories: string[];
   selected: 'all' | string;
