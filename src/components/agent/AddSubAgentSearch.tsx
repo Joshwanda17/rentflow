@@ -235,17 +235,25 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               const link = existingLinks?.[u.id];
               const isMine = link?.parent_agent_id === user?.id;
               const isOther = link && !isMine;
-              // Any user already verified as a sub-agent (to anyone) cannot be invited.
-              const isVerifiedSubAgent = link?.status === 'verified';
+              const { isVerified: isVerifiedSubAgent, isPendingActive, isExpired } = classifyLink(link);
+              // A still-valid pending invite from ME cannot be re-selected or
+              // re-invited — only an expired one may be re-sent.
+              const isMinePending = !!isMine && isPendingActive;
+              const isMineExpired = !!isMine && isExpired;
+              const isOtherPending = !!isOther && isPendingActive;
+              // Block selection when verified anywhere, or when I have a live pending invite.
+              const blocked = isVerifiedSubAgent || isMinePending;
               let badge: { label: string; variant: any; icon?: typeof UserCheck } = {
                 label: 'Eligible',
                 variant: 'success',
               };
               if (isVerifiedSubAgent) {
                 badge = { label: 'Sub-agent', variant: 'success', icon: UserCheck };
-              } else if (isMine && link?.status === 'pending') {
-                badge = { label: 'Invite pending', variant: 'warning' };
-              } else if (isOther) {
+              } else if (isMinePending) {
+                badge = { label: 'Invite pending', variant: 'warning', icon: UserCheck };
+              } else if (isMineExpired) {
+                badge = { label: 'Invite expired', variant: 'warning' };
+              } else if (isOtherPending) {
                 badge = { label: 'Invite pending', variant: 'warning', icon: UserCheck };
               }
               const tooltipText = (() => {
@@ -254,10 +262,13 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                     ? 'This user is already your sub-agent, so they can’t be invited again.'
                     : 'This user is already a sub-agent, so they can’t be invited.';
                 }
-                if (isMine && link?.status === 'pending') {
-                  return 'You already sent an invite. Sending again will refresh the dashboard invite and email reminder.';
+                if (isMinePending) {
+                  return 'You already have a pending invite for this user. You can’t re-invite them until the invite expires.';
                 }
-                if (isOther) {
+                if (isMineExpired) {
+                  return 'Your previous invite to this user expired. You can send a fresh invite.';
+                }
+                if (isOtherPending) {
                   return 'Another agent already invited this user. If you send an invite, they can choose which agent to join.';
                 }
                 return 'No existing sub-agent link found. Inviting them shows the request on their dashboard and emails an acceptance link.';
@@ -267,11 +278,11 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                 <button
                   key={u.id}
                   type="button"
-                  disabled={isVerifiedSubAgent}
-                  onClick={() => { if (!isVerifiedSubAgent) setSelected(u); }}
+                  disabled={blocked}
+                  onClick={() => { if (!blocked) setSelected(u); }}
                   className={cn(
                     'w-full flex items-center gap-2 p-3 text-left text-sm border-b border-border last:border-b-0 transition-colors',
-                    isVerifiedSubAgent
+                    blocked
                       ? 'opacity-60 cursor-not-allowed'
                       : 'hover:bg-accent',
                   )}
