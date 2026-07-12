@@ -78,6 +78,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
