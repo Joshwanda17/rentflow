@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getDynamicCurrencyName } from '@/lib/currencyFormat';
@@ -13,7 +13,8 @@ import {
   Send, Plus, HandCoins, 
   Bell, TrendingUp, ArrowDownToLine,
   X, Calendar, ChevronRight,
-  ChevronDown, FileDown, CreditCard
+  ChevronDown, FileDown, CreditCard,
+  SlidersHorizontal
 } from 'lucide-react';
 import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
 import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
@@ -37,7 +38,7 @@ import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingC
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { WalletTransactionTimeline, type TabValue } from './WalletTransactionTimeline';
+import { WalletTransactionTimeline, type TabValue, getCategoryLabel } from './WalletTransactionTimeline';
 import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
@@ -77,6 +78,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
@@ -144,6 +146,13 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     },
     { sent: 0, received: 0 }
   );
+
+  const availableCategories = useMemo(() => {
+    if (!user?.id) return [];
+    const labels = new Set<string>();
+    transactions.forEach((tx) => labels.add(getCategoryLabel(tx, user.id)));
+    return Array.from(labels).sort();
+  }, [transactions, user?.id]);
 
   const netAmount = recentStats.received - recentStats.sent;
   const currentMonth = format(new Date(), 'MMMM yyyy');
@@ -245,6 +254,53 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                     <p className="text-center text-[10px] text-muted-foreground mt-1.5 font-medium">
                       Tap to filter your transactions
                     </p>
+
+                    {/* Quick category filter chips */}
+                    {availableCategories.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border/40">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Quick filters
+                          </span>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2 scrollbar-hide">
+                          <button
+                            onClick={() => {
+                              hapticTap();
+                              setCategoryFilter('all');
+                            }}
+                            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[32px] ${
+                              categoryFilter === 'all'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                            }`}
+                          >
+                            All
+                          </button>
+                          {availableCategories.map((category) => {
+                            const active = categoryFilter === category;
+                            return (
+                              <button
+                                key={category}
+                                onClick={() => {
+                                  hapticTap();
+                                  setCategoryFilter(active ? 'all' : category);
+                                }}
+                                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 min-h-[32px] ${
+                                  active
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                }`}
+                              >
+                                {category}
+                                {active && <X className="h-3 w-3" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -450,6 +506,8 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 ownerPhone={profile?.phone || undefined}
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
+                categoryFilter={categoryFilter}
+                onCategoryChange={setCategoryFilter}
               />
 
               {/* Agent Rent Requests — verify inline */}

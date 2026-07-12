@@ -13,8 +13,6 @@ import {
   RotateCcw,
   ShoppingBag,
   ChevronRight,
-  SlidersHorizontal,
-  X,
   FileDown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,6 +47,8 @@ interface WalletTransactionTimelineProps {
   ownerPhone?: string | null;
   activeTab?: TabValue;
   onTabChange?: (tab: TabValue) => void;
+  categoryFilter?: CategoryFilter;
+  onCategoryChange?: (filter: CategoryFilter) => void;
 }
 
 interface CategoryMeta {
@@ -103,7 +103,7 @@ function getDateLabel(date: Date): string {
   return format(date, 'EEE, MMM d, yyyy');
 }
 
-function getCategoryLabel(tx: TimelineTransaction, currentUserId: string): string {
+export function getCategoryLabel(tx: TimelineTransaction, currentUserId: string): string {
   const isSent = tx.sender_id === currentUserId;
   return deriveCategory(tx.description, isSent).label;
 }
@@ -119,14 +119,18 @@ export function WalletTransactionTimeline({
   ownerPhone,
   activeTab: externalActiveTab,
   onTabChange,
+  categoryFilter: externalCategoryFilter,
+  onCategoryChange,
 }: WalletTransactionTimelineProps) {
   const [internalActiveTab, setInternalActiveTab] = useState<TabValue>('all');
   const activeTab = externalActiveTab ?? internalActiveTab;
   const setActiveTab = onTabChange ?? setInternalActiveTab;
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [internalCategoryFilter, setInternalCategoryFilter] = useState<CategoryFilter>('all');
+  const categoryFilter = externalCategoryFilter ?? internalCategoryFilter;
+  const setCategoryFilter = onCategoryChange ?? setInternalCategoryFilter;
   const [exporting, setExporting] = useState(false);
 
-  const { runningBalances, groupedTransactions, filteredCount, availableCategories, filtered } = useMemo(() => {
+  const { runningBalances, groupedTransactions, filteredCount, filtered } = useMemo(() => {
     // Newest first — matches how people read their wallet activity.
     const sorted = [...transactions].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -154,10 +158,6 @@ export function WalletTransactionTimeline({
       return getCategoryLabel(tx, currentUserId) === categoryFilter;
     });
 
-    const categories = Array.from(
-      new Set(sorted.map((tx) => getCategoryLabel(tx, currentUserId)))
-    ).sort();
-
     const grouped: Record<string, TimelineTransaction[]> = {};
     for (const tx of filtered) {
       const dateKey = format(new Date(tx.created_at), 'yyyy-MM-dd');
@@ -169,7 +169,6 @@ export function WalletTransactionTimeline({
       runningBalances: balances,
       groupedTransactions: grouped,
       filteredCount: filtered.length,
-      availableCategories: categories,
       filtered,
     };
   }, [transactions, currentUserId, currentBalance, activeTab, categoryFilter]);
@@ -279,49 +278,6 @@ export function WalletTransactionTimeline({
         </div>
       </div>
 
-      {availableCategories.length > 0 && (
-        <div className="mb-3">
-          <div className="flex items-center gap-2 mb-2">
-            <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Filter by category</span>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
-            <button
-              onClick={() => {
-                hapticTap();
-                setCategoryFilter('all');
-              }}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                categoryFilter === 'all'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              All
-            </button>
-            {availableCategories.map((category) => {
-              const active = categoryFilter === category;
-              return (
-                <button
-                  key={category}
-                  onClick={() => {
-                    hapticTap();
-                    setCategoryFilter(active ? 'all' : category);
-                  }}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                    active
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {category}
-                  {active && <X className="h-3 w-3" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {filteredCount === 0 ? (
         <Card className="border-border/50">
