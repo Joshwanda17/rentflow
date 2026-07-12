@@ -53,6 +53,7 @@ export default function SmartphoneOrderStatus({
   title = 'Smartphone order status',
 }: Props) {
   const [emailingId, setEmailingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { data: orders = [] } = useQuery<SmartphoneOrder[]>({
     queryKey: ['my-smartphone-orders', userId, itemName],
     enabled: !!userId,
