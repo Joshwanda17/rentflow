@@ -126,7 +126,9 @@ import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
 import { AgentCashDepositCodesPanel } from '@/components/agent/AgentCashDepositCodesPanel';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 
 // Lazy-loaded modals/sheets — code-split so their JS only downloads when opened.
