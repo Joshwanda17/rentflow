@@ -200,6 +200,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Location quick-search (search & choose a specific known area).
   const [locQuery, setLocQuery] = useState('');
   const [locFocused, setLocFocused] = useState(false);
+  // ─── Draft persistence (survives a camera-triggered page reload on mobile) ───
+  // When true, the form was restored from a saved draft, so we show a banner.
+  const [draftRestored, setDraftRestored] = useState(false);
+  // Guards the auto-save effect so it never overwrites the stored draft before
+  // the restore attempt has run for this open.
+  const draftReadyRef = useRef(false);
+  const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Capture a fresh, unique GPS pin for this house from the device.
   // Uses the resilient smart-location helper: high-accuracy first, automatic
