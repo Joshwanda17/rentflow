@@ -27,9 +27,12 @@ export interface SmartphoneOrderReceiptData {
   customerName?: string | null;
   /** Agent phone, when known. */
   customerPhone?: string | null;
+  /** Item label, e.g. 'Welile Smartphone' or 'Welile Spiro Bike'. */
+  itemLabel?: string;
 }
 
 const CURRENCY = 'UGX';
+const DEFAULT_ITEM = 'Welile Smartphone';
 
 function ugx(amount: number): string {
   return `${CURRENCY} ${Math.round(amount).toLocaleString()}`;
@@ -40,10 +43,12 @@ function safeRef(orderId: string): string {
 }
 
 export function smartphoneOrderReceiptFilename(data: SmartphoneOrderReceiptData): string {
-  return `welile_smartphone_${safeRef(data.orderId)}.pdf`;
+  const slug = (data.itemLabel ?? DEFAULT_ITEM).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return `${slug || 'welile_order'}_${safeRef(data.orderId)}.pdf`;
 }
 
 async function renderReceipt(data: SmartphoneOrderReceiptData) {
+  const itemLabel = data.itemLabel ?? DEFAULT_ITEM;
   const { default: JsPDF } = await import('jspdf');
   const doc = new JsPDF({ unit: 'pt', format: 'a4' });
 
@@ -54,13 +59,13 @@ async function renderReceipt(data: SmartphoneOrderReceiptData) {
   // Header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
-  doc.text('Smartphone Order Receipt', marginX, y);
+  doc.text('Order Receipt', marginX, y);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(120);
   y += 18;
-  doc.text('Welile — Welile Smartphone', marginX, y);
+  doc.text(`Welile — ${itemLabel}`, marginX, y);
   doc.setTextColor(0);
 
   // Amount block
@@ -80,7 +85,7 @@ async function renderReceipt(data: SmartphoneOrderReceiptData) {
 
   // Details
   const rows: Array<[string, string]> = [
-    ['Item', 'Welile Smartphone'],
+    ['Item', itemLabel],
     ['Reference', data.orderId],
     ['Order status', STATUS_LABELS[data.status] ?? 'Submitted'],
     ['Amount ordered', ugx(data.amount)],
@@ -111,7 +116,7 @@ async function renderReceipt(data: SmartphoneOrderReceiptData) {
   doc.setFontSize(9);
   doc.setTextColor(140);
   doc.text(
-    'This receipt confirms your Welile Smartphone order. The final phone price is set by marketing; the amount above is recovered from your withdrawable wallet over time.',
+    `This receipt confirms your ${itemLabel} order. The final price is set by marketing; the amount above is recovered from your withdrawable wallet over time.`,
     marginX,
     doc.internal.pageSize.getHeight() - 48,
     { maxWidth: pageWidth - marginX * 2 },
@@ -129,7 +134,7 @@ export async function buildSmartphoneOrderReceiptBlob(data: SmartphoneOrderRecei
 export async function downloadSmartphoneOrderReceipt(data: SmartphoneOrderReceiptData): Promise<void> {
   const doc = await renderReceipt(data);
   savePdfWithVault(doc, smartphoneOrderReceiptFilename(data), {
-    label: `Smartphone Receipt · ${ugx(data.amount)}`,
+    label: `${data.itemLabel ?? DEFAULT_ITEM} Receipt · ${ugx(data.amount)}`,
     category: 'merchandise-receipt',
   });
 }
@@ -149,8 +154,8 @@ export async function shareSmartphoneOrderReceipt(data: SmartphoneOrderReceiptDa
       const file = new File([blob], filename, { type: 'application/pdf' });
       const payload = {
         files: [file],
-        title: 'Smartphone Order Receipt',
-        text: `Welile Smartphone order ${data.orderId} — ${ugx(data.amount)}`,
+        title: 'Order Receipt',
+        text: `${data.itemLabel ?? DEFAULT_ITEM} order ${data.orderId} — ${ugx(data.amount)}`,
       };
       if (nav.canShare(payload)) {
         await nav.share(payload);
