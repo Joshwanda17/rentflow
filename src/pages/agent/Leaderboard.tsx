@@ -265,8 +265,8 @@ export default function AgentLeaderboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-medium text-white/80">Estimated Earnings</p>
-                    <p className="text-lg font-extrabold">{earnings(myRank.invite_count)}</p>
+                    <p className="text-xs font-medium text-white/80">Active Sub-Agents</p>
+                    <p className="text-lg font-extrabold">{myRank.active_count} <span className="text-sm font-semibold text-white/80">({myRank.active_rate}%)</span></p>
                   </div>
                 </div>
               </motion.div>
@@ -278,7 +278,7 @@ export default function AgentLeaderboard() {
                 <div className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   <span>Rank</span>
                   <span>Agent</span>
-                  <span className="text-right">Invites / Earnings</span>
+                  <span className="text-right">Active / Rate</span>
                 </div>
                 {tableRows.map((r, i) => {
                   const isMe = r.agent_id === user?.id;
@@ -301,8 +301,8 @@ export default function AgentLeaderboard() {
                         </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-slate-800">{r.invite_count} Invites</p>
-                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{earnings(r.invite_count)}</p>
+                        <p className="text-sm font-bold text-slate-800">{r.active_count} active</p>
+                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{r.active_rate}% of {r.total_subagents}</p>
                       </div>
                     </motion.div>
                   );
@@ -327,8 +327,8 @@ export default function AgentLeaderboard() {
                         </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-slate-800">{myRank.invite_count} Invites</p>
-                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{earnings(myRank.invite_count)}</p>
+                        <p className="text-sm font-bold text-slate-800">{myRank.active_count} active</p>
+                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{myRank.active_rate}% of {myRank.total_subagents}</p>
                       </div>
                     </div>
                   </>
