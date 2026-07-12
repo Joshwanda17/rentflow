@@ -13,6 +13,7 @@ interface Props {
   order_reference?: string
   ordered_at?: string
   generated_at?: string
+  item_label?: string
 }
 
 const fmt = (a: string | number | undefined | null, c: string) => {
@@ -39,6 +40,7 @@ export function SmartphoneOrderReceipt({
   order_reference = '',
   ordered_at = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
   generated_at = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+  item_label = 'Welile Smartphone',
 }: Props) {
   const amt = fmt(amount, currency)
   const statusLabel = STATUS_LABEL[String(order_status)] ?? 'Submitted'
@@ -46,15 +48,15 @@ export function SmartphoneOrderReceipt({
   return (
     <Html lang="en" dir="ltr">
       <Head />
-      <Preview>Your Welile Smartphone order receipt — {amt}</Preview>
+      <Preview>Your {item_label} order receipt — {amt}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={accentBar} />
           <Section style={{ padding: '32px 32px 8px 32px' }}>
-            <Heading style={h1}>Smartphone order receipt 📱</Heading>
+            <Heading style={h1}>Order receipt 🧾</Heading>
             <Text style={lead}>Hi {recipient_name},</Text>
             <Text style={body}>
-              This confirms your <strong>Welile Smartphone</strong> order. The final phone price is set
+              This confirms your <strong>{item_label}</strong> order. The final price is set
               by marketing; the amount below is recovered from your withdrawable wallet over time.
             </Text>
           </Section>
@@ -64,7 +66,7 @@ export function SmartphoneOrderReceipt({
               <Text style={amountValue}>{amt}</Text>
             </Section>
             <Section style={metaCard}>
-              <Row label="Item" value="Welile Smartphone" />
+              <Row label="Item" value={item_label} />
               {order_reference ? <Row label="Reference" value={order_reference} mono /> : null}
               <Row label="Order status" value={statusLabel} />
               <Row label="Amount ordered" value={amt} />
@@ -100,7 +102,7 @@ export const template = {
   component: SmartphoneOrderReceipt,
   subject: (d: Record<string, any>) => {
     const amt = fmt(d?.amount, d?.currency ?? 'UGX')
-    return `Receipt: your Welile Smartphone order — ${amt}`
+    return `Receipt: your ${d?.item_label ?? 'Welile Smartphone'} order — ${amt}`
   },
   displayName: 'Smartphone order receipt',
   previewData: {
@@ -111,6 +113,7 @@ export const template = {
     order_reference: 'a1b2c3d4',
     ordered_at: '12 July 2026, 14:30',
     generated_at: '12 July 2026, 14:31',
+    item_label: 'Welile Smartphone',
   },
 } satisfies TemplateEntry
 

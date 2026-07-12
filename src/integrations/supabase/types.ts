@@ -21349,6 +21349,7 @@ export type Database = {
         Returns: Json
       }
       agent_order_smartphone: { Args: { p_amount: number }; Returns: Json }
+      agent_order_spiro_bike: { Args: { p_amount: number }; Returns: Json }
       agent_per_tenant_max: { Args: { _agent_id: string }; Returns: number }
       agent_respond_payment_edit: {
         Args: { p_edit_id: string; p_note?: string; p_response: string }

@@ -50,7 +50,7 @@ import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
 import { HandCoins } from 'lucide-react';
 import { ShieldCheck } from 'lucide-react';
 import { Trophy } from 'lucide-react';
-import { ShoppingBag, Smartphone } from 'lucide-react';
+import { ShoppingBag, Smartphone, Bike } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { AppRole } from '@/hooks/useAuth';
@@ -335,6 +335,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [phoneAmount, setPhoneAmount] = useState('');
   const [orderingPhone, setOrderingPhone] = useState(false);
+  const [bikeOpen, setBikeOpen] = useState(false);
+  const [bikeAmount, setBikeAmount] = useState('');
+  const [orderingBike, setOrderingBike] = useState(false);
   const { submittedCount, approvedCount, rejectedCount, isLoading: countsLoading } = useAgentPipelineCounts();
   useEffect(() => {
     const handler = (e: Event) => {
@@ -716,6 +719,36 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
   };
 
+  const bikeAmountNum = Math.max(0, parseInt(bikeAmount || '0', 10) || 0);
+  const orderSpiroBike = async () => {
+    if (bikeAmountNum < 1000) {
+      const { toast } = await import('sonner');
+      toast.error('Enter an amount of at least UGX 1,000');
+      return;
+    }
+    if (bikeAmountNum > realWithdrawableBalance) {
+      const { toast } = await import('sonner');
+      toast.error(
+        `Amount exceeds your available wallet balance of ${formatUGX(realWithdrawableBalance)}. Enter ${formatUGX(realWithdrawableBalance)} or less.`
+      );
+      return;
+    }
+    setOrderingBike(true);
+    const { error } = await (supabase as any).rpc('agent_order_spiro_bike', { p_amount: bikeAmountNum });
+    setOrderingBike(false);
+    if (error) {
+      const { toast } = await import('sonner');
+      toast.error(error.message || 'Could not place Spiro bike order');
+      return;
+    }
+    const { toast } = await import('sonner');
+    toast.success(`Welile Spiro Bike requested. ${formatUGX(bikeAmountNum)} will be recovered from your wallet.`);
+    setBikeOpen(false);
+    setBikeAmount('');
+    queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
+  };
+
   const menuItems = [
     { icon: UserPlus, label: 'Register User', onClick: handleRegisterUser },
     { icon: ShoppingBag, label: 'Buy Merchandise', onClick: () => { hapticTap(); navigate('/merchandise'); } },
@@ -1082,6 +1115,27 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* Smartphone order status */}
             <SmartphoneOrderStatus userId={user.id} />
+
+            {/* Order a Welile Spiro Bike */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                  <Bike className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold leading-tight">Order a Welile Spiro Bike</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Get a Spiro bike on credit. Choose how much can be deducted from your wallet.
+                  </p>
+                </div>
+                <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setBikeAmount(''); setBikeOpen(true); }}>
+                  Order
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Spiro bike order status */}
+            <SmartphoneOrderStatus userId={user.id} itemName="Welile Spiro Bike" title="Spiro bike order status" />
 
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
@@ -2033,6 +2087,58 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <Button variant="outline" onClick={() => setPhoneOpen(false)} disabled={orderingPhone}>Cancel</Button>
             <Button onClick={orderSmartphone} disabled={orderingPhone || phoneAmountNum < 1000 || phoneAmountNum > realWithdrawableBalance}>
               {orderingPhone ? 'Ordering…' : 'Confirm order'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Spiro bike order dialog */}
+      <Dialog open={bikeOpen} onOpenChange={(o) => { if (!o) setBikeOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bike className="h-4 w-4 text-primary" /> Order a Welile Spiro Bike
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Marketing sets the final bike price. Enter the amount you're comfortable having recovered
+              from your wallet toward the Spiro bike.
+            </p>
+            <div className="space-y-1">
+              <Label className="text-xs">Amount to deduct (UGX)</Label>
+              <Input
+                type="number"
+                min={1000}
+                step={1000}
+                inputMode="numeric"
+                placeholder="e.g. 50000"
+                value={bikeAmount}
+                onChange={(e) => setBikeAmount(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Available wallet balance: <span className="font-semibold">{formatUGX(realWithdrawableBalance)}</span>
+              </p>
+            </div>
+            {bikeAmountNum > 0 && (
+              <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
+                <span className="text-muted-foreground">Will be recovered from wallet</span>
+                <span className="font-bold">{formatUGX(bikeAmountNum)}</span>
+              </div>
+            )}
+            {bikeAmountNum > realWithdrawableBalance && (
+              <p className="text-[11px] font-medium text-destructive">
+                Amount exceeds your available wallet balance of {formatUGX(realWithdrawableBalance)}.
+              </p>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              This amount is recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBikeOpen(false)} disabled={orderingBike}>Cancel</Button>
+            <Button onClick={orderSpiroBike} disabled={orderingBike || bikeAmountNum < 1000 || bikeAmountNum > realWithdrawableBalance}>
+              {orderingBike ? 'Ordering…' : 'Confirm order'}
             </Button>
           </DialogFooter>
         </DialogContent>
