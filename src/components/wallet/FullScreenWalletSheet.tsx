@@ -415,18 +415,36 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
+
+                <Tabs
+                  value={transactionTab}
+                  onValueChange={(v) => setTransactionTab(v as 'all' | 'in' | 'out')}
+                  className="mb-3"
+                >
+                  <TabsList variant="pills" className="w-full">
+                    <TabsTrigger value="all" variant="pills">All</TabsTrigger>
+                    <TabsTrigger value="in" variant="pills">Cash In</TabsTrigger>
+                    <TabsTrigger value="out" variant="pills">Cash Out</TabsTrigger>
+                  </TabsList>
+                </Tabs>
                 
-                {transactions.length === 0 ? (
+                {filteredTransactions.length === 0 ? (
                   <Card className="border-border/50">
                     <CardContent className="py-8 text-center text-muted-foreground">
                       <Wallet className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">No transactions yet</p>
+                      <p className="text-sm">
+                        {transactionTab === 'all'
+                          ? 'No transactions yet'
+                          : transactionTab === 'in'
+                            ? 'No cash in yet'
+                            : 'No cash out yet'}
+                      </p>
                     </CardContent>
                   </Card>
                 ) : (
                   <Card className="border-border/50 shadow-sm overflow-hidden">
                     <div className="divide-y divide-border/50">
-                      {transactions.slice(0, 5).map((tx) => {
+                      {filteredTransactions.slice(0, 5).map((tx) => {
                         const isSent = tx.sender_id === user?.id;
                         return (
                           <button 
