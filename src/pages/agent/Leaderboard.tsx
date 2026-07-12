@@ -233,10 +233,10 @@ export default function AgentLeaderboard() {
                             : 'linear-gradient(180deg, #C084FC, #9334EB)',
                         }}
                       >
-                        <span className="text-2xl font-extrabold leading-none drop-shadow">{agent.invite_count}</span>
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-white/80">Invites</span>
+                        <span className="text-2xl font-extrabold leading-none drop-shadow">{agent.active_count}</span>
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-white/80">Active</span>
                         <span className="mt-2 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold">
-                          {earnings(agent.invite_count)}
+                          {agent.active_rate}% of {agent.total_subagents}
                         </span>
                         <span className="mt-auto pb-2 text-lg font-black text-white/90">#{agent.rank}</span>
                       </motion.div>
