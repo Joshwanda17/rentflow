@@ -254,6 +254,53 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                     <p className="text-center text-[10px] text-muted-foreground mt-1.5 font-medium">
                       Tap to filter your transactions
                     </p>
+
+                    {/* Quick category filter chips */}
+                    {availableCategories.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border/40">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Quick filters
+                          </span>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2 scrollbar-hide">
+                          <button
+                            onClick={() => {
+                              hapticTap();
+                              setCategoryFilter('all');
+                            }}
+                            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[32px] ${
+                              categoryFilter === 'all'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                            }`}
+                          >
+                            All
+                          </button>
+                          {availableCategories.map((category) => {
+                            const active = categoryFilter === category;
+                            return (
+                              <button
+                                key={category}
+                                onClick={() => {
+                                  hapticTap();
+                                  setCategoryFilter(active ? 'all' : category);
+                                }}
+                                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 min-h-[32px] ${
+                                  active
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                }`}
+                              >
+                                {category}
+                                {active && <X className="h-3 w-3" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
