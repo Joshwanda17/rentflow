@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { lazyWithRetry as lazy } from '@/lib/lazyWithRetry';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
@@ -16,6 +17,7 @@ import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCar
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   UserPlus,
   Menu,
@@ -48,7 +50,7 @@ import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
 import { HandCoins } from 'lucide-react';
 import { ShieldCheck } from 'lucide-react';
 import { Trophy } from 'lucide-react';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, Smartphone } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -124,7 +126,9 @@ import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
 import { AgentCashDepositCodesPanel } from '@/components/agent/AgentCashDepositCodesPanel';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 
 // Lazy-loaded modals/sheets — code-split so their JS only downloads when opened.
@@ -221,6 +225,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     }
   }
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { profile, loading: profileLoading } = useProfile();
   // Celebratory toast the moment the agent crosses today's 20% eligibility
   // threshold (fires once per Kampala day, on mount or via realtime).
@@ -326,6 +331,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [submissionsHighlightId, setSubmissionsHighlightId] = useState<string | undefined>(undefined);
   const [pipelineTab, setPipelineTab] = useState<PipelineTab>('submitted');
   const [submissionsExpanded, setSubmissionsExpanded] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [phoneAmount, setPhoneAmount] = useState('');
+  const [orderingPhone, setOrderingPhone] = useState(false);
   const { submittedCount, approvedCount, rejectedCount, isLoading: countsLoading } = useAgentPipelineCounts();
   useEffect(() => {
     const handler = (e: Event) => {
@@ -677,6 +685,29 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
   const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
 
+  const phoneAmountNum = Math.max(0, parseInt(phoneAmount || '0', 10) || 0);
+  const orderSmartphone = async () => {
+    if (phoneAmountNum < 1000) {
+      const { toast } = await import('sonner');
+      toast.error('Enter an amount of at least UGX 1,000');
+      return;
+    }
+    setOrderingPhone(true);
+    const { error } = await (supabase as any).rpc('agent_order_smartphone', { p_amount: phoneAmountNum });
+    setOrderingPhone(false);
+    if (error) {
+      const { toast } = await import('sonner');
+      toast.error(error.message || 'Could not place smartphone order');
+      return;
+    }
+    const { toast } = await import('sonner');
+    toast.success(`Welile Smartphone requested. ${formatUGX(phoneAmountNum)} will be recovered from your wallet.`);
+    setPhoneOpen(false);
+    setPhoneAmount('');
+    queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
+  };
+
   const menuItems = [
     { icon: UserPlus, label: 'Register User', onClick: handleRegisterUser },
     { icon: ShoppingBag, label: 'Buy Merchandise', onClick: () => { hapticTap(); navigate('/merchandise'); } },
@@ -1022,6 +1053,24 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </div>
               <span className="text-xs font-medium text-primary shrink-0">Shop →</span>
             </button>
+
+            {/* Order a Welile Smartphone */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                  <Smartphone className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold leading-tight">Order a Welile Smartphone</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Get a company smartphone on credit. Choose how much can be deducted from your wallet.
+                  </p>
+                </div>
+                <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setPhoneAmount(''); setPhoneOpen(true); }}>
+                  Order
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
@@ -1923,6 +1972,50 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               Request an advance
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Smartphone order dialog */}
+      <Dialog open={phoneOpen} onOpenChange={(o) => { if (!o) setPhoneOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="h-4 w-4 text-primary" /> Order a Welile Smartphone
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Marketing sets the final phone price. Enter the amount you're comfortable having recovered
+              from your wallet toward the smartphone.
+            </p>
+            <div className="space-y-1">
+              <Label className="text-xs">Amount to deduct (UGX)</Label>
+              <Input
+                type="number"
+                min={1000}
+                step={1000}
+                inputMode="numeric"
+                placeholder="e.g. 50000"
+                value={phoneAmount}
+                onChange={(e) => setPhoneAmount(e.target.value)}
+              />
+            </div>
+            {phoneAmountNum > 0 && (
+              <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
+                <span className="text-muted-foreground">Will be recovered from wallet</span>
+                <span className="font-bold">{formatUGX(phoneAmountNum)}</span>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              This amount is recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPhoneOpen(false)} disabled={orderingPhone}>Cancel</Button>
+            <Button onClick={orderSmartphone} disabled={orderingPhone || phoneAmountNum < 1000}>
+              {orderingPhone ? 'Ordering…' : 'Confirm order'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
