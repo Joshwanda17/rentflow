@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
+  Send, Plus, HandCoins, 
   Bell, TrendingUp, ArrowDownToLine,
   X, Calendar, ChevronRight,
   ChevronDown, FileDown, CreditCard
