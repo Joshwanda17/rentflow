@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
     const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
     const { data: existingLink } = await adminClient
       .from("agent_subagents")
-      .select("id, parent_agent_id, status, acceptance_token")
+      .select("id, parent_agent_id, status, acceptance_token, expires_at")
       .eq("sub_agent_id", subAgentId)
       .maybeSingle();
 
@@ -127,8 +127,27 @@ Deno.serve(async (req) => {
       if (existingLink.parent_agent_id === user.id && existingLink.status === "verified") {
         return json({ ok: true, alreadyLinked: true, name: targetProfile.full_name });
       }
+      // Guard: a still-valid pending invite from THIS agent cannot be
+      // re-issued. Only an expired (or lapsed) pending invite may be re-sent.
+      if (
+        existingLink.parent_agent_id === user.id &&
+        existingLink.status === "pending_acceptance"
+      ) {
+        const lapsed =
+          !!existingLink.expires_at &&
+          new Date(existingLink.expires_at).getTime() <= Date.now();
+        if (!lapsed) {
+          return json(
+            {
+              error:
+                "You already have a pending invite for this user. You can’t re-invite them until the invite expires.",
+            },
+            409,
+          );
+        }
+      }
       // Re-issue a fresh pending invite (covers re-add after rejection, or a
-      // re-send of an outstanding invite).
+      // re-send of an expired invite).
       const { error: updErr } = await adminClient
         .from("agent_subagents")
         .update({
