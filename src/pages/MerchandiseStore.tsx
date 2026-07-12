@@ -456,6 +456,58 @@ export default function MerchandiseStore() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Spiro bike order dialog */}
+      <Dialog open={bikeOpen} onOpenChange={(o) => { if (!o) setBikeOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bike className="h-4 w-4 text-primary" /> Order a Welile Spiro Bike
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Marketing sets the final bike price. Enter the amount you're comfortable having recovered
+              from your wallet toward the Spiro bike.
+            </p>
+            <div className="space-y-1">
+              <Label className="text-xs">Amount to deduct (UGX)</Label>
+              <Input
+                type="number"
+                min={1000}
+                step={1000}
+                inputMode="numeric"
+                placeholder="e.g. 50000"
+                value={bikeAmount}
+                onChange={(e) => setBikeAmount(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Available wallet balance: <span className="font-semibold">{formatUGX(availableWallet)}</span>
+              </p>
+            </div>
+            {bikeAmountNum > 0 && (
+              <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
+                <span className="text-muted-foreground">Will be recovered from wallet</span>
+                <span className="font-bold">{formatUGX(bikeAmountNum)}</span>
+              </div>
+            )}
+            {bikeAmountNum > availableWallet && (
+              <p className="text-[11px] font-medium text-destructive">
+                Amount exceeds your available wallet balance of {formatUGX(availableWallet)}.
+              </p>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              This amount is recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBikeOpen(false)} disabled={orderingBike}>Cancel</Button>
+            <Button onClick={orderSpiroBike} disabled={orderingBike || bikeAmountNum < 1000 || bikeAmountNum > availableWallet}>
+              {orderingBike ? 'Ordering…' : 'Confirm order'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
