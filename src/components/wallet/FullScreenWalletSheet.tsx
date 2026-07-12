@@ -506,6 +506,8 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 ownerPhone={profile?.phone || undefined}
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
+                categoryFilter={categoryFilter}
+                onCategoryChange={setCategoryFilter}
               />
 
               {/* Agent Rent Requests — verify inline */}
