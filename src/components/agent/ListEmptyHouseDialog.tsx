@@ -25,6 +25,11 @@ import type { LandlordOption } from './LandlordSearchSelect';
 import { reverseGeocode } from '@/lib/reverseGeocode';
 import { GpsQualityIndicator } from '@/components/shared/GpsQualityIndicator';
 import { captureSmartLocation } from '@/hooks/useSmartLocation';
+import {
+  saveHouseListingDraft,
+  loadHouseListingDraft,
+  clearHouseListingDraft,
+} from '@/lib/houseListingDraft';
 
 const APP_URL = 'https://welileapp.com';
 
