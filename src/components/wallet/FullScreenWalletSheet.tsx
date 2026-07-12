@@ -81,6 +81,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [hasProxyPartners, setHasProxyPartners] = useState(false);
+  const [transactionTab, setTransactionTab] = useState<'all' | 'in' | 'out'>('all');
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
