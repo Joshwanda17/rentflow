@@ -36,6 +36,9 @@ export interface TimelineTransaction {
   recipient_phone?: string;
 }
 
+export type TabValue = 'all' | 'in' | 'out';
+type CategoryFilter = 'all' | string;
+
 interface WalletTransactionTimelineProps {
   transactions: TimelineTransaction[];
   currentUserId: string;
@@ -48,9 +51,6 @@ interface WalletTransactionTimelineProps {
   activeTab?: TabValue;
   onTabChange?: (tab: TabValue) => void;
 }
-
-export type TabValue = 'all' | 'in' | 'out';
-type CategoryFilter = 'all' | string;
 
 interface CategoryMeta {
   label: string;
