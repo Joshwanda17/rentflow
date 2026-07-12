@@ -12,7 +12,6 @@ import {
   TrendingUp,
   RotateCcw,
   ShoppingBag,
-  HelpCircle,
   ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
