@@ -11638,6 +11638,7 @@ export type Database = {
           id: string
           item_name: string
           notes: string | null
+          order_status: string
           payment_status: string
           quantity: number
           sale_date: string
@@ -11657,6 +11658,7 @@ export type Database = {
           id?: string
           item_name: string
           notes?: string | null
+          order_status?: string
           payment_status?: string
           quantity: number
           sale_date?: string
@@ -11676,6 +11678,7 @@ export type Database = {
           id?: string
           item_name?: string
           notes?: string | null
+          order_status?: string
           payment_status?: string
           quantity?: number
           sale_date?: string

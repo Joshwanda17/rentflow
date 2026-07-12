@@ -52,6 +52,7 @@ import { ShieldCheck } from 'lucide-react';
 import { Trophy } from 'lucide-react';
 import { ShoppingBag, Smartphone } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -1071,6 +1072,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Smartphone order status */}
+            <SmartphoneOrderStatus userId={user.id} />
 
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (

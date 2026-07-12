@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 
 // Merchandise tables aren't in generated types yet.
 const db = supabase as any;
@@ -211,6 +212,9 @@ export default function MerchandiseStore() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Smartphone order status */}
+        <SmartphoneOrderStatus userId={user?.id} />
 
         {/* Catalog */}
         <div>
