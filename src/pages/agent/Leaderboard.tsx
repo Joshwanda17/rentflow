@@ -17,14 +17,15 @@ import bannerImg from '@/assets/leaderboard-banner.jpg';
 
 type Period = 'weekly' | 'monthly';
 const PER_PAGE = 20;
-const PER_INVITE = 10000;
 
 interface Row {
   agent_id: string;
   rank: number;
   agent_name: string;
   avatar_url: string | null;
-  invite_count: number;
+  active_count: number;
+  total_subagents: number;
+  active_rate: number;
   total_matched: number;
 }
 
@@ -33,7 +34,9 @@ interface MyRank {
   rank: number;
   agent_name: string;
   avatar_url: string | null;
-  invite_count: number;
+  active_count: number;
+  total_subagents: number;
+  active_rate: number;
   total_ranked: number;
 }
 
@@ -85,8 +88,6 @@ export default function AgentLeaderboard() {
     hapticTap();
     setPeriod(p);
   };
-
-  const earnings = (n: number) => formatUGX(n * PER_INVITE);
 
   const podiumOrder = useMemo(() => {
     // [#2, #1, #3] for left/center/right
