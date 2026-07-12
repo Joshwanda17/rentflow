@@ -1411,7 +1411,17 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   return (
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) closeAll(); else onOpenChange(v); }}>
-      <DialogContent className={`w-[calc(100vw-1rem)] sm:max-w-md overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl p-4 sm:p-6 ${successListing ? 'max-h-[92vh]' : 'h-[92vh] h-[92dvh] max-h-[92vh] max-h-[92dvh]'}`}>
+      <DialogContent
+        stable
+        // Keep the wizard open when the OS file picker / camera steals focus, or
+        // when the agent taps outside / interacts with a nested picker. The only
+        // ways to close are the X button and the explicit Cancel/Done actions,
+        // so a half-filled form is never lost by an accidental tap.
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => { if (!successListing) e.preventDefault(); }}
+        className={`w-[calc(100vw-1rem)] sm:max-w-md overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl p-4 sm:p-6 ${successListing ? 'max-h-[92vh]' : 'h-[92vh] h-[92dvh] max-h-[92vh] max-h-[92dvh]'}`}
+      >
         {listingBlock?.blocked ? (
           (() => {
             const until = listingBlock.blocked_until ? new Date(listingBlock.blocked_until).getTime() : 0;
