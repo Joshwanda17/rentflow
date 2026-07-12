@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getDynamicCurrencyName } from '@/lib/currencyFormat';
