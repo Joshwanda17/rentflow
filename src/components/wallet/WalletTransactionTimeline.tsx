@@ -121,7 +121,7 @@ export function WalletTransactionTimeline({
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [exporting, setExporting] = useState(false);
 
-  const { runningBalances, groupedTransactions, filteredCount, availableCategories } = useMemo(() => {
+  const { runningBalances, groupedTransactions, filteredCount, availableCategories, filtered } = useMemo(() => {
     // Newest first — matches how people read their wallet activity.
     const sorted = [...transactions].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -165,8 +165,62 @@ export function WalletTransactionTimeline({
       groupedTransactions: grouped,
       filteredCount: filtered.length,
       availableCategories: categories,
+      filtered,
     };
   }, [transactions, currentUserId, currentBalance, activeTab, categoryFilter]);
+
+  const handleExportPdf = async () => {
+    if (exporting || filteredCount === 0) return;
+    setExporting(true);
+    try {
+      const totalIn = filtered
+        .filter((tx) => tx.sender_id !== currentUserId)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      const totalOut = filtered
+        .filter((tx) => tx.sender_id === currentUserId)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+      const entries = filtered.map((tx) => {
+        const isSent = tx.sender_id === currentUserId;
+        const category = deriveCategory(tx.description, isSent);
+        const counterparty = isSent ? tx.recipient_name : tx.sender_name;
+        return {
+          transaction_date: tx.created_at,
+          label: category.label,
+          description: counterparty
+            ? `${isSent ? 'To' : 'From'} ${counterparty}${tx.description ? ` — ${tx.description}` : ''}`
+            : (tx.description || undefined),
+          direction: (isSent ? 'cash_out' : 'cash_in') as 'cash_in' | 'cash_out',
+          amount: tx.amount,
+        };
+      });
+
+      const blob = await generateWalletStatementPdf({
+        bucketTitle: 'Wallet Activity',
+        bucketSubtitle: `${filteredCount} transaction${filteredCount === 1 ? '' : 's'} — ${activeTab === 'all' ? 'All' : activeTab === 'in' ? 'Cash In' : 'Cash Out'}${categoryFilter !== 'all' ? ` · ${categoryFilter}` : ''}`,
+        ownerName,
+        ownerPhone,
+        balance: currentBalance,
+        totalIn,
+        totalOut,
+        entries,
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStamp = new Date().toISOString().split('T')[0];
+      a.download = `Welile_Wallet_${dateStamp}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to export wallet PDF:', e);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const dateEntries = useMemo(
     () =>
