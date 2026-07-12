@@ -57,6 +57,8 @@ interface Sale {
   created_at: string;
 }
 
+type OrderStatus = 'submitted' | 'processing' | 'completed' | 'failed';
+
 interface RecoveryPlan {
   id: string;
   customer_id: string;
