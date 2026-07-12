@@ -13,8 +13,6 @@ import {
   RotateCcw,
   ShoppingBag,
   ChevronRight,
-  SlidersHorizontal,
-  X,
   FileDown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
