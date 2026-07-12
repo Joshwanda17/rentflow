@@ -140,6 +140,12 @@ export default function MerchandiseStore() {
       toast.error('Enter an amount of at least UGX 1,000');
       return;
     }
+    if (phoneAmountNum > availableWallet) {
+      toast.error(
+        `Amount exceeds your available wallet balance of ${formatUGX(availableWallet)}. Enter ${formatUGX(availableWallet)} or less.`
+      );
+      return;
+    }
     setOrderingPhone(true);
     const { error } = await db.rpc('agent_order_smartphone', { p_amount: phoneAmountNum });
     setOrderingPhone(false);
