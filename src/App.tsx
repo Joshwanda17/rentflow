@@ -487,6 +487,8 @@ function AppRoutes() {
           <Route path="/agent/partners" element={<AgentPartners />} />
           <Route path="/join" element={<Join />} />
           <Route path="/sub-agent-invite" element={<SubAgentInvite />} />
+          {/* Short alias used by emailed invite links, resend + gate resume */}
+          <Route path="/n" element={<SubAgentInvite />} />
           <Route path="/record-rent" element={<RecordRent />} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminUsersPage /></RoleGuard>} />
