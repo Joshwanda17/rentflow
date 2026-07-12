@@ -17,6 +17,7 @@ import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCar
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   UserPlus,
   Menu,
