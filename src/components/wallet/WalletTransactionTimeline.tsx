@@ -121,11 +121,15 @@ export function WalletTransactionTimeline({
   ownerPhone,
   activeTab: externalActiveTab,
   onTabChange,
+  categoryFilter: externalCategoryFilter,
+  onCategoryChange,
 }: WalletTransactionTimelineProps) {
   const [internalActiveTab, setInternalActiveTab] = useState<TabValue>('all');
   const activeTab = externalActiveTab ?? internalActiveTab;
   const setActiveTab = onTabChange ?? setInternalActiveTab;
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [internalCategoryFilter, setInternalCategoryFilter] = useState<CategoryFilter>('all');
+  const categoryFilter = externalCategoryFilter ?? internalCategoryFilter;
+  const setCategoryFilter = onCategoryChange ?? setInternalCategoryFilter;
   const [exporting, setExporting] = useState(false);
 
   const { runningBalances, groupedTransactions, filteredCount, availableCategories, filtered } = useMemo(() => {
