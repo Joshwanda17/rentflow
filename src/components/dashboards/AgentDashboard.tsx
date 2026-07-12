@@ -1054,6 +1054,24 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <span className="text-xs font-medium text-primary shrink-0">Shop →</span>
             </button>
 
+            {/* Order a Welile Smartphone */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                  <Smartphone className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold leading-tight">Order a Welile Smartphone</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Get a company smartphone on credit. Choose how much can be deducted from your wallet.
+                  </p>
+                </div>
+                <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setPhoneAmount(''); setPhoneOpen(true); }}>
+                  Order
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
               <button
