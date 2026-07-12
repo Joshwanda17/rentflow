@@ -2,9 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Smartphone, Clock, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Smartphone, Clock, Loader2, CheckCircle2, XCircle, Download } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import {
+  downloadSmartphoneOrderReceipt,
+  shareSmartphoneOrderReceipt,
+} from '@/lib/smartphoneOrderReceiptPdf';
 
 const db = supabase as any;
 
@@ -16,6 +22,8 @@ interface SmartphoneOrder {
   amount_outstanding: number;
   order_status: OrderStatus;
   created_at: string;
+  client_name: string | null;
+  client_phone: string | null;
 }
 
 const STATUS_META: Record<OrderStatus, { label: string; icon: typeof Clock; className: string }> = {
@@ -40,7 +48,7 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
     queryFn: async () => {
       const { data, error } = await db
         .from('merchandise_sales')
-        .select('id, unit_price, amount_outstanding, order_status, created_at')
+        .select('id, unit_price, amount_outstanding, order_status, created_at, client_name, client_phone')
         .eq('customer_id', userId)
         .eq('item_name', 'Welile Smartphone')
         .order('created_at', { ascending: false });
@@ -50,6 +58,30 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
   });
 
   if (!userId || orders.length === 0) return null;
+
+  const getReceipt = (o: SmartphoneOrder) => ({
+    orderId: o.id,
+    amount: Number(o.unit_price),
+    outstanding: Number(o.amount_outstanding),
+    status: normalizeStatus(o.order_status),
+    orderedAt: new Date(o.created_at),
+    customerName: o.client_name,
+    customerPhone: o.client_phone,
+  });
+
+  const handleReceipt = async (o: SmartphoneOrder) => {
+    try {
+      const data = getReceipt(o);
+      const shared = await shareSmartphoneOrderReceipt(data);
+      if (!shared) {
+        await downloadSmartphoneOrderReceipt(data);
+        toast.success('Receipt downloaded');
+      }
+    } catch (e: any) {
+      console.error('[SmartphoneOrderStatus] receipt error', e);
+      toast.error('Could not generate receipt');
+    }
+  };
 
   return (
     <Card className="border-border">
@@ -66,21 +98,31 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
             return (
               <div
                 key={o.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-2"
+                className="rounded-xl border border-border bg-card px-3 py-2 space-y-2"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">{formatUGX(Number(o.unit_price))}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Ordered {format(new Date(o.created_at), 'd MMM yyyy')}
-                    {Number(o.amount_outstanding) > 0
-                      ? ` · ${formatUGX(Number(o.amount_outstanding))} to recover`
-                      : ' · fully recovered'}
-                  </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{formatUGX(Number(o.unit_price))}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Ordered {format(new Date(o.created_at), 'd MMM yyyy, HH:mm')}
+                      {Number(o.amount_outstanding) > 0
+                        ? ` · ${formatUGX(Number(o.amount_outstanding))} to recover`
+                        : ' · fully recovered'}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={`gap-1 shrink-0 ${meta.className}`}>
+                    <Icon className={`h-3 w-3 ${status === 'processing' ? 'animate-spin' : ''}`} />
+                    {meta.label}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className={`gap-1 shrink-0 ${meta.className}`}>
-                  <Icon className={`h-3 w-3 ${status === 'processing' ? 'animate-spin' : ''}`} />
-                  {meta.label}
-                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-full gap-1.5 text-xs"
+                  onClick={() => handleReceipt(o)}
+                >
+                  <Download className="h-3.5 w-3.5" /> Download receipt
+                </Button>
               </div>
             );
           })}
