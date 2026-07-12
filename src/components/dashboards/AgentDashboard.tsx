@@ -693,6 +693,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       toast.error('Enter an amount of at least UGX 1,000');
       return;
     }
+    if (phoneAmountNum > realWithdrawableBalance) {
+      const { toast } = await import('sonner');
+      toast.error(
+        `Amount exceeds your available wallet balance of ${formatUGX(realWithdrawableBalance)}. Enter ${formatUGX(realWithdrawableBalance)} or less.`
+      );
+      return;
+    }
     setOrderingPhone(true);
     const { error } = await (supabase as any).rpc('agent_order_smartphone', { p_amount: phoneAmountNum });
     setOrderingPhone(false);
