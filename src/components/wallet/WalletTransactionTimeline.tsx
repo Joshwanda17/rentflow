@@ -49,6 +49,8 @@ interface WalletTransactionTimelineProps {
   ownerPhone?: string | null;
   activeTab?: TabValue;
   onTabChange?: (tab: TabValue) => void;
+  categoryFilter?: CategoryFilter;
+  onCategoryChange?: (filter: CategoryFilter) => void;
 }
 
 interface CategoryMeta {
