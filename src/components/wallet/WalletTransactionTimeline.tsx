@@ -170,11 +170,13 @@ export function WalletTransactionTimeline({
   );
 
   const emptyMessage =
-    activeTab === 'all'
-      ? 'No transactions yet'
-      : activeTab === 'in'
-        ? 'No cash in yet'
-        : 'No cash out yet';
+    categoryFilter !== 'all'
+      ? `No ${categoryFilter.toLowerCase()} transactions`
+      : activeTab === 'all'
+        ? 'No transactions yet'
+        : activeTab === 'in'
+          ? 'No cash in yet'
+          : 'No cash out yet';
 
   return (
     <div>
