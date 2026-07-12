@@ -68,6 +68,9 @@ export function LandlordWalletHeroCard({
                 Withdrawable: {formatAmountCompact(walletBalance)}
               </span>
             </div>
+            <p className="mt-2 text-[10px] text-primary-foreground/40 font-medium">
+              Tap to see how your money moves in and out
+            </p>
           </button>
 
           {/* Divider */}
