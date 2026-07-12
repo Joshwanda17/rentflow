@@ -31,6 +31,15 @@ function fmtDateTime(iso: string) {
   });
 }
 
+function formatFilterSummary(
+  activeTab: 'all' | 'in' | 'out' = 'all',
+  categoryFilter: 'all' | string = 'all',
+): string {
+  const direction = activeTab === 'in' ? 'Cash In' : activeTab === 'out' ? 'Cash Out' : 'All directions';
+  const category = categoryFilter && categoryFilter !== 'all' ? categoryFilter : 'All categories';
+  return `Filters: ${direction} · ${category}`;
+}
+
 async function loadLogo(): Promise<string | null> {
   try {
     const res = await fetch(welileLogo);
