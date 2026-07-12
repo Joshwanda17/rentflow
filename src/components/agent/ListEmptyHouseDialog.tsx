@@ -1302,6 +1302,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         dailyRate: pricing.dailyRate,
       });
       setAttempted(false);
+      // The listing is committed — the saved draft is no longer needed.
+      clearHouseListingDraft();
+      setDraftRestored(false);
     } catch (err: any) {
       console.error('[ListEmptyHouseDialog] submit failed:', err);
       const raw = String(err?.message || '');
