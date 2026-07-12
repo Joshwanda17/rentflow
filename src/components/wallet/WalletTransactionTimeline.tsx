@@ -45,9 +45,11 @@ interface WalletTransactionTimelineProps {
   onViewAll?: () => void;
   ownerName?: string;
   ownerPhone?: string | null;
+  activeTab?: TabValue;
+  onTabChange?: (tab: TabValue) => void;
 }
 
-type TabValue = 'all' | 'in' | 'out';
+export type TabValue = 'all' | 'in' | 'out';
 type CategoryFilter = 'all' | string;
 
 interface CategoryMeta {
