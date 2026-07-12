@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { Smartphone, Clock, Loader2, CheckCircle2, XCircle, Download, Mail } from 'lucide-react';
+import { Smartphone, Clock, Loader2, CheckCircle2, XCircle, Download, Mail, Copy } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -53,6 +53,7 @@ export default function SmartphoneOrderStatus({
   title = 'Smartphone order status',
 }: Props) {
   const [emailingId, setEmailingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { data: orders = [] } = useQuery<SmartphoneOrder[]>({
     queryKey: ['my-smartphone-orders', userId, itemName],
     enabled: !!userId,
@@ -153,6 +154,18 @@ export default function SmartphoneOrderStatus({
     }
   };
 
+  const handleCopyTracking = async (o: SmartphoneOrder) => {
+    if (!o.tracking_reference) return;
+    try {
+      await navigator.clipboard.writeText(o.tracking_reference);
+      setCopiedId(o.id);
+      toast.success('Tracking reference copied');
+      setTimeout(() => setCopiedId((current) => (current === o.id ? null : current)), 2000);
+    } catch {
+      toast.error('Could not copy tracking reference');
+    }
+  };
+
   return (
     <Card className="border-border">
       <CardContent className="p-4 space-y-3">
@@ -210,6 +223,24 @@ export default function SmartphoneOrderStatus({
                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       : <Mail className="h-3.5 w-3.5" />} Email
                   </Button>
+                  {o.tracking_reference && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 flex-1 gap-1.5 text-xs"
+                      onClick={() => handleCopyTracking(o)}
+                    >
+                      {copiedId === o.id ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" /> Copy tracking
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             );
