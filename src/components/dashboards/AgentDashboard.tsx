@@ -2010,6 +2010,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 value={phoneAmount}
                 onChange={(e) => setPhoneAmount(e.target.value)}
               />
+              <p className="text-[11px] text-muted-foreground">
+                Available wallet balance: <span className="font-semibold">{formatUGX(realWithdrawableBalance)}</span>
+              </p>
             </div>
             {phoneAmountNum > 0 && (
               <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
@@ -2017,13 +2020,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <span className="font-bold">{formatUGX(phoneAmountNum)}</span>
               </div>
             )}
+            {phoneAmountNum > realWithdrawableBalance && (
+              <p className="text-[11px] font-medium text-destructive">
+                Amount exceeds your available wallet balance of {formatUGX(realWithdrawableBalance)}.
+              </p>
+            )}
             <p className="text-[11px] text-muted-foreground">
               This amount is recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPhoneOpen(false)} disabled={orderingPhone}>Cancel</Button>
-            <Button onClick={orderSmartphone} disabled={orderingPhone || phoneAmountNum < 1000}>
+            <Button onClick={orderSmartphone} disabled={orderingPhone || phoneAmountNum < 1000 || phoneAmountNum > realWithdrawableBalance}>
               {orderingPhone ? 'Ordering…' : 'Confirm order'}
             </Button>
           </DialogFooter>
