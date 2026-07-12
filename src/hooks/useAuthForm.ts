@@ -260,6 +260,23 @@ export function useAuthForm() {
     } catch { /* non-critical */ }
   };
 
+  const markRecentPasswordReset = (rawPhone: string) => {
+    const last9 = rawPhone.replace(/\D/g, '').slice(-9);
+    if (!last9) return;
+    try { localStorage.setItem(`welile_recent_password_reset_${last9}`, String(Date.now())); } catch { /* non-critical */ }
+  };
+
+  const wasRecentlyReset = (rawPhone: string) => {
+    const last9 = rawPhone.replace(/\D/g, '').slice(-9);
+    if (!last9) return false;
+    try {
+      const at = Number(localStorage.getItem(`welile_recent_password_reset_${last9}`) || 0);
+      return at > 0 && Date.now() - at < 15 * 60 * 1000;
+    } catch {
+      return false;
+    }
+  };
+
   const handleForgotPasswordSubmit = async () => {
     if (resetStep === 'phone') {
       // Check if it looks like an email (real email user) or phone
@@ -350,6 +367,7 @@ export function useAuthForm() {
         } else {
           const last9 = cleanedPhone.slice(-9);
           clearPhoneLoginCache(cleanedPhone);
+          markRecentPasswordReset(cleanedPhone);
           setPhone(last9 ? `0${last9}` : resetPhone);
           setCountryCode('256');
           setPassword('');
@@ -755,24 +773,20 @@ export function useAuthForm() {
       return [];
     })();
 
-    // Give the backend phone→auth-email resolver a short head start. Real-email
-    // accounts should try their true auth email before placeholder fallbacks;
-    // otherwise a freshly reset password can still show as "incorrect" after
-    // burning several invalid placeholder attempts first.
-    const earlyRpcEmails = await Promise.race<string[] | null>([
-      rpcLookup,
-      sleep(900).then(() => null),
-    ]);
-    const earlyEmailCandidates = earlyRpcEmails?.length
+    const recentReset = wasRecentlyReset(phone);
+    const earlyRpcEmails = recentReset
+      ? await Promise.race<string[] | null>([
+        rpcLookup,
+        sleep(3000).then(() => null),
+      ])
+      : null;
+    const phase1Candidates = earlyRpcEmails?.length
       ? [...new Set([
         ...earlyRpcEmails.filter((e) => !e.includes('@welile.')),
         ...earlyRpcEmails.filter((e) => e.includes('@welile.')),
-      ])]
-      : [];
-    if (earlyEmailCandidates.length) accountExists = true;
-    const phase1Candidates = earlyEmailCandidates.length
-      ? earlyEmailCandidates.slice(0, 4)
+      ])].slice(0, 4)
       : placeholderCandidates;
+    if (earlyRpcEmails?.length) accountExists = true;
 
     const tryOne = async (emailToTry: string): Promise<{ ok: boolean; email: string; error: Error | null }> => {
       const tStart = performance.now();
