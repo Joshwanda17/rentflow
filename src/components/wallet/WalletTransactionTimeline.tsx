@@ -20,7 +20,6 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { hapticTap } from '@/lib/haptics';
 import { generateWalletStatementPdf } from '@/lib/walletStatementPdf';
 
@@ -36,6 +35,9 @@ export interface TimelineTransaction {
   recipient_phone?: string;
 }
 
+export type TabValue = 'all' | 'in' | 'out';
+type CategoryFilter = 'all' | string;
+
 interface WalletTransactionTimelineProps {
   transactions: TimelineTransaction[];
   currentUserId: string;
@@ -45,10 +47,9 @@ interface WalletTransactionTimelineProps {
   onViewAll?: () => void;
   ownerName?: string;
   ownerPhone?: string | null;
+  activeTab?: TabValue;
+  onTabChange?: (tab: TabValue) => void;
 }
-
-type TabValue = 'all' | 'in' | 'out';
-type CategoryFilter = 'all' | string;
 
 interface CategoryMeta {
   label: string;
@@ -116,8 +117,12 @@ export function WalletTransactionTimeline({
   onViewAll,
   ownerName = 'Welile User',
   ownerPhone,
+  activeTab: externalActiveTab,
+  onTabChange,
 }: WalletTransactionTimelineProps) {
-  const [activeTab, setActiveTab] = useState<TabValue>('all');
+  const [internalActiveTab, setInternalActiveTab] = useState<TabValue>('all');
+  const activeTab = externalActiveTab ?? internalActiveTab;
+  const setActiveTab = onTabChange ?? setInternalActiveTab;
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [exporting, setExporting] = useState(false);
 
@@ -273,24 +278,6 @@ export function WalletTransactionTimeline({
           )}
         </div>
       </div>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as TabValue)}
-        className="mb-3"
-      >
-        <TabsList variant="pills" className="w-full">
-          <TabsTrigger value="all" variant="pills">
-            All
-          </TabsTrigger>
-          <TabsTrigger value="in" variant="pills">
-            Cash In
-          </TabsTrigger>
-          <TabsTrigger value="out" variant="pills">
-            Cash Out
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
 
       {availableCategories.length > 0 && (
         <div className="mb-3">
