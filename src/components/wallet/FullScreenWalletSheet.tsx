@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
+  Send, Plus, HandCoins, 
   Bell, TrendingUp, ArrowDownToLine,
   X, Calendar, ChevronRight,
   ChevronDown, FileDown, CreditCard
@@ -37,6 +37,7 @@ import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingC
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { WalletTransactionTimeline } from './WalletTransactionTimeline';
 import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
@@ -81,7 +82,6 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [hasProxyPartners, setHasProxyPartners] = useState(false);
-  const [transactionTab, setTransactionTab] = useState<'all' | 'in' | 'out'>('all');
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
@@ -148,12 +148,6 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const currentMonth = format(new Date(), 'MMMM yyyy');
   const spentGoal = 500000; // Example goal
   const spentPercent = spentGoal > 0 ? Math.min((recentStats.sent / spentGoal) * 100, 100) : 0;
-
-  const filteredTransactions = transactions.filter((tx) => {
-    if (transactionTab === 'in') return tx.sender_id !== user?.id;
-    if (transactionTab === 'out') return tx.sender_id === user?.id;
-    return true;
-  });
 
   return (
     <>
@@ -398,96 +392,20 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               </div>
 
               {/* Recent Transactions */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-bold text-foreground">Recent Transactions</h3>
-                  <Button 
-                    variant="link" 
-                    size="sm" 
-                    onClick={() => {
-                      hapticTap();
-                      onOpenChange(false);
-                      navigate('/transactions');
-                    }}
-                    className="gap-1 h-auto p-0 text-xs text-primary font-semibold"
-                  >
-                    View All
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-
-                <Tabs
-                  value={transactionTab}
-                  onValueChange={(v) => setTransactionTab(v as 'all' | 'in' | 'out')}
-                  className="mb-3"
-                >
-                  <TabsList variant="pills" className="w-full">
-                    <TabsTrigger value="all" variant="pills">All</TabsTrigger>
-                    <TabsTrigger value="in" variant="pills">Cash In</TabsTrigger>
-                    <TabsTrigger value="out" variant="pills">Cash Out</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                
-                {filteredTransactions.length === 0 ? (
-                  <Card className="border-border/50">
-                    <CardContent className="py-8 text-center text-muted-foreground">
-                      <Wallet className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">
-                        {transactionTab === 'all'
-                          ? 'No transactions yet'
-                          : transactionTab === 'in'
-                            ? 'No cash in yet'
-                            : 'No cash out yet'}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card className="border-border/50 shadow-sm overflow-hidden">
-                    <div className="divide-y divide-border/50">
-                      {filteredTransactions.slice(0, 5).map((tx) => {
-                        const isSent = tx.sender_id === user?.id;
-                        return (
-                          <button 
-                            key={tx.id} 
-                            onClick={() => {
-                              hapticTap();
-                              setSelectedTransaction(tx);
-                              setReceiptOpen(true);
-                            }}
-                            className="flex items-center justify-between p-4 w-full hover:bg-muted/30 active:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${isSent ? 'bg-destructive/10' : 'bg-success/10'}`}>
-                                {isSent ? (
-                                  <ArrowUpRight className="h-4 w-4 text-destructive" />
-                                ) : (
-                                  <ArrowDownLeft className="h-4 w-4 text-success" />
-                                )}
-                              </div>
-                              <div className="text-left">
-                                <p className="text-sm font-semibold text-foreground">
-                                  {isSent ? tx.recipient_name : tx.sender_name}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground">
-                                  {format(new Date(tx.created_at), 'MMM d, yyyy • h:mm a')}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className={`text-sm font-bold tabular-nums ${isSent ? 'text-destructive' : 'text-success'}`}>
-                                {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
-                              </p>
-                              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-medium">
-                                {isSent ? 'Sent' : 'Received'}
-                              </Badge>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </Card>
-                )}
-              </div>
+              <WalletTransactionTimeline
+                transactions={transactions}
+                currentUserId={user?.id || ''}
+                currentBalance={displayBalance}
+                formatCurrency={formatCurrency}
+                onSelectTransaction={(tx) => {
+                  setSelectedTransaction(tx);
+                  setReceiptOpen(true);
+                }}
+                onViewAll={() => {
+                  onOpenChange(false);
+                  navigate('/transactions');
+                }}
+              />
 
               {/* Agent Rent Requests — verify inline */}
               <AgentRentRequestsWalletSection />
