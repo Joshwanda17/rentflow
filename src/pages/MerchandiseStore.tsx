@@ -61,6 +61,8 @@ export default function MerchandiseStore() {
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [phoneAmount, setPhoneAmount] = useState('');
   const [orderingPhone, setOrderingPhone] = useState(false);
+  const { withdrawableBalance } = useAgentBalances(user?.id);
+  const availableWallet = Math.max(0, withdrawableBalance);
 
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogItem[]>({
     queryKey: ['merchandise-catalog'],
