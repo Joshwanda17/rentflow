@@ -40,19 +40,27 @@ function normalizeStatus(value: unknown): OrderStatus {
 
 interface Props {
   userId?: string;
+  /** merchandise_sales.item_name to filter on. Defaults to 'Welile Smartphone'. */
+  itemName?: string;
+  /** Panel heading. Defaults to 'Smartphone order status'. */
+  title?: string;
 }
 
-export default function SmartphoneOrderStatus({ userId }: Props) {
+export default function SmartphoneOrderStatus({
+  userId,
+  itemName = 'Welile Smartphone',
+  title = 'Smartphone order status',
+}: Props) {
   const [emailingId, setEmailingId] = useState<string | null>(null);
   const { data: orders = [] } = useQuery<SmartphoneOrder[]>({
-    queryKey: ['my-smartphone-orders', userId],
+    queryKey: ['my-smartphone-orders', userId, itemName],
     enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await db
         .from('merchandise_sales')
         .select('id, unit_price, amount_outstanding, order_status, created_at, client_name, client_phone')
         .eq('customer_id', userId)
-        .eq('item_name', 'Welile Smartphone')
+        .eq('item_name', itemName)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -86,6 +94,7 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
     orderedAt: new Date(o.created_at),
     customerName: o.client_name,
     customerPhone: o.client_phone,
+    itemLabel: itemName,
   });
 
   const handleReceipt = async (o: SmartphoneOrder) => {
@@ -127,6 +136,7 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
             order_reference: o.id,
             ordered_at: fmtDate(new Date(o.created_at)),
             generated_at: fmtDate(new Date()),
+            item_label: itemName,
           },
         },
       });
@@ -145,7 +155,7 @@ export default function SmartphoneOrderStatus({ userId }: Props) {
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Smartphone className="h-4 w-4 text-primary" />
-          <p className="text-sm font-bold">Smartphone order status</p>
+          <p className="text-sm font-bold">{title}</p>
         </div>
         <div className="space-y-2">
           {orders.map((o) => {
