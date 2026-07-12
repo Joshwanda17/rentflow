@@ -118,8 +118,12 @@ export function WalletTransactionTimeline({
   onViewAll,
   ownerName = 'Welile User',
   ownerPhone,
+  activeTab: externalActiveTab,
+  onTabChange,
 }: WalletTransactionTimelineProps) {
-  const [activeTab, setActiveTab] = useState<TabValue>('all');
+  const [internalActiveTab, setInternalActiveTab] = useState<TabValue>('all');
+  const activeTab = externalActiveTab ?? internalActiveTab;
+  const setActiveTab = onTabChange ?? setInternalActiveTab;
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [exporting, setExporting] = useState(false);
 
