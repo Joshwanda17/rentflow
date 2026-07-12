@@ -1561,6 +1561,29 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         )}
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* Draft restored notice — shown when we recovered a previous session */}
+          {draftRestored && !successListing && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+              <RotateCcwIcon className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-blue-700 leading-tight">
+                  We restored your earlier progress
+                </p>
+                <p className="text-xs text-blue-600/80 leading-snug mt-0.5">
+                  Please re-add your photos — they can't be saved between sessions.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 shrink-0 text-blue-700 hover:text-blue-800"
+                onClick={() => { resetForm(); }}
+              >
+                Start fresh
+              </Button>
+            </div>
+          )}
           {/* Progress stepper — big, visual, minimal reading */}
           <div className="flex items-stretch gap-1.5">
             {STEP_LABELS.map((label, i) => {
