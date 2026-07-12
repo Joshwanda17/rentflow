@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
 import {
   ArrowDownLeft,
@@ -130,6 +130,11 @@ export function WalletTransactionTimeline({
   const setCategoryFilter = onCategoryChange ?? setInternalCategoryFilter;
   const [exporting, setExporting] = useState(false);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const txRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [visibleBalance, setVisibleBalance] = useState<number | null>(null);
+  const [visibleTxId, setVisibleTxId] = useState<string | null>(null);
+
   const { runningBalances, groupedTransactions, filteredCount, filtered } = useMemo(() => {
     // Newest first — matches how people read their wallet activity.
     const sorted = [...transactions].sort(
@@ -172,6 +177,76 @@ export function WalletTransactionTimeline({
       filtered,
     };
   }, [transactions, currentUserId, currentBalance, activeTab, categoryFilter]);
+
+  const findScrollableParent = useCallback((el: HTMLElement | null): HTMLElement | null => {
+    let node = el?.parentElement;
+    while (node && node !== document.body) {
+      const style = window.getComputedStyle(node);
+      const overflowY = style.overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }, []);
+
+  const updateVisibleBalance = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || filteredCount === 0) {
+      setVisibleBalance(null);
+      setVisibleTxId(null);
+      return;
+    }
+
+    const scrollable = findScrollableParent(container);
+    const viewportTop = scrollable ? scrollable.getBoundingClientRect().top : 0;
+    const stickyOffset = 80; // room for sticky header + safe margin
+
+    let bestId: string | null = null;
+    let bestScore = Infinity;
+
+    for (const tx of filtered) {
+      const el = txRefs.current.get(tx.id);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const top = rect.top - viewportTop;
+      // Score: how close the item's top is to just below the sticky header.
+      // Prefer the first item whose top is at or below the offset; otherwise
+      // the last item still partially visible.
+      const score = top >= stickyOffset ? top - stickyOffset : stickyOffset - top + 1000;
+      if (score < bestScore) {
+        bestScore = score;
+        bestId = tx.id;
+      }
+    }
+
+    if (bestId) {
+      setVisibleBalance(runningBalances.get(bestId) ?? null);
+      setVisibleTxId(bestId);
+    } else {
+      // If nothing is below the offset yet, anchor to the first transaction.
+      const first = filtered[0];
+      setVisibleBalance(runningBalances.get(first.id) ?? null);
+      setVisibleTxId(first.id);
+    }
+  }, [filtered, filteredCount, runningBalances, findScrollableParent]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const scrollable = findScrollableParent(container);
+    const target = scrollable ?? window;
+
+    updateVisibleBalance();
+    target.addEventListener('scroll', updateVisibleBalance, { passive: true });
+    window.addEventListener('resize', updateVisibleBalance, { passive: true });
+
+    return () => {
+      target.removeEventListener('scroll', updateVisibleBalance);
+      window.removeEventListener('resize', updateVisibleBalance);
+    };
+  }, [updateVisibleBalance, findScrollableParent]);
 
   const handleExportPdf = async () => {
     if (exporting || filteredCount === 0) return;
@@ -244,7 +319,7 @@ export function WalletTransactionTimeline({
           : 'No cash out yet';
 
   return (
-    <div>
+    <div ref={containerRef}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-bold text-foreground">Recent Transactions</h3>
         <div className="flex items-center gap-1">
@@ -288,6 +363,33 @@ export function WalletTransactionTimeline({
         </Card>
       ) : (
         <Card className="border-border/50 shadow-sm overflow-hidden">
+          {/* Sticky running balance line */}
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/50 px-4 py-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Running balance
+              </span>
+              <span
+                className="text-sm font-black tabular-nums text-foreground"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {visibleBalance !== null ? formatCurrency(visibleBalance) : formatCurrency(currentBalance)}
+              </span>
+            </div>
+            <div className="mt-1 h-0.5 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-150 ease-out"
+                style={{
+                  width:
+                    visibleTxId && filteredCount > 1
+                      ? `${((filtered.findIndex((t) => t.id === visibleTxId) / (filteredCount - 1)) * 100).toFixed(1)}%`
+                      : '0%',
+                }}
+              />
+            </div>
+          </div>
+
           <div className="divide-y divide-border/50">
             {dateEntries.map(([dateKey, dayTransactions], dayIndex) => {
               const date = new Date(dateKey);
@@ -331,6 +433,13 @@ export function WalletTransactionTimeline({
                       return (
                         <button
                           key={tx.id}
+                          ref={(el) => {
+                            if (el) {
+                              txRefs.current.set(tx.id, el);
+                            } else {
+                              txRefs.current.delete(tx.id);
+                            }
+                          }}
                           onClick={() => {
                             hapticTap();
                             onSelectTransaction(tx);
