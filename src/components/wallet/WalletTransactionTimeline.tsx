@@ -114,6 +114,8 @@ export function WalletTransactionTimeline({
   formatCurrency,
   onSelectTransaction,
   onViewAll,
+  ownerName = 'Welile User',
+  ownerPhone,
 }: WalletTransactionTimelineProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
