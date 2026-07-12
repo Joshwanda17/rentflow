@@ -132,7 +132,7 @@ export default function AgentLeaderboard() {
               Agent Leaderboard
             </h1>
             <p className="mt-2 max-w-md text-sm text-white/85 sm:text-base">
-              Invite more sub-agents, climb the rankings, and grow your earnings.
+              Keep your sub-agents active — listing houses, submitting rent requests, and allocating rent — to climb the rankings.
             </p>
             <div className="mt-5 flex flex-nowrap gap-2.5">
               <Button
