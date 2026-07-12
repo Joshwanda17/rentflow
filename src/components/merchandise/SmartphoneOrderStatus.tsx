@@ -223,6 +223,24 @@ export default function SmartphoneOrderStatus({
                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       : <Mail className="h-3.5 w-3.5" />} Email
                   </Button>
+                  {o.tracking_reference && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 flex-1 gap-1.5 text-xs"
+                      onClick={() => handleCopyTracking(o)}
+                    >
+                      {copiedId === o.id ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" /> Copy tracking
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             );
