@@ -171,7 +171,7 @@ export function useAuthForm() {
 
   const saveLocationInBackground = () => {
     getLocationData().then(async (locationData) => {
-      if (locationData.country || locationData.city) {
+      if (locationData?.country || locationData?.city) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase
