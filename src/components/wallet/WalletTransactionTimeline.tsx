@@ -15,12 +15,14 @@ import {
   ChevronRight,
   SlidersHorizontal,
   X,
+  FileDown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { hapticTap } from '@/lib/haptics';
+import { generateWalletStatementPdf } from '@/lib/walletStatementPdf';
 
 export interface TimelineTransaction {
   id: string;
