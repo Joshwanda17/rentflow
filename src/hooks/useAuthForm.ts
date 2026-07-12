@@ -251,6 +251,15 @@ export function useAuthForm() {
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
 
+  const clearPhoneLoginCache = (rawPhone: string) => {
+    const last9 = rawPhone.replace(/\D/g, '').slice(-9);
+    if (!last9) return;
+    try {
+      localStorage.removeItem(`welile_phone_email_cache_v2_${last9}`);
+      localStorage.removeItem(`welile_phone_email_cache_${last9}`);
+    } catch { /* non-critical */ }
+  };
+
   const handleForgotPasswordSubmit = async () => {
     if (resetStep === 'phone') {
       // Check if it looks like an email (real email user) or phone
@@ -339,13 +348,22 @@ export function useAuthForm() {
           }
           toast({ title: 'Reset Failed', description: data.error || 'Failed to reset password', variant: 'destructive' });
         } else {
-          toast({ title: 'Password Reset!', description: 'You can now sign in with your new password' });
+          const last9 = cleanedPhone.slice(-9);
+          clearPhoneLoginCache(cleanedPhone);
+          setPhone(last9 ? `0${last9}` : resetPhone);
+          setCountryCode('256');
+          setPassword('');
+          setShowPassword(false);
+          setLoginError(null);
+          setFailedAttempts(0);
+          toast({ title: 'Password Reset!', description: 'Enter your new password below to sign in.' });
           setIsForgotPassword(false);
           setResetStep('phone');
           setResetPhone('');
           setResetOtpCode('');
           setResetNewPassword('');
           setResetConfirmPassword('');
+          setTimeout(() => passwordInputRef.current?.focus(), 150);
         }
       } catch {
         toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
@@ -686,6 +704,25 @@ export function useAuthForm() {
       `256${last9}@welile.user`,
       `${last9}@welile.user`,
     ];
+
+    // Give the backend phone→auth-email resolver a short head start. Real-email
+    // accounts should try their true auth email before placeholder fallbacks;
+    // otherwise a freshly reset password can still show as "incorrect" after
+    // burning several invalid placeholder attempts first.
+    const earlyRpcEmails = await Promise.race<string[] | null>([
+      rpcLookup,
+      sleep(900).then(() => null),
+    ]);
+    const earlyEmailCandidates = earlyRpcEmails?.length
+      ? [...new Set([
+        ...earlyRpcEmails.filter((e) => !e.includes('@welile.')),
+        ...earlyRpcEmails.filter((e) => e.includes('@welile.')),
+      ])]
+      : [];
+    if (earlyEmailCandidates.length) accountExists = true;
+    const phase1Candidates = earlyEmailCandidates.length
+      ? earlyEmailCandidates.slice(0, 4)
+      : placeholderCandidates;
 
     const rpcLookup = (async (): Promise<string[]> => {
       const rpcStart = performance.now();
