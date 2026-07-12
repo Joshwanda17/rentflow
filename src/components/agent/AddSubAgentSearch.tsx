@@ -77,7 +77,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
     queryFn: async (): Promise<Record<string, ExistingLink>> => {
       const { data, error } = await supabase
         .from('agent_subagents')
-        .select('sub_agent_id, parent_agent_id, status')
+        .select('sub_agent_id, parent_agent_id, status, expires_at')
         .in('sub_agent_id', resultIds)
         .not('status', 'in', '("rejected","cancelled")');
       if (error) throw error;
@@ -100,6 +100,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
             parent_agent_id: r.parent_agent_id,
             parent_name: names[r.parent_agent_id] ?? null,
             status: r.status,
+            expires_at: r.expires_at,
           };
         }
       }
