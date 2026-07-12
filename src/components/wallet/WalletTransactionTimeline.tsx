@@ -43,6 +43,8 @@ interface WalletTransactionTimelineProps {
   formatCurrency: (amount: number) => string;
   onSelectTransaction: (tx: TimelineTransaction) => void;
   onViewAll?: () => void;
+  ownerName?: string;
+  ownerPhone?: string | null;
 }
 
 type TabValue = 'all' | 'in' | 'out';
