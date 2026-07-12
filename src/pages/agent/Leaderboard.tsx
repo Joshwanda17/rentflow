@@ -7,7 +7,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { UserAvatar } from '@/components/UserAvatar';
-import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import {
   ArrowLeft, UserPlus, Users, Crown, Medal, Award, Trophy,
@@ -348,10 +347,10 @@ export default function AgentLeaderboard() {
           </div>
           <ul className="space-y-2 text-sm text-slate-600">
             {[
-              'Rankings are based only on successful sub-agent registrations.',
-              'A registered sub-agent must list at least 3 houses before you earn their registration reward.',
-              "Continue earning a 2% lifetime override on your sub-agents' rent commissions.",
-              'Earn UGX 3,000 whenever your referred sub-agent verifies a House Listing, Landlord, or LC1 Chairperson.',
+              'Rankings are based on how many of your sub-agents are ACTIVE this period.',
+              'A sub-agent is active when they list at least one empty house, submit a rent request, or allocate a rent amount during the period.',
+              'Agents are ranked first by number of active sub-agents, then by their activation rate (percent active).',
+              "You still earn a 2% lifetime override on your sub-agents' rent commissions.",
               'Weekly rankings reset every Monday.',
               'Monthly rankings reset on the first day of every month.',
             ].map((t) => (
