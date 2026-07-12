@@ -112,8 +112,9 @@ export function WalletTransactionTimeline({
   onViewAll,
 }: WalletTransactionTimelineProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
-  const { runningBalances, groupedTransactions, filteredCount } = useMemo(() => {
+  const { runningBalances, groupedTransactions, filteredCount, availableCategories } = useMemo(() => {
     // Newest first — matches how people read their wallet activity.
     const sorted = [...transactions].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -132,10 +133,18 @@ export function WalletTransactionTimeline({
     }
 
     const filtered = sorted.filter((tx) => {
-      if (activeTab === 'in') return tx.sender_id !== currentUserId;
-      if (activeTab === 'out') return tx.sender_id === currentUserId;
+      const isSent = tx.sender_id === currentUserId;
+      if (activeTab === 'in') return !isSent;
+      if (activeTab === 'out') return isSent;
       return true;
+    }).filter((tx) => {
+      if (categoryFilter === 'all') return true;
+      return getCategoryLabel(tx, currentUserId) === categoryFilter;
     });
+
+    const categories = Array.from(
+      new Set(sorted.map((tx) => getCategoryLabel(tx, currentUserId)))
+    ).sort();
 
     const grouped: Record<string, TimelineTransaction[]> = {};
     for (const tx of filtered) {
@@ -148,8 +157,9 @@ export function WalletTransactionTimeline({
       runningBalances: balances,
       groupedTransactions: grouped,
       filteredCount: filtered.length,
+      availableCategories: categories,
     };
-  }, [transactions, currentUserId, currentBalance, activeTab]);
+  }, [transactions, currentUserId, currentBalance, activeTab, categoryFilter]);
 
   const dateEntries = useMemo(
     () =>
