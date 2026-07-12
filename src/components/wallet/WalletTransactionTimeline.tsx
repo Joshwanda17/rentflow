@@ -429,6 +429,13 @@ export function WalletTransactionTimeline({
                       return (
                         <button
                           key={tx.id}
+                          ref={(el) => {
+                            if (el) {
+                              txRefs.current.set(tx.id, el);
+                            } else {
+                              txRefs.current.delete(tx.id);
+                            }
+                          }}
                           onClick={() => {
                             hapticTap();
                             onSelectTransaction(tx);
