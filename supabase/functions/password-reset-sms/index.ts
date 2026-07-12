@@ -709,6 +709,10 @@ Deno.serve(async (req) => {
       for (const uid of userIds) {
         const { error: updateError } = await adminClient.auth.admin.updateUserById(uid, {
           password: newPassword,
+          // SMS reset proves phone ownership. Confirm the auth email too so
+          // real-email accounts that never clicked email verification are not
+          // left unable to sign in after a successful password reset.
+          email_confirm: true,
         });
         if (!updateError) {
           anySuccess = true;
