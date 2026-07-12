@@ -7,7 +7,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { UserAvatar } from '@/components/UserAvatar';
-import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import {
   ArrowLeft, UserPlus, Users, Crown, Medal, Award, Trophy,
@@ -17,14 +16,15 @@ import bannerImg from '@/assets/leaderboard-banner.jpg';
 
 type Period = 'weekly' | 'monthly';
 const PER_PAGE = 20;
-const PER_INVITE = 10000;
 
 interface Row {
   agent_id: string;
   rank: number;
   agent_name: string;
   avatar_url: string | null;
-  invite_count: number;
+  active_count: number;
+  total_subagents: number;
+  active_rate: number;
   total_matched: number;
 }
 
@@ -33,7 +33,9 @@ interface MyRank {
   rank: number;
   agent_name: string;
   avatar_url: string | null;
-  invite_count: number;
+  active_count: number;
+  total_subagents: number;
+  active_rate: number;
   total_ranked: number;
 }
 
@@ -86,8 +88,6 @@ export default function AgentLeaderboard() {
     setPeriod(p);
   };
 
-  const earnings = (n: number) => formatUGX(n * PER_INVITE);
-
   const podiumOrder = useMemo(() => {
     // [#2, #1, #3] for left/center/right
     const byRank = (r: number) => top3.find((t) => t.rank === r) ?? null;
@@ -132,7 +132,7 @@ export default function AgentLeaderboard() {
               Agent Leaderboard
             </h1>
             <p className="mt-2 max-w-md text-sm text-white/85 sm:text-base">
-              Invite more sub-agents, climb the rankings, and grow your earnings.
+              Keep your sub-agents active — listing houses, submitting rent requests, and allocating rent — to climb the rankings.
             </p>
             <div className="mt-5 flex flex-nowrap gap-2.5">
               <Button
@@ -232,10 +232,10 @@ export default function AgentLeaderboard() {
                             : 'linear-gradient(180deg, #C084FC, #9334EB)',
                         }}
                       >
-                        <span className="text-2xl font-extrabold leading-none drop-shadow">{agent.invite_count}</span>
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-white/80">Invites</span>
+                        <span className="text-2xl font-extrabold leading-none drop-shadow">{agent.active_count}</span>
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-white/80">Active</span>
                         <span className="mt-2 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold">
-                          {earnings(agent.invite_count)}
+                          {agent.active_rate}% of {agent.total_subagents}
                         </span>
                         <span className="mt-auto pb-2 text-lg font-black text-white/90">#{agent.rank}</span>
                       </motion.div>
@@ -264,8 +264,8 @@ export default function AgentLeaderboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-medium text-white/80">Estimated Earnings</p>
-                    <p className="text-lg font-extrabold">{earnings(myRank.invite_count)}</p>
+                    <p className="text-xs font-medium text-white/80">Active Sub-Agents</p>
+                    <p className="text-lg font-extrabold">{myRank.active_count} <span className="text-sm font-semibold text-white/80">({myRank.active_rate}%)</span></p>
                   </div>
                 </div>
               </motion.div>
@@ -277,7 +277,7 @@ export default function AgentLeaderboard() {
                 <div className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   <span>Rank</span>
                   <span>Agent</span>
-                  <span className="text-right">Invites / Earnings</span>
+                  <span className="text-right">Active / Rate</span>
                 </div>
                 {tableRows.map((r, i) => {
                   const isMe = r.agent_id === user?.id;
@@ -300,8 +300,8 @@ export default function AgentLeaderboard() {
                         </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-slate-800">{r.invite_count} Invites</p>
-                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{earnings(r.invite_count)}</p>
+                        <p className="text-sm font-bold text-slate-800">{r.active_count} active</p>
+                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{r.active_rate}% of {r.total_subagents}</p>
                       </div>
                     </motion.div>
                   );
@@ -326,8 +326,8 @@ export default function AgentLeaderboard() {
                         </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-slate-800">{myRank.invite_count} Invites</p>
-                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{earnings(myRank.invite_count)}</p>
+                        <p className="text-sm font-bold text-slate-800">{myRank.active_count} active</p>
+                        <p className="text-xs font-medium" style={{ color: '#6D28D9' }}>{myRank.active_rate}% of {myRank.total_subagents}</p>
                       </div>
                     </div>
                   </>
@@ -347,10 +347,10 @@ export default function AgentLeaderboard() {
           </div>
           <ul className="space-y-2 text-sm text-slate-600">
             {[
-              'Rankings are based only on successful sub-agent registrations.',
-              'A registered sub-agent must list at least 3 houses before you earn their registration reward.',
-              "Continue earning a 2% lifetime override on your sub-agents' rent commissions.",
-              'Earn UGX 3,000 whenever your referred sub-agent verifies a House Listing, Landlord, or LC1 Chairperson.',
+              'Rankings are based on how many of your sub-agents are ACTIVE this period.',
+              'A sub-agent is active when they list at least one empty house, submit a rent request, or allocate a rent amount during the period.',
+              'Agents are ranked first by number of active sub-agents, then by their activation rate (percent active).',
+              "You still earn a 2% lifetime override on your sub-agents' rent commissions.",
               'Weekly rankings reset every Monday.',
               'Monthly rankings reset on the first day of every month.',
             ].map((t) => (

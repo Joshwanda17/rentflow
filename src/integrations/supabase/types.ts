@@ -23009,12 +23009,15 @@ export type Database = {
       get_my_subagent_rank: {
         Args: { p_period?: string }
         Returns: {
+          active_count: number
+          active_rate: number
           agent_id: string
           agent_name: string
           avatar_url: string
           invite_count: number
           rank: number
           total_ranked: number
+          total_subagents: number
         }[]
       }
       get_my_subagent_tenant_profiles: {
@@ -23218,12 +23221,15 @@ export type Database = {
       get_subagent_leaderboard: {
         Args: { p_limit?: number; p_offset?: number; p_period?: string }
         Returns: {
+          active_count: number
+          active_rate: number
           agent_id: string
           agent_name: string
           avatar_url: string
           invite_count: number
           rank: number
           total_matched: number
+          total_subagents: number
         }[]
       }
       get_subagent_recruiter_splits: {
