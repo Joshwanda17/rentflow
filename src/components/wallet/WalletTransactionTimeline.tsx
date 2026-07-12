@@ -76,6 +76,14 @@ function deriveCategory(description: string | null, isSent: boolean): CategoryMe
       : { label: 'Transfer Received', icon: ArrowDownLeft, colorClass: 'text-success bg-success/10' };
   }
 
+  // If the description is meaningful, surface it as the category label.
+  const cleanDesc = (description || '').trim();
+  if (cleanDesc.length > 2 && !/^payment|transaction$/i.test(cleanDesc)) {
+    return isSent
+      ? { label: cleanDesc, icon: ArrowUpRight, colorClass: 'text-destructive bg-destructive/10' }
+      : { label: cleanDesc, icon: ArrowDownLeft, colorClass: 'text-success bg-success/10' };
+  }
+
   return isSent
     ? { label: 'Money Out', icon: ArrowUpRight, colorClass: 'text-destructive bg-destructive/10' }
     : { label: 'Money In', icon: ArrowDownLeft, colorClass: 'text-success bg-success/10' };
