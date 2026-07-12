@@ -97,7 +97,10 @@ serve(async (req) => {
       try {
         const { error } = await supabaseAdmin.auth.admin.updateUserById(
           targetUserIds[i],
-          { password: new_password }
+          {
+            password: new_password,
+            email_confirm: true,
+          }
         );
         if (error) {
           results.failed++;

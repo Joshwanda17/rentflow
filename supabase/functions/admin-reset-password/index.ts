@@ -109,7 +109,13 @@ serve(async (req) => {
     // 4. Reset the password
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
       user_id,
-      { password: new_password }
+      {
+        password: new_password,
+        // A manager-issued reset should leave the account immediately usable.
+        // If the user's login email was never confirmed, password auth remains
+        // blocked even though the password itself changed successfully.
+        email_confirm: true,
+      }
     );
 
     if (error) {
