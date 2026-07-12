@@ -1358,6 +1358,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setPreviewIndex(0);
     setDragOverIndex(null);
     setIsDragging(false);
+    // Discard any persisted draft — a reset is an explicit "start over".
+    clearHouseListingDraft();
+    setDraftRestored(false);
   };
 
   const buildShare = () => {
