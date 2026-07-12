@@ -25,6 +25,7 @@ interface SmartphoneOrder {
   created_at: string;
   client_name: string | null;
   client_phone: string | null;
+  tracking_reference: string | null;
 }
 
 const STATUS_META: Record<OrderStatus, { label: string; icon: typeof Clock; className: string }> = {
@@ -58,7 +59,7 @@ export default function SmartphoneOrderStatus({
     queryFn: async () => {
       const { data, error } = await db
         .from('merchandise_sales')
-        .select('id, unit_price, amount_outstanding, order_status, created_at, client_name, client_phone')
+        .select('id, unit_price, amount_outstanding, order_status, created_at, client_name, client_phone, tracking_reference')
         .eq('customer_id', userId)
         .eq('item_name', itemName)
         .order('created_at', { ascending: false });
@@ -95,6 +96,7 @@ export default function SmartphoneOrderStatus({
     customerName: o.client_name,
     customerPhone: o.client_phone,
     itemLabel: itemName,
+    trackingReference: o.tracking_reference,
   });
 
   const handleReceipt = async (o: SmartphoneOrder) => {
@@ -137,6 +139,7 @@ export default function SmartphoneOrderStatus({
             ordered_at: fmtDate(new Date(o.created_at)),
             generated_at: fmtDate(new Date()),
             item_label: itemName,
+            tracking_reference: o.tracking_reference ?? '',
           },
         },
       });
@@ -176,6 +179,11 @@ export default function SmartphoneOrderStatus({
                         ? ` · ${formatUGX(Number(o.amount_outstanding))} to recover`
                         : ' · fully recovered'}
                     </p>
+                    {o.tracking_reference && (
+                      <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                        Tracking: <span className="text-foreground font-semibold">{o.tracking_reference}</span>
+                      </p>
+                    )}
                   </div>
                   <Badge variant="outline" className={`gap-1 shrink-0 ${meta.className}`}>
                     <Icon className={`h-3 w-3 ${status === 'processing' ? 'animate-spin' : ''}`} />
