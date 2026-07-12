@@ -315,7 +315,7 @@ export function WalletTransactionTimeline({
           : 'No cash out yet';
 
   return (
-    <div>
+    <div ref={containerRef}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-bold text-foreground">Recent Transactions</h3>
         <div className="flex items-center gap-1">
