@@ -287,6 +287,13 @@ export function MerchandiseManager() {
     refresh();
   };
 
+  const updateOrderStatus = async (id: string, status: OrderStatus) => {
+    const { error } = await db.from('merchandise_sales').update({ order_status: status }).eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Order status updated');
+    queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header + actions */}
