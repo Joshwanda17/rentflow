@@ -1,11 +1,12 @@
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
 // To update, re-run the email domain setup flow.
-const SITE_NAME = "Welile"
+const SITE_NAME = "welilereceipts-com"
 // SENDER_DOMAIN is the verified sender subdomain FQDN (e.g., "notify.example.com").
 // It MUST match the subdomain delegated to Lovable's nameservers — never the root domain.
 // The email API looks up this exact domain; a mismatch causes "No email domain record found".
@@ -14,12 +15,6 @@ const SENDER_DOMAIN = "notify.welile.com"
 // When display_from_root is enabled, this can be the root domain for cleaner branding,
 // even though actual sending uses the subdomain above.
 const FROM_DOMAIN = "welile.com"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-}
 
 // Generate a cryptographically random 32-byte hex token
 function generateToken(): string {
@@ -306,10 +301,6 @@ Deno.serve(async (req) => {
     template_name: templateName,
     recipient_email: effectiveRecipient,
     status: 'pending',
-    metadata: {
-      subject: resolvedSubject,
-      template_data: templateData,
-    },
   })
 
   const { error: enqueueError } = await supabase.rpc('enqueue_email', {
@@ -317,16 +308,7 @@ Deno.serve(async (req) => {
     payload: {
       message_id: messageId,
       to: effectiveRecipient,
-      from: (
-        templateName.startsWith('partnership-') ||
-        templateName.startsWith('partner-') ||
-        templateName === 'tenant-partnership-agreement' ||
-        templateName === 'portfolio-renewal' ||
-        templateName === 'returns-disbursement-confirmation' ||
-        templateName === 'angel-pool-share-purchase'
-      )
-        ? `Welile Partnerships <partnership@${FROM_DOMAIN}>`
-        : `Welile <info@${FROM_DOMAIN}>`,
+      from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
       subject: resolvedSubject,
       html,

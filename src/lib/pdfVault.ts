@@ -28,6 +28,7 @@ export type PdfCategory =
   | 'trust-profile'
   | 'audit'
   | 'withdrawal-receipt'
+  | 'merchandise-receipt'
   | 'delete-snapshot'
   | 'other';
 
