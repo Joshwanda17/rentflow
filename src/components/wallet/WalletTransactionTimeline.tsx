@@ -130,7 +130,7 @@ export function WalletTransactionTimeline({
   const setCategoryFilter = onCategoryChange ?? setInternalCategoryFilter;
   const [exporting, setExporting] = useState(false);
 
-  const { runningBalances, groupedTransactions, filteredCount, availableCategories, filtered } = useMemo(() => {
+  const { runningBalances, groupedTransactions, filteredCount, filtered } = useMemo(() => {
     // Newest first — matches how people read their wallet activity.
     const sorted = [...transactions].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -158,10 +158,6 @@ export function WalletTransactionTimeline({
       return getCategoryLabel(tx, currentUserId) === categoryFilter;
     });
 
-    const categories = Array.from(
-      new Set(sorted.map((tx) => getCategoryLabel(tx, currentUserId)))
-    ).sort();
-
     const grouped: Record<string, TimelineTransaction[]> = {};
     for (const tx of filtered) {
       const dateKey = format(new Date(tx.created_at), 'yyyy-MM-dd');
@@ -173,7 +169,6 @@ export function WalletTransactionTimeline({
       runningBalances: balances,
       groupedTransactions: grouped,
       filteredCount: filtered.length,
-      availableCategories: categories,
       filtered,
     };
   }, [transactions, currentUserId, currentBalance, activeTab, categoryFilter]);
