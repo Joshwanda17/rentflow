@@ -154,6 +154,18 @@ export default function SmartphoneOrderStatus({
     }
   };
 
+  const handleCopyTracking = async (o: SmartphoneOrder) => {
+    if (!o.tracking_reference) return;
+    try {
+      await navigator.clipboard.writeText(o.tracking_reference);
+      setCopiedId(o.id);
+      toast.success('Tracking reference copied');
+      setTimeout(() => setCopiedId((current) => (current === o.id ? null : current)), 2000);
+    } catch {
+      toast.error('Could not copy tracking reference');
+    }
+  };
+
   return (
     <Card className="border-border">
       <CardContent className="p-4 space-y-3">
