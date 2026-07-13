@@ -295,8 +295,26 @@ export default function CFODashboardPage() {
       case 'advances':
         return (
           <div className="space-y-6">
+            <div>
+              <h1 className="text-xl font-bold">💵 Advance Requests</h1>
+              <p className="text-sm text-muted-foreground">
+                Review, edit and approve agent &amp; business advance requests, then disburse in one step.
+                Track what&apos;s been disbursed under <strong>Disbursed &amp; Repayments</strong>.
+              </p>
+            </div>
             <BusinessAdvanceQueue stage="cfo" />
-            <CFOAdvanceRequestPayments />
+            <CFOAdvanceRequestPayments onViewDisbursed={() => setActiveTab('advances-disbursed')} />
+          </div>
+        );
+      case 'advances-disbursed':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-xl font-bold">📋 Disbursed &amp; Repayments</h1>
+              <p className="text-sm text-muted-foreground">
+                Every disbursed advance and its repayment progress. Use this to track outstanding balances and recoveries.
+              </p>
+            </div>
             <div id="cfo-disbursed-advances" className="scroll-mt-24">
               <DisbursedAdvancesRegister />
             </div>
