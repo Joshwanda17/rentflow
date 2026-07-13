@@ -170,6 +170,13 @@ Deno.serve(async (req) => {
             outstanding_after_interest: balanceAfterInterest,
           },
         }).then(() => {}, () => {});
+        // Notify the agent that today's installment could not be collected and
+        // will be recovered automatically from their next earnings.
+        await notifyAgent(
+          advance.agent_id,
+          `WELILE: Today's advance repayment could not be collected (low wallet balance). Outstanding ${fmtUGX(closingBalance)}. It will be auto-recovered from your next earnings. Top up to avoid arrears.`,
+          'advance_deduction_missed',
+        );
       } else {
         // Deduct from wallet via balanced RPC with EXPLICIT Wallet Routing v2 tags.
         // wallet leg → recipient_type='user' forces withdrawable bucket;
@@ -223,6 +230,12 @@ Deno.serve(async (req) => {
             event_type: 'repayment_successful',
             payload: { ...repaymentMeta, user_id: advance.agent_id, amount: amountDeducted },
           }).then(() => {}, () => {});
+          // Notify the agent where the money went (also visible in transactions).
+          await notifyAgent(
+            advance.agent_id,
+            `WELILE: ${fmtUGX(amountDeducted)} was deducted from your wallet today towards your advance. Remaining balance ${fmtUGX(closingBalance)}. See your transactions for details.`,
+            'advance_deduction_success',
+          );
         }
       }
 
