@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
+
+const fmtUGX = (n: number) => `UGX ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
