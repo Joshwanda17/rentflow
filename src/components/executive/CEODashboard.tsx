@@ -170,9 +170,6 @@ export function CEODashboard() {
       {/* Mission scoreboard — Trust Coverage */}
       <TrustCoverageSection />
 
-      {/* Agent Ops daily report (live mirror of the 18:00 EAT email) */}
-      <AgentOpsDailyReportCard />
-
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total Users" value={fmt(profiles || 0)} icon={Users} loading={loading} />
