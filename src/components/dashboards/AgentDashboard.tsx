@@ -1015,49 +1015,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </button>
             )}
 
-            {/* 0) Agent Advance — TOP priority on Home so every agent sees the cash
-                they can access instantly (hidden for payout-only Merchant Agents). */}
-            {!isMerchant && (
-            <div className="relative w-full overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-5 text-card-foreground shadow-lg ring-1 ring-primary/20">
-              <div className="relative">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-full bg-primary/15 p-1.5 text-primary">
-                    <Briefcase className="h-4 w-4" strokeWidth={2.2} />
-                  </div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Agent Advance</span>
-                </div>
-                <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">You can access now</p>
-                <p className="mt-1 text-3xl font-black leading-none text-primary whitespace-pre-line">
-                  {formatCreditAmount(advanceLimit?.totalLimit || 30000)}
-                </p>
-                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
-                  <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  Grow up to UGX 30,000,000 as you perform better
-                </div>
-                <p className="mt-2 text-[13px] font-medium text-foreground leading-snug">
-                  Cash straight to your wallet · repay over up to 12 months. Clear it early to unlock a bigger advance.
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { hapticTap(); setAdvanceRequestOpen(true); }}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm active:scale-[0.97] transition-transform touch-manipulation"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    Request advance <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { hapticTap(); setAdvanceGuideOpen(true); }}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3.5 py-1.5 text-xs font-bold text-primary active:scale-[0.97] transition-transform touch-manipulation"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    <Sparkles className="h-3.5 w-3.5" /> How to increase my limit
-                  </button>
-                </div>
-              </div>
-            </div>
-            )}
 
             {/* 1) Priorities first — Wallet · Collect Rent · Add Tenant · List House */}
             <AgentPriorityGrid
