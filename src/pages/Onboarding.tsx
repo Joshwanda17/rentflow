@@ -11,6 +11,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth as useRealAuth } from '@/hooks/useAuth';
 import { buildPartnerReference } from '@/lib/partnerReference';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { numberToWords } from '@/lib/numberToWords';
 import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
 import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
