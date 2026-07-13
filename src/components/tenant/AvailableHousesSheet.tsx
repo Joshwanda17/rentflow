@@ -587,7 +587,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                           ? `in ${selectedRegion}`
                           : undefined
                 }
-                suffix={hasGPS ? 'sorted by distance' : undefined}
+                suffix="newest first"
               />
               {showPaginationDebug && (
                 <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/40 px-3 py-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
