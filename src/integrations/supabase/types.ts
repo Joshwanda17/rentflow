@@ -23270,6 +23270,51 @@ export type Database = {
       }
       get_platform_cash_breakdown: { Args: never; Returns: Json }
       get_platform_cash_summary: { Args: never; Returns: Json }
+      get_platform_user_counts: {
+        Args: never
+        Returns: {
+          agent_count: number
+          inactive_users: number
+          landlord_count: number
+          manager_count: number
+          supporter_count: number
+          tenant_count: number
+          total_users: number
+          verified_users: number
+        }[]
+      }
+      get_platform_users_page: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _role_filter?: string
+          _search?: string
+          _sort?: string
+          _stat_filter?: string
+          _verification_filter?: string
+        }
+        Returns: {
+          avatar_url: string
+          average_rating: number
+          city: string
+          country: string
+          country_code: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          last_active_at: string
+          monthly_rent: number
+          phone: string
+          rating_count: number
+          rent_discount_active: boolean
+          role_enabled_status: Json
+          roles: string[]
+          subagent_count: number
+          total_matched: number
+          verified: boolean
+        }[]
+      }
       get_property_clusters: {
         Args: {
           max_lat: number
@@ -23670,6 +23715,7 @@ export type Database = {
       is_landlord_ops: { Args: { _user_id: string }; Returns: boolean }
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
+      is_platform_user_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_proxy_agent_for_partner: {
         Args: { _agent: string; _partner: string }
         Returns: boolean
