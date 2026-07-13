@@ -1,4 +1,3 @@
-import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const MAX_RETRIES = 5
@@ -32,6 +31,73 @@ function getRetryAfterSeconds(error: unknown): number {
     return (error as { retryAfterSeconds: number | null }).retryAfterSeconds ?? 60
   }
   return 60
+}
+
+// ---------------------------------------------------------------------------
+// Mailgun transport (US region).
+// All queued email (auth + transactional) is delivered through Mailgun's
+// HTTP API using the verified sending domain. Errors are thrown with a
+// `.status` property so the existing 429/403 handling below still applies.
+// ---------------------------------------------------------------------------
+interface MailgunConfig {
+  apiKey: string
+  domain: string
+  baseUrl: string
+}
+
+class MailgunError extends Error {
+  status: number
+  retryAfterSeconds: number | null
+  constructor(status: number, message: string, retryAfterSeconds: number | null = null) {
+    super(message)
+    this.name = 'MailgunError'
+    this.status = status
+    this.retryAfterSeconds = retryAfterSeconds
+  }
+}
+
+async function sendViaMailgun(
+  payload: {
+    to: string
+    from: string
+    reply_to?: string
+    subject?: string
+    html?: string
+    text?: string
+    idempotency_key?: string
+  },
+  cfg: MailgunConfig
+): Promise<void> {
+  const form = new URLSearchParams()
+  form.set('from', payload.from)
+  form.set('to', payload.to)
+  form.set('subject', payload.subject ?? '')
+  if (payload.html) form.set('html', payload.html)
+  if (payload.text) form.set('text', payload.text)
+  if (payload.reply_to) form.set('h:Reply-To', payload.reply_to)
+
+  const res = await fetch(`${cfg.baseUrl}/v3/${cfg.domain}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${btoa(`api:${cfg.apiKey}`)}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: form.toString(),
+  })
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    const retryAfterHeader = res.headers.get('Retry-After')
+    const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null
+    throw new MailgunError(
+      res.status,
+      `Mailgun send failed [${res.status}]: ${body.slice(0, 500)}`,
+      Number.isFinite(retryAfter as number) ? retryAfter : null
+    )
+  }
+
+  // Consume the body to release the connection.
+  await res.text().catch(() => '')
 }
 
 function parseJwtClaims(token: string): Record<string, unknown> | null {
@@ -79,16 +145,24 @@ async function moveToDlq(
 }
 
 Deno.serve(async (req) => {
-  const apiKey = Deno.env.get('LOVABLE_API_KEY')
+  const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY')
+  const mailgunDomain = Deno.env.get('MAILGUN_DOMAIN')
+  const mailgunBaseUrl = Deno.env.get('MAILGUN_API_BASE') || 'https://api.mailgun.net'
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-  if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
+  if (!mailgunApiKey || !mailgunDomain || !supabaseUrl || !supabaseServiceKey) {
     console.error('Missing required environment variables')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
+  }
+
+  const mailgunConfig: MailgunConfig = {
+    apiKey: mailgunApiKey,
+    domain: mailgunDomain,
+    baseUrl: mailgunBaseUrl,
   }
 
   const authHeader = req.headers.get('Authorization')
@@ -249,26 +323,17 @@ Deno.serve(async (req) => {
       }
 
       try {
-        await sendLovableEmail(
+        await sendViaMailgun(
           {
-            run_id: payload.run_id,
             to: payload.to,
             from: payload.from,
-            sender_domain: payload.sender_domain,
             reply_to: payload.reply_to,
             subject: payload.subject,
             html: payload.html,
             text: payload.text,
-            purpose: payload.purpose,
-            label: payload.label,
             idempotency_key: payload.idempotency_key,
-            unsubscribe_token: payload.unsubscribe_token,
-            message_id: payload.message_id,
           },
-          // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
-          // falls back to the default Lovable API endpoint (https://api.lovable.dev).
-          // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
-          { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
+          mailgunConfig
         )
 
         // Log success
