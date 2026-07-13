@@ -344,7 +344,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => resultsRef.current,
-    estimateSize: () => 560,
+    estimateSize: () => 280,
     overscan: 4,
     gap: 12,
     getItemKey: (index) => filtered[index]?.id ?? index,
