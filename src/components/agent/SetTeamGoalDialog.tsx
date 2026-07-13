@@ -68,10 +68,19 @@ export function SetTeamGoalDialog({
     const regTarget = parseInt(targetRegistrations) || 0;
     const earningsTarget = parseFloat(targetEarnings) || 0;
 
-    if (regTarget === 0 && earningsTarget === 0) {
+    if (targetRegistrations.trim() === '' || regTarget <= 0) {
       toast({
-        title: 'Set at least one target',
-        description: 'Please set a registration or earnings target',
+        title: 'Registration target required',
+        description: 'Enter how many sub-agents you plan to recruit this week (at least 1).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (targetEarnings.trim() === '' || earningsTarget <= 0) {
+      toast({
+        title: 'Earnings target required',
+        description: 'Enter the earnings target (UGX) you are aiming for this week.',
         variant: 'destructive',
       });
       return;
