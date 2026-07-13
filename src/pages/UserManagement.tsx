@@ -256,24 +256,26 @@ Just click the link and enter your password to get started!`;
   }, [hasMore, loading]);
 
   const fetchTotalCount = async () => {
-    const roleNames = ['tenant', 'agent', 'supporter', 'landlord', 'manager'] as const;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data, error } = await supabase.rpc('get_platform_user_counts');
+    if (error) {
+      console.error('Error fetching platform user counts:', error);
+      toast.error(error.message || 'Failed to load user counts');
+      return;
+    }
 
-    const [profileCount, verifiedCount, inactiveCount, ...roleResults] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('verified', true),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).lt('last_active_at', thirtyDaysAgo.toISOString()),
-      ...roleNames.map(role =>
-        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', role).eq('enabled', true)
-      ),
-    ]);
-    if (profileCount.count !== null) setTotalUserCount(profileCount.count);
-    setVerifiedUserCount(verifiedCount.count || 0);
-    setInactiveTotalCount(inactiveCount.count || 0);
-    const counts: Record<string, number> = {};
-    roleNames.forEach((role, i) => { counts[role] = roleResults[i].count || 0; });
-    setRoleCounts(counts);
+    const countsRow = data?.[0];
+    if (!countsRow) return;
+
+    setTotalUserCount(countsRow.total_users || 0);
+    setVerifiedUserCount(countsRow.verified_users || 0);
+    setInactiveTotalCount(countsRow.inactive_users || 0);
+    setRoleCounts({
+      tenant: countsRow.tenant_count || 0,
+      agent: countsRow.agent_count || 0,
+      supporter: countsRow.supporter_count || 0,
+      landlord: countsRow.landlord_count || 0,
+      manager: countsRow.manager_count || 0,
+    });
   };
 
   const fetchUsersPage = async (page: number) => {
@@ -287,89 +289,26 @@ Just click the link and enter your password to get started!`;
 
     try {
       const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      // If filtering by a specific role, get matching user IDs first
-      let roleFilteredIds: string[] | null = null;
-      const validRoles = ['tenant', 'agent', 'supporter', 'landlord', 'manager'] as const;
-      type ValidRole = typeof validRoles[number];
-      if ((validRoles as readonly string[]).includes(roleFilter)) {
-        const { data: roleUserIds } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role', roleFilter as ValidRole)
-          .eq('enabled', true);
-        roleFilteredIds = (roleUserIds || []).map(r => r.user_id);
-        if (roleFilteredIds.length === 0) {
-          if (page === 0) setUsers([]);
-          setHasMore(false);
-          setLoading(false);
-          setLoadingMore(false);
-          loadingMoreRef.current = false;
-          return;
-        }
-      }
-
-      let query = supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code, verified, last_active_at', { count: 'exact' });
-
-      // Server-side search
-      if (debouncedSearch.trim()) {
-        const s = debouncedSearch.trim();
-        query = query.or(`full_name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%`);
-      }
-
-      // Server-side verification filter
-      if (verificationFilter === 'verified') query = query.eq('verified', true);
-      else if (verificationFilter === 'pending') query = query.eq('verified', false);
-
-      // Server-side inactive filter
-      if (statFilter === 'inactive' || roleFilter === 'inactive') {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        query = query.or(`last_active_at.is.null,last_active_at.lt.${thirtyDaysAgo.toISOString()}`);
-      }
-
-      // Apply role-filtered IDs
-      if (roleFilteredIds) {
-        // Paginate the IDs ourselves
-        const paginatedIds = roleFilteredIds.slice(from, to + 1);
-        if (paginatedIds.length === 0) {
-          setHasMore(false);
-          setLoading(false);
-          setLoadingMore(false);
-          loadingMoreRef.current = false;
-          return;
-        }
-        query = query.in('id', paginatedIds);
-      } else {
-        query = query.range(from, to);
-      }
-
-      // Server-side sorting
-      switch (sortBy) {
-        case 'newest': query = query.order('created_at', { ascending: false }); break;
-        case 'oldest': query = query.order('created_at', { ascending: true }); break;
-        case 'name_asc': query = query.order('full_name', { ascending: true }); break;
-        case 'name_desc': query = query.order('full_name', { ascending: false }); break;
-        case 'last_active': query = query.order('last_active_at', { ascending: false, nullsFirst: false }); break;
-        case 'least_active': query = query.order('last_active_at', { ascending: true, nullsFirst: true }); break;
-        default: query = query.order('last_active_at', { ascending: false, nullsFirst: false }); break;
-      }
-
-      const { data: profiles, error } = await query;
+      const { data: profiles, error } = await supabase.rpc('get_platform_users_page', {
+        _search: debouncedSearch.trim(),
+        _role_filter: roleFilter,
+        _verification_filter: verificationFilter,
+        _stat_filter: statFilter === 'inactive' || roleFilter === 'inactive' ? 'inactive' : statFilter,
+        _sort: sortBy,
+        _limit: PAGE_SIZE,
+        _offset: from,
+      });
 
       if (error) {
         console.error('Error fetching profiles:', error);
+        toast.error(error.message || 'Failed to load users');
         setLoading(false);
         setLoadingMore(false);
         loadingMoreRef.current = false;
         return;
       }
 
-      const userIds = profiles?.map(p => p.id) || [];
-      if (userIds.length === 0) {
+      if (!profiles || profiles.length === 0) {
         if (page === 0) setUsers([]);
         setHasMore(false);
         setLoading(false);
@@ -378,42 +317,37 @@ Just click the link and enter your password to get started!`;
         return;
       }
 
-      // Only fetch roles (core auth data), stub ratings/subagents to reduce DB calls
-      const [rolesRes] = await Promise.all([
-        supabase.from('user_roles').select('user_id, role, enabled').in('user_id', userIds),
-      ]);
-
-      const rolesData = rolesRes.data;
-      const subagentCountByAgent = new Map<string, number>();
-      const ratingsByTenant = new Map<string, { sum: number; count: number }>();
-
       const pageUsers: UserWithRating[] = (profiles || []).map(p => {
-        const userRolesData = rolesData?.filter(r => r.user_id === p.id) || [];
-        const userRoles = userRolesData.filter(r => r.enabled !== false).map(r => r.role);
-        const roleEnabledStatus: Record<string, boolean> = {};
-        userRolesData.forEach(r => { roleEnabledStatus[r.role] = r.enabled; });
-        const ratingInfo = ratingsByTenant.get(p.id);
+        const roleEnabledStatus = (p.role_enabled_status && typeof p.role_enabled_status === 'object' && !Array.isArray(p.role_enabled_status))
+          ? p.role_enabled_status as Record<string, boolean>
+          : {};
         return {
-          ...p,
-          roles: userRoles,
+          id: p.id,
+          full_name: p.full_name || '',
+          email: p.email || '',
+          phone: p.phone || '',
+          avatar_url: p.avatar_url || null,
+          rent_discount_active: p.rent_discount_active || false,
+          monthly_rent: p.monthly_rent || null,
+          created_at: p.created_at,
+          roles: p.roles || [],
           roleEnabledStatus,
-          average_rating: ratingInfo ? ratingInfo.sum / ratingInfo.count : null,
-          rating_count: ratingInfo?.count || 0,
+          average_rating: p.average_rating || null,
+          rating_count: p.rating_count || 0,
           country: p.country || null,
           city: p.city || null,
           country_code: p.country_code || null,
           verified: p.verified || false,
-          subagent_count: subagentCountByAgent.get(p.id) || 0,
+          subagent_count: p.subagent_count || 0,
           last_active_at: p.last_active_at || null,
         };
       });
 
-      const isRoleFiltered = roleFilteredIds !== null;
-      if (isRoleFiltered) {
-        setHasMore(from + PAGE_SIZE < roleFilteredIds!.length);
-      } else {
-        setHasMore(pageUsers.length === PAGE_SIZE);
+      const matched = profiles[0]?.total_matched ?? 0;
+      if (page === 0 && typeof matched === 'number') {
+        setTotalUserCount(matched);
       }
+      setHasMore(from + pageUsers.length < matched);
 
       if (page === 0) setUsers(pageUsers);
       else setUsers(prev => [...prev, ...pageUsers.filter(u => !prev.some(p => p.id === u.id))]);
