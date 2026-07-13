@@ -168,13 +168,15 @@ export function SetTeamGoalDialog({
             <Label className="flex items-center gap-2">
               <Users className="h-4 w-4 text-orange-500" />
               Sub-Agent Registration Target
+              <span className="text-destructive">*</span>
             </Label>
             <Input
               type="number"
-              min="0"
+              min="1"
               placeholder="e.g., 5"
               value={targetRegistrations}
               onChange={(e) => setTargetRegistrations(e.target.value)}
+              required
             />
             <p className="text-xs text-muted-foreground">
               Number of new sub-agents to recruit this week
@@ -186,14 +188,16 @@ export function SetTeamGoalDialog({
             <Label className="flex items-center gap-2">
               <Coins className="h-4 w-4 text-success" />
               Earnings Target (UGX)
+              <span className="text-destructive">*</span>
             </Label>
             <Input
               type="number"
-              min="0"
+              min="1"
               step="1000"
               placeholder="e.g., 50000"
               value={targetEarnings}
               onChange={(e) => setTargetEarnings(e.target.value)}
+              required
             />
             {targetEarnings && (
               <p className="text-xs text-muted-foreground">
