@@ -21473,6 +21473,7 @@ export type Database = {
             }
             Returns: Json
           }
+      agent_can_view_trust: { Args: { _user_id: string }; Returns: boolean }
       agent_capture_contact_location: {
         Args: {
           p_accuracy?: number
@@ -24820,6 +24821,10 @@ export type Database = {
       update_user_risk_score: {
         Args: { p_reason?: string; p_score_change: number; p_user_id: string }
         Returns: number
+      }
+      user_can_access_landlord: {
+        Args: { _landlord_id: string; _user_id: string }
+        Returns: boolean
       }
       user_wallet_strict: {
         Args: { p_user_id: string }
