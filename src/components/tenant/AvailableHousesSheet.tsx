@@ -620,6 +620,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                       <HouseCard
                         listing={listing}
                         highlighted={vi.index === 0 && searchText.trim().length > 0}
+                        onOpen={(l) => { onOpenChange(false); navigate(`/house/${l.short_code || l.id}`); }}
                       />
                     </div>
                   );
