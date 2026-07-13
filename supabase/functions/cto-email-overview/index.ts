@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     if (recentOnly) {
       let q = adminClient
         .from("email_send_log")
-        .select("id, message_id, template_name, recipient_email, status, error_message, created_at")
+        .select("id, message_id, template_name, recipient_email, status, error_message, created_at, metadata")
         .order("created_at", { ascending: false })
         .limit(2000);
       if (search) {
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     // Pull recent log rows in one go (capped) — used for KPIs, time-series, and table
     const { data: rows, error: rowsErr } = await adminClient
       .from("email_send_log")
-      .select("id, message_id, template_name, recipient_email, status, error_message, created_at")
+      .select("id, message_id, template_name, recipient_email, status, error_message, created_at, metadata")
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(5000);

@@ -368,6 +368,14 @@ Deno.serve(async (req) => {
         if (!sentMetadata && payload.subject) {
           sentMetadata = { subject: payload.subject }
         }
+        // Always record the actual BCC / from / reply_to used on this send so
+        // the CTO Emails admin view can verify partner mail reached the BCC.
+        sentMetadata = {
+          ...(sentMetadata ?? {}),
+          from: payload.from || DEFAULT_FROM,
+          ...(payload.reply_to ? { reply_to: payload.reply_to } : {}),
+          ...(payload.bcc ? { bcc: payload.bcc } : {}),
+        }
         await supabase.from('email_send_log').insert({
           message_id: payload.message_id,
           template_name: payload.label || queue,

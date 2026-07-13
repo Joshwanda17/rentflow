@@ -215,6 +215,12 @@ Deno.serve(async (req) => {
       template_name: "supporter_agreement_copy",
       recipient_email: email,
       status: "pending",
+      metadata: {
+        subject: `✅ Your Supporter Agreement — Accepted ${acceptDate}`,
+        from: `Welile Partnerships <partnership@${FROM_DOMAIN}>`,
+        reply_to: `partnership@${FROM_DOMAIN}`,
+        bcc: `partnership@${FROM_DOMAIN}`,
+      },
     });
 
     // Enqueue via the existing email queue system
@@ -226,6 +232,9 @@ Deno.serve(async (req) => {
         from: `Welile Partnerships <partnership@${FROM_DOMAIN}>`,
         sender_domain: SENDER_DOMAIN,
         reply_to: `partnership@${FROM_DOMAIN}`,
+        // BCC the partnerships mailbox so a filtered copy of every executed
+        // agreement lands in the partnership@welile.com folder for records.
+        bcc: `partnership@${FROM_DOMAIN}`,
         subject: `✅ Your Supporter Agreement — Accepted ${acceptDate}`,
         html,
         text,

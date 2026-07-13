@@ -40,7 +40,7 @@ interface EmailOverview {
   };
   series: { day: string; sent: number; failed: number; pending: number; total: number }[];
   templateSummary: { template: string; total: number; sent: number; failed: number; pending: number; lastSentAt: string | null }[];
-  recent: { id: string; template_name: string; recipient_email: string; status: string; error_message: string | null; created_at: string }[];
+  recent: { id: string; template_name: string; recipient_email: string; status: string; error_message: string | null; created_at: string; metadata?: { bcc?: string; from?: string; reply_to?: string; subject?: string } | null }[];
   errorCategories: { category: string; count: number }[];
   topErrorMessages: { message: string; count: number; category: string; lastSeen: string }[];
 }
@@ -230,6 +230,22 @@ export function CTOEmailsOverview() {
       },
     },
     { key: 'error_message', label: 'Error', className: 'max-w-[260px] truncate text-xs text-muted-foreground' },
+    {
+      key: 'metadata',
+      label: 'BCC',
+      className: 'max-w-[200px]',
+      render: (_v, row) => {
+        const bcc = row.metadata?.bcc;
+        return bcc ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 whitespace-nowrap">
+            <Mail className="h-3 w-3" />
+            {bcc}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        );
+      },
+    },
     {
       key: 'id',
       label: 'Action',
