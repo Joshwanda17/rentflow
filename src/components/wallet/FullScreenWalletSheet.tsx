@@ -390,23 +390,6 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                       Tap to filter your transactions
                     </p>
 
-                    {/* Quick category filter chips */}
-                    {availableCategories.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-border/40">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Quick filters
-                          </span>
-                        </div>
-                        <CategoryFilterChips
-                          categories={availableCategories}
-                          selected={categoryFilter}
-                          onSelect={setCategoryFilter}
-                        />
-                      </div>
-                    )}
-
                     {/* Live region announces filter changes to screen readers */}
                     <p className="sr-only" aria-live="polite" aria-atomic="true">
                       Showing {activeTab === 'all' ? 'all transactions' : activeTab === 'in' ? 'cash in transactions' : 'cash out transactions'}
