@@ -331,8 +331,9 @@ Deno.serve(async (req) => {
     payload: {
       message_id: messageId,
       to: effectiveRecipient,
-      from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      from: isPartnerFunder ? PARTNER_FROM : `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
+      ...(isPartnerFunder ? { reply_to: PARTNER_REPLY_TO } : {}),
       subject: resolvedSubject,
       html,
       text: plainText,
