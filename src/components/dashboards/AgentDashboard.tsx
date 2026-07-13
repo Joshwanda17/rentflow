@@ -291,6 +291,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, []);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
+  const [subAgentLinkOpen, setSubAgentLinkOpen] = useState(false);
   const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
 
   // Show the leaderboard promo once per session when an agent lands on their
