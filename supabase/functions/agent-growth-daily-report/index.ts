@@ -134,7 +134,7 @@ function esc(s: unknown): string {
 }
 
 // ── Build the branded PDF ──
-function buildPdf(activity: DailyActivity, stats: LeaderboardStats, prettyDate: string): Uint8Array {
+function buildPdf(activity: DailyActivity, stats: LeaderboardStats, weekly: WeeklyForecast, prettyDate: string): Uint8Array {
   const a = activity.totals;
   const series = (stats.series || []).map((s) => ({
     label: bucketDayLabel(s.bucket), agents: s.agents || 0, subagents: s.subagents || 0,
