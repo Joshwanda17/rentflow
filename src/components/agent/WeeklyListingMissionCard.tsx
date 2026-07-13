@@ -12,6 +12,7 @@ interface WeeklyListingMissionCardProps {
   onViewTeam: () => void;
   onHelpList: () => void;
   onViewEarnings: () => void;
+  onViewLeaderboard: () => void;
 }
 
 type ProgressTone = 'primary' | 'success' | 'warning';
@@ -61,6 +62,7 @@ export function WeeklyListingMissionCard({
   onViewTeam,
   onHelpList,
   onViewEarnings,
+  onViewLeaderboard,
 }: WeeklyListingMissionCardProps) {
   const { campaign, isLoading } = useAgentListingCampaign(agentId);
 
@@ -234,21 +236,35 @@ export function WeeklyListingMissionCard({
         <span>{message}</span>
       </div>
 
-      {/* CTA */}
-      <button
-        onClick={() => {
-          hapticTap();
-          buttonAction();
-        }}
-        className={cn(
-          'w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 font-bold text-sm text-primary-foreground active:scale-[0.98] transition-transform touch-manipulation min-h-[52px]',
-          complete ? 'bg-success' : 'bg-primary',
-        )}
-        style={{ WebkitTapHighlightColor: 'transparent' }}
-      >
-        {buttonLabel}
-        <ArrowRight className="h-4 w-4" />
-      </button>
+      {/* CTA row: primary action + leaderboard */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => {
+            hapticTap();
+            buttonAction();
+          }}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 rounded-2xl py-3.5 font-bold text-sm text-primary-foreground active:scale-[0.98] transition-transform touch-manipulation min-h-[52px]',
+            complete ? 'bg-success' : 'bg-primary',
+          )}
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          {buttonLabel}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => {
+            hapticTap();
+            onViewLeaderboard();
+          }}
+          aria-label="View leaderboard"
+          className="flex items-center justify-center gap-1.5 rounded-2xl px-4 py-3.5 font-bold text-sm text-primary bg-primary/10 border border-primary/25 active:scale-[0.98] transition-transform touch-manipulation min-h-[52px]"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          <Trophy className="h-4 w-4" style={{ color: '#FACC15' }} />
+          <span className="hidden sm:inline">Ranks</span>
+        </button>
+      </div>
     </div>
   );
 }

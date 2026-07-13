@@ -62,6 +62,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
 import { WeeklyListingMissionCard } from '@/components/agent/WeeklyListingMissionCard';
+import { SubAgentInviteLinkDialog } from '@/components/agent/SubAgentInviteLinkDialog';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentUnblockToast } from '@/hooks/useAgentUnblockToast';
@@ -291,6 +292,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, []);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
+  const [subAgentLinkOpen, setSubAgentLinkOpen] = useState(false);
   const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
 
   // Show the leaderboard promo once per session when an agent lands on their
@@ -953,10 +955,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {!isMerchant && (
               <WeeklyListingMissionCard
                 agentId={user.id}
-                onInvite={handleInviteSubAgent}
+                onInvite={() => { hapticTap(); setSubAgentLinkOpen(true); }}
                 onViewTeam={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
                 onHelpList={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
                 onViewEarnings={() => { hapticTap(); setSlideDirection('left'); setActiveTab('money'); }}
+                onViewLeaderboard={() => { hapticTap(); navigate('/dashboard/agents/leaderboard'); }}
               />
             )}
 
@@ -1722,6 +1725,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onInviteSubAgent={handleInviteSubAgent}
       />
       </LazyModal>
+      <SubAgentInviteLinkDialog
+        open={subAgentLinkOpen}
+        onOpenChange={setSubAgentLinkOpen}
+      />
       <LazyModal when={rentRequestOpen}>
       <AgentRentRequestDialog 
         open={rentRequestOpen} 
