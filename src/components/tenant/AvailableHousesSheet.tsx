@@ -110,39 +110,6 @@ function HouseImageCarousel({ images, title, houseId }: { images: string[] | nul
   );
 }
 
-function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
-  const announce = useMapLinkAnnouncer();
-  if (!lat || !lng) return null;
-
-  const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
-  const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-
-  return (
-    <div className="space-y-1">
-      <a
-        href={linkUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => announce(title)}
-        aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
-        className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <iframe
-          src={mapUrl}
-          className="w-full h-full pointer-events-none"
-          title={`Map: ${title}`}
-          loading="lazy"
-          style={{ border: 0 }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none" />
-        <div className="absolute bottom-2 left-2 right-2 mx-auto w-fit min-h-[44px] bg-primary text-primary-foreground text-sm font-bold px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl touch-manipulation">
-          <Navigation className="h-4 w-4" /> Tap to open in Google Maps
-        </div>
-      </a>
-    </div>
-  );
-}
-
 function VerificationBadge({ verified, status }: { verified?: boolean; status: string }) {
   const isPending = !verified || status === 'pending';
   
