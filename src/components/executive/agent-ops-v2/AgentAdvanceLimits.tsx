@@ -20,6 +20,7 @@ interface LimitRow {
   verified: boolean | null;
   territory: string | null;
   direct_subagents: number;
+  registered_subagents: number;
   active_subagents: number;
   rent_collected: number;
   collections_count: number;
@@ -79,6 +80,7 @@ export function AgentAdvanceLimits() {
       return ((data ?? []) as any[]).map((r) => ({
         ...r,
         direct_subagents: num(r.direct_subagents),
+        registered_subagents: num(r.registered_subagents),
         active_subagents: num(r.active_subagents),
         rent_collected: num(r.rent_collected),
         collections_count: num(r.collections_count),
@@ -260,7 +262,7 @@ function AgentLimitDialog({ row, onClose }: { row: LimitRow | null; onClose: () 
             </div>
             <ContribBar
               label="Sub-agent bonus"
-              detail={`${row.active_subagents} active × 1.5M + 50k`}
+              detail={`${row.registered_subagents} registered × 50k + ${row.active_subagents} active × 50k`}
               value={row.subagents_bonus}
               total={summed}
             />

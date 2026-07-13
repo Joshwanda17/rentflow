@@ -22352,6 +22352,7 @@ export type Database = {
           houses_bonus: number
           houses_listed: number
           phone: string
+          registered_subagents: number
           rent_collected: number
           rent_requests: number
           requests_bonus: number
