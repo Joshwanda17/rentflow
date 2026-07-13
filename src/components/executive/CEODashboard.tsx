@@ -7,6 +7,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { format, subMonths, startOfMonth, startOfDay } from 'date-fns';
 import { Activity, UserPlus, RefreshCw, Share2, ArrowRightLeft } from 'lucide-react';
 import { TrustCoverageSection } from './TrustCoverageSection';
+import { AgentAdvancesDailyReportCard } from './AgentAdvancesDailyReportCard';
 
 export function CEODashboard() {
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
@@ -168,6 +169,9 @@ export function CEODashboard() {
     <div className="space-y-4 sm:space-y-6">
       {/* Mission scoreboard — Trust Coverage */}
       <TrustCoverageSection />
+
+      {/* Agent Advances daily report (live mirror of the 18:00 EAT email) */}
+      <AgentAdvancesDailyReportCard />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
