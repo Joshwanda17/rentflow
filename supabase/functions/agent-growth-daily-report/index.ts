@@ -98,6 +98,21 @@ interface LeaderboardStats {
   invitees: { status: string }[];
 }
 
+interface WeeklyForecastGroup {
+  last_week: number;
+  now: number;
+  new_this_week: number;
+  new_last_week: number;
+  avg_weekly_new: number;
+  next_week_forecast: number;
+}
+interface WeeklyForecast {
+  week_start: string;
+  last_week_start: string;
+  agents: WeeklyForecastGroup;
+  subagents: WeeklyForecastGroup;
+}
+
 function bucketDayLabel(iso: string): string {
   const d = new Date(iso);
   const day = d.getUTCDate();
@@ -119,7 +134,7 @@ function esc(s: unknown): string {
 }
 
 // ── Build the branded PDF ──
-function buildPdf(activity: DailyActivity, stats: LeaderboardStats, prettyDate: string): Uint8Array {
+function buildPdf(activity: DailyActivity, stats: LeaderboardStats, weekly: WeeklyForecast, prettyDate: string): Uint8Array {
   const a = activity.totals;
   const series = (stats.series || []).map((s) => ({
     label: bucketDayLabel(s.bucket), agents: s.agents || 0, subagents: s.subagents || 0,
@@ -247,8 +262,52 @@ function buildPdf(activity: DailyActivity, stats: LeaderboardStats, prettyDate: 
     iy += lineH * wrapped.length;
   });
 
+  // Weekly headcount & forecast — last week vs now vs next week (forecast).
+  let wkTop = boxTop + boxH + 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND_DARK);
+  doc.text("Weekly Headcount & Forecast", margin, wkTop);
+  doc.setDrawColor(...BRAND);
+  doc.setLineWidth(0.4);
+  doc.line(margin, wkTop + 1.8, pageWidth - margin, wkTop + 1.8);
+  const wa = weekly.agents;
+  const ws = weekly.subagents;
+  const wkDelta = (g: WeeklyForecastGroup) => {
+    const d = g.next_week_forecast - g.now;
+    return `${d >= 0 ? "+" : ""}${fmtInt(d)} (~${fmtInt(g.avg_weekly_new)}/wk)`;
+  };
+  autoTable(doc, {
+    startY: wkTop + 4,
+    head: [["Segment", "Last week", "Now", "Next week (forecast)", "Projected growth"]],
+    body: [
+      ["Agents", fmtInt(wa.last_week), fmtInt(wa.now), fmtInt(wa.next_week_forecast), wkDelta(wa)],
+      ["Sub-Agents", fmtInt(ws.last_week), fmtInt(ws.now), fmtInt(ws.next_week_forecast), wkDelta(ws)],
+    ],
+    margin: { left: margin, right: margin },
+    tableWidth: pageWidth - margin * 2,
+    styles: { fontSize: 8.4, cellPadding: 2.4, valign: "middle", textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
+    headStyles: { fillColor: BRAND_DARK, textColor: 255, fontSize: 8, fontStyle: "bold", halign: "left" },
+    alternateRowStyles: { fillColor: STRIPE },
+    columnStyles: {
+      0: { cellWidth: "auto", fontStyle: "bold" },
+      1: { cellWidth: 30, halign: "right" },
+      2: { cellWidth: 30, halign: "right", fontStyle: "bold", textColor: BRAND },
+      3: { cellWidth: 40, halign: "right", textColor: EMERALD, fontStyle: "bold" },
+      4: { cellWidth: 40, halign: "right", textColor: MUTED },
+    },
+  });
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6.6);
+  doc.setTextColor(...MUTED);
+  doc.text(
+    "Forecast = current headcount + trailing 4-week average of new joins per week. Weeks start Monday (EAT).",
+    margin, (doc as any).lastAutoTable.finalY + 4,
+  );
+
   // Top active agents (yesterday)
-  let actTop = boxTop + boxH + 8;
+  let actTop = (doc as any).lastAutoTable.finalY + 10;
+  if (actTop > pageHeight - 60) { doc.addPage(); actTop = 20; }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BRAND_DARK);
@@ -517,15 +576,24 @@ async function sendWithAttachment(
   return { ok: res.ok, status: res.status, raw: text };
 }
 
-function buildHtml(activity: DailyActivity, prettyDate: string): string {
+function buildHtml(activity: DailyActivity, weekly: WeeklyForecast, prettyDate: string): string {
   const a = activity.totals;
   const top = activity.top_agents?.[0];
+  const wa = weekly.agents;
+  const ws = weekly.subagents;
   const cell = (label: string, value: string, sub: string, bg: string, color: string) =>
     `<td style="width:33.3%;background:${bg};border-radius:10px;padding:12px">
        <div style="font-size:10px;color:#787484;text-transform:uppercase;font-weight:700">${esc(label)}</div>
        <div style="font-size:20px;font-weight:800;color:${color};margin-top:2px">${esc(value)}</div>
        <div style="font-size:11px;color:#787484">${esc(sub)}</div>
      </td>`;
+  const wkRow = (seg: string, g: WeeklyForecastGroup) =>
+    `<tr>
+       <td style="padding:8px 10px;font-weight:700;border-bottom:1px solid #eee">${esc(seg)}</td>
+       <td style="padding:8px 10px;text-align:right;border-bottom:1px solid #eee">${fmtInt(g.last_week)}</td>
+       <td style="padding:8px 10px;text-align:right;font-weight:800;color:#6900cc;border-bottom:1px solid #eee">${fmtInt(g.now)}</td>
+       <td style="padding:8px 10px;text-align:right;font-weight:800;color:#109664;border-bottom:1px solid #eee">${fmtInt(g.next_week_forecast)}</td>
+     </tr>`;
   return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f5f3fa;margin:0;padding:24px;color:#1e1b2e">
   <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #e2deec;border-radius:14px;overflow:hidden">
     <div style="background:#6900cc;color:#fff;padding:22px 26px">
@@ -555,13 +623,28 @@ function buildHtml(activity: DailyActivity, prettyDate: string): string {
           ${cell("Invites Sent", fmtInt(a.invites_total), `${fmtInt(a.subagent_invites)} agent · ${fmtInt(a.supporter_invites)} supp.`, "#fdeef6", "#db2777")}
         </tr>
       </table>
+      <h2 style="margin:22px 0 8px;font-size:15px;color:#42007f">Weekly Headcount &amp; Forecast</h2>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;border:1px solid #eee;border-radius:10px;overflow:hidden">
+        <tr style="background:#42007f;color:#fff">
+          <th style="padding:8px 10px;text-align:left">Segment</th>
+          <th style="padding:8px 10px;text-align:right">Last week</th>
+          <th style="padding:8px 10px;text-align:right">Now</th>
+          <th style="padding:8px 10px;text-align:right">Next week (forecast)</th>
+        </tr>
+        ${wkRow("Agents", wa)}
+        ${wkRow("Sub-Agents", ws)}
+      </table>
+      <p style="margin:6px 0 0;font-size:11px;color:#94a3b8">
+        Forecast = current headcount + trailing 4-week average of new joins per week
+        (~${fmtInt(wa.avg_weekly_new)} agents/wk, ~${fmtInt(ws.avg_weekly_new)} sub-agents/wk). Weeks start Monday (EAT).
+      </p>
       ${top && top.total_actions > 0 ? `<p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#334155">
         🏆 <strong>Most active: ${esc(top.name)}</strong> — ${fmtInt(top.total_actions)} actions
         (${fmtInt(top.collections)} collections, ${fmtUgx(top.collected)}) yesterday.
       </p>` : ""}
       <p style="margin:20px 0 0;font-size:13px;color:#64748b;line-height:1.6">
-        📎 <strong>Attached:</strong> full PDF with the daily KPI strip, top active agents,
-        trailing 30-day network growth, top recruiters and the invitee pipeline.
+        📎 <strong>Attached:</strong> full PDF with the daily KPI strip, weekly headcount &amp; forecast,
+        top active agents, trailing 30-day network growth, top recruiters and the invitee pipeline.
       </p>
     </div>
     <div style="border-top:1px solid #e2deec;padding:16px 26px;font-size:11px;color:#94a3b8">
@@ -584,22 +667,25 @@ async function run(admin: ReturnType<typeof createClient>, reportDate: string, f
     }
   }
 
-  const [{ data: actData, error: actErr }, { data: lbData, error: lbErr }] = await Promise.all([
+  const [{ data: actData, error: actErr }, { data: lbData, error: lbErr }, { data: wkData, error: wkErr }] = await Promise.all([
     admin.rpc("get_agent_daily_activity_report", { p_date: reportDate }),
     admin.rpc("get_agent_leaderboard_stats", { p_period: "daily" }),
+    admin.rpc("get_agent_weekly_growth_forecast"),
   ]);
   if (actErr) throw actErr;
   if (lbErr) throw lbErr;
+  if (wkErr) throw wkErr;
 
   const activity = actData as unknown as DailyActivity;
   const stats = lbData as unknown as LeaderboardStats;
+  const weekly = wkData as unknown as WeeklyForecast;
 
   const prettyDate = new Date(`${reportDate}T00:00:00Z`).toLocaleDateString("en-GB", {
     weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
   });
 
-  const pdf = buildPdf(activity, stats, prettyDate);
-  const html = buildHtml(activity, prettyDate);
+  const pdf = buildPdf(activity, stats, weekly, prettyDate);
+  const html = buildHtml(activity, weekly, prettyDate);
   const filename = `Welile_Agent_Daily_Report_${reportDate}.pdf`;
   const a = activity.totals;
   const subject = `Agent Daily Report - ${prettyDate}: ${fmtInt(a.active_agents)} active agents, ${fmtInt(a.houses_listed)} houses, ${fmtInt(a.collections_count)} collections`;
@@ -624,6 +710,9 @@ async function run(admin: ReturnType<typeof createClient>, reportDate: string, f
       recipients: REPORT_RECIPIENTS,
       active_agents: a.active_agents,
       active_subagents: a.active_subagents,
+      agents_last_week: weekly.agents.last_week,
+      agents_now: weekly.agents.now,
+      agents_next_week_forecast: weekly.agents.next_week_forecast,
       houses_listed: a.houses_listed,
       rent_requests_posted: a.rent_requests_posted,
       collections_count: a.collections_count,

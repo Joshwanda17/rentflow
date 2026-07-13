@@ -22536,6 +22536,10 @@ export type Database = {
         Args: { p_agent_id: string }
         Returns: number
       }
+      get_agent_weekly_growth_forecast: {
+        Args: { p_ref?: string }
+        Returns: Json
+      }
       get_agent_workload_summary: { Args: never; Returns: Json }
       get_agents_hub:
         | {
