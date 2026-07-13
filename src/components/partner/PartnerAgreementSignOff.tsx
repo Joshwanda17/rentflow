@@ -177,7 +177,7 @@ export default function PartnerAgreementSignOff({
       });
       if (error) throw error;
       toast({
-        title: 'Agreement counter-signed & sent',
+        title: alreadySigned ? 'Agreement re-sent' : 'Agreement counter-signed & sent',
         description: partner.email ? `Executed PDF emailed to ${partner.email}.` : 'Executed PDF stored.',
       });
       onOpenChange(false);
@@ -286,10 +286,24 @@ export default function PartnerAgreementSignOff({
 
                 <div className="flex flex-col gap-2 pb-2">
                   {alreadySigned ? (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 inline-flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" /> Already counter-signed
-                      {agreement.countersigned_at ? ` on ${new Date(agreement.countersigned_at).toLocaleDateString()}` : ''}.
-                    </div>
+                    <>
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 inline-flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4" /> Already counter-signed
+                        {agreement.countersigned_at ? ` on ${new Date(agreement.countersigned_at).toLocaleDateString()}` : ''}.
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={handleCountersign}
+                        disabled={busy || !repName.trim() || !(sigDataUrl || defaults?.signature_path)}
+                        className="gap-1.5"
+                      >
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                        Re-send executed agreement
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground">
+                        Use this if the partner says they never received it — regenerates the executed PDF and emails it again.
+                      </p>
+                    </>
                   ) : (
                     <Button onClick={handleCountersign} disabled={busy || !repName.trim() || !(sigDataUrl || defaults?.signature_path)} className="gap-1.5">
                       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
