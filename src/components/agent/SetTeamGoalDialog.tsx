@@ -48,19 +48,26 @@ export function SetTeamGoalDialog({
   const [targetEarnings, setTargetEarnings] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Stable week key so a fresh `new Date()` reference on each parent render
+  // does not re-trigger this effect and wipe the user's typing ("blink").
+  const selectedWeekKey = format(startOfWeek(selectedWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+
   useEffect(() => {
+    // Only (re)initialize the form when the dialog opens.
+    if (!open) return;
     if (existingGoal) {
       setGoalWeek(existingGoal.goal_week);
       setTargetRegistrations(existingGoal.target_registrations.toString());
       setTargetEarnings(existingGoal.target_earnings.toString());
       setNotes(existingGoal.notes || '');
     } else {
-      setGoalWeek(format(startOfWeek(selectedWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+      setGoalWeek(selectedWeekKey);
       setTargetRegistrations('');
       setTargetEarnings('');
       setNotes('');
     }
-  }, [existingGoal, selectedWeek, open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingGoal?.id, selectedWeekKey, open]);
 
   const handleSubmit = async () => {
     if (!user) return;
