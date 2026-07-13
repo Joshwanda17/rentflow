@@ -162,7 +162,7 @@ interface MonthlyData {
 
 interface TeamGoal {
   id: string;
-  goal_month: string;
+  goal_week: string;
   target_registrations: number;
   target_earnings: number;
   notes: string | null;
