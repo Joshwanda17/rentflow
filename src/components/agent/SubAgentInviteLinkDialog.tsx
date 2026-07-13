@@ -62,7 +62,7 @@ export function SubAgentInviteLinkDialog({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[calc(100%-1.5rem)] max-w-[24rem] rounded-3xl border-0 p-0 overflow-hidden gap-0"
+        className="grid-cols-1 w-[calc(100%-1.5rem)] max-w-[24rem] rounded-3xl border-0 p-0 overflow-hidden gap-0"
         overlayClassName="backdrop-blur-sm bg-background/70"
       >
         {/* Hero banner */}
