@@ -98,6 +98,21 @@ interface LeaderboardStats {
   invitees: { status: string }[];
 }
 
+interface WeeklyForecastGroup {
+  last_week: number;
+  now: number;
+  new_this_week: number;
+  new_last_week: number;
+  avg_weekly_new: number;
+  next_week_forecast: number;
+}
+interface WeeklyForecast {
+  week_start: string;
+  last_week_start: string;
+  agents: WeeklyForecastGroup;
+  subagents: WeeklyForecastGroup;
+}
+
 function bucketDayLabel(iso: string): string {
   const d = new Date(iso);
   const day = d.getUTCDate();
