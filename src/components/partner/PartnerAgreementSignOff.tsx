@@ -177,7 +177,7 @@ export default function PartnerAgreementSignOff({
       });
       if (error) throw error;
       toast({
-        title: 'Agreement counter-signed & sent',
+        title: alreadySigned ? 'Agreement re-sent' : 'Agreement counter-signed & sent',
         description: partner.email ? `Executed PDF emailed to ${partner.email}.` : 'Executed PDF stored.',
       });
       onOpenChange(false);
