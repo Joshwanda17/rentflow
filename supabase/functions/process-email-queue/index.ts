@@ -6,6 +6,14 @@ const DEFAULT_SEND_DELAY_MS = 200
 const DEFAULT_AUTH_TTL_MINUTES = 15
 const DEFAULT_TRANSACTIONAL_TTL_MINUTES = 60
 
+// Default sender for any email enqueued without an explicit `from`.
+// Non-partner mail (landlord, agent, tenant, receipts, reports, etc.) MUST
+// go out from the noreply mailbox. Partner/funder emails always set their own
+// `from` (Welile Partnerships <partnership@welile.com>) upstream, so this
+// fallback never overrides them.
+const FROM_DOMAIN = 'welile.com'
+const DEFAULT_FROM = `Welile <noreply@${FROM_DOMAIN}>`
+
 // Check if an error is a rate-limit (429) response.
 // Uses EmailAPIError.status when available (email-js >=0.x with structured errors),
 // falls back to parsing the error message for older versions.
