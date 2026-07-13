@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 interface SubAgentRecord {
   id: string;
@@ -36,6 +37,7 @@ export function SubAgentVerificationQueue() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [selectedRecord, setSelectedRecord] = useState<SubAgentRecord | null>(null);
   const [transferRecord, setTransferRecord] = useState<SubAgentRecord | null>(null);
   const [transferSearch, setTransferSearch] = useState('');
@@ -46,14 +48,41 @@ export function SubAgentVerificationQueue() {
   const [searchingParents, setSearchingParents] = useState(false);
 
   const { data: records, isLoading } = useQuery({
-    queryKey: ['subagent-verification-queue'],
+    queryKey: ['subagent-verification-queue', debouncedSearch.trim().toLowerCase()],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('agent_subagents' as any)
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      const rows = (data || []) as any[];
+      const term = debouncedSearch.trim();
+      let rows: any[] = [];
+
+      if (term.length >= 2) {
+        // Server-side search: match profiles by name/phone across the ENTIRE
+        // set, then pull the sub-agent rows linked to those people. Avoids the
+        // 1000-row client window that made search miss most records.
+        const { data: matched, error: pErr } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%`)
+          .limit(300);
+        if (pErr) throw pErr;
+        const ids = (matched || []).map((p) => p.id);
+        if (ids.length === 0) return [];
+        const { data, error } = await supabase
+          .from('agent_subagents' as any)
+          .select('*')
+          .or(`parent_agent_id.in.(${ids.join(',')}),sub_agent_id.in.(${ids.join(',')})`)
+          .order('created_at', { ascending: false })
+          .limit(500);
+        if (error) throw error;
+        rows = (data || []) as any[];
+      } else {
+        const { data, error } = await supabase
+          .from('agent_subagents' as any)
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(500);
+        if (error) throw error;
+        rows = (data || []) as any[];
+      }
+
       if (rows.length === 0) return [];
 
       const allIds = [...new Set(rows.flatMap(r => [r.parent_agent_id, r.sub_agent_id]))];
@@ -77,11 +106,8 @@ export function SubAgentVerificationQueue() {
     staleTime: 30000,
   });
 
-  const q = search.toLowerCase().trim();
-  const filtered = (records || []).filter(r =>
-    !q || r.sub_name.toLowerCase().includes(q) || r.parent_name.toLowerCase().includes(q) || r.sub_phone.includes(q) || r.parent_phone.includes(q)
-  );
-  const pending = filtered.filter(r => r.status === 'pending');
+  const filtered = records || [];
+  const pending = filtered.filter(r => r.status === 'pending' || r.status === 'pending_acceptance');
   const verified = filtered.filter(r => r.status === 'verified');
 
   const handleVerify = async (id: string) => {
