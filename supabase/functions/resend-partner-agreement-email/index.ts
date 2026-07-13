@@ -196,7 +196,9 @@ Deno.serve(async (req) => {
       original_partner_email: row.email || null,
       audit_copy_reason: forcePartner ? 'forced_partner_resend' : 'partner_agreement_resend',
     }
-    const subject = tenantPartnershipAgreementTemplate.subject(partnershipTemplateData)
+    const subject = typeof tenantPartnershipAgreementTemplate.subject === 'function'
+      ? tenantPartnershipAgreementTemplate.subject(partnershipTemplateData)
+      : tenantPartnershipAgreementTemplate.subject
     const html = await renderAsync(React.createElement(tenantPartnershipAgreementTemplate.component, partnershipTemplateData))
     const text = await renderAsync(React.createElement(tenantPartnershipAgreementTemplate.component, partnershipTemplateData), { plainText: true })
     const directMessageId = crypto.randomUUID()
