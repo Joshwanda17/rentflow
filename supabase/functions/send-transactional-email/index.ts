@@ -328,6 +328,14 @@ Deno.serve(async (req) => {
     template_name: templateName,
     recipient_email: effectiveRecipient,
     status: 'pending',
+    // Record routing details (subject, from, reply_to, bcc) so the CTO Emails
+    // admin view can verify partner/funder mail was BCC'd to partnership@welile.com.
+    metadata: {
+      subject: resolvedSubject,
+      from: isPartnerFunder ? PARTNER_FROM : `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      ...(isPartnerFunder ? { reply_to: PARTNER_REPLY_TO } : {}),
+      ...(isPartnerFunder ? { bcc: PARTNER_REPLY_TO } : {}),
+    },
   })
 
   const { error: enqueueError } = await supabase.rpc('enqueue_email', {
