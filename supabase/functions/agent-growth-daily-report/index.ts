@@ -667,22 +667,25 @@ async function run(admin: ReturnType<typeof createClient>, reportDate: string, f
     }
   }
 
-  const [{ data: actData, error: actErr }, { data: lbData, error: lbErr }] = await Promise.all([
+  const [{ data: actData, error: actErr }, { data: lbData, error: lbErr }, { data: wkData, error: wkErr }] = await Promise.all([
     admin.rpc("get_agent_daily_activity_report", { p_date: reportDate }),
     admin.rpc("get_agent_leaderboard_stats", { p_period: "daily" }),
+    admin.rpc("get_agent_weekly_growth_forecast"),
   ]);
   if (actErr) throw actErr;
   if (lbErr) throw lbErr;
+  if (wkErr) throw wkErr;
 
   const activity = actData as unknown as DailyActivity;
   const stats = lbData as unknown as LeaderboardStats;
+  const weekly = wkData as unknown as WeeklyForecast;
 
   const prettyDate = new Date(`${reportDate}T00:00:00Z`).toLocaleDateString("en-GB", {
     weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
   });
 
-  const pdf = buildPdf(activity, stats, prettyDate);
-  const html = buildHtml(activity, prettyDate);
+  const pdf = buildPdf(activity, stats, weekly, prettyDate);
+  const html = buildHtml(activity, weekly, prettyDate);
   const filename = `Welile_Agent_Daily_Report_${reportDate}.pdf`;
   const a = activity.totals;
   const subject = `Agent Daily Report - ${prettyDate}: ${fmtInt(a.active_agents)} active agents, ${fmtInt(a.houses_listed)} houses, ${fmtInt(a.collections_count)} collections`;
