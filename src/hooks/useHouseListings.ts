@@ -180,6 +180,10 @@ interface UseNearbyHousesOptions {
   radiusKm?: number;
   category?: string;
   region?: string;
+  district?: string;
+  subCounty?: string;
+  village?: string;
+  search?: string;
   limit?: number;
   enabled?: boolean;
   /**
@@ -225,9 +229,17 @@ function nearbyCacheKey(o: UseNearbyHousesOptions, paginate: boolean, pageSize: 
     o.radiusKm || 50,
     o.category || '',
     o.region || '',
+    o.district || '',
+    o.subCounty || '',
+    o.village || '',
+    o.search || '',
     paginate ? 1 : 0,
     pageSize,
   ].join('|');
+}
+
+function safeOrTerm(value: string | undefined): string {
+  return (value || '').replace(/[%,()]/g, ' ').trim();
 }
 
 function writeNearbyCache(key: string, entry: NearbyCacheEntry) {
@@ -410,7 +422,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           // The location filter may be a broad region ("Central") OR a
           // city/district/village ("Kampala", "Wakiso"). Match any of the
           // location columns so picking a district doesn't return zero houses.
-          const term = options.region.replace(/[%,()]/g, ' ').trim();
+          const term = safeOrTerm(options.region);
           query = query.or(
             [
               `region.ilike.%${term}%`,
@@ -421,7 +433,23 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
             ].join(','),
           );
         }
+        if (options.district) query = query.eq('district', options.district);
+        if (options.subCounty) query = query.eq('sub_county', options.subCounty);
+        if (options.village) query = query.eq('village', options.village);
         if (options.category) query = query.eq('house_category', options.category);
+        const search = safeOrTerm(options.search);
+        if (search) {
+          query = query.or(
+            [
+              `title.ilike.%${search}%`,
+              `region.ilike.%${search}%`,
+              `district.ilike.%${search}%`,
+              `sub_county.ilike.%${search}%`,
+              `village.ilike.%${search}%`,
+              `address.ilike.%${search}%`,
+            ].join(','),
+          );
+        }
         const { data, error: fetchError } = await query;
         if (fetchError) throw fetchError;
         return (data as any[]) || [];
@@ -512,6 +540,10 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     options.radiusKm,
     options.category,
     options.region,
+    options.district,
+    options.subCounty,
+    options.village,
+    options.search,
     paginate,
     pageSize,
     maxResults,
@@ -597,7 +629,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setMetrics({ ...metricsRef.current });
     pgLog('refresh', { filterKey: key });
     fetchPage(runId, true);
-  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, paginate, pageSize]);
+  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, options.district, options.subCounty, options.village, options.search, paginate, pageSize]);
 
   return { listings, loading, loadingMore, hasMore, loadMore, error, refresh, metrics };
 }
