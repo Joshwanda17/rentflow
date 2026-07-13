@@ -4,11 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search } from 'lucide-react';
+import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SubAgentRecord {
@@ -35,6 +37,13 @@ export function SubAgentVerificationQueue() {
   const [activeTab, setActiveTab] = useState('pending');
   const [search, setSearch] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<SubAgentRecord | null>(null);
+  const [transferRecord, setTransferRecord] = useState<SubAgentRecord | null>(null);
+  const [transferSearch, setTransferSearch] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [newParent, setNewParent] = useState<{ id: string; full_name: string; phone: string | null } | null>(null);
+  const [transferring, setTransferring] = useState(false);
+  const [parentResults, setParentResults] = useState<{ id: string; full_name: string; phone: string | null }[]>([]);
+  const [searchingParents, setSearchingParents] = useState(false);
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['subagent-verification-queue'],
@@ -117,6 +126,60 @@ export function SubAgentVerificationQueue() {
     }
   };
 
+  const openTransfer = (r: SubAgentRecord) => {
+    setTransferRecord(r);
+    setTransferSearch('');
+    setTransferReason('');
+    setNewParent(null);
+    setParentResults([]);
+  };
+
+  const searchParents = async (term: string) => {
+    setTransferSearch(term);
+    setNewParent(null);
+    const t = term.trim();
+    if (t.length < 2) { setParentResults([]); return; }
+    setSearchingParents(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .or(`full_name.ilike.%${t}%,phone.ilike.%${t}%`)
+        .limit(15);
+      if (error) throw error;
+      setParentResults((data || []).filter(p => p.id !== transferRecord?.sub_agent_id && p.id !== transferRecord?.parent_agent_id));
+    } catch (err: any) {
+      toast.error(err.message || 'Search failed');
+    } finally {
+      setSearchingParents(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!transferRecord || !newParent) return;
+    if (transferReason.trim().length < 10) {
+      toast.error('Please provide a reason (at least 10 characters).');
+      return;
+    }
+    setTransferring(true);
+    try {
+      const { error } = await supabase.rpc('reassign_subagent_parent' as any, {
+        _record_id: transferRecord.id,
+        _new_parent_id: newParent.id,
+        _reason: transferReason.trim(),
+      });
+      if (error) throw error;
+      toast.success(`Transferred ${transferRecord.sub_name} to ${newParent.full_name}. Action logged.`);
+      setTransferRecord(null);
+      setSelectedRecord(null);
+      queryClient.invalidateQueries({ queryKey: ['subagent-verification-queue'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to transfer');
+    } finally {
+      setTransferring(false);
+    }
+  };
+
   const renderCard = (r: SubAgentRecord, showActions: boolean) => (
     <div key={r.id} className="rounded-xl border border-border p-3 space-y-2 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setSelectedRecord(r)}>
       <div className="flex items-start justify-between gap-2">
@@ -148,6 +211,18 @@ export function SubAgentVerificationQueue() {
         {r.rejection_reason && (
           <p className="text-destructive">Reason: {r.rejection_reason}</p>
         )}
+      </div>
+
+      <div onClick={e => e.stopPropagation()}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openTransfer(r)}
+          className="w-full gap-1 h-7 text-xs"
+        >
+          <ArrowLeftRight className="h-3 w-3" />
+          Transfer to another agent
+        </Button>
       </div>
 
       {showActions && (
