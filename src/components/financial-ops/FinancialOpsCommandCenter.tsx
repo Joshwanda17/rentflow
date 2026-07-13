@@ -33,6 +33,8 @@ import { WithdrawalNotificationLogPanel } from './WithdrawalNotificationLogPanel
 import { SmsDeliveryLogPanel } from './SmsDeliveryLogPanel';
 import { CashoutSettlementTimeline } from './CashoutSettlementTimeline';
 import { MerchantClaimsLog } from './MerchantClaimsLog';
+import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
+import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -43,6 +45,7 @@ import {
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
+  , Store
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -55,7 +58,8 @@ type Tool =
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
   | 'topup_audit'
   | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
-  | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log';
+  | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log'
+  | 'merchant_agents' | 'merchant_float';
 
 
 /**
@@ -68,6 +72,8 @@ type MoreAction =
   | { kind: 'view'; id: Exclude<View, 'home'>; label: string; desc: string; icon: typeof Gauge };
 
 const moreActions: MoreAction[] = [
+  { kind: 'tool', id: 'merchant_agents', label: 'Merchant Agents', desc: 'Manage cash-out (merchant) agents — same module as the CFO Dashboard', icon: Store },
+  { kind: 'tool', id: 'merchant_float', label: 'Merchant Float', desc: 'Fund or reject merchant agent operational float requests', icon: HandCoins },
   { kind: 'tool', id: 'user_statements', label: 'User Wallet Statements', desc: 'Search a user — see withdrawable, float, landlord float & advance statements + full profile', icon: ReceiptText },
   { kind: 'tool', id: 'email_tx', label: 'Email Transactions', desc: 'Live transactions extracted from connected Gmail', icon: Mail },
   { kind: 'tool', id: 'auto_credit_review', label: 'Auto-Credit Review', desc: 'Confirm or reverse best-guess auto-credited deposits', icon: AlertTriangle },
@@ -264,6 +270,19 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'sms_delivery_log' && <SmsDeliveryLogPanel />}
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
         {activeTool === 'merchant_claims' && <MerchantClaimsLog />}
+        {activeTool === 'merchant_agents' && <CashoutAgentManager />}
+        {activeTool === 'merchant_float' && (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">🏪 Merchant Float Requests</h1>
+              <p className="text-sm text-muted-foreground">
+                Cash-out merchant agents requesting operational float top-ups. Fund their Float
+                bucket via the Agent Float Allocation category or reject with a reason.
+              </p>
+            </div>
+            <MerchantFloatRequestsPanel />
+          </div>
+        )}
       </div>
     );
   }
