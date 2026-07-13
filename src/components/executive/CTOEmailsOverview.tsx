@@ -231,6 +231,22 @@ export function CTOEmailsOverview() {
     },
     { key: 'error_message', label: 'Error', className: 'max-w-[260px] truncate text-xs text-muted-foreground' },
     {
+      key: 'metadata',
+      label: 'BCC',
+      className: 'max-w-[200px]',
+      render: (_v, row) => {
+        const bcc = row.metadata?.bcc;
+        return bcc ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 whitespace-nowrap">
+            <Mail className="h-3 w-3" />
+            {bcc}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        );
+      },
+    },
+    {
       key: 'id',
       label: 'Action',
       render: (_v, row) => (
