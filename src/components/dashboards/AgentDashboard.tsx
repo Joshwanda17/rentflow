@@ -949,7 +949,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
           <div className={cn("space-y-4", tabAnimClass)}>
+            {/* Weekly Listing Mission — recruit sub-agents, list verified houses, earn */}
+            {!isMerchant && (
+              <WeeklyListingMissionCard
+                agentId={user.id}
+                onInvite={handleInviteSubAgent}
+                onViewTeam={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
+                onHelpList={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
+                onViewEarnings={() => { hapticTap(); setSlideDirection('left'); setActiveTab('money'); }}
+              />
+            )}
+
             {/*
+
              * Minimalist home: priorities lead → today's total → urgent alerts →
              * secondary shortcuts → single "Grow" button. Everything else
              * (advances, lending, sub-agents, partners, etc.) lives behind the
@@ -1028,16 +1040,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenListHouse={() => { if (guardMerchant()) return; hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
             />
 
-            {/* 1b) Weekly Listing Mission — recruit sub-agents, list verified houses, earn */}
-            {!isMerchant && (
-              <WeeklyListingMissionCard
-                agentId={user.id}
-                onInvite={handleInviteSubAgent}
-                onViewTeam={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
-                onHelpList={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
-                onViewEarnings={() => { hapticTap(); setSlideDirection('left'); setActiveTab('money'); }}
-              />
-            )}
 
             {/* 2) Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
