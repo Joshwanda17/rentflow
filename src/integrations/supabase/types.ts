@@ -2262,6 +2262,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "agent_float_withdrawals_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "agent_float_withdrawals_manager_reviewed_by_fkey"
             columns: ["manager_reviewed_by"]
             isOneToOne: false
@@ -2594,6 +2601,13 @@ export type Database = {
             columns: ["landlord_id"]
             isOneToOne: false
             referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
           },
           {
@@ -8600,6 +8614,13 @@ export type Database = {
             referencedRelation: "landlords"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "house_listings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       house_listings_region_normalization_log: {
@@ -9448,6 +9469,13 @@ export type Database = {
             referencedRelation: "landlords"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "landlord_onboarding_targets_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: true
+            referencedRelation: "landlords_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       landlord_payment_edits: {
@@ -9932,6 +9960,13 @@ export type Database = {
             columns: ["landlord_id"]
             isOneToOne: false
             referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_verification_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -14414,6 +14449,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "profiles_borrower_landlord_id_fkey"
+            columns: ["borrower_landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_borrower_lc1_id_fkey"
             columns: ["borrower_lc1_id"]
             isOneToOne: false
@@ -14652,6 +14694,13 @@ export type Database = {
             columns: ["landlord_id"]
             isOneToOne: false
             referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_viewings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -16003,6 +16052,13 @@ export type Database = {
             columns: ["landlord_id"]
             isOneToOne: false
             referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
           },
           {
@@ -21174,6 +21230,132 @@ export type Database = {
           },
         ]
       }
+      landlords_directory: {
+        Row: {
+          caretaker_name: string | null
+          caretaker_phone: string | null
+          cell: string | null
+          country: string | null
+          county: string | null
+          created_at: string | null
+          description: string | null
+          desired_rent_from_welile: number | null
+          district: string | null
+          electricity_meter_number: string | null
+          has_smartphone: boolean | null
+          house_category: string | null
+          house_number: string | null
+          id: string | null
+          is_agent_managed: boolean | null
+          is_occupied: boolean | null
+          latitude: number | null
+          location_captured_at: string | null
+          longitude: number | null
+          managed_by_agent_id: string | null
+          monthly_rent: number | null
+          name: string | null
+          number_of_houses: number | null
+          number_of_rooms: number | null
+          phone: string | null
+          property_address: string | null
+          ready_to_receive: boolean | null
+          region: string | null
+          registered_by: string | null
+          sub_county: string | null
+          tenant_id: string | null
+          town_council: string | null
+          updated_at: string | null
+          verification_reason: string | null
+          verification_status: string | null
+          verified: boolean | null
+          verified_at: string | null
+          village: string | null
+          water_meter_number: string | null
+        }
+        Insert: {
+          caretaker_name?: string | null
+          caretaker_phone?: string | null
+          cell?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string | null
+          description?: string | null
+          desired_rent_from_welile?: number | null
+          district?: string | null
+          electricity_meter_number?: string | null
+          has_smartphone?: boolean | null
+          house_category?: string | null
+          house_number?: string | null
+          id?: string | null
+          is_agent_managed?: boolean | null
+          is_occupied?: boolean | null
+          latitude?: number | null
+          location_captured_at?: string | null
+          longitude?: number | null
+          managed_by_agent_id?: string | null
+          monthly_rent?: number | null
+          name?: string | null
+          number_of_houses?: number | null
+          number_of_rooms?: number | null
+          phone?: string | null
+          property_address?: string | null
+          ready_to_receive?: boolean | null
+          region?: string | null
+          registered_by?: string | null
+          sub_county?: string | null
+          tenant_id?: string | null
+          town_council?: string | null
+          updated_at?: string | null
+          verification_reason?: string | null
+          verification_status?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+          village?: string | null
+          water_meter_number?: string | null
+        }
+        Update: {
+          caretaker_name?: string | null
+          caretaker_phone?: string | null
+          cell?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string | null
+          description?: string | null
+          desired_rent_from_welile?: number | null
+          district?: string | null
+          electricity_meter_number?: string | null
+          has_smartphone?: boolean | null
+          house_category?: string | null
+          house_number?: string | null
+          id?: string | null
+          is_agent_managed?: boolean | null
+          is_occupied?: boolean | null
+          latitude?: number | null
+          location_captured_at?: string | null
+          longitude?: number | null
+          managed_by_agent_id?: string | null
+          monthly_rent?: number | null
+          name?: string | null
+          number_of_houses?: number | null
+          number_of_rooms?: number | null
+          phone?: string | null
+          property_address?: string | null
+          ready_to_receive?: boolean | null
+          region?: string | null
+          registered_by?: string | null
+          sub_county?: string | null
+          tenant_id?: string | null
+          town_council?: string | null
+          updated_at?: string | null
+          verification_reason?: string | null
+          verification_status?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+          village?: string | null
+          water_meter_number?: string | null
+        }
+        Relationships: []
+      }
       manager_profiles: {
         Row: {
           avatar_url: string | null
@@ -21204,6 +21386,13 @@ export type Database = {
             columns: ["landlord_id"]
             isOneToOne: false
             referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "house_listings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -21344,6 +21533,13 @@ export type Database = {
             columns: ["landlord_id"]
             isOneToOne: false
             referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords_directory"
             referencedColumns: ["id"]
           },
         ]
