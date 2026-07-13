@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Target, Users, Coins, Edit, Plus, TrendingUp, Calendar } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek } from 'date-fns';
 
 interface TeamGoal {
   id: string;
@@ -62,7 +62,9 @@ export function TeamGoalProgress({
     ((goal.target_registrations > 0 ? 1 : 0) + (goal.target_earnings > 0 ? 1 : 0) || 1)
   );
 
-  const goalMonth = format(new Date(goal.goal_month), 'MMMM yyyy');
+  const weekStart = startOfWeek(new Date(goal.goal_week), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+  const goalLabel = `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d')}`;
   const isComplete = regProgress >= 100 && earningsProgress >= 100;
 
   return (
@@ -76,7 +78,7 @@ export function TeamGoalProgress({
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1 font-normal">
               <Calendar className="h-3 w-3" />
-              {goalMonth}
+              {goalLabel}
             </Badge>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEditGoal}>
               <Edit className="h-4 w-4" />
