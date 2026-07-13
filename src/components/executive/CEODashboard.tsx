@@ -7,6 +7,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { format, subMonths, startOfMonth, startOfDay } from 'date-fns';
 import { Activity, UserPlus, RefreshCw, Share2, ArrowRightLeft } from 'lucide-react';
 import { TrustCoverageSection } from './TrustCoverageSection';
+import { AgentAdvancesDailyReportCard } from './AgentAdvancesDailyReportCard';
 
 export function CEODashboard() {
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
