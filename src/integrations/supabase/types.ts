@@ -20008,6 +20008,45 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_totals_cache: {
+        Row: {
+          active_wallets: number
+          computed_at: string
+          drifted_wallets: number
+          id: number
+          strict_total: number
+          total_balance: number
+          total_drift: number
+          total_float: number
+          total_wallets: number
+          total_withdrawable: number
+        }
+        Insert: {
+          active_wallets?: number
+          computed_at?: string
+          drifted_wallets?: number
+          id?: number
+          strict_total?: number
+          total_balance?: number
+          total_drift?: number
+          total_float?: number
+          total_wallets?: number
+          total_withdrawable?: number
+        }
+        Update: {
+          active_wallets?: number
+          computed_at?: string
+          drifted_wallets?: number
+          id?: number
+          strict_total?: number
+          total_balance?: number
+          total_drift?: number
+          total_float?: number
+          total_wallets?: number
+          total_withdrawable?: number
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           amount: number
@@ -24390,6 +24429,7 @@ export type Database = {
       redeem_staff_access_code: { Args: { p_code: string }; Returns: Json }
       refresh_financial_summaries: { Args: never; Returns: undefined }
       refresh_house_location_rollup: { Args: never; Returns: undefined }
+      refresh_wallet_totals_cache: { Args: never; Returns: undefined }
       refund_agent_float_for_payout: {
         Args: { p_payout_id: string; p_reason: string }
         Returns: Json
