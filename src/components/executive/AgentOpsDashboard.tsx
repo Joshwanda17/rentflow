@@ -38,6 +38,7 @@ import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { AgentEligibilityTransitionsPanel } from './AgentEligibilityTransitionsPanel';
 import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
+import { AgentAdvanceLimits } from './agent-ops-v2/AgentAdvanceLimits';
 import { AdvanceAnalyticsPanel } from './agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
 import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
@@ -47,6 +48,7 @@ import {
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target
+  , Coins
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -59,10 +61,11 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'advance-potential' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'advance-potential', icon: Target, label: 'Advance Potential', color: 'bg-purple-700', priority: true },
+  { key: 'advance-limits', icon: Coins, label: 'Advance Limits', color: 'bg-emerald-800', priority: true },
   { key: 'advance-repayments', icon: TrendingDown, label: 'Repayments', color: 'bg-emerald-700', priority: true },
   { key: 'bulk-ops', icon: Layers, label: 'Bulk Ops Console', color: 'bg-rose-700', priority: true },
   { key: 'performance-report', icon: FileBarChart, label: 'Performance Report', color: 'bg-teal-600', priority: true },
@@ -226,6 +229,7 @@ export function AgentOpsDashboard() {
         </div>
       );
       case 'advance-potential': return <AgentAdvancePotential />;
+      case 'advance-limits': return <AgentAdvanceLimits />;
       case 'advance-repayments': return <AdvanceRepaymentsPanel />;
       case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
