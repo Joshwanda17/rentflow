@@ -262,8 +262,52 @@ function buildPdf(activity: DailyActivity, stats: LeaderboardStats, weekly: Week
     iy += lineH * wrapped.length;
   });
 
+  // Weekly headcount & forecast — last week vs now vs next week (forecast).
+  let wkTop = boxTop + boxH + 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND_DARK);
+  doc.text("Weekly Headcount & Forecast", margin, wkTop);
+  doc.setDrawColor(...BRAND);
+  doc.setLineWidth(0.4);
+  doc.line(margin, wkTop + 1.8, pageWidth - margin, wkTop + 1.8);
+  const wa = weekly.agents;
+  const ws = weekly.subagents;
+  const wkDelta = (g: WeeklyForecastGroup) => {
+    const d = g.next_week_forecast - g.now;
+    return `${d >= 0 ? "+" : ""}${fmtInt(d)} (~${fmtInt(g.avg_weekly_new)}/wk)`;
+  };
+  autoTable(doc, {
+    startY: wkTop + 4,
+    head: [["Segment", "Last week", "Now", "Next week (forecast)", "Projected growth"]],
+    body: [
+      ["Agents", fmtInt(wa.last_week), fmtInt(wa.now), fmtInt(wa.next_week_forecast), wkDelta(wa)],
+      ["Sub-Agents", fmtInt(ws.last_week), fmtInt(ws.now), fmtInt(ws.next_week_forecast), wkDelta(ws)],
+    ],
+    margin: { left: margin, right: margin },
+    tableWidth: pageWidth - margin * 2,
+    styles: { fontSize: 8.4, cellPadding: 2.4, valign: "middle", textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
+    headStyles: { fillColor: BRAND_DARK, textColor: 255, fontSize: 8, fontStyle: "bold", halign: "left" },
+    alternateRowStyles: { fillColor: STRIPE },
+    columnStyles: {
+      0: { cellWidth: "auto", fontStyle: "bold" },
+      1: { cellWidth: 30, halign: "right" },
+      2: { cellWidth: 30, halign: "right", fontStyle: "bold", textColor: BRAND },
+      3: { cellWidth: 40, halign: "right", textColor: EMERALD, fontStyle: "bold" },
+      4: { cellWidth: 40, halign: "right", textColor: MUTED },
+    },
+  });
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6.6);
+  doc.setTextColor(...MUTED);
+  doc.text(
+    "Forecast = current headcount + trailing 4-week average of new joins per week. Weeks start Monday (EAT).",
+    margin, (doc as any).lastAutoTable.finalY + 4,
+  );
+
   // Top active agents (yesterday)
-  let actTop = boxTop + boxH + 8;
+  let actTop = (doc as any).lastAutoTable.finalY + 10;
+  if (actTop > pageHeight - 60) { doc.addPage(); actTop = 20; }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BRAND_DARK);
