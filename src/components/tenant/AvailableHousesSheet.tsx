@@ -597,7 +597,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             />
           </div>
         ) : (
-        <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
+        <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+          <div className="mx-auto w-full max-w-2xl space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-40 w-full rounded-2xl" />
@@ -670,6 +671,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               )}
             </>
           )}
+          </div>
         </div>
         )}
         {view === 'list' && (() => {
