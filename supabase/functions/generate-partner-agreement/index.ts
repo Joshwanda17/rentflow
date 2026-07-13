@@ -14,6 +14,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const PARTNERSHIP_EMAIL = 'partnership@welile.com';
+
 // ─── numberToWords (for the email summary) ───────────────────────────────────
 const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
 const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -128,24 +130,43 @@ Deno.serve(async (req) => {
       const payoutSummary = isBank
         ? [row.bank_name, row.bank_account_number].filter(Boolean).join(' ') || 'Bank Transfer'
         : [row.momo_provider, row.momo_number].filter(Boolean).join(' ') || 'Mobile Money';
+      const templateData = {
+        partner_name: row.full_name || 'Partner',
+        partner_email: row.email,
+        partner_reference: reference,
+        partnership_amount: `UGX ${amountNum.toLocaleString('en-US')}`,
+        partnership_amount_words: row.partnership_amount_words || numberToWords(amountNum),
+        monthly_return: '15%',
+        payout_summary: payoutSummary,
+        agreement_download_url: signed?.signedUrl || 'https://welileapp.com',
+        company_name: 'WELILE TECHNOLOGIES LTD',
+      };
       try {
-        await admin.functions.invoke('send-transactional-email', {
+        const { data: emailResult, error: emailError } = await admin.functions.invoke('send-transactional-email', {
           body: {
             templateName: 'tenant-partnership-agreement',
             recipientEmail: row.email,
-            templateData: {
-              partner_name: row.full_name || 'Partner',
-              partner_email: row.email,
-              partner_reference: reference,
-              partnership_amount: `UGX ${amountNum.toLocaleString('en-US')}`,
-              partnership_amount_words: row.partnership_amount_words || numberToWords(amountNum),
-              monthly_return: '15%',
-              payout_summary: payoutSummary,
-              agreement_download_url: signed?.signedUrl || 'https://welileapp.com',
-              company_name: 'WELILE TECHNOLOGIES LTD',
-            },
+            templateData,
           },
         });
+        if (emailError) throw emailError;
+
+        // If the partner address is suppressed from a prior bounce/unsubscribe,
+        // the normal send never reaches the BCC path. Send a direct audit copy
+        // to the partnerships mailbox so the signed agreement is still filed.
+        if ((emailResult as any)?.reason === 'email_suppressed') {
+          await admin.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'tenant-partnership-agreement',
+              recipientEmail: PARTNERSHIP_EMAIL,
+              templateData: {
+                ...templateData,
+                original_partner_email: row.email,
+                audit_copy_reason: 'partner_email_suppressed',
+              },
+            },
+          });
+        }
       } catch (e) {
         console.warn('agreement email failed (non-blocking):', e);
       }

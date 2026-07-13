@@ -161,25 +161,43 @@ export default function PartnerAgreementSignOff({
     try {
       // Render the executed PDF from the EXACT same HTML shown in the preview so
       // the stored/emailed document is pixel-identical to what the admin saw.
-      const pdfBase64 = await renderAgreementPdfBase64(buildAgreementHtml(previewData));
-      const { error } = await supabase.functions.invoke('generate-partner-agreement', {
-        body: {
-          partnerId: partner.id,
-          countersign: true,
-          pdfBase64,
-          rep: {
-            name: repName.trim(),
-            position: repPosition.trim(),
-            contact: repContact.trim(),
-            signatureBase64: sigDataUrl || undefined,
+      if (alreadySigned) {
+        const { data, error } = await supabase.functions.invoke('resend-partner-agreement-email', {
+          body: { partnerId: partner.id },
+        });
+        if (error) throw error;
+        if (data?.results?.partner?.reason === 'email_suppressed') {
+          toast({
+            title: 'Partnership copy sent',
+            description: `${partner.email || 'Partner email'} is blocked from a prior bounce, so a copy was sent directly to partnership@welile.com.`,
+          });
+        } else {
+          toast({
+            title: 'Agreement re-sent',
+            description: partner.email ? `Executed PDF emailed to ${partner.email} and partnership@welile.com.` : 'Executed PDF sent to partnership@welile.com.',
+          });
+        }
+      } else {
+        const pdfBase64 = await renderAgreementPdfBase64(buildAgreementHtml(previewData));
+        const { error } = await supabase.functions.invoke('generate-partner-agreement', {
+          body: {
+            partnerId: partner.id,
+            countersign: true,
+            pdfBase64,
+            rep: {
+              name: repName.trim(),
+              position: repPosition.trim(),
+              contact: repContact.trim(),
+              signatureBase64: sigDataUrl || undefined,
+            },
           },
-        },
-      });
-      if (error) throw error;
-      toast({
-        title: alreadySigned ? 'Agreement re-sent' : 'Agreement counter-signed & sent',
-        description: partner.email ? `Executed PDF emailed to ${partner.email}.` : 'Executed PDF stored.',
-      });
+        });
+        if (error) throw error;
+        toast({
+          title: 'Agreement counter-signed & sent',
+          description: partner.email ? `Executed PDF emailed to ${partner.email}.` : 'Executed PDF stored.',
+        });
+      }
       onOpenChange(false);
     } catch (e: any) {
       toast({ title: 'Could not counter-sign', description: e?.message || 'Try again.', variant: 'destructive' });
