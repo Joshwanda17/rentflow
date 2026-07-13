@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
 import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
 
-export function CFOAdvanceRequestPayments() {
+export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed?: () => void } = {}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [editingRate, setEditingRate] = useState<string | null>(null);
@@ -315,6 +315,157 @@ export function CFOAdvanceRequestPayments() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // SHORT PATH: approve (locking in any edits) AND disburse in one action.
+  // Collapses the old two-step "Approve → then Disburse" into a single confirm.
+  // Runs the exact same ledger movement as payMutation but also stamps the
+  // approval fields in the same update, so nothing about the money flow changes.
+  const approveAndPayMutation = useMutation({
+    mutationFn: async (req: any) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      if (principal <= 0) throw new Error('Principal must be greater than zero');
+      const registrationFee = calculateRegistrationFee(principal);
+      const newAccessFee = calculateAccessFee(principal, cycleDays, adjustedRate);
+      const newTotal = principal + newAccessFee + registrationFee;
+      const newDaily = Math.ceil(newTotal / cycleDays);
+      const nowIso = new Date().toISOString();
+
+      // 1. Approve + mark paid in a single update (records both approval + disbursement).
+      const { error: updateErr } = await supabase.from('agent_advance_requests').update({
+        status: 'cfo_paid',
+        cfo_approved_by: user.id,
+        cfo_approved_at: nowIso,
+        paid_by_cfo: user.id,
+        cfo_paid_at: nowIso,
+        cfo_adjusted_rate: adjustedRate !== Number(req.monthly_rate) ? adjustedRate : null,
+        cfo_notes: notes[req.id] || null,
+        principal,
+        cycle_days: cycleDays,
+        registration_fee: registrationFee,
+        access_fee: newAccessFee,
+        total_payable: newTotal,
+        daily_payment: newDaily,
+        monthly_rate: adjustedRate,
+      }).eq('id', req.id);
+      if (updateErr) throw updateErr;
+
+      // 2. Create agent_advances record (starts daily deductions).
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + cycleDays);
+      const { error: advErr } = await supabase.from('agent_advances').insert({
+        agent_id: req.agent_id,
+        issued_by: user.id,
+        principal,
+        outstanding_balance: newTotal,
+        cycle_days: cycleDays,
+        monthly_rate: adjustedRate,
+        daily_rate: adjustedRate,
+        access_fee: newAccessFee,
+        registration_fee: registrationFee,
+        access_fee_collected: 0,
+        access_fee_status: 'unpaid',
+        status: 'active',
+        expires_at: expiresAt.toISOString(),
+      });
+      if (advErr) throw advErr;
+
+      // 3. Credit agent wallet via ledger RPC.
+      const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
+        entries: [
+          {
+            user_id: req.agent_id,
+            ledger_scope: 'wallet',
+            direction: 'cash_in',
+            amount: principal,
+            category: 'agent_advance_credit',
+            recipient_type: 'user',
+            wallet_bucket: 'withdrawable',
+            source_table: 'agent_advance_requests',
+            source_id: req.id,
+            description: `Agent advance disbursement - ${cycleDays}d @ ${Math.round(adjustedRate * 100)}%`,
+            currency: 'UGX',
+            transaction_date: nowIso,
+          },
+          {
+            user_id: req.agent_id,
+            ledger_scope: 'platform',
+            direction: 'cash_out',
+            amount: principal,
+            category: 'rent_disbursement',
+            source_table: 'agent_advance_requests',
+            source_id: req.id,
+            description: `Agent advance disbursed to wallet`,
+            currency: 'UGX',
+            transaction_date: nowIso,
+          },
+        ],
+      });
+      if (rpcErr) throw rpcErr;
+
+      // 4. Record registration fee revenue.
+      if (registrationFee > 0) {
+        await supabase.rpc('create_ledger_transaction', {
+          entries: [
+            {
+              user_id: req.agent_id,
+              ledger_scope: 'platform',
+              direction: 'cash_in',
+              amount: registrationFee,
+              category: 'registration_fee_collected',
+              source_table: 'agent_advance_requests',
+              source_id: req.id,
+              description: `Registration fee for agent advance`,
+              currency: 'UGX',
+              transaction_date: nowIso,
+            },
+            {
+              user_id: req.agent_id,
+              ledger_scope: 'wallet',
+              direction: 'cash_out',
+              amount: registrationFee,
+              category: 'registration_fee_collected',
+              source_table: 'agent_advance_requests',
+              source_id: req.id,
+              description: `Registration fee deducted`,
+              currency: 'UGX',
+              transaction_date: nowIso,
+            },
+          ],
+        });
+      }
+
+      // 5. Notify the agent by SMS (fire-and-forget).
+      supabase.functions.invoke('notify-agent-advance-disbursed', {
+        body: { agent_id: req.agent_id, amount: principal, request_id: req.id },
+      }).catch((e) => console.error('advance disbursement SMS failed', e));
+    },
+    onSuccess: (_data, req: any) => {
+      const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      const registrationFee = calculateRegistrationFee(principal);
+      const accessFee = calculateAccessFee(principal, cycleDays, adjustedRate);
+      const totalPayable = principal + accessFee + registrationFee;
+      const daily = Math.ceil(totalPayable / cycleDays);
+      toast.success('Approved & disbursed to agent wallet!');
+      setDisbursed({
+        agentName: req.profiles?.full_name || 'Agent',
+        agentPhone: req.profiles?.phone || '',
+        principal,
+        cycleDays,
+        rate: adjustedRate,
+        accessFee,
+        registrationFee,
+        totalPayable,
+        daily,
+      });
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   // Portfolio-level revenue economics across all pending requests
   const revenueTotals = useMemo(() => {
     let principal = 0, accessFee = 0, regFee = 0;
@@ -402,7 +553,7 @@ export function CFOAdvanceRequestPayments() {
           <h2 className="text-base font-bold">Applications &amp; Payouts</h2>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Live view of every agent advance application. Review &amp; edit a request, then <strong>Approve</strong> it. Disbursement to the agent&apos;s wallet only unlocks <em>after</em> CFO approval.
+          Live view of every agent advance application. Edit the figures if needed, then <strong>Approve &amp; Disburse</strong> in one step — you&apos;ll confirm the exact amount before any money moves. Prefer a two-stage flow? Use <em>Approve only</em> to stage it and disburse later.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           <Button
@@ -822,16 +973,27 @@ export function CFOAdvanceRequestPayments() {
                       ) : (
                         <>
                           <Button
+                            onClick={() => setConfirmingId(req.id)}
+                            disabled={approveAndPayMutation.isPending || currentPrincipal <= 0}
+                            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
+                          >
+                            {approveAndPayMutation.isPending
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <><Banknote className="h-4 w-4" /> Approve &amp; Disburse {formatUGX(currentPrincipal)}</>}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => approveMutation.mutate(req)}
                             disabled={approveMutation.isPending || currentPrincipal <= 0}
-                            className="w-full gap-2 disabled:bg-muted disabled:text-muted-foreground"
+                            className="w-full h-7 text-[11px] text-muted-foreground"
                           >
                             {approveMutation.isPending
-                              ? <Loader2 className="h-4 w-4 animate-spin" />
-                              : <><CheckCircle2 className="h-4 w-4" /> Approve advance ({formatUGX(currentPrincipal)})</>}
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : 'Approve only — stage for disbursement later'}
                           </Button>
                           <p className="text-[10px] text-muted-foreground text-center">
-                            Disbursement is locked until you approve. Principal, cycle days, and rate stay editable until then.
+                            One click reviews, approves and pays. Edit the principal, cycle days or rate above first — you&apos;ll confirm the exact figures next.
                           </p>
                         </>
                       )}
@@ -861,6 +1023,8 @@ export function CFOAdvanceRequestPayments() {
         const originalCycle = Number(req.cycle_days);
         const principalChanged = principal !== originalPrincipal;
         const cycleChanged = cycleDays !== originalCycle;
+        const isApprovedAlready = req.status === 'cfo_approved';
+        const busy = payMutation.isPending || approveAndPayMutation.isPending;
 
         return (
           <Dialog open={!!confirmingId} onOpenChange={(open) => !open && setConfirmingId(null)}>
@@ -1028,14 +1192,18 @@ export function CFOAdvanceRequestPayments() {
                 </Button>
                 <Button
                   onClick={() => {
-                    payMutation.mutate(req);
+                    if (isApprovedAlready) {
+                      payMutation.mutate(req);
+                    } else {
+                      approveAndPayMutation.mutate(req);
+                    }
                     setConfirmingId(null);
                   }}
-                  disabled={payMutation.isPending}
+                  disabled={busy}
                   className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Confirm &amp; Disburse {formatUGX(principal)}
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {isApprovedAlready ? 'Confirm & Disburse' : 'Approve & Disburse'} {formatUGX(principal)}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1118,13 +1286,17 @@ export function CFOAdvanceRequestPayments() {
             <Button
               onClick={() => {
                 setDisbursed(null);
-                // Jump to the full disbursed-advances register on the same tab.
-                requestAnimationFrame(() => {
-                  document.getElementById('cfo-disbursed-advances')?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
+                // Jump to the dedicated Disbursed & Repayments tab.
+                if (onViewDisbursed) {
+                  onViewDisbursed();
+                } else {
+                  requestAnimationFrame(() => {
+                    document.getElementById('cfo-disbursed-advances')?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'start',
+                    });
                   });
-                });
+                }
               }}
               className="w-full sm:w-auto gap-2"
             >

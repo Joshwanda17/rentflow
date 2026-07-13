@@ -66,6 +66,13 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       ],
     },
     {
+      title: 'Advances',
+      items: [
+        { label: 'Advance Requests', icon: HandCoins, id: 'advances' },
+        { label: 'Disbursed & Repayments', icon: Banknote, id: 'advances-disbursed' },
+      ],
+    },
+    {
       title: 'Money In',
       items: [
         { label: 'Rent Collections', icon: Receipt, id: 'rent-collections' },
@@ -98,7 +105,6 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Agent Float', icon: Building2, id: 'float-management' },
         { label: 'Delivery Tracking', icon: Truck, id: 'delivery-pipeline' },
         { label: 'Cash Check', icon: Scale, id: 'cash-reconciliation' },
-        { label: 'Advances', icon: Banknote, id: 'advances' },
       ],
     },
     {
