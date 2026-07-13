@@ -67,7 +67,7 @@ const CreditLoadingDebugPanel = optionalLazyWithRetry(() => import("@/components
 const DeferredExtras = optionalLazyWithRetry(() => import("@/components/DeferredExtras"), "DeferredExtras");
 const FloatingToolbar = optionalLazyWithRetry(() => import("@/components/FloatingToolbar"), "FloatingToolbar");
 const PWAInstallPrompt = optionalLazyWithRetry(() => import("@/components/PWAInstallPrompt"), "PWAInstallPrompt");
-const AgentNavFAB = optionalLazyWithRetry(() => import("@/components/agent/AgentNavFAB"), "AgentNavFAB");
+
 
 
 // Index is the entry router — must be eager for instant redirect
@@ -317,7 +317,7 @@ function GlobalFloatingWidgets() {
   return (
     <>
       <FloatingToolbar />
-      <AgentNavFAB />
+      
       <PWAInstallPrompt />
     </>
   );
