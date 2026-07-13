@@ -223,8 +223,9 @@ Deno.serve(async (req) => {
       payload: {
         message_id: messageId,
         to: email,
-        from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+        from: `Welile Partnerships <partnership@${FROM_DOMAIN}>`,
         sender_domain: SENDER_DOMAIN,
+        reply_to: `partnership@${FROM_DOMAIN}`,
         subject: `✅ Your Supporter Agreement — Accepted ${acceptDate}`,
         html,
         text,
