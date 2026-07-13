@@ -4,11 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Target, Users, Coins, Edit, Plus, TrendingUp, Calendar } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek } from 'date-fns';
 
 interface TeamGoal {
   id: string;
-  goal_month: string;
+  goal_week: string;
   target_registrations: number;
   target_earnings: number;
   notes: string | null;
@@ -38,11 +38,11 @@ export function TeamGoalProgress({
           </div>
           <h3 className="font-bold text-base mb-2">Set Your Team Goal</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Set monthly targets for sub-agent registrations and earnings to track your team's progress
+            Set weekly targets for sub-agent registrations and earnings to track your team's progress
           </p>
           <Button onClick={onSetGoal} className="gap-2">
             <Plus className="h-4 w-4" />
-            Set Monthly Goal
+            Set Weekly Goal
           </Button>
         </CardContent>
       </Card>
@@ -62,7 +62,9 @@ export function TeamGoalProgress({
     ((goal.target_registrations > 0 ? 1 : 0) + (goal.target_earnings > 0 ? 1 : 0) || 1)
   );
 
-  const goalMonth = format(new Date(goal.goal_month), 'MMMM yyyy');
+  const weekStart = startOfWeek(new Date(goal.goal_week), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+  const goalLabel = `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d')}`;
   const isComplete = regProgress >= 100 && earningsProgress >= 100;
 
   return (
@@ -76,7 +78,7 @@ export function TeamGoalProgress({
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1 font-normal">
               <Calendar className="h-3 w-3" />
-              {goalMonth}
+              {goalLabel}
             </Badge>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEditGoal}>
               <Edit className="h-4 w-4" />

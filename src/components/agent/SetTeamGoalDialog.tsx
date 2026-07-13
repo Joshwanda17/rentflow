@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Target, Users, Coins, Loader2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth, addMonths } from 'date-fns';
+import { format, startOfWeek, addWeeks, endOfWeek } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface SetTeamGoalDialogProps {
@@ -23,12 +23,12 @@ interface SetTeamGoalDialogProps {
   onSuccess: () => void;
   existingGoal?: {
     id: string;
-    goal_month: string;
+    goal_week: string;
     target_registrations: number;
     target_earnings: number;
     notes: string | null;
   } | null;
-  selectedMonth?: Date;
+  selectedWeek?: Date;
 }
 
 export function SetTeamGoalDialog({
@@ -36,29 +36,31 @@ export function SetTeamGoalDialog({
   onOpenChange,
   onSuccess,
   existingGoal,
-  selectedMonth = new Date(),
+  selectedWeek = new Date(),
 }: SetTeamGoalDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [goalMonth, setGoalMonth] = useState(format(startOfMonth(selectedMonth), 'yyyy-MM'));
+  const [goalWeek, setGoalWeek] = useState(
+    format(startOfWeek(selectedWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  );
   const [targetRegistrations, setTargetRegistrations] = useState('');
   const [targetEarnings, setTargetEarnings] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (existingGoal) {
-      setGoalMonth(existingGoal.goal_month);
+      setGoalWeek(existingGoal.goal_week);
       setTargetRegistrations(existingGoal.target_registrations.toString());
       setTargetEarnings(existingGoal.target_earnings.toString());
       setNotes(existingGoal.notes || '');
     } else {
-      setGoalMonth(format(startOfMonth(selectedMonth), 'yyyy-MM'));
+      setGoalWeek(format(startOfWeek(selectedWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd'));
       setTargetRegistrations('');
       setTargetEarnings('');
       setNotes('');
     }
-  }, [existingGoal, selectedMonth, open]);
+  }, [existingGoal, selectedWeek, open]);
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -80,18 +82,22 @@ export function SetTeamGoalDialog({
     try {
       const goalData = {
         agent_id: user.id,
-        goal_month: goalMonth + '-01', // Store as date
+        goal_week: goalWeek,
         target_registrations: regTarget,
         target_earnings: earningsTarget,
         notes: notes.trim() || null,
       };
 
-      if (existingGoal) {
-        // subagent_team_goals table removed - feature not active
-        toast({ title: 'Team goals feature is not currently active', variant: 'destructive' as const });
-      } else {
-        toast({ title: 'Team goals feature is not currently active', variant: 'destructive' as const });
-      }
+      const { error } = await supabase
+        .from('agent_team_goals')
+        .upsert(goalData, { onConflict: 'agent_id,goal_week' });
+
+      if (error) throw error;
+
+      toast({
+        title: existingGoal ? 'Weekly goal updated' : 'Weekly goal set',
+        description: 'Your team target for this week is saved.',
+      });
 
       onSuccess();
       onOpenChange(false);
@@ -107,12 +113,13 @@ export function SetTeamGoalDialog({
     }
   };
 
-  // Generate month options (current month + next 3 months)
-  const monthOptions = Array.from({ length: 4 }, (_, i) => {
-    const date = addMonths(new Date(), i);
+  // Generate week options (current week + next 3 weeks)
+  const weekOptions = Array.from({ length: 4 }, (_, i) => {
+    const start = startOfWeek(addWeeks(new Date(), i), { weekStartsOn: 1 });
+    const end = endOfWeek(start, { weekStartsOn: 1 });
     return {
-      value: format(startOfMonth(date), 'yyyy-MM'),
-      label: format(date, 'MMMM yyyy'),
+      value: format(start, 'yyyy-MM-dd'),
+      label: `${i === 0 ? 'This week' : i === 1 ? 'Next week' : format(start, 'MMM d')} · ${format(start, 'MMM d')} – ${format(end, 'MMM d')}`,
     };
   });
 
@@ -131,15 +138,15 @@ export function SetTeamGoalDialog({
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Goal Month
+              Goal Week
             </Label>
             <select
-              value={goalMonth}
-              onChange={(e) => setGoalMonth(e.target.value)}
+              value={goalWeek}
+              onChange={(e) => setGoalWeek(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               disabled={!!existingGoal}
             >
-              {monthOptions.map((option) => (
+              {weekOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -161,7 +168,7 @@ export function SetTeamGoalDialog({
               onChange={(e) => setTargetRegistrations(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Number of new sub-agents to recruit this month
+              Number of new sub-agents to recruit this week
             </p>
           </div>
 

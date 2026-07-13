@@ -50,7 +50,7 @@ import {
 } from 'lucide-react';
 import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { AddSubAgentSearch } from '@/components/agent/AddSubAgentSearch';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
@@ -162,7 +162,7 @@ interface MonthlyData {
 
 interface TeamGoal {
   id: string;
-  goal_month: string;
+  goal_week: string;
   target_registrations: number;
   target_earnings: number;
   notes: string | null;
@@ -513,12 +513,20 @@ export default function SubAgentAnalytics() {
     if (!user) return;
 
     try {
-      const currentMonth = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      
-      // subagent_team_goals table removed - use null
-      setCurrentGoal(null);
+      const currentWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+
+      const { data, error } = await supabase
+        .from('agent_team_goals')
+        .select('id, goal_week, target_registrations, target_earnings, notes')
+        .eq('agent_id', user.id)
+        .eq('goal_week', currentWeek)
+        .maybeSingle();
+
+      if (error) throw error;
+      setCurrentGoal(data ?? null);
     } catch (error) {
       console.error('Error fetching goal:', error);
+      setCurrentGoal(null);
     }
   };
 
@@ -826,8 +834,20 @@ export default function SubAgentAnalytics() {
         });
       }
       setMonthlyData(last6Months);
-      setCurrentMonthRegistrations(thisMonthRegs);
-      setCurrentMonthEarnings(thisMonthEarnings);
+
+      // Weekly progress for the current team goal (Mon–Sun)
+      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+      const inThisWeek = (d: string) => {
+        const t = new Date(d);
+        return t >= weekStart && t <= weekEnd;
+      };
+      const thisWeekRegs = subAgentsData.filter(sa => inThisWeek(sa.created_at)).length;
+      const thisWeekEarnings = (allEarnings || [])
+        .filter(e => inThisWeek(e.created_at))
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+      setCurrentMonthRegistrations(thisWeekRegs);
+      setCurrentMonthEarnings(thisWeekEarnings);
 
     } catch (error) {
       console.error('Error fetching sub-agent analytics:', error);
