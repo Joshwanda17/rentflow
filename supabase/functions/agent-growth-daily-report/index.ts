@@ -576,15 +576,24 @@ async function sendWithAttachment(
   return { ok: res.ok, status: res.status, raw: text };
 }
 
-function buildHtml(activity: DailyActivity, prettyDate: string): string {
+function buildHtml(activity: DailyActivity, weekly: WeeklyForecast, prettyDate: string): string {
   const a = activity.totals;
   const top = activity.top_agents?.[0];
+  const wa = weekly.agents;
+  const ws = weekly.subagents;
   const cell = (label: string, value: string, sub: string, bg: string, color: string) =>
     `<td style="width:33.3%;background:${bg};border-radius:10px;padding:12px">
        <div style="font-size:10px;color:#787484;text-transform:uppercase;font-weight:700">${esc(label)}</div>
        <div style="font-size:20px;font-weight:800;color:${color};margin-top:2px">${esc(value)}</div>
        <div style="font-size:11px;color:#787484">${esc(sub)}</div>
      </td>`;
+  const wkRow = (seg: string, g: WeeklyForecastGroup) =>
+    `<tr>
+       <td style="padding:8px 10px;font-weight:700;border-bottom:1px solid #eee">${esc(seg)}</td>
+       <td style="padding:8px 10px;text-align:right;border-bottom:1px solid #eee">${fmtInt(g.last_week)}</td>
+       <td style="padding:8px 10px;text-align:right;font-weight:800;color:#6900cc;border-bottom:1px solid #eee">${fmtInt(g.now)}</td>
+       <td style="padding:8px 10px;text-align:right;font-weight:800;color:#109664;border-bottom:1px solid #eee">${fmtInt(g.next_week_forecast)}</td>
+     </tr>`;
   return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f5f3fa;margin:0;padding:24px;color:#1e1b2e">
   <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #e2deec;border-radius:14px;overflow:hidden">
     <div style="background:#6900cc;color:#fff;padding:22px 26px">
@@ -614,13 +623,28 @@ function buildHtml(activity: DailyActivity, prettyDate: string): string {
           ${cell("Invites Sent", fmtInt(a.invites_total), `${fmtInt(a.subagent_invites)} agent · ${fmtInt(a.supporter_invites)} supp.`, "#fdeef6", "#db2777")}
         </tr>
       </table>
+      <h2 style="margin:22px 0 8px;font-size:15px;color:#42007f">Weekly Headcount &amp; Forecast</h2>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;border:1px solid #eee;border-radius:10px;overflow:hidden">
+        <tr style="background:#42007f;color:#fff">
+          <th style="padding:8px 10px;text-align:left">Segment</th>
+          <th style="padding:8px 10px;text-align:right">Last week</th>
+          <th style="padding:8px 10px;text-align:right">Now</th>
+          <th style="padding:8px 10px;text-align:right">Next week (forecast)</th>
+        </tr>
+        ${wkRow("Agents", wa)}
+        ${wkRow("Sub-Agents", ws)}
+      </table>
+      <p style="margin:6px 0 0;font-size:11px;color:#94a3b8">
+        Forecast = current headcount + trailing 4-week average of new joins per week
+        (~${fmtInt(wa.avg_weekly_new)} agents/wk, ~${fmtInt(ws.avg_weekly_new)} sub-agents/wk). Weeks start Monday (EAT).
+      </p>
       ${top && top.total_actions > 0 ? `<p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#334155">
         🏆 <strong>Most active: ${esc(top.name)}</strong> — ${fmtInt(top.total_actions)} actions
         (${fmtInt(top.collections)} collections, ${fmtUgx(top.collected)}) yesterday.
       </p>` : ""}
       <p style="margin:20px 0 0;font-size:13px;color:#64748b;line-height:1.6">
-        📎 <strong>Attached:</strong> full PDF with the daily KPI strip, top active agents,
-        trailing 30-day network growth, top recruiters and the invitee pipeline.
+        📎 <strong>Attached:</strong> full PDF with the daily KPI strip, weekly headcount &amp; forecast,
+        top active agents, trailing 30-day network growth, top recruiters and the invitee pipeline.
       </p>
     </div>
     <div style="border-top:1px solid #e2deec;padding:16px 26px;font-size:11px;color:#94a3b8">
