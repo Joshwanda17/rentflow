@@ -101,6 +101,15 @@ export function UserWithdrawalRequests() {
           label: 'Approved',
           pulse: false,
         };
+      case 'completed':
+        return {
+          icon: CheckCircle,
+          color: 'text-emerald-500',
+          bgColor: 'bg-emerald-500/10',
+          borderColor: 'border-emerald-500/30',
+          label: 'Completed',
+          pulse: false,
+        };
       case 'rejected':
         return {
           icon: XCircle,
@@ -110,13 +119,40 @@ export function UserWithdrawalRequests() {
           label: 'Rejected',
           pulse: false,
         };
+      case 'cancelled':
+        return {
+          icon: XCircle,
+          color: 'text-muted-foreground',
+          bgColor: 'bg-muted',
+          borderColor: 'border-border',
+          label: 'Cancelled',
+          pulse: false,
+        };
+      case 'expired':
+        return {
+          icon: XCircle,
+          color: 'text-muted-foreground',
+          bgColor: 'bg-muted',
+          borderColor: 'border-border',
+          label: 'Expired',
+          pulse: false,
+        };
+      case 'failed':
+        return {
+          icon: XCircle,
+          color: 'text-destructive',
+          bgColor: 'bg-destructive/10',
+          borderColor: 'border-destructive/30',
+          label: 'Failed',
+          pulse: false,
+        };
       default:
         return {
           icon: Clock,
           color: 'text-muted-foreground',
           bgColor: 'bg-muted',
           borderColor: 'border-border',
-          label: status,
+          label: status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' '),
           pulse: false,
         };
     }
