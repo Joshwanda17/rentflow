@@ -328,6 +328,7 @@ Deno.serve(async (req) => {
           to: r.email,
           from: FROM_HEADER,
           sender_domain: SENDER_DOMAIN,
+          reply_to: `partnership@${FROM_DOMAIN}`,
           subject,
           html,
           text,
