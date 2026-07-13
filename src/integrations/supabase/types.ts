@@ -24050,6 +24050,10 @@ export type Database = {
         }
         Returns: Json
       }
+      reassign_subagent_parent: {
+        Args: { _new_parent_id: string; _reason: string; _record_id: string }
+        Returns: Json
+      }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
       recompute_agent_earned_vouch:
         | { Args: { p_agent_id: string }; Returns: number }
