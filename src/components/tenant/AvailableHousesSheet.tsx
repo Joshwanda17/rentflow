@@ -128,9 +128,11 @@ function VerificationBadge({ verified, status }: { verified?: boolean; status: s
   );
 }
 
-function HouseCard({ listing, highlighted = false }: { listing: HouseListing; highlighted?: boolean }) {
+function HouseCard({ listing, highlighted = false, onOpen }: { listing: HouseListing; highlighted?: boolean; onOpen: (listing: HouseListing) => void }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
+  const cover = listing.image_urls && listing.image_urls.length > 0 ? listing.image_urls[0] : null;
+  const open = () => onOpen(listing);
 
   return (
     <motion.div
@@ -138,27 +140,45 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
       animate={{ opacity: 1, y: 0 }}
       data-house-card=""
       data-house-id={listing.id}
+      role="button"
+      tabIndex={0}
+      aria-label={`View details for ${listing.title}`}
       aria-current={highlighted ? 'true' : undefined}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      }}
       className={
-        'rounded-2xl border bg-card overflow-hidden transition-shadow ' +
+        'rounded-2xl border bg-card overflow-hidden transition-shadow cursor-pointer active:scale-[0.98] touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ' +
         (highlighted
           ? 'border-primary shadow-lg ring-2 ring-primary/40 ring-offset-2 ring-offset-background'
           : 'border-border shadow-sm')
       }
     >
-      <div className="relative">
-        <HouseImageCarousel images={listing.image_urls} title={listing.title} houseId={listing.id} />
+      {/* House image */}
+      <div className="relative w-full h-40 bg-muted">
+        {cover ? (
+          <img src={cover} alt={listing.title} className="w-full h-full object-cover" loading="lazy" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Home className="h-10 w-10 text-muted-foreground/30" />
+          </div>
+        )}
         {dist !== undefined && dist < 9999 && (
           <span className="absolute top-2 left-2 text-[10px] font-medium text-white bg-primary/80 px-2 py-0.5 rounded-full">
             ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
           </span>
         )}
         <Badge variant="secondary" className="absolute top-2 right-2 text-[10px]">{categoryLabel}</Badge>
+        <div className="absolute bottom-2 right-2">
+          <VerificationBadge verified={listing.verified} status={listing.status} />
+        </div>
       </div>
 
-      <div className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
+      {/* Title · location · price */}
+      <div className="p-4 space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <h3 className="font-bold text-base truncate">{listing.title}</h3>
             <div className="flex items-center gap-1 mt-0.5">
               <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -168,67 +188,14 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
               </p>
             </div>
           </div>
-          <VerificationBadge verified={listing.verified} status={listing.status} />
-        </div>
-
-        {/* Daily Rate — compact inline row */}
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border border-success/30 px-3.5 py-2.5">
-          <div className="min-w-0">
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Daily Rent</p>
-            <p className="text-2xl font-black text-success leading-none truncate">{formatUGX(listing.daily_rate)}</p>
+          <div className="text-right shrink-0">
+            <p className="text-lg font-black text-success leading-none">{formatUGX(listing.daily_rate)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">per day</p>
           </div>
-          <p className="text-[11px] text-muted-foreground font-medium text-right shrink-0 leading-tight">
-            per day<br />pay as you stay
-          </p>
         </div>
-
-        {/* Move-in offer — first 7 days free on every listed house */}
-        <MoveInOfferBadge variant="banner" />
-
-        {/* Specs */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs">
-            <DoorOpen className="h-3 w-3" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
-          </span>
-          {listing.has_water && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
-              <Droplets className="h-3 w-3" /> Water
-            </span>
-          )}
-          {listing.has_electricity && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs">
-              <Zap className="h-3 w-3" /> Power
-            </span>
-          )}
-          {listing.has_security && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs">
-              <ShieldCheck className="h-3 w-3" /> Security
-            </span>
-          )}
-          {listing.has_parking && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">
-              <Car className="h-3 w-3" /> Parking
-            </span>
-          )}
-          {listing.is_furnished && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs">
-              <Sofa className="h-3 w-3" /> Furnished
-            </span>
-          )}
+        <div className="flex items-center justify-end gap-1 text-[11px] font-medium text-primary">
+          Tap to view details <ChevronRight className="h-3 w-3" />
         </div>
-
-        {listing.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2">{listing.description}</p>
-        )}
-
-        {/* Go see it yourself — turn-by-turn navigation */}
-        <GetDirectionsButton lat={listing.latitude} lng={listing.longitude} title={listing.title} />
-
-        {/* WhatsApp Agent */}
-        <AgentContactBar phone={listing.agent_phone} agentName={listing.agent_name} agentRating={listing.agent_rating} houseTitle={listing.title} />
-
-        {/* Share */}
-        <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} shortCode={listing.short_code} variant="full" address={listing.address} monthlyRent={listing.monthly_rent} rooms={listing.number_of_rooms} category={listing.house_category} />
       </div>
     </motion.div>
   );
@@ -377,7 +344,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => resultsRef.current,
-    estimateSize: () => 560,
+    estimateSize: () => 280,
     overscan: 4,
     gap: 12,
     getItemKey: (index) => filtered[index]?.id ?? index,
@@ -653,6 +620,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                       <HouseCard
                         listing={listing}
                         highlighted={vi.index === 0 && searchText.trim().length > 0}
+                        onOpen={(l) => { onOpenChange(false); navigate(`/house/${l.short_code || l.id}`); }}
                       />
                     </div>
                   );
