@@ -338,6 +338,7 @@ Deno.serve(async (req) => {
             to: payload.to,
             from: payload.from || DEFAULT_FROM,
             reply_to: payload.reply_to,
+            bcc: payload.bcc,
             subject: payload.subject,
             html: payload.html,
             text: payload.text,
