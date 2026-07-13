@@ -315,6 +315,10 @@ Deno.serve(async (req) => {
       ? template.subject(templateData)
       : template.subject
 
+  // Partner/funder emails send from the partnerships mailbox with replies
+  // routed to partnership@welile.com.
+  const isPartnerFunder = PARTNER_FUNDER_TEMPLATES.has(templateName)
+
   // 5. Enqueue the pre-rendered email for async processing by the dispatcher.
   // The dispatcher (process-email-queue) handles sending, retries, and rate-limit backoff.
 
