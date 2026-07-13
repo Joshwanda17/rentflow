@@ -378,6 +378,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     count: filtered.length,
     getScrollElement: () => resultsRef.current,
     estimateSize: () => 430,
+    measureElement: undefined,
     overscan: 4,
     gap: 12,
     getItemKey: (index) => filtered[index]?.id ?? index,
