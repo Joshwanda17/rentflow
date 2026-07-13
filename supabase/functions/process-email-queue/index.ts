@@ -145,16 +145,24 @@ async function moveToDlq(
 }
 
 Deno.serve(async (req) => {
-  const apiKey = Deno.env.get('LOVABLE_API_KEY')
+  const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY')
+  const mailgunDomain = Deno.env.get('MAILGUN_DOMAIN')
+  const mailgunBaseUrl = Deno.env.get('MAILGUN_API_BASE') || 'https://api.mailgun.net'
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-  if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
+  if (!mailgunApiKey || !mailgunDomain || !supabaseUrl || !supabaseServiceKey) {
     console.error('Missing required environment variables')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
+  }
+
+  const mailgunConfig: MailgunConfig = {
+    apiKey: mailgunApiKey,
+    domain: mailgunDomain,
+    baseUrl: mailgunBaseUrl,
   }
 
   const authHeader = req.headers.get('Authorization')
