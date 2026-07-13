@@ -344,9 +344,6 @@ Just click the link and enter your password to get started!`;
       });
 
       const matched = profiles[0]?.total_matched ?? 0;
-      if (page === 0 && typeof matched === 'number') {
-        setTotalUserCount(matched);
-      }
       setHasMore(from + pageUsers.length < matched);
 
       if (page === 0) setUsers(pageUsers);
