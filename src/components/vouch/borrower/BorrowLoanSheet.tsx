@@ -138,7 +138,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
     }
     if (!p?.borrower_landlord_id || !p?.borrower_lc1_id) { setResidenceComplete(false); return; }
     const { data: ll } = await (supabase
-      .from('landlords')
+      .from('landlords_directory')
       .select('id, latitude, longitude, verified, verification_status, verification_reason, name, phone, property_address, village, district, registered_by')
       .eq('id', p.borrower_landlord_id)
       .maybeSingle() as any);
