@@ -228,12 +228,14 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     longitude: null,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
+    district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+    subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+    village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    search: searchText.trim() || undefined,
     // Page through EVERY matching listing — no fixed cap.
     paginate: true,
-    // Fetch a large first page so the map pins and the district/sub-county/
-    // village dropdowns see the full result set immediately — not just the
-    // first 24 rows the infinite-scroll sentinel would otherwise load.
-    pageSize: 500,
+    // Keep pages human-sized; users can explicitly continue with Load more.
+    pageSize: 24,
     enabled: open,
   });
 
@@ -297,30 +299,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [listings, selectedDistrict, selectedSubCounty]);
 
-  const filtered = useMemo(() => {
-    let result = listings;
-    if (selectedDistrict !== 'all') {
-      result = result.filter(l => (l.district || '').trim() === selectedDistrict);
-    }
-    if (selectedSubCounty !== 'all') {
-      result = result.filter(l => (l.sub_county || '').trim() === selectedSubCounty);
-    }
-    if (selectedVillage !== 'all') {
-      result = result.filter(l => (l.village || '').trim() === selectedVillage);
-    }
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
-      result = result.filter(l =>
-        l.region.toLowerCase().includes(q) ||
-        l.address.toLowerCase().includes(q) ||
-        (l.district || '').toLowerCase().includes(q) ||
-        (l.sub_county || '').toLowerCase().includes(q) ||
-        (l.village || '').toLowerCase().includes(q) ||
-        l.title.toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [listings, searchText, selectedDistrict, selectedSubCounty, selectedVillage]);
+  const filtered = listings;
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
@@ -366,22 +345,6 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     virtualizer.scrollToOffset(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText]);
-
-  // Infinite scroll: load the next page automatically when the bottom sentinel
-  // approaches the viewport. `loadMore` self-guards against overlapping/finished
-  // requests, so it's safe to call on every intersection.
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || !hasMore) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) loadMore();
-      },
-      { root: resultsRef.current, rootMargin: '600px' },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, loadMore, view]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -644,8 +607,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   );
                 })}
               </div>
-              {/* Infinite-scroll sentinel — triggers loading the next page. */}
-              {hasMore && <div ref={sentinelRef} className="h-1 w-full" aria-hidden="true" />}
+              <div ref={sentinelRef} className="w-full" aria-hidden="true" />
               {loadingMore && (
                 <LoadMoreProgress
                   loadedCount={filtered.length}
@@ -654,6 +616,20 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   skeletonCount={2}
                   skeletonClassName="h-40 w-full rounded-2xl"
                 />
+              )}
+              {hasMore && !loadingMore && (
+                <div className="pt-2 pb-24 md:pb-4">
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    className="w-full min-h-12 rounded-full bg-primary text-primary-foreground font-bold shadow-lg active:scale-[0.98] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    Load more houses
+                  </button>
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    Showing {filtered.length.toLocaleString()} of {listingCounts.verified.toLocaleString()} verified houses
+                  </p>
+                </div>
               )}
             </>
           )}
