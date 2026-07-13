@@ -110,39 +110,6 @@ function HouseImageCarousel({ images, title, houseId }: { images: string[] | nul
   );
 }
 
-function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
-  const announce = useMapLinkAnnouncer();
-  if (!lat || !lng) return null;
-
-  const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
-  const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-
-  return (
-    <div className="space-y-1">
-      <a
-        href={linkUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => announce(title)}
-        aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
-        className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <iframe
-          src={mapUrl}
-          className="w-full h-full pointer-events-none"
-          title={`Map: ${title}`}
-          loading="lazy"
-          style={{ border: 0 }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none" />
-        <div className="absolute bottom-2 left-2 right-2 mx-auto w-fit min-h-[44px] bg-primary text-primary-foreground text-sm font-bold px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl touch-manipulation">
-          <Navigation className="h-4 w-4" /> Tap to open in Google Maps
-        </div>
-      </a>
-    </div>
-  );
-}
-
 function VerificationBadge({ verified, status }: { verified?: boolean; status: string }) {
   const isPending = !verified || status === 'pending';
   
@@ -204,11 +171,15 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
           <VerificationBadge verified={listing.verified} status={listing.status} />
         </div>
 
-        {/* Daily Rate */}
-        <div className="p-4 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30">
-          <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Daily Rent</p>
-          <p className="text-3xl font-black text-success leading-none mb-1">{formatUGX(listing.daily_rate)}</p>
-          <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
+        {/* Daily Rate — compact inline row */}
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border border-success/30 px-3.5 py-2.5">
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Daily Rent</p>
+            <p className="text-2xl font-black text-success leading-none truncate">{formatUGX(listing.daily_rate)}</p>
+          </div>
+          <p className="text-[11px] text-muted-foreground font-medium text-right shrink-0 leading-tight">
+            per day<br />pay as you stay
+          </p>
         </div>
 
         {/* Move-in offer — first 7 days free on every listed house */}
@@ -249,9 +220,6 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
         {listing.description && (
           <p className="text-xs text-muted-foreground line-clamp-2">{listing.description}</p>
         )}
-
-        {/* Google Maps embed */}
-        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
 
         {/* Go see it yourself — turn-by-turn navigation */}
         <GetDirectionsButton lat={listing.latitude} lng={listing.longitude} title={listing.title} />
@@ -409,7 +377,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => resultsRef.current,
-    estimateSize: () => 430,
+    estimateSize: () => 560,
     overscan: 4,
     gap: 12,
     getItemKey: (index) => filtered[index]?.id ?? index,
@@ -629,7 +597,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             />
           </div>
         ) : (
-        <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
+        <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+          <div className="mx-auto w-full max-w-2xl space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-40 w-full rounded-2xl" />
@@ -702,6 +671,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               )}
             </>
           )}
+          </div>
         </div>
         )}
         {view === 'list' && (() => {
