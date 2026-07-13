@@ -143,6 +143,24 @@ Deno.serve(async (req) => {
   // Create Supabase client with service role (bypasses RLS)
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+  // Partner/funder emails send from the partnerships mailbox with replies
+  // routed to partnership@welile.com.
+  const isPartnerFunder = PARTNER_FUNDER_TEMPLATES.has(templateName)
+
+  // Resolve subject — supports static string or dynamic function
+  const resolvedSubject =
+    typeof template.subject === 'function'
+      ? template.subject(templateData)
+      : template.subject
+
+  const routingMetadata = {
+    subject: resolvedSubject,
+    template_data: templateData,
+    from: isPartnerFunder ? PARTNER_FROM : `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+    ...(isPartnerFunder ? { reply_to: PARTNER_REPLY_TO } : {}),
+    ...(isPartnerFunder ? { bcc: PARTNER_REPLY_TO } : {}),
+  }
+
   // 2. Check suppression list (fail-closed: if we can't verify, don't send)
   const { data: suppressed, error: suppressionError } = await supabase
     .from('suppressed_emails')
@@ -171,6 +189,11 @@ Deno.serve(async (req) => {
       template_name: templateName,
       recipient_email: effectiveRecipient,
       status: 'suppressed',
+      metadata: {
+        ...routingMetadata,
+        suppressed: true,
+        suppressed_reason: 'recipient_suppressed',
+      },
     })
 
     console.log('Email suppressed', { effectiveRecipient, templateName })
@@ -309,16 +332,6 @@ Deno.serve(async (req) => {
     { plainText: true }
   )
 
-  // Resolve subject — supports static string or dynamic function
-  const resolvedSubject =
-    typeof template.subject === 'function'
-      ? template.subject(templateData)
-      : template.subject
-
-  // Partner/funder emails send from the partnerships mailbox with replies
-  // routed to partnership@welile.com.
-  const isPartnerFunder = PARTNER_FUNDER_TEMPLATES.has(templateName)
-
   // 5. Enqueue the pre-rendered email for async processing by the dispatcher.
   // The dispatcher (process-email-queue) handles sending, retries, and rate-limit backoff.
 
@@ -330,12 +343,7 @@ Deno.serve(async (req) => {
     status: 'pending',
     // Record routing details (subject, from, reply_to, bcc) so the CTO Emails
     // admin view can verify partner/funder mail was BCC'd to partnership@welile.com.
-    metadata: {
-      subject: resolvedSubject,
-      from: isPartnerFunder ? PARTNER_FROM : `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-      ...(isPartnerFunder ? { reply_to: PARTNER_REPLY_TO } : {}),
-      ...(isPartnerFunder ? { bcc: PARTNER_REPLY_TO } : {}),
-    },
+    metadata: routingMetadata,
   })
 
   const { error: enqueueError } = await supabase.rpc('enqueue_email', {
