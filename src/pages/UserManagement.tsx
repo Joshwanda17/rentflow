@@ -475,6 +475,11 @@ Just click the link and enter your password to get started!`;
 
   // Client-side filter for presence-based filters only
   const displayUsers = (() => {
+    // When searching, always show the full server-side result set. The
+    // online/verified narrowing below relies on realtime presence which is
+    // throttled for cost, so applying it to search results would wrongly hide
+    // matched users who simply aren't currently "online".
+    if (debouncedSearch.trim()) return users;
     if (roleFilter === 'active' || statFilter === 'online') return users.filter(u => isOnline(u.id));
     if (statFilter === 'verified') return users.filter(u => u.verified);
     return users;
