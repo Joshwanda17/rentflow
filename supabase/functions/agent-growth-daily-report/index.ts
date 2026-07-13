@@ -1,16 +1,24 @@
-// Agent Growth Leaderboard — daily morning report.
+// Agent Daily Activity & Growth Report — daily morning email.
 //
-// Regenerates the same branded "Agent & Sub-Agent Growth Analytics" PDF that
-// the executive Agent-Ops leaderboard exports, and emails it as a PDF
-// ATTACHMENT (with a proper subject + rich body) to the fixed recipients.
+// Sent every morning at 07:00 EAT (04:00 UTC) via pg_cron. Because it runs in
+// the morning, it reports on the PREVIOUS calendar day (EAT) — "yesterday" —
+// not the partial current day.
 //
-// Delivery uses the Gmail connector (multipart/mixed MIME) because the Lovable
-// email queue cannot carry file attachments.
+// It combines two data sources into one branded PDF + email:
+//   1. get_agent_daily_activity_report(p_date)  → yesterday's field activity:
+//      active agents, active sub-agents, houses listed, rent requests posted,
+//      rent repayments, field collections, visits, and invites sent, plus a
+//      per-agent activity leaderboard.
+//   2. get_agent_leaderboard_stats('daily')     → trailing 30-day growth series,
+//      top recruiters, and the invitee pipeline (context).
 //
-// Scheduled every morning at 07:00 EAT (04:00 UTC) via pg_cron.
-// Idempotent per EAT day via an `agent_growth_daily_report` system_event
-// (bypass with { force: true }). Period configurable via { period } — defaults
-// to "daily" so the morning email carries a day-by-day breakdown.
+// Every KPI in the header strip reflects DAILY (yesterday) data, not cumulative
+// network totals. Delivery uses the Gmail connector (multipart/mixed MIME)
+// because the Lovable email queue cannot carry file attachments.
+//
+// Idempotent per EAT report-day via an `agent_growth_daily_report` system_event
+// (bypass with { force: true }). Optional { date } (YYYY-MM-DD) overrides which
+// day is reported.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
@@ -25,10 +33,9 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Fixed recipients for the morning growth report.
+// Fixed recipients for the morning report.
 const REPORT_RECIPIENTS = ["benjamin@welile.com", "pexpert46@gmail.com"];
 
-type Period = "daily" | "weekly" | "monthly" | "yearly";
 type RGB = [number, number, number];
 
 const BRAND: RGB = [105, 0, 204];
@@ -44,49 +51,66 @@ const TEAL: RGB = [13, 148, 136];
 const AMBER: RGB = [202, 138, 4];
 const RED: RGB = [201, 42, 42];
 const SLATE: RGB = [100, 116, 139];
+const ROSE: RGB = [219, 39, 119];
 
 const fmtInt = (n: number) =>
   new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(Number(n) || 0));
-const fmtPct = (n: number) => `${n >= 0 ? "+" : ""}${Math.round(n)}%`;
-const fmtAvg = (n: number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(Number(n) || 0);
+const fmtUgx = (n: number) => `UGX ${fmtInt(n)}`;
 const tint = (c: RGB, amt: number): RGB =>
   [Math.round(c[0] + (255 - c[0]) * amt), Math.round(c[1] + (255 - c[1]) * amt), Math.round(c[2] + (255 - c[2]) * amt)];
-const trendPct = (curr: number, prev: number) => (!prev ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100);
 
-interface LeaderboardStats {
-  period: Period;
-  window_start: string;
+// ── Data shapes ──
+interface DailyActivity {
+  report_date: string;
   totals: {
+    active_agents: number;
+    active_subagents: number;
     total_agents: number;
     total_subagents: number;
-    verified_subagents: number;
-    pending_subagents: number;
-    new_agents: number;
     new_subagents: number;
-    prev_agents: number;
-    prev_subagents: number;
+    houses_listed: number;
+    rent_requests_posted: number;
+    repayments_count: number;
+    repayments_amount: number;
+    collections_count: number;
+    collections_amount: number;
+    visits: number;
+    subagent_invites: number;
+    supporter_invites: number;
+    invites_total: number;
   };
+  top_agents: {
+    agent_id: string;
+    name: string;
+    phone: string | null;
+    collections: number;
+    collected: number;
+    visits: number;
+    houses: number;
+    rent_requests: number;
+    total_actions: number;
+  }[];
+}
+
+interface LeaderboardStats {
   series: { bucket: string; agents: number; subagents: number }[];
   top_recruiters: { agent_id: string; name: string; phone: string | null; invited: number; verified: number }[];
   invitees: { status: string }[];
 }
 
-function bucketLabel(iso: string, period: Period): string {
+function bucketDayLabel(iso: string): string {
   const d = new Date(iso);
   const day = d.getUTCDate();
   const mon = d.toLocaleString("en-GB", { month: "short", timeZone: "UTC" });
-  const yr2 = String(d.getUTCFullYear()).slice(2);
-  switch (period) {
-    case "daily": return `${day} ${mon}`;
-    case "weekly": return `${mon} ${day}`;
-    case "monthly": return `${mon} ${yr2}`;
-    case "yearly": return String(d.getUTCFullYear());
-  }
+  return `${day} ${mon}`;
 }
 
 // Calendar date (YYYY-MM-DD) in East Africa Time (UTC+3, no DST).
 function eatToday(): string {
   return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+function eatYesterday(): string {
+  return new Date(Date.now() + 3 * 60 * 60 * 1000 - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 function esc(s: unknown): string {
@@ -94,22 +118,11 @@ function esc(s: unknown): string {
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// ── Build the branded PDF (mirror of src/lib/agentGrowthReportPdf.ts) ──
-function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
-  const periodNoun =
-    period === "daily" ? "today" :
-    period === "weekly" ? "this week" :
-    period === "yearly" ? "this year" : "this month";
-  const trendNoun =
-    period === "daily" ? "30d" :
-    period === "weekly" ? "12w" :
-    period === "yearly" ? "5y" : "12mo";
-  const periodLabel = period.charAt(0).toUpperCase() + period.slice(1);
-  const scopeLabel = `${periodLabel} · trailing ${trendNoun}`;
-
-  const t = stats.totals;
+// ── Build the branded PDF ──
+function buildPdf(activity: DailyActivity, stats: LeaderboardStats, prettyDate: string): Uint8Array {
+  const a = activity.totals;
   const series = (stats.series || []).map((s) => ({
-    label: bucketLabel(s.bucket, period), agents: s.agents || 0, subagents: s.subagents || 0,
+    label: bucketDayLabel(s.bucket), agents: s.agents || 0, subagents: s.subagents || 0,
   }));
   const recruiters = (stats.top_recruiters || []).map((r) => ({
     name: r.name, phone: r.phone, invited: r.invited || 0, verified: r.verified || 0,
@@ -129,16 +142,6 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
   const margin = 12;
   const generatedAt = new Date();
 
-  const agentTrend = trendPct(t.new_agents, t.prev_agents);
-  const subTrend = trendPct(t.new_subagents, t.prev_subagents);
-  const buckets = series.length || 1;
-  const avgAgents = series.reduce((s, r) => s + r.agents, 0) / buckets;
-  const avgSubs = series.reduce((s, r) => s + r.subagents, 0) / buckets;
-  const verifiedRate = t.total_subagents > 0 ? (t.verified_subagents / t.total_subagents) * 100 : 0;
-  const subPerAgent = t.total_agents > 0 ? t.total_subagents / t.total_agents : 0;
-  const netNew = t.new_agents + t.new_subagents;
-  const netTrend = trendPct(netNew, t.prev_agents + t.prev_subagents);
-
   // Header band
   doc.setFillColor(...BRAND);
   doc.rect(0, 0, pageWidth, 26, "F");
@@ -147,29 +150,30 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.text("Agent & Sub-Agent Growth Analytics", margin, 12);
+  doc.text("Agent Daily Activity & Growth Report", margin, 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(235, 225, 250);
-  doc.text("Recruitment & network growth report", margin, 18.5);
+  doc.text("Yesterday's field activity, network growth & recruitment", margin, 18.5);
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
-  doc.text(scopeLabel, pageWidth - margin, 11, { align: "right" });
+  doc.text(`Report day: ${prettyDate} EAT`, pageWidth - margin, 11, { align: "right" });
   doc.setTextColor(225, 210, 248);
   doc.text(
     `Generated ${generatedAt.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Nairobi" })} EAT`,
     pageWidth - margin, 17, { align: "right" },
   );
 
-  // KPI strip — focused on the current period (today), not cumulative network totals.
-  const prevNet = t.prev_agents + t.prev_subagents;
+  // KPI strip — all metrics reflect YESTERDAY (daily), not cumulative totals.
   const cards: { label: string; value: string; sub?: string; accent: RGB }[] = [
-    { label: `New Agents ${periodNoun}`, value: fmtInt(t.new_agents), sub: `${fmtPct(agentTrend)} vs prev`, accent: BRAND },
-    { label: `New Sub-Agents ${periodNoun}`, value: fmtInt(t.new_subagents), sub: `${fmtPct(subTrend)} vs prev`, accent: VIOLET },
-    { label: `Net New ${periodNoun}`, value: fmtInt(netNew), sub: `${fmtPct(netTrend)} vs prev`, accent: EMERALD },
-    { label: "Previous Period", value: fmtInt(prevNet), sub: `${fmtInt(t.prev_agents)} agents · ${fmtInt(t.prev_subagents)} subs`, accent: AMBER },
-    { label: "Avg Agents / period", value: fmtAvg(avgAgents), sub: `over ${buckets} periods`, accent: BLUE },
-    { label: "Avg Sub-Agents / period", value: fmtAvg(avgSubs), sub: `over ${buckets} periods`, accent: TEAL },
+    { label: "Active Agents", value: fmtInt(a.active_agents), sub: `of ${fmtInt(a.total_agents)} total`, accent: BRAND },
+    { label: "Active Sub-Agents", value: fmtInt(a.active_subagents), sub: `of ${fmtInt(a.total_subagents)} total`, accent: VIOLET },
+    { label: "Houses Listed", value: fmtInt(a.houses_listed), sub: "new listings", accent: AMBER },
+    { label: "Rent Requests", value: fmtInt(a.rent_requests_posted), sub: "posted", accent: BLUE },
+    { label: "Rent Repayments", value: fmtInt(a.repayments_count), sub: fmtUgx(a.repayments_amount), accent: EMERALD },
+    { label: "Field Collections", value: fmtInt(a.collections_count), sub: fmtUgx(a.collections_amount), accent: TEAL },
+    { label: "New Sub-Agents", value: fmtInt(a.new_subagents), sub: `${fmtInt(a.visits)} visits logged`, accent: SLATE },
+    { label: "Invites Sent", value: fmtInt(a.invites_total), sub: `${fmtInt(a.subagent_invites)} agent · ${fmtInt(a.supporter_invites)} supporter`, accent: ROSE },
   ];
   const cols = 4, gap = 4;
   const cardW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
@@ -194,7 +198,7 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
     doc.text(c.value, x + 3.5, y + 15);
     if (c.sub) {
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.4);
+      doc.setFontSize(6);
       doc.setTextColor(...MUTED);
       doc.text(c.sub, x + 3.5, y + 19);
     }
@@ -209,42 +213,89 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
   doc.setDrawColor(...BRAND);
   doc.setLineWidth(0.4);
   doc.line(margin, summaryTop + 1.8, pageWidth - margin, summaryTop + 1.8);
-  const topRecruiter = recruiters[0];
+  const topAgent = activity.top_agents?.[0];
+  const totalFieldActions = a.collections_count + a.visits + a.houses_listed + a.rent_requests_posted;
   const insights: string[] = [
-    `Network now spans ${fmtInt(t.total_agents)} agents and ${fmtInt(t.total_subagents)} sub-agents — a depth of ${fmtAvg(subPerAgent)} sub-agents per agent.`,
-    `${fmtInt(netNew)} new members joined ${periodNoun} (${fmtInt(t.new_agents)} agents, ${fmtInt(t.new_subagents)} sub-agents), ${netTrend >= 0 ? "up" : "down"} ${fmtPct(Math.abs(netTrend)).replace("+", "")} versus the previous period.`,
-    `${Math.round(verifiedRate)}% of sub-agents are verified (${fmtInt(t.verified_subagents)} verified, ${fmtInt(t.pending_subagents)} pending) — ${verifiedRate >= 70 ? "a healthy activation rate" : "an opportunity to tighten onboarding follow-up"}.`,
+    `${fmtInt(a.active_agents)} agents and ${fmtInt(a.active_subagents)} sub-agents were active yesterday, generating ${fmtInt(totalFieldActions)} field actions across collections, visits, listings and rent requests.`,
+    `Field money movement: ${fmtInt(a.collections_count)} collections (${fmtUgx(a.collections_amount)}) and ${fmtInt(a.repayments_count)} rent repayments (${fmtUgx(a.repayments_amount)}).`,
+    `Supply & growth: ${fmtInt(a.houses_listed)} houses listed, ${fmtInt(a.rent_requests_posted)} rent requests posted, ${fmtInt(a.new_subagents)} new sub-agents, and ${fmtInt(a.invites_total)} invites sent.`,
   ];
-  if (topRecruiter && topRecruiter.invited > 0) {
+  if (topAgent && topAgent.total_actions > 0) {
     insights.push(
-      `Top recruiter ${topRecruiter.name} brought in ${fmtInt(topRecruiter.invited)} invitees (${Math.round((topRecruiter.verified / topRecruiter.invited) * 100)}% verified) this period.`,
+      `Most active agent: ${topAgent.name} with ${fmtInt(topAgent.total_actions)} actions (${fmtInt(topAgent.collections)} collections, ${fmtUgx(topAgent.collected)}).`,
     );
   }
   const boxTop = summaryTop + 5;
   const lineH = 5.6;
-  const boxH = insights.length * lineH + 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.4);
+  // measure height
+  let measured = 6;
+  const wrappedLines = insights.map((line) => doc.splitTextToSize(line, pageWidth - margin * 2 - 12) as string[]);
+  wrappedLines.forEach((w) => { measured += lineH * w.length; });
+  const boxH = measured;
   doc.setFillColor(...tint(BRAND, 0.95));
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.2);
   doc.roundedRect(margin, boxTop, pageWidth - margin * 2, boxH, 2, 2, "FD");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.4);
   doc.setTextColor(...INK);
   let iy = boxTop + 6.5;
-  insights.forEach((line) => {
+  wrappedLines.forEach((wrapped) => {
     doc.setFillColor(...BRAND);
     doc.circle(margin + 4, iy - 1.4, 0.9, "F");
-    const wrapped = doc.splitTextToSize(line, pageWidth - margin * 2 - 12) as string[];
     doc.text(wrapped, margin + 7, iy);
     iy += lineH * wrapped.length;
   });
 
-  // Daily growth line chart — Agents vs Sub-Agents.
-  const chartTop = boxTop + boxH + 8;
+  // Top active agents (yesterday)
+  let actTop = boxTop + boxH + 8;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BRAND_DARK);
-  doc.text(`${periodLabel} Growth — Agents vs Sub-Agents`, margin, chartTop);
+  doc.text("Top Active Agents (yesterday)", margin, actTop);
+  doc.setDrawColor(...BRAND);
+  doc.setLineWidth(0.4);
+  doc.line(margin, actTop + 1.8, pageWidth - margin, actTop + 1.8);
+  const actBody = (activity.top_agents || []).map((r, i) => [
+    `#${i + 1}`,
+    r.name || "Unknown",
+    r.phone || "—",
+    fmtInt(r.collections),
+    fmtInt(r.collected),
+    fmtInt(r.visits),
+    fmtInt(r.houses),
+    fmtInt(r.rent_requests),
+    fmtInt(r.total_actions),
+  ]);
+  autoTable(doc, {
+    startY: actTop + 4,
+    head: [["#", "Agent", "Phone", "Collect.", "Collected", "Visits", "Houses", "Rent Req", "Actions"]],
+    body: actBody.length ? actBody : [["—", "No agent activity yesterday", "", "", "", "", "", "", ""]],
+    margin: { left: margin, right: margin },
+    tableWidth: pageWidth - margin * 2,
+    styles: { fontSize: 7.6, cellPadding: 1.6, valign: "middle", textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
+    headStyles: { fillColor: BRAND, textColor: 255, fontSize: 7.4, fontStyle: "bold", halign: "left" },
+    alternateRowStyles: { fillColor: STRIPE },
+    columnStyles: {
+      0: { cellWidth: 9, fontStyle: "bold", textColor: BRAND },
+      1: { cellWidth: "auto", fontStyle: "bold" },
+      2: { cellWidth: 26, textColor: MUTED },
+      3: { cellWidth: 16, halign: "right" },
+      4: { cellWidth: 24, halign: "right", textColor: EMERALD },
+      5: { cellWidth: 15, halign: "right" },
+      6: { cellWidth: 15, halign: "right" },
+      7: { cellWidth: 16, halign: "right" },
+      8: { cellWidth: 16, halign: "right", fontStyle: "bold" },
+    },
+  });
+
+  // 30-day growth line chart — Agents vs Sub-Agents (trailing context).
+  let chartTop = (doc as any).lastAutoTable.finalY + 8;
+  if (chartTop > pageHeight - 90) { doc.addPage(); chartTop = 20; }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND_DARK);
+  doc.text("Network Growth — trailing 30 days", margin, chartTop);
   doc.setDrawColor(...BRAND);
   doc.setLineWidth(0.4);
   doc.line(margin, chartTop + 1.8, pageWidth - margin, chartTop + 1.8);
@@ -252,13 +303,12 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
   const chartX = margin;
   const chartY = chartTop + 5;
   const chartW = pageWidth - margin * 2;
-  const chartH = 64;
+  const chartH = 60;
   doc.setFillColor(...tint(BRAND, 0.97));
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.2);
   doc.roundedRect(chartX, chartY, chartW, chartH, 2, 2, "FD");
 
-  // Legend (top-right, inside the panel).
   const lgY = chartY + 5;
   const lgX = chartX + chartW - 62;
   doc.setFillColor(...BLUE); doc.circle(lgX, lgY - 0.8, 1.1, "F");
@@ -301,7 +351,6 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
     };
     plotLine((s) => s.agents, BLUE);
     plotLine((s) => s.subagents, VIOLET);
-    // Sparse x-axis labels to avoid clutter.
     doc.setFontSize(6); doc.setTextColor(...MUTED);
     const labelEvery = Math.max(1, Math.ceil(n / 8));
     for (let i = 0; i < n; i++) {
@@ -311,12 +360,13 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
     }
   }
 
-  // Top recruiters
+  // Top recruiters (trailing period)
   let afterTop = chartY + chartH + 8;
+  if (afterTop > pageHeight - 40) { doc.addPage(); afterTop = 20; }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BRAND_DARK);
-  doc.text(`Top Recruiters (${periodNoun})`, margin, afterTop);
+  doc.text("Top Recruiters (trailing)", margin, afterTop);
   doc.setDrawColor(...BRAND);
   doc.setLineWidth(0.4);
   doc.line(margin, afterTop + 1.8, pageWidth - margin, afterTop + 1.8);
@@ -327,7 +377,7 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
   autoTable(doc, {
     startY: afterTop + 4,
     head: [["Rank", "Recruiter", "Phone", "Invited", "Verified", "Verify %"]],
-    body: recBody.length ? recBody : [["—", "No recruitment activity in this period", "", "", "", ""]],
+    body: recBody.length ? recBody : [["—", "No recruitment activity", "", "", "", ""]],
     margin: { left: margin, right: margin },
     tableWidth: pageWidth - margin * 2,
     styles: { fontSize: 8, cellPadding: 2, valign: "middle", textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
@@ -355,7 +405,7 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
     doc.setDrawColor(...BRAND);
     doc.setLineWidth(0.4);
     doc.line(margin, pipeTop + 1.8, pageWidth - margin, pipeTop + 1.8);
-    const pct = (n: number) => (s.total > 0 ? `${Math.round((n / s.total) * 100)}%` : "0%");
+    const pct = (nn: number) => (s.total > 0 ? `${Math.round((nn / s.total) * 100)}%` : "0%");
     autoTable(doc, {
       startY: pipeTop + 4,
       head: [["Stage", "Invitees", "Share"]],
@@ -394,7 +444,7 @@ function buildPdf(stats: LeaderboardStats, period: Period): Uint8Array {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
-    doc.text("Powered by Welile — confidential agent growth analytics", margin, pageHeight - 5);
+    doc.text("Powered by Welile — confidential agent activity & growth analytics", margin, pageHeight - 5);
     doc.text(`Page ${p} / ${pageCount}`, pageWidth - margin, pageHeight - 5, { align: "right" });
   }
 
@@ -411,12 +461,10 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-// Split base64 into 76-char lines per MIME spec.
 function chunk76(b64: string): string {
   return b64.replace(/.{1,76}/g, "$&\r\n").trim();
 }
 
-// Send an HTML email with a PDF attachment through the Gmail connector.
 async function sendWithAttachment(
   to: string, subject: string, html: string, pdf: Uint8Array, filename: string,
 ): Promise<{ ok: boolean; status: number; raw?: string }> {
@@ -427,7 +475,6 @@ async function sendWithAttachment(
   }
   const boundary = `welile_${crypto.randomUUID().replace(/-/g, "")}`;
   const pdfB64 = chunk76(bytesToBase64(pdf));
-  // RFC 2047 encode the subject so non-ASCII chars render correctly in all clients.
   const encodedSubject = /[^\x00-\x7F]/.test(subject)
     ? `=?UTF-8?B?${bytesToBase64(new TextEncoder().encode(subject))}?=`
     : subject;
@@ -470,93 +517,92 @@ async function sendWithAttachment(
   return { ok: res.ok, status: res.status, raw: text };
 }
 
-function buildHtml(stats: LeaderboardStats, period: Period, prettyDate: string): string {
-  const t = stats.totals;
-  const periodNoun = period === "daily" ? "today" : period === "weekly" ? "this week" : period === "yearly" ? "this year" : "this month";
-  const netNew = t.new_agents + t.new_subagents;
-  const verifiedRate = t.total_subagents > 0 ? Math.round((t.verified_subagents / t.total_subagents) * 100) : 0;
-  const top = stats.top_recruiters?.[0];
+function buildHtml(activity: DailyActivity, prettyDate: string): string {
+  const a = activity.totals;
+  const top = activity.top_agents?.[0];
+  const cell = (label: string, value: string, sub: string, bg: string, color: string) =>
+    `<td style="width:33.3%;background:${bg};border-radius:10px;padding:12px">
+       <div style="font-size:10px;color:#787484;text-transform:uppercase;font-weight:700">${esc(label)}</div>
+       <div style="font-size:20px;font-weight:800;color:${color};margin-top:2px">${esc(value)}</div>
+       <div style="font-size:11px;color:#787484">${esc(sub)}</div>
+     </td>`;
   return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f5f3fa;margin:0;padding:24px;color:#1e1b2e">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #e2deec;border-radius:14px;overflow:hidden">
+  <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #e2deec;border-radius:14px;overflow:hidden">
     <div style="background:#6900cc;color:#fff;padding:22px 26px">
       <div style="font-size:13px;letter-spacing:.4px;opacity:.85;text-transform:uppercase">Welile · Agent Ops</div>
-      <h1 style="margin:6px 0 0;font-size:21px">Agent Growth Leaderboard</h1>
-      <div style="margin-top:4px;font-size:13px;opacity:.9">${esc(prettyDate)} · ${esc(periodNoun)}</div>
+      <h1 style="margin:6px 0 0;font-size:21px">Agent Daily Activity & Growth</h1>
+      <div style="margin-top:4px;font-size:13px;opacity:.9">Report day: ${esc(prettyDate)} (yesterday)</div>
     </div>
     <div style="padding:24px 26px">
       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155">
-        Good morning. Here is your daily snapshot of agent &amp; sub-agent network growth.
+        Good morning. Here is yesterday's agent &amp; sub-agent activity across the network.
         The full branded report is attached as a PDF.
       </p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:8px">
         <tr>
-          <td style="width:50%;background:#f4f0fc;border-radius:10px;padding:14px">
-            <div style="font-size:11px;color:#787484;text-transform:uppercase;font-weight:700">Total Agents</div>
-            <div style="font-size:22px;font-weight:800;color:#6900cc;margin-top:2px">${fmtInt(t.total_agents)}</div>
-            <div style="font-size:12px;color:#787484">${fmtInt(t.new_agents)} new ${esc(periodNoun)}</div>
-          </td>
-          <td style="width:50%;background:#f4f0fc;border-radius:10px;padding:14px">
-            <div style="font-size:11px;color:#787484;text-transform:uppercase;font-weight:700">Total Sub-Agents</div>
-            <div style="font-size:22px;font-weight:800;color:#7c3aed;margin-top:2px">${fmtInt(t.total_subagents)}</div>
-            <div style="font-size:12px;color:#787484">${fmtInt(t.verified_subagents)} verified · ${fmtInt(t.pending_subagents)} pending</div>
-          </td>
+          ${cell("Active Agents", fmtInt(a.active_agents), `of ${fmtInt(a.total_agents)} total`, "#f4f0fc", "#6900cc")}
+          ${cell("Active Sub-Agents", fmtInt(a.active_subagents), `of ${fmtInt(a.total_subagents)} total`, "#f4f0fc", "#7c3aed")}
+          ${cell("New Sub-Agents", fmtInt(a.new_subagents), "joined yesterday", "#fef7e7", "#ca8a04")}
         </tr>
         <tr>
-          <td style="width:50%;background:#eefaf4;border-radius:10px;padding:14px">
-            <div style="font-size:11px;color:#787484;text-transform:uppercase;font-weight:700">New ${esc(periodNoun)}</div>
-            <div style="font-size:22px;font-weight:800;color:#109664;margin-top:2px">${fmtInt(netNew)}</div>
-            <div style="font-size:12px;color:#787484">${fmtInt(t.new_agents)} agents · ${fmtInt(t.new_subagents)} sub-agents</div>
-          </td>
-          <td style="width:50%;background:#fef7e7;border-radius:10px;padding:14px">
-            <div style="font-size:11px;color:#787484;text-transform:uppercase;font-weight:700">Verified Rate</div>
-            <div style="font-size:22px;font-weight:800;color:#ca8a04;margin-top:2px">${verifiedRate}%</div>
-            <div style="font-size:12px;color:#787484">of all sub-agents</div>
-          </td>
+          ${cell("Houses Listed", fmtInt(a.houses_listed), "new listings", "#eefaf4", "#109664")}
+          ${cell("Rent Requests", fmtInt(a.rent_requests_posted), "posted", "#eef4fe", "#2563eb")}
+          ${cell("Visits Logged", fmtInt(a.visits), "field visits", "#f4f0fc", "#7c3aed")}
+        </tr>
+        <tr>
+          ${cell("Rent Repayments", fmtInt(a.repayments_count), fmtUgx(a.repayments_amount), "#eefaf4", "#109664")}
+          ${cell("Field Collections", fmtInt(a.collections_count), fmtUgx(a.collections_amount), "#e9faf7", "#0d9488")}
+          ${cell("Invites Sent", fmtInt(a.invites_total), `${fmtInt(a.subagent_invites)} agent · ${fmtInt(a.supporter_invites)} supp.`, "#fdeef6", "#db2777")}
         </tr>
       </table>
-      ${top && top.invited > 0 ? `<p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#334155">
-        🏆 <strong>Top recruiter ${esc(top.name)}</strong> brought in ${fmtInt(top.invited)} invitees
-        (${top.invited > 0 ? Math.round((top.verified / top.invited) * 100) : 0}% verified) ${esc(periodNoun)}.
+      ${top && top.total_actions > 0 ? `<p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#334155">
+        🏆 <strong>Most active: ${esc(top.name)}</strong> — ${fmtInt(top.total_actions)} actions
+        (${fmtInt(top.collections)} collections, ${fmtUgx(top.collected)}) yesterday.
       </p>` : ""}
       <p style="margin:20px 0 0;font-size:13px;color:#64748b;line-height:1.6">
-        📎 <strong>Attached:</strong> full growth analytics PDF with executive summary, period-by-period
-        growth, top recruiters and the invitee pipeline.
+        📎 <strong>Attached:</strong> full PDF with the daily KPI strip, top active agents,
+        trailing 30-day network growth, top recruiters and the invitee pipeline.
       </p>
     </div>
     <div style="border-top:1px solid #e2deec;padding:16px 26px;font-size:11px;color:#94a3b8">
-      Automated report from Welile Agent Ops · Generated ${esc(prettyDate)}.
+      Automated report from Welile Agent Ops · Report day ${esc(prettyDate)}.
     </div>
   </div></body></html>`;
 }
 
-async function run(admin: ReturnType<typeof createClient>, period: Period, force: boolean) {
-  const dateStr = eatToday();
-
+async function run(admin: ReturnType<typeof createClient>, reportDate: string, force: boolean) {
+  // reportDate is the EAT calendar day being reported (yesterday by default).
   if (!force) {
     const { data: existing } = await admin
       .from("system_events")
       .select("id")
       .eq("event_type", "agent_growth_daily_report")
-      .filter("metadata->>date", "eq", dateStr)
+      .filter("metadata->>report_date", "eq", reportDate)
       .maybeSingle();
     if (existing) {
-      return { date: dateStr, skipped: true, reason: "already sent today" };
+      return { report_date: reportDate, skipped: true, reason: "already sent for this report day" };
     }
   }
 
-  const { data, error } = await admin.rpc("get_agent_leaderboard_stats", { p_period: period });
-  if (error) throw error;
-  const stats = data as unknown as LeaderboardStats;
+  const [{ data: actData, error: actErr }, { data: lbData, error: lbErr }] = await Promise.all([
+    admin.rpc("get_agent_daily_activity_report", { p_date: reportDate }),
+    admin.rpc("get_agent_leaderboard_stats", { p_period: "daily" }),
+  ]);
+  if (actErr) throw actErr;
+  if (lbErr) throw lbErr;
 
-  const pdf = buildPdf(stats, period);
-  const prettyDate = new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("en-GB", {
+  const activity = actData as unknown as DailyActivity;
+  const stats = lbData as unknown as LeaderboardStats;
+
+  const prettyDate = new Date(`${reportDate}T00:00:00Z`).toLocaleDateString("en-GB", {
     weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
   });
-  const t = stats.totals;
-  const netNew = t.new_agents + t.new_subagents;
-  const subject = `Agent Growth Report - ${prettyDate}: ${fmtInt(t.total_agents)} agents, ${fmtInt(t.total_subagents)} sub-agents (+${fmtInt(netNew)} new)`;
-  const html = buildHtml(stats, period, prettyDate);
-  const filename = `Welile_Agent_Growth_${period}_${dateStr}.pdf`;
+
+  const pdf = buildPdf(activity, stats, prettyDate);
+  const html = buildHtml(activity, prettyDate);
+  const filename = `Welile_Agent_Daily_Report_${reportDate}.pdf`;
+  const a = activity.totals;
+  const subject = `Agent Daily Report - ${prettyDate}: ${fmtInt(a.active_agents)} active agents, ${fmtInt(a.houses_listed)} houses, ${fmtInt(a.collections_count)} collections`;
 
   const results: Record<string, string> = {};
   for (const to of REPORT_RECIPIENTS) {
@@ -573,12 +619,19 @@ async function run(admin: ReturnType<typeof createClient>, period: Period, force
   await admin.from("system_events").insert({
     event_type: "agent_growth_daily_report",
     metadata: {
-      date: dateStr, period, recipients: REPORT_RECIPIENTS,
-      total_agents: t.total_agents, total_subagents: t.total_subagents, new_net: netNew, results,
+      report_date: reportDate,
+      sent_on: eatToday(),
+      recipients: REPORT_RECIPIENTS,
+      active_agents: a.active_agents,
+      active_subagents: a.active_subagents,
+      houses_listed: a.houses_listed,
+      rent_requests_posted: a.rent_requests_posted,
+      collections_count: a.collections_count,
+      results,
     },
   });
 
-  return { date: dateStr, period, recipients: REPORT_RECIPIENTS, pdf_bytes: pdf.length, results };
+  return { report_date: reportDate, recipients: REPORT_RECIPIENTS, pdf_bytes: pdf.length, results };
 }
 
 Deno.serve(async (req) => {
@@ -588,8 +641,9 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch (_) { body = {}; }
     const force = body?.force === true;
-    const period: Period = ["daily", "weekly", "monthly", "yearly"].includes(body?.period) ? body.period : "daily";
-    const out = await run(admin, period, force);
+    // Default: report on yesterday (EAT). Optional { date: 'YYYY-MM-DD' } override.
+    const reportDate = /^\d{4}-\d{2}-\d{2}$/.test(body?.date) ? body.date : eatYesterday();
+    const out = await run(admin, reportDate, force);
     return new Response(JSON.stringify({ success: true, ...out }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
