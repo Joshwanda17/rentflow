@@ -389,6 +389,15 @@ export function SubAgentVerificationQueue() {
                     <Phone className="h-3.5 w-3.5" />
                     <span>{selectedRecord.parent_phone}</span>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openTransfer(selectedRecord)}
+                    className="w-full gap-1 mt-1"
+                  >
+                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                    Transfer to another agent
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -422,6 +431,91 @@ export function SubAgentVerificationQueue() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Transfer Dialog */}
+      <Dialog open={!!transferRecord} onOpenChange={(open) => { if (!open) setTransferRecord(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ArrowLeftRight className="h-4 w-4 text-primary" />
+              Transfer Sub-Agent
+            </DialogTitle>
+          </DialogHeader>
+          {transferRecord && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+                <p><span className="text-muted-foreground">Sub-agent:</span> <span className="font-semibold">{transferRecord.sub_name}</span> ({transferRecord.sub_phone})</p>
+                <p><span className="text-muted-foreground">Current parent:</span> <span className="font-medium">{transferRecord.parent_name}</span></p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase">New parent agent</label>
+                {newParent ? (
+                  <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 p-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{newParent.full_name}</p>
+                      <p className="text-xs text-muted-foreground">{newParent.phone || '—'}</p>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => { setNewParent(null); }}>Change</Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Search agent by name or phone..."
+                        value={transferSearch}
+                        onChange={e => searchParents(e.target.value)}
+                        className="pl-8 h-9 text-sm"
+                      />
+                    </div>
+                    {searchingParents ? (
+                      <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                    ) : parentResults.length > 0 ? (
+                      <div className="max-h-48 overflow-y-auto space-y-1 rounded-lg border border-border p-1">
+                        {parentResults.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => setNewParent(p)}
+                            className="w-full text-left rounded-md px-2.5 py-2 hover:bg-muted transition-colors"
+                          >
+                            <p className="text-sm font-medium truncate">{p.full_name || 'Unnamed'}</p>
+                            <p className="text-xs text-muted-foreground">{p.phone || '—'}</p>
+                          </button>
+                        ))}
+                      </div>
+                    ) : transferSearch.trim().length >= 2 ? (
+                      <p className="text-xs text-muted-foreground text-center py-2">No matching agents.</p>
+                    ) : null}
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase">Reason (for audit log)</label>
+                <Textarea
+                  placeholder="Why is this sub-agent being transferred? (min 10 characters)"
+                  value={transferReason}
+                  onChange={e => setTransferReason(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setTransferRecord(null)} disabled={transferring}>Cancel</Button>
+            <Button
+              onClick={handleTransfer}
+              disabled={transferring || !newParent || transferReason.trim().length < 10}
+              className="gap-1"
+            >
+              {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
+              Confirm Transfer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
