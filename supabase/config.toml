@@ -167,3 +167,6 @@ verify_jwt = false
 
 [functions.seo-redirect-audit]
 verify_jwt = false
+
+[functions.redispatch-withdrawals]
+verify_jwt = false
