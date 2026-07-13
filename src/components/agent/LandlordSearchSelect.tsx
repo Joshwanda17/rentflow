@@ -341,7 +341,7 @@ export function LandlordSearchSelect({
         // Resilient fallback: plain ILIKE search if the fuzzy RPC fails.
         try {
           let q = supabase
-            .from('landlords')
+            .from('landlords_directory')
             .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
             .order('name', { ascending: true })
             .limit(20);
@@ -409,7 +409,7 @@ export function LandlordSearchSelect({
     let cancelled = false;
     (async () => {
       const { count, error } = await supabase
-        .from('landlords')
+        .from('landlords_directory')
         .select('*', { count: 'exact', head: true });
       if (!cancelled && !error && count !== null && count !== undefined) {
         setTotalCount(count);
