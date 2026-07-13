@@ -1,4 +1,4 @@
-import { ShieldCheck, Clock } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { HouseListingCounts } from '@/hooks/useHouseListings';
 
 interface HouseListingCountProps {
