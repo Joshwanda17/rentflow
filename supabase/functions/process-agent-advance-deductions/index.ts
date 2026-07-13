@@ -41,6 +41,31 @@ Deno.serve(async (req) => {
     const skipped = [];
     const today = new Date().toISOString().split('T')[0];
 
+    // Build a phone/name map once so we can notify agents without an extra
+    // query per advance.
+    const agentIds = Array.from(new Set(advances.map((a) => a.agent_id).filter(Boolean)));
+    const phoneMap = new Map<string, { phone: string | null; name: string | null }>();
+    if (agentIds.length) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, phone, full_name')
+        .in('id', agentIds);
+      for (const p of profs || []) {
+        phoneMap.set(p.id, { phone: p.phone, name: p.full_name });
+      }
+    }
+    const notifyAgent = async (agentId: string, message: string, source: string) => {
+      const info = phoneMap.get(agentId);
+      if (!info?.phone) return;
+      try {
+        await attemptYoolaPrimary(info.phone, message, {
+          source,
+          recipientUserId: agentId,
+          recipientName: info.name ?? undefined,
+        });
+      } catch (_e) { /* SMS failure never blocks deductions */ }
+    };
+
     for (const advance of advances) {
       const { data: existingEntry } = await supabase
         .from('agent_advance_ledger')
