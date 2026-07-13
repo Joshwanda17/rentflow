@@ -834,8 +834,20 @@ export default function SubAgentAnalytics() {
         });
       }
       setMonthlyData(last6Months);
-      setCurrentMonthRegistrations(thisMonthRegs);
-      setCurrentMonthEarnings(thisMonthEarnings);
+
+      // Weekly progress for the current team goal (Mon–Sun)
+      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+      const inThisWeek = (d: string) => {
+        const t = new Date(d);
+        return t >= weekStart && t <= weekEnd;
+      };
+      const thisWeekRegs = subAgentsData.filter(sa => inThisWeek(sa.created_at)).length;
+      const thisWeekEarnings = (allEarnings || [])
+        .filter(e => inThisWeek(e.created_at))
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+      setCurrentMonthRegistrations(thisWeekRegs);
+      setCurrentMonthEarnings(thisWeekEarnings);
 
     } catch (error) {
       console.error('Error fetching sub-agent analytics:', error);
