@@ -2928,6 +2928,48 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_listing_campaign_bonuses: {
+        Row: {
+          activated_count: number
+          agent_id: string
+          amount: number
+          awarded_at: string
+          created_at: string
+          id: string
+          invited_count: number
+          ledger_group_id: string | null
+          verified_houses_count: number
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          activated_count?: number
+          agent_id: string
+          amount?: number
+          awarded_at?: string
+          created_at?: string
+          id?: string
+          invited_count?: number
+          ledger_group_id?: string | null
+          verified_houses_count?: number
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          activated_count?: number
+          agent_id?: string
+          amount?: number
+          awarded_at?: string
+          created_at?: string
+          id?: string
+          invited_count?: number
+          ledger_group_id?: string | null
+          verified_houses_count?: number
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       agent_listing_rejections: {
         Row: {
           agent_id: string
@@ -21602,6 +21644,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      award_agent_listing_campaign_bonus: {
+        Args: { p_agent_id: string }
+        Returns: Json
+      }
       backfill_missing_profile_by_email: {
         Args: { _email: string }
         Returns: Json
@@ -22382,6 +22428,10 @@ export type Database = {
       }
       get_agent_leaderboard_stats: {
         Args: { p_period?: string }
+        Returns: Json
+      }
+      get_agent_listing_campaign: {
+        Args: { p_agent_id: string }
         Returns: Json
       }
       get_agent_listing_rejection_deficit: {

@@ -61,6 +61,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
+import { WeeklyListingMissionCard } from '@/components/agent/WeeklyListingMissionCard';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentUnblockToast } from '@/hooks/useAgentUnblockToast';
@@ -1026,6 +1027,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenNewTenant={() => { if (guardMerchant()) return; setRentRequestOpen(true); }}
               onOpenListHouse={() => { if (guardMerchant()) return; hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
             />
+
+            {/* 1b) Weekly Listing Mission — recruit sub-agents, list verified houses, earn */}
+            {!isMerchant && (
+              <WeeklyListingMissionCard
+                agentId={user.id}
+                onInvite={handleInviteSubAgent}
+                onViewTeam={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
+                onHelpList={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
+                onViewEarnings={() => { hapticTap(); setSlideDirection('left'); setActiveTab('money'); }}
+              />
+            )}
 
             {/* 2) Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
