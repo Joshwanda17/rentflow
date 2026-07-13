@@ -28,6 +28,8 @@ import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutC
 import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
 import { MerchantWithdrawableCard } from '@/components/agent/MerchantWithdrawableCard';
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
+import { MerchantOnlineToggle } from '@/components/agent/MerchantOnlineToggle';
+import { MerchantDispatchHistory } from '@/components/agent/MerchantDispatchHistory';
 import {
   normalizeCashoutAgentConfig,
   buildQueueCategoryOrClause,
@@ -1109,6 +1111,10 @@ export function AgentCashPayoutsTab() {
   return (
     <MerchantAgreementGate>
     <div className="space-y-5">
+      {/* Online/Offline availability — only Online agents receive real-time
+          withdrawal dispatches. */}
+      <MerchantOnlineToggle />
+
       {/* My Active Claims — pinned to the very top so a request YOU claimed is
           always clearly separated from the rest of the queue and can't be missed. */}
       {myActiveClaims.length > 0 && (
@@ -1806,6 +1812,9 @@ export function AgentCashPayoutsTab() {
         })}
         </Tabs>
       </section>
+
+      {/* Complete audit trail of every withdrawal this agent was alerted to. */}
+      <MerchantDispatchHistory />
     </div>
     </MerchantAgreementGate>
   );

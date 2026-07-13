@@ -4890,8 +4890,10 @@ export type Database = {
           handles_mtn: boolean | null
           id: string
           is_active: boolean
+          is_online: boolean
           label: string | null
           max_daily_payouts: number | null
+          online_changed_at: string | null
           priority_threshold: number | null
           updated_at: string
         }
@@ -4907,8 +4909,10 @@ export type Database = {
           handles_mtn?: boolean | null
           id?: string
           is_active?: boolean
+          is_online?: boolean
           label?: string | null
           max_daily_payouts?: number | null
+          online_changed_at?: string | null
           priority_threshold?: number | null
           updated_at?: string
         }
@@ -4924,8 +4928,10 @@ export type Database = {
           handles_mtn?: boolean | null
           id?: string
           is_active?: boolean
+          is_online?: boolean
           label?: string | null
           max_daily_payouts?: number | null
+          online_changed_at?: string | null
           priority_threshold?: number | null
           updated_at?: string
         }
@@ -20446,33 +20452,51 @@ export type Database = {
       withdrawal_notification_log: {
         Row: {
           amount: number
+          channel: string
+          claimed_at: string | null
           created_at: string
+          dispatch_round: number
           error_message: string | null
+          expired_at: string | null
           id: string
-          recipient_email: string
+          recipient_email: string | null
           recipient_id: string | null
+          recipient_phone: string | null
+          response: string
           status: string
           updated_at: string
           withdrawal_id: string | null
         }
         Insert: {
           amount?: number
+          channel?: string
+          claimed_at?: string | null
           created_at?: string
+          dispatch_round?: number
           error_message?: string | null
+          expired_at?: string | null
           id?: string
-          recipient_email: string
+          recipient_email?: string | null
           recipient_id?: string | null
+          recipient_phone?: string | null
+          response?: string
           status?: string
           updated_at?: string
           withdrawal_id?: string | null
         }
         Update: {
           amount?: number
+          channel?: string
+          claimed_at?: string | null
           created_at?: string
+          dispatch_round?: number
           error_message?: string | null
+          expired_at?: string | null
           id?: string
-          recipient_email?: string
+          recipient_email?: string | null
           recipient_id?: string | null
+          recipient_phone?: string | null
+          response?: string
           status?: string
           updated_at?: string
           withdrawal_id?: string | null
@@ -20520,6 +20544,11 @@ export type Database = {
           coo_approved_at: string | null
           coo_approved_by: string | null
           created_at: string
+          dispatch_claimed_at: string | null
+          dispatch_claimed_by: string | null
+          dispatch_escalated_at: string | null
+          dispatch_expires_at: string | null
+          dispatch_round: number
           dispatched_at: string | null
           fin_ops_approved_at: string | null
           fin_ops_approved_by: string | null
@@ -20572,6 +20601,11 @@ export type Database = {
           coo_approved_at?: string | null
           coo_approved_by?: string | null
           created_at?: string
+          dispatch_claimed_at?: string | null
+          dispatch_claimed_by?: string | null
+          dispatch_escalated_at?: string | null
+          dispatch_expires_at?: string | null
+          dispatch_round?: number
           dispatched_at?: string | null
           fin_ops_approved_at?: string | null
           fin_ops_approved_by?: string | null
@@ -20624,6 +20658,11 @@ export type Database = {
           coo_approved_at?: string | null
           coo_approved_by?: string | null
           created_at?: string
+          dispatch_claimed_at?: string | null
+          dispatch_claimed_by?: string | null
+          dispatch_escalated_at?: string | null
+          dispatch_expires_at?: string | null
+          dispatch_round?: number
           dispatched_at?: string | null
           fin_ops_approved_at?: string | null
           fin_ops_approved_by?: string | null
@@ -21324,6 +21363,10 @@ export type Database = {
           passed: boolean
           test_name: string
         }[]
+      }
+      accept_withdrawal_dispatch: {
+        Args: { p_withdrawal_id: string }
+        Returns: Json
       }
       admin_purge_table_refs: {
         Args: { p_parent_pk_values: string[]; p_parent_table: string }
@@ -22843,6 +22886,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_dispatch_context: { Args: { p_withdrawal_id: string }; Returns: Json }
       get_duplicate_roi_credits: {
         Args: { p_lookback_days?: number; p_window_seconds?: number }
         Returns: {
@@ -23552,6 +23596,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      ignore_withdrawal_dispatch: {
+        Args: { p_withdrawal_id: string }
+        Returns: boolean
+      }
       increment_broadcast_run: {
         Args: { p_campaign_key: string }
         Returns: undefined
@@ -23709,6 +23757,7 @@ export type Database = {
           vendor_id: string
         }[]
       }
+      merchant_set_online: { Args: { p_online: boolean }; Returns: boolean }
       merge_lc1_duplicates: {
         Args: { p_canonical_id: string; p_duplicate_ids: string[] }
         Returns: Json
