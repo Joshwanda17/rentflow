@@ -376,7 +376,7 @@ export function MerchantClaimsLog() {
         fetchAll((from, to) =>
           supabase
             .from('withdrawal_requests')
-            .select('id, user_id, amount, status, payout_method, dispatched_at, assigned_cashout_agent_id, created_at')
+            .select('id, user_id, amount, status, payout_method, dispatched_at, processed_at, assigned_cashout_agent_id, created_at')
             .not('assigned_cashout_agent_id', 'is', null)
             .order('dispatched_at', { ascending: false })
             .range(from, to),
@@ -412,16 +412,12 @@ export function MerchantClaimsLog() {
       }
 
       const rows: ClaimRow[] = [];
-      inProg.forEach((r: any) => {
-        const m = byCashoutId.get(r.assigned_cashout_agent_id) || { name: 'Merchant agent', phone: null };
-        const c = custMap.get(r.user_id) || { name: 'Customer', phone: null };
-        rows.push({
-          id: r.id, amount: Number(r.amount || 0), status: r.status, payout_method: r.payout_method,
-          customerId: r.user_id, customerName: c.name, customerPhone: c.phone,
-          merchantName: m.name, merchantPhone: m.phone,
-          claimedAt: r.dispatched_at, completedAt: null, state: 'in_progress',
-        });
-      });
+      // Completed claims win: a settled withdrawal often still carries its
+      // assigned_cashout_agent_id, so it also matches the in-progress query.
+      // Track completed ids (and ids whose status is already terminal) so the
+      // same transaction never renders as both "Completed" and "In progress".
+      const completedIds = new Set<string>(completed.map((r: any) => r.id));
+
       completed.forEach((r: any) => {
         const m = byUserId.get(r.processed_by) || { name: 'Merchant agent', phone: null };
         const c = custMap.get(r.user_id) || { name: 'Customer', phone: null };
@@ -430,6 +426,24 @@ export function MerchantClaimsLog() {
           customerId: r.user_id, customerName: c.name, customerPhone: c.phone,
           merchantName: m.name, merchantPhone: m.phone,
           claimedAt: r.dispatched_at, completedAt: r.processed_at, state: 'completed',
+        });
+      });
+
+      inProg.forEach((r: any) => {
+        // Skip anything already captured as completed.
+        if (completedIds.has(r.id)) return;
+        const m = byCashoutId.get(r.assigned_cashout_agent_id) || { name: 'Merchant agent', phone: null };
+        const c = custMap.get(r.user_id) || { name: 'Customer', phone: null };
+        // Defensive: a terminal status that never populated processed_by still
+        // belongs in the Completed bucket, not In progress.
+        const isDone = COMPLETED_STATUSES.includes(r.status);
+        rows.push({
+          id: r.id, amount: Number(r.amount || 0), status: r.status, payout_method: r.payout_method,
+          customerId: r.user_id, customerName: c.name, customerPhone: c.phone,
+          merchantName: m.name, merchantPhone: m.phone,
+          claimedAt: r.dispatched_at,
+          completedAt: isDone ? (r.processed_at || null) : null,
+          state: isDone ? 'completed' : 'in_progress',
         });
       });
 
