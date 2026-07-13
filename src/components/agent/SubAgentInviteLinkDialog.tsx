@@ -62,7 +62,7 @@ export function SubAgentInviteLinkDialog({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-sm rounded-3xl border-0 p-0 overflow-hidden gap-0"
+        className="w-[calc(100%-1.5rem)] max-w-[24rem] rounded-3xl border-0 p-0 overflow-hidden gap-0"
         overlayClassName="backdrop-blur-sm bg-background/70"
       >
         {/* Hero banner */}
@@ -91,9 +91,9 @@ export function SubAgentInviteLinkDialog({ open, onOpenChange }: Props) {
           </DialogDescription>
 
           {/* Copyable link box */}
-          <div className="flex items-center gap-2 rounded-2xl border border-primary/25 bg-primary/5 p-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-primary/25 bg-primary/5 p-3 overflow-hidden">
             <Link2 className="h-4 w-4 shrink-0 text-primary" />
-            <span className="flex-1 truncate text-[13px] font-medium text-foreground">
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
               {inviteLink || 'Loading link…'}
             </span>
           </div>
