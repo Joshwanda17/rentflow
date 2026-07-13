@@ -24821,6 +24821,16 @@ export type Database = {
         Args: { p_reason?: string; p_score_change: number; p_user_id: string }
         Returns: number
       }
+      user_wallet_strict: {
+        Args: { p_user_id: string }
+        Returns: {
+          advance_balance: number
+          float_balance: number
+          pending_holds: number
+          total_visible: number
+          withdrawable: number
+        }[]
+      }
       validate_and_record_collection: {
         Args: {
           p_agent_id: string
