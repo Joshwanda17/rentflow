@@ -163,22 +163,33 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
       if (!listings.length) return;
       const landlordIds = Array.from(new Set(listings.map(l => l.landlord_id).filter(Boolean) as string[]));
       const tenantIds = Array.from(new Set(listings.map(l => l.tenant_id).filter(Boolean) as string[]));
-      const [landlords, tenants, reqs] = await Promise.all([
-        landlordIds.length
-          ? supabase.from('profiles').select('id,full_name,phone').in('id', landlordIds)
-          : Promise.resolve({ data: [] as any }),
-        tenantIds.length
-          ? supabase.from('profiles').select('id,full_name,phone').in('id', tenantIds)
+      // Agents can't read arbitrary landlord/tenant `profiles` rows directly
+      // (RLS only exposes tenants/landlords they personally referred). The
+      // `get_agent_listing_parties` SECURITY DEFINER RPC returns the names +
+      // phones of the landlords and tenants attached to THIS agent's own
+      // listings — otherwise landlord group headers stay stuck on "Loading…".
+      const [parties, reqs] = await Promise.all([
+        user?.id
+          ? (supabase as any).rpc('get_agent_listing_parties', { p_agent_id: user.id })
           : Promise.resolve({ data: [] as any }),
         tenantIds.length
           ? supabase.from('rent_requests').select('id,tenant_id,agent_id,created_at').in('tenant_id', tenantIds).order('created_at', { ascending: false })
           : Promise.resolve({ data: [] as any }),
       ]);
       if (cancelled) return;
+      const partyMap = new Map<string, { full_name: string | null; phone: string | null }>(
+        ((parties.data ?? []) as any[]).map((r) => [r.user_id, { full_name: r.full_name, phone: r.phone }]),
+      );
       const lmap: Record<string, { name: string; phone: string | null }> = {};
-      for (const p of (landlords.data ?? []) as any[]) lmap[p.id] = { name: p.full_name || 'Unknown landlord', phone: p.phone ?? null };
+      for (const id of landlordIds) {
+        const p = partyMap.get(id);
+        lmap[id] = { name: p?.full_name || 'Unknown landlord', phone: p?.phone ?? null };
+      }
       const tmap: Record<string, { name: string; phone: string | null }> = {};
-      for (const p of (tenants.data ?? []) as any[]) tmap[p.id] = { name: p.full_name || 'Unknown tenant', phone: p.phone ?? null };
+      for (const id of tenantIds) {
+        const p = partyMap.get(id);
+        tmap[id] = { name: p?.full_name || 'Unknown tenant', phone: p?.phone ?? null };
+      }
       const rmap: Record<string, { id: string; agent_id: string | null }> = {};
       for (const r of (reqs.data ?? []) as any[]) {
         if (!rmap[r.tenant_id]) rmap[r.tenant_id] = { id: r.id, agent_id: r.agent_id };
@@ -187,7 +198,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     }
     run();
     return () => { cancelled = true; };
-  }, [listings]);
+  }, [listings, user?.id]);
 
   const handleRelist = async (listing: HouseListing) => {
     setRelisting(listing.id);
