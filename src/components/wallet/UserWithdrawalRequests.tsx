@@ -101,6 +101,15 @@ export function UserWithdrawalRequests() {
           label: 'Approved',
           pulse: false,
         };
+      case 'completed':
+        return {
+          icon: CheckCircle,
+          color: 'text-emerald-500',
+          bgColor: 'bg-emerald-500/10',
+          borderColor: 'border-emerald-500/30',
+          label: 'Completed',
+          pulse: false,
+        };
       case 'rejected':
         return {
           icon: XCircle,
@@ -110,13 +119,40 @@ export function UserWithdrawalRequests() {
           label: 'Rejected',
           pulse: false,
         };
+      case 'cancelled':
+        return {
+          icon: XCircle,
+          color: 'text-muted-foreground',
+          bgColor: 'bg-muted',
+          borderColor: 'border-border',
+          label: 'Cancelled',
+          pulse: false,
+        };
+      case 'expired':
+        return {
+          icon: XCircle,
+          color: 'text-muted-foreground',
+          bgColor: 'bg-muted',
+          borderColor: 'border-border',
+          label: 'Expired',
+          pulse: false,
+        };
+      case 'failed':
+        return {
+          icon: XCircle,
+          color: 'text-destructive',
+          bgColor: 'bg-destructive/10',
+          borderColor: 'border-destructive/30',
+          label: 'Failed',
+          pulse: false,
+        };
       default:
         return {
           icon: Clock,
           color: 'text-muted-foreground',
           bgColor: 'bg-muted',
           borderColor: 'border-border',
-          label: status,
+          label: status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' '),
           pulse: false,
         };
     }
@@ -168,7 +204,8 @@ export function UserWithdrawalRequests() {
             const statusConfig = getStatusConfig(request.status);
             const StatusIcon = statusConfig.icon;
             const isCardExpanded = expandedCardId === request.id;
-            const showTracker = request.status !== 'rejected';
+            const showTracker = request.status === 'pending' || request.status === 'approved';
+            const isSettled = request.status === 'approved' || request.status === 'completed';
 
             return (
               <motion.div
@@ -182,41 +219,41 @@ export function UserWithdrawalRequests() {
                     ? 'bg-amber-500/5' 
                     : 'bg-muted/30'
                 } cursor-pointer active:scale-[0.99] transition-transform`}
-                onClick={() => setExpandedCardId(isCardExpanded ? null : request.id)}
+                onClick={() => showTracker && setExpandedCardId(isCardExpanded ? null : request.id)}
               >
                 <div className="p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
                       <div className={`p-2 rounded-lg ${statusConfig.bgColor}`}>
                         <StatusIcon className={`h-4 w-4 ${statusConfig.color}`} />
                       </div>
-                      <div className="space-y-1">
-                        <p className="font-bold text-base">
+                      <div className="space-y-1 min-w-0">
+                        <p className="font-bold text-base whitespace-nowrap">
                           {formatCurrency(request.amount)}
                         </p>
                         {request.mobile_money_number && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Smartphone className="h-3 w-3" />
-                            <span className={`uppercase font-medium ${
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                            <Smartphone className="h-3 w-3 shrink-0" />
+                            <span className={`uppercase font-medium shrink-0 ${
                               request.mobile_money_provider === 'mtn' 
                                 ? 'text-yellow-600' 
                                 : 'text-red-500'
                             }`}>
                               {request.mobile_money_provider || 'MoMo'}
                             </span>
-                            <span>•</span>
-                            <span>{request.mobile_money_number}</span>
+                            <span className="shrink-0">•</span>
+                            <span className="truncate">{request.mobile_money_number}</span>
                           </div>
                         )}
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-col items-end gap-1 shrink-0">
                       <Badge 
                         variant="outline"
-                        className={`text-xs gap-1 ${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor} ${
+                        className={`text-xs gap-1 whitespace-nowrap ${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor} ${
                           statusConfig.pulse ? 'animate-pulse' : ''
                         }`}
                       >
@@ -238,7 +275,7 @@ export function UserWithdrawalRequests() {
                   </div>
                 )}
                 
-                {request.status === 'approved' && request.processed_at && !isCardExpanded && (
+                {isSettled && request.processed_at && !isCardExpanded && (
                   <div className="mx-3 mb-3 p-2 bg-emerald-500/10 rounded-lg space-y-1">
                     <div className="flex items-center gap-1.5 text-xs text-emerald-600">
                       <CheckCircle className="h-3 w-3" />
@@ -247,7 +284,7 @@ export function UserWithdrawalRequests() {
                       </span>
                     </div>
                     {request.transaction_id && (
-                      <p className="text-xs text-muted-foreground font-mono">
+                      <p className="text-xs text-muted-foreground font-mono break-all">
                         Txn ID: {request.transaction_id}
                       </p>
                     )}
