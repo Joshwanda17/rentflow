@@ -386,8 +386,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
               <Home className="h-5 w-5 text-primary" />
-              {hasGPS && geo.city
-                ? `Houses Near ${geo.city}`
+              {selectedRegion !== 'All Regions'
+                ? `Houses in ${selectedRegion}`
                 : 'Available Houses'}
             </SheetTitle>
             <div className="flex items-center rounded-full border border-border bg-muted/40 p-0.5 shrink-0">
