@@ -211,29 +211,21 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [selectedSubCounty, setSelectedSubCounty] = useState('all');
   const [selectedVillage, setSelectedVillage] = useState('all');
-  const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   // Bottom sentinel — when it scrolls into view we ask for the next page.
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!geoDefaultApplied && geo.city && !geo.loading) {
-      const matched = REGIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
-      if (matched) setSelectedRegion(matched);
-      setGeoDefaultApplied(true);
-    }
-  }, [geo.city, geo.loading, geoDefaultApplied]);
-
+  // By default we list EVERY available house across the whole country — NOT
+  // only houses near the tenant's GPS. Location is the tenant's choice via the
+  // region/district/sub-county/village filters below. We therefore don't feed
+  // GPS into the list query (that would distance-scope and distance-sort it, so
+  // a tenant sitting far from most listings would see very few). Results come
+  // back newest-first and are narrowed only when the tenant picks a filter.
   const { listings, loading, loadingMore, hasMore, loadMore, metrics } = useNearbyHouses({
-    latitude: geo.latitude,
-    longitude: geo.longitude,
-    // "All Regions" must show every house across the whole country (not just
-    // houses near the user's GPS), so we pass a country-sized radius. A specific
-    // region stays at 200km around the user. Houses are still ordered by the
-    // real GPS distance the agent captured at listing time.
-    radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
+    latitude: null,
+    longitude: null,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
     // Page through EVERY matching listing — no fixed cap.
@@ -242,7 +234,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     // village dropdowns see the full result set immediately — not just the
     // first 24 rows the infinite-scroll sentinel would otherwise load.
     pageSize: 500,
-    enabled: open && !geo.loading,
+    enabled: open,
   });
 
   // Exact listed-house counts (verified + not-yet-verified) for the active
