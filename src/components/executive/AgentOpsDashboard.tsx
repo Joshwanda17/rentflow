@@ -454,7 +454,7 @@ function AgentOpsSideNav({
   // collapsible so the nav never over-scrolls. Agent Network sits right
   // below Priority and is open by default (this dashboard is agent-centric).
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
-    { title: 'Advances', pinned: true, keys: ['advance-requests', 'advance-potential', 'advance-repayments'] },
+    { title: 'Advances', pinned: true, keys: ['advance-requests', 'advance-potential', 'advance-limits', 'advance-repayments'] },
     { title: 'Agent Network', defaultOpen: true, keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: 'Operations', keys: ['pipeline', 'escalations', 'tasks', 'connector'] },
     { title: 'Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
