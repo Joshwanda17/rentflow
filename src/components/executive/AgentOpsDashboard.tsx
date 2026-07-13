@@ -35,7 +35,7 @@ import { AgentFeatureFlagsPanel } from './AgentFeatureFlagsPanel';
 import { AgentBulkOpsConsole } from './AgentBulkOpsConsole';
 import { AgentDailyOverviewReportButton } from './AgentDailyOverviewReportButton';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
-import { AgentEligibilityTransitionsPanel } from './AgentEligibilityTransitionsPanel';
+import { AgentAdvanceRepaymentMonitor } from './agent-ops-v2/AgentAdvanceRepaymentMonitor';
 import { AgentMonthlyKpis } from './agent-ops-v2/AgentMonthlyKpis';
 import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
 import { AgentAdvanceLimits } from './agent-ops-v2/AgentAdvanceLimits';
@@ -297,12 +297,7 @@ export function AgentOpsDashboard() {
         onRangeChange={setDateRange}
         onOpenSection={handleOpenSection}
       />
-      <div className="space-y-4">
-        <AgentRentCapacityPanel
-          mode="summary"
-        />
-        <AgentEligibilityTransitionsPanel />
-      </div>
+      <AgentAdvanceRepaymentMonitor />
     </div>
   ) : (
     <div className="space-y-5 pb-20 sm:pb-4">

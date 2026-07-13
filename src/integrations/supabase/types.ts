@@ -22430,6 +22430,36 @@ export type Database = {
           verified: boolean
         }[]
       }
+      get_agent_advance_repayment_monitor: {
+        Args: { _days?: number }
+        Returns: {
+          access_fee: number
+          advance_id: string
+          agent_id: string
+          arrears_balance: number
+          avatar_url: string
+          collections_count_today: number
+          collections_today: number
+          deduction_status_today: string
+          expires_at: string
+          full_name: string
+          is_overdue: boolean
+          issued_at: string
+          last_deduction_amount: number
+          last_deduction_date: string
+          missed_days_window: number
+          outstanding_balance: number
+          paid_days_window: number
+          paid_today: boolean
+          phone: string
+          principal: number
+          repaid_today: number
+          repaid_window: number
+          scheduled_daily: number
+          status: string
+          withdrawable: number
+        }[]
+      }
       get_agent_daily_activity_report: {
         Args: { p_date?: string }
         Returns: Json

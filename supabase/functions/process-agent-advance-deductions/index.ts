@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
+
+const fmtUGX = (n: number) => `UGX ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +40,31 @@ Deno.serve(async (req) => {
     const results = [];
     const skipped = [];
     const today = new Date().toISOString().split('T')[0];
+
+    // Build a phone/name map once so we can notify agents without an extra
+    // query per advance.
+    const agentIds = Array.from(new Set(advances.map((a) => a.agent_id).filter(Boolean)));
+    const phoneMap = new Map<string, { phone: string | null; name: string | null }>();
+    if (agentIds.length) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, phone, full_name')
+        .in('id', agentIds);
+      for (const p of profs || []) {
+        phoneMap.set(p.id, { phone: p.phone, name: p.full_name });
+      }
+    }
+    const notifyAgent = async (agentId: string, message: string, source: string) => {
+      const info = phoneMap.get(agentId);
+      if (!info?.phone) return;
+      try {
+        await attemptYoolaPrimary(info.phone, message, {
+          source,
+          recipientUserId: agentId,
+          recipientName: info.name ?? undefined,
+        });
+      } catch (_e) { /* SMS failure never blocks deductions */ }
+    };
 
     for (const advance of advances) {
       const { data: existingEntry } = await supabase
@@ -142,6 +170,13 @@ Deno.serve(async (req) => {
             outstanding_after_interest: balanceAfterInterest,
           },
         }).then(() => {}, () => {});
+        // Notify the agent that today's installment could not be collected and
+        // will be recovered automatically from their next earnings.
+        await notifyAgent(
+          advance.agent_id,
+          `WELILE: Today's advance repayment could not be collected (low wallet balance). Outstanding ${fmtUGX(closingBalance)}. It will be auto-recovered from your next earnings. Top up to avoid arrears.`,
+          'advance_deduction_missed',
+        );
       } else {
         // Deduct from wallet via balanced RPC with EXPLICIT Wallet Routing v2 tags.
         // wallet leg → recipient_type='user' forces withdrawable bucket;
@@ -195,6 +230,12 @@ Deno.serve(async (req) => {
             event_type: 'repayment_successful',
             payload: { ...repaymentMeta, user_id: advance.agent_id, amount: amountDeducted },
           }).then(() => {}, () => {});
+          // Notify the agent where the money went (also visible in transactions).
+          await notifyAgent(
+            advance.agent_id,
+            `WELILE: ${fmtUGX(amountDeducted)} was deducted from your wallet today towards your advance. Remaining balance ${fmtUGX(closingBalance)}. See your transactions for details.`,
+            'advance_deduction_success',
+          );
         }
       }
 
