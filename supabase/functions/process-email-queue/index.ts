@@ -69,6 +69,7 @@ async function sendViaMailgun(
     to: string
     from: string
     reply_to?: string
+    bcc?: string
     subject?: string
     html?: string
     text?: string
@@ -83,6 +84,7 @@ async function sendViaMailgun(
   if (payload.html) form.set('html', payload.html)
   if (payload.text) form.set('text', payload.text)
   if (payload.reply_to) form.set('h:Reply-To', payload.reply_to)
+  if (payload.bcc) form.set('bcc', payload.bcc)
 
   const res = await fetch(`${cfg.baseUrl}/v3/${cfg.domain}/messages`, {
     method: 'POST',
@@ -336,6 +338,7 @@ Deno.serve(async (req) => {
             to: payload.to,
             from: payload.from || DEFAULT_FROM,
             reply_to: payload.reply_to,
+            bcc: payload.bcc,
             subject: payload.subject,
             html: payload.html,
             text: payload.text,

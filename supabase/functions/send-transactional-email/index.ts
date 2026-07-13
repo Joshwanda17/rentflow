@@ -338,6 +338,9 @@ Deno.serve(async (req) => {
       from: isPartnerFunder ? PARTNER_FROM : `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
       ...(isPartnerFunder ? { reply_to: PARTNER_REPLY_TO } : {}),
+      // BCC the partnerships mailbox on partner/funder emails so a filtered
+      // copy lands in the partnership@welile.com folder for record-keeping.
+      ...(isPartnerFunder ? { bcc: PARTNER_REPLY_TO } : {}),
       subject: resolvedSubject,
       html,
       text: plainText,
