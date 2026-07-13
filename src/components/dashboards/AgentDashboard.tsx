@@ -1725,6 +1725,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onInviteSubAgent={handleInviteSubAgent}
       />
       </LazyModal>
+      <SubAgentInviteLinkDialog
+        open={subAgentLinkOpen}
+        onOpenChange={setSubAgentLinkOpen}
+      />
       <LazyModal when={rentRequestOpen}>
       <AgentRentRequestDialog 
         open={rentRequestOpen} 
