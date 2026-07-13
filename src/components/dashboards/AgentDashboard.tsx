@@ -953,10 +953,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {!isMerchant && (
               <WeeklyListingMissionCard
                 agentId={user.id}
-                onInvite={handleInviteSubAgent}
+                onInvite={() => { hapticTap(); setSubAgentLinkOpen(true); }}
                 onViewTeam={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
                 onHelpList={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
                 onViewEarnings={() => { hapticTap(); setSlideDirection('left'); setActiveTab('money'); }}
+                onViewLeaderboard={() => { hapticTap(); navigate('/dashboard/agents/leaderboard'); }}
               />
             )}
 
