@@ -1,15 +1,18 @@
 ---
-name: Agent Growth Daily Report
-description: Morning cron email of the Agent Growth Leaderboard as a branded PDF attachment (Gmail connector), mirroring the executive Export PDF
+name: Agent Daily Activity & Growth Report
+description: Morning cron email reporting YESTERDAY's agent/sub-agent field activity + network growth as a branded PDF attachment (Gmail connector)
 type: feature
 ---
-Edge function `agent-growth-daily-report` emails the Agent Growth Leaderboard PDF.
+Edge function `agent-growth-daily-report` emails a combined daily activity + growth PDF.
 
 - **Recipients (fixed):** benjamin@welile.com, pexpert46@gmail.com
 - **Schedule:** pg_cron `agent-growth-daily-report-0700-eat` at `0 4 * * *` (04:00 UTC = 07:00 EAT).
-- **Data:** `get_agent_leaderboard_stats(p_period)`; default period `monthly` (matches leaderboard default view). Configurable via body `{ period }`.
-- **PDF:** server-side jsPDF + jspdf-autotable port of `src/lib/agentGrowthReportPdf.ts` (header band, 8 KPI cards, Executive Summary insight box, Growth-by-Period table, Top Recruiters, Invitee Pipeline). Keep the two generators in sync.
+- **Report day:** runs in the morning, so it reports the PREVIOUS EAT calendar day ("yesterday"). Default `reportDate = eatYesterday()`; override with body `{ date: 'YYYY-MM-DD' }`.
+- **Data (combined):**
+  - `get_agent_daily_activity_report(p_date)` → yesterday's DAILY metrics: active_agents, active_subagents (distinct agents/sub-agents with any tracked field action that day), houses_listed, rent_requests_posted, repayments (count/amount), collections (count/amount), visits, new_subagents, subagent_invites + supporter_invites, plus a per-agent `top_agents` leaderboard. EAT day = `(p_date::timestamp AT TIME ZONE 'UTC') - interval '3 hours'` .. +1 day.
+  - `get_agent_leaderboard_stats('daily')` → trailing 30-day growth series, top recruiters, invitee pipeline (context only). Totals from this RPC are NOT used for KPIs.
+- **PDF:** server-side jsPDF + jspdf-autotable: header (report day), 8 DAILY KPI cards, Executive Summary, Top Active Agents (yesterday) table, trailing 30-day growth chart, Top Recruiters, Invitee Pipeline.
 - **Delivery:** Gmail connector (`GOOGLE_MAIL_API_KEY` + `LOVABLE_API_KEY`) via `messages/send` with a multipart/mixed MIME body so the PDF rides as a real ATTACHMENT. The Lovable email queue (`sendLovableEmail`) cannot carry attachments — do not route this through it.
-- **Idempotency:** one `system_events` row (`event_type='agent_growth_daily_report'`, metadata.date EAT) per day; bypass with `{ force: true }`.
+- **Idempotency:** one `system_events` row (`event_type='agent_growth_daily_report'`, `metadata.report_date` = the reported EAT day) per report day; bypass with `{ force: true }`.
 
-Frontend Export PDF button lives in `AgentLeaderboardPanel.tsx` → `generateAgentGrowthReportPdf`; it now also passes `inviteeStatus` counts.
+Frontend Export PDF button (`AgentLeaderboardPanel.tsx` → `generateAgentGrowthReportPdf`) is the executive leaderboard export and is independent of this email.
