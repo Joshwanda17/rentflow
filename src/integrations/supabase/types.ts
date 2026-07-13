@@ -22510,6 +22510,14 @@ export type Database = {
         Args: { p_agent_id: string }
         Returns: Json
       }
+      get_agent_listing_parties: {
+        Args: { p_agent_id: string }
+        Returns: {
+          full_name: string
+          phone: string
+          user_id: string
+        }[]
+      }
       get_agent_listing_rejection_deficit: {
         Args: { p_agent_id: string }
         Returns: number
