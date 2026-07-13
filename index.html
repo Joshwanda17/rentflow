@@ -3,9 +3,10 @@
   <head>
     <!-- Domain handling: the app is served directly on every custom domain
          (welileapp.com, welilereceipts.com, www.*). We intentionally do NOT
+         legacy-domain-guard-allow
          run a client-side cross-domain redirect here: bouncing a freshly
-         opened welilereceipts.com link to welileapp.com triggers Chrome's
-         "Did you mean welilereceipts.com?" lookalike interstitial (on
+         opened welilereceipts.com link to welileapp.com triggers Chrome's legacy-domain-guard-allow
+         "Did you mean welilereceipts.com?" lookalike interstitial (on legacy-domain-guard-allow
          about:blank) inside in-app browsers. Canonicalization for SEO is
          handled by the <link rel="canonical"> tag below, not by redirecting. -->
     <!-- Google Tag Manager -->
