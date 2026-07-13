@@ -1,26 +1,13 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!-- Host canonicalization: force legacy welilereceipts.com / welilereciept.com -> welileapp.com.  legacy-domain-guard-allow
-         Runs before anything else so no legacy-domain content is ever rendered.
-         (True HTTP 301 is served by Lovable hosting when the domain points here;
-         this is the client-side guarantee for any request that reaches the app.) -->
-    <script>
-      (function () {
-        try {
-          var host = window.location.hostname.replace(/^www\./, '').toLowerCase();
-          var LEGACY = ['welilereceipts.com', 'welilereciept.com']; // legacy-domain-guard-allow
-          if (LEGACY.indexOf(host) !== -1) {
-            var target =
-              'https://welileapp.com' +
-              window.location.pathname +
-              window.location.search +
-              window.location.hash;
-            window.location.replace(target);
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <!-- Domain handling: the app is served directly on every custom domain
+         (welileapp.com, welilereceipts.com, www.*). We intentionally do NOT
+         run a client-side cross-domain redirect here: bouncing a freshly
+         opened welilereceipts.com link to welileapp.com triggers Chrome's
+         "Did you mean welilereceipts.com?" lookalike interstitial (on
+         about:blank) inside in-app browsers. Canonicalization for SEO is
+         handled by the <link rel="canonical"> tag below, not by redirecting. -->
     <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
