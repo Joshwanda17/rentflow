@@ -38,14 +38,6 @@ interface LimitRow {
 const num = (v: any) => Number(v ?? 0);
 const MAX_LIMIT = 30_000_000;
 
-// Caps that mirror recalculate_credit_limit exactly.
-const CAPS = {
-  subagents: 21_000_000 + Infinity, // weighted cap is 21M; flat 50k/sub is uncapped
-  collections: 6_000_000,
-  houses: 2_250_000,
-  requests: 2_250_000,
-};
-
 function AgentAvatar({ src, name }: { src: string | null; name: string | null }) {
   const [failed, setFailed] = useState(false);
   const showImg = !!src && !failed;
