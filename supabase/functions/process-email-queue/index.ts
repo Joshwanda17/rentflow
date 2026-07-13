@@ -334,7 +334,7 @@ Deno.serve(async (req) => {
         await sendViaMailgun(
           {
             to: payload.to,
-            from: payload.from,
+            from: payload.from || DEFAULT_FROM,
             reply_to: payload.reply_to,
             subject: payload.subject,
             html: payload.html,
