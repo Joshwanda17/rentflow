@@ -57,16 +57,6 @@ export function HouseListingCount({
           <ShieldCheck className="h-3 w-3" aria-hidden="true" />
           {fmt(verified)} verified
         </span>
-        {unverified > 0 && (
-          <span
-            className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-500"
-            data-testid="house-count-pending"
-            data-count={unverified}
-          >
-            <Clock className="h-3 w-3" aria-hidden="true" />
-            {fmt(unverified)} pending verification
-          </span>
-        )}
       </span>
       {suffix ? <span className="text-muted-foreground"> · {suffix}</span> : null}
     </div>
