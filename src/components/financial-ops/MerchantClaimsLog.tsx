@@ -376,7 +376,7 @@ export function MerchantClaimsLog() {
         fetchAll((from, to) =>
           supabase
             .from('withdrawal_requests')
-            .select('id, user_id, amount, status, payout_method, dispatched_at, assigned_cashout_agent_id, created_at')
+            .select('id, user_id, amount, status, payout_method, dispatched_at, processed_at, assigned_cashout_agent_id, created_at')
             .not('assigned_cashout_agent_id', 'is', null)
             .order('dispatched_at', { ascending: false })
             .range(from, to),
