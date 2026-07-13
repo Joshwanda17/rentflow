@@ -22281,6 +22281,10 @@ export type Database = {
           verified: boolean
         }[]
       }
+      get_agent_daily_activity_report: {
+        Args: { p_date?: string }
+        Returns: Json
+      }
       get_agent_daily_eligibility: {
         Args: { p_agent_ids: string[] }
         Returns: {
