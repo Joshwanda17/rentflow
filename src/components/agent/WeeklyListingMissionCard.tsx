@@ -262,7 +262,7 @@ export function WeeklyListingMissionCard({
           style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           <Trophy className="h-4 w-4" style={{ color: '#FACC15' }} />
-          <span className="hidden xs:inline sm:inline">Ranks</span>
+          <span className="hidden sm:inline">Ranks</span>
         </button>
       </div>
     </div>
