@@ -83,7 +83,7 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
           orParts.push(`phone.ilike.%${digits}%`);
         }
         const { data, error } = await supabase
-          .from('landlords')
+          .from('landlords_directory')
           .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
           .or(orParts.join(','))
           .order('name', { ascending: true })
