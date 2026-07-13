@@ -204,11 +204,15 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
           <VerificationBadge verified={listing.verified} status={listing.status} />
         </div>
 
-        {/* Daily Rate */}
-        <div className="p-4 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30">
-          <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Daily Rent</p>
-          <p className="text-3xl font-black text-success leading-none mb-1">{formatUGX(listing.daily_rate)}</p>
-          <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
+        {/* Daily Rate — compact inline row */}
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border border-success/30 px-3.5 py-2.5">
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Daily Rent</p>
+            <p className="text-2xl font-black text-success leading-none truncate">{formatUGX(listing.daily_rate)}</p>
+          </div>
+          <p className="text-[11px] text-muted-foreground font-medium text-right shrink-0 leading-tight">
+            per day<br />pay as you stay
+          </p>
         </div>
 
         {/* Move-in offer — first 7 days free on every listed house */}
@@ -249,9 +253,6 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
         {listing.description && (
           <p className="text-xs text-muted-foreground line-clamp-2">{listing.description}</p>
         )}
-
-        {/* Google Maps embed */}
-        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
 
         {/* Go see it yourself — turn-by-turn navigation */}
         <GetDirectionsButton lat={listing.latitude} lng={listing.longitude} title={listing.title} />
