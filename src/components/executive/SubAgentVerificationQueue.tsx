@@ -4,11 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search } from 'lucide-react';
+import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SubAgentRecord {
@@ -35,6 +37,13 @@ export function SubAgentVerificationQueue() {
   const [activeTab, setActiveTab] = useState('pending');
   const [search, setSearch] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<SubAgentRecord | null>(null);
+  const [transferRecord, setTransferRecord] = useState<SubAgentRecord | null>(null);
+  const [transferSearch, setTransferSearch] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [newParent, setNewParent] = useState<{ id: string; full_name: string; phone: string | null } | null>(null);
+  const [transferring, setTransferring] = useState(false);
+  const [parentResults, setParentResults] = useState<{ id: string; full_name: string; phone: string | null }[]>([]);
+  const [searchingParents, setSearchingParents] = useState(false);
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['subagent-verification-queue'],
@@ -117,6 +126,60 @@ export function SubAgentVerificationQueue() {
     }
   };
 
+  const openTransfer = (r: SubAgentRecord) => {
+    setTransferRecord(r);
+    setTransferSearch('');
+    setTransferReason('');
+    setNewParent(null);
+    setParentResults([]);
+  };
+
+  const searchParents = async (term: string) => {
+    setTransferSearch(term);
+    setNewParent(null);
+    const t = term.trim();
+    if (t.length < 2) { setParentResults([]); return; }
+    setSearchingParents(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .or(`full_name.ilike.%${t}%,phone.ilike.%${t}%`)
+        .limit(15);
+      if (error) throw error;
+      setParentResults((data || []).filter(p => p.id !== transferRecord?.sub_agent_id && p.id !== transferRecord?.parent_agent_id));
+    } catch (err: any) {
+      toast.error(err.message || 'Search failed');
+    } finally {
+      setSearchingParents(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!transferRecord || !newParent) return;
+    if (transferReason.trim().length < 10) {
+      toast.error('Please provide a reason (at least 10 characters).');
+      return;
+    }
+    setTransferring(true);
+    try {
+      const { error } = await supabase.rpc('reassign_subagent_parent' as any, {
+        _record_id: transferRecord.id,
+        _new_parent_id: newParent.id,
+        _reason: transferReason.trim(),
+      });
+      if (error) throw error;
+      toast.success(`Transferred ${transferRecord.sub_name} to ${newParent.full_name}. Action logged.`);
+      setTransferRecord(null);
+      setSelectedRecord(null);
+      queryClient.invalidateQueries({ queryKey: ['subagent-verification-queue'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to transfer');
+    } finally {
+      setTransferring(false);
+    }
+  };
+
   const renderCard = (r: SubAgentRecord, showActions: boolean) => (
     <div key={r.id} className="rounded-xl border border-border p-3 space-y-2 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setSelectedRecord(r)}>
       <div className="flex items-start justify-between gap-2">
@@ -148,6 +211,18 @@ export function SubAgentVerificationQueue() {
         {r.rejection_reason && (
           <p className="text-destructive">Reason: {r.rejection_reason}</p>
         )}
+      </div>
+
+      <div onClick={e => e.stopPropagation()}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openTransfer(r)}
+          className="w-full gap-1 h-7 text-xs"
+        >
+          <ArrowLeftRight className="h-3 w-3" />
+          Transfer to another agent
+        </Button>
       </div>
 
       {showActions && (
@@ -314,6 +389,15 @@ export function SubAgentVerificationQueue() {
                     <Phone className="h-3.5 w-3.5" />
                     <span>{selectedRecord.parent_phone}</span>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openTransfer(selectedRecord)}
+                    className="w-full gap-1 mt-1"
+                  >
+                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                    Transfer to another agent
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -347,6 +431,91 @@ export function SubAgentVerificationQueue() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Transfer Dialog */}
+      <Dialog open={!!transferRecord} onOpenChange={(open) => { if (!open) setTransferRecord(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ArrowLeftRight className="h-4 w-4 text-primary" />
+              Transfer Sub-Agent
+            </DialogTitle>
+          </DialogHeader>
+          {transferRecord && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+                <p><span className="text-muted-foreground">Sub-agent:</span> <span className="font-semibold">{transferRecord.sub_name}</span> ({transferRecord.sub_phone})</p>
+                <p><span className="text-muted-foreground">Current parent:</span> <span className="font-medium">{transferRecord.parent_name}</span></p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase">New parent agent</label>
+                {newParent ? (
+                  <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 p-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{newParent.full_name}</p>
+                      <p className="text-xs text-muted-foreground">{newParent.phone || '—'}</p>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => { setNewParent(null); }}>Change</Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Search agent by name or phone..."
+                        value={transferSearch}
+                        onChange={e => searchParents(e.target.value)}
+                        className="pl-8 h-9 text-sm"
+                      />
+                    </div>
+                    {searchingParents ? (
+                      <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                    ) : parentResults.length > 0 ? (
+                      <div className="max-h-48 overflow-y-auto space-y-1 rounded-lg border border-border p-1">
+                        {parentResults.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => setNewParent(p)}
+                            className="w-full text-left rounded-md px-2.5 py-2 hover:bg-muted transition-colors"
+                          >
+                            <p className="text-sm font-medium truncate">{p.full_name || 'Unnamed'}</p>
+                            <p className="text-xs text-muted-foreground">{p.phone || '—'}</p>
+                          </button>
+                        ))}
+                      </div>
+                    ) : transferSearch.trim().length >= 2 ? (
+                      <p className="text-xs text-muted-foreground text-center py-2">No matching agents.</p>
+                    ) : null}
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase">Reason (for audit log)</label>
+                <Textarea
+                  placeholder="Why is this sub-agent being transferred? (min 10 characters)"
+                  value={transferReason}
+                  onChange={e => setTransferReason(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setTransferRecord(null)} disabled={transferring}>Cancel</Button>
+            <Button
+              onClick={handleTransfer}
+              disabled={transferring || !newParent || transferReason.trim().length < 10}
+              className="gap-1"
+            >
+              {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
+              Confirm Transfer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
