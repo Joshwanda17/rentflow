@@ -3564,6 +3564,39 @@ export type Database = {
           },
         ]
       }
+      agent_team_goals: {
+        Row: {
+          agent_id: string
+          created_at: string
+          goal_week: string
+          id: string
+          notes: string | null
+          target_earnings: number
+          target_registrations: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          goal_week: string
+          id?: string
+          notes?: string | null
+          target_earnings?: number
+          target_registrations?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          goal_week?: string
+          id?: string
+          notes?: string | null
+          target_earnings?: number
+          target_registrations?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_tenant_float_reversals: {
         Row: {
           agent_id: string
