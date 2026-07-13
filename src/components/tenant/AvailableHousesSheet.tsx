@@ -327,20 +327,18 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   // Responsive column count so the list fills wide screens instead of leaving
   // huge empty white margins around a single narrow centred column. On phones
   // it stays a single column; on tablets/desktops it flows into 2–3 columns.
-  const [columns, setColumns] = useState(1);
+  // The sheet spans the full viewport width, so window width is a reliable proxy
+  // (and avoids racing the portal-mounted scroll container's ref).
+  const colsForWidth = (w: number) => (w >= 1024 ? 3 : w >= 640 ? 2 : 1);
+  const [columns, setColumns] = useState(() =>
+    typeof window !== 'undefined' ? colsForWidth(window.innerWidth) : 1,
+  );
   useEffect(() => {
-    if (!open || view !== 'list') return;
-    const el = resultsRef.current;
-    if (!el) return;
-    const compute = () => {
-      const w = el.clientWidth;
-      setColumns(w >= 1024 ? 3 : w >= 640 ? 2 : 1);
-    };
+    const compute = () => setColumns(colsForWidth(window.innerWidth));
     compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [open, view]);
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, []);
 
   // Pagination diagnostics overlay — off by default. Enable in any environment:
   //   localStorage.setItem('welile-debug-pagination','1')
