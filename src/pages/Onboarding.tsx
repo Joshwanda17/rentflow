@@ -42,7 +42,14 @@ const registerUser = async (payload: {
       referrerId: payload.referrerId || null,
     },
   });
-  if (error) throw error;
+  // On a non-2xx (e.g. 409 "already registered") the SDK returns a generic
+  // FunctionsHttpError whose .message is "non-2xx status code"; the real
+  // backend message sits in error.context. Surface the parsed message so the
+  // user never sees a raw edge-function status.
+  if (error) {
+    const parsed = await extractFromErrorObject(error, 'We couldn’t create your account. Please try again.');
+    throw new Error(parsed);
+  }
   if (!data?.userId) throw new Error(data?.error || 'Failed to create funder account');
 
   const signInResult = await supabase.auth.signInWithPassword({
