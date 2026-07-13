@@ -324,6 +324,22 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
+  // Responsive column count so the list fills wide screens instead of leaving
+  // huge empty white margins around a single narrow centred column. On phones
+  // it stays a single column; on tablets/desktops it flows into 2–3 columns.
+  // The sheet spans the full viewport width, so window width is a reliable proxy
+  // (and avoids racing the portal-mounted scroll container's ref).
+  const colsForWidth = (w: number) => (w >= 1024 ? 3 : w >= 640 ? 2 : 1);
+  const [columns, setColumns] = useState(() =>
+    typeof window !== 'undefined' ? colsForWidth(window.innerWidth) : 1,
+  );
+  useEffect(() => {
+    const compute = () => setColumns(colsForWidth(window.innerWidth));
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, []);
+
   // Pagination diagnostics overlay — off by default. Enable in any environment:
   //   localStorage.setItem('welile-debug-pagination','1')
   const showPaginationDebug = (() => {
@@ -339,6 +355,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     estimateSize: () => 280,
     overscan: 4,
     gap: 12,
+    lanes: columns,
     getItemKey: (index) => filtered[index]?.id ?? index,
   });
 
@@ -557,7 +574,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           </div>
         ) : (
         <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-          <div className="mx-auto w-full max-w-2xl space-y-3">
+          <div className="mx-auto w-full max-w-2xl lg:max-w-6xl space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-40 w-full rounded-2xl" />
@@ -596,24 +613,33 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   <div>firstPage={metrics.firstPageMs ?? '—'}ms · lastPage={metrics.lastPageMs ?? '—'}ms · total={metrics.totalMs}ms</div>
                 </div>
               )}
-              {/* Virtualized card list — only viewport cards are mounted. */}
+              {/* Virtualized card list — only viewport cards are mounted. On wide
+                  screens cards flow into multiple columns (lanes) so the sheet
+                  fills the available width instead of leaving empty margins. */}
               <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
                 {virtualizer.getVirtualItems().map((vi) => {
                   const listing = filtered[vi.index];
                   if (!listing) return null;
+                  const laneWidth = 100 / columns;
                   return (
                     <div
                       key={vi.key}
                       data-index={vi.index}
                       ref={virtualizer.measureElement}
-                      className="absolute left-0 top-0 w-full"
-                      style={{ transform: `translateY(${vi.start}px)` }}
+                      className="absolute top-0"
+                      style={{
+                        left: `${vi.lane * laneWidth}%`,
+                        width: `${laneWidth}%`,
+                        transform: `translateY(${vi.start}px)`,
+                      }}
                     >
-                      <HouseCard
-                        listing={listing}
-                        highlighted={vi.index === 0 && searchText.trim().length > 0}
-                        onOpen={(l) => { onOpenChange(false); navigate(`/house/${l.short_code || l.id}`); }}
-                      />
+                      <div className={columns > 1 ? (vi.lane === 0 ? 'pr-1.5' : vi.lane === columns - 1 ? 'pl-1.5' : 'px-1.5') : ''}>
+                        <HouseCard
+                          listing={listing}
+                          highlighted={vi.index === 0 && searchText.trim().length > 0}
+                          onOpen={(l) => { onOpenChange(false); navigate(`/house/${l.short_code || l.id}`); }}
+                        />
+                      </div>
                     </div>
                   );
                 })}
