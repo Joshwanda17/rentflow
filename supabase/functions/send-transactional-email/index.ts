@@ -16,6 +16,29 @@ const SENDER_DOMAIN = "notify.welile.com"
 // even though actual sending uses the subdomain above.
 const FROM_DOMAIN = "welile.com"
 
+// Partner / funder (investor) facing templates. These MUST be sent from the
+// partnerships mailbox and have replies routed to partnership@welile.com so a
+// partner who hits "Reply" reaches the partnerships team, not a noreply inbox.
+const PARTNER_FROM = `Welile Partnerships <partnership@${FROM_DOMAIN}>`
+const PARTNER_REPLY_TO = `partnership@${FROM_DOMAIN}`
+const PARTNER_FUNDER_TEMPLATES = new Set<string>([
+  'returns-disbursement-confirmation',
+  'partner-wallet-deposit',
+  'partnership-agreement',
+  'partnership-topup',
+  'partnership-split-allocation',
+  'partner-compound',
+  'partner-portfolio-compounded',
+  'portfolio-renewal',
+  'portfolio-maturity',
+  'partnership-maturity-notice',
+  'partner-account-created',
+  'angel-pool-share-purchase',
+  'proxy-managed-payout-notice',
+  'portfolio-request-confirmation',
+  'tenant-partnership-agreement',
+])
+
 // Generate a cryptographically random 32-byte hex token
 function generateToken(): string {
   const bytes = new Uint8Array(32)
