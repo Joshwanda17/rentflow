@@ -430,17 +430,20 @@ export function MerchantClaimsLog() {
       });
 
       inProg.forEach((r: any) => {
-        // Skip anything already captured as completed, or whose status is
-        // itself a terminal/completed status (defensive against records that
-        // never populated processed_by).
-        if (completedIds.has(r.id) || COMPLETED_STATUSES.includes(r.status)) return;
+        // Skip anything already captured as completed.
+        if (completedIds.has(r.id)) return;
         const m = byCashoutId.get(r.assigned_cashout_agent_id) || { name: 'Merchant agent', phone: null };
         const c = custMap.get(r.user_id) || { name: 'Customer', phone: null };
+        // Defensive: a terminal status that never populated processed_by still
+        // belongs in the Completed bucket, not In progress.
+        const isDone = COMPLETED_STATUSES.includes(r.status);
         rows.push({
           id: r.id, amount: Number(r.amount || 0), status: r.status, payout_method: r.payout_method,
           customerId: r.user_id, customerName: c.name, customerPhone: c.phone,
           merchantName: m.name, merchantPhone: m.phone,
-          claimedAt: r.dispatched_at, completedAt: null, state: 'in_progress',
+          claimedAt: r.dispatched_at,
+          completedAt: isDone ? (r.processed_at || null) : null,
+          state: isDone ? 'completed' : 'in_progress',
         });
       });
 
