@@ -412,16 +412,12 @@ export function MerchantClaimsLog() {
       }
 
       const rows: ClaimRow[] = [];
-      inProg.forEach((r: any) => {
-        const m = byCashoutId.get(r.assigned_cashout_agent_id) || { name: 'Merchant agent', phone: null };
-        const c = custMap.get(r.user_id) || { name: 'Customer', phone: null };
-        rows.push({
-          id: r.id, amount: Number(r.amount || 0), status: r.status, payout_method: r.payout_method,
-          customerId: r.user_id, customerName: c.name, customerPhone: c.phone,
-          merchantName: m.name, merchantPhone: m.phone,
-          claimedAt: r.dispatched_at, completedAt: null, state: 'in_progress',
-        });
-      });
+      // Completed claims win: a settled withdrawal often still carries its
+      // assigned_cashout_agent_id, so it also matches the in-progress query.
+      // Track completed ids (and ids whose status is already terminal) so the
+      // same transaction never renders as both "Completed" and "In progress".
+      const completedIds = new Set<string>(completed.map((r: any) => r.id));
+
       completed.forEach((r: any) => {
         const m = byUserId.get(r.processed_by) || { name: 'Merchant agent', phone: null };
         const c = custMap.get(r.user_id) || { name: 'Customer', phone: null };
@@ -430,6 +426,21 @@ export function MerchantClaimsLog() {
           customerId: r.user_id, customerName: c.name, customerPhone: c.phone,
           merchantName: m.name, merchantPhone: m.phone,
           claimedAt: r.dispatched_at, completedAt: r.processed_at, state: 'completed',
+        });
+      });
+
+      inProg.forEach((r: any) => {
+        // Skip anything already captured as completed, or whose status is
+        // itself a terminal/completed status (defensive against records that
+        // never populated processed_by).
+        if (completedIds.has(r.id) || COMPLETED_STATUSES.includes(r.status)) return;
+        const m = byCashoutId.get(r.assigned_cashout_agent_id) || { name: 'Merchant agent', phone: null };
+        const c = custMap.get(r.user_id) || { name: 'Customer', phone: null };
+        rows.push({
+          id: r.id, amount: Number(r.amount || 0), status: r.status, payout_method: r.payout_method,
+          customerId: r.user_id, customerName: c.name, customerPhone: c.phone,
+          merchantName: m.name, merchantPhone: m.phone,
+          claimedAt: r.dispatched_at, completedAt: null, state: 'in_progress',
         });
       });
 
