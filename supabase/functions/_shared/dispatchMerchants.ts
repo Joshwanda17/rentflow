@@ -1,7 +1,7 @@
 // Shared merchant-dispatch engine (Uber-style).
 //
 // Broadcasts a claimable withdrawal to every ELIGIBLE, ONLINE merchant
-// (cash-out) agent via in-app push + SMS, writes a per-agent audit row to
+// (cash-out) agent via in-app push ONLY, writes a per-agent audit row to
 // withdrawal_notification_log, and stamps the dispatch window on the request.
 //
 // Eligibility (per business rules):
@@ -12,11 +12,6 @@
 //
 // Used by both notify-merchants-new-withdrawal (round 1) and
 // redispatch-withdrawals (rounds 2..N).
-import {
-  sendSMS,
-  formatPhoneInternational,
-  isUgandanPhone,
-} from "./sendSmsMultiProvider.ts";
 
 export const DISPATCH_TTL_SECONDS = 60;
 export const MAX_DISPATCH_ROUNDS = 3;
@@ -35,7 +30,6 @@ export interface DispatchResult {
   round?: number;
   eligible?: number;
   pushTargets?: number;
-  smsSent?: number;
   expiresAt?: string;
 }
 
