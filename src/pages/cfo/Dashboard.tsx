@@ -150,6 +150,18 @@ export default function CFODashboardPage() {
     }
   }, []);
 
+  // Advance Requests must never be the CFO's landing page. If a previous
+  // session persisted 'advances' AND the current URL has no explicit
+  // ?section=, bounce back to the overview so the CFO sees the full picture
+  // (portfolio stats, treasury, agent advances chart) on login.
+  useEffect(() => {
+    if (activeTab !== 'advances') return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('section') === 'advances') return;
+    setActiveTab('overview');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'requisitions':
