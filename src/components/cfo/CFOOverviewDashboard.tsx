@@ -11,6 +11,7 @@ import { GroupedKPIBreakdownSheet } from '@/components/cfo/GroupedKPIBreakdownSh
 import { ROIPayableForecast } from '@/components/cfo/ROIPayableForecast';
 import { CFOActionsLog } from '@/components/cfo/CFOActionsLog';
 import { LedgerMaintenancePanel } from '@/components/cfo/LedgerMaintenancePanel';
+import { AgentAdvancesStatsCard } from '@/components/cfo/AgentAdvancesStatsCard';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
@@ -483,6 +484,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           <Wallet className="h-6 w-6" />
         </button>
       )}
+
+      {/* ── AGENT ADVANCES — FULL PORTFOLIO STATS & CHART (bottom) ── */}
+      <AgentAdvancesStatsCard />
     </div>
   );
 }
