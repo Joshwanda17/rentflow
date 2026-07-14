@@ -114,7 +114,6 @@ export async function dispatchWithdrawal(
     .limit(1)
     .maybeSingle();
 
-  const reference = `WD-${String(w.id).replace(/-/g, "").slice(0, 12).toUpperCase()}`;
   const amountLabel = `UGX ${amount.toLocaleString()}`;
   const serviceArea = loc?.city || loc?.address || "Service area";
 
