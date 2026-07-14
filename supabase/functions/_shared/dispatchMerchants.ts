@@ -161,50 +161,7 @@ export async function dispatchWithdrawal(
   }));
   await admin.from("withdrawal_notification_log").insert(pushRows);
 
-  // 9. SMS to every eligible agent with a valid phone (immediate backup).
-  let smsSent = 0;
-  const smsMessage =
-    `WELILE: New Withdrawal Request. Amount: ${amountLabel}. ` +
-    `Open the Welile Merchant App now to claim. Ref: ${reference}`;
-  await Promise.all(
-    agentIds.map(async (id) => {
-      const p = profById.get(id);
-      const raw = (p?.phone || "").trim();
-      if (!isUgandanPhone(raw)) return;
-      const phone = formatPhoneInternational(raw);
-      const { data: logRow } = await admin
-        .from("withdrawal_notification_log")
-        .insert({
-          withdrawal_id: w.id,
-          recipient_id: id,
-          recipient_phone: phone,
-          amount,
-          channel: "sms",
-          status: "queued",
-          response: "pending",
-          dispatch_round: round,
-        })
-        .select("id")
-        .single();
-      const delivered = await sendSMS(phone, smsMessage, {
-        admin,
-        source: "withdrawal_dispatch",
-        reference_id: w.id,
-        recipient_user_id: id,
-        recipient_name: p?.full_name ?? null,
-        idempotencyKey: `withdrawal_dispatch:${w.id}:${round}:${id}`,
-      });
-      if (delivered) smsSent++;
-      if (logRow?.id) {
-        await admin
-          .from("withdrawal_notification_log")
-          .update({ status: delivered ? "sent" : "failed" })
-          .eq("id", logRow.id);
-      }
-    }),
-  );
-
-  // 10. Stamp the dispatch window on the request.
+  // 9. Stamp the dispatch window on the request.
   const expiresAt = new Date(Date.now() + DISPATCH_TTL_SECONDS * 1000).toISOString();
   await admin
     .from("withdrawal_requests")
@@ -221,7 +178,6 @@ export async function dispatchWithdrawal(
     round,
     eligible: agentIds.length,
     pushTargets: agentIds.length,
-    smsSent,
     expiresAt,
   };
 }
