@@ -2734,7 +2734,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <Button
                 type="submit"
                 className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation"
-                disabled={submitting || !allGatesPass}
+                disabled={submitting}
                 onClick={(e) => {
                   // Defensive: some mobile browsers swallow form submit when
                   // a native-validated input (e.g. type="number") rejects silently.
