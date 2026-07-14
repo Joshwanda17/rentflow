@@ -15,6 +15,7 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { numberToWords } from '@/lib/numberToWords';
 import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
 import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
+import { SignaturePad } from '@/components/shared/SignaturePad';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
