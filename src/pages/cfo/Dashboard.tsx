@@ -64,7 +64,6 @@ import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
 import { AgentAllocationTracesPanel } from '@/components/cfo/AgentAllocationTracesPanel';
 import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionDriftPanel';
 import { DuplicateRoiCreditsPanel } from '@/components/cfo/DuplicateRoiCreditsPanel';
-import { DuplicateRoiCreditAlert } from '@/components/cfo/DuplicateRoiCreditAlert';
 import { CFOUnfundingApprovals } from '@/components/cfo/CFOUnfundingApprovals';
 import { CFOAllocationReturnApprovals } from '@/components/cfo/CFOAllocationReturnApprovals';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
@@ -302,8 +301,11 @@ export default function CFODashboardPage() {
                 Track what&apos;s been disbursed under <strong>Disbursed &amp; Repayments</strong>.
               </p>
             </div>
-            <BusinessAdvanceQueue stage="cfo" />
             <CFOAdvanceRequestPayments onViewDisbursed={() => setActiveTab('advances-disbursed')} />
+            <div className="pt-4 border-t">
+              <h2 className="text-base font-semibold mb-2">🏪 Business Advance Requests</h2>
+              <BusinessAdvanceQueue stage="cfo" />
+            </div>
           </div>
         );
       case 'advances-disbursed':
@@ -432,7 +434,6 @@ export default function CFODashboardPage() {
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
       <CFOFavoritesBar activeTab={activeTab} onJump={setActiveTab} />
       <SwipeOnboardingHint enabled={isMobile} />
-      <DuplicateRoiCreditAlert onJump={setActiveTab} />
       <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
         {renderContent()}
       </div>
