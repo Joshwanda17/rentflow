@@ -839,6 +839,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
             const profile = req.profiles;
             const isPending = req.status === 'pending';
             const isCfoApproved = req.status === 'cfo_approved';
+            const isCfoRejected = req.status === 'cfo_rejected';
             const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
             const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
             const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
@@ -863,17 +864,19 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                             variant="outline"
                             className={cn(
                               'text-[9px] px-1.5 py-0 h-4 uppercase tracking-wider',
-                              isCfoApproved
+                              isCfoRejected
+                                ? 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/30 dark:text-rose-400'
+                                : isCfoApproved
                                 ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400'
                                 : isPending
                                   ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400'
                                   : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400'
                             )}
                           >
-                            {isCfoApproved ? 'CFO Approved' : isPending ? 'Agent Applied' : 'Agent Ops Approved'}
+                            {isCfoRejected ? 'CFO Rejected' : isCfoApproved ? 'CFO Approved' : isPending ? 'Agent Applied' : 'Agent Ops Approved'}
                           </Badge>
                           <span>{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</span>
-                          {!isPending && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
+                          {!isPending && !isCfoRejected && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
@@ -887,14 +890,22 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      className="h-8 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className={cn(
+                        'h-8 text-[11px] gap-1 text-white',
+                        isCfoRejected ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700',
+                      )}
                       onClick={() => setEvalReq(req)}
                     >
                       <Sparkles className="h-3 w-3" />
-                      {isCfoApproved ? 'Review & disburse' : 'Review & approve'} · {formatUGX(currentPrincipal)}
+                      {isCfoRejected ? 'View rejection' : isCfoApproved ? 'Review & disburse' : 'Review & approve'} · {formatUGX(currentPrincipal)}
                     </Button>
+                    {isCfoRejected && req.rejection_reason && (
+                      <p className="text-[10px] text-rose-700 dark:text-rose-400 self-center italic">
+                        Reason: {req.rejection_reason}
+                      </p>
+                    )}
                     <p className="text-[10px] text-muted-foreground self-center">
-                      Opens evaluation + editable amount, then a single confirm.
+                      {isCfoRejected ? 'Rejected — visible to agent & Agent Ops.' : 'Opens evaluation + editable amount, then a single confirm.'}
                     </p>
                   </div>
                 </CardContent>
