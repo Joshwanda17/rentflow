@@ -2691,7 +2691,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     {!g.ok && (
                       <span className="block text-[11px] text-amber-700 dark:text-amber-400">
                         {g.hint}
-                        {g.step !== 3 && (
+                        {g.step !== step && (
                           <button type="button" onClick={() => { setStep(g.step); scrollDialogToTop(); }} className="ml-1 underline font-semibold">
                             Fix on step {g.step}
                           </button>
