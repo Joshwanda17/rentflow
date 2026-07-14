@@ -624,23 +624,14 @@ export default function LandlordRegistrationForm({
         }
       }
 
-      // Credit 5,000 UGX registration bonus to the registering user's wallet
-      try {
-        setProgressMsg('Adding your bonus…');
-        const { data: bonusResult, error: bonusError } = await supabase.functions.invoke('credit-landlord-registration-bonus', {
-          body: { landlord_id: newLandlord.id },
-        });
-        if (bonusError) {
-          console.warn('[LandlordRegistration] Bonus credit failed:', bonusError);
-        } else if (bonusResult?.success) {
-          toastFn({
-            title: 'UGX 300 Bonus Credited',
-            description: 'Instant registration bonus added to your wallet. The remaining bonus is released once Landlord Ops verifies this landlord.',
-          });
-        }
-      } catch (bonusErr) {
-        console.warn('[LandlordRegistration] Bonus credit error:', bonusErr);
-      }
+      // Registration bonus is NOT paid at signup. The full UGX 5,000 is auto-
+      // credited by the `pay_landlord_registration_verified_bonus` DB trigger
+      // the moment Landlord Ops verifies this landlord. This prevents paying
+      // for unverifiable / fake landlords.
+      toastFn({
+        title: 'Landlord Saved',
+        description: 'You earn UGX 5,000 once Landlord Ops verifies this landlord.',
+      });
 
       // Create activation invite
       setProgressMsg('Almost done…');
