@@ -56,9 +56,9 @@ export function EmptyHouseActionDialog({
           throw new Error((data as any).error);
         }
 
-        // Best-effort SMS so the listing agent reliably learns of the
-        // rejection + reason even when they're offline. The RPC already
-        // wrote the in-app notification; never block the flow on SMS.
+        // Best-effort WEB PUSH (no SMS) so the listing agent learns of the
+        // rejection + reason. The RPC already wrote the in-app notification;
+        // never block the flow on the push send.
         await invokeEdgeFunction('notify-listing-rejected', {
           body: { listing_id: listingId, reason: reason.trim() },
           silent: true,
