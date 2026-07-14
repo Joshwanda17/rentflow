@@ -129,7 +129,7 @@ export function SignaturePad({ onChange, label = 'Sign here', className = '' }: 
         />
         {isEmpty && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="text-xs text-gray-300 select-none">✍️ Draw your signature here</span>
+            <span className="text-xs text-gray-300 select-none">Draw your signature here</span>
           </div>
         )}
         <div className="pointer-events-none absolute bottom-3 left-4 right-4 border-b border-gray-300" />
