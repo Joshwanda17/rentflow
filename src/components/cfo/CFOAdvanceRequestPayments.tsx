@@ -618,6 +618,17 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
           >
             Approved · Disburse <span className="ml-1 opacity-70">{cfoApproved.length}</span>
           </Button>
+          <Button
+            size="sm"
+            variant={stageFilter === 'cfo_rejected' ? 'default' : 'outline'}
+            className={cn(
+              'h-7 text-[11px]',
+              stageFilter === 'cfo_rejected' ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'border-rose-300 text-rose-700 hover:bg-rose-50',
+            )}
+            onClick={() => setStageFilter('cfo_rejected')}
+          >
+            Rejected <span className="ml-1 opacity-70">{cfoRejected.length}</span>
+          </Button>
         </div>
       </div>
 
