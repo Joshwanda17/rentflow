@@ -1129,6 +1129,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
         footer={evalReq ? (() => {
           const req = evalReq;
           const isCfoApproved = req.status === 'cfo_approved';
+          const isCfoRejected = req.status === 'cfo_rejected';
           const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
           const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
           const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
@@ -1205,18 +1206,39 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                 />
               </div>
 
-              <Button
-                className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                disabled={currentPrincipal <= 0}
-                onClick={() => {
-                  const id = req.id;
-                  setEvalReq(null);
-                  setConfirmingId(id);
-                }}
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                {isCfoApproved ? 'Disburse' : 'Approve'} {formatUGX(currentPrincipal)}
-              </Button>
+              {isCfoRejected ? (
+                <div className="rounded-lg border-2 border-rose-300 bg-rose-50 dark:bg-rose-950/20 p-3">
+                  <p className="text-[10px] font-bold uppercase text-rose-700 dark:text-rose-400 mb-1">Rejected by CFO</p>
+                  <p className="text-xs text-rose-800 dark:text-rose-300">
+                    {req.rejection_reason || 'No reason recorded'}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto gap-2 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                    onClick={() => {
+                      setRejectReason('');
+                      setRejectingReq(req);
+                    }}
+                  >
+                    <X className="h-4 w-4" /> Reject
+                  </Button>
+                  <Button
+                    className="w-full sm:flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={currentPrincipal <= 0}
+                    onClick={() => {
+                      const id = req.id;
+                      setEvalReq(null);
+                      setConfirmingId(id);
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {isCfoApproved ? 'Disburse' : 'Approve'} {formatUGX(currentPrincipal)}
+                  </Button>
+                </div>
+              )}
 
               {isCfoApproved && (
                 <Button
