@@ -17,10 +17,11 @@ claims it atomically; unclaimed requests auto-redispatch then escalate.
    - Eligibility: `cashout_agents.is_active AND is_online`, `wallets.float_balance >= amount`
      (skipped for `Landlord float payout` reason), and not already reserved on
      another open withdrawal (one active tx).
-   - Sends in-app push (`send-push-notification`) + SMS (Yoola→AT→LANA via
-     `_shared/sendSmsMultiProvider.ts`) to ALL eligible agents immediately.
-   - Inserts one `withdrawal_notification_log` row per agent per channel
-     (`channel` push/sms, `response` pending, `dispatch_round`).
+   - Sends in-app push ONLY (`send-push-notification`) to ALL eligible agents
+     immediately. **SMS dispatch was removed 2026-07-14 — merchant claim
+     broadcasts are push-only; do NOT re-add SMS to dispatchWithdrawal.**
+   - Inserts one `withdrawal_notification_log` row per agent (`channel` push,
+     `response` pending, `dispatch_round`).
    - Stamps `withdrawal_requests.dispatch_round`/`dispatch_expires_at`
      (`DISPATCH_TTL_SECONDS=60`), `auto_dispatched`, `dispatched_at`.
 3. Client overlay `MerchantDispatchListener` (mounted globally in App
@@ -42,7 +43,7 @@ claims it atomically; unclaimed requests auto-redispatch then escalate.
   `redispatch-withdrawals`: for expired, unclaimed, open requests it
   re-broadcasts rounds up to `MAX_DISPATCH_ROUNDS=3`, then escalates
   (sets `dispatch_escalated_at`, emits `withdrawal.dispatch.escalated`
-  system_event, push+SMS to operations/cfo/coo/manager).
+  system_event, push to operations/cfo/coo/manager).
 
 ## Availability + history
 - `merchant_set_online(boolean)` RPC + `useMerchantOnlineStatus` +
