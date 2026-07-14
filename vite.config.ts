@@ -54,13 +54,11 @@ export default defineConfig(({ mode }) => ({
     sourcemap: false,
     // Smaller chunks for slow 2G/3G networks
     assetsInlineLimit: 4096,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        passes: 2,
-      },
-    },
+    // Use esbuild minifier — dramatically lower memory footprint than terser
+    // (terser with passes:2 on 6000+ modules was OOM-killing the build).
+    minify: 'esbuild',
+  },
+  esbuild: {
+    drop: ['console', 'debugger'],
   },
 }));
