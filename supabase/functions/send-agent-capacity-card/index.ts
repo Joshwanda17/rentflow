@@ -293,6 +293,28 @@ Deno.serve(async (req) => {
       agentIds = Array.from(new Set((roles || []).map((r: any) => r.user_id))).filter(Boolean);
     }
 
+    // Exclude anyone who ALSO holds the 'partner' role — partners must never
+    // receive the agent daily capacity card, even if they were granted the
+    // agent role for internal ops.
+    if (agentIds.length > 0) {
+      const partnerIds = new Set<string>();
+      for (const ids of chunk(agentIds, 200)) {
+        const { data: partnerRows } = await admin
+          .from("user_roles").select("user_id").eq("role", "partner").in("user_id", ids);
+        (partnerRows || []).forEach((r: any) => r.user_id && partnerIds.add(r.user_id));
+      }
+      if (partnerIds.size > 0) {
+        agentIds = agentIds.filter((id) => !partnerIds.has(id));
+      }
+    }
+
+    if (agentIds.length === 0) {
+      return new Response(JSON.stringify({
+        success: true, sent: 0, skipped: 0, missingEmail: 0,
+        message: single ? "Recipient is a partner — capacity card skipped." : "No non-partner agents to notify.",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // 2) Profiles (name + email) for the targets.
     const profileById = new Map<string, { email: string | null; full_name: string | null }>();
     for (const ids of chunk(agentIds, 200)) {
