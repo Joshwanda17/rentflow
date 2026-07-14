@@ -100,6 +100,18 @@ const PURPLE = "#6c21c4";
 const PURPLE_DK = "#4c1696";
 const GREEN = "#16a34a";
 const AMBER = "#d97706";
+const SKY = "#0284c7";
+const RED = "#dc2626";
+
+const COMMISSION_LEDGER_CATEGORIES = [
+  "agent_commission_earned",
+  "agent_commission",
+  "agent_bonus",
+  "agent_investment_commission",
+  "proxy_investment_commission",
+  "partner_commission",
+];
+const COMMISSION_CREDIT_DIRECTIONS = ["cash_in", "credit"];
 
 interface Report {
   date: string;
@@ -116,6 +128,31 @@ interface Report {
   hourlyVolume: number[]; // collected volume per EAT hour (24)
   topAgents: { name: string; total: number; count: number }[];
   perAgent: { name: string; phone: string; collections: number; collected: number; deposits: number; deposited: number }[];
+  // Live dashboard mirror
+  newAgentsToday: number;
+  rentRequestsToday: number;
+  commissionToday: number;
+  funnel: {
+    total_users: number;
+    total_agents: number;
+    active_agents: number;
+    window_days: number;
+    criteria: { house_listings: number; promissory_notes: number; behalf_rent_requests: number; subagents: number };
+  };
+  monthly: {
+    month: string;
+    total_agents: number;
+    adv_agents_current: number;
+    adv_agents_current_prev: number;
+    new_adv_agents_month: number;
+    new_adv_agents_prev: number;
+    volume_month: number;
+    volume_prev: number;
+    principal_total: number;
+    outstanding_total: number;
+    deliveries_month: number;
+    deliveries_prev: number;
+  };
 }
 
 function nameOf(p: any): string {
@@ -149,6 +186,40 @@ async function buildReport(
   const collections = collectionsRes.data ?? [];
   const advances = advancesRes.data ?? [];
   const deposits = depositsRes.data ?? [];
+
+  // ---- Live dashboard mirror data ----
+  const [newAgentsRes, rentReqRes, commissionRes, funnelRes, monthlyRes] = await Promise.all([
+    admin
+      .from("user_roles")
+      .select("user_id", { count: "exact", head: true })
+      .eq("role", "agent")
+      .gte("created_at", startISO)
+      .lt("created_at", endISO),
+    admin
+      .from("rent_requests")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", startISO)
+      .lt("created_at", endISO),
+    admin
+      .from("general_ledger")
+      .select("amount")
+      .eq("ledger_scope", "wallet")
+      .in("category", COMMISSION_LEDGER_CATEGORIES)
+      .in("direction", COMMISSION_CREDIT_DIRECTIONS)
+      .gte("created_at", startISO)
+      .lt("created_at", endISO),
+    (admin.rpc as any)("get_agent_ops_agent_stats", { p_days: 1 }),
+    (admin.rpc as any)("get_agent_ops_monthly_kpis", { _month: `${dateStr.slice(0, 7)}-01` }),
+  ]);
+
+  const newAgentsToday = newAgentsRes.count ?? 0;
+  const rentRequestsToday = rentReqRes.count ?? 0;
+  const commissionToday = ((commissionRes.data ?? []) as any[]).reduce(
+    (s, r) => s + Number(r.amount ?? 0),
+    0,
+  );
+  const funnelData = (funnelRes.data ?? {}) as any;
+  const monthlyData = (monthlyRes.data ?? {}) as any;
 
   const ids = Array.from(
     new Set(
@@ -231,6 +302,35 @@ async function buildReport(
     hourlyVolume,
     topAgents,
     perAgent,
+    newAgentsToday,
+    rentRequestsToday,
+    commissionToday,
+    funnel: {
+      total_users: Number(funnelData?.total_users ?? 0),
+      total_agents: Number(funnelData?.total_agents ?? 0),
+      active_agents: Number(funnelData?.active_agents ?? 0),
+      window_days: Number(funnelData?.window_days ?? 1),
+      criteria: {
+        house_listings: Number(funnelData?.criteria?.house_listings ?? 0),
+        promissory_notes: Number(funnelData?.criteria?.promissory_notes ?? 0),
+        behalf_rent_requests: Number(funnelData?.criteria?.behalf_rent_requests ?? 0),
+        subagents: Number(funnelData?.criteria?.subagents ?? 0),
+      },
+    },
+    monthly: {
+      month: String(monthlyData?.month ?? dateStr.slice(0, 7)),
+      total_agents: Number(monthlyData?.total_agents ?? 0),
+      adv_agents_current: Number(monthlyData?.adv_agents_current ?? 0),
+      adv_agents_current_prev: Number(monthlyData?.adv_agents_current_prev ?? 0),
+      new_adv_agents_month: Number(monthlyData?.new_adv_agents_month ?? 0),
+      new_adv_agents_prev: Number(monthlyData?.new_adv_agents_prev ?? 0),
+      volume_month: Number(monthlyData?.volume_month ?? 0),
+      volume_prev: Number(monthlyData?.volume_prev ?? 0),
+      principal_total: Number(monthlyData?.principal_total ?? 0),
+      outstanding_total: Number(monthlyData?.outstanding_total ?? 0),
+      deliveries_month: Number(monthlyData?.deliveries_month ?? 0),
+      deliveries_prev: Number(monthlyData?.deliveries_prev ?? 0),
+    },
   };
 }
 
