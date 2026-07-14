@@ -262,7 +262,7 @@ function AgentLimitDialog({ row, onClose }: { row: LimitRow | null; onClose: () 
             </div>
             <ContribBar
               label="Sub-agent bonus"
-              detail={`${row.registered_subagents} registered × 50k + ${row.active_subagents} active × 50k`}
+              detail={`${row.registered_subagents} registered × 30k + ${row.active_subagents} active × 50k`}
               value={row.subagents_bonus}
               total={summed}
             />
