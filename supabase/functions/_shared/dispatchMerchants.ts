@@ -136,7 +136,7 @@ export async function dispatchWithdrawal(
     body: JSON.stringify({
       userIds: agentIds,
       payload: {
-        title: "💵 New withdrawal to claim",
+        title: "New withdrawal to claim",
         body: `${amountLabel} · ${serviceArea}. Tap to claim before it expires.`,
         url: "/agent/cash-payouts",
         type: "dispatch",
