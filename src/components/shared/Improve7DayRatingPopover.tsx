@@ -137,12 +137,12 @@ function buildRecommendations(cap: AgentCapacity): Rec[] {
       tone: 'text-primary',
       text: (
         <>
-          Hit your 20% daily target on <strong>{need}</strong> more day{need === 1 ? '' : 's'} this week to unlock
+          Hit your 50% daily target on <strong>{need}</strong> more day{need === 1 ? '' : 's'} this week to unlock
           unlimited posting.
         </>
       ),
       code: 'weekly_consistency',
-      summary: `Hit the 20% daily target on ${need} more day(s) this week to unlock unlimited posting.`,
+      summary: `Hit the 50% daily target on ${need} more day(s) this week to unlock unlimited posting.`,
     });
   }
 
