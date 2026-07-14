@@ -18,6 +18,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -158,6 +160,7 @@ export function CashoutAgentManager() {
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [methodDetail, setMethodDetail] = useState<null | 'momo' | 'bank' | 'cash'>(null);
 
   // Global date-range filter — scopes ALL merchant-agent payout stats & KPIs.
   const [datePreset, setDatePreset] = useState<'all' | 'today' | '7d' | '30d' | 'custom'>('all');
@@ -1432,9 +1435,9 @@ export function CashoutAgentManager() {
       <div className="rounded-2xl border border-border bg-card p-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Execution by Method</p>
         <div className="grid grid-cols-3 gap-2">
-          <MethodTile icon={<Smartphone className="h-4 w-4" />} label="Mobile Money" amount={kpis.momoAmount} count={kpis.momoCount} total={kpis.totalPaid} />
-          <MethodTile icon={<Building2 className="h-4 w-4" />} label="Bank" amount={kpis.bankAmount} count={kpis.bankCount} total={kpis.totalPaid} />
-          <MethodTile icon={<Banknote className="h-4 w-4" />} label="Cash" amount={kpis.cashAmount} count={kpis.cashCount} total={kpis.totalPaid} />
+          <MethodTile icon={<Smartphone className="h-4 w-4" />} label="Mobile Money" amount={kpis.momoAmount} count={kpis.momoCount} total={kpis.totalPaid} onClick={() => setMethodDetail('momo')} />
+          <MethodTile icon={<Building2 className="h-4 w-4" />} label="Bank" amount={kpis.bankAmount} count={kpis.bankCount} total={kpis.totalPaid} onClick={() => setMethodDetail('bank')} />
+          <MethodTile icon={<Banknote className="h-4 w-4" />} label="Cash" amount={kpis.cashAmount} count={kpis.cashCount} total={kpis.totalPaid} onClick={() => setMethodDetail('cash')} />
         </div>
       </div>
 
@@ -1565,6 +1568,13 @@ export function CashoutAgentManager() {
         isReleasing={releaseClaimsMutation.isPending}
         onRelease={() => deleteAgent && releaseClaimsMutation.mutate(deleteAgent)}
       />
+
+      <MethodDetailSheet
+        method={methodDetail}
+        onOpenChange={(open) => { if (!open) setMethodDetail(null); }}
+        payouts={payouts as any[]}
+        agents={agents as any[]}
+      />
     </div>
   );
 }
@@ -1596,10 +1606,17 @@ function KpiTile({ icon, label, value, sub, tone = 'muted', compact = false, onC
   );
 }
 
-function MethodTile({ icon, label, amount, count, total }: { icon: React.ReactNode; label: string; amount: number; count: number; total: number }) {
+function MethodTile({ icon, label, amount, count, total, onClick }: { icon: React.ReactNode; label: string; amount: number; count: number; total: number; onClick?: () => void }) {
   const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
+  const interactive = typeof onClick === 'function';
   return (
-    <div className="rounded-xl border border-border/60 bg-background p-2.5">
+    <div
+      onClick={onClick}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(); } } : undefined}
+      className={`rounded-xl border border-border/60 bg-background p-2.5 ${interactive ? 'cursor-pointer transition-all duration-200 hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50' : ''}`}
+    >
       <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
         <span className="text-primary">{icon}</span>
         <span className="text-[10px] font-medium uppercase tracking-wider truncate">{label}</span>
@@ -1612,6 +1629,11 @@ function MethodTile({ icon, label, amount, count, total }: { icon: React.ReactNo
       <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
         <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
       </div>
+      {interactive && (
+        <p className="text-[10px] font-medium text-primary mt-1.5 inline-flex items-center gap-0.5">
+          Tap for details <ChevronRight className="h-3 w-3" />
+        </p>
+      )}
     </div>
   );
 }
@@ -1994,5 +2016,134 @@ function DeleteMerchantConfirm({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+function MethodDetailSheet({
+  method,
+  onOpenChange,
+  payouts,
+  agents,
+}: {
+  method: null | 'momo' | 'bank' | 'cash';
+  onOpenChange: (open: boolean) => void;
+  payouts: any[];
+  agents: any[];
+}) {
+  const open = method !== null;
+  const matcher = method === 'momo' ? isMomo : method === 'bank' ? isBank : isCash;
+  const rows = useMemo(
+    () => (method ? payouts.filter((p) => matcher(p.payout_method)) : []),
+    [payouts, method, matcher],
+  );
+  const total = rows.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const agentMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of agents) {
+      m.set(a.id, a.profiles?.full_name || a.label || 'Merchant');
+    }
+    return m;
+  }, [agents]);
+
+  const byAgent = useMemo(() => {
+    const m = new Map<string, { name: string; amount: number; count: number }>();
+    for (const p of rows) {
+      const id = p.assigned_cashout_agent_id;
+      if (!id) continue;
+      const cur = m.get(id) || { name: agentMap.get(id) || 'Merchant', amount: 0, count: 0 };
+      cur.amount += Number(p.amount || 0);
+      cur.count += 1;
+      m.set(id, cur);
+    }
+    return Array.from(m.values()).sort((a, b) => b.amount - a.amount);
+  }, [rows, agentMap]);
+
+  const recent = useMemo(
+    () => [...rows]
+      .sort((a, b) => new Date(b.processed_at || b.created_at).getTime() - new Date(a.processed_at || a.created_at).getTime())
+      .slice(0, 100),
+    [rows],
+  );
+
+  const title =
+    method === 'momo' ? 'Mobile Money Payouts' :
+    method === 'bank' ? 'Bank Payouts' :
+    method === 'cash' ? 'Cash Payouts' : '';
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="h-[85dvh] rounded-t-2xl p-0 flex flex-col">
+        <SheetHeader className="p-4 pb-2 shrink-0">
+          <SheetTitle className="text-base">{title}</SheetTitle>
+        </SheetHeader>
+
+        <div className="mx-4 mb-3 rounded-2xl bg-primary/5 p-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total volume</p>
+              <p className="text-2xl font-black tabular-nums">{formatUGX(total)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Payouts</p>
+              <p className="text-2xl font-black tabular-nums">{rows.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="px-4 pb-6 space-y-4">
+            {byAgent.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">By Merchant</p>
+                <div className="rounded-xl border border-border divide-y divide-border">
+                  {byAgent.map((a, i) => (
+                    <div key={i} className="flex items-center justify-between px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{a.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{a.count} payout{a.count !== 1 ? 's' : ''}</p>
+                      </div>
+                      <p className="text-sm font-bold tabular-nums">{formatUGX(a.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Recent transactions {rows.length > recent.length && `(showing ${recent.length} of ${rows.length})`}
+              </p>
+              {recent.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+                  No payouts for this method yet.
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border divide-y divide-border">
+                  {recent.map((p) => {
+                    const when = p.processed_at || p.created_at;
+                    const name = agentMap.get(p.assigned_cashout_agent_id) || 'Merchant';
+                    return (
+                      <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{name}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {p.mobile_money_name || p.mobile_money_number || p.payout_method || '—'}
+                            {p.fin_ops_reference ? ` · ${p.fin_ops_reference}` : ''}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/70">
+                            {when ? new Date(when).toLocaleString('en-UG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </p>
+                        </div>
+                        <p className="text-sm font-bold tabular-nums shrink-0">{formatUGX(Number(p.amount || 0))}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
   );
 }
