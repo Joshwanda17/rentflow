@@ -1007,6 +1007,15 @@ export function CashoutAgentManager() {
           >
             <Download className="h-3.5 w-3.5 mr-1" /> Export PDF
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs"
+            onClick={exportReportXlsx}
+            disabled={visiblePayouts.length === 0}
+          >
+            <Download className="h-3.5 w-3.5 mr-1" /> Export Excel
+          </Button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
