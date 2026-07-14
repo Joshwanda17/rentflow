@@ -1,49 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-function formatPhoneInternational(phone: string): string {
-  const digits = phone.replace(/[^0-9]/g, "");
-  if (digits.startsWith("256")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
-  if (digits.length === 9) return `+256${digits}`;
-  return `+${digits}`;
-}
-
-async function sendSMS(phone: string, message: string): Promise<boolean> {
-  if (await attemptYoolaPrimary(phone, message, { source: "notify-listing-rejected" })) return true;
-  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
-  const username = Deno.env.get("AFRICASTALKING_USERNAME");
-  if (!apiKey || !username) {
-    console.error("[notify-listing-rejected] Missing AT credentials");
-    return false;
-  }
-  const isSandbox = username.toLowerCase() === "sandbox";
-  const baseUrl = isSandbox
-    ? "https://api.sandbox.africastalking.com/version1/messaging"
-    : "https://api.africastalking.com/version1/messaging";
-  const to = formatPhoneInternational(phone);
-  const body = new URLSearchParams({ username, from: "WELILE", to, message });
-  try {
-    const res = await fetch(baseUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", apiKey, Accept: "application/json" },
-      body: body.toString(),
-    });
-    const raw = await res.text();
-    console.log(`[notify-listing-rejected] AT response (${res.status}) for ${to}:`, raw);
-    const data = JSON.parse(raw);
-    const recipients = data?.SMSMessageData?.Recipients || [];
-    return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
-  } catch (err) {
-    console.error("[notify-listing-rejected] AT error", err);
-    return false;
-  }
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -77,35 +37,53 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!listing?.agent_id) {
-      return new Response(JSON.stringify({ success: true, sms_sent: false, reason: "no_listing_agent" }), {
+      return new Response(JSON.stringify({ success: true, push_sent: 0, reason: "no_listing_agent" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("full_name, phone")
-      .eq("id", listing.agent_id)
-      .maybeSingle();
-
-    const phone = profile?.phone;
-    const name = (profile?.full_name || "Agent").split(" ")[0];
     const title = listing.title || "your listing";
 
-    let sent = false;
-    if (phone) {
-      const msg =
-        `Hi ${name}, your house listing "${title}" was rejected. ` +
-        `Reason: ${String(reason).trim()}. ` +
-        `Please review and re-list. — Welile`;
-      sent = await sendSMS(phone, msg);
-    } else {
-      console.warn(`[notify-listing-rejected] Agent ${listing.agent_id} has no phone`);
+    // Does the agent have any push subscription at all? If not, the rejection
+    // alert can only reach them via the in-app notification (already written by
+    // the reject_house_listing RPC). We surface `has_subscription: false` so the
+    // UI can nudge the agent to enable notifications on their device.
+    const { count: subCount } = await admin
+      .from("push_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", listing.agent_id);
+
+    const hasSubscription = (subCount ?? 0) > 0;
+
+    // Web push only — no SMS. Delegate the actual VAPID encryption/delivery to
+    // the shared send-push-notification function.
+    let pushSent = 0;
+    if (hasSubscription) {
+      const { data: pushRes, error: pushErr } = await admin.functions.invoke(
+        "send-push-notification",
+        {
+          body: {
+            userIds: [listing.agent_id],
+            payload: {
+              title: "Listing rejected",
+              body: `Your listing "${title}" was rejected. Reason: ${String(reason).trim()}. Please review and re-list.`,
+              type: "warning",
+              url: "/dashboard/agent",
+            },
+          },
+        },
+      );
+      if (pushErr) {
+        console.error("[notify-listing-rejected] push invoke error", pushErr);
+      } else {
+        pushSent = Number((pushRes as any)?.sent ?? 0);
+      }
     }
 
-    return new Response(JSON.stringify({ success: true, sms_sent: sent }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: true, push_sent: pushSent, has_subscription: hasSubscription }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     console.error("[notify-listing-rejected] Error:", err);
     return new Response(JSON.stringify({ success: false, error: String(err) }), {

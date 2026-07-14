@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
@@ -1246,6 +1247,11 @@ export function LandlordOpsDashboard() {
         return old.map(l => l.id === listing.id ? { ...l, status: 'rejected' } : l);
       });
       toast({ title: 'Listing rejected', description: `${listing.title} has been rejected.` });
+      // Web-push only (no SMS) — the RPC already wrote the in-app notification.
+      await invokeEdgeFunction('notify-listing-rejected', {
+        body: { listing_id: listing.id, reason },
+        silent: true,
+      });
       refetch();
     } catch (err: any) {
       setOptimisticallyVerifiedIds(prev => { const next = new Set(prev); next.delete(listing.id); return next; });
@@ -1453,6 +1459,11 @@ export function LandlordOpsDashboard() {
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
         results.push({ id: h.id, title: h.title, ok: true });
+        // Web-push only (no SMS) — best effort, never blocks the bulk loop.
+        await invokeEdgeFunction('notify-listing-rejected', {
+          body: { listing_id: h.id, reason: trimmed },
+          silent: true,
+        });
       } catch (err: any) {
         results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
       }

@@ -37,6 +37,12 @@ export function PushNotificationGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
+  // When true, the user MUST enable notifications — the prompt can't be
+  // dismissed. This is the case whenever push is supported and permission is
+  // still grantable ("default"). We only allow snoozing when the browser can't
+  // deliver push at all (unsupported) or the OS-level permission is "denied"
+  // (which we can't override from the app).
+  const [required, setRequired] = useState(false);
   const checkedRef = useRef(false);
 
   const snoozed = useMemo(() => {
@@ -50,14 +56,20 @@ export function PushNotificationGate() {
 
   // Decide whether to show the prompt.
   useEffect(() => {
-    if (!user || checkedRef.current || snoozed) return;
+    if (!user || checkedRef.current) return;
     checkedRef.current = true;
 
-    // Only offer when the browser supports push and permission is still
-    // undecided ("default"). If already granted or explicitly denied, we don't
-    // interrupt the user with the modal — Settings still has the toggle.
+    // If already granted, nothing to do. If the browser can't do push at all,
+    // don't nag. Otherwise (permission === "default" or "denied") the user must
+    // act — enabling is mandatory so rejection/payout/rent alerts reach them.
     if (!isPushSupported()) return;
-    if (Notification.permission !== "default") return;
+    if (Notification.permission === "granted") return;
+
+    const isDenied = Notification.permission === "denied";
+    // Denied is only snooze-able because the app can't override an OS block.
+    if (isDenied && snoozed) return;
+
+    setRequired(!isDenied);
 
     let cancelled = false;
     // Small delay so it doesn't fight other startup UI (e.g. location gate).
@@ -139,10 +151,31 @@ export function PushNotificationGate() {
   if (!user) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (!o ? handleSnooze() : setOpen(o))}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) return setOpen(o);
+        // Mandatory: don't let the user dismiss until they've enabled (or the
+        // browser blocked it). Snooze only applies to the non-required path.
+        if (required && status !== "success") return;
+        handleSnooze();
+      }}
+    >
       <DialogContent
-        className="max-w-sm rounded-2xl border-0 p-0 overflow-hidden"
+        className={
+          "max-w-sm rounded-2xl border-0 p-0 overflow-hidden" +
+          (required && status !== "success" ? " [&>button]:hidden" : "")
+        }
         overlayClassName="backdrop-blur-0 bg-background/60"
+        onEscapeKeyDown={(e) => {
+          if (required && status !== "success") e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (required && status !== "success") e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (required && status !== "success") e.preventDefault();
+        }}
       >
         {/* Hero */}
         <div className="relative bg-gradient-to-br from-primary to-primary/70 px-6 pt-8 pb-10 text-center">
@@ -162,7 +195,9 @@ export function PushNotificationGate() {
             <DialogDescription className="text-primary-foreground/80 text-sm">
               {status === "success"
                 ? "You'll now get instant alerts on this device."
-                : "Get instant alerts for deposits, withdrawals, payouts and rent updates — even when Welile is closed."}
+                : required
+                  ? "Notifications are required to use Welile. You'll get instant alerts for listing decisions, deposits, withdrawals, payouts and rent updates."
+                  : "Get instant alerts for deposits, withdrawals, payouts and rent updates — even when Welile is closed."}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -188,14 +223,16 @@ export function PushNotificationGate() {
                 )}
                 Enable notifications
               </Button>
-              <Button
-                variant="ghost"
-                className="w-full text-muted-foreground"
-                onClick={handleSnooze}
-                disabled={status === "subscribing" || status === "success"}
-              >
-                Not now
-              </Button>
+              {!required && (
+                <Button
+                  variant="ghost"
+                  className="w-full text-muted-foreground"
+                  onClick={handleSnooze}
+                  disabled={status === "subscribing" || status === "success"}
+                >
+                  Not now
+                </Button>
+              )}
             </div>
           </div>
         </div>
