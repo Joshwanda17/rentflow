@@ -52,7 +52,7 @@ import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
-import { NearbyHousesPreview } from '@/components/tenant/NearbyHousesPreview';
+
 import { SuggestedHousesCard } from '@/components/tenant/SuggestedHousesCard';
 import RentHistoryRecordCTA from '@/components/tenant/RentHistoryRecordCTA';
 import { TrustBoostBanner } from '@/components/ai-id/TrustBoostBanner';
@@ -934,10 +934,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
             </div>
             <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
-            <NearbyHousesPreview
-              onViewAll={() => { openHousesSheet(); }}
-              onSelectHouse={() => { hapticTap(); openHousesSheet(); }}
-            />
             {rentRequests.length > 0 && (
               <RentProcessTracker
                 requestStatus={rentRequests[0].status}
