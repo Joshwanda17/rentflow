@@ -9,6 +9,7 @@ import {
   AGENT_RENT_CAP_UGX,
   classifyAgent,
   classifyDailyRating,
+  DAILY_ELIGIBILITY_THRESHOLD,
   type AgentCapacity,
 } from '@/hooks/useAgentCapacityMap';
 import { toast } from 'sonner';
@@ -285,7 +286,7 @@ export function AgentRentCapacityPanel({
         const effective_daily_pct   = elig?.effective_pct  ?? 0;
         const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
         const daily_status: AgentCapacity['daily_status'] =
-          exp.count <= 0 ? 'starter' : effective_daily_pct >= 0.20 ? 'good' : 'blocked';
+          exp.count <= 0 ? 'starter' : effective_daily_pct >= DAILY_ELIGIBILITY_THRESHOLD ? 'good' : 'blocked';
         return {
           agent_id: id,
           name: prof.name,

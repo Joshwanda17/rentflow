@@ -230,7 +230,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { profile, loading: profileLoading } = useProfile();
-  // Celebratory toast the moment the agent crosses today's 20% eligibility
+  // Celebratory toast the moment the agent crosses today's 50% eligibility
   // threshold (fires once per Kampala day, on mount or via realtime).
   useAgentUnblockToast(user?.id);
   // Success / error toast when a UGX 3,000 recruiter override payout is created

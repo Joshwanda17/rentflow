@@ -13,9 +13,9 @@ const RATING_TONE: Record<AgentCapacity['daily_rating'], string> = {
 };
 
 const TIER_RANGE: Record<AgentCapacity['daily_rating'], string> = {
-  'Very Good': '≥ 50% of today\u2019s target',
-  'Good':      '20–49% of today\u2019s target',
-  'Fair':      '15–19% of today\u2019s target',
+  'Very Good': '≥ 75% of today\u2019s target',
+  'Good':      '50–74% of today\u2019s target',
+  'Fair':      '15–49% of today\u2019s target',
   'Bad':       '5–14% of today\u2019s target',
   'Very Bad':  '< 5% of today\u2019s target',
   'Starter':   'No active rents yet',
@@ -80,8 +80,8 @@ export function WhyRatingPopover({
           {daily_status === 'starter'
             ? 'New agents are always allowed to post their first rent request.'
             : daily_status === 'good'
-              ? 'At or above 20% today → allowed to post new rent requests.'
-              : 'Below 20% today → blocked from posting new rent requests until you catch up.'}
+              ? 'At or above 50% today → allowed to post new rent requests.'
+              : 'Below 50% today → blocked from posting new rent requests until you catch up.'}
         </p>
       </PopoverContent>
     </Popover>
