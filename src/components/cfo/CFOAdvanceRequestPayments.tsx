@@ -1259,7 +1259,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       {/* Disbursement success dialog — shows the CFO confirmation, key stats,
           plus a shortcut to jump straight to the next pending request. */}
       <Dialog open={!!disbursed} onOpenChange={(open) => !open && setDisbursed(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto flex flex-col">
           <DialogHeader>
             <div className="mx-auto mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
@@ -1300,7 +1300,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
             </div>
           )}
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end shrink-0 pt-2 border-t bg-background sticky bottom-0">
             <Button
               variant="outline"
               onClick={() => setDisbursed(null)}
