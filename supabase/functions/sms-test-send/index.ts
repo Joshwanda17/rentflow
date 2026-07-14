@@ -140,7 +140,7 @@ async function sendTwilioSMS(phone: string, message: string) {
         "X-Connection-Api-Key": twilioKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ To: formattedPhone, From: TWILIO_SENDER, Body: message }).toString(),
+      body: new URLSearchParams({ To: formattedPhone, From: TWILIO_SENDER, Body: from: "WELILE", message }).toString(),
     });
     const rawText = await res.text();
     let parsed: any = null;

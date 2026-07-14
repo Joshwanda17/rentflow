@@ -106,7 +106,7 @@ async function sendSms(phone: string, message: string): Promise<SmsResult> {
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
   try {
-    const params = new URLSearchParams({ username, to: phone, message });
+    const params = new URLSearchParams({ username, to: phone, from: "WELILE", message });
     const res = await fetch(baseUrl, {
       method: "POST",
       headers: { apiKey, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
@@ -166,7 +166,7 @@ async function sendTwilioSms(phone: string, message: string): Promise<SmsResult>
         "X-Connection-Api-Key": twilioKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ To: phone, From: TWILIO_SENDER, Body: message }).toString(),
+      body: new URLSearchParams({ To: phone, From: TWILIO_SENDER, Body: from: "WELILE", message }).toString(),
     });
     const text = await res.text();
     let data: any = null;

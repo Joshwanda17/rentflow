@@ -91,7 +91,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<{ 
   if (!to) return { ok: false, reason: "invalid_phone" };
 
   try {
-    const body = new URLSearchParams({ username, to, message });
+    const body = new URLSearchParams({ username, to, from: "WELILE", message });
     const res = await fetch(baseUrl, {
       method: "POST",
       headers: {

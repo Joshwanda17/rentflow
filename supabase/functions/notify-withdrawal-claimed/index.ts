@@ -39,7 +39,7 @@ async function sendViaYoola(
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey, sender: "WELILE"}),
+      body: JSON.stringify({ phone: toMsisdn(phone), sender_id: "WELILE", message, api_key: apiKey, sender: "WELILE"}),
     });
     const raw = await res.text();
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }
@@ -71,6 +71,7 @@ async function sendViaAT(
     const body = new URLSearchParams({
       username,
       to: formatPhoneInternational(phone),
+      from: "WELILE",
       message,
     });
     const res = await fetch(baseUrl, {

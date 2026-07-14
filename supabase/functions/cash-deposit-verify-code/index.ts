@@ -80,6 +80,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<{ 
     const body = new URLSearchParams({
       username,
       to: formattedPhone,
+      from: "WELILE",
       message,
     });
     const res = await fetch(baseUrl, {
