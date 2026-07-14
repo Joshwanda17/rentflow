@@ -886,6 +886,40 @@ export function CashoutAgentManager() {
     toast({ title: 'Report exported', description: `${rows.length} transaction(s) for ${scopeLabel}` });
   };
 
+  const exportReportXlsx = async () => {
+    if (!selectedAgent) return;
+    const { downloadXlsx } = await import('@/lib/xlsxExport');
+    const legs = commissionByWithdrawal as Record<string, number>;
+    const rows = visiblePayouts as any[];
+    const prof = selectedAgent.profiles || {};
+    const scopeLabel = txnDateFilter || 'all-dates';
+    const safeName = (prof.full_name || 'agent').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
+    const headers = ['Date/Time', 'Recipient', 'Phone', 'Method', 'Amount (UGX)', 'Commission (UGX)', 'Telecom (UGX)', 'Status', 'Reference'];
+    const dataRows = rows.map((py) => {
+      const leg = legs[String(py.id)];
+      return [
+        formatDateTime(py.processed_at || py.created_at),
+        py.beneficiary_name || py.mobile_money_name || 'Beneficiary',
+        py.beneficiary_phone || py.mobile_money_number || '—',
+        (py.payout_method || 'cash').replace(/_/g, ' '),
+        Number(py.amount || 0),
+        leg === undefined ? '' : Number(leg || 0),
+        getTelecomSendingCharge(Number(py.amount || 0)),
+        py.status || '—',
+        py.fin_ops_reference || '—',
+      ];
+    });
+
+    const volumeTotal = rows.reduce((s, py) => s + Number(py.amount || 0), 0);
+    const telecomTotal = rows.reduce((s, py) => s + getTelecomSendingCharge(Number(py.amount || 0)), 0);
+    dataRows.push([]);
+    dataRows.push(['TOTALS', '', '', `${rows.length} payouts`, volumeTotal, commissionSummary.credited, telecomTotal, '', '']);
+
+    await downloadXlsx(`commission-telecom-${safeName}-${scopeLabel}.xlsx`, headers, dataRows, 'Payouts');
+    toast({ title: 'Excel exported', description: `${rows.length} transaction(s) for ${scopeLabel}` });
+  };
+
   // ============ DRILL-DOWN VIEW ============
   if (selectedAgent) {
     const p = selectedAgent.profiles || {};
