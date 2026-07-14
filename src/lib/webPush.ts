@@ -191,3 +191,30 @@ export async function ensurePushSubscription(
     };
   }
 }
+
+/**
+ * Revokes the current device's web push subscription and removes the matching
+ * `push_subscriptions` row so the previously signed-in user no longer receives
+ * notifications on this device. Must be called while the user is still
+ * authenticated (before `supabase.auth.signOut()`), otherwise RLS blocks the
+ * DELETE.
+ */
+export async function revokeCurrentDevicePush(
+  deleteByEndpoint: (endpoint: string) => Promise<void>,
+): Promise<void> {
+  if (!isPushSupported()) return;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration("/sw.js");
+    if (!registration) return;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return;
+    try { await deleteByEndpoint(subscription.endpoint); } catch (err) {
+      console.warn("revokeCurrentDevicePush: delete row failed", err);
+    }
+    try { await subscription.unsubscribe(); } catch (err) {
+      console.warn("revokeCurrentDevicePush: unsubscribe failed", err);
+    }
+  } catch (err) {
+    console.warn("revokeCurrentDevicePush failed:", err);
+  }
+}
