@@ -206,27 +206,35 @@ Deno.serve(async (req) => {
         ? `UGX ${offsetAmount.toLocaleString()} of your listing reward cleared your rejection charge; UGX ${payableAmount.toLocaleString()} was added to your wallet.`
         : `Your UGX ${offsetAmount.toLocaleString()} listing reward was applied to your outstanding rejection charge.` +
           (remainingGap > 0 ? ` UGX ${remainingGap.toLocaleString()} still to clear.` : ` Your charge is now fully cleared.`);
-      await adminClient.from("notifications").insert({
-        user_id: agentId,
-        title: "🏠 Listing reward applied to charge",
-        message: msg,
-        type: remainingGap > 0 ? "warning" : "success",
-        metadata: {
-          action: "listing_reward_offset",
-          listing_id,
-          offset: offsetAmount,
-          paid: payableAmount,
-          remaining_gap: remainingGap,
-        },
-      }).catch((e: unknown) => console.error("[credit-house-listed-bonus] offset notify failed:", e));
+      try {
+        await adminClient.from("notifications").insert({
+          user_id: agentId,
+          title: "🏠 Listing reward applied to charge",
+          message: msg,
+          type: remainingGap > 0 ? "warning" : "success",
+          metadata: {
+            action: "listing_reward_offset",
+            listing_id,
+            offset: offsetAmount,
+            paid: payableAmount,
+            remaining_gap: remainingGap,
+          },
+        });
+      } catch (e) {
+        console.error("[credit-house-listed-bonus] offset notify failed:", e);
+      }
     } else {
       // No outstanding charge — normal celebratory bonus notice (in-app + SMS).
-      await notifyAgentBonus(adminClient, {
-        agentId,
-        stage: "listed",
-        listingTitle: listing.title,
-        listingId: listing_id,
-      }).catch((e) => console.error("[credit-house-listed-bonus] notify failed:", e));
+      try {
+        await notifyAgentBonus(adminClient, {
+          agentId,
+          stage: "listed",
+          listingTitle: listing.title,
+          listingId: listing_id,
+        });
+      } catch (e) {
+        console.error("[credit-house-listed-bonus] notify failed:", e);
+      }
     }
 
     return new Response(JSON.stringify({
