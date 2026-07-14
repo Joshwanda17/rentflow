@@ -636,7 +636,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       const raw = err?.message || err?.error_description || '';
       // Translate the most common backend guard into plain language.
       const friendly = raw.includes('DAILY_ELIGIBILITY_BLOCKED')
-        ? 'Collect from your existing tenants first — you must reach 20% of your daily target before posting a new rent request.'
+        ? 'Collect from your existing tenants first — you must reach 50% of your daily target before posting a new rent request.'
         : (raw || 'Something went wrong. Please try again.');
       toast({ title: 'Renew failed', description: friendly, variant: 'destructive' });
     } finally {
