@@ -2717,16 +2717,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </Button>
             ) : (
               <Button
-                type="button"
+                type="submit"
                 className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation"
                 disabled={submitting || !allGatesPass}
                 onClick={(e) => {
-                  // Bypass native form submission entirely — some mobile browsers
-                  // (and any native-validated `<input type="number">` on earlier
-                  // steps) silently swallow the submit event, leaving the wizard
-                  // stuck on step 3 with no feedback. Calling handleSubmit()
-                  // directly guarantees the toast/error paths always fire.
-                  e.preventDefault();
+                  // Defensive: some mobile browsers swallow form submit when
+                  // a native-validated input (e.g. type="number") rejects silently.
+                  // Guarantee the handler always runs.
+                  if (e.currentTarget.form) return;
                   handleSubmit();
                 }}
               >
