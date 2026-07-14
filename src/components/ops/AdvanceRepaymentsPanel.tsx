@@ -388,8 +388,6 @@ function RepaymentDetailDialog({
   onClose: () => void;
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
-  const queryClient = (window as any).__QC; // fallback if needed
-
   const rows = useMemo(() => {
     if (!advance) return [];
     return ledger
