@@ -633,7 +633,10 @@ export default function LandlordRegistrationForm({
         if (bonusError) {
           console.warn('[LandlordRegistration] Bonus credit failed:', bonusError);
         } else if (bonusResult?.success) {
-          toastFn({ title: 'UGX 5,000 Bonus Credited', description: 'Registration bonus added to your wallet.' });
+          toastFn({
+            title: 'UGX 300 Bonus Credited',
+            description: 'Instant registration bonus added to your wallet. The remaining bonus is released once Landlord Ops verifies this landlord.',
+          });
         }
       } catch (bonusErr) {
         console.warn('[LandlordRegistration] Bonus credit error:', bonusErr);
