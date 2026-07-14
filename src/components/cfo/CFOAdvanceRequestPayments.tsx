@@ -320,6 +320,31 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // CFO rejects a request outright (no money moves). Records reason for the audit trail.
+  const rejectMutation = useMutation({
+    mutationFn: async ({ req, reason }: { req: any; reason: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const trimmed = reason.trim();
+      if (trimmed.length < 5) throw new Error('Rejection reason must be at least 5 characters');
+      const { error } = await supabase.from('agent_advance_requests').update({
+        status: 'cfo_rejected',
+        rejection_reason: trimmed,
+        cfo_notes: notes[req.id] || trimmed,
+        cfo_approved_by: user.id,
+        cfo_approved_at: new Date().toISOString(),
+      }).eq('id', req.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Request rejected — agent notified');
+      setRejectingReq(null);
+      setRejectReason('');
+      setEvalReq(null);
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   // SHORT PATH: approve (locking in any edits) AND disburse in one action.
   // Collapses the old two-step "Approve → then Disburse" into a single confirm.
   // Runs the exact same ledger movement as payMutation but also stamps the
