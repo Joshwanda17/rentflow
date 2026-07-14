@@ -819,6 +819,19 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                           <AlertTriangle className="h-3 w-3 mr-1" /> Rejected
                         </Badge>
                       </div>
+                      {rejectionReasons[l.id]?.reason && (
+                        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive mb-0.5">
+                            Rejection reason
+                          </p>
+                          <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                            {rejectionReasons[l.id].reason}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {new Date(rejectionReasons[l.id].rejected_at).toLocaleString()}
+                          </p>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">{formatUGX(l.monthly_rent)}/mo</span>
                         <Button
