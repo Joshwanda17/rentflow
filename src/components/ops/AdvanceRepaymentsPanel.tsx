@@ -16,8 +16,9 @@ import {
 } from 'recharts';
 import {
   Banknote, TrendingDown, TrendingUp, Loader2, AlertTriangle,
-  CircleDollarSign, Activity, History, ChevronRight, CalendarClock, Percent,
+  CircleDollarSign, Activity, History, ChevronRight, CalendarClock, Percent, Ban,
 } from 'lucide-react';
+import { CancelAdvanceDialog } from '@/components/cfo/CancelAdvanceDialog';
 import {
   format, differenceInCalendarDays, subDays, eachDayOfInterval, startOfDay,
 } from 'date-fns';
@@ -376,6 +377,9 @@ function RepaymentDetailDialog({
   agentName: string;
   onClose: () => void;
 }) {
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const queryClient = (window as any).__QC; // fallback if needed
+
   const rows = useMemo(() => {
     if (!advance) return [];
     return ledger
@@ -392,6 +396,9 @@ function RepaymentDetailDialog({
   const totalRepaid = rows.reduce((s, r) => s + num(r.amount_deducted), 0);
   const totalInterest = rows.reduce((s, r) => s + num(r.interest_accrued), 0);
 
+  const isActive = advance && (advance.status === 'active' || advance.status === 'overdue');
+  const advanceForCancel = advance ? { ...advance, profiles: { full_name: agentName } } : null;
+
   return (
     <Dialog open={!!advance} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -403,6 +410,18 @@ function RepaymentDetailDialog({
 
         {advance && (
           <div className="space-y-4">
+            {isActive && (
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => setCancelOpen(true)}
+                >
+                  <Ban className="h-3.5 w-3.5" /> Cancel advance
+                </Button>
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <MiniStat label="Principal" value={formatUGX(num(advance.principal))} />
               <MiniStat label="Outstanding" value={formatUGX(num(advance.outstanding_balance))} />
@@ -482,6 +501,19 @@ function RepaymentDetailDialog({
             )}
           </div>
         )}
+
+        <CancelAdvanceDialog
+          advance={advanceForCancel}
+          open={cancelOpen}
+          onOpenChange={setCancelOpen}
+          onSuccess={() => {
+            setCancelOpen(false);
+            onClose();
+            // Refetch handled by outer react-query invalidation on next open;
+            // trigger a soft reload of the advances query by dispatching event.
+            window.dispatchEvent(new CustomEvent('advance-repayments-refresh'));
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
