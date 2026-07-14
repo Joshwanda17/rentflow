@@ -15,7 +15,7 @@ const RATING_TONE: Record<AgentCapacity['daily_rating'], string> = {
 const TIER_RANGE: Record<AgentCapacity['daily_rating'], string> = {
   'Very Good': '≥ 75% of today\u2019s target',
   'Good':      '50–74% of today\u2019s target',
-  'Fair':      '15–19% of today\u2019s target',
+  'Fair':      '15–49% of today\u2019s target',
   'Bad':       '5–14% of today\u2019s target',
   'Very Bad':  '< 5% of today\u2019s target',
   'Starter':   'No active rents yet',
