@@ -675,7 +675,16 @@ export default function LandlordRegistrationForm({
         longitude: (newLandlord as any).longitude ?? null,
       } : undefined);
     } catch (err: any) {
-      const msg = err?.message || 'Something went wrong while saving. Please try again.';
+      let msg = err?.message || 'Something went wrong while saving. Please try again.';
+      // An RLS violation here means the request reached the server without a
+      // valid signed-in session (token expired mid-flow) — translate it into a
+      // plain "sign in again" instruction instead of the raw policy error.
+      if (
+        err?.code === '42501' ||
+        /row-level security|violates row-level|permission denied/i.test(String(err?.message))
+      ) {
+        msg = 'Your session has expired. Please sign in again, then register the landlord.';
+      }
       setSubmitError(msg);
       hapticWarning();
       // If the failure points at a specific field, drop inline helper text that
