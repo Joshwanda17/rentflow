@@ -1247,6 +1247,11 @@ export function LandlordOpsDashboard() {
         return old.map(l => l.id === listing.id ? { ...l, status: 'rejected' } : l);
       });
       toast({ title: 'Listing rejected', description: `${listing.title} has been rejected.` });
+      // Web-push only (no SMS) — the RPC already wrote the in-app notification.
+      await invokeEdgeFunction('notify-listing-rejected', {
+        body: { listing_id: listing.id, reason },
+        silent: true,
+      });
       refetch();
     } catch (err: any) {
       setOptimisticallyVerifiedIds(prev => { const next = new Set(prev); next.delete(listing.id); return next; });
