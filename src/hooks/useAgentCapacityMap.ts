@@ -12,17 +12,17 @@ export const AGENT_RENT_CAP_UGX = 100_000_000;
 /**
  * Daily Eligibility Law (new):
  *   An agent is UNBLOCKED and rated "Good" (green) as soon
- *   as EITHER yesterday's OR today's collections reach 20%
+ *   as EITHER yesterday's OR today's collections reach 50%
  *   of their expected daily rent. Today's progress counts
- *   live — the moment an agent crosses the 20% line today,
+ *   live — the moment an agent crosses the 50% line today,
  *   their rating flips up and they may post new rent
  *   requests immediately. If neither yesterday nor today
- *   is at 20%, they stay BLOCKED until they catch up.
+ *   is at 50%, they stay BLOCKED until they catch up.
  *
  *   Agents with no active rent collections yet (Starter)
  *   are always allowed to post their first request.
  */
-export const DAILY_ELIGIBILITY_THRESHOLD = 0.20;
+export const DAILY_ELIGIBILITY_THRESHOLD = 0.50;
 
 /**
  * New-agent onboarding rule:
@@ -52,20 +52,20 @@ export const UNLIMITED_PER_TENANT_MAX = Number.MAX_SAFE_INTEGER;
 
 /**
  * Daily rating tiers based on the BEST of yesterday's and today's
- * collection ratios (paid / expected_daily). 20% is the unblock line
+ * collection ratios (paid / expected_daily). 50% is the unblock line
  * and is explicitly the start of "Good". Using the best of the two
  * lets a strong day TODAY immediately lift an agent out of "Very Bad"
  * instead of forcing them to wait until tomorrow.
  *
- *   ≥ 50%        → Very Good  (emerald, allowed)
- *   20% – <50%   → Good       (green,   allowed)
- *   15% – <20%   → Fair       (amber,   BLOCKED)
+ *   ≥ 75%        → Very Good  (emerald, allowed)
+ *   50% – <75%   → Good       (green,   allowed)
+ *   15% – <50%   → Fair       (amber,   BLOCKED)
  *   5%  – <15%   → Bad        (orange,  BLOCKED)
  *   < 5%         → Very Bad   (red,     BLOCKED)
  */
 export const DAILY_RATING_THRESHOLDS = {
-  very_good: 0.50,
-  good:      0.20,
+  very_good: 0.75,
+  good:      0.50,
   fair:      0.15,
   bad:       0.05,
 } as const;
