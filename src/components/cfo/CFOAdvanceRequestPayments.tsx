@@ -37,8 +37,10 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
   // opens it on any request to see the agent's 360° evaluation AND edit + approve
   // the advance in a single popup — no separate expander.
   const [evalReq, setEvalReq] = useState<any | null>(null);
-  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved'>('all');
+  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved' | 'cfo_rejected'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [rejectingReq, setRejectingReq] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState<string>('');
   // Post-disbursement success dialog payload — shows the CFO what was sent and
   // a shortcut to the full list of disbursed advances.
   const [disbursed, setDisbursed] = useState<null | {
@@ -76,7 +78,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       const { data, error } = await supabase
         .from('agent_advance_requests')
         .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
-        .in('status', ['pending', 'agent_ops_approved', 'cfo_approved'])
+        .in('status', ['pending', 'agent_ops_approved', 'cfo_approved', 'cfo_rejected'])
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -86,13 +88,16 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
   const pendingApplications = (allRequests as any[]).filter(r => r.status === 'pending');
   const readyToPay = (allRequests as any[]).filter(r => r.status === 'agent_ops_approved');
   const cfoApproved = (allRequests as any[]).filter(r => r.status === 'cfo_approved');
+  const cfoRejected = (allRequests as any[]).filter(r => r.status === 'cfo_rejected');
   const requests = stageFilter === 'pending'
     ? pendingApplications
     : stageFilter === 'ready'
       ? readyToPay
       : stageFilter === 'cfo_approved'
         ? cfoApproved
-        : allRequests;
+        : stageFilter === 'cfo_rejected'
+          ? cfoRejected
+          : allRequests.filter((r: any) => r.status !== 'cfo_rejected');
 
   // Update global default rate
   const updateConfigMutation = useMutation({
@@ -310,6 +315,31 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
     },
     onSuccess: () => {
       toast.success('Approval revoked — request re-opened for editing');
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // CFO rejects a request outright (no money moves). Records reason for the audit trail.
+  const rejectMutation = useMutation({
+    mutationFn: async ({ req, reason }: { req: any; reason: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const trimmed = reason.trim();
+      if (trimmed.length < 5) throw new Error('Rejection reason must be at least 5 characters');
+      const { error } = await supabase.from('agent_advance_requests').update({
+        status: 'cfo_rejected',
+        rejection_reason: trimmed,
+        cfo_notes: notes[req.id] || trimmed,
+        cfo_approved_by: user.id,
+        cfo_approved_at: new Date().toISOString(),
+      }).eq('id', req.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Request rejected — agent notified');
+      setRejectingReq(null);
+      setRejectReason('');
+      setEvalReq(null);
       queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -588,6 +618,17 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
           >
             Approved · Disburse <span className="ml-1 opacity-70">{cfoApproved.length}</span>
           </Button>
+          <Button
+            size="sm"
+            variant={stageFilter === 'cfo_rejected' ? 'default' : 'outline'}
+            className={cn(
+              'h-7 text-[11px]',
+              stageFilter === 'cfo_rejected' ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'border-rose-300 text-rose-700 hover:bg-rose-50',
+            )}
+            onClick={() => setStageFilter('cfo_rejected')}
+          >
+            Rejected <span className="ml-1 opacity-70">{cfoRejected.length}</span>
+          </Button>
         </div>
       </div>
 
@@ -798,6 +839,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
             const profile = req.profiles;
             const isPending = req.status === 'pending';
             const isCfoApproved = req.status === 'cfo_approved';
+            const isCfoRejected = req.status === 'cfo_rejected';
             const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
             const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
             const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
@@ -822,17 +864,19 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                             variant="outline"
                             className={cn(
                               'text-[9px] px-1.5 py-0 h-4 uppercase tracking-wider',
-                              isCfoApproved
+                              isCfoRejected
+                                ? 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/30 dark:text-rose-400'
+                                : isCfoApproved
                                 ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400'
                                 : isPending
                                   ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400'
                                   : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400'
                             )}
                           >
-                            {isCfoApproved ? 'CFO Approved' : isPending ? 'Agent Applied' : 'Agent Ops Approved'}
+                            {isCfoRejected ? 'CFO Rejected' : isCfoApproved ? 'CFO Approved' : isPending ? 'Agent Applied' : 'Agent Ops Approved'}
                           </Badge>
                           <span>{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</span>
-                          {!isPending && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
+                          {!isPending && !isCfoRejected && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
@@ -846,14 +890,22 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      className="h-8 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className={cn(
+                        'h-8 text-[11px] gap-1 text-white',
+                        isCfoRejected ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700',
+                      )}
                       onClick={() => setEvalReq(req)}
                     >
                       <Sparkles className="h-3 w-3" />
-                      {isCfoApproved ? 'Review & disburse' : 'Review & approve'} · {formatUGX(currentPrincipal)}
+                      {isCfoRejected ? 'View rejection' : isCfoApproved ? 'Review & disburse' : 'Review & approve'} · {formatUGX(currentPrincipal)}
                     </Button>
+                    {isCfoRejected && req.rejection_reason && (
+                      <p className="text-[10px] text-rose-700 dark:text-rose-400 self-center italic">
+                        Reason: {req.rejection_reason}
+                      </p>
+                    )}
                     <p className="text-[10px] text-muted-foreground self-center">
-                      Opens evaluation + editable amount, then a single confirm.
+                      {isCfoRejected ? 'Rejected — visible to agent & Agent Ops.' : 'Opens evaluation + editable amount, then a single confirm.'}
                     </p>
                   </div>
                 </CardContent>
@@ -1077,6 +1129,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
         footer={evalReq ? (() => {
           const req = evalReq;
           const isCfoApproved = req.status === 'cfo_approved';
+          const isCfoRejected = req.status === 'cfo_rejected';
           const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
           const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
           const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
@@ -1153,18 +1206,39 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                 />
               </div>
 
-              <Button
-                className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                disabled={currentPrincipal <= 0}
-                onClick={() => {
-                  const id = req.id;
-                  setEvalReq(null);
-                  setConfirmingId(id);
-                }}
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                {isCfoApproved ? 'Disburse' : 'Approve'} {formatUGX(currentPrincipal)}
-              </Button>
+              {isCfoRejected ? (
+                <div className="rounded-lg border-2 border-rose-300 bg-rose-50 dark:bg-rose-950/20 p-3">
+                  <p className="text-[10px] font-bold uppercase text-rose-700 dark:text-rose-400 mb-1">Rejected by CFO</p>
+                  <p className="text-xs text-rose-800 dark:text-rose-300">
+                    {req.rejection_reason || 'No reason recorded'}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto gap-2 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                    onClick={() => {
+                      setRejectReason('');
+                      setRejectingReq(req);
+                    }}
+                  >
+                    <X className="h-4 w-4" /> Reject
+                  </Button>
+                  <Button
+                    className="w-full sm:flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={currentPrincipal <= 0}
+                    onClick={() => {
+                      const id = req.id;
+                      setEvalReq(null);
+                      setConfirmingId(id);
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {isCfoApproved ? 'Disburse' : 'Approve'} {formatUGX(currentPrincipal)}
+                  </Button>
+                </div>
+              )}
 
               {isCfoApproved && (
                 <Button
@@ -1185,7 +1259,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       {/* Disbursement success dialog — shows the CFO confirmation, key stats,
           plus a shortcut to jump straight to the next pending request. */}
       <Dialog open={!!disbursed} onOpenChange={(open) => !open && setDisbursed(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto flex flex-col">
           <DialogHeader>
             <div className="mx-auto mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
@@ -1226,7 +1300,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
             </div>
           )}
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end shrink-0 pt-2 border-t bg-background sticky bottom-0">
             <Button
               variant="outline"
               onClick={() => setDisbursed(null)}
@@ -1272,6 +1346,53 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
               className="w-full sm:w-auto gap-2"
             >
               <Banknote className="h-4 w-4" /> View all disbursed advances
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject reason dialog — CFO must supply a reason. */}
+      <Dialog open={!!rejectingReq} onOpenChange={(open) => {
+        if (!open) { setRejectingReq(null); setRejectReason(''); }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <X className="h-5 w-5 text-rose-600" /> Reject Advance Request
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {rejectingReq?.profiles?.full_name ? (
+                <>Reject <span className="font-semibold text-foreground">{rejectingReq.profiles.full_name}</span>&apos;s request for {formatUGX(Number(rejectingReq?.principal ?? 0))}. The agent and Agent Ops will see the reason.</>
+              ) : 'Provide a reason. The agent and Agent Ops will see it.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-1">
+            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Reason for rejection</Label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={4}
+              placeholder="E.g. Insufficient trust score, outstanding advance not settled, exposure too high…"
+              className="text-sm"
+            />
+            <p className="text-[10px] text-muted-foreground">Minimum 5 characters.</p>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => { setRejectingReq(null); setRejectReason(''); }}
+              disabled={rejectMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="w-full sm:w-auto gap-2 bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={rejectReason.trim().length < 5 || rejectMutation.isPending}
+              onClick={() => rejectingReq && rejectMutation.mutate({ req: rejectingReq, reason: rejectReason })}
+            >
+              {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              Confirm rejection
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -16,6 +16,8 @@ const APPROVED_STATUSES = [
   'disbursed', 'active', 'repaying', 'completed', 'overdue',
 ];
 
+const REJECTED_STATUSES = ['rejected', 'cfo_rejected'];
+
 const STATUS_LABEL: Record<string, string> = {
   agent_ops_approved: 'Agent Ops approved · awaiting CFO',
   cfo_approved: 'CFO approved · ready to disburse',
@@ -75,6 +77,7 @@ function EmptyState({ label }: { label: string }) {
 }
 
 function RequestRow({ req, tone, onOpen }: { req: any; tone: 'approved' | 'rejected'; onOpen: (req: any) => void }) {
+  const rejectedByCfo = req.status === 'cfo_rejected';
   const note = tone === 'rejected' ? (req.rejection_reason || 'No reason recorded') : approvalNote(req);
   const paid = tone === 'approved' && isPaidOut(req);
   const idx = stageIndex(req.status);
@@ -148,7 +151,9 @@ function RequestRow({ req, tone, onOpen }: { req: any; tone: 'approved' | 'rejec
           'mt-2 rounded-lg p-2 text-[11px] leading-snug ' +
           (tone === 'rejected' ? 'bg-rose-50 text-rose-800' : 'bg-muted/50 text-muted-foreground')
         }>
-          <span className="font-semibold">{tone === 'rejected' ? 'Reason: ' : 'Note: '}</span>{note}
+          <span className="font-semibold">
+            {tone === 'rejected' ? (rejectedByCfo ? 'Rejected by CFO — Reason: ' : 'Rejected by Agent Ops — Reason: ') : 'Note: '}
+          </span>{note}
         </div>
       )}
     </button>
@@ -177,7 +182,7 @@ export function AdvanceRequestsReviewed() {
       const { data, error } = await supabase
         .from('agent_advance_requests_privileged')
         .select('*')
-        .eq('status', 'rejected')
+        .in('status', REJECTED_STATUSES)
         .order('updated_at', { ascending: false })
         .limit(50);
       if (error) throw error;
