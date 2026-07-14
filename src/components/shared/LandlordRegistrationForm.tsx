@@ -509,6 +509,40 @@ export default function LandlordRegistrationForm({
     setLoading(true);
     setProgressMsg('Saving details…');
 
+    // ── Live-session guard ──────────────────────────────────────────────────
+    // The RLS INSERT policy on `landlords` is granted to the `authenticated`
+    // role only. If the agent's access token has silently expired (very common
+    // on mobile after the app has been backgrounded) the request goes out as
+    // `anon` and PostgREST rejects it with the cryptic
+    // "new row violates row-level security policy" error — even though the UI
+    // still shows them logged in. Verify (and refresh) the session here so we
+    // either recover automatically or show a clear "sign in again" message
+    // instead of a confusing failure.
+    try {
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        session = refreshed.session;
+      }
+      if (!session?.access_token || session.user?.id !== user.id) {
+        setLoading(false);
+        setProgressMsg('');
+        const msg = 'Your session has expired. Please sign in again, then register the landlord.';
+        setSubmitError(msg);
+        hapticWarning();
+        toastFn({ title: 'Session expired', description: msg, variant: 'destructive' });
+        return;
+      }
+    } catch {
+      setLoading(false);
+      setProgressMsg('');
+      const msg = 'Could not confirm your session. Please sign in again and try once more.';
+      setSubmitError(msg);
+      hapticWarning();
+      toastFn({ title: 'Session check failed', description: msg, variant: 'destructive' });
+      return;
+    }
+
     const landlordPhoneClean = toUgandaLocalDigits(landlordPhone);
     const lc1PhoneClean = toUgandaLocalDigits(lc1Phone);
     const momoNumberClean = cleanPhoneNumber(momoNumber);
@@ -599,7 +633,7 @@ export default function LandlordRegistrationForm({
         if (bonusError) {
           console.warn('[LandlordRegistration] Bonus credit failed:', bonusError);
         } else if (bonusResult?.success) {
-          toastFn({ title: '💰 UGX 5,000 Bonus Credited!', description: 'Registration bonus added to your wallet.' });
+          toastFn({ title: 'UGX 5,000 Bonus Credited', description: 'Registration bonus added to your wallet.' });
         }
       } catch (bonusErr) {
         console.warn('[LandlordRegistration] Bonus credit error:', bonusErr);
@@ -641,7 +675,16 @@ export default function LandlordRegistrationForm({
         longitude: (newLandlord as any).longitude ?? null,
       } : undefined);
     } catch (err: any) {
-      const msg = err?.message || 'Something went wrong while saving. Please try again.';
+      let msg = err?.message || 'Something went wrong while saving. Please try again.';
+      // An RLS violation here means the request reached the server without a
+      // valid signed-in session (token expired mid-flow) — translate it into a
+      // plain "sign in again" instruction instead of the raw policy error.
+      if (
+        err?.code === '42501' ||
+        /row-level security|violates row-level|permission denied/i.test(String(err?.message))
+      ) {
+        msg = 'Your session has expired. Please sign in again, then register the landlord.';
+      }
       setSubmitError(msg);
       hapticWarning();
       // If the failure points at a specific field, drop inline helper text that
