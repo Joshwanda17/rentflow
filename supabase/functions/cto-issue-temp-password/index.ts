@@ -90,7 +90,7 @@ async function sendViaLana(phone: string, message: string): Promise<{ ok: boolea
     const response = await fetch("https://api.lanasms.com/v1/send", {
       method: "POST",
       headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ phone: phoneLana, message}),
+      body: JSON.stringify({ phone: phoneLana, sender_id: "WELILE", message}),
     });
     const text = await response.text();
     let data: Record<string, unknown> = {};

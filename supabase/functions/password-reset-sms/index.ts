@@ -222,7 +222,7 @@ async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
         "Content-Type": "application/json",
         "Accept": "application/json",
       },
-      body: JSON.stringify({ phone: phoneLana, message}),
+      body: JSON.stringify({ phone: phoneLana, sender_id: "WELILE", message}),
     });
     const text = await response.text();
     console.log(`[password-reset-sms] LANA response (${response.status}):`, text);
