@@ -21,6 +21,12 @@ export function SignaturePad({ onChange, label = 'Sign here', className = '' }: 
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
   const hasInk = useRef(false);
+  // Keep the most recent captured signature so a resize (mobile keyboard show/
+  // hide, address-bar collapse, layout shift on submit) never wipes what the
+  // user already drew. Re-rendering the backing store on resize used to clear
+  // the pad and emit onChange('') — which dropped the signature from the
+  // contract and fell back to the italic typed name.
+  const lastDataUrl = useRef<string>('');
   const [isEmpty, setIsEmpty] = useState(true);
 
   const getCtx = () => canvasRef.current?.getContext('2d') ?? null;
@@ -44,11 +50,27 @@ export function SignaturePad({ onChange, label = 'Sign here', className = '' }: 
   useEffect(() => {
     setupCanvas();
     const onResize = () => {
-      // Preserve nothing on resize (rare during signing); just reset for correctness.
+      // Re-size the backing store, then restore the previously drawn signature
+      // (if any) so it is preserved across resizes. Never clear the captured
+      // value here — that would silently drop the signature from the contract.
       setupCanvas();
-      hasInk.current = false;
-      setIsEmpty(true);
-      onChange('');
+      const prev = lastDataUrl.current;
+      if (prev) {
+        const img = new Image();
+        img.onload = () => {
+          const ctx = getCtx();
+          const canvas = canvasRef.current;
+          if (!ctx || !canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        };
+        img.src = prev;
+        hasInk.current = true;
+        setIsEmpty(false);
+      } else {
+        hasInk.current = false;
+        setIsEmpty(true);
+      }
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -88,7 +110,11 @@ export function SignaturePad({ onChange, label = 'Sign here', className = '' }: 
     if (!drawing.current) return;
     drawing.current = false;
     last.current = null;
-    if (hasInk.current) onChange(canvasRef.current!.toDataURL('image/png'));
+    if (hasInk.current) {
+      const url = canvasRef.current!.toDataURL('image/png');
+      lastDataUrl.current = url;
+      onChange(url);
+    }
   };
 
   const clear = () => {
@@ -97,6 +123,7 @@ export function SignaturePad({ onChange, label = 'Sign here', className = '' }: 
     if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     hasInk.current = false;
+    lastDataUrl.current = '';
     setIsEmpty(true);
     onChange('');
   };
