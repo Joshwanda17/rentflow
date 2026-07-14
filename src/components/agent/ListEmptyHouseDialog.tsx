@@ -1043,6 +1043,21 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       scrollDialogToTop();
     };
 
+    // ─── Preflight jump ───
+    // If ANY gate is missing, jump the agent to the step that owns the first
+    // missing field and surface a toast. This prevents the silent "stuck on
+    // step 3" experience where a hidden step-3 gate (landlord phone / LC1 /
+    // caretaker) blocks submission with no visible action.
+    const firstMissing = preflightGates.find((g) => !g.ok);
+    if (firstMissing) {
+      if (firstMissing.step !== step) {
+        setStep(firstMissing.step);
+      }
+      toast.error(firstMissing.hint || `${firstMissing.label} is required`);
+      scrollDialogToTop();
+      return;
+    }
+
     if (!monthlyRent || monthlyRent < 10000) {
       failWith('Monthly rent must be at least UGX 10,000');
       return;
