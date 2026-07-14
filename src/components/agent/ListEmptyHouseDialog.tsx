@@ -1125,6 +1125,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               village: form.village || null,
               district: form.district || null,
               region: form.region || null,
+              // Stamp ownership so (a) the RLS RETURNING select below is visible
+              // to this agent (user_can_access_landlord matches registered_by /
+              // managed_by_agent_id) and (b) the landlord is properly linked to
+              // the agent. Without this the insert succeeds but `.select().single()`
+              // returns no row, throwing "Could not save the landlord" and the
+              // whole listing fails even though a hidden orphan landlord was saved.
+              registered_by: user.id,
+              managed_by_agent_id: user.id,
             })
             .select('id')
             .single();
