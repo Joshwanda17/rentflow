@@ -257,7 +257,7 @@ async function sendViaYoola(phone: string, message: string): Promise<SmsResult> 
         "Content-Type": "application/json",
         "Accept": "application/json",
       },
-      body: JSON.stringify({ phone: phoneYoola, message, api_key: apiKey}),
+      body: JSON.stringify({ phone: phoneYoola, message, api_key: apiKey, sender: "WELILE"}),
     });
     const text = await response.text();
     console.log(`[password-reset-sms] Yoola response (${response.status}):`, text);

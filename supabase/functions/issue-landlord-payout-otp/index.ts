@@ -69,7 +69,7 @@ async function sendYoolaSms(phone: string, message: string): Promise<SmsResult> 
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: phone.replace(/\D/g, ""), message, api_key: apiKey}),
+      body: JSON.stringify({ phone: phone.replace(/\D/g, ""), message, api_key: apiKey, sender: "WELILE"}),
     });
     const text = await res.text();
     let data: any = null;
