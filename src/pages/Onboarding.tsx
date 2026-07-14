@@ -1034,7 +1034,8 @@ function isValid(step: number, form: FormState): boolean {
     const phoneOk = form.phone.trim().length >= 7;
     const addressOk = form.address.trim().length >= 2;
     const nationalIdOk = form.nationalId.trim().length >= 5;
-    return emailOk && nameOk && pwOk && matchOk && phoneOk && addressOk && nationalIdOk && form.agreedToTerms;
+    const signatureOk = form.signatureDataUrl.trim().length > 0;
+    return emailOk && nameOk && pwOk && matchOk && phoneOk && addressOk && nationalIdOk && form.agreedToTerms && signatureOk;
   }
   return false;
 }
