@@ -1459,6 +1459,11 @@ export function LandlordOpsDashboard() {
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
         results.push({ id: h.id, title: h.title, ok: true });
+        // Web-push only (no SMS) — best effort, never blocks the bulk loop.
+        await invokeEdgeFunction('notify-listing-rejected', {
+          body: { listing_id: h.id, reason: trimmed },
+          silent: true,
+        });
       } catch (err: any) {
         results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
       }
