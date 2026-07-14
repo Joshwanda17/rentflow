@@ -344,6 +344,27 @@ function kpiCell(label: string, value: string, color = "#1a1a2e"): string {
 function buildHtml(r: Report, prettyDate: string): string {
   const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
 
+  // Dashboard-mirror derived values
+  const trackingShare = r.monthly.total_agents > 0
+    ? (r.monthly.adv_agents_current / r.monthly.total_agents) * 100
+    : 0;
+  const repayRate = r.monthly.principal_total > 0
+    ? ((r.monthly.principal_total - r.monthly.outstanding_total) / r.monthly.principal_total) * 100
+    : 0;
+  const funnelAgentsPct = r.funnel.total_users > 0
+    ? (r.funnel.total_agents / r.funnel.total_users) * 100
+    : 0;
+  const funnelActivePct = r.funnel.total_agents > 0
+    ? (r.funnel.active_agents / r.funnel.total_agents) * 100
+    : 0;
+  const growth = (curr: number, prev: number) =>
+    prev <= 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+  const volumeGrowth = growth(r.monthly.volume_month, r.monthly.volume_prev);
+  const newAgentsGrowth = growth(r.monthly.new_adv_agents_month, r.monthly.new_adv_agents_prev);
+  const deliveryGrowth = growth(r.monthly.deliveries_month, r.monthly.deliveries_prev);
+  const trendArrow = (g: number) => g >= 0 ? "▲" : "▼";
+  const trendColor = (g: number) => g >= 0 ? GREEN : RED;
+
   // Chart 1 — hourly collections (count + volume dual axis).
   const hourlyChart = chartUrl({
     type: "bar",
@@ -408,9 +429,61 @@ function buildHtml(r: Report, prettyDate: string): string {
     <div style="background:${PURPLE};color:#fff;border-radius:12px 12px 0 0;padding:22px 26px;">
       <h1 style="margin:0;font-size:21px;">Agent Ops Daily Report</h1>
       <p style="margin:6px 0 0;font-size:13px;opacity:.9;">${esc(prettyDate)} (East Africa Time)</p>
+      <p style="margin:6px 0 0;font-size:11px;opacity:.75;">Live mirror of the Agent Ops dashboard</p>
     </div>
     <div style="background:#fff;padding:22px 26px;border:1px solid #e7e0f5;border-top:0;border-radius:0 0 12px 12px;">
 
+      <!-- SECTION 1: Who is an Agent? (funnel) -->
+      <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Who is an Agent? — live funnel</h2>
+      <p style="font-size:11px;color:#666;margin:0 0 10px;">Users become agents by acting — not by role. Snapshot from the past 24h.</p>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:16px;">
+        <tr>
+          ${kpiCell("Total users", r.funnel.total_users.toLocaleString(), SKY)}
+          ${kpiCell("Agents", `${r.funnel.total_agents.toLocaleString()} (${funnelAgentsPct.toFixed(1)}%)`, PURPLE)}
+          ${kpiCell("Active agents (24h)", `${r.funnel.active_agents.toLocaleString()} (${funnelActivePct.toFixed(1)}%)`, AMBER)}
+        </tr>
+      </table>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:22px;">
+        <tr>
+          ${kpiCell("Listed a house", r.funnel.criteria.house_listings.toLocaleString())}
+          ${kpiCell("Promissory note", r.funnel.criteria.promissory_notes.toLocaleString())}
+          ${kpiCell("Rent request for tenant", r.funnel.criteria.behalf_rent_requests.toLocaleString())}
+          ${kpiCell("Added a sub-agent", r.funnel.criteria.subagents.toLocaleString())}
+        </tr>
+      </table>
+
+      <!-- SECTION 2: Today's Brief (mirrors the 24H BriefCards) -->
+      <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Today's brief (last 24h)</h2>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:22px;">
+        <tr>
+          ${kpiCell("New agents onboarded", r.newAgentsToday.toLocaleString(), PURPLE)}
+          ${kpiCell("Rent requests", r.rentRequestsToday.toLocaleString(), SKY)}
+          ${kpiCell("Commission earned", fmtUGX(r.commissionToday), GREEN)}
+          ${kpiCell("Active agents", String(r.uniqueAgents), AMBER)}
+        </tr>
+      </table>
+
+      <!-- SECTION 3: Monthly KPIs (weighted scorecard) -->
+      <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Monthly KPIs — Advance Program</h2>
+      <p style="font-size:11px;color:#666;margin:0 0 10px;">${esc(r.monthly.month)} vs previous month</p>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
+        <tr>
+          ${kpiCell("Tracking share (30% goal)", `${trackingShare.toFixed(1)}%`, PURPLE)}
+          ${kpiCell("Advance volume", `${fmtUGX(r.monthly.volume_month)} <span style="font-size:10px;color:${trendColor(volumeGrowth)};">${trendArrow(volumeGrowth)}${Math.abs(volumeGrowth).toFixed(0)}%</span>`, GREEN)}
+          ${kpiCell("New advance agents", `${r.monthly.new_adv_agents_month.toLocaleString()} <span style="font-size:10px;color:${trendColor(newAgentsGrowth)};">${trendArrow(newAgentsGrowth)}${Math.abs(newAgentsGrowth).toFixed(0)}%</span>`, SKY)}
+          ${kpiCell("Repayment rate", `${repayRate.toFixed(1)}%`, repayRate >= 70 ? GREEN : AMBER)}
+        </tr>
+        <tr>
+          ${kpiCell("Deliveries confirmed", `${r.monthly.deliveries_month.toLocaleString()} <span style="font-size:10px;color:${trendColor(deliveryGrowth)};">${trendArrow(deliveryGrowth)}${Math.abs(deliveryGrowth).toFixed(0)}%</span>`, AMBER)}
+          ${kpiCell("Principal issued (MTD)", fmtUGX(r.monthly.principal_total))}
+          ${kpiCell("Outstanding (MTD)", fmtUGX(r.monthly.outstanding_total), AMBER)}
+          ${kpiCell("Volume vs last month", fmtUGX(r.monthly.volume_prev))}
+        </tr>
+      </table>
+      <p style="font-size:10px;color:#999;margin:6px 0 22px;">Weighted scorecard — Tracking 30% · Volume 25% · New agents 20% · Repayment 15% · Delivery 10%.</p>
+
+      <!-- SECTION 4: Field activity KPIs (existing) -->
+      <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Field activity today</h2>
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
           ${kpiCell("Active agents", String(r.uniqueAgents))}
