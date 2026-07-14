@@ -1079,6 +1079,7 @@ function getValidationMessage(step: number, form: FormState): string {
     if (form.password.length < 8) missing.push('password of at least 8 characters');
     if (form.password !== form.confirmPassword) missing.push('matching password confirmation');
     if (!form.agreedToTerms) missing.push('agreement to the terms and privacy policy');
+    if (form.signatureDataUrl.trim().length === 0) missing.push('your handwritten signature');
     return missing.length ? `Please complete: ${missing.join(', ')}.` : '';
   }
 
