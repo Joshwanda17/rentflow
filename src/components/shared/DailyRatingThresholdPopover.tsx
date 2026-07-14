@@ -2,9 +2,9 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Info } from 'lucide-react';
 
 const TIERS = [
-  { label: 'Very Good', min: 50, max: null, tone: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
-  { label: 'Good', min: 20, max: 49, tone: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-  { label: 'Fair', min: 15, max: 19, tone: 'text-amber-700 bg-amber-50 border-amber-200' },
+  { label: 'Very Good', min: 75, max: null, tone: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  { label: 'Good', min: 50, max: 74, tone: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+  { label: 'Fair', min: 15, max: 49, tone: 'text-amber-700 bg-amber-50 border-amber-200' },
   { label: 'Bad', min: 5, max: 14, tone: 'text-orange-700 bg-orange-50 border-orange-200' },
   { label: 'Very Bad', min: 0, max: 4, tone: 'text-destructive bg-destructive/5 border-destructive/20' },
 ] as const;
@@ -40,7 +40,7 @@ export function DailyRatingThresholdPopover({ className }: { className?: string 
           ))}
         </ul>
         <p className="text-[10px] text-muted-foreground leading-snug">
-          Hit <strong className="text-foreground">≥ 20%</strong> to be unblocked and rated Good.
+          Hit <strong className="text-foreground">≥ 50%</strong> to be unblocked and rated Good.
         </p>
       </PopoverContent>
     </Popover>
