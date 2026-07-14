@@ -121,14 +121,68 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Compute the tenant's remaining balance on their active rent so the
+    // tenant SMS confirms both what was paid AND what they still owe.
+    // Best-effort — never blocks the send.
+    let remainingText: string | null = null;
+    let tenantFirstName = String(tenant_name || "").trim().split(/\s+/)[0] || "there";
+    try {
+      if (collection_id) {
+        const { data: col } = await exAdmin
+          .from("agent_collections")
+          .select("tenant_id")
+          .eq("id", collection_id)
+          .maybeSingle();
+        const tid = col?.tenant_id;
+        if (tid) {
+          const { data: rr } = await exAdmin
+            .from("rent_requests")
+            .select("id,total_repayment")
+            .eq("tenant_id", tid)
+            .in("status", ["funded", "repaying"])
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (rr?.id) {
+            const { data: reps } = await exAdmin
+              .from("repayments")
+              .select("amount")
+              .eq("rent_request_id", rr.id);
+            const paidSoFar = (reps || []).reduce(
+              (sum: number, r: any) => sum + Number(r.amount || 0),
+              0,
+            );
+            const remaining = Math.max(
+              0,
+              Number(rr.total_repayment || 0) - paidSoFar,
+            );
+            remainingText = `UGX ${remaining.toLocaleString()}`;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[send-collection-sms] remaining balance lookup failed", e);
+    }
+
+    const tenantMessage = [
+      `WELILE: Hi ${tenantFirstName}, we received ${formattedAmount} today from ${agent_name || "your agent"}.`,
+      remainingText ? `Rent balance: ${remainingText}.` : null,
+      `Ref: ${tracking_id}. Thank you.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
     const [tenantBlocked, agentBlocked] = await Promise.all([
       isPhoneBlocked(exAdmin, tenant_phone, "collection_reminder"),
       isPhoneBlocked(exAdmin, agent_phone, "collection_reminder"),
     ]);
 
-    // Send SMS to both tenant and agent in parallel (skipping blocked phones)
+    // Send SMS to both tenant and agent in parallel (skipping blocked phones).
+    // Tenant gets the short balance-aware confirmation; agent gets the
+    // detailed receipt for their records.
     const [tenantSent, agentSent] = await Promise.all([
-      tenantBlocked ? Promise.resolve(false) : sendSMS(tenant_phone, message),
+      tenantBlocked ? Promise.resolve(false) : sendSMS(tenant_phone, tenantMessage),
       agentBlocked ? Promise.resolve(false) : sendSMS(agent_phone, message),
     ]);
 
