@@ -37,8 +37,10 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
   // opens it on any request to see the agent's 360° evaluation AND edit + approve
   // the advance in a single popup — no separate expander.
   const [evalReq, setEvalReq] = useState<any | null>(null);
-  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved'>('all');
+  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved' | 'cfo_rejected'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [rejectingReq, setRejectingReq] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState<string>('');
   // Post-disbursement success dialog payload — shows the CFO what was sent and
   // a shortcut to the full list of disbursed advances.
   const [disbursed, setDisbursed] = useState<null | {
@@ -76,7 +78,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       const { data, error } = await supabase
         .from('agent_advance_requests')
         .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
-        .in('status', ['pending', 'agent_ops_approved', 'cfo_approved'])
+        .in('status', ['pending', 'agent_ops_approved', 'cfo_approved', 'cfo_rejected'])
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -86,13 +88,16 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
   const pendingApplications = (allRequests as any[]).filter(r => r.status === 'pending');
   const readyToPay = (allRequests as any[]).filter(r => r.status === 'agent_ops_approved');
   const cfoApproved = (allRequests as any[]).filter(r => r.status === 'cfo_approved');
+  const cfoRejected = (allRequests as any[]).filter(r => r.status === 'cfo_rejected');
   const requests = stageFilter === 'pending'
     ? pendingApplications
     : stageFilter === 'ready'
       ? readyToPay
       : stageFilter === 'cfo_approved'
         ? cfoApproved
-        : allRequests;
+        : stageFilter === 'cfo_rejected'
+          ? cfoRejected
+          : allRequests.filter((r: any) => r.status !== 'cfo_rejected');
 
   // Update global default rate
   const updateConfigMutation = useMutation({
