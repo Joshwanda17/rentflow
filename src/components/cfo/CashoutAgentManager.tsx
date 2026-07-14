@@ -1568,6 +1568,16 @@ export function CashoutAgentManager() {
         isReleasing={releaseClaimsMutation.isPending}
         onRelease={() => deleteAgent && releaseClaimsMutation.mutate(deleteAgent)}
       />
+
+      <MethodDetailSheet
+        method={methodDetail}
+        onOpenChange={(open) => { if (!open) setMethodDetail(null); }}
+        payouts={payouts as any[]}
+        agents={agents as any[]}
+        isBank={isBank}
+        isMomo={isMomo}
+        isCash={isCash}
+      />
     </div>
   );
 }
