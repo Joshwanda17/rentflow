@@ -1115,7 +1115,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           }
         } else if (form.landlord_name.trim()) {
           // Landlord doesn't exist yet — create one so the listing links properly
-          const { data: newLandlord } = await supabase
+          const { data: newLandlord, error: landlordErr } = await supabase
             .from('landlords')
             .insert({
               name: form.landlord_name.trim(),
@@ -1128,8 +1128,22 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             })
             .select('id')
             .single();
-          landlordId = newLandlord?.id || null;
+          if (landlordErr || !newLandlord?.id) {
+            throw new Error(
+              landlordErr?.message
+                ? `Could not save the landlord: ${landlordErr.message}`
+                : 'Could not save the landlord. Please check the name and phone and try again.',
+            );
+          }
+          landlordId = newLandlord.id;
         }
+      }
+
+      // Hard guard: never create a listing without a linked landlord. If we got
+      // this far without resolving a landlord id, the landlord details are
+      // missing/failed — surface it instead of silently creating an orphan house.
+      if (!landlordId) {
+        throw new Error('A landlord with a name and phone number is required to list this house.');
       }
 
       // Determine caretaker details
