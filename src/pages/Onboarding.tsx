@@ -99,6 +99,7 @@ interface FormState {
   kinName: string;
   kinContact: string;
   agreedToTerms: boolean;
+  signatureDataUrl: string;
 }
 
 // ─── Password Strength ───────────────────────────────────────────────────────
