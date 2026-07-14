@@ -962,6 +962,18 @@ function _Step3Impl({
       </motion.div>
 
       <motion.div variants={fadeUp}>
+        <div className="rounded-xl border border-gray-100 bg-white p-3">
+          <SignaturePad
+            label="Sign your Partnership Agreement"
+            onChange={(dataUrl) => setForm(p => ({ ...p, signatureDataUrl: dataUrl }))}
+          />
+          <p className="text-[10px] text-gray-400 mt-1.5 pl-1">
+            Your handwritten signature is attached to your Welile Partnership Agreement.
+          </p>
+        </div>
+      </motion.div>
+
+      <motion.div variants={fadeUp}>
         <button
           type="button"
           onClick={() => setForm(p => ({ ...p, agreedToTerms: !p.agreedToTerms }))}
