@@ -100,6 +100,18 @@ const PURPLE = "#6c21c4";
 const PURPLE_DK = "#4c1696";
 const GREEN = "#16a34a";
 const AMBER = "#d97706";
+const SKY = "#0284c7";
+const RED = "#dc2626";
+
+const COMMISSION_LEDGER_CATEGORIES = [
+  "agent_commission_earned",
+  "agent_commission",
+  "agent_bonus",
+  "agent_investment_commission",
+  "proxy_investment_commission",
+  "partner_commission",
+];
+const COMMISSION_CREDIT_DIRECTIONS = ["cash_in", "credit"];
 
 interface Report {
   date: string;
@@ -116,6 +128,31 @@ interface Report {
   hourlyVolume: number[]; // collected volume per EAT hour (24)
   topAgents: { name: string; total: number; count: number }[];
   perAgent: { name: string; phone: string; collections: number; collected: number; deposits: number; deposited: number }[];
+  // Live dashboard mirror
+  newAgentsToday: number;
+  rentRequestsToday: number;
+  commissionToday: number;
+  funnel: {
+    total_users: number;
+    total_agents: number;
+    active_agents: number;
+    window_days: number;
+    criteria: { house_listings: number; promissory_notes: number; behalf_rent_requests: number; subagents: number };
+  };
+  monthly: {
+    month: string;
+    total_agents: number;
+    adv_agents_current: number;
+    adv_agents_current_prev: number;
+    new_adv_agents_month: number;
+    new_adv_agents_prev: number;
+    volume_month: number;
+    volume_prev: number;
+    principal_total: number;
+    outstanding_total: number;
+    deliveries_month: number;
+    deliveries_prev: number;
+  };
 }
 
 function nameOf(p: any): string {
@@ -149,6 +186,40 @@ async function buildReport(
   const collections = collectionsRes.data ?? [];
   const advances = advancesRes.data ?? [];
   const deposits = depositsRes.data ?? [];
+
+  // ---- Live dashboard mirror data ----
+  const [newAgentsRes, rentReqRes, commissionRes, funnelRes, monthlyRes] = await Promise.all([
+    admin
+      .from("user_roles")
+      .select("user_id", { count: "exact", head: true })
+      .eq("role", "agent")
+      .gte("created_at", startISO)
+      .lt("created_at", endISO),
+    admin
+      .from("rent_requests")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", startISO)
+      .lt("created_at", endISO),
+    admin
+      .from("general_ledger")
+      .select("amount")
+      .eq("ledger_scope", "wallet")
+      .in("category", COMMISSION_LEDGER_CATEGORIES)
+      .in("direction", COMMISSION_CREDIT_DIRECTIONS)
+      .gte("created_at", startISO)
+      .lt("created_at", endISO),
+    (admin.rpc as any)("get_agent_ops_agent_stats", { p_days: 1 }),
+    (admin.rpc as any)("get_agent_ops_monthly_kpis", { _month: `${dateStr.slice(0, 7)}-01` }),
+  ]);
+
+  const newAgentsToday = newAgentsRes.count ?? 0;
+  const rentRequestsToday = rentReqRes.count ?? 0;
+  const commissionToday = ((commissionRes.data ?? []) as any[]).reduce(
+    (s, r) => s + Number(r.amount ?? 0),
+    0,
+  );
+  const funnelData = (funnelRes.data ?? {}) as any;
+  const monthlyData = (monthlyRes.data ?? {}) as any;
 
   const ids = Array.from(
     new Set(
@@ -231,6 +302,35 @@ async function buildReport(
     hourlyVolume,
     topAgents,
     perAgent,
+    newAgentsToday,
+    rentRequestsToday,
+    commissionToday,
+    funnel: {
+      total_users: Number(funnelData?.total_users ?? 0),
+      total_agents: Number(funnelData?.total_agents ?? 0),
+      active_agents: Number(funnelData?.active_agents ?? 0),
+      window_days: Number(funnelData?.window_days ?? 1),
+      criteria: {
+        house_listings: Number(funnelData?.criteria?.house_listings ?? 0),
+        promissory_notes: Number(funnelData?.criteria?.promissory_notes ?? 0),
+        behalf_rent_requests: Number(funnelData?.criteria?.behalf_rent_requests ?? 0),
+        subagents: Number(funnelData?.criteria?.subagents ?? 0),
+      },
+    },
+    monthly: {
+      month: String(monthlyData?.month ?? dateStr.slice(0, 7)),
+      total_agents: Number(monthlyData?.total_agents ?? 0),
+      adv_agents_current: Number(monthlyData?.adv_agents_current ?? 0),
+      adv_agents_current_prev: Number(monthlyData?.adv_agents_current_prev ?? 0),
+      new_adv_agents_month: Number(monthlyData?.new_adv_agents_month ?? 0),
+      new_adv_agents_prev: Number(monthlyData?.new_adv_agents_prev ?? 0),
+      volume_month: Number(monthlyData?.volume_month ?? 0),
+      volume_prev: Number(monthlyData?.volume_prev ?? 0),
+      principal_total: Number(monthlyData?.principal_total ?? 0),
+      outstanding_total: Number(monthlyData?.outstanding_total ?? 0),
+      deliveries_month: Number(monthlyData?.deliveries_month ?? 0),
+      deliveries_prev: Number(monthlyData?.deliveries_prev ?? 0),
+    },
   };
 }
 
@@ -243,6 +343,27 @@ function kpiCell(label: string, value: string, color = "#1a1a2e"): string {
 
 function buildHtml(r: Report, prettyDate: string): string {
   const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+  // Dashboard-mirror derived values
+  const trackingShare = r.monthly.total_agents > 0
+    ? (r.monthly.adv_agents_current / r.monthly.total_agents) * 100
+    : 0;
+  const repayRate = r.monthly.principal_total > 0
+    ? ((r.monthly.principal_total - r.monthly.outstanding_total) / r.monthly.principal_total) * 100
+    : 0;
+  const funnelAgentsPct = r.funnel.total_users > 0
+    ? (r.funnel.total_agents / r.funnel.total_users) * 100
+    : 0;
+  const funnelActivePct = r.funnel.total_agents > 0
+    ? (r.funnel.active_agents / r.funnel.total_agents) * 100
+    : 0;
+  const growth = (curr: number, prev: number) =>
+    prev <= 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+  const volumeGrowth = growth(r.monthly.volume_month, r.monthly.volume_prev);
+  const newAgentsGrowth = growth(r.monthly.new_adv_agents_month, r.monthly.new_adv_agents_prev);
+  const deliveryGrowth = growth(r.monthly.deliveries_month, r.monthly.deliveries_prev);
+  const trendArrow = (g: number) => g >= 0 ? "▲" : "▼";
+  const trendColor = (g: number) => g >= 0 ? GREEN : RED;
 
   // Chart 1 — hourly collections (count + volume dual axis).
   const hourlyChart = chartUrl({
@@ -308,9 +429,61 @@ function buildHtml(r: Report, prettyDate: string): string {
     <div style="background:${PURPLE};color:#fff;border-radius:12px 12px 0 0;padding:22px 26px;">
       <h1 style="margin:0;font-size:21px;">Agent Ops Daily Report</h1>
       <p style="margin:6px 0 0;font-size:13px;opacity:.9;">${esc(prettyDate)} (East Africa Time)</p>
+      <p style="margin:6px 0 0;font-size:11px;opacity:.75;">Live mirror of the Agent Ops dashboard</p>
     </div>
     <div style="background:#fff;padding:22px 26px;border:1px solid #e7e0f5;border-top:0;border-radius:0 0 12px 12px;">
 
+      <!-- SECTION 1: Who is an Agent? (funnel) -->
+      <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Who is an Agent? — live funnel</h2>
+      <p style="font-size:11px;color:#666;margin:0 0 10px;">Users become agents by acting — not by role. Snapshot from the past 24h.</p>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:16px;">
+        <tr>
+          ${kpiCell("Total users", r.funnel.total_users.toLocaleString(), SKY)}
+          ${kpiCell("Agents", `${r.funnel.total_agents.toLocaleString()} (${funnelAgentsPct.toFixed(1)}%)`, PURPLE)}
+          ${kpiCell("Active agents (24h)", `${r.funnel.active_agents.toLocaleString()} (${funnelActivePct.toFixed(1)}%)`, AMBER)}
+        </tr>
+      </table>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:22px;">
+        <tr>
+          ${kpiCell("Listed a house", r.funnel.criteria.house_listings.toLocaleString())}
+          ${kpiCell("Promissory note", r.funnel.criteria.promissory_notes.toLocaleString())}
+          ${kpiCell("Rent request for tenant", r.funnel.criteria.behalf_rent_requests.toLocaleString())}
+          ${kpiCell("Added a sub-agent", r.funnel.criteria.subagents.toLocaleString())}
+        </tr>
+      </table>
+
+      <!-- SECTION 2: Today's Brief (mirrors the 24H BriefCards) -->
+      <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Today's brief (last 24h)</h2>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:22px;">
+        <tr>
+          ${kpiCell("New agents onboarded", r.newAgentsToday.toLocaleString(), PURPLE)}
+          ${kpiCell("Rent requests", r.rentRequestsToday.toLocaleString(), SKY)}
+          ${kpiCell("Commission earned", fmtUGX(r.commissionToday), GREEN)}
+          ${kpiCell("Active agents", String(r.uniqueAgents), AMBER)}
+        </tr>
+      </table>
+
+      <!-- SECTION 3: Monthly KPIs (weighted scorecard) -->
+      <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Monthly KPIs — Advance Program</h2>
+      <p style="font-size:11px;color:#666;margin:0 0 10px;">${esc(r.monthly.month)} vs previous month</p>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
+        <tr>
+          ${kpiCell("Tracking share (30% goal)", `${trackingShare.toFixed(1)}%`, PURPLE)}
+          ${kpiCell("Advance volume", `${fmtUGX(r.monthly.volume_month)} <span style="font-size:10px;color:${trendColor(volumeGrowth)};">${trendArrow(volumeGrowth)}${Math.abs(volumeGrowth).toFixed(0)}%</span>`, GREEN)}
+          ${kpiCell("New advance agents", `${r.monthly.new_adv_agents_month.toLocaleString()} <span style="font-size:10px;color:${trendColor(newAgentsGrowth)};">${trendArrow(newAgentsGrowth)}${Math.abs(newAgentsGrowth).toFixed(0)}%</span>`, SKY)}
+          ${kpiCell("Repayment rate", `${repayRate.toFixed(1)}%`, repayRate >= 70 ? GREEN : AMBER)}
+        </tr>
+        <tr>
+          ${kpiCell("Deliveries confirmed", `${r.monthly.deliveries_month.toLocaleString()} <span style="font-size:10px;color:${trendColor(deliveryGrowth)};">${trendArrow(deliveryGrowth)}${Math.abs(deliveryGrowth).toFixed(0)}%</span>`, AMBER)}
+          ${kpiCell("Principal issued (MTD)", fmtUGX(r.monthly.principal_total))}
+          ${kpiCell("Outstanding (MTD)", fmtUGX(r.monthly.outstanding_total), AMBER)}
+          ${kpiCell("Volume vs last month", fmtUGX(r.monthly.volume_prev))}
+        </tr>
+      </table>
+      <p style="font-size:10px;color:#999;margin:6px 0 22px;">Weighted scorecard — Tracking 30% · Volume 25% · New agents 20% · Repayment 15% · Delivery 10%.</p>
+
+      <!-- SECTION 4: Field activity KPIs (existing) -->
+      <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Field activity today</h2>
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
           ${kpiCell("Active agents", String(r.uniqueAgents))}
@@ -369,6 +542,24 @@ function buildText(r: Report, prettyDate: string): string {
   const lines: string[] = [];
   lines.push(`Agent Ops Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
+  lines.push("== Funnel (24h) ==");
+  lines.push(`Total users: ${r.funnel.total_users.toLocaleString()}`);
+  lines.push(`Agents: ${r.funnel.total_agents.toLocaleString()}`);
+  lines.push(`Active agents: ${r.funnel.active_agents.toLocaleString()}`);
+  lines.push("");
+  lines.push("== Today's brief ==");
+  lines.push(`New agents onboarded: ${r.newAgentsToday}`);
+  lines.push(`Rent requests: ${r.rentRequestsToday}`);
+  lines.push(`Commission earned: ${fmtUGX(r.commissionToday)}`);
+  lines.push("");
+  lines.push(`== Monthly KPIs (${r.monthly.month}) ==`);
+  lines.push(`Advance volume: ${fmtUGX(r.monthly.volume_month)} (prev ${fmtUGX(r.monthly.volume_prev)})`);
+  lines.push(`New advance agents: ${r.monthly.new_adv_agents_month} (prev ${r.monthly.new_adv_agents_prev})`);
+  lines.push(`Principal issued MTD: ${fmtUGX(r.monthly.principal_total)}`);
+  lines.push(`Outstanding MTD: ${fmtUGX(r.monthly.outstanding_total)}`);
+  lines.push(`Deliveries confirmed: ${r.monthly.deliveries_month}`);
+  lines.push("");
+  lines.push("== Field activity ==");
   lines.push(`Active agents: ${r.uniqueAgents}`);
   lines.push(`Rent collections: ${r.collectionsCount} (${fmtUGX(r.collectionsTotal)})`);
   lines.push(`Wallet deposits: ${r.depositsCount} (${fmtUGX(r.depositsTotal)})`);

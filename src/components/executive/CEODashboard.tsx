@@ -8,6 +8,7 @@ import { format, subMonths, startOfMonth, startOfDay } from 'date-fns';
 import { Activity, UserPlus, RefreshCw, Share2, ArrowRightLeft } from 'lucide-react';
 import { TrustCoverageSection } from './TrustCoverageSection';
 import { AgentAdvancesDailyReportCard } from './AgentAdvancesDailyReportCard';
+import { AgentOpsLiveStatsCard } from './AgentOpsLiveStatsCard';
 
 export function CEODashboard() {
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
@@ -173,6 +174,9 @@ export function CEODashboard() {
       {/* Agent Advances daily report (live mirror of the 18:00 EAT email) */}
       <AgentAdvancesDailyReportCard />
 
+      {/* Agent Ops live stats — mirror of the Agent Ops dashboard */}
+      <AgentOpsLiveStatsCard />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total Users" value={fmt(profiles || 0)} icon={Users} loading={loading} />
@@ -182,7 +186,6 @@ export function CEODashboard() {
         <KPICard title="Partners/Investors" value={fmt(investorCount || 0)} icon={Shield} loading={loading} color="bg-purple-500/10 text-purple-600" />
         <KPICard title="Platform Revenue" value={`${fmt(revenue || 0)}`} icon={DollarSign} loading={loading} color="bg-emerald-500/10 text-emerald-600" />
         <KPICard title="Rent Repaid" value={`${fmt(rentStats?.totalRepaid || 0)}`} icon={TrendingUp} loading={loading} color="bg-teal-500/10 text-teal-600" />
-        <KPICard title="Active Agents" value={fmt(activeAgentCount || 0)} icon={Building2} loading={loading} color="bg-rose-500/10 text-rose-600" />
       </div>
 
       {/* Growth Metrics */}
