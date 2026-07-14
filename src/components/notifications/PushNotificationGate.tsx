@@ -37,6 +37,12 @@ export function PushNotificationGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
+  // When true, the user MUST enable notifications — the prompt can't be
+  // dismissed. This is the case whenever push is supported and permission is
+  // still grantable ("default"). We only allow snoozing when the browser can't
+  // deliver push at all (unsupported) or the OS-level permission is "denied"
+  // (which we can't override from the app).
+  const [required, setRequired] = useState(false);
   const checkedRef = useRef(false);
 
   const snoozed = useMemo(() => {
@@ -50,14 +56,20 @@ export function PushNotificationGate() {
 
   // Decide whether to show the prompt.
   useEffect(() => {
-    if (!user || checkedRef.current || snoozed) return;
+    if (!user || checkedRef.current) return;
     checkedRef.current = true;
 
-    // Only offer when the browser supports push and permission is still
-    // undecided ("default"). If already granted or explicitly denied, we don't
-    // interrupt the user with the modal — Settings still has the toggle.
+    // If already granted, nothing to do. If the browser can't do push at all,
+    // don't nag. Otherwise (permission === "default" or "denied") the user must
+    // act — enabling is mandatory so rejection/payout/rent alerts reach them.
     if (!isPushSupported()) return;
-    if (Notification.permission !== "default") return;
+    if (Notification.permission === "granted") return;
+
+    const isDenied = Notification.permission === "denied";
+    // Denied is only snooze-able because the app can't override an OS block.
+    if (isDenied && snoozed) return;
+
+    setRequired(!isDenied);
 
     let cancelled = false;
     // Small delay so it doesn't fight other startup UI (e.g. location gate).
