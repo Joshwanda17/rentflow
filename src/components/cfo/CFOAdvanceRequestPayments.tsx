@@ -1234,6 +1234,26 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
             >
               <X className="h-4 w-4 mr-1" /> Dismiss
             </Button>
+            {(() => {
+              // First still-actionable request (pending or agent-ops approved, or
+              // cfo_approved awaiting disbursement) that isn't the one we just paid.
+              const nextReq = (allRequests as any[]).find(r =>
+                ['pending', 'agent_ops_approved', 'cfo_approved'].includes(r.status)
+              );
+              if (!nextReq) return null;
+              return (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDisbursed(null);
+                    setEvalReq(nextReq);
+                  }}
+                  className="w-full sm:w-auto gap-2"
+                >
+                  <Sparkles className="h-4 w-4" /> Next request
+                </Button>
+              );
+            })()}
             <Button
               onClick={() => {
                 setDisbursed(null);
