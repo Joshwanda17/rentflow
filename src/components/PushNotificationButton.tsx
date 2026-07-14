@@ -93,17 +93,24 @@ export function PushNotificationButton({ className }: { className?: string }) {
       const p256dh = json.keys?.p256dh ?? arrayBufferToBase64(subscription.getKey("p256dh"));
       const auth = json.keys?.auth ?? arrayBufferToBase64(subscription.getKey("auth"));
 
+      // Take exclusive ownership of this device's endpoint. Without this,
+      // a previously signed-in user's row (e.g. a Merchant Agent) stays in
+      // push_subscriptions for the same endpoint, and role-scoped pushes
+      // (like "New withdrawal to claim") keep firing on this physical
+      // device even though a different user is now signed in.
+      await supabase
+        .from("push_subscriptions")
+        .delete()
+        .eq("endpoint", subscription.endpoint);
+
       const { error } = await supabase
         .from("push_subscriptions")
-        .upsert(
-          {
-            user_id: user.id,
-            endpoint: subscription.endpoint,
-            p256dh,
-            auth,
-          },
-          { onConflict: "user_id,endpoint" },
-        );
+        .insert({
+          user_id: user.id,
+          endpoint: subscription.endpoint,
+          p256dh,
+          auth,
+        });
 
       if (error) throw error;
 

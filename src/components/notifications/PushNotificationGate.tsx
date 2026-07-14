@@ -125,17 +125,22 @@ export function PushNotificationGate() {
       const p256dh = json.keys?.p256dh ?? arrayBufferToBase64(subscription.getKey("p256dh"));
       const auth = json.keys?.auth ?? arrayBufferToBase64(subscription.getKey("auth"));
 
+      // Take exclusive ownership of this device's endpoint so role-scoped
+      // pushes (e.g. Merchant Agent "New withdrawal to claim") never fire on
+      // a device now signed in as a different user.
+      await supabase
+        .from("push_subscriptions")
+        .delete()
+        .eq("endpoint", subscription.endpoint);
+
       const { error } = await supabase
         .from("push_subscriptions")
-        .upsert(
-          {
-            user_id: user.id,
-            endpoint: subscription.endpoint,
-            p256dh,
-            auth,
-          },
-          { onConflict: "user_id,endpoint" },
-        );
+        .insert({
+          user_id: user.id,
+          endpoint: subscription.endpoint,
+          p256dh,
+          auth,
+        });
       if (error) throw error;
 
       setStatus("success");
