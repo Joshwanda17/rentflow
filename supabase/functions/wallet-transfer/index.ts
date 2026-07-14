@@ -31,7 +31,7 @@ async function sendViaYoola(phone: string, message: string): Promise<boolean> {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey, sender: "WELILE" }),
+      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey}),
     });
     const text = await res.text();
     let data: Record<string, unknown> = {};
@@ -56,7 +56,6 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<bo
   try {
     const params = new URLSearchParams({
       username,
-      from: "WELILE",
       to: formatPhoneInternational(phone),
       message,
     });
@@ -84,7 +83,7 @@ async function sendViaLana(phone: string, message: string): Promise<boolean> {
     const res = await fetch("https://api.lanasms.com/v1/send", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: toBareDigits(phone), message, sender_id: "WELILE" }),
+      body: JSON.stringify({ phone: toBareDigits(phone), message}),
     });
     const text = await res.text();
     let data: Record<string, unknown> = {};

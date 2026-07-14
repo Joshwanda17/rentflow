@@ -1977,7 +1977,6 @@ async function sendSmsViaAfricasTalking(phone: string, message: string): Promise
       },
       body: new URLSearchParams({
         username,
-        from: "WELILE",
         to: formatPhoneIntl(phone),
         message,
       }).toString(),

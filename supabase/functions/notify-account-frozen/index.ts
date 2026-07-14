@@ -27,7 +27,7 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
   const to = formatPhoneInternational(phone);
-  const body = new URLSearchParams({ username, from: "WELILE", to, message });
+  const body = new URLSearchParams({ username, to, message });
   try {
     const res = await fetch(baseUrl, {
       method: "POST",
