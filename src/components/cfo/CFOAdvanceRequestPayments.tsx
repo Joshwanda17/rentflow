@@ -33,9 +33,9 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
   const [adjustedPrincipals, setAdjustedPrincipals] = useState<Record<string, number>>({});
   const [adjustedCycles, setAdjustedCycles] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   // The same advance-eligibility evaluation popup used by Agent Ops. The CFO
-  // opens it on any request to see the agent's 360° evaluation before acting.
+  // opens it on any request to see the agent's 360° evaluation AND edit + approve
+  // the advance in a single popup — no separate expander.
   const [evalReq, setEvalReq] = useState<any | null>(null);
   const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
