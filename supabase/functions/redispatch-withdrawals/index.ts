@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             userIds: opsIds,
             payload: {
-              title: "⚠️ Unclaimed withdrawal — action needed",
+              title: "Unclaimed withdrawal — action needed",
               body: `${amountLabel} (${ref}) went unclaimed by all merchant agents. Assign manually.`,
               url: "/admin/financial-ops",
               type: "dispatch_escalation",
