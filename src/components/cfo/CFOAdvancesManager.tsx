@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator, Receipt, Trash2, RefreshCw, Download, FileText } from 'lucide-react';
+import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator, Receipt, Trash2, RefreshCw, Download, FileText, Ban } from 'lucide-react';
 import { exportAdvanceStatements, exportConsolidatedPayments } from '@/lib/agentAdvancePdfExport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
 import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
 import { RecordAdvancePaymentDialog } from '@/components/cfo/RecordAdvancePaymentDialog';
+import { CancelAdvanceDialog } from '@/components/cfo/CancelAdvanceDialog';
 import { DailyRecoveryRateCard } from '@/components/cfo/DailyRecoveryRateCard';
 import { differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
@@ -47,6 +48,7 @@ export function CFOAdvancesManager() {
   const [exporting, setExporting] = useState(false);
   const [exportingPayments, setExportingPayments] = useState(false);
   const [paymentAdvance, setPaymentAdvance] = useState<any | null>(null);
+  const [cancelAdvance, setCancelAdvance] = useState<any | null>(null);
 
   const handleExportPayments = async () => {
     if (filtered.length === 0) return;
@@ -390,14 +392,24 @@ export function CFOAdvancesManager() {
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       {(adv.status === 'active' || adv.status === 'overdue') && (
-                        <Button
-                          size="sm"
-                          variant="soft"
-                          className="gap-1"
-                          onClick={() => setPaymentAdvance(adv)}
-                        >
-                          <Receipt className="h-3.5 w-3.5" /> Record Payment
-                        </Button>
+                        <div className="flex flex-col sm:flex-row gap-1 justify-end">
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            className="gap-1"
+                            onClick={() => setPaymentAdvance(adv)}
+                          >
+                            <Receipt className="h-3.5 w-3.5" /> Record Payment
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                            onClick={() => setCancelAdvance(adv)}
+                          >
+                            <Ban className="h-3.5 w-3.5" /> Cancel
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -438,6 +450,13 @@ export function CFOAdvancesManager() {
         open={!!paymentAdvance}
         onOpenChange={(o) => { if (!o) setPaymentAdvance(null); }}
         onSuccess={() => { refetch(); setPaymentAdvance(null); }}
+      />
+
+      <CancelAdvanceDialog
+        advance={cancelAdvance}
+        open={!!cancelAdvance}
+        onOpenChange={(o) => { if (!o) setCancelAdvance(null); }}
+        onSuccess={() => { refetch(); setCancelAdvance(null); }}
       />
     </div>
   );

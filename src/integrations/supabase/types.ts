@@ -552,6 +552,10 @@ export type Database = {
           access_fee_status: string | null
           agent_id: string
           arrears_balance: number
+          cancellation_mode: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           cycle_days: number
           daily_installment: number
@@ -562,6 +566,7 @@ export type Database = {
           issued_by: string
           monthly_rate: number
           outstanding_balance: number
+          pre_cancel_outstanding: number | null
           principal: number
           registration_fee: number | null
           status: string
@@ -573,6 +578,10 @@ export type Database = {
           access_fee_status?: string | null
           agent_id: string
           arrears_balance?: number
+          cancellation_mode?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           cycle_days?: number
           daily_installment?: number
@@ -583,6 +592,7 @@ export type Database = {
           issued_by: string
           monthly_rate?: number
           outstanding_balance?: number
+          pre_cancel_outstanding?: number | null
           principal?: number
           registration_fee?: number | null
           status?: string
@@ -594,6 +604,10 @@ export type Database = {
           access_fee_status?: string | null
           agent_id?: string
           arrears_balance?: number
+          cancellation_mode?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           cycle_days?: number
           daily_installment?: number
@@ -604,6 +618,7 @@ export type Database = {
           issued_by?: string
           monthly_rate?: number
           outstanding_balance?: number
+          pre_cancel_outstanding?: number | null
           principal?: number
           registration_fee?: number | null
           status?: string
@@ -641,6 +656,41 @@ export type Database = {
           {
             foreignKeyName: "agent_advances_agent_id_fkey"
             columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advances_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_cancelled_by_fkey"
+            columns: ["cancelled_by"]
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
@@ -21991,6 +22041,10 @@ export type Database = {
       can_view_agent_data: {
         Args: { _target_agent_id: string; _viewer_id: string }
         Returns: boolean
+      }
+      cancel_agent_advance: {
+        Args: { p_advance_id: string; p_reason: string; p_recoup: boolean }
+        Returns: Json
       }
       cancel_agent_capability_job: {
         Args: { _job_id: string }
