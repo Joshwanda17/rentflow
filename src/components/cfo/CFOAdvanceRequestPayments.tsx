@@ -1184,8 +1184,6 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
 
       {/* Disbursement success dialog — shows the CFO confirmation, key stats,
           plus a shortcut to jump straight to the next pending request. */}
-      {/* success dialog rendered below */}
-      />
       <Dialog open={!!disbursed} onOpenChange={(open) => !open && setDisbursed(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
