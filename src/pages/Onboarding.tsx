@@ -1371,6 +1371,7 @@ export default function FunderOnboarding() {
                   kinContact: cleanKinContact || undefined,
                   agreementDate: new Date(),
                   includeStamp: false,
+                  partnerSignatureDataUrl: form.signatureDataUrl || undefined,
                 }),
               );
               await supabase.functions.invoke('generate-partner-agreement', {
