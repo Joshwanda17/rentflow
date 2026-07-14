@@ -148,9 +148,19 @@ export function PushNotificationButton({ className }: { className?: string }) {
 
   if (state === "denied") {
     return (
-      <Button variant="outline" className={className} disabled>
+      <Button
+        variant="outline"
+        className={className}
+        onClick={() => {
+          toast.info("Notifications are blocked in your browser", {
+            description:
+              "Tap the lock icon in the address bar → Site settings → set Notifications to Allow, then reload this page.",
+            duration: 10000,
+          });
+        }}
+      >
         <BellOff className="h-4 w-4" />
-        Notifications blocked
+        Notifications blocked — tap for help
       </Button>
     );
   }
