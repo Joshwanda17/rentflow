@@ -180,6 +180,7 @@ async function sendLanaAttempt(
       },
       body: JSON.stringify({
         phone: formatPhoneLana(phone),
+        sender_id: "WELILE",
         message,
       }),
       signal: controller.signal,
@@ -237,7 +238,9 @@ async function sendYoolaAttempt(
       },
       body: JSON.stringify({
         phone: formatPhoneYoola(phone),
+        sender_id: "WELILE",
         message,
+        sender: "WELILE",
         api_key: apiKey,
       }),
       signal: controller.signal,
@@ -390,6 +393,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
   const params = new URLSearchParams({
     username,
     to: formattedPhone,
+    from: "WELILE",
     message,
   });
 

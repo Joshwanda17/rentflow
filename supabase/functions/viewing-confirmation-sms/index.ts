@@ -40,6 +40,7 @@ Deno.serve(async (req) => {
         const params = new URLSearchParams({
           username: AT_USERNAME!,
           to: formatPhone(to),
+          from: "WELILE",
           message,
         });
 

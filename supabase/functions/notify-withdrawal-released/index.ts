@@ -37,6 +37,7 @@ async function sendSMSOnce(
     const body = new URLSearchParams({
       username,
       to: formatPhoneInternational(phone),
+      from: "WELILE",
       message,
     });
     const res = await fetch(baseUrl, {

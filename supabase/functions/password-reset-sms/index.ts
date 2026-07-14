@@ -222,7 +222,7 @@ async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
         "Content-Type": "application/json",
         "Accept": "application/json",
       },
-      body: JSON.stringify({ phone: phoneLana, message}),
+      body: JSON.stringify({ phone: phoneLana, sender_id: "WELILE", message}),
     });
     const text = await response.text();
     console.log(`[password-reset-sms] LANA response (${response.status}):`, text);
@@ -257,7 +257,7 @@ async function sendViaYoola(phone: string, message: string): Promise<SmsResult> 
         "Content-Type": "application/json",
         "Accept": "application/json",
       },
-      body: JSON.stringify({ phone: phoneYoola, message, api_key: apiKey}),
+      body: JSON.stringify({ phone: phoneYoola, message, api_key: apiKey, sender: "WELILE"}),
     });
     const text = await response.text();
     console.log(`[password-reset-sms] Yoola response (${response.status}):`, text);
@@ -290,7 +290,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
   const formattedPhone = formatPhoneInternational(phone);
 
   try {
-    const params = new URLSearchParams({ username, to: formattedPhone, message });
+    const params = new URLSearchParams({ username, to: formattedPhone, from: "WELILE", message });
     const response = await fetch(baseUrl, {
       method: "POST",
       headers: { "apiKey": apiKey, "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },
@@ -333,7 +333,7 @@ async function sendViaTwilio(phone: string, message: string): Promise<SmsResult>
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
       },
-      body: new URLSearchParams({ To: formattedPhone, From: TWILIO_SENDER, Body: message }).toString(),
+      body: new URLSearchParams({ To: formattedPhone, From: TWILIO_SENDER, Body: from: "WELILE", message }).toString(),
     });
     const text = await response.text();
     console.log(`[password-reset-sms] Twilio response (${response.status}):`, text);

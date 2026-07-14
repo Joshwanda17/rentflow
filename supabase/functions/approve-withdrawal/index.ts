@@ -60,7 +60,7 @@ async function sendViaYoola(
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey}),
+      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey, sender: "WELILE"}),
     });
     const raw = await res.text();
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }
@@ -94,6 +94,7 @@ async function sendViaAT(
     const body = new URLSearchParams({
       username,
       to: formatPhoneInternational(phone),
+      from: "WELILE",
       message,
     });
     const res = await fetch(baseUrl, {
@@ -134,7 +135,7 @@ async function sendViaLana(
     const res = await fetch("https://api.lanasms.com/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ phone: toMsisdn(phone), message}),
+      body: JSON.stringify({ phone: toMsisdn(phone), sender_id: "WELILE", message}),
     });
     const raw = await res.text();
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }
