@@ -15,6 +15,7 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { numberToWords } from '@/lib/numberToWords';
 import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
 import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
+import { SignaturePad } from '@/components/shared/SignaturePad';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
@@ -99,6 +100,7 @@ interface FormState {
   kinName: string;
   kinContact: string;
   agreedToTerms: boolean;
+  signatureDataUrl: string;
 }
 
 // ─── Password Strength ───────────────────────────────────────────────────────
@@ -960,6 +962,18 @@ function _Step3Impl({
       </motion.div>
 
       <motion.div variants={fadeUp}>
+        <div className="rounded-xl border border-gray-100 bg-white p-3">
+          <SignaturePad
+            label="Sign your Partnership Agreement"
+            onChange={(dataUrl) => setForm(p => ({ ...p, signatureDataUrl: dataUrl }))}
+          />
+          <p className="text-[10px] text-gray-400 mt-1.5 pl-1">
+            Your handwritten signature is attached to your Welile Partnership Agreement.
+          </p>
+        </div>
+      </motion.div>
+
+      <motion.div variants={fadeUp}>
         <button
           type="button"
           onClick={() => setForm(p => ({ ...p, agreedToTerms: !p.agreedToTerms }))}
@@ -1020,7 +1034,8 @@ function isValid(step: number, form: FormState): boolean {
     const phoneOk = form.phone.trim().length >= 7;
     const addressOk = form.address.trim().length >= 2;
     const nationalIdOk = form.nationalId.trim().length >= 5;
-    return emailOk && nameOk && pwOk && matchOk && phoneOk && addressOk && nationalIdOk && form.agreedToTerms;
+    const signatureOk = form.signatureDataUrl.trim().length > 0;
+    return emailOk && nameOk && pwOk && matchOk && phoneOk && addressOk && nationalIdOk && form.agreedToTerms && signatureOk;
   }
   return false;
 }
@@ -1064,6 +1079,7 @@ function getValidationMessage(step: number, form: FormState): string {
     if (form.password.length < 8) missing.push('password of at least 8 characters');
     if (form.password !== form.confirmPassword) missing.push('matching password confirmation');
     if (!form.agreedToTerms) missing.push('agreement to the terms and privacy policy');
+    if (form.signatureDataUrl.trim().length === 0) missing.push('your handwritten signature');
     return missing.length ? `Please complete: ${missing.join(', ')}.` : '';
   }
 
@@ -1176,6 +1192,7 @@ export default function FunderOnboarding() {
     kinName: '',
     kinContact: '',
     agreedToTerms: false,
+    signatureDataUrl: '',
   });
 
   useEffect(() => {
@@ -1354,6 +1371,7 @@ export default function FunderOnboarding() {
                   kinContact: cleanKinContact || undefined,
                   agreementDate: new Date(),
                   includeStamp: false,
+                  partnerSignatureDataUrl: form.signatureDataUrl || undefined,
                 }),
               );
               await supabase.functions.invoke('generate-partner-agreement', {
