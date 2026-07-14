@@ -126,7 +126,10 @@ export default function PartnerAgreementSignOff({
       welileRepPosition: repPosition,
       welileRepContact: repContact,
       welileSignatureDataUrl: sigDataUrl || repSigUrl,
-      partnerSignatureDataUrl: undefined,
+      // Render the partner's handwritten signature captured at onboarding
+      // (persisted on partner_agreements) rather than falling back to the
+      // italic typed name.
+      partnerSignatureDataUrl: agreement.partner_signature_data_url || undefined,
       includeStamp: true,
     };
   }, [agreement, partner, repSigUrl, repName, repPosition, repContact, sigDataUrl]);
