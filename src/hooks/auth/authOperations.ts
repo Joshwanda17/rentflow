@@ -3,6 +3,7 @@ import { lovable } from '@/integrations/lovable';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import type { AppRole } from './types';
 import { beginOAuthFunnel, trackOAuthRedirected, trackOAuthError, completePendingOAuthFunnel } from '@/lib/oauthFunnel';
+import { revokeCurrentDevicePush } from '@/lib/webPush';
 
 // Maintenance lock removed 2026-05-08 — was silently returning a fake
 // "Welile is under maintenance" error on every sign-in / sign-up unless
@@ -196,6 +197,14 @@ export async function signOutUser(userId: string | undefined) {
     localStorage.removeItem('welile_trusted_device');
     localStorage.removeItem('welile_ephemeral_session');
     sessionStorage.removeItem('welile_session_active');
+  } catch { /* non-critical */ }
+  // Revoke this device's push subscription BEFORE signing out — otherwise RLS
+  // blocks the DELETE and the endpoint keeps receiving the prior user's
+  // notifications (e.g. merchant-only "New withdrawal to claim" pushes).
+  try {
+    await revokeCurrentDevicePush(async (endpoint) => {
+      await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+    });
   } catch { /* non-critical */ }
   await supabase.auth.signOut();
 }
