@@ -1574,9 +1574,6 @@ export function CashoutAgentManager() {
         onOpenChange={(open) => { if (!open) setMethodDetail(null); }}
         payouts={payouts as any[]}
         agents={agents as any[]}
-        isBank={isBank}
-        isMomo={isMomo}
-        isCash={isCash}
       />
     </div>
   );
