@@ -5,8 +5,8 @@ import { classifyDailyRating, DAILY_RATING_THRESHOLDS } from '../useAgentCapacit
  * Boundary tests for the 5-tier daily rating classifier.
  *
  * Thresholds (inclusive lower bound):
- *   >= 50%   Very Good
- *   >= 20%   Good
+ *   >= 75%   Very Good
+ *   >= 50%   Good
  *   >= 15%   Fair
  *   >=  5%   Bad
  *   <  5%   Very Bad
@@ -22,22 +22,22 @@ describe('classifyDailyRating - boundary thresholds', () => {
     expect(classifyDailyRating(-1, 0.9)).toBe('Starter');
   });
 
-  it('classifies exactly at 50% as Very Good', () => {
+  it('classifies exactly at 75% as Very Good', () => {
     expect(classifyDailyRating(ACTIVE, DAILY_RATING_THRESHOLDS.very_good)).toBe('Very Good');
-    expect(classifyDailyRating(ACTIVE, 0.50)).toBe('Very Good');
+    expect(classifyDailyRating(ACTIVE, 0.75)).toBe('Very Good');
   });
 
-  it('classifies just below 50% as Good', () => {
-    expect(classifyDailyRating(ACTIVE, 0.4999)).toBe('Good');
+  it('classifies just below 75% as Good', () => {
+    expect(classifyDailyRating(ACTIVE, 0.7499)).toBe('Good');
   });
 
-  it('classifies exactly at 20% as Good', () => {
+  it('classifies exactly at 50% as Good', () => {
     expect(classifyDailyRating(ACTIVE, DAILY_RATING_THRESHOLDS.good)).toBe('Good');
-    expect(classifyDailyRating(ACTIVE, 0.20)).toBe('Good');
+    expect(classifyDailyRating(ACTIVE, 0.50)).toBe('Good');
   });
 
-  it('classifies just below 20% as Fair', () => {
-    expect(classifyDailyRating(ACTIVE, 0.1999)).toBe('Fair');
+  it('classifies just below 50% as Fair', () => {
+    expect(classifyDailyRating(ACTIVE, 0.4999)).toBe('Fair');
   });
 
   it('classifies exactly at 15% as Fair', () => {
@@ -78,8 +78,8 @@ describe('classifyDailyRating - boundary thresholds', () => {
   });
 
   it('threshold constants match expected business values', () => {
-    expect(DAILY_RATING_THRESHOLDS.very_good).toBe(0.50);
-    expect(DAILY_RATING_THRESHOLDS.good).toBe(0.20);
+    expect(DAILY_RATING_THRESHOLDS.very_good).toBe(0.75);
+    expect(DAILY_RATING_THRESHOLDS.good).toBe(0.50);
     expect(DAILY_RATING_THRESHOLDS.fair).toBe(0.15);
     expect(DAILY_RATING_THRESHOLDS.bad).toBe(0.05);
   });
