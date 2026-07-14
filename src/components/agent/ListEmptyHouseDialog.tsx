@@ -1043,6 +1043,21 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       scrollDialogToTop();
     };
 
+    // ─── Preflight jump ───
+    // If ANY gate is missing, jump the agent to the step that owns the first
+    // missing field and surface a toast. This prevents the silent "stuck on
+    // step 3" experience where a hidden step-3 gate (landlord phone / LC1 /
+    // caretaker) blocks submission with no visible action.
+    const firstMissing = preflightGates.find((g) => !g.ok);
+    if (firstMissing) {
+      if (firstMissing.step !== step) {
+        setStep(firstMissing.step);
+      }
+      toast.error(firstMissing.hint || `${firstMissing.label} is required`);
+      scrollDialogToTop();
+      return;
+    }
+
     if (!monthlyRent || monthlyRent < 10000) {
       failWith('Monthly rent must be at least UGX 10,000');
       return;
@@ -2676,7 +2691,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     {!g.ok && (
                       <span className="block text-[11px] text-amber-700 dark:text-amber-400">
                         {g.hint}
-                        {g.step !== 3 && (
+                        {g.step !== step && (
                           <button type="button" onClick={() => { setStep(g.step); scrollDialogToTop(); }} className="ml-1 underline font-semibold">
                             Fix on step {g.step}
                           </button>
@@ -2719,7 +2734,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <Button
                 type="submit"
                 className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation"
-                disabled={submitting || !allGatesPass}
+                disabled={submitting}
                 onClick={(e) => {
                   // Defensive: some mobile browsers swallow form submit when
                   // a native-validated input (e.g. type="number") rejects silently.
