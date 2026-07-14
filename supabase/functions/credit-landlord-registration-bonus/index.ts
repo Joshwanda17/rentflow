@@ -6,11 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Instant leg of the UGX 5,000 landlord registration reward. The registering
-// agent gets UGX 1,000 the moment the landlord is registered; the remaining
-// UGX 4,000 is paid only after Landlord Ops verifies the landlord (handled by
-// the trg_pay_landlord_registration_verified_bonus DB trigger).
-const REGISTRATION_BONUS = 1000;
+// Instant leg of the landlord registration reward. The registering agent
+// gets UGX 300 the moment the landlord is registered; the remaining
+// verification bonus is paid only after Landlord Ops verifies the landlord
+// (handled by the trg_pay_landlord_registration_verified_bonus DB trigger).
+const REGISTRATION_BONUS = 300;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
           ledger_scope: 'wallet',
           source_table: 'agent_earnings',
           source_id: landlord_id,
-          description: `UGX 1,000 landlord registration bonus for ${landlord.name}`,
+          description: `UGX 300 landlord registration bonus for ${landlord.name}`,
           currency: 'UGX',
           transaction_date: now,
         },
