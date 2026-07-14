@@ -33,9 +33,9 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
   const [adjustedPrincipals, setAdjustedPrincipals] = useState<Record<string, number>>({});
   const [adjustedCycles, setAdjustedCycles] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   // The same advance-eligibility evaluation popup used by Agent Ops. The CFO
-  // opens it on any request to see the agent's 360° evaluation before acting.
+  // opens it on any request to see the agent's 360° evaluation AND edit + approve
+  // the advance in a single popup — no separate expander.
   const [evalReq, setEvalReq] = useState<any | null>(null);
   const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'ready' | 'cfo_approved'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -796,7 +796,6 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
           </div>
           {requests.map((req: any) => {
             const profile = req.profiles;
-            const isExpanded = expandedId === req.id;
             const isPending = req.status === 'pending';
             const isCfoApproved = req.status === 'cfo_approved';
             const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
@@ -843,162 +842,20 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                     </div>
                   </button>
 
-                  {/* Eligibility evaluation + edit toggle */}
+                  {/* Single-click entry to the evaluation + edit + approve popup */}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-7 text-[11px] gap-1"
+                      className="h-8 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                       onClick={() => setEvalReq(req)}
                     >
-                      <Sparkles className="h-3 w-3 text-primary" /> View evaluation
+                      <Sparkles className="h-3 w-3" />
+                      {isCfoApproved ? 'Review & disburse' : 'Review & approve'} · {formatUGX(currentPrincipal)}
                     </Button>
-                    <Button
-                      size="sm"
-                      variant={isExpanded ? 'default' : 'outline'}
-                      className="h-7 text-[11px] gap-1"
-                      onClick={() => setExpandedId(isExpanded ? null : req.id)}
-                    >
-                      <Pencil className="h-3 w-3" /> {isExpanded ? 'Close editor' : 'Edit & disburse'}
-                    </Button>
+                    <p className="text-[10px] text-muted-foreground self-center">
+                      Opens evaluation + editable amount, then a single confirm.
+                    </p>
                   </div>
-
-                  {isExpanded && (
-                    <div className="mt-4 space-y-3">
-                      {/* Editable principal & cycle days */}
-                      <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-muted/50">
-                        <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Principal (UGX)</Label>
-                          <Input
-                            type="number"
-                            value={currentPrincipal}
-                            min={1000}
-                            step={1000}
-                            onChange={e => setAdjustedPrincipals(prev => ({ ...prev, [req.id]: Math.max(0, Number(e.target.value) || 0) }))}
-                            disabled={isCfoApproved}
-                            className="h-8 text-sm disabled:opacity-70"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cycle Days</Label>
-                          <Input
-                            type="number"
-                            value={currentCycle}
-                            min={1}
-                            max={365}
-                            onChange={e => setAdjustedCycles(prev => ({ ...prev, [req.id]: Math.max(1, Number(e.target.value) || 1) }))}
-                            disabled={isCfoApproved}
-                            className="h-8 text-sm disabled:opacity-70"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Fee adjustment */}
-                      <div className="p-3 rounded-xl bg-muted/50 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-bold">Access Fee Rate</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-primary">{Math.round(currentRate * 100)}%</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              disabled={isCfoApproved}
-                              onClick={() => setEditingRate(editingRate === req.id ? null : req.id)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        {editingRate === req.id && !isCfoApproved && (
-                          <Slider
-                            min={28}
-                            max={33}
-                            step={1}
-                            value={[Math.round(currentRate * 100)]}
-                            onValueChange={([v]) => setAdjustedRates(prev => ({ ...prev, [req.id]: v / 100 }))}
-                          />
-                        )}
-                      </div>
-
-                      {/* Breakdown — live revenue preview */}
-                      <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div><span className="text-muted-foreground">Principal Out</span><br /><span className="font-bold text-orange-600">{formatUGX(currentPrincipal)}</span></div>
-                          <div><span className="text-muted-foreground">Access Fee</span><br /><span className="font-bold text-emerald-600">+{formatUGX(adjAccessFee)}</span></div>
-                          <div><span className="text-muted-foreground">Registration Fee</span><br /><span className="font-bold text-emerald-600">+{formatUGX(currentRegFee)}</span></div>
-                          <div><span className="text-muted-foreground">Total Payable by Agent</span><br /><span className="font-bold text-primary">{formatUGX(adjTotal)}</span></div>
-                          <div><span className="text-muted-foreground">Daily Deduction</span><br /><span className="font-bold text-red-500">{formatUGX(adjDaily)}/d</span></div>
-                          <div><span className="text-muted-foreground">We Earn (gross)</span><br /><span className="font-bold text-emerald-700">+{formatUGX(profitPerRequest)}</span></div>
-                        </div>
-                      </div>
-
-                      <div className="p-3 rounded-xl bg-muted/30">
-                        <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Reason</p>
-                        <p className="text-xs">{req.reason}</p>
-                      </div>
-
-                      <Textarea
-                        placeholder="CFO notes..."
-                        value={notes[req.id] || ''}
-                        onChange={e => setNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
-                        rows={2}
-                        className="text-sm"
-                      />
-
-                      {isCfoApproved ? (
-                        <>
-                          <Button
-                            onClick={() => setConfirmingId(req.id)}
-                            disabled={payMutation.isPending}
-                            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
-                          >
-                            {payMutation.isPending
-                              ? <Loader2 className="h-4 w-4 animate-spin" />
-                              : <><Banknote className="h-4 w-4" /> Disburse {formatUGX(currentPrincipal)} to Withdrawable Wallet</>}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => revokeApprovalMutation.mutate(req)}
-                            disabled={revokeApprovalMutation.isPending || payMutation.isPending}
-                            className="w-full h-7 text-[11px] text-muted-foreground"
-                          >
-                            {revokeApprovalMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Revoke approval & re-open for editing'}
-                          </Button>
-                          <p className="text-[10px] text-muted-foreground text-center">
-                            Approved by CFO{req.cfo_approved_at ? ` on ${format(new Date(req.cfo_approved_at), 'MMM d, HH:mm')}` : ''}. Edits are locked — revoke to change.
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            onClick={() => setConfirmingId(req.id)}
-                            disabled={approveAndPayMutation.isPending || currentPrincipal <= 0}
-                            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
-                          >
-                            {approveAndPayMutation.isPending
-                              ? <Loader2 className="h-4 w-4 animate-spin" />
-                              : <><Banknote className="h-4 w-4" /> Approve &amp; Disburse {formatUGX(currentPrincipal)}</>}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => approveMutation.mutate(req)}
-                            disabled={approveMutation.isPending || currentPrincipal <= 0}
-                            className="w-full h-7 text-[11px] text-muted-foreground"
-                          >
-                            {approveMutation.isPending
-                              ? <Loader2 className="h-3 w-3 animate-spin" />
-                              : 'Approve only — stage for disbursement later'}
-                          </Button>
-                          <p className="text-[10px] text-muted-foreground text-center">
-                            One click reviews, approves and pays. Edit the principal, cycle days or rate above first — you&apos;ll confirm the exact figures next.
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             );
@@ -1217,22 +1074,116 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
         agentId={evalReq?.agent_id}
         agentName={evalReq?.profiles?.full_name}
         onClose={() => setEvalReq(null)}
-        footer={evalReq ? (
-          <Button
-            className="w-full gap-1.5"
-            onClick={() => {
-              const id = evalReq.id;
-              setEvalReq(null);
-              setExpandedId(id);
-            }}
-          >
-            <Pencil className="h-4 w-4" /> Edit &amp; disburse this advance
-          </Button>
-        ) : null}
+        footer={evalReq ? (() => {
+          const req = evalReq;
+          const isCfoApproved = req.status === 'cfo_approved';
+          const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+          const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
+          const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
+          const regFee = calculateRegistrationFee(currentPrincipal);
+          const accessFee = calculateAccessFee(currentPrincipal, currentCycle, currentRate);
+          const totalPayable = currentPrincipal + accessFee + regFee;
+          const daily = Math.ceil(totalPayable / currentCycle);
+          return (
+            <div className="space-y-3 w-full">
+              <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Pencil className="h-3.5 w-3.5 text-primary" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                    {isCfoApproved ? 'Approved — disburse' : 'Set final amount & approve'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Amount (UGX)</Label>
+                    <Input
+                      type="number"
+                      value={currentPrincipal}
+                      min={1000}
+                      step={1000}
+                      disabled={isCfoApproved}
+                      onChange={e => setAdjustedPrincipals(prev => ({ ...prev, [req.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                      className="h-8 text-sm disabled:opacity-70"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Days</Label>
+                    <Input
+                      type="number"
+                      value={currentCycle}
+                      min={1}
+                      max={365}
+                      disabled={isCfoApproved}
+                      onChange={e => setAdjustedCycles(prev => ({ ...prev, [req.id]: Math.max(1, Number(e.target.value) || 1) }))}
+                      className="h-8 text-sm disabled:opacity-70"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate %</Label>
+                    <Input
+                      type="number"
+                      value={Math.round(currentRate * 100)}
+                      min={28}
+                      max={33}
+                      step={1}
+                      disabled={isCfoApproved}
+                      onChange={e => {
+                        const v = Math.min(33, Math.max(28, Number(e.target.value) || 28));
+                        setAdjustedRates(prev => ({ ...prev, [req.id]: v / 100 }));
+                      }}
+                      className="h-8 text-sm disabled:opacity-70"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 rounded-md border bg-background/60 p-2 text-[11px]">
+                  <div><span className="text-muted-foreground">Access fee</span> <span className="font-bold text-emerald-600 float-right">+{formatUGX(accessFee)}</span></div>
+                  <div><span className="text-muted-foreground">Reg fee</span> <span className="font-bold text-emerald-600 float-right">+{formatUGX(regFee)}</span></div>
+                  <div><span className="text-muted-foreground">Total payable</span> <span className="font-bold text-primary float-right">{formatUGX(totalPayable)}</span></div>
+                  <div><span className="text-muted-foreground">Daily</span> <span className="font-bold text-rose-500 float-right">{formatUGX(daily)}/d</span></div>
+                </div>
+
+                <Textarea
+                  placeholder="CFO note (optional)"
+                  value={notes[req.id] || ''}
+                  onChange={e => setNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
+                  rows={1}
+                  className="text-xs"
+                />
+              </div>
+
+              <Button
+                className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={currentPrincipal <= 0}
+                onClick={() => {
+                  const id = req.id;
+                  setEvalReq(null);
+                  setConfirmingId(id);
+                }}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {isCfoApproved ? 'Disburse' : 'Approve'} {formatUGX(currentPrincipal)}
+              </Button>
+
+              {isCfoApproved && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => revokeApprovalMutation.mutate(req)}
+                  disabled={revokeApprovalMutation.isPending}
+                  className="w-full h-7 text-[11px] text-muted-foreground"
+                >
+                  {revokeApprovalMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Revoke approval & re-open for editing'}
+                </Button>
+              )}
+            </div>
+          );
+        })() : null}
       />
 
       {/* Disbursement success dialog — shows the CFO confirmation, key stats,
-          and a shortcut to review all disbursed advances. */}
+          plus a shortcut to jump straight to the next pending request. */}
       <Dialog open={!!disbursed} onOpenChange={(open) => !open && setDisbursed(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1283,6 +1234,26 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
             >
               <X className="h-4 w-4 mr-1" /> Dismiss
             </Button>
+            {(() => {
+              // First still-actionable request (pending or agent-ops approved, or
+              // cfo_approved awaiting disbursement) that isn't the one we just paid.
+              const nextReq = (allRequests as any[]).find(r =>
+                ['pending', 'agent_ops_approved', 'cfo_approved'].includes(r.status)
+              );
+              if (!nextReq) return null;
+              return (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDisbursed(null);
+                    setEvalReq(nextReq);
+                  }}
+                  className="w-full sm:w-auto gap-2"
+                >
+                  <Sparkles className="h-4 w-4" /> Next request
+                </Button>
+              );
+            })()}
             <Button
               onClick={() => {
                 setDisbursed(null);
