@@ -1350,6 +1350,53 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reject reason dialog — CFO must supply a reason. */}
+      <Dialog open={!!rejectingReq} onOpenChange={(open) => {
+        if (!open) { setRejectingReq(null); setRejectReason(''); }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <X className="h-5 w-5 text-rose-600" /> Reject Advance Request
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {rejectingReq?.profiles?.full_name ? (
+                <>Reject <span className="font-semibold text-foreground">{rejectingReq.profiles.full_name}</span>&apos;s request for {formatUGX(Number(rejectingReq?.principal ?? 0))}. The agent and Agent Ops will see the reason.</>
+              ) : 'Provide a reason. The agent and Agent Ops will see it.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-1">
+            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Reason for rejection</Label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={4}
+              placeholder="E.g. Insufficient trust score, outstanding advance not settled, exposure too high…"
+              className="text-sm"
+            />
+            <p className="text-[10px] text-muted-foreground">Minimum 5 characters.</p>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => { setRejectingReq(null); setRejectReason(''); }}
+              disabled={rejectMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="w-full sm:w-auto gap-2 bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={rejectReason.trim().length < 5 || rejectMutation.isPending}
+              onClick={() => rejectingReq && rejectMutation.mutate({ req: rejectingReq, reason: rejectReason })}
+            >
+              {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              Confirm rejection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
