@@ -1074,22 +1074,118 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
         agentId={evalReq?.agent_id}
         agentName={evalReq?.profiles?.full_name}
         onClose={() => setEvalReq(null)}
-        footer={evalReq ? (
-          <Button
-            className="w-full gap-1.5"
-            onClick={() => {
-              const id = evalReq.id;
-              setEvalReq(null);
-              setExpandedId(id);
-            }}
-          >
-            <Pencil className="h-4 w-4" /> Edit &amp; disburse this advance
-          </Button>
-        ) : null}
+        footer={evalReq ? (() => {
+          const req = evalReq;
+          const isCfoApproved = req.status === 'cfo_approved';
+          const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+          const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
+          const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
+          const regFee = calculateRegistrationFee(currentPrincipal);
+          const accessFee = calculateAccessFee(currentPrincipal, currentCycle, currentRate);
+          const totalPayable = currentPrincipal + accessFee + regFee;
+          const daily = Math.ceil(totalPayable / currentCycle);
+          return (
+            <div className="space-y-3 w-full">
+              <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Pencil className="h-3.5 w-3.5 text-primary" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                    {isCfoApproved ? 'Approved — disburse' : 'Set final amount & approve'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Amount (UGX)</Label>
+                    <Input
+                      type="number"
+                      value={currentPrincipal}
+                      min={1000}
+                      step={1000}
+                      disabled={isCfoApproved}
+                      onChange={e => setAdjustedPrincipals(prev => ({ ...prev, [req.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                      className="h-8 text-sm disabled:opacity-70"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Days</Label>
+                    <Input
+                      type="number"
+                      value={currentCycle}
+                      min={1}
+                      max={365}
+                      disabled={isCfoApproved}
+                      onChange={e => setAdjustedCycles(prev => ({ ...prev, [req.id]: Math.max(1, Number(e.target.value) || 1) }))}
+                      className="h-8 text-sm disabled:opacity-70"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate %</Label>
+                    <Input
+                      type="number"
+                      value={Math.round(currentRate * 100)}
+                      min={28}
+                      max={33}
+                      step={1}
+                      disabled={isCfoApproved}
+                      onChange={e => {
+                        const v = Math.min(33, Math.max(28, Number(e.target.value) || 28));
+                        setAdjustedRates(prev => ({ ...prev, [req.id]: v / 100 }));
+                      }}
+                      className="h-8 text-sm disabled:opacity-70"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 rounded-md border bg-background/60 p-2 text-[11px]">
+                  <div><span className="text-muted-foreground">Access fee</span> <span className="font-bold text-emerald-600 float-right">+{formatUGX(accessFee)}</span></div>
+                  <div><span className="text-muted-foreground">Reg fee</span> <span className="font-bold text-emerald-600 float-right">+{formatUGX(regFee)}</span></div>
+                  <div><span className="text-muted-foreground">Total payable</span> <span className="font-bold text-primary float-right">{formatUGX(totalPayable)}</span></div>
+                  <div><span className="text-muted-foreground">Daily</span> <span className="font-bold text-rose-500 float-right">{formatUGX(daily)}/d</span></div>
+                </div>
+
+                <Textarea
+                  placeholder="CFO note (optional)"
+                  value={notes[req.id] || ''}
+                  onChange={e => setNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
+                  rows={1}
+                  className="text-xs"
+                />
+              </div>
+
+              <Button
+                className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={currentPrincipal <= 0}
+                onClick={() => {
+                  const id = req.id;
+                  setEvalReq(null);
+                  setConfirmingId(id);
+                }}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {isCfoApproved ? 'Disburse' : 'Approve'} {formatUGX(currentPrincipal)}
+              </Button>
+
+              {isCfoApproved && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => revokeApprovalMutation.mutate(req)}
+                  disabled={revokeApprovalMutation.isPending}
+                  className="w-full h-7 text-[11px] text-muted-foreground"
+                >
+                  {revokeApprovalMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Revoke approval & re-open for editing'}
+                </Button>
+              )}
+            </div>
+          );
+        })() : null}
       />
 
       {/* Disbursement success dialog — shows the CFO confirmation, key stats,
-          and a shortcut to review all disbursed advances. */}
+          plus a shortcut to jump straight to the next pending request. */}
+      {/* success dialog rendered below */}
+      />
       <Dialog open={!!disbursed} onOpenChange={(open) => !open && setDisbursed(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
