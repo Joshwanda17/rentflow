@@ -12655,6 +12655,7 @@ export type Database = {
           momo_provider: string | null
           national_id: string | null
           partner_id: string
+          partner_signature_data_url: string | null
           partnership_amount: number
           partnership_amount_words: string | null
           payout_mode: string
@@ -12683,6 +12684,7 @@ export type Database = {
           momo_provider?: string | null
           national_id?: string | null
           partner_id: string
+          partner_signature_data_url?: string | null
           partnership_amount?: number
           partnership_amount_words?: string | null
           payout_mode?: string
@@ -12711,6 +12713,7 @@ export type Database = {
           momo_provider?: string | null
           national_id?: string | null
           partner_id?: string
+          partner_signature_data_url?: string | null
           partnership_amount?: number
           partnership_amount_words?: string | null
           payout_mode?: string

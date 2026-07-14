@@ -1344,6 +1344,10 @@ export default function FunderOnboarding() {
                   kin_contact: cleanKinContact || null,
                   reference: partnerReference,
                   status: 'pending',
+                  // Persist the partner's handwritten signature so the executed /
+                  // countersigned agreement (rebuilt from this row by the admin)
+                  // renders the real signature instead of the italic typed name.
+                  partner_signature_data_url: form.signatureDataUrl || null,
                 }, { onConflict: 'partner_id' });
               if (agErr) {
                 console.warn('partner agreement save failed (non-blocking):', agErr);
