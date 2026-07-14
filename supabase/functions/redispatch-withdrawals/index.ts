@@ -10,11 +10,6 @@ import {
   MAX_DISPATCH_ROUNDS,
   OPEN_STATUSES,
 } from "../_shared/dispatchMerchants.ts";
-import {
-  sendSMS,
-  formatPhoneInternational,
-  isUgandanPhone,
-} from "../_shared/sendSmsMultiProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,30 +101,6 @@ Deno.serve(async (req) => {
             },
           }),
         }).catch(() => {});
-
-        // SMS the ops staff too.
-        const { data: opsProfiles } = await admin
-          .from("profiles")
-          .select("id, full_name, phone")
-          .in("id", opsIds);
-        await Promise.all(
-          (opsProfiles || []).map(async (p: any) => {
-            const raw = (p?.phone || "").trim();
-            if (!isUgandanPhone(raw)) return;
-            await sendSMS(
-              formatPhoneInternational(raw),
-              `WELILE: Withdrawal ${ref} (${amountLabel}) unclaimed by all merchant agents. Please assign manually.`,
-              {
-                admin,
-                source: "withdrawal_dispatch_escalation",
-                reference_id: r.id,
-                recipient_user_id: p.id,
-                recipient_name: p.full_name ?? null,
-                idempotencyKey: `withdrawal_dispatch_escalation:${r.id}:${p.id}`,
-              },
-            );
-          }),
-        );
       }
 
       escalated++;
