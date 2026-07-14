@@ -151,10 +151,31 @@ export function PushNotificationGate() {
   if (!user) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (!o ? handleSnooze() : setOpen(o))}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) return setOpen(o);
+        // Mandatory: don't let the user dismiss until they've enabled (or the
+        // browser blocked it). Snooze only applies to the non-required path.
+        if (required && status !== "success") return;
+        handleSnooze();
+      }}
+    >
       <DialogContent
-        className="max-w-sm rounded-2xl border-0 p-0 overflow-hidden"
+        className={
+          "max-w-sm rounded-2xl border-0 p-0 overflow-hidden" +
+          (required && status !== "success" ? " [&>button]:hidden" : "")
+        }
         overlayClassName="backdrop-blur-0 bg-background/60"
+        onEscapeKeyDown={(e) => {
+          if (required && status !== "success") e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (required && status !== "success") e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (required && status !== "success") e.preventDefault();
+        }}
       >
         {/* Hero */}
         <div className="relative bg-gradient-to-br from-primary to-primary/70 px-6 pt-8 pb-10 text-center">
@@ -174,7 +195,9 @@ export function PushNotificationGate() {
             <DialogDescription className="text-primary-foreground/80 text-sm">
               {status === "success"
                 ? "You'll now get instant alerts on this device."
-                : "Get instant alerts for deposits, withdrawals, payouts and rent updates — even when Welile is closed."}
+                : required
+                  ? "Notifications are required to use Welile. You'll get instant alerts for listing decisions, deposits, withdrawals, payouts and rent updates."
+                  : "Get instant alerts for deposits, withdrawals, payouts and rent updates — even when Welile is closed."}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -200,14 +223,16 @@ export function PushNotificationGate() {
                 )}
                 Enable notifications
               </Button>
-              <Button
-                variant="ghost"
-                className="w-full text-muted-foreground"
-                onClick={handleSnooze}
-                disabled={status === "subscribing" || status === "success"}
-              >
-                Not now
-              </Button>
+              {!required && (
+                <Button
+                  variant="ghost"
+                  className="w-full text-muted-foreground"
+                  onClick={handleSnooze}
+                  disabled={status === "subscribing" || status === "success"}
+                >
+                  Not now
+                </Button>
+              )}
             </div>
           </div>
         </div>
