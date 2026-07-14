@@ -62,6 +62,16 @@ const CHART_COLORS = ['#7c3aed', '#059669', '#f59e0b', '#ef4444', '#0ea5e9', '#e
 export function AdvanceRepaymentsPanel() {
   const [selected, setSelected] = useState<Advance | null>(null);
   const [scope, setScope] = useState<'active' | 'all'>('active');
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ['advance-repayments-advances'] });
+      queryClient.invalidateQueries({ queryKey: ['advance-repayments-ledger'] });
+    };
+    window.addEventListener('advance-repayments-refresh', handler);
+    return () => window.removeEventListener('advance-repayments-refresh', handler);
+  }, [queryClient]);
 
   const { data: advances, isLoading: advLoading } = useQuery({
     queryKey: ['advance-repayments-advances'],
