@@ -871,7 +871,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
           <Button
             className="w-full gap-2 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 text-white rounded-full py-6 text-base font-semibold shadow-lg hover:opacity-90"
             onClick={() => submitMutation.mutate()}
-            disabled={submitMutation.isPending || principal <= 0 || overLimit || reason.trim().length < 10}
+            disabled={submitMutation.isPending}
           >
             {submitMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
