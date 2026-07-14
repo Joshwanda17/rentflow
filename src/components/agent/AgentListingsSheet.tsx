@@ -322,6 +322,34 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
   const rejected = listings.filter(l => l.status === 'rejected');
   const others = listings.filter(l => l.status !== 'rejected');
 
+  // Fetch the most recent rejection reason for each rejected listing so the
+  // agent can see WHY it was rejected and fix it before relisting.
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, { reason: string; rejected_at: string }>>({});
+  useEffect(() => {
+    let cancelled = false;
+    async function loadReasons() {
+      if (!user?.id || rejected.length === 0) { setRejectionReasons({}); return; }
+      const ids = rejected.map(l => l.id);
+      const { data, error } = await supabase
+        .from('agent_listing_rejections')
+        .select('listing_id, reason, rejected_at')
+        .eq('agent_id', user.id)
+        .in('listing_id', ids)
+        .order('rejected_at', { ascending: false });
+      if (cancelled || error || !data) return;
+      const map: Record<string, { reason: string; rejected_at: string }> = {};
+      for (const r of data as any[]) {
+        if (r.listing_id && !map[r.listing_id]) {
+          map[r.listing_id] = { reason: r.reason, rejected_at: r.rejected_at };
+        }
+      }
+      setRejectionReasons(map);
+    }
+    loadReasons();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, rejected.map(l => l.id).join(',')]);
+
   // Group `others` by landlord_id
   const grouped = useMemo(() => {
     type Group = { landlord_id: string | null; name: string; phone: string | null; houses: HouseListing[] };
