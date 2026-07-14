@@ -1177,6 +1177,7 @@ export default function FunderOnboarding() {
     kinName: '',
     kinContact: '',
     agreedToTerms: false,
+    signatureDataUrl: '',
   });
 
   useEffect(() => {
