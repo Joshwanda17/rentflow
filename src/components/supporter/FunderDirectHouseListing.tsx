@@ -109,6 +109,8 @@ export function FunderDirectHouseListing() {
   const [totalMatch, setTotalMatch] = useState<number | null>(null);
   const [countLoading, setCountLoading] = useState(false);
   const mountedRef = useRef(true);
+  const countTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
 
   const PAGE_SIZE = 100;
@@ -175,10 +177,71 @@ export function FunderDirectHouseListing() {
     }
   }, [houses]);
 
+  const fetchMatchCount = useCallback(async () => {
+    setCountLoading(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase as any)
+        .from('house_listings')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'available')
+        .eq('is_hidden', false)
+        .eq('verified', true)
+        .is('tenant_id', null)
+        .not('image_urls', 'is', null)
+        .neq('image_urls', '{}');
+
+      const q = search.trim();
+      if (q) {
+        const like = `%${q}%`;
+        query = query.or(
+          `title.ilike.${like},region.ilike.${like},district.ilike.${like},address.ilike.${like},short_code.ilike.${like}`
+        );
+      }
+
+      if (region !== 'all') {
+        const r = region.toLowerCase();
+        query = query.or(`region.ilike.${r},district.ilike.${r}`);
+      }
+
+      if (category !== 'all') {
+        query = query.eq('house_category', category);
+      }
+
+      if (rooms !== 'all') {
+        if (rooms === '4+') {
+          query = query.gte('number_of_rooms', 4);
+        } else {
+          query = query.eq('number_of_rooms', parseInt(rooms, 10));
+        }
+      }
+
+      const { count, error: sbError } = await query;
+      if (sbError) throw sbError;
+      if (!mountedRef.current) return;
+      setTotalMatch(count ?? null);
+    } catch (err) {
+      console.error('[FunderDirectHouseListing] count error:', err);
+    } finally {
+      if (mountedRef.current) setCountLoading(false);
+    }
+  }, [search, region, category, rooms]);
+
   useEffect(() => {
     fetchHouses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (countTimerRef.current) clearTimeout(countTimerRef.current);
+    countTimerRef.current = setTimeout(() => {
+      fetchMatchCount();
+    }, 150);
+    return () => {
+      if (countTimerRef.current) clearTimeout(countTimerRef.current);
+    };
+  }, [fetchMatchCount]);
+
 
   const filtered = useMemo(() => {
     if (!houses) return [];
@@ -307,7 +370,7 @@ export function FunderDirectHouseListing() {
         />
       </div>
 
-      {/* Filters */}
+      {/* Filters + live count */}
       <div className="flex flex-wrap items-center gap-2">
         <Select value={region} onValueChange={setRegion}>
           <SelectTrigger className="h-9 text-xs w-[130px]" aria-label="Filter by region">
@@ -364,7 +427,17 @@ export function FunderDirectHouseListing() {
             ))}
           </SelectContent>
         </Select>
+
+        <div className="ml-auto flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+          {countLoading && (
+            <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
+          )}
+          <span aria-live="polite" aria-atomic="true">
+            {(totalMatch ?? filtered.length).toLocaleString()} {((totalMatch ?? filtered.length) === 1 ? 'house' : 'houses')} found
+          </span>
+        </div>
       </div>
+
 
       {/* Active filter chips */}
       <AnimatePresence>
@@ -403,7 +476,7 @@ export function FunderDirectHouseListing() {
       {/* Results header */}
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-muted-foreground">
-          {filtered.length} {filtered.length === 1 ? 'house' : 'houses'} found
+          Showing {filtered.length.toLocaleString()} of {(totalMatch ?? filtered.length).toLocaleString()}
         </p>
         <button
           type="button"
@@ -413,6 +486,7 @@ export function FunderDirectHouseListing() {
           See all <ArrowRight className="h-3 w-3" />
         </button>
       </div>
+
 
       {/* Grid */}
       {filtered.length === 0 ? (
