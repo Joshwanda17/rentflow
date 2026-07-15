@@ -137,13 +137,14 @@ export function SmsDeliveryLogViewer() {
   const rollupDays = Math.max(90, differenceInCalendarDays(new Date(), selectedMonthStart) + 40);
 
   const { data: logs = [], isLoading } = useQuery({
-    queryKey: ['cto-sms-delivery-log', providerFilter, statusFilter, monthFilter],
+    queryKey: ['cto-sms-delivery-log', providerFilter, statusFilter, monthFilter, search.trim()],
     queryFn: async () => {
+      const q = search.trim();
       let query = supabase
         .from('sms_delivery_log')
         .select('id, created_at, recipient_phone, recipient_name, message, status, provider, provider_response, reference_id, source, error')
         .order('created_at', { ascending: false })
-        .limit(300);
+        .limit(q ? 1000 : 300);
       if (providerFilter !== 'all') query = query.eq('provider', providerFilter);
       if (statusFilter === 'success') query = query.in('status', ['sent', 'success', 'delivered', 'accepted']);
       if (statusFilter === 'failed') query = query.not('status', 'in', '(sent,success,delivered,accepted)');
@@ -151,6 +152,25 @@ export function SmsDeliveryLogViewer() {
         query = query
           .gte('created_at', selectedMonthStart.toISOString())
           .lte('created_at', selectedMonthEnd.toISOString());
+      }
+      if (q) {
+        // Search server-side so a phone/name outside the latest 300 rows is
+        // still found. Normalize phone digits and match on last-9 for
+        // 07XX / 2567XX / +2567XX equivalence.
+        const digits = q.replace(/\D/g, '');
+        const ors: string[] = [
+          `recipient_name.ilike.%${q}%`,
+          `source.ilike.%${q}%`,
+          `reference_id.ilike.%${q}%`,
+          `message.ilike.%${q}%`,
+        ];
+        if (digits.length >= 6) {
+          const last9 = digits.slice(-9);
+          ors.push(`recipient_phone.ilike.%${last9}%`);
+        } else if (q) {
+          ors.push(`recipient_phone.ilike.%${q}%`);
+        }
+        query = query.or(ors.join(','));
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -293,18 +313,10 @@ export function SmsDeliveryLogViewer() {
     }
   };
 
-  const filtered = search.trim()
-    ? logs.filter((l) => {
-        const q = search.trim().toLowerCase();
-        return (
-          (l.recipient_phone || '').toLowerCase().includes(q) ||
-          (l.recipient_name || '').toLowerCase().includes(q) ||
-          (l.source || '').toLowerCase().includes(q) ||
-          (l.reference_id || '').toLowerCase().includes(q) ||
-          (l.message || '').toLowerCase().includes(q)
-        );
-      })
-    : logs;
+  // Search is applied server-side (see queryKey above) so we don't re-filter
+  // client-side — otherwise phone variants like "0788…" vs "256788…" would
+  // hide rows that the server correctly matched by last-9 digits.
+  const filtered = logs;
 
   const total = logs.length;
   const yoolaSent = logs.filter((l) => (l.provider || '').toLowerCase() === 'yoola' && isSuccess(l.status)).length;
