@@ -302,12 +302,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   useEffect(() => {
     // Merchant Agents (cashout-only) never see the Weekly Listing Mission promo.
     if (isMerchantAgentEarly) return;
+    const STORAGE_KEY = 'welile-agent-leaderboard-promo-last-shown';
+    const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
     try {
-      if (sessionStorage.getItem('welile-agent-leaderboard-promo-seen')) return;
+      const last = localStorage.getItem(STORAGE_KEY);
+      if (last && Date.now() - Number(last) < FOUR_HOURS_MS) return;
     } catch { /* ignore */ }
     const t = setTimeout(() => {
       setLeaderboardPromoOpen(true);
-      try { sessionStorage.setItem('welile-agent-leaderboard-promo-seen', '1'); } catch { /* ignore */ }
+      try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* ignore */ }
     }, 1200);
     return () => clearTimeout(t);
   }, [isMerchantAgentEarly]);
