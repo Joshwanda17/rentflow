@@ -106,6 +106,28 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [showOptional, setShowOptional] = useState(false);
   // Landlord phone real-time validation error
   const [landlordPhoneError, setLandlordPhoneError] = useState<string>('');
+  // Inline banner shown at the bottom of the form (right above the action
+  // buttons) so agents see submit errors/success WITHOUT the dialog jumping
+  // them back to the top of step 3. Auto-clears after a short delay.
+  const [formMessage, setFormMessage] = useState<
+    { kind: 'error' | 'success' | 'info'; text: string; description?: string } | null
+  >(null);
+  const showFormMessage = (
+    kind: 'error' | 'success' | 'info',
+    text: string,
+    description?: string,
+  ) => {
+    setFormMessage({ kind, text, description });
+  };
+  // Auto-dismiss inline banner after 6s (success stays a bit longer).
+  useEffect(() => {
+    if (!formMessage) return;
+    const t = window.setTimeout(
+      () => setFormMessage(null),
+      formMessage.kind === 'success' ? 8000 : 6000,
+    );
+    return () => window.clearTimeout(t);
+  }, [formMessage]);
   const [successListing, setSuccessListing] = useState<null | {
     id: string;
     shortCode: string | null;
