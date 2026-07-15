@@ -22850,6 +22850,7 @@ export type Database = {
         Args: { p_agent_id: string }
         Returns: Json
       }
+      get_agent_listing_campaign_ops_overview: { Args: never; Returns: Json }
       get_agent_listing_parties: {
         Args: { p_agent_id: string }
         Returns: {
