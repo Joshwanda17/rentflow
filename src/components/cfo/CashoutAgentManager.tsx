@@ -1003,13 +1003,11 @@ export function CashoutAgentManager() {
                   ) : null;
                 })()}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        <MerchantAgentFloatCard agentId={selectedAgent.agent_id} />
-
-        {/* Work evaluation — same rich advance-potential analysis shown across ops */}
+      {/* Work evaluation — same rich advance-potential analysis shown across ops */}
         {selectedAgent.agent_id && (
           <Card>
             <CardContent className="p-4">
@@ -1072,6 +1070,9 @@ export function CashoutAgentManager() {
             <Download className="h-3.5 w-3.5 mr-1" /> Export Excel
           </Button>
         </div>
+
+        <MerchantAgentFloatCard agentId={selectedAgent.agent_id} />
+
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
             icon={<Wallet className="h-4 w-4" />}
