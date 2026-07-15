@@ -370,7 +370,7 @@ export function FunderDirectHouseListing() {
         />
       </div>
 
-      {/* Filters */}
+      {/* Filters + live count */}
       <div className="flex flex-wrap items-center gap-2">
         <Select value={region} onValueChange={setRegion}>
           <SelectTrigger className="h-9 text-xs w-[130px]" aria-label="Filter by region">
@@ -427,7 +427,17 @@ export function FunderDirectHouseListing() {
             ))}
           </SelectContent>
         </Select>
+
+        <div className="ml-auto flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+          {countLoading && (
+            <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
+          )}
+          <span aria-live="polite" aria-atomic="true">
+            {(totalMatch ?? filtered.length).toLocaleString()} {((totalMatch ?? filtered.length) === 1 ? 'house' : 'houses')} found
+          </span>
+        </div>
       </div>
+
 
       {/* Active filter chips */}
       <AnimatePresence>
