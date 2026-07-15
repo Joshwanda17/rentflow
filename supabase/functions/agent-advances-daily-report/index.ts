@@ -416,7 +416,7 @@ function buildHtml(r: Report, prettyDate: string): string {
       }, 700, 300)
     : "";
 
-  const adoption = r.totalAgents ? (r.agentsWithAdvances / r.totalAgents) * 100 : 0;
+  const adoption = r.totalAgents ? (r.agentsWithActiveAdvances / r.totalAgents) * 100 : 0;
 
   const reasonTodayRows = r.reasonsToday.length
     ? r.reasonsToday
@@ -453,7 +453,7 @@ function buildHtml(r: Report, prettyDate: string): string {
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
           ${kpiCell("Qualifying agents", r.totalAgents.toLocaleString("en-US"), "#1a1a2e", "Meet the agent criteria")}
-          ${kpiCell("Agents with advances", String(r.agentsWithAdvances), PURPLE)}
+          ${kpiCell("Active advances", String(r.agentsWithActiveAdvances), PURPLE, `${r.agentsWithAdvances} ever`)}
           ${kpiCell("Adoption", pct(adoption), adoption < 1 ? RED : GREEN)}
           ${kpiCell("Paid today", String(r.payingBackCount), GREEN, "Advances deducted today")}
         </tr>
