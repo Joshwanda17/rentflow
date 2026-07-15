@@ -267,7 +267,7 @@ export function FunderDirectHouseListing() {
         </Select>
 
         <Select value={rooms} onValueChange={setRooms}>
-          <SelectTrigger className="h-9 text-xs w-[120px]" aria-label="Filter by number of rooms">
+          <SelectTrigger className="h-9 text-xs w-[132px]" aria-label="Filter by number of rooms">
             <SelectValue placeholder="Rooms" />
           </SelectTrigger>
           <SelectContent>
