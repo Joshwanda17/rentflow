@@ -367,6 +367,29 @@ export function FunderCapitalOpportunities() {
         subtitle="Browse verified houses and pay landlords directly"
         onBack={() => setView('menu')}
       >
+        {/* Breadcrumb: Capital Opportunities → Support Tenants Directly */}
+        <nav aria-label="Breadcrumb" className="-mt-1">
+          <ol className="flex items-center gap-1.5 text-xs">
+            <li>
+              <button
+                type="button"
+                onClick={() => { hapticTap(); setView('menu'); }}
+                className="font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded px-1 -ml-1"
+              >
+                Capital Opportunities
+              </button>
+            </li>
+            <li aria-hidden="true">
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
+            </li>
+            <li>
+              <span className="font-semibold text-foreground" aria-current="page">
+                Support Tenants Directly
+              </span>
+            </li>
+          </ol>
+        </nav>
+
         <div className="rounded-xl bg-primary/5 border border-primary/20 p-3.5 space-y-2">
           <p className="text-xs font-bold text-foreground">How it works</p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
