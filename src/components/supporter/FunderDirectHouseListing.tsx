@@ -104,12 +104,20 @@ export function FunderDirectHouseListing() {
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const mountedRef = useRef(true);
 
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('all');
   const [category, setCategory] = useState('all');
   const [rooms, setRooms] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const fetchHouses = useCallback(async (isRetry = false) => {
     if (isRetry) {
