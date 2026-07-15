@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Dialog,
@@ -7,69 +7,66 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { formatUGX } from '@/lib/rentCalculations';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { useToast } from '@/hooks/use-toast';
+import { useAgentListingCampaign } from '@/hooks/useAgentListingCampaign';
 import { hapticTap } from '@/lib/haptics';
-import { Trophy, UserPlus, UsersRound, Coins, ArrowRight, Sparkles } from 'lucide-react';
+import { Trophy, Copy, Check, ArrowRight, Clock, UsersRound } from 'lucide-react';
 import bannerImg from '@/assets/leaderboard-banner.jpg';
-
-/** Same leaderboard multiplier used on the full leaderboard page. */
-const PER_INVITE = 10000;
-
-interface MyRank {
-  agent_id: string;
-  rank: number;
-  agent_name: string;
-  avatar_url: string | null;
-  invite_count: number;
-  total_ranked: number;
-}
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Navigate to the full leaderboard page. */
   onViewLeaderboard: () => void;
-  /** Open the invite / register sub-agent flow. */
+  /** Open the invite / register sub-agent flow (fallback). */
   onInviteSubAgent: () => void;
 }
-
-const ordinal = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
-};
 
 export function AgentLeaderboardPromoDialog({
   open,
   onOpenChange,
   onViewLeaderboard,
-  onInviteSubAgent,
 }: Props) {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const { campaign } = useAgentListingCampaign(user?.id);
+  const [copied, setCopied] = useState(false);
 
-  const { data: myRank } = useQuery({
-    queryKey: ['my-subagent-rank', 'weekly', user?.id],
-    enabled: !!user?.id && open,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_my_subagent_rank', {
-        p_period: 'weekly',
+  const inviteLink = useMemo(() => {
+    if (!user?.id) return '';
+    const params = new URLSearchParams({ signup: '1', role: 'agent', ref: user.id });
+    return `${getPublicOrigin()}/auth?${params.toString()}`;
+  }, [user?.id]);
+
+  const daysRemaining = campaign?.days_remaining ?? 0;
+  const invitedCount = campaign?.invited_count ?? 0;
+  const invitedTarget = campaign?.invited_target ?? 20;
+  const invitedRemaining = Math.max(0, invitedTarget - invitedCount);
+  const daysLabel = daysRemaining === 1 ? '1 day left' : `${daysRemaining} days left`;
+
+  const handleCopy = async () => {
+    if (!inviteLink) return;
+    hapticTap();
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({ title: 'Invite link copied!' });
+    } catch {
+      toast({
+        title: 'Could not copy',
+        description: 'Long-press the link to copy manually.',
+        variant: 'destructive',
       });
-      if (error) throw error;
-      return ((data?.[0] as MyRank) ?? null);
-    },
-    staleTime: 60_000,
-  });
-
-  const rank = myRank?.rank ?? 0;
-  const invites = myRank?.invite_count ?? 0;
-  const earnings = invites * PER_INVITE;
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-sm rounded-3xl border-0 p-0 overflow-hidden gap-0"
+        className="grid-cols-1 w-[calc(100%-1.5rem)] max-w-[24rem] rounded-3xl border-0 p-0 overflow-hidden gap-0"
         overlayClassName="backdrop-blur-sm bg-background/70"
       >
         {/* Hero banner */}
@@ -77,7 +74,7 @@ export function AgentLeaderboardPromoDialog({
           <img
             src={bannerImg}
             alt="Agent leaderboard trophy podium"
-            className="h-40 w-full object-cover"
+            className="h-36 sm:h-40 w-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-4">
@@ -86,7 +83,7 @@ export function AgentLeaderboardPromoDialog({
                 <Trophy className="h-5 w-5" style={{ color: '#FACC15' }} strokeWidth={2.3} />
               </span>
               <DialogTitle className="text-lg font-extrabold tracking-tight drop-shadow">
-                Agent Leaderboard
+                Weekly Listing Mission
               </DialogTitle>
             </div>
           </div>
@@ -95,60 +92,47 @@ export function AgentLeaderboardPromoDialog({
         {/* Body */}
         <div className="p-5 space-y-4">
           <DialogDescription asChild>
-            <p className="text-center text-[15px] font-semibold text-foreground">
-              You're currently ranked{' '}
-              <span
-                className="inline-flex items-center gap-1 font-extrabold"
-                style={{ color: '#6D28D9' }}
-              >
-                <Sparkles className="h-4 w-4" style={{ color: '#FACC15' }} />
-                {rank > 0 ? ordinal(rank) : 'unranked'}
+            <p className="text-[14.5px] leading-relaxed text-foreground text-center">
+              It's only{' '}
+              <span className="inline-flex items-center gap-1 font-extrabold" style={{ color: '#6D28D9' }}>
+                <Clock className="h-3.5 w-3.5" />
+                {daysLabel}
               </span>{' '}
-              this week.
+              for the Weekly Listing Mission to end — earn{' '}
+              <b className="text-foreground">UGX 250,000</b> from your sub-agents.
+              Invited so far{' '}
+              <b className="text-foreground">{invitedCount.toLocaleString()}</b>
+              , remaining{' '}
+              <b style={{ color: '#9334EB' }}>{invitedRemaining.toLocaleString()}</b>.
             </p>
           </DialogDescription>
 
-          {/* Stat cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-3.5"
-            >
-              <div className="flex items-center gap-1.5 text-violet-600">
-                <UsersRound className="h-4 w-4" />
-                <span className="text-[11px] font-semibold uppercase tracking-wide">
-                  Successful Invites
-                </span>
-              </div>
-              <p className="mt-1.5 text-2xl font-extrabold text-foreground tabular-nums">
-                {invites.toLocaleString()}
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.12 }}
-              className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3.5"
-            >
-              <div className="flex items-center gap-1.5 text-amber-600">
-                <Coins className="h-4 w-4" />
-                <span className="text-[11px] font-semibold uppercase tracking-wide">
-                  Reg. Earnings
-                </span>
-              </div>
-              <p className="mt-1.5 text-2xl font-extrabold text-foreground tabular-nums">
-                {formatUGX(earnings)}
-              </p>
-            </motion.div>
-          </div>
-
-          <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
-            Keep inviting sub-agents to climb the leaderboard and grow your
-            earnings.
-          </p>
+          {/* Progress bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="space-y-1.5"
+          >
+            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <UsersRound className="h-3.5 w-3.5" style={{ color: '#6D28D9' }} />
+                Invites
+              </span>
+              <span className="tabular-nums text-foreground">
+                {invitedCount}/{invitedTarget}
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-violet-500/10">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, (invitedCount / Math.max(1, invitedTarget)) * 100)}%`,
+                  background: 'linear-gradient(90deg, #9334EB, #6D28D9)',
+                }}
+              />
+            </div>
+          </motion.div>
 
           {/* Actions */}
           <div className="space-y-2 pt-1">
@@ -166,16 +150,17 @@ export function AgentLeaderboardPromoDialog({
               <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
             <Button
-              variant="ghost"
-              onClick={() => {
-                hapticTap();
-                onOpenChange(false);
-                onInviteSubAgent();
-              }}
-              className="w-full h-11 rounded-2xl text-[14px] font-semibold text-foreground hover:bg-muted"
+              variant="outline"
+              onClick={handleCopy}
+              disabled={!inviteLink}
+              className="w-full h-11 rounded-2xl text-[14px] font-semibold border-violet-500/30 hover:bg-violet-500/5"
             >
-              <UserPlus className="mr-1.5 h-4 w-4" style={{ color: '#6D28D9' }} />
-              Invite Sub-Agent
+              {copied ? (
+                <Check className="mr-1.5 h-4 w-4" style={{ color: '#16A34A' }} />
+              ) : (
+                <Copy className="mr-1.5 h-4 w-4" style={{ color: '#6D28D9' }} />
+              )}
+              {copied ? 'Copied!' : 'Copy Sub-Agent Referral Link'}
             </Button>
           </div>
         </div>
