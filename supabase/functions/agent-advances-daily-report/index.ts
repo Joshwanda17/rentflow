@@ -149,6 +149,7 @@ interface Report {
   date: string;
   totalAgents: number;
   agentsWithAdvances: number;
+  agentsWithActiveAdvances: number;
   // Requests
   requestsTotal: number;
   requestsToday: number;
@@ -277,6 +278,9 @@ async function buildReport(
   const active = advances.filter((a: any) => String(a.status) === "active");
   const overdue = advances.filter((a: any) => String(a.status) === "overdue");
   const completed = advances.filter((a: any) => String(a.status) === "completed");
+  const agentsWithActiveAdvances = new Set(
+    [...active, ...overdue].map((a: any) => a.agent_id).filter(Boolean),
+  ).size;
   const activeOutstanding = active.reduce((s: number, a: any) => s + Number(a.outstanding_balance || 0), 0);
   const overdueOutstanding = overdue.reduce((s: number, a: any) => s + Number(a.outstanding_balance || 0), 0);
   const totalPrincipalIssued = advances.reduce((s: number, a: any) => s + Number(a.principal || 0), 0);
@@ -326,6 +330,7 @@ async function buildReport(
     date: dateStr,
     totalAgents,
     agentsWithAdvances,
+    agentsWithActiveAdvances,
     requestsTotal,
     requestsToday,
     approvedTotal,
@@ -411,7 +416,7 @@ function buildHtml(r: Report, prettyDate: string): string {
       }, 700, 300)
     : "";
 
-  const adoption = r.totalAgents ? (r.agentsWithAdvances / r.totalAgents) * 100 : 0;
+  const adoption = r.totalAgents ? (r.agentsWithActiveAdvances / r.totalAgents) * 100 : 0;
 
   const reasonTodayRows = r.reasonsToday.length
     ? r.reasonsToday
@@ -448,7 +453,7 @@ function buildHtml(r: Report, prettyDate: string): string {
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
           ${kpiCell("Qualifying agents", r.totalAgents.toLocaleString("en-US"), "#1a1a2e", "Meet the agent criteria")}
-          ${kpiCell("Agents with advances", String(r.agentsWithAdvances), PURPLE)}
+          ${kpiCell("Active advances", String(r.agentsWithActiveAdvances), PURPLE, `${r.agentsWithAdvances} ever`)}
           ${kpiCell("Adoption", pct(adoption), adoption < 1 ? RED : GREEN)}
           ${kpiCell("Paid today", String(r.payingBackCount), GREEN, "Advances deducted today")}
         </tr>
@@ -530,11 +535,11 @@ function buildHtml(r: Report, prettyDate: string): string {
 }
 
 function buildText(r: Report, prettyDate: string): string {
-  const adoption = r.totalAgents ? (r.agentsWithAdvances / r.totalAgents) * 100 : 0;
+  const adoption = r.totalAgents ? (r.agentsWithActiveAdvances / r.totalAgents) * 100 : 0;
   const lines: string[] = [];
   lines.push(`Agent Advances Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
-  lines.push(`Total agents: ${r.totalAgents} | With advances: ${r.agentsWithAdvances} (${pct(adoption)} adoption) | Paid today: ${r.payingBackCount}`);
+  lines.push(`Total agents: ${r.totalAgents} | Active advances: ${r.agentsWithActiveAdvances} (${r.agentsWithAdvances} ever, ${pct(adoption)} adoption) | Paid today: ${r.payingBackCount}`);
   lines.push(`Requests today: ${r.requestsToday} (system total ${r.requestsTotal})`);
   lines.push(`Approved today: ${r.approvedToday} (total ${r.approvedTotal}) | Rejected today: ${r.rejectedToday} (total ${r.rejectedTotal}) | Pending: ${r.pendingTotal}`);
   lines.push("");

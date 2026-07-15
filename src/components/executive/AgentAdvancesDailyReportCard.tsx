@@ -88,6 +88,7 @@ interface AdvanceReport {
   date: string;
   totalAgents: number;
   agentsWithAdvances: number;
+  agentsWithActiveAdvances: number;
   adoption: number;
   payingBackCount: number;
   requestsTotal: number;
@@ -182,6 +183,12 @@ async function buildReport(): Promise<AdvanceReport> {
   }
 
   const agentsWithAdvances = new Set(advances.map((a) => a.agent_id).filter(Boolean)).size;
+  const agentsWithActiveAdvances = new Set(
+    advances
+      .filter((a) => String(a.status) === 'active' || String(a.status) === 'overdue')
+      .map((a) => a.agent_id)
+      .filter(Boolean),
+  ).size;
   const active = advances.filter((a) => String(a.status) === 'active');
   const overdue = advances.filter((a) => String(a.status) === 'overdue');
   const completed = advances.filter((a) => String(a.status) === 'completed');
@@ -229,7 +236,8 @@ async function buildReport(): Promise<AdvanceReport> {
     date,
     totalAgents,
     agentsWithAdvances,
-    adoption: totalAgents ? (agentsWithAdvances / totalAgents) * 100 : 0,
+    agentsWithActiveAdvances,
+    adoption: totalAgents ? (agentsWithActiveAdvances / totalAgents) * 100 : 0,
     payingBackCount,
     requestsTotal,
     requestsToday,
@@ -348,7 +356,7 @@ export function AgentAdvancesDailyReportCard() {
               <SectionTitle>Agent base &amp; adoption</SectionTitle>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Kpi label="Qualifying agents" value={r.totalAgents.toLocaleString('en-US')} sub="Meet agent criteria" />
-                <Kpi label="With advances" value={String(r.agentsWithAdvances)} color={C.purple} />
+                <Kpi label="Active advances" value={String(r.agentsWithActiveAdvances)} color={C.purple} sub={`${r.agentsWithAdvances} ever`} />
                 <Kpi label="Adoption" value={pct(r.adoption)} color={r.adoption < 1 ? C.red : C.green} />
                 <Kpi label="Paid today" value={String(r.payingBackCount)} color={C.green} />
               </div>
