@@ -535,11 +535,11 @@ function buildHtml(r: Report, prettyDate: string): string {
 }
 
 function buildText(r: Report, prettyDate: string): string {
-  const adoption = r.totalAgents ? (r.agentsWithAdvances / r.totalAgents) * 100 : 0;
+  const adoption = r.totalAgents ? (r.agentsWithActiveAdvances / r.totalAgents) * 100 : 0;
   const lines: string[] = [];
   lines.push(`Agent Advances Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
-  lines.push(`Total agents: ${r.totalAgents} | With advances: ${r.agentsWithAdvances} (${pct(adoption)} adoption) | Paid today: ${r.payingBackCount}`);
+  lines.push(`Total agents: ${r.totalAgents} | Active advances: ${r.agentsWithActiveAdvances} (${r.agentsWithAdvances} ever, ${pct(adoption)} adoption) | Paid today: ${r.payingBackCount}`);
   lines.push(`Requests today: ${r.requestsToday} (system total ${r.requestsTotal})`);
   lines.push(`Approved today: ${r.approvedToday} (total ${r.approvedTotal}) | Rejected today: ${r.rejectedToday} (total ${r.rejectedTotal}) | Pending: ${r.pendingTotal}`);
   lines.push("");
