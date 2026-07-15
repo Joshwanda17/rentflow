@@ -41,6 +41,7 @@ import { AgentAdvancePotential } from './agent-ops-v2/AgentAdvancePotential';
 import { AgentAdvanceLimits } from './agent-ops-v2/AgentAdvanceLimits';
 import { AdvanceAnalyticsPanel } from './agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
+import { AgentListingCampaignPanel } from './AgentListingCampaignPanel';
 import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -48,7 +49,7 @@ import {
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target
-  , Coins
+  , Coins, Megaphone
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -61,7 +62,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'advance-potential', icon: Target, label: 'Advance Potential', color: 'bg-purple-700', priority: true },
@@ -85,6 +86,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'performance', icon: TrendingUp, label: 'Performance', color: 'bg-teal-500' },
   { key: 'lifecycle', icon: BarChart3, label: 'Lifecycle', color: 'bg-indigo-500' },
   { key: 'leaderboard', icon: Trophy, label: 'Leaderboard', color: 'bg-amber-500' },
+  { key: 'listing-campaign', icon: Megaphone, label: 'Weekly Listing Campaign', color: 'bg-purple-600' },
   { key: 'earnings', icon: Banknote, label: 'Earnings', color: 'bg-green-500' },
   { key: 'alerts', icon: Bell, label: 'Alerts', color: 'bg-slate-500' },
   { key: 'transfers', icon: ArrowLeftRight, label: 'Transfers', color: 'bg-cyan-600' },
@@ -271,7 +273,7 @@ export function AgentOpsDashboard() {
     { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
     { title: '💰 Advances', keys: ['advance-requests', 'advance-potential', 'advance-limits', 'advance-repayments'] },
     { title: '🏢 Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
-    { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
+    { title: '📊 Insights', keys: ['leaderboard', 'listing-campaign', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
     { title: '🔗 System', keys: ['bulk-ops'] },
   ];
 
@@ -453,7 +455,7 @@ function AgentOpsSideNav({
     { title: 'Agent Network', defaultOpen: true, keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: 'Operations', keys: ['pipeline', 'escalations', 'tasks', 'connector'] },
     { title: 'Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
-    { title: 'Performance & Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
+    { title: 'Performance & Insights', keys: ['leaderboard', 'listing-campaign', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
     { title: 'System', keys: ['bulk-ops'] },
   ];
 
