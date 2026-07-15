@@ -119,7 +119,7 @@ import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentR
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
-import { MERCHANT_RESTRICTION_MESSAGE } from '@/hooks/useIsMerchantAgent';
+import { MERCHANT_RESTRICTION_MESSAGE, useIsMerchantAgent } from '@/hooks/useIsMerchantAgent';
 import { AgentTenantInlineList } from '@/components/agent/AgentTenantInlineList';
 import { AgentCapacityShareInline } from '@/components/agent/AgentCapacityShareInline';
 import { AgentDailyCardEmailPrompt } from '@/components/agent/AgentDailyCardEmailPrompt';
