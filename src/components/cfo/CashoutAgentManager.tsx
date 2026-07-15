@@ -165,7 +165,7 @@ function MerchantAgentFloatCard({ agentId }: { agentId: string | null | undefine
     <Card>
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Closing float balance</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Float left right now</p>
           <Wallet className="h-4 w-4 text-primary" />
         </div>
         {isLoading ? (
