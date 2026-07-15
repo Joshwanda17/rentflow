@@ -534,7 +534,7 @@ function buildText(r: Report, prettyDate: string): string {
   const lines: string[] = [];
   lines.push(`Agent Advances Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
-  lines.push(`Total agents: ${r.totalAgents} | With advances: ${r.agentsWithAdvances} (${pct(adoption)} adoption) | Paying back: ${r.payingBackCount}`);
+  lines.push(`Total agents: ${r.totalAgents} | With advances: ${r.agentsWithAdvances} (${pct(adoption)} adoption) | Paid today: ${r.payingBackCount}`);
   lines.push(`Requests today: ${r.requestsToday} (system total ${r.requestsTotal})`);
   lines.push(`Approved today: ${r.approvedToday} (total ${r.approvedTotal}) | Rejected today: ${r.rejectedToday} (total ${r.rejectedTotal}) | Pending: ${r.pendingTotal}`);
   lines.push("");
