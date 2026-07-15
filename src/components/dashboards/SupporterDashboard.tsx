@@ -610,16 +610,8 @@ export default function SupporterDashboard({
             </div>
           )}
 
-          {/* ═══ HOUSES ON WELILE — visibility into live inventory ═══ */}
-          <div id="houses-on-welile" className="space-y-3 scroll-mt-4">
-            <div className="flex items-center gap-2 px-1">
-              <div className="w-1 h-5 rounded-full bg-primary" />
-              <h2 className="text-sm font-black text-foreground tracking-tight">Houses on Welile</h2>
-            </div>
-            <WidgetErrorBoundary label="Houses on Welile">
-              <PublicHousesPreview authenticated />
-            </WidgetErrorBoundary>
-          </div>
+          {/* Houses on Welile / Available Now moved inside
+              "Support Tenants Directly" in Capital Opportunities. */}
 
         </main>
       </div>
