@@ -1908,6 +1908,7 @@ export type Database = {
           bank_name: string | null
           bank_reference: string | null
           created_at: string
+          float_delivery_tid: string | null
           funded_by: string | null
           id: string
           notes: string | null
@@ -1919,6 +1920,7 @@ export type Database = {
           bank_name?: string | null
           bank_reference?: string | null
           created_at?: string
+          float_delivery_tid?: string | null
           funded_by?: string | null
           id?: string
           notes?: string | null
@@ -1930,6 +1932,7 @@ export type Database = {
           bank_name?: string | null
           bank_reference?: string | null
           created_at?: string
+          float_delivery_tid?: string | null
           funded_by?: string | null
           id?: string
           notes?: string | null
@@ -7868,6 +7871,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           created_at: string
+          float_delivery_tid: string | null
           id: string
           reason: string | null
           rejection_reason: string | null
@@ -7880,6 +7884,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          float_delivery_tid?: string | null
           id?: string
           reason?: string | null
           rejection_reason?: string | null
@@ -7892,6 +7897,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          float_delivery_tid?: string | null
           id?: string
           reason?: string | null
           rejection_reason?: string | null
@@ -10751,6 +10757,42 @@ export type Database = {
           opened_at?: string | null
           opened_by?: string | null
           reason?: string | null
+        }
+        Relationships: []
+      }
+      ledger_reconciled_tids: {
+        Row: {
+          amount: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          source: string
+          source_id: string | null
+          tid_normalized: string
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          source: string
+          source_id?: string | null
+          tid_normalized: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          source?: string
+          source_id?: string | null
+          tid_normalized?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -20442,6 +20484,42 @@ export type Database = {
         }
         Relationships: []
       }
+      welile_payout_source_accounts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          label: string | null
+          msisdn: string
+          notes: string | null
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          msisdn: string
+          notes?: string | null
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          msisdn?: string
+          notes?: string | null
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       welile_receivables_summary: {
         Row: {
           avg_known_monthly: number
@@ -24062,6 +24140,7 @@ export type Database = {
       }
       is_funder_approved: { Args: { _user_id: string }; Returns: boolean }
       is_landlord_ops: { Args: { _user_id: string }; Returns: boolean }
+      is_merchant_agent: { Args: { p_user_id: string }; Returns: boolean }
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_platform_user_admin: { Args: { _user_id?: string }; Returns: boolean }
@@ -24798,6 +24877,11 @@ export type Database = {
       return_rent_request_for_correction: {
         Args: { p_reason: string; p_request_id: string; p_stage: string }
         Returns: string
+      }
+      reverse_all_phantom_auto_debits: { Args: never; Returns: Json }
+      reverse_phantom_auto_debit_obligation: {
+        Args: { p_obligation_id: string }
+        Returns: Json
       }
       run_email_auto_match_retry: {
         Args: { p_window_hours?: number }
