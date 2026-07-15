@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
@@ -98,20 +99,25 @@ function OptionRow({
   icon: typeof Home; title: string; description: string; onClick: () => void;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={() => { hapticTap(); onClick(); }}
-      className="group w-full flex items-center gap-3.5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 px-4 py-3.5 text-left ring-1 ring-white/20"
+      whileHover={{ y: -3, scale: 1.01 }}
+      whileTap={{ scale: 0.97 }}
+      whileFocus={{ y: -2, scale: 1.005 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+      className="group relative w-full flex items-center gap-3.5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 px-4 py-3.5 text-left ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
     >
-      <div className="p-3 rounded-xl bg-white/25 text-white shrink-0 backdrop-blur-sm ring-1 ring-white/30 shadow-inner shadow-white/10 group-hover:bg-white/35 group-hover:scale-105 transition-all duration-200">
+      <span className="pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" aria-hidden="true" />
+      <div className="relative p-3 rounded-xl bg-white/25 text-white shrink-0 backdrop-blur-sm ring-1 ring-white/30 shadow-inner shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35 group-hover:scale-105 group-focus-visible:scale-105 transition-all duration-200">
         <Icon className="h-6 w-6" strokeWidth={2.5} />
       </div>
-      <div className="flex-1 min-w-0">
+      <div className="relative flex-1 min-w-0">
         <p className="text-sm font-bold text-white leading-tight">{title}</p>
         <p className="text-[11px] text-white/80 font-medium mt-0.5 leading-snug">{description}</p>
       </div>
-      <ChevronRight className="h-5 w-5 text-white/80 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-    </button>
+      <ChevronRight className="relative h-5 w-5 text-white/80 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200" />
+    </motion.button>
   );
 }
 
