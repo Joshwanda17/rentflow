@@ -476,7 +476,7 @@ export function FunderDirectHouseListing() {
       {/* Results header */}
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-muted-foreground">
-          {filtered.length} {filtered.length === 1 ? 'house' : 'houses'} found
+          Showing {filtered.length.toLocaleString()} of {(totalMatch ?? filtered.length).toLocaleString()}
         </p>
         <button
           type="button"
@@ -486,6 +486,7 @@ export function FunderDirectHouseListing() {
           See all <ArrowRight className="h-3 w-3" />
         </button>
       </div>
+
 
       {/* Grid */}
       {filtered.length === 0 ? (
