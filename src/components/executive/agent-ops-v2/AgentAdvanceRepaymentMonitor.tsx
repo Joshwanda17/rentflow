@@ -14,9 +14,9 @@ import {
 } from 'recharts';
 import {
   Banknote, TrendingDown, AlertTriangle, CheckCircle2, XCircle,
-  Wallet, Loader2, BellRing, Percent, Users, CalendarClock,
+  Wallet, Loader2, BellRing, Percent, Users, CalendarClock, Sparkles, CalendarDays,
 } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { format, subDays, startOfMonth, isSameDay } from 'date-fns';
 
 const num = (v: any) => Number(v ?? 0);
 
@@ -67,14 +67,14 @@ export function AgentAdvanceRepaymentMonitor() {
     refetchOnMount: 'always',
   });
 
-  // Ledger for the repayment-rate + collection trend (last 14 days).
+  // Ledger for the repayment-rate + collection + interest trend (last ~35 days).
   const { data: ledger } = useQuery({
     queryKey: ['agent-advance-repayment-trend'],
     queryFn: async () => {
-      const since = format(subDays(new Date(), 14), 'yyyy-MM-dd');
+      const since = format(subDays(new Date(), 35), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('agent_advance_ledger')
-        .select('date, amount_deducted, deduction_status')
+        .select('date, amount_deducted, interest_accrued, deduction_status')
         .gte('date', since)
         .order('date', { ascending: true });
       if (error) throw error;
@@ -84,19 +84,47 @@ export function AgentAdvanceRepaymentMonitor() {
   });
 
   const trend = useMemo(() => {
-    const byDay: Record<string, { collected: number; paid: number; total: number }> = {};
+    const byDay: Record<string, { collected: number; interest: number; paid: number; total: number }> = {};
     for (const r of ledger || []) {
       const d = String((r as any).date);
-      byDay[d] ??= { collected: 0, paid: 0, total: 0 };
+      byDay[d] ??= { collected: 0, interest: 0, paid: 0, total: 0 };
       byDay[d].collected += num((r as any).amount_deducted);
+      byDay[d].interest += num((r as any).interest_accrued);
       byDay[d].total += 1;
       if ((r as any).deduction_status === 'full' || (r as any).deduction_status === 'partial') byDay[d].paid += 1;
     }
-    return Object.entries(byDay).map(([date, v]) => ({
-      date: format(new Date(date), 'MMM d'),
-      collected: v.collected,
-      rate: v.total > 0 ? Math.round((v.paid / v.total) * 100) : 0,
-    }));
+    return Object.entries(byDay)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .slice(-14)
+      .map(([date, v]) => ({
+        date: format(new Date(date), 'MMM d'),
+        collected: v.collected,
+        interest: v.interest,
+        rate: v.total > 0 ? Math.round((v.paid / v.total) * 100) : 0,
+      }));
+  }, [ledger]);
+
+  // Interest revenue rollups: today + month-to-date. `interest_accrued` is the
+  // interest Welile recognises on that ledger day (i.e. what the platform has
+  // actually made from the outstanding advance for that day).
+  const revenue = useMemo(() => {
+    const today = new Date();
+    const mStart = startOfMonth(today);
+    let interestToday = 0, interestMTD = 0, collectedMTD = 0;
+    for (const r of ledger || []) {
+      const d = new Date(String((r as any).date));
+      const iAcc = num((r as any).interest_accrued);
+      const amt = num((r as any).amount_deducted);
+      if (isSameDay(d, today)) interestToday += iAcc;
+      if (d >= mStart) { interestMTD += iAcc; collectedMTD += amt; }
+    }
+    const daysElapsed = Math.max(1, today.getDate());
+    return {
+      interestToday,
+      interestMTD,
+      collectedMTD,
+      dailyAvgInterest: interestMTD / daysElapsed,
+    };
   }, [ledger]);
 
   const stats = useMemo(() => {
@@ -164,10 +192,18 @@ export function AgentAdvanceRepaymentMonitor() {
         <KPICard title="Total arrears" value={formatUGX(stats.totalArrears)} icon={AlertTriangle} loading={isLoading} color="bg-amber-100 text-amber-700" subtitle={`Outstanding ${formatUGX(stats.totalOutstanding)}`} />
       </div>
 
+      {/* Interest revenue KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard title="Interest today" value={formatUGX(revenue.interestToday)} icon={Sparkles} color="bg-indigo-100 text-indigo-700" subtitle={format(new Date(), 'EEE, d MMM')} />
+        <KPICard title="Interest this month" value={formatUGX(revenue.interestMTD)} icon={CalendarDays} color="bg-indigo-100 text-indigo-700" subtitle={`Avg ${formatUGX(revenue.dailyAvgInterest)}/day`} />
+        <KPICard title="Collected this month" value={formatUGX(revenue.collectedMTD)} icon={Banknote} color="bg-emerald-100 text-emerald-700" subtitle={format(new Date(), 'MMMM yyyy')} />
+        <KPICard title="Principal this month" value={formatUGX(Math.max(0, revenue.collectedMTD - revenue.interestMTD))} icon={TrendingDown} color="bg-slate-100 text-slate-700" subtitle="Collected − interest" />
+      </div>
+
       {/* Trend chart */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><Percent className="h-4 w-4 text-emerald-600" /> Repayment rate & amount collected (14 days)</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-2"><Percent className="h-4 w-4 text-emerald-600" /> Repayment rate, collections & interest (14 days)</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={240}>
@@ -180,6 +216,7 @@ export function AgentAdvanceRepaymentMonitor() {
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Area yAxisId="right" type="monotone" dataKey="collected" name="Collected" fill="#059669" stroke="#059669" fillOpacity={0.15} />
               <Bar yAxisId="right" dataKey="collected" name="Collected" barSize={14} fill="#059669" fillOpacity={0.35} />
+              <Bar yAxisId="right" dataKey="interest" name="Interest earned" barSize={14} fill="#6366f1" fillOpacity={0.7} />
               <Line yAxisId="left" type="monotone" dataKey="rate" name="Repayment rate" stroke="#7c3aed" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
