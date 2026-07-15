@@ -104,7 +104,11 @@ export function FunderDirectHouseListing() {
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const mountedRef = useRef(true);
+
+  const PAGE_SIZE = 100;
 
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('all');
@@ -119,11 +123,13 @@ export function FunderDirectHouseListing() {
     };
   }, []);
 
-  const fetchHouses = useCallback(async (isRetry = false) => {
+  const fetchHouses = useCallback(async (isRetry = false, append = false) => {
     if (isRetry) {
       setError(false);
       setLoading(true);
     }
+    if (append) setLoadingMore(true);
+    const offset = append ? (houses?.length ?? 0) : 0;
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error: sbError } = await (supabase as any)
@@ -138,34 +144,38 @@ export function FunderDirectHouseListing() {
         .not('image_urls', 'is', null)
         .neq('image_urls', '{}')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .range(offset, offset + PAGE_SIZE - 1);
 
       if (sbError) throw sbError;
 
       if (!mountedRef.current) return;
-      setHouses(
-        ((data as House[]) || []).filter(
-          (h) =>
-            Array.isArray(h.image_urls) &&
-            h.image_urls.some((u) => typeof u === 'string' && u.trim().length > 0)
-        )
+      const rows = ((data as House[]) || []).filter(
+        (h) =>
+          Array.isArray(h.image_urls) &&
+          h.image_urls.some((u) => typeof u === 'string' && u.trim().length > 0)
       );
+      setHasMore(((data as House[]) || []).length === PAGE_SIZE);
+      setHouses((prev) => (append && prev ? [...prev, ...rows] : rows));
       setError(false);
     } catch (err) {
       console.error('[FunderDirectHouseListing] fetch error:', err);
       if (!mountedRef.current) return;
-      setError(true);
+      if (!append) setError(true);
       toast.error('Couldn’t load houses', {
         description: 'Please check your connection and try again.',
       });
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
-  }, []);
+  }, [houses]);
 
   useEffect(() => {
     fetchHouses();
-  }, [fetchHouses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(() => {
     if (!houses) return [];
