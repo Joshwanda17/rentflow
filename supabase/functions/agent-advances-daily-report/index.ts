@@ -203,7 +203,7 @@ async function buildReport(
       .select("id, agent_id, principal, outstanding_balance, status, issued_at"),
     admin
       .from("agent_advance_ledger")
-      .select("amount_deducted, date"),
+      .select("advance_id, amount_deducted, date"),
     // "Who is an agent" — the canonical behaviour-based set (listed a house,
     // posted a promissory note, made a rent request for a tenant, or has a
     // qualifying sub-agent). This is the same source of truth the Agent Ops
@@ -293,11 +293,15 @@ async function buildReport(
   const repaymentRate = totalRepaid + outstandingAll > 0
     ? (totalRepaid / (totalRepaid + outstandingAll)) * 100
     : 0;
-  // "Paying back" = live (active/overdue) advances where the agent has already
-  // repaid part of the principal (outstanding < principal).
-  const payingBackCount = [...active, ...overdue].filter(
-    (a: any) => Number(a.outstanding_balance || 0) < Number(a.principal || 0),
-  ).length;
+  // "Paying back today" = distinct live advances with a deduction posted today.
+  // Uniform with the Agent Ops Repayment Monitor definition (paid_today).
+  const paidTodayAdvanceIds = new Set(
+    ledger
+      .filter((l: any) => l.date === dateStr && Number(l.amount_deducted || 0) > 0)
+      .map((l: any) => l.advance_id)
+      .filter(Boolean),
+  );
+  const payingBackCount = paidTodayAdvanceIds.size;
 
   // Top overdue agents by outstanding balance.
   const overdueSorted = [...overdue].sort(
