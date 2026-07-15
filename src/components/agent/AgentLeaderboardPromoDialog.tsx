@@ -95,13 +95,13 @@ export function AgentLeaderboardPromoDialog({
             <p className="text-[14.5px] leading-relaxed text-foreground text-center">
               It's only{' '}
               <span className="inline-flex items-center gap-1 font-extrabold" style={{ color: '#6D28D9' }}>
-                <Clock className="h-3.5 w-3.5" />
+                <Clock className="h-3.5 w-3.5" style={{ color: '#6D28D9' }} />
                 {daysLabel}
               </span>{' '}
               for the Weekly Listing Mission to end — earn{' '}
-              <b className="text-foreground">UGX 250,000</b> from your sub-agents.
+              <b style={{ color: '#9334EB' }}>UGX 250,000</b> from your sub-agents.
               Invited so far{' '}
-              <b className="text-foreground">{invitedCount.toLocaleString()}</b>
+              <b style={{ color: '#9334EB' }}>{invitedCount.toLocaleString()}</b>
               , remaining{' '}
               <b style={{ color: '#9334EB' }}>{invitedRemaining.toLocaleString()}</b>.
             </p>
