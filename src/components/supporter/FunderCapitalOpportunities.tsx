@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
   TrendingUp, Shield, Rocket, Home, Wallet, ChevronLeft, ChevronRight,
-  Coins, Lock, Clock, HandCoins,
+  Coins, Lock, Clock, HandCoins, Handshake,
   BadgeCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
