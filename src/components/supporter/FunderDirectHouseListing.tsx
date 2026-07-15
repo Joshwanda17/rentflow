@@ -71,6 +71,7 @@ export function FunderDirectHouseListing() {
   const navigate = useNavigate();
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('all');
@@ -78,45 +79,51 @@ export function FunderDirectHouseListing() {
   const [rooms, setRooms] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any)
-          .from('house_listings')
-          .select(
-            'id, title, region, district, address, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code, created_at'
-          )
-          .eq('status', 'available')
-          .eq('is_hidden', false)
-          .eq('verified', true)
-          .is('tenant_id', null)
-          .not('image_urls', 'is', null)
-          .neq('image_urls', '{}')
-          .order('created_at', { ascending: false })
-          .limit(100);
+  const fetchHouses = useCallback(async (isRetry = false) => {
+    if (isRetry) {
+      setError(false);
+      setLoading(true);
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error: sbError } = await (supabase as any)
+        .from('house_listings')
+        .select(
+          'id, title, region, district, address, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code, created_at'
+        )
+        .eq('status', 'available')
+        .eq('is_hidden', false)
+        .eq('verified', true)
+        .is('tenant_id', null)
+        .not('image_urls', 'is', null)
+        .neq('image_urls', '{}')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-        if (!mounted) return;
-        if (error) throw error;
+      if (sbError) throw sbError;
 
-        setHouses(
-          ((data as House[]) || []).filter(
-            (h) =>
-              Array.isArray(h.image_urls) &&
-              h.image_urls.some((u) => typeof u === 'string' && u.trim().length > 0)
-          )
-        );
-      } catch (err) {
-        console.error('[FunderDirectHouseListing] fetch error:', err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+      setHouses(
+        ((data as House[]) || []).filter(
+          (h) =>
+            Array.isArray(h.image_urls) &&
+            h.image_urls.some((u) => typeof u === 'string' && u.trim().length > 0)
+        )
+      );
+      setError(false);
+    } catch (err) {
+      console.error('[FunderDirectHouseListing] fetch error:', err);
+      setError(true);
+      toast.error('Couldn’t load houses', {
+        description: 'Please check your connection and try again.',
+      });
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchHouses();
+  }, [fetchHouses]);
 
   const filtered = useMemo(() => {
     if (!houses) return [];
