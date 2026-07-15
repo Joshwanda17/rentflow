@@ -141,14 +141,17 @@ function DetailShell({ title, subtitle, onBack, children }: {
   return (
     <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
       <div className="px-5 pt-4 pb-3 flex items-center gap-2.5 border-b border-border/50">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => { hapticTap(); onBack(); }}
-          className="p-1.5 -ml-1.5 rounded-lg hover:bg-muted/60 transition-colors"
-          aria-label="Back"
+          className="-ml-1.5 gap-1 px-2 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+          aria-label="Back to Capital Opportunities"
         >
-          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-        </button>
+          <ChevronLeft className="h-4 w-4" />
+          <span className="text-xs font-semibold">Back</span>
+        </Button>
         <div className="min-w-0">
           <h3 className="font-black text-foreground text-sm tracking-tight leading-tight truncate">{title}</h3>
           <p className="text-[10px] text-muted-foreground font-medium leading-tight truncate">{subtitle}</p>
