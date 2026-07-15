@@ -1007,6 +1007,8 @@ export function CashoutAgentManager() {
           </CardContent>
         </Card>
 
+        <MerchantAgentFloatCard agentId={selectedAgent.agent_id} />
+
         {/* Work evaluation — same rich advance-potential analysis shown across ops */}
         {selectedAgent.agent_id && (
           <Card>
