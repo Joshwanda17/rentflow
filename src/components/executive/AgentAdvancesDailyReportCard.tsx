@@ -130,7 +130,7 @@ async function buildReport(): Promise<AdvanceReport> {
       .from('agent_advances')
       .select('id, agent_id, principal, outstanding_balance, status, issued_at')
       .limit(20000),
-    supabase.from('agent_advance_ledger').select('amount_deducted, date').limit(50000),
+    supabase.from('agent_advance_ledger').select('advance_id, amount_deducted, date').limit(50000),
     supabase.rpc('agent_ops_qualifying_agent_ids'),
   ]);
 
@@ -199,9 +199,16 @@ async function buildReport(): Promise<AdvanceReport> {
 
   const outstandingAll = activeOutstanding + overdueOutstanding;
   const repaymentRate = totalRepaid + outstandingAll > 0 ? (totalRepaid / (totalRepaid + outstandingAll)) * 100 : 0;
-  const payingBackCount = [...active, ...overdue].filter(
-    (a) => Number(a.outstanding_balance || 0) < Number(a.principal || 0),
-  ).length;
+  // "Paid today" — distinct live advances with a deduction posted today.
+  // Uniform with the Agent Ops Repayment Monitor (paid_today) definition so
+  // every dashboard shows the same live figure.
+  const paidTodayAdvanceIds = new Set(
+    ledger
+      .filter((l) => l.date === date && Number(l.amount_deducted || 0) > 0)
+      .map((l) => l.advance_id)
+      .filter(Boolean),
+  );
+  const payingBackCount = paidTodayAdvanceIds.size;
 
   const overdueSorted = [...overdue]
     .sort((a, b) => Number(b.outstanding_balance || 0) - Number(a.outstanding_balance || 0))
