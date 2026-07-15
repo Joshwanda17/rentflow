@@ -141,6 +141,59 @@ function ClaimCommentDialog({ claim, onClose }: { claim: any | null; onClose: ()
   );
 }
 
+function MerchantAgentFloatCard({ agentId }: { agentId: string | null | undefined }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['cashout-agent-float', agentId],
+    enabled: !!agentId,
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data: w } = await supabase
+        .from('wallets')
+        .select('float_balance, withdrawable_balance, advance_balance, balance')
+        .eq('user_id', agentId!)
+        .maybeSingle();
+      return {
+        float: Number(w?.float_balance ?? 0),
+        withdrawable: Number(w?.withdrawable_balance ?? 0),
+        advance: Number(w?.advance_balance ?? 0),
+        total: Number(w?.balance ?? 0),
+      };
+    },
+  });
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Closing float balance</p>
+          <Wallet className="h-4 w-4 text-primary" />
+        </div>
+        {isLoading ? (
+          <div className="h-6 flex items-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <>
+            <p className="text-2xl font-bold tabular-nums">{formatUGX(data?.float ?? 0)}</p>
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              <div className="rounded-md bg-muted/50 p-2 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Withdrawable</p>
+                <p className="text-xs font-semibold tabular-nums mt-0.5">{formatUGX(data?.withdrawable ?? 0)}</p>
+              </div>
+              <div className="rounded-md bg-muted/50 p-2 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Advance</p>
+                <p className="text-xs font-semibold tabular-nums mt-0.5">{formatUGX(data?.advance ?? 0)}</p>
+              </div>
+              <div className="rounded-md bg-muted/50 p-2 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</p>
+                <p className="text-xs font-semibold tabular-nums mt-0.5">{formatUGX(data?.total ?? 0)}</p>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function CashoutAgentManager() {
   const { user } = useAuth();
   const { toast } = useToast();
