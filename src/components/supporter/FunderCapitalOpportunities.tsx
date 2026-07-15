@@ -113,7 +113,26 @@ function OptionRow({
       <div className="relative p-3 rounded-xl bg-white/25 text-white shrink-0 backdrop-blur-sm ring-1 ring-white/30 shadow-inner shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35 group-hover:scale-105 group-focus-visible:scale-105 transition-all duration-200">
         <Icon className="h-6 w-6" strokeWidth={2.5} />
       </div>
-      <div className="relative flex-1 min-w-Contract between Welile and you. We select tenants, collect repayments, and pay your monthly returns.">
+      <div className="relative flex-1 min-w-0">
+        <p className="text-sm font-bold text-white leading-tight">{title}</p>
+        <p className="text-[11px] text-white/80 font-medium mt-0.5 leading-snug">{description}</p>
+      </div>
+      <ChevronRight className="relative h-5 w-5 text-white/80 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200" />
+    </motion.button>
+  );
+
+  if (!tooltip) return button;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="top" sideOffset={8} className="max-w-[16rem] text-xs leading-relaxed">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 
 function DetailShell({ title, subtitle, onBack, children }: {
   title: string; subtitle: string; onBack: () => void; children: React.ReactNode;
