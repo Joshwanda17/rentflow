@@ -106,6 +106,28 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [showOptional, setShowOptional] = useState(false);
   // Landlord phone real-time validation error
   const [landlordPhoneError, setLandlordPhoneError] = useState<string>('');
+  // Inline banner shown at the bottom of the form (right above the action
+  // buttons) so agents see submit errors/success WITHOUT the dialog jumping
+  // them back to the top of step 3. Auto-clears after a short delay.
+  const [formMessage, setFormMessage] = useState<
+    { kind: 'error' | 'success' | 'info'; text: string; description?: string } | null
+  >(null);
+  const showFormMessage = (
+    kind: 'error' | 'success' | 'info',
+    text: string,
+    description?: string,
+  ) => {
+    setFormMessage({ kind, text, description });
+  };
+  // Auto-dismiss inline banner after 6s (success stays a bit longer).
+  useEffect(() => {
+    if (!formMessage) return;
+    const t = window.setTimeout(
+      () => setFormMessage(null),
+      formMessage.kind === 'success' ? 8000 : 6000,
+    );
+    return () => window.clearTimeout(t);
+  }, [formMessage]);
   const [successListing, setSuccessListing] = useState<null | {
     id: string;
     shortCode: string | null;
@@ -927,28 +949,34 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       // Essentials: rent, region, address, village.
       if (!monthlyRent || monthlyRent < 10000) {
         toast.error('Monthly rent must be at least UGX 10,000');
+        showFormMessage('error', 'Monthly rent must be at least UGX 10,000');
         return false;
       }
       if (!form.region) {
         toast.error('Please select a region');
+        showFormMessage('error', 'Please select a region');
         return false;
       }
       if (!form.address.trim()) {
         toast.error('Address is required');
+        showFormMessage('error', 'Address is required');
         return false;
       }
       if (!form.village.trim()) {
         toast.error('Village / Zone is required');
+        showFormMessage('error', 'Village / Zone is required');
         return false;
       }
       // Every listed house MUST carry its own GPS pin.
       if (!geo) {
         toast.error('Pin the exact GPS location of this house');
+        showFormMessage('error', 'Pin the exact GPS location of this house');
         return false;
       }
       // The agent must explicitly confirm the pinned location is correct.
       if (!geoConfirmed) {
         toast.error('Confirm the GPS location is correct before continuing');
+        showFormMessage('error', 'Confirm the GPS location is correct before continuing');
         return false;
       }
     }
@@ -956,6 +984,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       // Photos are required.
       if (images.length < 3) {
         toast.error('Take at least 3 photos of the house');
+        showFormMessage('error', 'Take at least 3 photos of the house');
         return false;
       }
     }
@@ -963,23 +992,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       // Landlord name is mandatory — every listing must carry a named landlord.
       if (!form.landlord_name.trim() && !selectedLandlord?.name) {
         toast.error('Landlord name is required');
+        showFormMessage('error', 'Landlord name is required');
         return false;
       }
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
       const phoneErr = validateLandlordPhone(form.landlord_phone);
       if (phoneErr) {
         toast.error(phoneErr);
+        showFormMessage('error', phoneErr);
         setLandlordPhoneError(phoneErr);
         return false;
       }
       if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
         toast.error('Enter the caretaker name and phone');
+        showFormMessage('error', 'Enter the caretaker name and phone');
         return false;
       }
       // LC1 chairperson is mandatory for every listing.
       const lc1Err = validateLc1Selection(lc1Selection);
       if (lc1Err) {
         toast.error(lc1Err);
+        showFormMessage('error', lc1Err);
         return false;
       }
     }
@@ -989,15 +1022,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const goNext = () => {
     setAttempted(true);
     if (!validateStep(step)) {
-      scrollDialogToTop();
       return;
     }
     setAttempted(false);
+    setFormMessage(null);
     setStep((s) => Math.min(TOTAL_STEPS, s + 1));
     scrollDialogToTop();
   };
 
   const goBack = () => {
+    setFormMessage(null);
     setStep((s) => Math.max(1, s - 1));
     scrollDialogToTop();
   };
@@ -1040,7 +1074,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
     const failWith = (msg: string) => {
       toast.error(msg);
-      scrollDialogToTop();
+      showFormMessage('error', msg);
     };
 
     // ─── Preflight jump ───
@@ -1053,8 +1087,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       if (firstMissing.step !== step) {
         setStep(firstMissing.step);
       }
-      toast.error(firstMissing.hint || `${firstMissing.label} is required`);
-      scrollDialogToTop();
+      const msg = firstMissing.hint || `${firstMissing.label} is required`;
+      toast.error(msg);
+      showFormMessage('error', msg);
       return;
     }
 
@@ -1322,6 +1357,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       toast.success('House listed successfully!', {
         description: `UGX 1,000 sent to your wallet now · earn UGX 4,000 more when Landlord Ops verifies this house (UGX 5,000 total)`,
       });
+      showFormMessage(
+        'success',
+        'House listed successfully!',
+        'UGX 1,000 sent to your wallet now · UGX 4,000 more when verified.',
+      );
       onSuccess?.();
 
       // Fetch short_code (generated by DB trigger) so the share link is friendly
@@ -1350,6 +1390,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('House posting is blocked', {
           description: 'You cannot list houses right now. No commission is earned while blocked.',
         });
+        showFormMessage(
+          'error',
+          'House posting is blocked',
+          'You cannot list houses right now. No commission is earned while blocked.',
+        );
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data } = await (supabase as any).rpc('get_my_listing_block');
@@ -1359,8 +1404,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         }
       } else {
         toast.error(err?.message || 'Failed to list house');
+        showFormMessage('error', err?.message || 'Failed to list house');
       }
-      scrollDialogToTop();
     } finally {
       setSubmitting(false);
     }
@@ -2713,9 +2758,48 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               inset so it stays tappable on low-end Androids and gesture-bar /
               notched phones common across Africa. */}
           <div
-            className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background px-4 sm:px-6 pt-3 pb-1"
+            className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background px-4 sm:px-6 pt-3 pb-1 relative"
             style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
           >
+            {formMessage && (
+              <div
+                role={formMessage.kind === 'error' ? 'alert' : 'status'}
+                aria-live="polite"
+                className={`absolute left-0 right-0 -top-2 -translate-y-full mx-4 sm:mx-6 rounded-xl border px-3 py-2.5 shadow-lg flex items-start gap-2 ${
+                  formMessage.kind === 'error'
+                    ? 'bg-destructive/10 border-destructive/30 text-destructive'
+                    : formMessage.kind === 'success'
+                      ? 'bg-success/10 border-success/30 text-success'
+                      : 'bg-primary/10 border-primary/30 text-primary'
+                }`}
+              >
+                <span
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                    formMessage.kind === 'error'
+                      ? 'bg-destructive text-destructive-foreground'
+                      : formMessage.kind === 'success'
+                        ? 'bg-success text-success-foreground'
+                        : 'bg-primary text-primary-foreground'
+                  }`}
+                >
+                  {formMessage.kind === 'success' ? <Check className="h-3 w-3" /> : '!'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold leading-tight">{formMessage.text}</p>
+                  {formMessage.description && (
+                    <p className="text-xs opacity-90 leading-snug mt-0.5">{formMessage.description}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormMessage(null)}
+                  aria-label="Dismiss"
+                  className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold opacity-70 hover:opacity-100"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             {step > 1 && (
               <Button type="button" variant="outline" className="h-14 flex-1 min-w-0 text-base font-semibold active:scale-95 touch-manipulation" onClick={goBack}>
                 <ArrowLeft className="h-5 w-5 mr-1 shrink-0" /> Back
