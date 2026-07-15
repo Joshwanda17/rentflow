@@ -109,6 +109,8 @@ export function FunderDirectHouseListing() {
   const [totalMatch, setTotalMatch] = useState<number | null>(null);
   const [countLoading, setCountLoading] = useState(false);
   const mountedRef = useRef(true);
+  const countTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
 
   const PAGE_SIZE = 100;
