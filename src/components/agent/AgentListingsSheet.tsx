@@ -838,11 +838,10 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                           size="sm"
                           variant="outline"
                           className="h-8 text-xs gap-1"
-                          onClick={() => handleRelist(l)}
-                          disabled={relisting === l.id}
+                          onClick={() => setEditingListing(l)}
                         >
-                          <RotateCcw className="h-3 w-3" />
-                          {relisting === l.id ? 'Relisting...' : 'Relist'}
+                          <Pencil className="h-3 w-3" />
+                          Edit House
                         </Button>
                       </div>
                     </motion.div>
