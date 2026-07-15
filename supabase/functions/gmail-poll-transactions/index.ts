@@ -878,6 +878,42 @@ async function tryAutoDebitPayout(
   // Only act on recent payouts (mirror the 7-day window used elsewhere).
   if (internalMs && internalMs < Date.now() - 7 * 24 * 3600 * 1000) return;
 
+  // ── Rule 1: reconciled-TID skip list ─────────────────────────────────
+  // If this TID has already been accounted for (e.g. CFO stamped it on a
+  // float delivery / withdrawal / landlord payout), never auto-debit.
+  if (parsed.transaction_id) {
+    const tidNorm = String(parsed.transaction_id).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (tidNorm) {
+      const { data: reconciled } = await supabase
+        .from('ledger_reconciled_tids')
+        .select('id, source')
+        .eq('tid_normalized', tidNorm)
+        .maybeSingle();
+      if (reconciled?.id) {
+        console.log(
+          `[gmail-poll] auto-debit skip: TID ${parsed.transaction_id} already reconciled via ${reconciled.source}`,
+        );
+        return;
+      }
+    }
+  }
+
+  // ── Rule 3: Welile-payout-source whitelist (emergency stop) ──────────
+  // The engine only fires when the sending mailbox / provider looks like a
+  // Welile-owned payout line that the CFO has explicitly whitelisted. If
+  // the whitelist is empty (default), the engine is safely off.
+  const { data: whitelistRows } = await supabase
+    .from('welile_payout_source_accounts')
+    .select('id')
+    .eq('is_active', true)
+    .limit(1);
+  if (!whitelistRows || whitelistRows.length === 0) {
+    console.log(
+      '[gmail-poll] auto-debit disabled: no active welile_payout_source_accounts whitelisted (Rule 3 emergency stop)',
+    );
+    return;
+  }
+
   // Locate the row we just inserted so we can link the routing record.
   const { data: gmailRow } = await supabase
     .from('gmail_transactions')
@@ -1024,6 +1060,78 @@ async function tryAutoDebitPayout(
     });
     return;
   }
+
+  // ── Rule 2: merchant-agent debit block (defense-in-depth) ────────────
+  // The DB trigger `trg_block_merchant_agent_auto_debit` also enforces
+  // this, but skipping here avoids a noisy failed ledger insert.
+  const { data: isMerchant } = await supabase.rpc('is_merchant_agent', {
+    p_user_id: target.targetUserId,
+  });
+  if (isMerchant === true) {
+    console.log(
+      `[gmail-poll] auto-debit skip: target ${target.targetName} is a merchant agent (Rule 2)`,
+    );
+    await logPayoutMatchAttempt(supabase, {
+      emailId: gmailRow.id,
+      emailTid: parsed.transaction_id ?? null,
+      emailAmount: parsed.amount ?? null,
+      recipientPhoneEmail: cp || null,
+      recipientPhoneTarget: target.targetPhone ?? null,
+      paymentMethod: parsed.channel ?? null,
+      outcome: 'skipped_merchant_agent',
+      metadata: {
+        gmail_message_id: gmailMessageId,
+        match_method: matchMethod,
+        target_user_id: target.targetUserId,
+        target_user_name: target.targetName,
+        rule: 'rule_2_merchant_agent_debit_block',
+      },
+    });
+    return;
+  }
+
+  // ── Rule 4: payout-intent reconciliation ─────────────────────────────
+  // Only auto-debit when a Welile-side payout intent expected this
+  // transaction: a pending/approved withdrawal_request, or a scheduled
+  // landlord_payout, matched by TID.
+  if (parsed.transaction_id) {
+    const tid = String(parsed.transaction_id);
+    const [{ data: wr }, { data: lp }] = await Promise.all([
+      supabase
+        .from('withdrawal_requests')
+        .select('id')
+        .eq('fin_ops_reference', tid)
+        .limit(1),
+      supabase
+        .from('landlord_payouts')
+        .select('id')
+        .eq('transaction_reference', tid)
+        .limit(1),
+    ]);
+    const hasIntent = (wr && wr.length > 0) || (lp && lp.length > 0);
+    if (!hasIntent) {
+      console.log(
+        `[gmail-poll] auto-debit skip: no payout intent found for TID ${tid} (Rule 4)`,
+      );
+      await logPayoutMatchAttempt(supabase, {
+        emailId: gmailRow.id,
+        emailTid: tid,
+        emailAmount: parsed.amount ?? null,
+        recipientPhoneEmail: cp || null,
+        recipientPhoneTarget: target.targetPhone ?? null,
+        paymentMethod: parsed.channel ?? null,
+        outcome: 'no_payout_intent',
+        metadata: {
+          gmail_message_id: gmailMessageId,
+          match_method: matchMethod,
+          target_user_id: target.targetUserId,
+          rule: 'rule_4_payout_intent_required',
+        },
+      });
+      return;
+    }
+  }
+
   const debitAmt = target.debitAmount;
   const isPartial = target.isPartial;
   const viaProxy = target.viaProxy;
