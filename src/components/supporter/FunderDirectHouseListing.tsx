@@ -67,6 +67,38 @@ const SORTS = [
   { value: 'rooms_desc', label: 'Most rooms' },
 ];
 
+function HouseCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+      <div className="h-36 bg-muted/60 animate-pulse" />
+      <div className="p-3 space-y-2">
+        <div className="h-4 w-3/4 rounded-md bg-muted/60 animate-pulse" />
+        <div className="h-3 w-1/2 rounded-md bg-muted/60 animate-pulse" />
+        <div className="h-4 w-1/3 rounded-md bg-muted/60 animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+function ListingSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading houses">
+      <div className="h-10 rounded-xl bg-muted/60 animate-pulse" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="h-9 w-[130px] rounded-lg bg-muted/60 animate-pulse" />
+        <div className="h-9 w-[130px] rounded-lg bg-muted/60 animate-pulse" />
+        <div className="h-9 w-[132px] rounded-lg bg-muted/60 animate-pulse" />
+        <div className="h-9 w-[150px] rounded-lg bg-muted/60 animate-pulse" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <HouseCardSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function FunderDirectHouseListing() {
   const navigate = useNavigate();
   const [houses, setHouses] = useState<House[] | null>(null);
