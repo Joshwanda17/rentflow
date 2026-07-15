@@ -88,6 +88,7 @@ interface AdvanceReport {
   date: string;
   totalAgents: number;
   agentsWithAdvances: number;
+  agentsWithActiveAdvances: number;
   adoption: number;
   payingBackCount: number;
   requestsTotal: number;
