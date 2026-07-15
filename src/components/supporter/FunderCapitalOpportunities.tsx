@@ -21,6 +21,7 @@ import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
+import { PublicHousesPreview } from '@/components/landing/PublicHousesPreview';
 
 type OptionKey = 'managed' | 'direct' | 'angel';
 type ViewState = 'menu' | OptionKey;
