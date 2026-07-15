@@ -101,10 +101,10 @@ function OptionRow({
     <button
       type="button"
       onClick={() => { hapticTap(); onClick(); }}
-      className="group w-full flex items-center gap-3 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 px-4 py-3.5 text-left ring-1 ring-white/20"
+      className="group w-full flex items-center gap-3.5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 px-4 py-3.5 text-left ring-1 ring-white/20"
     >
-      <div className="p-2.5 rounded-xl bg-white/20 text-white shrink-0 backdrop-blur-sm group-hover:bg-white/25 transition-colors">
-        <Icon className="h-5 w-5" />
+      <div className="p-3 rounded-xl bg-white/25 text-white shrink-0 backdrop-blur-sm ring-1 ring-white/30 shadow-inner shadow-white/10 group-hover:bg-white/35 group-hover:scale-105 transition-all duration-200">
+        <Icon className="h-6 w-6" strokeWidth={2.5} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-white leading-tight">{title}</p>
