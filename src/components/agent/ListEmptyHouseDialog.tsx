@@ -2761,6 +2761,45 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background px-4 sm:px-6 pt-3 pb-1"
             style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
           >
+            {formMessage && (
+              <div
+                role={formMessage.kind === 'error' ? 'alert' : 'status'}
+                aria-live="polite"
+                className={`absolute left-0 right-0 -top-2 -translate-y-full mx-4 sm:mx-6 rounded-xl border px-3 py-2.5 shadow-lg flex items-start gap-2 ${
+                  formMessage.kind === 'error'
+                    ? 'bg-destructive/10 border-destructive/30 text-destructive'
+                    : formMessage.kind === 'success'
+                      ? 'bg-success/10 border-success/30 text-success'
+                      : 'bg-primary/10 border-primary/30 text-primary'
+                }`}
+              >
+                <span
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                    formMessage.kind === 'error'
+                      ? 'bg-destructive text-destructive-foreground'
+                      : formMessage.kind === 'success'
+                        ? 'bg-success text-success-foreground'
+                        : 'bg-primary text-primary-foreground'
+                  }`}
+                >
+                  {formMessage.kind === 'success' ? <Check className="h-3 w-3" /> : '!'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold leading-tight">{formMessage.text}</p>
+                  {formMessage.description && (
+                    <p className="text-xs opacity-90 leading-snug mt-0.5">{formMessage.description}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormMessage(null)}
+                  aria-label="Dismiss"
+                  className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold opacity-70 hover:opacity-100"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             {step > 1 && (
               <Button type="button" variant="outline" className="h-14 flex-1 min-w-0 text-base font-semibold active:scale-95 touch-manipulation" onClick={goBack}>
                 <ArrowLeft className="h-5 w-5 mr-1 shrink-0" /> Back
