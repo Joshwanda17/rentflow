@@ -243,19 +243,29 @@ export function FunderDirectHouseListing() {
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
 
   if (loading) {
+    return <ListingSkeleton />;
+  }
+
+  if (error && houses === null) {
     return (
-      <div className="space-y-3">
-        <div className="h-10 rounded-xl bg-muted/50 animate-pulse" />
-        <div className="flex gap-2">
-          <div className="h-9 w-32 rounded-lg bg-muted/50 animate-pulse" />
-          <div className="h-9 w-32 rounded-lg bg-muted/50 animate-pulse" />
-          <div className="h-9 w-28 rounded-lg bg-muted/50 animate-pulse" />
+      <div className="rounded-2xl border border-border/60 bg-card p-6 text-center space-y-3">
+        <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertCircle className="h-6 w-6 text-destructive" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-56 rounded-2xl bg-muted/50 animate-pulse" />
-          ))}
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">Couldn’t load houses</p>
+          <p className="text-[11px] text-muted-foreground">
+            Something went wrong while fetching the available houses. Please try again.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => fetchHouses(true)}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 touch-manipulation"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Try again
+        </button>
       </div>
     );
   }
