@@ -149,6 +149,7 @@ interface Report {
   date: string;
   totalAgents: number;
   agentsWithAdvances: number;
+  agentsWithActiveAdvances: number;
   // Requests
   requestsTotal: number;
   requestsToday: number;
@@ -277,6 +278,9 @@ async function buildReport(
   const active = advances.filter((a: any) => String(a.status) === "active");
   const overdue = advances.filter((a: any) => String(a.status) === "overdue");
   const completed = advances.filter((a: any) => String(a.status) === "completed");
+  const agentsWithActiveAdvances = new Set(
+    [...active, ...overdue].map((a: any) => a.agent_id).filter(Boolean),
+  ).size;
   const activeOutstanding = active.reduce((s: number, a: any) => s + Number(a.outstanding_balance || 0), 0);
   const overdueOutstanding = overdue.reduce((s: number, a: any) => s + Number(a.outstanding_balance || 0), 0);
   const totalPrincipalIssued = advances.reduce((s: number, a: any) => s + Number(a.principal || 0), 0);
@@ -326,6 +330,7 @@ async function buildReport(
     date: dateStr,
     totalAgents,
     agentsWithAdvances,
+    agentsWithActiveAdvances,
     requestsTotal,
     requestsToday,
     approvedTotal,
