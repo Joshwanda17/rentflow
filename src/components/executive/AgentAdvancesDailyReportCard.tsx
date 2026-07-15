@@ -356,7 +356,7 @@ export function AgentAdvancesDailyReportCard() {
               <SectionTitle>Agent base &amp; adoption</SectionTitle>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Kpi label="Qualifying agents" value={r.totalAgents.toLocaleString('en-US')} sub="Meet agent criteria" />
-                <Kpi label="With advances" value={String(r.agentsWithAdvances)} color={C.purple} />
+                <Kpi label="Active advances" value={String(r.agentsWithActiveAdvances)} color={C.purple} sub={`${r.agentsWithAdvances} ever`} />
                 <Kpi label="Adoption" value={pct(r.adoption)} color={r.adoption < 1 ? C.red : C.green} />
                 <Kpi label="Paid today" value={String(r.payingBackCount)} color={C.green} />
               </div>
