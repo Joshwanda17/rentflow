@@ -2758,7 +2758,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               inset so it stays tappable on low-end Androids and gesture-bar /
               notched phones common across Africa. */}
           <div
-            className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background px-4 sm:px-6 pt-3 pb-1"
+            className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background px-4 sm:px-6 pt-3 pb-1 relative"
             style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
           >
             {formMessage && (
