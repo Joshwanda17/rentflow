@@ -1,0 +1,433 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, MapPin, Home, ArrowRight, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { formatUGX } from '@/lib/rentCalculations';
+import { hapticTap } from '@/lib/haptics';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
+import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
+
+interface House {
+  id: string;
+  title: string;
+  region: string;
+  district: string | null;
+  address: string | null;
+  house_category: string;
+  number_of_rooms: number;
+  daily_rate: number;
+  monthly_rent: number;
+  image_urls: string[] | null;
+  short_code: string | null;
+  created_at: string;
+}
+
+const CATEGORIES = [
+  { value: 'all', label: 'All Types' },
+  { value: 'single_room', label: 'Single Room' },
+  { value: 'double_room', label: 'Double Room' },
+  { value: 'bedsitter', label: 'Bedsitter' },
+  { value: 'one_bedroom', label: '1 Bedroom' },
+  { value: 'two_bedroom', label: '2 Bedrooms' },
+  { value: 'three_bedroom', label: '3 Bedrooms' },
+  { value: 'studio', label: 'Studio' },
+  { value: 'shop', label: 'Shop' },
+];
+
+const REGIONS = [
+  'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
+  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
+  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
+  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
+];
+
+const ROOMS = [
+  { value: 'all', label: 'Any rooms' },
+  { value: '1', label: '1 room' },
+  { value: '2', label: '2 rooms' },
+  { value: '3', label: '3 rooms' },
+  { value: '4+', label: '4+ rooms' },
+];
+
+const SORTS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price_asc', label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+  { value: 'rooms_desc', label: 'Most rooms' },
+];
+
+export function FunderDirectHouseListing() {
+  const navigate = useNavigate();
+  const [houses, setHouses] = useState<House[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [search, setSearch] = useState('');
+  const [region, setRegion] = useState('all');
+  const [category, setCategory] = useState('all');
+  const [rooms, setRooms] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any)
+          .from('house_listings')
+          .select(
+            'id, title, region, district, address, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code, created_at'
+          )
+          .eq('status', 'available')
+          .eq('is_hidden', false)
+          .eq('verified', true)
+          .is('tenant_id', null)
+          .not('image_urls', 'is', null)
+          .neq('image_urls', '{}')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (!mounted) return;
+        if (error) throw error;
+
+        setHouses(
+          ((data as House[]) || []).filter(
+            (h) =>
+              Array.isArray(h.image_urls) &&
+              h.image_urls.some((u) => typeof u === 'string' && u.trim().length > 0)
+          )
+        );
+      } catch (err) {
+        console.error('[FunderDirectHouseListing] fetch error:', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!houses) return [];
+    let result = [...houses];
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (h) =>
+          h.title.toLowerCase().includes(q) ||
+          h.region.toLowerCase().includes(q) ||
+          (h.district || '').toLowerCase().includes(q) ||
+          (h.address || '').toLowerCase().includes(q) ||
+          (h.short_code || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (region !== 'all') {
+      const r = region.toLowerCase();
+      result = result.filter(
+        (h) =>
+          h.region.toLowerCase() === r || (h.district || '').toLowerCase() === r
+      );
+    }
+
+    if (category !== 'all') {
+      result = result.filter((h) => h.house_category === category);
+    }
+
+    if (rooms !== 'all') {
+      if (rooms === '4+') {
+        result = result.filter((h) => h.number_of_rooms >= 4);
+      } else {
+        const n = parseInt(rooms, 10);
+        result = result.filter((h) => h.number_of_rooms === n);
+      }
+    }
+
+    result.sort((a, b) => {
+      if (sortBy === 'newest') {
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }
+      if (sortBy === 'price_asc') return a.daily_rate - b.daily_rate;
+      if (sortBy === 'price_desc') return b.daily_rate - a.daily_rate;
+      if (sortBy === 'rooms_desc') return b.number_of_rooms - a.number_of_rooms;
+      return 0;
+    });
+
+    return result;
+  }, [houses, search, region, category, rooms, sortBy]);
+
+  const openHouse = (house: House) => {
+    hapticTap();
+    navigate(`/house/${house.short_code || house.id}`, { state: { from: 'funder' } });
+  };
+
+  const goExplore = () => {
+    hapticTap();
+    navigate('/find-a-house', { state: { from: 'funder' } });
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setRegion('all');
+    setCategory('all');
+    setRooms('all');
+    setSortBy('newest');
+  };
+
+  const activeFilterChips = [
+    region !== 'all' && {
+      label: region,
+      onRemove: () => setRegion('all'),
+    },
+    category !== 'all' && {
+      label: CATEGORIES.find((c) => c.value === category)?.label || category,
+      onRemove: () => setCategory('all'),
+    },
+    rooms !== 'all' && {
+      label: ROOMS.find((r) => r.value === rooms)?.label || rooms,
+      onRemove: () => setRooms('all'),
+    },
+  ].filter(Boolean) as { label: string; onRemove: () => void }[];
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-10 rounded-xl bg-muted/50 animate-pulse" />
+        <div className="flex gap-2">
+          <div className="h-9 w-32 rounded-lg bg-muted/50 animate-pulse" />
+          <div className="h-9 w-32 rounded-lg bg-muted/50 animate-pulse" />
+          <div className="h-9 w-28 rounded-lg bg-muted/50 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-56 rounded-2xl bg-muted/50 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Search by area, title, or address"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 h-10 text-sm"
+          aria-label="Search houses"
+        />
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={region} onValueChange={setRegion}>
+          <SelectTrigger className="h-9 text-xs w-[130px]" aria-label="Filter by region">
+            <SelectValue placeholder="Region" />
+          </SelectTrigger>
+          <SelectContent>
+            {REGIONS.map((r) => (
+              <SelectItem
+                key={r === 'All Regions' ? 'all' : r}
+                value={r === 'All Regions' ? 'all' : r}
+                className="text-xs"
+              >
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger className="h-9 text-xs w-[130px]" aria-label="Filter by house type">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map((c) => (
+              <SelectItem key={c.value} value={c.value} className="text-xs">
+                {c.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={rooms} onValueChange={setRooms}>
+          <SelectTrigger className="h-9 text-xs w-[132px]" aria-label="Filter by number of rooms">
+            <SelectValue placeholder="Rooms" />
+          </SelectTrigger>
+          <SelectContent>
+            {ROOMS.map((r) => (
+              <SelectItem key={r.value} value={r.value} className="text-xs">
+                {r.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="h-9 text-xs w-[150px]" aria-label="Sort houses">
+            <SelectValue placeholder="Sort" />
+          </SelectTrigger>
+          <SelectContent>
+            {SORTS.map((s) => (
+              <SelectItem key={s.value} value={s.value} className="text-xs">
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Active filter chips */}
+      <AnimatePresence>
+        {activeFilterChips.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex flex-wrap items-center gap-2 overflow-hidden"
+          >
+            <span className="text-[10px] text-muted-foreground font-medium">Active:</span>
+            {activeFilterChips.map((f, i) => (
+              <Badge key={i} variant="secondary" className="text-[10px] gap-1 pr-1">
+                {f.label}
+                <button
+                  type="button"
+                  onClick={f.onRemove}
+                  className="ml-0.5 rounded-full hover:bg-muted p-0.5"
+                  aria-label={`Remove ${f.label} filter`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-[10px] text-primary font-semibold ml-auto"
+            >
+              Clear all
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Results header */}
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] text-muted-foreground">
+          {filtered.length} {filtered.length === 1 ? 'house' : 'houses'} found
+        </p>
+        <button
+          type="button"
+          onClick={goExplore}
+          className="text-[11px] text-primary font-semibold flex items-center gap-0.5 touch-manipulation"
+        >
+          See all <ArrowRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      {/* Grid */}
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+          <Home className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm font-semibold text-foreground">No houses match your filters</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Try adjusting your search or filters.
+          </p>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="mt-3 text-xs text-primary font-semibold"
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {filtered.map((house) => (
+            <motion.div
+              key={house.id}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              role="button"
+              tabIndex={0}
+              onClick={() => openHouse(house)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') openHouse(house);
+              }}
+              className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              aria-label={`View details for ${house.title}`}
+            >
+              <div className="relative w-full h-36 bg-muted">
+                {house.image_urls?.[0] ? (
+                  <img
+                    src={house.image_urls[0]}
+                    alt={house.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Home className="h-8 w-8 text-muted-foreground/30" />
+                  </div>
+                )}
+                <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-background/85 backdrop-blur text-[9px] font-bold text-foreground">
+                  {house.number_of_rooms} rm
+                </span>
+                <span
+                  className="absolute top-2 right-2"
+                  onClick={(e) => e.stopPropagation()}
+                  role="presentation"
+                >
+                  <ShareHouseButton
+                    listingId={house.id}
+                    title={house.title}
+                    region={house.region}
+                    dailyRate={house.daily_rate}
+                    shortCode={house.short_code}
+                    mode="share"
+                    address={house.address}
+                    monthlyRent={house.monthly_rent}
+                    rooms={house.number_of_rooms}
+                    category={house.house_category}
+                  />
+                </span>
+              </div>
+              <div className="p-3 space-y-1">
+                <p className="font-semibold text-sm truncate">{house.title}</p>
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">
+                    {house.region}
+                    {house.district ? `, ${house.district}` : ''}
+                  </span>
+                </div>
+                <p className="text-sm font-black text-success leading-none pt-0.5">
+                  {formatUGX(house.daily_rate)}
+                  <span className="text-[9px] font-normal text-muted-foreground">/day</span>
+                </p>
+                <MoveInOfferBadge className="mt-1" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

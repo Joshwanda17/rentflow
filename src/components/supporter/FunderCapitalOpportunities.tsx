@@ -21,7 +21,7 @@ import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
-import { PublicHousesPreview } from '@/components/landing/PublicHousesPreview';
+import { FunderDirectHouseListing } from './FunderDirectHouseListing';
 
 type OptionKey = 'managed' | 'direct' | 'angel';
 type ViewState = 'menu' | OptionKey;
@@ -383,7 +383,7 @@ export function FunderCapitalOpportunities() {
               Houses on Welile · Available now
             </h4>
           </div>
-          <PublicHousesPreview authenticated />
+          <FunderDirectHouseListing />
         </div>
       </DetailShell>
     );
