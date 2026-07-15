@@ -21,6 +21,7 @@ import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
+import { PublicHousesPreview } from '@/components/landing/PublicHousesPreview';
 
 type OptionKey = 'managed' | 'direct' | 'angel';
 type ViewState = 'menu' | OptionKey;
@@ -412,6 +413,17 @@ export function FunderCapitalOpportunities() {
           Direct support is arranged case-by-case. A Welile officer will confirm the match, share
           documentation and coordinate payment to the landlord.
         </p>
+
+        {/* Houses on Welile — live inventory available now for direct support */}
+        <div className="pt-2 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-primary" />
+            <h4 className="text-xs font-black text-foreground tracking-tight">
+              Houses on Welile · Available now
+            </h4>
+          </div>
+          <PublicHousesPreview authenticated />
+        </div>
       </DetailShell>
     );
   }
