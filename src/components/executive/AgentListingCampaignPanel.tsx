@@ -3,6 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { format } from 'date-fns';
 import { Trophy, UsersRound, Home, Banknote } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import { format as fmtDate } from 'date-fns';
 
 interface BonusRow {
   id: string;
@@ -33,6 +44,7 @@ interface Overview {
   bonuses_awarded_amount: number;
   bonuses: BonusRow[];
   top_agents: TopAgentRow[];
+  daily_series?: { day: string; invited: number; verified_houses: number }[];
 }
 
 /**
@@ -103,6 +115,64 @@ export function AgentListingCampaignPanel() {
           Couldn't load campaign data: {(error as Error).message}
         </div>
       )}
+
+      {/* Daily trend line graph */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <h4 className="text-sm font-bold">Daily trend this week</h4>
+          <span className="text-[11px] text-muted-foreground">Invites vs verified houses</span>
+        </div>
+        <div className="p-3 h-64">
+          {isLoading ? (
+            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (data?.daily_series ?? []).length === 0 ? (
+            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+              No activity recorded yet this week.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={(data?.daily_series ?? []).map(d => ({
+                  ...d,
+                  label: fmtDate(new Date(d.day), 'EEE dd'),
+                }))}
+                margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip
+                  contentStyle={{
+                    background: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line
+                  type="monotone"
+                  dataKey="invited"
+                  name="Sub-agents invited"
+                  stroke="#9334EB"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="verified_houses"
+                  name="Verified houses"
+                  stroke="#16A34A"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
 
       {/* Live leaderboard — top agents by verified houses this week */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
