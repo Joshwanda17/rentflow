@@ -1105,7 +1105,7 @@ async function tryAutoDebitPayout(
       supabase
         .from('landlord_payouts')
         .select('id')
-        .eq('transaction_reference', tid)
+        .or(`external_reference.eq.${tid},finops_momo_reference.eq.${tid}`)
         .limit(1),
     ]);
     const hasIntent = (wr && wr.length > 0) || (lp && lp.length > 0);
