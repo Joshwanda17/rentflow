@@ -450,7 +450,7 @@ function buildHtml(r: Report, prettyDate: string): string {
           ${kpiCell("Qualifying agents", r.totalAgents.toLocaleString("en-US"), "#1a1a2e", "Meet the agent criteria")}
           ${kpiCell("Agents with advances", String(r.agentsWithAdvances), PURPLE)}
           ${kpiCell("Adoption", pct(adoption), adoption < 1 ? RED : GREEN)}
-          ${kpiCell("Paying back", String(r.payingBackCount), GREEN)}
+          ${kpiCell("Paid today", String(r.payingBackCount), GREEN, "Advances deducted today")}
         </tr>
       </table>
 
