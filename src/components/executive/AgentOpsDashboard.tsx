@@ -273,7 +273,7 @@ export function AgentOpsDashboard() {
     { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
     { title: '💰 Advances', keys: ['advance-requests', 'advance-potential', 'advance-limits', 'advance-repayments'] },
     { title: '🏢 Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
-    { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
+    { title: '📊 Insights', keys: ['leaderboard', 'listing-campaign', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
     { title: '🔗 System', keys: ['bulk-ops'] },
   ];
 
@@ -455,7 +455,7 @@ function AgentOpsSideNav({
     { title: 'Agent Network', defaultOpen: true, keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: 'Operations', keys: ['pipeline', 'escalations', 'tasks', 'connector'] },
     { title: 'Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
-    { title: 'Performance & Insights', keys: ['leaderboard', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
+    { title: 'Performance & Insights', keys: ['leaderboard', 'listing-campaign', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
     { title: 'System', keys: ['bulk-ops'] },
   ];
 
