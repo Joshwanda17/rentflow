@@ -182,6 +182,12 @@ async function buildReport(): Promise<AdvanceReport> {
   }
 
   const agentsWithAdvances = new Set(advances.map((a) => a.agent_id).filter(Boolean)).size;
+  const agentsWithActiveAdvances = new Set(
+    advances
+      .filter((a) => String(a.status) === 'active' || String(a.status) === 'overdue')
+      .map((a) => a.agent_id)
+      .filter(Boolean),
+  ).size;
   const active = advances.filter((a) => String(a.status) === 'active');
   const overdue = advances.filter((a) => String(a.status) === 'overdue');
   const completed = advances.filter((a) => String(a.status) === 'completed');
@@ -229,7 +235,8 @@ async function buildReport(): Promise<AdvanceReport> {
     date,
     totalAgents,
     agentsWithAdvances,
-    adoption: totalAgents ? (agentsWithAdvances / totalAgents) * 100 : 0,
+    agentsWithActiveAdvances,
+    adoption: totalAgents ? (agentsWithActiveAdvances / totalAgents) * 100 : 0,
     payingBackCount,
     requestsTotal,
     requestsToday,
