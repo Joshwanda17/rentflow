@@ -1011,15 +1011,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const goNext = () => {
     setAttempted(true);
     if (!validateStep(step)) {
-      scrollDialogToTop();
       return;
     }
     setAttempted(false);
+    setFormMessage(null);
     setStep((s) => Math.min(TOTAL_STEPS, s + 1));
     scrollDialogToTop();
   };
 
   const goBack = () => {
+    setFormMessage(null);
     setStep((s) => Math.max(1, s - 1));
     scrollDialogToTop();
   };
