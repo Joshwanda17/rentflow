@@ -142,6 +142,7 @@ export function FunderDirectHouseListing() {
 
       if (sbError) throw sbError;
 
+      if (!mountedRef.current) return;
       setHouses(
         ((data as House[]) || []).filter(
           (h) =>
@@ -152,12 +153,13 @@ export function FunderDirectHouseListing() {
       setError(false);
     } catch (err) {
       console.error('[FunderDirectHouseListing] fetch error:', err);
+      if (!mountedRef.current) return;
       setError(true);
       toast.error('Couldn’t load houses', {
         description: 'Please check your connection and try again.',
       });
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
