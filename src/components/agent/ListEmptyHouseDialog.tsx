@@ -1390,6 +1390,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('House posting is blocked', {
           description: 'You cannot list houses right now. No commission is earned while blocked.',
         });
+        showFormMessage(
+          'error',
+          'House posting is blocked',
+          'You cannot list houses right now. No commission is earned while blocked.',
+        );
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data } = await (supabase as any).rpc('get_my_listing_block');
