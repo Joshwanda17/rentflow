@@ -1074,7 +1074,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
     const failWith = (msg: string) => {
       toast.error(msg);
-      scrollDialogToTop();
+      showFormMessage('error', msg);
     };
 
     // ─── Preflight jump ───
@@ -1087,8 +1087,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       if (firstMissing.step !== step) {
         setStep(firstMissing.step);
       }
-      toast.error(firstMissing.hint || `${firstMissing.label} is required`);
-      scrollDialogToTop();
+      const msg = firstMissing.hint || `${firstMissing.label} is required`;
+      toast.error(msg);
+      showFormMessage('error', msg);
       return;
     }
 
