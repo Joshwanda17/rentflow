@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useWallet } from '@/hooks/useWallet';
 import { useCapitalOpportunities } from '@/hooks/useCapitalOpportunities';
@@ -94,11 +95,11 @@ function AngelPreview({ amount, formatAmountCompact }: { amount: number; formatA
 
 // ─── Option row (menu button) ───
 function OptionRow({
-  icon: Icon, title, description, onClick,
+  icon: Icon, title, description, tooltip, onClick,
 }: {
-  icon: typeof Home; title: string; description: string; onClick: () => void;
+  icon: typeof Home; title: string; description: string; tooltip?: string; onClick: () => void;
 }) {
-  return (
+  const button = (
     <motion.button
       type="button"
       onClick={() => { hapticTap(); onClick(); }}
@@ -119,7 +120,19 @@ function OptionRow({
       <ChevronRight className="relative h-5 w-5 text-white/80 shrink-0 group-hover:translate-x-1 group-focus-visible:translate-x-1 transition-transform duration-200" />
     </motion.button>
   );
+
+  if (!tooltip) return button;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="top" sideOffset={8} className="max-w-[16rem] text-xs leading-relaxed">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
+
 
 function DetailShell({ title, subtitle, onBack, children }: {
   title: string; subtitle: string; onBack: () => void; children: React.ReactNode;
@@ -222,26 +235,31 @@ export function FunderCapitalOpportunities() {
             )}
           </div>
 
-          <div className="space-y-2">
-            <OptionRow
-              icon={Handshake}
-              title="Support Tenants via Welile"
-              description="Sign a tenant-support contract with Welile. We manage the deployment and returns."
-              onClick={() => setView('managed')}
-            />
-            <OptionRow
-              icon={HandCoins}
-              title="Support Tenants Directly"
-              description="Pay landlords directly. Welile facilitates the introduction and documentation."
-              onClick={() => setView('direct')}
-            />
-            <OptionRow
-              icon={Rocket}
-              title="Angel Pool"
-              description="Buy a Welile share. Invest in the long-term Welile vision."
-              onClick={() => setView('angel')}
-            />
-          </div>
+          <TooltipProvider delayDuration={150}>
+            <div className="space-y-2">
+              <OptionRow
+                icon={Handshake}
+                title="Support Tenants via Welile"
+                description="Sign a tenant-support contract with Welile. We manage the deployment and returns."
+                tooltip="A managed contract between you and Welile. We source verified tenants, deploy your capital, collect repayments, and send monthly returns to your wallet."
+                onClick={() => setView('managed')}
+              />
+              <OptionRow
+                icon={HandCoins}
+                title="Support Tenants Directly"
+                description="Pay landlords directly. Welile facilitates the introduction and documentation."
+                tooltip="You pay the landlord directly for a verified tenant. Welile handles introductions, documentation, and repayment tracking on your behalf."
+                onClick={() => setView('direct')}
+              />
+              <OptionRow
+                icon={Rocket}
+                title="Angel Pool"
+                description="Buy a Welile share. Invest in the long-term Welile vision."
+                tooltip="Buy equity shares in Welile. Your capital supports platform growth and long-term value creation, with ownership reflected in your shareholder account."
+                onClick={() => setView('angel')}
+              />
+            </div>
+          </TooltipProvider>
 
           <div className="flex items-center justify-center gap-3 pt-1 text-[10px] text-muted-foreground font-medium">
             <span className="flex items-center gap-1"><BadgeCheck className="h-3 w-3 text-success" /> Verified</span>
