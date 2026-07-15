@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Home, ArrowRight, X } from 'lucide-react';
+import { Search, MapPin, Home, ArrowRight, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -66,10 +67,44 @@ const SORTS = [
   { value: 'rooms_desc', label: 'Most rooms' },
 ];
 
+function HouseCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+      <div className="h-36 bg-muted/60 animate-pulse" />
+      <div className="p-3 space-y-2">
+        <div className="h-4 w-3/4 rounded-md bg-muted/60 animate-pulse" />
+        <div className="h-3 w-1/2 rounded-md bg-muted/60 animate-pulse" />
+        <div className="h-4 w-1/3 rounded-md bg-muted/60 animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+function ListingSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading houses">
+      <div className="h-10 rounded-xl bg-muted/60 animate-pulse" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="h-9 w-[130px] rounded-lg bg-muted/60 animate-pulse" />
+        <div className="h-9 w-[130px] rounded-lg bg-muted/60 animate-pulse" />
+        <div className="h-9 w-[132px] rounded-lg bg-muted/60 animate-pulse" />
+        <div className="h-9 w-[150px] rounded-lg bg-muted/60 animate-pulse" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <HouseCardSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function FunderDirectHouseListing() {
   const navigate = useNavigate();
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const mountedRef = useRef(true);
 
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('all');
@@ -78,44 +113,59 @@ export function FunderDirectHouseListing() {
   const [sortBy, setSortBy] = useState('newest');
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any)
-          .from('house_listings')
-          .select(
-            'id, title, region, district, address, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code, created_at'
-          )
-          .eq('status', 'available')
-          .eq('is_hidden', false)
-          .eq('verified', true)
-          .is('tenant_id', null)
-          .not('image_urls', 'is', null)
-          .neq('image_urls', '{}')
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        if (!mounted) return;
-        if (error) throw error;
-
-        setHouses(
-          ((data as House[]) || []).filter(
-            (h) =>
-              Array.isArray(h.image_urls) &&
-              h.image_urls.some((u) => typeof u === 'string' && u.trim().length > 0)
-          )
-        );
-      } catch (err) {
-        console.error('[FunderDirectHouseListing] fetch error:', err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
+    mountedRef.current = true;
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
   }, []);
+
+  const fetchHouses = useCallback(async (isRetry = false) => {
+    if (isRetry) {
+      setError(false);
+      setLoading(true);
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error: sbError } = await (supabase as any)
+        .from('house_listings')
+        .select(
+          'id, title, region, district, address, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code, created_at'
+        )
+        .eq('status', 'available')
+        .eq('is_hidden', false)
+        .eq('verified', true)
+        .is('tenant_id', null)
+        .not('image_urls', 'is', null)
+        .neq('image_urls', '{}')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (sbError) throw sbError;
+
+      if (!mountedRef.current) return;
+      setHouses(
+        ((data as House[]) || []).filter(
+          (h) =>
+            Array.isArray(h.image_urls) &&
+            h.image_urls.some((u) => typeof u === 'string' && u.trim().length > 0)
+        )
+      );
+      setError(false);
+    } catch (err) {
+      console.error('[FunderDirectHouseListing] fetch error:', err);
+      if (!mountedRef.current) return;
+      setError(true);
+      toast.error('Couldn’t load houses', {
+        description: 'Please check your connection and try again.',
+      });
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHouses();
+  }, [fetchHouses]);
 
   const filtered = useMemo(() => {
     if (!houses) return [];
@@ -203,19 +253,29 @@ export function FunderDirectHouseListing() {
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
 
   if (loading) {
+    return <ListingSkeleton />;
+  }
+
+  if (error && houses === null) {
     return (
-      <div className="space-y-3">
-        <div className="h-10 rounded-xl bg-muted/50 animate-pulse" />
-        <div className="flex gap-2">
-          <div className="h-9 w-32 rounded-lg bg-muted/50 animate-pulse" />
-          <div className="h-9 w-32 rounded-lg bg-muted/50 animate-pulse" />
-          <div className="h-9 w-28 rounded-lg bg-muted/50 animate-pulse" />
+      <div className="rounded-2xl border border-border/60 bg-card p-6 text-center space-y-3">
+        <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertCircle className="h-6 w-6 text-destructive" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-56 rounded-2xl bg-muted/50 animate-pulse" />
-          ))}
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">Couldn’t load houses</p>
+          <p className="text-[11px] text-muted-foreground">
+            Something went wrong while fetching the available houses. Please try again.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => fetchHouses(true)}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 touch-manipulation"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Try again
+        </button>
       </div>
     );
   }
