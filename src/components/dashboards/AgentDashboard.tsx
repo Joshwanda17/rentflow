@@ -299,6 +299,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // dashboard (agents only — this component only renders for agents). Snoozed
   // per session so it doesn't reopen while switching tabs.
   useEffect(() => {
+    // Merchant Agents (cashout-only) never see the Weekly Listing Mission promo.
+    if (isCashoutAgent) return;
     try {
       if (sessionStorage.getItem('welile-agent-leaderboard-promo-seen')) return;
     } catch { /* ignore */ }
@@ -307,7 +309,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       try { sessionStorage.setItem('welile-agent-leaderboard-promo-seen', '1'); } catch { /* ignore */ }
     }, 1200);
     return () => clearTimeout(t);
-  }, []);
+  }, [isCashoutAgent]);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
