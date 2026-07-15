@@ -24,7 +24,8 @@ import { InvestmentSelectionSheet, type PoolType } from '@/components/angel-pool
 import { useAuth } from '@/hooks/useAuth';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 
-type ViewState = 'default' | 'investing' | 'committed';
+type OptionKey = 'managed' | 'direct' | 'angel';
+type ViewState = 'menu' | OptionKey;
 
 // ─── Amount Input ───
 function AmountInput({
