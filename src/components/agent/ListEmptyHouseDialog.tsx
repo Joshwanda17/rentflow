@@ -949,28 +949,34 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       // Essentials: rent, region, address, village.
       if (!monthlyRent || monthlyRent < 10000) {
         toast.error('Monthly rent must be at least UGX 10,000');
+        showFormMessage('error', 'Monthly rent must be at least UGX 10,000');
         return false;
       }
       if (!form.region) {
         toast.error('Please select a region');
+        showFormMessage('error', 'Please select a region');
         return false;
       }
       if (!form.address.trim()) {
         toast.error('Address is required');
+        showFormMessage('error', 'Address is required');
         return false;
       }
       if (!form.village.trim()) {
         toast.error('Village / Zone is required');
+        showFormMessage('error', 'Village / Zone is required');
         return false;
       }
       // Every listed house MUST carry its own GPS pin.
       if (!geo) {
         toast.error('Pin the exact GPS location of this house');
+        showFormMessage('error', 'Pin the exact GPS location of this house');
         return false;
       }
       // The agent must explicitly confirm the pinned location is correct.
       if (!geoConfirmed) {
         toast.error('Confirm the GPS location is correct before continuing');
+        showFormMessage('error', 'Confirm the GPS location is correct before continuing');
         return false;
       }
     }
@@ -978,6 +984,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       // Photos are required.
       if (images.length < 3) {
         toast.error('Take at least 3 photos of the house');
+        showFormMessage('error', 'Take at least 3 photos of the house');
         return false;
       }
     }
@@ -985,23 +992,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       // Landlord name is mandatory — every listing must carry a named landlord.
       if (!form.landlord_name.trim() && !selectedLandlord?.name) {
         toast.error('Landlord name is required');
+        showFormMessage('error', 'Landlord name is required');
         return false;
       }
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
       const phoneErr = validateLandlordPhone(form.landlord_phone);
       if (phoneErr) {
         toast.error(phoneErr);
+        showFormMessage('error', phoneErr);
         setLandlordPhoneError(phoneErr);
         return false;
       }
       if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
         toast.error('Enter the caretaker name and phone');
+        showFormMessage('error', 'Enter the caretaker name and phone');
         return false;
       }
       // LC1 chairperson is mandatory for every listing.
       const lc1Err = validateLc1Selection(lc1Selection);
       if (lc1Err) {
         toast.error(lc1Err);
+        showFormMessage('error', lc1Err);
         return false;
       }
     }
