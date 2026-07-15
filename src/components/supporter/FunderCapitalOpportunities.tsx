@@ -1,0 +1,439 @@
+import { useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import {
+  TrendingUp, Shield, Rocket, Home, Wallet, ChevronLeft, ChevronRight,
+  Coins, Lock, Clock, Building, HandCoins, Handshake, ArrowUpRight,
+  BadgeCheck, Sparkles,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
+import { useCurrency } from '@/hooks/useCurrency';
+import { useWallet } from '@/hooks/useWallet';
+import { useCapitalOpportunities } from '@/hooks/useCapitalOpportunities';
+import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } from '@/components/angel-pool/constants';
+import { hapticTap } from '@/lib/haptics';
+import { toast } from 'sonner';
+import { FundRentDialog } from './FundRentDialog';
+import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
+import { useAuth } from '@/hooks/useAuth';
+import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
+
+type OptionKey = 'managed' | 'direct' | 'angel';
+type ViewState = 'menu' | OptionKey;
+
+// ─── Reusable amount input ───
+function AmountInput({
+  amount, onAmountChange, onSliderChange, walletBalance, formatAmountCompact, exceedsBalance,
+  currencyCode, convertFromUGX,
+}: {
+  amount: number; onAmountChange: (val: string) => void; onSliderChange: (val: number) => void;
+  walletBalance: number; formatAmountCompact: (n: number) => string; exceedsBalance: boolean;
+  currencyCode: string; convertFromUGX: (n: number) => number;
+}) {
+  const displayAmount = amount > 0 ? Math.round(convertFromUGX(amount)) : 0;
+  return (
+    <div className="space-y-2">
+      <div className="rounded-xl bg-muted/40 px-3 py-2 flex items-center justify-between">
+        <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+          <Wallet className="h-3.5 w-3.5" /> Wallet Balance
+        </span>
+        <span className="text-sm font-black text-foreground">{formatAmountCompact(walletBalance)}</span>
+      </div>
+      <label className="text-xs text-muted-foreground font-semibold block">Amount ({currencyCode})</label>
+      <Input
+        type="text" inputMode="numeric"
+        value={displayAmount > 0 ? displayAmount.toLocaleString() : ''}
+        onChange={(e) => onAmountChange(e.target.value)}
+        placeholder={`Min ${formatAmountCompact(PRICE_PER_SHARE)}`}
+        className="text-lg font-bold h-12"
+      />
+      <Slider value={[amount]} onValueChange={([v]) => onSliderChange(v)} min={0}
+        max={walletBalance > 0 ? walletBalance : 50_000_000} step={PRICE_PER_SHARE} className="mt-1" />
+      {exceedsBalance && <p className="text-[11px] text-destructive font-medium">Amount exceeds your wallet balance</p>}
+    </div>
+  );
+}
+
+function AngelPreview({ amount, formatAmountCompact }: { amount: number; formatAmountCompact: (n: number) => string }) {
+  if (amount <= 0) return null;
+  const shares = Math.floor(amount / PRICE_PER_SHARE);
+  const poolPct = (shares / TOTAL_SHARES) * 100;
+  const companyPct = (POOL_PERCENT / TOTAL_SHARES) * shares;
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2.5">
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { val: shares.toLocaleString(), label: 'Shares' },
+          { val: `${poolPct.toFixed(2)}%`, label: 'Pool %' },
+          { val: `${companyPct.toFixed(4)}%`, label: 'Company %' },
+        ].map(m => (
+          <div key={m.label} className="rounded-lg bg-primary/5 p-2 text-center">
+            <p className="text-sm font-black text-primary">{m.val}</p>
+            <p className="text-[9px] text-muted-foreground font-medium">{m.label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="space-y-1">
+        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Future Value Estimates</p>
+        {VALUATIONS.map(v => {
+          const futureVal = (companyPct / 100) * v.value * UGX_PER_USD;
+          return (
+            <div key={v.label} className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">At {v.label}</span>
+              <span className="font-black text-success">{formatAmountCompact(futureVal)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Option row (menu button) ───
+function OptionRow({
+  icon: Icon, title, description, onClick,
+}: {
+  icon: typeof Home; title: string; description: string; onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => { hapticTap(); onClick(); }}
+      className="w-full flex items-center gap-3 rounded-xl border border-border/70 bg-card hover:bg-muted/30 active:bg-muted/50 transition-colors px-4 py-3.5 text-left"
+    >
+      <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-foreground leading-tight">{title}</p>
+        <p className="text-[11px] text-muted-foreground font-medium mt-0.5 leading-snug">{description}</p>
+      </div>
+      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+    </button>
+  );
+}
+
+function DetailShell({ title, subtitle, onBack, children }: {
+  title: string; subtitle: string; onBack: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
+      <div className="px-5 pt-4 pb-3 flex items-center gap-2.5 border-b border-border/50">
+        <button
+          type="button"
+          onClick={() => { hapticTap(); onBack(); }}
+          className="p-1.5 -ml-1.5 rounded-lg hover:bg-muted/60 transition-colors"
+          aria-label="Back"
+        >
+          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+        </button>
+        <div className="min-w-0">
+          <h3 className="font-black text-foreground text-sm tracking-tight leading-tight truncate">{title}</h3>
+          <p className="text-[10px] text-muted-foreground font-medium leading-tight truncate">{subtitle}</p>
+        </div>
+      </div>
+      <div className="px-5 py-4 space-y-4">{children}</div>
+    </div>
+  );
+}
+
+// ═══ MAIN ═══
+export function FunderCapitalOpportunities() {
+  const { formatAmountCompact, currency, convertFromUGX, convertToUGX } = useCurrency();
+  const { wallet } = useWallet();
+  const walletBalance = wallet?.balance ?? 0;
+  const { opportunitySummary, loading } = useCapitalOpportunities();
+  const { user } = useAuth();
+  const { isApproved, status: approvalStatus } = useFunderApprovalStatus(user?.id);
+
+  const [view, setView] = useState<ViewState>('menu');
+  const [showFundDialog, setShowFundDialog] = useState(false);
+  const [angelAmount, setAngelAmount] = useState(0);
+  const [investLoading, setInvestLoading] = useState(false);
+
+  const handleAngelAmountChange = (val: string) => {
+    const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
+    if (isNaN(num)) { setAngelAmount(0); return; }
+    const ugx = Math.round(convertToUGX(num));
+    const max = walletBalance > 0 ? walletBalance : 500_000_000;
+    setAngelAmount(Math.min(ugx, max));
+  };
+
+  const handleAngelInvest = useCallback(async () => {
+    if (angelAmount < PRICE_PER_SHARE) return;
+    if (walletBalance > 0 && angelAmount > walletBalance) return;
+    hapticTap();
+    setInvestLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('angel-pool-invest', {
+        body: { amount: angelAmount },
+      });
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Investment failed. Please try again.');
+        toast.error(msg);
+        return;
+      }
+      if (data?.error) { toast.error(data.error); return; }
+      toast.success(`${data.shares} shares secured. Ref: ${data.reference_id}`, {
+        description: `Pool ownership: ${data.pool_ownership_percent.toFixed(4)}%`,
+      });
+      setAngelAmount(0);
+      window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
+      window.dispatchEvent(new CustomEvent('wallet-balance-changed'));
+    } catch (err: any) {
+      toast.error(err?.message || 'Investment failed');
+    } finally {
+      setInvestLoading(false);
+    }
+  }, [angelAmount, walletBalance]);
+
+  if (loading) {
+    return <div className="h-48 rounded-2xl bg-muted/50 animate-pulse" />;
+  }
+
+  // ─── MENU ───
+  if (view === 'menu') {
+    const activeDemand = opportunitySummary?.total_rent_requested ?? 0;
+    return (
+      <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
+        <div className="px-5 pt-5 pb-4 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-black text-foreground text-base tracking-tight leading-tight">
+                Capital Opportunities
+              </h3>
+              <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                Choose how you want to deploy capital.
+              </p>
+            </div>
+            {activeDemand > 0 && (
+              <div className="text-right shrink-0">
+                <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest">Active demand</p>
+                <p className="text-sm font-black text-foreground">{formatAmountCompact(activeDemand)}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <OptionRow
+              icon={Handshake}
+              title="Support Tenants via Welile"
+              description="Sign a tenant-support contract with Welile. We manage the deployment and returns."
+              onClick={() => setView('managed')}
+            />
+            <OptionRow
+              icon={HandCoins}
+              title="Support Tenants Directly"
+              description="Pay landlords directly. Welile facilitates the introduction and documentation."
+              onClick={() => setView('direct')}
+            />
+            <OptionRow
+              icon={Rocket}
+              title="Angel Pool"
+              description="Buy a Welile share. Invest in the long-term Welile vision."
+              onClick={() => setView('angel')}
+            />
+          </div>
+
+          <div className="flex items-center justify-center gap-3 pt-1 text-[10px] text-muted-foreground font-medium">
+            <span className="flex items-center gap-1"><BadgeCheck className="h-3 w-3 text-success" /> Verified</span>
+            <span className="text-border">•</span>
+            <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> Structured</span>
+            <span className="text-border">•</span>
+            <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Secure</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── MANAGED (Welile contract) ───
+  if (view === 'managed') {
+    const summary = opportunitySummary;
+    return (
+      <>
+        <DetailShell
+          title="Support Tenants via Welile"
+          subtitle="Managed tenant-support contract"
+          onBack={() => setView('menu')}
+        >
+          <div className="rounded-xl bg-muted/30 border border-border/50 p-3.5 space-y-2">
+            <p className="text-xs font-bold text-foreground">How it works</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              You sign a tenant-support contract with Welile. We deploy your capital into verified rent
+              requests, collect from tenants through our agent network, and pay returns to your wallet monthly.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Total Rent Demand</p>
+            <p className="text-3xl font-black text-foreground tracking-tight mt-0.5">
+              {formatAmountCompact(summary?.total_rent_requested ?? 0)}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: (summary?.total_requests ?? 0).toLocaleString(), label: 'Requests' },
+              { value: (summary?.total_landlords ?? 0).toLocaleString(), label: 'Landlords' },
+              { value: (summary?.total_agents ?? 0).toLocaleString(), label: 'Agents' },
+            ].map(s => (
+              <div key={s.label} className="rounded-xl border border-border/60 bg-muted/20 p-2.5 text-center">
+                <p className="text-base font-black text-foreground">{s.value}</p>
+                <p className="text-[9px] text-muted-foreground font-medium">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            {[
+              { icon: TrendingUp, label: 'Monthly Return', value: 'Up to 15%', valueClass: 'text-success font-black' },
+              { icon: Clock, label: 'Deployment', value: '24–72 hours', valueClass: 'font-bold' },
+              { icon: Coins, label: 'Payouts', value: 'Monthly to wallet', valueClass: 'font-bold' },
+              { icon: Shield, label: 'Risk Control', value: 'Verified & insured', valueClass: 'font-bold' },
+            ].map(m => (
+              <div key={m.label} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <m.icon className="h-3.5 w-3.5" /> {m.label}
+                </span>
+                <span className={m.valueClass}>{m.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={() => { hapticTap(); if (isApproved) setShowFundDialog(true); }}
+            disabled={!isApproved}
+            className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2 uppercase tracking-wide"
+          >
+            {isApproved
+              ? (<>Support Tenant <ChevronRight className="h-4 w-4" /></>)
+              : (<><Lock className="h-4 w-4" /> {approvalStatus === 'rejected' ? 'Verification Required' : 'Awaiting Verification'}</>)}
+          </Button>
+          <InvestmentWithdrawButton />
+
+          <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
+            Returns are projected from historical performance. Capital is deployed into verified rent
+            facilitation agreements managed by Welile with reserve protection.
+          </p>
+        </DetailShell>
+
+        {opportunitySummary && (
+          <FundRentDialog
+            open={showFundDialog}
+            onOpenChange={setShowFundDialog}
+            summary={opportunitySummary}
+          />
+        )}
+      </>
+    );
+  }
+
+  // ─── DIRECT (pay landlord directly) ───
+  if (view === 'direct') {
+    return (
+      <DetailShell
+        title="Support Tenants Directly"
+        subtitle="Pay landlords directly, facilitated by Welile"
+        onBack={() => setView('menu')}
+      >
+        <div className="rounded-xl bg-muted/30 border border-border/50 p-3.5 space-y-2">
+          <p className="text-xs font-bold text-foreground">How it works</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            You pay the landlord directly for a verified tenant. Welile handles introductions, ID
+            verification, tenant onboarding and monthly repayment tracking on your behalf.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          {[
+            { icon: Building, label: 'Placement', value: 'Verified landlord & tenant' },
+            { icon: Handshake, label: 'Agreement', value: 'Direct tenant contract' },
+            { icon: Coins, label: 'Repayments', value: 'Tracked in your dashboard' },
+            { icon: Shield, label: 'Welile role', value: 'Facilitation & recovery' },
+          ].map(m => (
+            <div key={m.label} className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <m.icon className="h-3.5 w-3.5" /> {m.label}
+              </span>
+              <span className="font-bold text-foreground text-right">{m.value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 flex items-start gap-2.5">
+          <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+          <p className="text-[11px] text-foreground leading-relaxed">
+            To be matched with a landlord for direct support, request an introduction from Welile.
+          </p>
+        </div>
+
+        <Button
+          onClick={() => {
+            hapticTap();
+            const subject = encodeURIComponent('Direct tenant support — request introduction');
+            const body = encodeURIComponent(
+              'Hello Welile,\n\nI would like to support a tenant directly by paying the landlord. Please introduce me to an eligible landlord and tenant match.\n\nThank you.'
+            );
+            window.location.href = `mailto:invest@welileapp.com?subject=${subject}&body=${body}`;
+          }}
+          className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2 uppercase tracking-wide"
+        >
+          Request Introduction <ArrowUpRight className="h-4 w-4" />
+        </Button>
+
+        <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
+          Direct support is arranged case-by-case. A Welile officer will confirm the match, share
+          documentation and coordinate payment to the landlord.
+        </p>
+      </DetailShell>
+    );
+  }
+
+  // ─── ANGEL POOL ───
+  return (
+    <DetailShell
+      title="Angel Pool"
+      subtitle={`Buy a Welile share — up to ${POOL_PERCENT}% equity pool`}
+      onBack={() => setView('menu')}
+    >
+      <div className="rounded-xl bg-primary/5 border border-primary/20 p-3.5 space-y-2">
+        <p className="text-xs font-bold text-foreground">Own shares in Welile's future</p>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Invest in the long-term Welile vision. Each share is {formatAmountCompact(PRICE_PER_SHARE)} and grants
+          you equity in the Welile Angel Pool.
+        </p>
+      </div>
+
+      <AmountInput
+        amount={angelAmount}
+        onAmountChange={handleAngelAmountChange}
+        onSliderChange={setAngelAmount}
+        walletBalance={walletBalance}
+        formatAmountCompact={formatAmountCompact}
+        exceedsBalance={walletBalance > 0 && angelAmount > walletBalance}
+        currencyCode={currency.code}
+        convertFromUGX={convertFromUGX}
+      />
+
+      <AngelPreview amount={angelAmount} formatAmountCompact={formatAmountCompact} />
+
+      <Button
+        type="button"
+        onClick={handleAngelInvest}
+        disabled={investLoading || angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
+        className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2 uppercase tracking-wide"
+      >
+        <Rocket className="h-4 w-4" /> {investLoading ? 'Processing…' : 'Fund Angel Pool'}
+      </Button>
+
+      <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> Capital Protected</span>
+        <span className="text-border">•</span>
+        <span>Min: {formatAmountCompact(PRICE_PER_SHARE)}</span>
+      </div>
+    </DetailShell>
+  );
+}
