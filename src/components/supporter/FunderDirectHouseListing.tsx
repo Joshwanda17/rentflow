@@ -177,10 +177,71 @@ export function FunderDirectHouseListing() {
     }
   }, [houses]);
 
+  const fetchMatchCount = useCallback(async () => {
+    setCountLoading(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase as any)
+        .from('house_listings')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'available')
+        .eq('is_hidden', false)
+        .eq('verified', true)
+        .is('tenant_id', null)
+        .not('image_urls', 'is', null)
+        .neq('image_urls', '{}');
+
+      const q = search.trim();
+      if (q) {
+        const like = `%${q}%`;
+        query = query.or(
+          `title.ilike.${like},region.ilike.${like},district.ilike.${like},address.ilike.${like},short_code.ilike.${like}`
+        );
+      }
+
+      if (region !== 'all') {
+        const r = region.toLowerCase();
+        query = query.or(`region.ilike.${r},district.ilike.${r}`);
+      }
+
+      if (category !== 'all') {
+        query = query.eq('house_category', category);
+      }
+
+      if (rooms !== 'all') {
+        if (rooms === '4+') {
+          query = query.gte('number_of_rooms', 4);
+        } else {
+          query = query.eq('number_of_rooms', parseInt(rooms, 10));
+        }
+      }
+
+      const { count, error: sbError } = await query;
+      if (sbError) throw sbError;
+      if (!mountedRef.current) return;
+      setTotalMatch(count ?? null);
+    } catch (err) {
+      console.error('[FunderDirectHouseListing] count error:', err);
+    } finally {
+      if (mountedRef.current) setCountLoading(false);
+    }
+  }, [search, region, category, rooms]);
+
   useEffect(() => {
     fetchHouses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (countTimerRef.current) clearTimeout(countTimerRef.current);
+    countTimerRef.current = setTimeout(() => {
+      fetchMatchCount();
+    }, 150);
+    return () => {
+      if (countTimerRef.current) clearTimeout(countTimerRef.current);
+    };
+  }, [fetchMatchCount]);
+
 
   const filtered = useMemo(() => {
     if (!houses) return [];
