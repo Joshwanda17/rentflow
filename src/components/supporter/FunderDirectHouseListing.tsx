@@ -106,7 +106,10 @@ export function FunderDirectHouseListing() {
   const [error, setError] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [totalMatch, setTotalMatch] = useState<number | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
   const mountedRef = useRef(true);
+
 
   const PAGE_SIZE = 100;
 
