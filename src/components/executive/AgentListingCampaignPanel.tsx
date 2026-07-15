@@ -1,77 +1,60 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
-import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { format } from 'date-fns';
 import { Trophy, UsersRound, Home, Banknote } from 'lucide-react';
 
+interface BonusRow {
+  id: string;
+  agent_id: string;
+  agent_name: string | null;
+  agent_phone: string | null;
+  invited_count: number;
+  activated_count: number;
+  verified_houses_count: number;
+  amount: number;
+  awarded_at: string;
+}
+
+interface TopAgentRow {
+  agent_id: string;
+  agent_name: string | null;
+  agent_phone: string | null;
+  verified_houses: number;
+  invited: number;
+}
+
+interface Overview {
+  week_start: string;
+  week_end: string;
+  invites_this_week: number;
+  verified_houses_this_week: number;
+  bonuses_awarded_count: number;
+  bonuses_awarded_amount: number;
+  bonuses: BonusRow[];
+  top_agents: TopAgentRow[];
+}
+
 /**
- * Ops-wide view of the Weekly Agent Listing Campaign.
- * Shows this week's aggregate progress plus the list of agents who have
- * already been awarded the UGX 70,000 completion bonus.
+ * Ops-wide view of the Weekly Agent Listing Campaign. Reads the
+ * `get_agent_listing_campaign_ops_overview` RPC so ops staff bypass per-row
+ * RLS and always see full aggregate + leaderboard for the current week.
  */
 export function AgentListingCampaignPanel() {
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-  const weekStartIso = weekStart.toISOString();
-  const weekEndIso = weekEnd.toISOString();
-
-  const { data: bonuses, isLoading } = useQuery({
-    queryKey: ['agent-listing-campaign-bonuses-week', weekStartIso],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('agent_listing_campaign_bonuses')
-        .select('id, agent_id, amount, invited_count, activated_count, verified_houses_count, awarded_at, week_start')
-        .gte('week_start', weekStart.toISOString().slice(0, 10))
-        .order('awarded_at', { ascending: false });
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['agent-listing-campaign-ops-overview'],
+    staleTime: 60_000,
+    queryFn: async (): Promise<Overview | null> => {
+      const { data, error } = await (supabase.rpc as any)(
+        'get_agent_listing_campaign_ops_overview',
+      );
       if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: 60_000,
-  });
-
-  const agentIds = [...new Set((bonuses ?? []).map((b) => b.agent_id))];
-  const { data: profileMap } = useQuery({
-    queryKey: ['agent-listing-campaign-profiles', agentIds.sort().join(',')],
-    enabled: agentIds.length > 0,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', agentIds);
-      const map: Record<string, { full_name: string | null; phone: string | null }> = {};
-      (data ?? []).forEach((p: any) => { map[p.id] = { full_name: p.full_name, phone: p.phone }; });
-      return map;
-    },
-    staleTime: 5 * 60_000,
-  });
-
-  const { data: weekAggregate } = useQuery({
-    queryKey: ['agent-listing-campaign-aggregate', weekStartIso],
-    staleTime: 60_000,
-    queryFn: async () => {
-      const [invites, houses] = await Promise.all([
-        supabase
-          .from('agent_subagents')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', weekStartIso)
-          .lte('created_at', weekEndIso),
-        supabase
-          .from('house_listings')
-          .select('id', { count: 'exact', head: true })
-          .eq('verified', true)
-          .eq('is_hidden', false)
-          .neq('status', 'rejected')
-          .gte('created_at', weekStartIso)
-          .lte('created_at', weekEndIso),
-      ]);
-      return {
-        invites: invites.count ?? 0,
-        houses: houses.count ?? 0,
-      };
+      return data as Overview;
     },
   });
 
-  const totalBonusPaid = (bonuses ?? []).reduce((s, b) => s + Number(b.amount || 0), 0);
+  const weekStart = data?.week_start ? new Date(data.week_start) : null;
+  const weekEnd = data?.week_end ? new Date(new Date(data.week_end).getTime() - 1) : null;
 
   return (
     <div className="space-y-4">
@@ -81,26 +64,103 @@ export function AgentListingCampaignPanel() {
           <h3 className="text-base font-bold">Weekly Listing Mission</h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          {format(weekStart, 'dd MMM')} – {format(weekEnd, 'dd MMM yyyy')} · UGX 70,000 completion bonus per agent
+          {weekStart && weekEnd
+            ? `${format(weekStart, 'dd MMM')} – ${format(weekEnd, 'dd MMM yyyy')}`
+            : 'Current week'}{' '}
+          · UGX 3,000 per verified house · UGX 70,000 completion bonus
         </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPICard title="Sub-Agents Invited" value={(weekAggregate?.invites ?? 0).toLocaleString()} icon={UsersRound} />
-        <KPICard title="Verified Houses" value={(weekAggregate?.houses ?? 0).toLocaleString()} icon={Home} />
-        <KPICard title="Bonuses Awarded" value={(bonuses?.length ?? 0).toLocaleString()} icon={Trophy} />
-        <KPICard title="Bonus Payout (UGX)" value={totalBonusPaid.toLocaleString()} icon={Banknote} />
+        <KPICard
+          title="Sub-Agents Invited"
+          value={(data?.invites_this_week ?? 0).toLocaleString()}
+          icon={UsersRound}
+          loading={isLoading}
+        />
+        <KPICard
+          title="Verified Houses"
+          value={(data?.verified_houses_this_week ?? 0).toLocaleString()}
+          icon={Home}
+          loading={isLoading}
+        />
+        <KPICard
+          title="Bonuses Awarded"
+          value={(data?.bonuses_awarded_count ?? 0).toLocaleString()}
+          icon={Trophy}
+          loading={isLoading}
+        />
+        <KPICard
+          title="Bonus Payout (UGX)"
+          value={Number(data?.bonuses_awarded_amount ?? 0).toLocaleString()}
+          icon={Banknote}
+          loading={isLoading}
+        />
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          Couldn't load campaign data: {(error as Error).message}
+        </div>
+      )}
+
+      {/* Live leaderboard — top agents by verified houses this week */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
-          <h4 className="text-sm font-bold">Agents who completed this week</h4>
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <h4 className="text-sm font-bold">Top agents this week</h4>
+          <span className="text-[11px] text-muted-foreground">By verified houses</span>
         </div>
         {isLoading ? (
           <div className="p-6 text-sm text-muted-foreground text-center">Loading…</div>
-        ) : (bonuses ?? []).length === 0 ? (
+        ) : (data?.top_agents ?? []).length === 0 ? (
           <div className="p-6 text-sm text-muted-foreground text-center">
-            No agent has completed the mission yet this week.
+            No verified houses recorded yet this week.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="text-left px-4 py-2 font-semibold w-12">#</th>
+                  <th className="text-left px-4 py-2 font-semibold">Agent</th>
+                  <th className="text-right px-4 py-2 font-semibold">Sub-Agents Invited</th>
+                  <th className="text-right px-4 py-2 font-semibold">Verified Houses</th>
+                  <th className="text-right px-4 py-2 font-semibold">House Commission (UGX)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.top_agents ?? []).map((row, i) => (
+                  <tr key={row.agent_id} className="border-t border-border">
+                    <td className="px-4 py-2 tabular-nums text-muted-foreground">{i + 1}</td>
+                    <td className="px-4 py-2">
+                      <div className="font-medium">{row.agent_name || row.agent_id.slice(0, 8) + '…'}</div>
+                      {row.agent_phone && (
+                        <div className="text-xs text-muted-foreground">{row.agent_phone}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">{row.invited}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-semibold">{row.verified_houses}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {(row.verified_houses * 3000).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Awarded 70k completion bonuses */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <h4 className="text-sm font-bold">Completion bonuses awarded this week</h4>
+        </div>
+        {isLoading ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">Loading…</div>
+        ) : (data?.bonuses ?? []).length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">
+            No agent has completed the full mission yet this week.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -116,24 +176,23 @@ export function AgentListingCampaignPanel() {
                 </tr>
               </thead>
               <tbody>
-                {(bonuses ?? []).map((b) => {
-                  const p = profileMap?.[b.agent_id];
-                  return (
-                    <tr key={b.id} className="border-t border-border">
-                      <td className="px-4 py-2">
-                        <div className="font-medium">{p?.full_name || b.agent_id.slice(0, 8) + '…'}</div>
-                        {p?.phone && <div className="text-xs text-muted-foreground">{p.phone}</div>}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">{b.invited_count}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{b.activated_count}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{b.verified_houses_count}</td>
-                      <td className="px-4 py-2 text-right tabular-nums font-semibold">{Number(b.amount).toLocaleString()}</td>
-                      <td className="px-4 py-2 text-right text-xs text-muted-foreground">
-                        {format(new Date(b.awarded_at), 'dd MMM HH:mm')}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {(data?.bonuses ?? []).map((b) => (
+                  <tr key={b.id} className="border-t border-border">
+                    <td className="px-4 py-2">
+                      <div className="font-medium">{b.agent_name || b.agent_id.slice(0, 8) + '…'}</div>
+                      {b.agent_phone && <div className="text-xs text-muted-foreground">{b.agent_phone}</div>}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">{b.invited_count}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{b.activated_count}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{b.verified_houses_count}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-semibold">
+                      {Number(b.amount).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2 text-right text-xs text-muted-foreground">
+                      {format(new Date(b.awarded_at), 'dd MMM HH:mm')}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
