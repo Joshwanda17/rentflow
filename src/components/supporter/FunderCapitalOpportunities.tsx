@@ -108,7 +108,7 @@ function OptionRow({
       transition={{ type: 'spring', stiffness: 420, damping: 24 }}
       className="group relative w-full flex items-center gap-3.5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 px-4 py-3.5 text-left ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
     >
-      <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" aria-hidden="true" />
+      <span className="pointer-events-none absolute inset-0 group-hover:animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" aria-hidden="true" />
       <div className="relative p-3 rounded-xl bg-white/25 text-white shrink-0 backdrop-blur-sm ring-1 ring-white/30 shadow-inner shadow-white/10 group-hover:bg-white/35 group-focus-visible:bg-white/35 group-hover:scale-105 group-focus-visible:scale-105 transition-all duration-200">
         <Icon className="h-6 w-6" strokeWidth={2.5} />
       </div>
