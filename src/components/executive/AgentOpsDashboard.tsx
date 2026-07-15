@@ -240,6 +240,7 @@ export function AgentOpsDashboard() {
         </div>
       );
       case 'leaderboard': return <AgentLeaderboardPanel />;
+      case 'listing-campaign': return <AgentListingCampaignPanel />;
       case 'earnings': return (
         <ExecutiveDataTable data={earnings || []} columns={earningsColumns} loading={isLoading} title="Agent Earnings"
           filters={[{ key: 'earning_type', label: 'Type', options: [
