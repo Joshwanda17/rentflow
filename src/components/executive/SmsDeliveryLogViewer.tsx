@@ -419,17 +419,23 @@ export function SmsDeliveryLogViewer() {
 
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+            <CardTitle className="text-base flex items-center gap-2 shrink-0">
               <MessageSquare className="h-4 w-4 text-primary" /> Delivery Attempts
             </CardTitle>
-            <div className="flex flex-wrap gap-2">
-              <div className="relative flex-1 min-w-[160px]">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 min-w-[220px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input placeholder="Search phone, name, source…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-8 text-xs" />
+                <Input
+                  placeholder="Trace by name or phone number…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-9 text-xs w-full"
+                  aria-label="Trace delivery logs by name or phone number"
+                />
               </div>
               <Select value={providerFilter} onValueChange={setProviderFilter}>
-                <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Providers</SelectItem>
                   <SelectItem value="yoola">Yoola</SelectItem>
@@ -437,7 +443,7 @@ export function SmsDeliveryLogViewer() {
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="success">Delivered</SelectItem>
