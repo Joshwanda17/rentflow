@@ -235,26 +235,31 @@ export function FunderCapitalOpportunities() {
             )}
           </div>
 
-          <div className="space-y-2">
-            <OptionRow
-              icon={Handshake}
-              title="Support Tenants via Welile"
-              description="Sign a tenant-support contract with Welile. We manage the deployment and returns."
-              onClick={() => setView('managed')}
-            />
-            <OptionRow
-              icon={HandCoins}
-              title="Support Tenants Directly"
-              description="Pay landlords directly. Welile facilitates the introduction and documentation."
-              onClick={() => setView('direct')}
-            />
-            <OptionRow
-              icon={Rocket}
-              title="Angel Pool"
-              description="Buy a Welile share. Invest in the long-term Welile vision."
-              onClick={() => setView('angel')}
-            />
-          </div>
+          <TooltipProvider delayDuration={150}>
+            <div className="space-y-2">
+              <OptionRow
+                icon={Handshake}
+                title="Support Tenants via Welile"
+                description="Sign a tenant-support contract with Welile. We manage the deployment and returns."
+                tooltip="A managed contract between you and Welile. We source verified tenants, deploy your capital, collect repayments, and send monthly returns to your wallet."
+                onClick={() => setView('managed')}
+              />
+              <OptionRow
+                icon={HandCoins}
+                title="Support Tenants Directly"
+                description="Pay landlords directly. Welile facilitates the introduction and documentation."
+                tooltip="You pay the landlord directly for a verified tenant. Welile handles introductions, documentation, and repayment tracking on your behalf."
+                onClick={() => setView('direct')}
+              />
+              <OptionRow
+                icon={Rocket}
+                title="Angel Pool"
+                description="Buy a Welile share. Invest in the long-term Welile vision."
+                tooltip="Buy equity shares in Welile. Your capital supports platform growth and long-term value creation, with ownership reflected in your shareholder account."
+                onClick={() => setView('angel')}
+              />
+            </div>
+          </TooltipProvider>
 
           <div className="flex items-center justify-center gap-3 pt-1 text-[10px] text-muted-foreground font-medium">
             <span className="flex items-center gap-1"><BadgeCheck className="h-3 w-3 text-success" /> Verified</span>
