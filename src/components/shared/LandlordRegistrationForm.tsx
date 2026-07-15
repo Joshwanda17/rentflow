@@ -190,9 +190,7 @@ export default function LandlordRegistrationForm({
           setErrors((prev) => ({
             ...prev,
             landlordPhone:
-              matchedOn === 'both'
-                ? `${who} is already registered with this phone. Reuse the existing landlord instead of creating a duplicate.`
-                : 'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+              'Registration failed. A landlord with this phone number is already registered.',
           }));
         }
         setPhoneVerified(false);
