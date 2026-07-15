@@ -361,58 +361,16 @@ export function FunderCapitalOpportunities() {
     return (
       <DetailShell
         title="Support Tenants Directly"
-        subtitle="Pay landlords directly, facilitated by Welile"
+        subtitle="Browse verified houses and pay landlords directly"
         onBack={() => setView('menu')}
       >
-        <div className="rounded-xl bg-muted/30 border border-border/50 p-3.5 space-y-2">
+        <div className="rounded-xl bg-primary/5 border border-primary/20 p-3.5 space-y-2">
           <p className="text-xs font-bold text-foreground">How it works</p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            You pay the landlord directly for a verified tenant. Welile handles introductions, ID
-            verification, tenant onboarding and monthly repayment tracking on your behalf.
+            Browse available verified houses below. When you fund one, your capital goes directly to
+            the landlord and Welile tracks repayments through your dashboard.
           </p>
         </div>
-
-        <div className="space-y-2">
-          {[
-            { icon: Building, label: 'Placement', value: 'Verified landlord & tenant' },
-            { icon: Handshake, label: 'Agreement', value: 'Direct tenant contract' },
-            { icon: Coins, label: 'Repayments', value: 'Tracked in your dashboard' },
-            { icon: Shield, label: 'Welile role', value: 'Facilitation & recovery' },
-          ].map(m => (
-            <div key={m.label} className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground flex items-center gap-1.5">
-                <m.icon className="h-3.5 w-3.5" /> {m.label}
-              </span>
-              <span className="font-bold text-foreground text-right">{m.value}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 flex items-start gap-2.5">
-          <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-          <p className="text-[11px] text-foreground leading-relaxed">
-            To be matched with a landlord for direct support, request an introduction from Welile.
-          </p>
-        </div>
-
-        <Button
-          onClick={() => {
-            hapticTap();
-            const subject = encodeURIComponent('Direct tenant support — request introduction');
-            const body = encodeURIComponent(
-              'Hello Welile,\n\nI would like to support a tenant directly by paying the landlord. Please introduce me to an eligible landlord and tenant match.\n\nThank you.'
-            );
-            window.location.href = `mailto:invest@welileapp.com?subject=${subject}&body=${body}`;
-          }}
-          className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2 uppercase tracking-wide"
-        >
-          Request Introduction <ArrowUpRight className="h-4 w-4" />
-        </Button>
-
-        <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
-          Direct support is arranged case-by-case. A Welile officer will confirm the match, share
-          documentation and coordinate payment to the landlord.
-        </p>
 
         {/* Houses on Welile — live inventory available now for direct support */}
         <div className="pt-2 space-y-3">
