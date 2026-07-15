@@ -383,7 +383,7 @@ export function FunderCapitalOpportunities() {
               Houses on Welile · Available now
             </h4>
           </div>
-          <PublicHousesPreview authenticated />
+          <FunderDirectHouseListing />
         </div>
       </DetailShell>
     );
