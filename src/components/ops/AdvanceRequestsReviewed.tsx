@@ -1,11 +1,19 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import { format, formatDistanceToNowStrict } from 'date-fns';
-import { CheckCircle2, XCircle, Loader2, User, Inbox, Clock, Wallet } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, User, Inbox, Clock, Wallet, Ban, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
 
@@ -76,7 +84,14 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
-function RequestRow({ req, tone, onOpen }: { req: any; tone: 'approved' | 'rejected'; onOpen: (req: any) => void }) {
+function RequestRow({
+  req, tone, onOpen, onCancel,
+}: {
+  req: any;
+  tone: 'approved' | 'rejected';
+  onOpen: (req: any) => void;
+  onCancel?: (req: any) => void;
+}) {
   const rejectedByCfo = req.status === 'cfo_rejected';
   const note = tone === 'rejected' ? (req.rejection_reason || 'No reason recorded') : approvalNote(req);
   const paid = tone === 'approved' && isPaidOut(req);
@@ -86,6 +101,7 @@ function RequestRow({ req, tone, onOpen }: { req: any; tone: 'approved' | 'rejec
   const holdTone = paid
     ? 'text-muted-foreground'
     : holdDays >= 5 ? 'text-rose-600' : holdDays >= 2 ? 'text-amber-600' : 'text-emerald-600';
+  const canCancelRequest = tone === 'approved' && !paid && onCancel;
   return (
     <button
       type="button"
@@ -156,12 +172,70 @@ function RequestRow({ req, tone, onOpen }: { req: any; tone: 'approved' | 'rejec
           </span>{note}
         </div>
       )}
+      {canCancelRequest && (
+        <div className="mt-2 flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 text-destructive border-destructive/30 hover:bg-destructive/10 text-[11px]"
+            onClick={(e) => { e.stopPropagation(); onCancel!(req); }}
+          >
+            <Ban className="h-3 w-3" /> Cancel request
+          </Button>
+        </div>
+      )}
     </button>
   );
 }
 
 export function AdvanceRequestsReviewed() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [evalReq, setEvalReq] = useState<any | null>(null);
+  const [cancelReq, setCancelReq] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+
+  const cancelMutation = useMutation({
+    mutationFn: async ({ req, reason }: { req: any; reason: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const trimmed = reason.trim();
+      if (trimmed.length < 10) throw new Error('Please provide a reason (min 10 chars).');
+      // Cancel a request that hasn't been disbursed yet. RLS allows both
+      // Agent Ops and CFO to update agent_advance_requests. Marked as
+      // cfo_rejected so it lands in the rejected feed with the reason.
+      const { data, error } = await supabase
+        .from('agent_advance_requests')
+        .update({
+          status: 'cfo_rejected',
+          rejection_reason: trimmed,
+          cfo_notes: `Cancelled pre-disbursement: ${trimmed}`,
+          cfo_approved_by: user.id,
+          cfo_approved_at: new Date().toISOString(),
+        })
+        .eq('id', req.id)
+        .in('status', ['pending', 'agent_ops_approved', 'cfo_approved'])
+        .select('id')
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('Cannot cancel — the advance has already been disbursed or its status changed.');
+    },
+    onSuccess: () => {
+      toast.success('Request cancelled — agent notified');
+      setCancelReq(null);
+      setCancelReason('');
+      queryClient.invalidateQueries({ queryKey: ['advance-requests-reviewed'] });
+      queryClient.invalidateQueries({ queryKey: ['advance-requests-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const openCancel = (req: any) => {
+    setCancelReq(req);
+    setCancelReason('');
+  };
+
   const { data: approved = [], isLoading: loadingApproved } = useQuery({
     queryKey: ['advance-requests-reviewed', 'approved'],
     queryFn: async () => {
@@ -207,7 +281,9 @@ export function AdvanceRequestsReviewed() {
             <EmptyState label="No approved requests yet" />
           ) : (
             <div className="space-y-2">
-              {approved.map((req: any) => <RequestRow key={req.id} req={req} tone="approved" onOpen={setEvalReq} />)}
+              {approved.map((req: any) => (
+                <RequestRow key={req.id} req={req} tone="approved" onOpen={setEvalReq} onCancel={openCancel} />
+              ))}
             </div>
           )}
         </CardContent>
@@ -240,6 +316,51 @@ export function AdvanceRequestsReviewed() {
         agentName={evalReq?.agent_full_name}
         onClose={() => setEvalReq(null)}
       />
+
+      {/* Cancel-request reason dialog */}
+      <Dialog open={!!cancelReq} onOpenChange={(o) => { if (!o && !cancelMutation.isPending) { setCancelReq(null); setCancelReason(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Ban className="h-5 w-5 text-destructive" /> Cancel advance request
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {cancelReq ? (
+                <>Cancel <span className="font-semibold text-foreground">{cancelReq.agent_full_name || 'this agent'}</span>&apos;s request for {formatUGX(num(cancelReq.principal))}. The agent will see the reason.</>
+              ) : 'Provide a reason. The agent will see it.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-1">
+            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Reason (min 10 chars)</Label>
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={4}
+              placeholder="E.g. Duplicate of a pending advance, agent asked to withdraw, exposure too high…"
+              className="text-sm"
+            />
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => { setCancelReq(null); setCancelReason(''); }}
+              disabled={cancelMutation.isPending}
+            >
+              <X className="h-4 w-4 mr-1" /> Keep request
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full sm:w-auto gap-2"
+              disabled={cancelReason.trim().length < 10 || cancelMutation.isPending}
+              onClick={() => cancelReq && cancelMutation.mutate({ req: cancelReq, reason: cancelReason })}
+            >
+              {cancelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+              Confirm cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
