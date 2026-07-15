@@ -190,9 +190,7 @@ export default function LandlordRegistrationForm({
           setErrors((prev) => ({
             ...prev,
             landlordPhone:
-              matchedOn === 'both'
-                ? `${who} is already registered with this phone. Reuse the existing landlord instead of creating a duplicate.`
-                : 'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+              'Registration failed. A landlord with this phone number is already registered.',
           }));
         }
         setPhoneVerified(false);
@@ -563,9 +561,7 @@ export default function LandlordRegistrationForm({
         const detail =
           matchedOn === 'name'
             ? `${who} already exists. Search and reuse them instead of registering a duplicate.`
-            : matchedOn === 'both'
-              ? `${who} is already registered with this phone. Reuse the existing landlord instead of creating a duplicate.`
-              : 'A landlord with this phone number already exists.';
+            : 'Registration failed. A landlord with this phone number is already registered.';
         setErrors((prev) => ({
           ...prev,
           [byName ? 'landlordName' : 'landlordPhone']: detail,
@@ -695,11 +691,9 @@ export default function LandlordRegistrationForm({
         setStep(1);
         focusField('lc1Phone');
       } else if (isDuplicate) {
-        setErrors((prev) => ({
-          ...prev,
-          landlordPhone:
-            'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
-        }));
+        const dupMsg = 'Registration failed. A landlord with this phone number is already registered.';
+        setErrors((prev) => ({ ...prev, landlordPhone: dupMsg }));
+        setSubmitError(dupMsg);
         setStep(1);
         focusField('landlordPhone');
       } else if (lower.includes('phone')) {
