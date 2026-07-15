@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,10 +41,12 @@ import {
   Receipt,
   HandCoins,
   FileClock,
+  Ban,
 } from 'lucide-react';
 import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
 import { differenceInDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { CancelAdvanceDialog } from '@/components/cfo/CancelAdvanceDialog';
 
 type StatusFilter = 'all' | 'active' | 'overdue' | 'completed';
 
@@ -87,6 +89,8 @@ export function DisbursedAdvancesRegister() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [selected, setSelected] = useState<AdvanceRow | null>(null);
+  const [cancelAdvance, setCancelAdvance] = useState<AdvanceRow | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: advances = [], isLoading } = useQuery({
     queryKey: ['disbursed-advances-register'],
@@ -255,7 +259,19 @@ export function DisbursedAdvancesRegister() {
                       <TableCell className="hidden lg:table-cell">{daysLeft}d</TableCell>
                       <TableCell>{statusBadge(a.status)}</TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="ghost" className="h-7 text-[11px]">View</Button>
+                        <div className="flex items-center justify-end gap-1">
+                          {(a.status === 'active' || a.status === 'overdue') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[11px] gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                              onClick={(e) => { e.stopPropagation(); setCancelAdvance(a); }}
+                            >
+                              <Ban className="h-3 w-3" /> Cancel
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-7 text-[11px]">View</Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -266,12 +282,28 @@ export function DisbursedAdvancesRegister() {
         )}
       </CardContent>
 
-      <DisbursementDetailDrawer advance={selected} onClose={() => setSelected(null)} />
+      <DisbursementDetailDrawer
+        advance={selected}
+        onClose={() => setSelected(null)}
+        onCancel={(a) => { setSelected(null); setCancelAdvance(a); }}
+      />
+
+      <CancelAdvanceDialog
+        advance={cancelAdvance}
+        open={!!cancelAdvance}
+        onOpenChange={(o) => { if (!o) setCancelAdvance(null); }}
+        onSuccess={() => {
+          setCancelAdvance(null);
+          queryClient.invalidateQueries({ queryKey: ['disbursed-advances-register'] });
+          queryClient.invalidateQueries({ queryKey: ['cfo-advances'] });
+          queryClient.invalidateQueries({ queryKey: ['cfo-outstanding-advances'] });
+        }}
+      />
     </Card>
   );
 }
 
-function DisbursementDetailDrawer({ advance, onClose }: { advance: AdvanceRow | null; onClose: () => void }) {
+function DisbursementDetailDrawer({ advance, onClose, onCancel }: { advance: AdvanceRow | null; onClose: () => void; onCancel: (a: AdvanceRow) => void }) {
   const { data: ledger = [], isLoading } = useQuery({
     queryKey: ['advance-ledger', advance?.id],
     enabled: !!advance?.id,
@@ -406,6 +438,15 @@ function DisbursementDetailDrawer({ advance, onClose }: { advance: AdvanceRow | 
               )}
             </div>
 
+            {(advance.status === 'active' || advance.status === 'overdue') && (
+              <Button
+                variant="outline"
+                className="w-full gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => onCancel(advance)}
+              >
+                <Ban className="h-4 w-4" /> Cancel this advance
+              </Button>
+            )}
             <Button variant="outline" className="w-full" onClick={onClose}>Close</Button>
           </div>
         </ScrollArea>
