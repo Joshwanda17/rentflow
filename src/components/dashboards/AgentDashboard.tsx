@@ -294,13 +294,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [subAgentLinkOpen, setSubAgentLinkOpen] = useState(false);
   const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
+  const { isMerchantAgent: isMerchantAgentEarly } = useIsMerchantAgent();
 
   // Show the leaderboard promo once per session when an agent lands on their
   // dashboard (agents only — this component only renders for agents). Snoozed
   // per session so it doesn't reopen while switching tabs.
   useEffect(() => {
     // Merchant Agents (cashout-only) never see the Weekly Listing Mission promo.
-    if (isCashoutAgent) return;
+    if (isMerchantAgentEarly) return;
     try {
       if (sessionStorage.getItem('welile-agent-leaderboard-promo-seen')) return;
     } catch { /* ignore */ }
@@ -309,7 +310,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       try { sessionStorage.setItem('welile-agent-leaderboard-promo-seen', '1'); } catch { /* ignore */ }
     }, 1200);
     return () => clearTimeout(t);
-  }, [isCashoutAgent]);
+  }, [isMerchantAgentEarly]);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
