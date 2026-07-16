@@ -63,7 +63,7 @@ export function AgentAdvanceLimits() {
   const [selected, setSelected] = useState<LimitRow | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search), 400);
+    const t = setTimeout(() => setDebounced(search), 150);
     return () => clearTimeout(t);
   }, [search]);
 
