@@ -581,7 +581,11 @@ export function AgentCashPayoutsTab() {
         .select('amount, created_at, processed_at')
         // Scope strictly to cash-outs THIS merchant agent claimed & settled from
         // the queue, so the metric never counts payouts handled via other flows.
-        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
+        // Belt-and-braces: match on EITHER the current claim assignment OR the
+        // `processed_by` stamp. The 15-min stale-claim cron may have nulled
+        // `assigned_cashout_agent_id` before the merchant pasted the TID, so
+        // relying on the claim alone silently hides legitimately-settled payouts.
+        .or(`assigned_cashout_agent_id.eq.${isCashoutAgent.id},processed_by.eq.${user.id}`)
         .eq('status', 'completed')
         .not('processed_at', 'is', null)
         .gte('processed_at', startIso);
@@ -761,7 +765,10 @@ export function AgentCashPayoutsTab() {
         .select('id, amount, payout_method, processed_at, reason, mobile_money_number, mobile_money_provider, mobile_money_name, user_id')
         // Only payouts THIS merchant agent actually claimed & settled from the
         // queue — never payouts settled by others through different flows.
-        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
+        // Match on EITHER the claim assignment OR the `processed_by` stamp so
+        // rows whose 15-min claim expired before the merchant pasted the TID
+        // still surface in their history.
+        .or(`assigned_cashout_agent_id.eq.${isCashoutAgent.id},processed_by.eq.${user.id}`)
         .eq('status', 'completed')
         .not('processed_at', 'is', null);
       if (histFromIso) wq = wq.gte('processed_at', histFromIso);
