@@ -116,14 +116,14 @@ export default function KycConsole() {
     setSelectedFlags((fl ?? []) as Flag[]);
   };
 
-  const runAction = async (fn: () => Promise<{ error: unknown } | void>, successMsg: string) => {
+  const runAction = async (fn: () => PromiseLike<{ error: unknown } | void>, successMsg: string) => {
     if (actionReason.trim().length < 10) {
       toast.error('Reason must be at least 10 characters.');
       return;
     }
     setActionBusy(true);
     try {
-      const res = await fn();
+      const res = (await fn()) as { error?: unknown } | void;
       if (res && 'error' in res && res.error) {
         toast.error((res.error as { message?: string }).message ?? 'Action failed');
       } else {
