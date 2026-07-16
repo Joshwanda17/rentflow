@@ -4,13 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Lock, MapPin, RefreshCw, ArrowRightLeft, AlertTriangle } from 'lucide-react';
+import { Lock, MapPin, RefreshCw, ArrowRightLeft, AlertTriangle, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
+import { DrilldownTable, type DrilldownColumn } from '@/components/executive/DrilldownTable';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 interface LockedRow {
   rent_request_id: string;
@@ -40,6 +43,8 @@ export function LockedTenantTransferPanel() {
   const [selected, setSelected] = useState<LockedRow | null>(null);
   const [targetId, setTargetId] = useState<string>('');
   const [reason, setReason] = useState<string>('');
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 200);
 
   const { data: locked = [], isLoading, refetch } = useQuery({
     queryKey: ['locked-tenants-for-transfer'],
@@ -82,6 +87,56 @@ export function LockedTenantTransferPanel() {
     },
     staleTime: 60_000,
   });
+
+  const filtered = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return locked;
+    return locked.filter(r =>
+      [r.tenant_name, r.tenant_phone, r.agent_name, r.tenant_district, r.tenant_village, r.tenant_territory]
+        .some(v => v && v.toLowerCase().includes(q))
+    );
+  }, [locked, debouncedSearch]);
+
+  const columns: DrilldownColumn<LockedRow>[] = [
+    {
+      key: 'tenant_name',
+      label: 'Tenant',
+      render: r => (
+        <div className="min-w-0">
+          <p className="font-medium truncate">{r.tenant_name || 'Unnamed tenant'}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{r.tenant_phone || '—'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'agent_name',
+      label: 'Current agent',
+      render: r => <span className="truncate">{r.agent_name || r.agent_id.slice(0, 8)}</span>,
+    },
+    {
+      key: 'area',
+      label: 'Area',
+      sortValue: r => [r.tenant_district, r.tenant_village].filter(Boolean).join(', '),
+      render: r => (
+        <span className="flex items-center gap-1 text-muted-foreground">
+          <MapPin className="h-3 w-3" />
+          {[r.tenant_village, r.tenant_district].filter(Boolean).join(', ') || 'No area set'}
+        </span>
+      ),
+    },
+    {
+      key: 'collection_locked_at',
+      label: 'Locked',
+      align: 'right',
+      sortValue: r => new Date(r.collection_locked_at).getTime(),
+      render: r => (
+        <Badge variant="destructive" className="text-[10px]">
+          <Lock className="h-3 w-3 mr-1" />
+          {formatDistanceToNow(new Date(r.collection_locked_at), { addSuffix: true })}
+        </Badge>
+      ),
+    },
+  ];
 
   // Load agents in the same area as the selected tenant
   const { data: candidates = [], isLoading: candLoading } = useQuery({
@@ -190,6 +245,25 @@ export function LockedTenantTransferPanel() {
         Tenants whose agent hasn't collected for 5+ days are locked. Transfer them to an active agent in the same area.
       </p>
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by tenant, phone, agent, or area…"
+          className="pl-9 pr-9 h-10"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-xl" />)}
@@ -200,33 +274,18 @@ export function LockedTenantTransferPanel() {
           No locked tenants right now.
         </div>
       ) : (
-        <div className="space-y-2 max-h-[520px] overflow-y-auto">
-          {locked.map(row => (
-            <button
-              key={row.rent_request_id}
-              onClick={() => { setSelected(row); setTargetId(''); setReason(`Reassign to an active agent in ${row.tenant_district || row.tenant_village || 'the same area'} — previous agent locked out after 5 days without collection.`); }}
-              className="w-full text-left p-3 rounded-xl border border-border bg-card hover:bg-accent/40 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{row.tenant_name || 'Unnamed tenant'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{row.tenant_phone || '—'}</p>
-                </div>
-                <Badge variant="destructive" className="text-[10px] shrink-0">
-                  <Lock className="h-3 w-3 mr-1" />
-                  Locked {formatDistanceToNow(new Date(row.collection_locked_at), { addSuffix: true })}
-                </Badge>
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                <span>Agent: <span className="font-medium text-foreground">{row.agent_name || row.agent_id.slice(0, 8)}</span></span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {[row.tenant_village, row.tenant_district].filter(Boolean).join(', ') || 'No area set'}
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
+        <DrilldownTable
+          columns={columns}
+          data={filtered}
+          pageSize={15}
+          rowKey={r => r.rent_request_id}
+          emptyMessage={debouncedSearch ? 'No matches for your search.' : 'No locked tenants.'}
+          onRowClick={row => {
+            setSelected(row);
+            setTargetId('');
+            setReason(`Reassign to an active agent in ${row.tenant_district || row.tenant_village || 'the same area'} — previous agent locked out after 5 days without collection.`);
+          }}
+        />
       )}
 
       <Dialog open={!!selected} onOpenChange={o => !o && setSelected(null)}>
