@@ -56,6 +56,14 @@ interface WithdrawFlowProps {
    * merchant "Withdraw All" shortcut on `MerchantWithdrawableCard`.
    */
   initialAmount?: number;
+  /**
+   * When true, `availableBalance` is treated as the authoritative cap and
+   * the flow will NOT clamp it against the strict wallet-cache figure.
+   * Used by `MerchantWithdrawableCard` so cash-out commission drives the
+   * withdrawal UI even when other wallet activity (e.g. portfolio top-ups)
+   * has consumed part of the mixed withdrawable bucket.
+   */
+  trustAvailableBalance?: boolean;
 }
 
 const STEPS: Step[] = [
@@ -74,6 +82,7 @@ export default function WithdrawFlow({
   roiBalance = 0,
   onSuccess,
   initialAmount,
+  trustAvailableBalance = false,
 }: WithdrawFlowProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
