@@ -66,18 +66,7 @@ serve(async (req) => {
       const daysSince = Math.floor((now - new Date(anchorIso).getTime()) / 86_400_000);
       if (daysSince < WARN_AFTER_DAYS) continue;
 
-      // Idempotency: one warning per tenant per day.
       const idemKey = `collection_lapse:${row.tenant_id}:${todayKey}`;
-      const { data: existing } = await supabase
-        .from("system_events")
-        .select("id")
-        .eq("action", "collection_lapse_warning")
-        .eq("entity_id", row.tenant_id)
-        .gte("created_at", `${todayKey}T00:00:00Z`)
-        .limit(1)
-        .maybeSingle();
-      if (existing) { skipped++; continue; }
-
       const daysLeft = Math.max(0, REASSIGN_AT_DAYS - daysSince);
       const tenantName = nameById.get(row.tenant_id) || "your tenant";
       const title = daysLeft > 0
@@ -102,19 +91,6 @@ serve(async (req) => {
         },
       });
 
-      // Audit-friendly system event (also drives dashboard dialog).
-      await supabase.from("system_events").insert({
-        action: "collection_lapse_warning",
-        entity_type: "tenant",
-        entity_id: row.tenant_id,
-        actor_id: agentId,
-        metadata: {
-          rent_request_id: row.id,
-          days_since_last_collection: daysSince,
-          days_until_reassignment: daysLeft,
-          tenant_name: tenantName,
-        },
-      });
       warned++;
     }
 
