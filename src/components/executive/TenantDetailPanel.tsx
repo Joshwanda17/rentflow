@@ -803,12 +803,28 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                             const newAmount = Number(requestEdit.rent_amount) || 0;
                             const newDays = Number(requestEdit.duration_days) || 0;
                             const canPreview = newAmount > 0 && newDays > 0;
-                            const preview = canPreview ? calculateRentRepayment(newAmount, newDays) : null;
+                            const canonical = canPreview ? calculateRentRepayment(newAmount, newDays) : null;
+                            const accessRaw = requestEdit.access_fee.trim();
+                            const requestRaw = requestEdit.request_fee.trim();
+                            const accessOverride = accessRaw === '' ? null : Number(accessRaw);
+                            const requestOverride = requestRaw === '' ? null : Number(requestRaw);
+                            const accessFee = accessOverride != null && Number.isFinite(accessOverride) && accessOverride >= 0
+                              ? accessOverride
+                              : canonical?.accessFee ?? 0;
+                            const requestFee = requestOverride != null && Number.isFinite(requestOverride) && requestOverride >= 0
+                              ? requestOverride
+                              : canonical?.requestFee ?? 0;
+                            const totalRepayment = canPreview ? Math.round(newAmount + accessFee + requestFee) : 0;
+                            const dailyRepayment = canPreview ? Math.ceil(totalRepayment / newDays) : 0;
+                            const preview = canPreview ? { accessFee, requestFee, totalRepayment, dailyRepayment } : null;
                             const repaid = Number(req.amount_repaid || 0);
                             const newOutstanding = preview ? preview.totalRepayment - repaid : 0;
                             const reasonOk = requestEdit.reason.trim().length >= 10;
                             const outstandingOk = preview ? preview.totalRepayment >= repaid : false;
-                            const canSave = canPreview && reasonOk && outstandingOk;
+                            const feesValid =
+                              (accessOverride == null || (Number.isFinite(accessOverride) && accessOverride >= 0)) &&
+                              (requestOverride == null || (Number.isFinite(requestOverride) && requestOverride >= 0));
+                            const canSave = canPreview && reasonOk && outstandingOk && feesValid;
                             return (
                               <div className="space-y-2 pt-1">
                                 <div className="grid grid-cols-2 gap-2">
@@ -819,6 +835,30 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                   <div>
                                     <label className="text-[10px] text-muted-foreground">Duration (days)</label>
                                     <Input type="number" value={requestEdit.duration_days} onChange={e => setRequestEdit(v => ({ ...v, duration_days: e.target.value }))} className="h-8 text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground">
+                                      Access Fee (UGX) <span className="text-[9px] opacity-70">— blank = auto</span>
+                                    </label>
+                                    <Input
+                                      type="number"
+                                      value={requestEdit.access_fee}
+                                      onChange={e => setRequestEdit(v => ({ ...v, access_fee: e.target.value }))}
+                                      placeholder={canonical ? String(canonical.accessFee) : 'auto'}
+                                      className="h-8 text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground">
+                                      Request Fee (UGX) <span className="text-[9px] opacity-70">— blank = auto</span>
+                                    </label>
+                                    <Input
+                                      type="number"
+                                      value={requestEdit.request_fee}
+                                      onChange={e => setRequestEdit(v => ({ ...v, request_fee: e.target.value }))}
+                                      placeholder={canonical ? String(canonical.requestFee) : 'auto'}
+                                      className="h-8 text-sm"
+                                    />
                                   </div>
                                 </div>
                                 {preview && (
