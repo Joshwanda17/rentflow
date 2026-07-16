@@ -91,6 +91,13 @@ export default function WithdrawFlow({
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
+  // Reason / purpose the user selects for this withdrawal. The stored reason
+  // determines which payout category the request maps to, so it reaches a
+  // Cash-Out Agent authorized for that category.
+  const [reasonPreset, setReasonPreset] = useState<string>(defaultWithdrawalReason);
+  const [reasonCustom, setReasonCustom] = useState('');
+  const effectiveReason =
+    reasonPreset === OTHER_WITHDRAWAL_REASON ? reasonCustom.trim() : reasonPreset;
   // Honor the caller's `initialAmount` prefill (e.g. merchant "Withdraw All")
   // every time the dialog transitions to open.
   useEffect(() => {
@@ -113,14 +120,6 @@ export default function WithdrawFlow({
   // Payout mode state
   const [payoutMode, setPayoutMode] = useState<'mobile_money' | 'bank_transfer' | 'cash'>('mobile_money');
 
-  // Reason / purpose the user selects for this withdrawal. The stored reason
-  // determines which payout category the request maps to, so it reaches a
-  // Cash-Out Agent authorized for that category.
-  const [reasonPreset, setReasonPreset] = useState<string>(defaultWithdrawalReason);
-  const [reasonCustom, setReasonCustom] = useState('');
-  const effectiveReason =
-    reasonPreset === OTHER_WITHDRAWAL_REASON ? reasonCustom.trim() : reasonPreset;
-  
   // Mobile Money details
   const [momoNumber, setMomoNumber] = useState('');
   const [momoName, setMomoName] = useState('');
