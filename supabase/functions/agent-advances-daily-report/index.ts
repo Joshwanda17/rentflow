@@ -594,6 +594,7 @@ async function sendForDate(
   admin: ReturnType<typeof createClient>,
   dateStr: string,
   force: boolean,
+  recipientsOverride?: string[],
 ): Promise<Record<string, unknown>> {
   if (!force) {
     const { data: existing } = await admin
@@ -620,7 +621,10 @@ async function sendForDate(
   const subject = `Agent Advances — ${prettyDate}: ${report.requestsToday} new, ${report.approvedToday} approved, ${report.rejectedToday} rejected · ${pct(report.repaymentRate)} repaid`;
 
   const results: Record<string, string> = {};
-  for (const to of REPORT_RECIPIENTS) {
+  const recipients = recipientsOverride && recipientsOverride.length
+    ? recipientsOverride
+    : REPORT_RECIPIENTS;
+  for (const to of recipients) {
     const messageId = crypto.randomUUID();
     const unsubscribeToken = await ensureUnsubscribeToken(admin, to);
     const payload = {
@@ -658,7 +662,7 @@ async function sendForDate(
     event_type: "agent_advances_daily_report",
     metadata: {
       date: dateStr,
-      recipients: REPORT_RECIPIENTS,
+      recipients,
       requests_today: report.requestsToday,
       approved_today: report.approvedToday,
       rejected_today: report.rejectedToday,
@@ -686,6 +690,9 @@ Deno.serve(async (req) => {
 
   const force = body?.force === true;
   const preview = body?.preview === true;
+  const recipientsOverride: string[] | undefined = Array.isArray(body?.recipients)
+    ? body.recipients.filter((x: unknown) => typeof x === "string" && x.includes("@"))
+    : undefined;
   const dates: string[] = Array.isArray(body?.dates)
     ? body.dates
     : body?.date
@@ -706,7 +713,7 @@ Deno.serve(async (req) => {
     }
     const out: Record<string, unknown>[] = [];
     for (const d of dates) {
-      out.push(await sendForDate(admin, d, force));
+      out.push(await sendForDate(admin, d, force, recipientsOverride));
     }
     return new Response(JSON.stringify({ ok: true, results: out }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
