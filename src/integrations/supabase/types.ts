@@ -25434,6 +25434,30 @@ export type Database = {
         Args: { p_listing: string }
         Returns: undefined
       }
+      tenant_ops_correct_rent_request: {
+        Args: {
+          p_access_fee?: number
+          p_amount_repaid?: number
+          p_daily_repayment?: number
+          p_duration_days?: number
+          p_reason?: string
+          p_rent_amount?: number
+          p_rent_request_id: string
+          p_request_fee?: number
+          p_total_repayment?: number
+        }
+        Returns: {
+          access_fee: number
+          amount_repaid: number
+          daily_repayment: number
+          duration_days: number
+          id: string
+          rent_amount: number
+          request_fee: number
+          status: string
+          total_repayment: number
+        }[]
+      }
       test_wallet_drift_fix: { Args: never; Returns: Json }
       topup_dedup_bucket: { Args: { ts: string }; Returns: string }
       trigger_agent_liability_for_unpaid_rents: {
