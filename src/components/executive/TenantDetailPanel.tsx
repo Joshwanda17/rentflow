@@ -794,8 +794,59 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
               <p className="text-[10px] text-muted-foreground">Requests</p>
             </CardContent></Card>
             <Card><CardContent className="p-3 text-center">
-              <p className="text-lg font-extrabold text-emerald-600">UGX {totalRepaid.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground">Total Repaid</p>
+              {editingRepaid ? (
+                <div className="space-y-1.5 text-left">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={repaidEdit.amount}
+                    onChange={e => setRepaidEdit(v => ({ ...v, amount: e.target.value }))}
+                    placeholder="Total Repaid (UGX)"
+                    className="h-8 text-sm"
+                  />
+                  <Textarea
+                    value={repaidEdit.reason}
+                    onChange={e => setRepaidEdit(v => ({ ...v, reason: e.target.value }))}
+                    placeholder="Reason (min 10 chars)"
+                    className="text-[11px] min-h-[44px]"
+                  />
+                  <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingRepaid(false)} disabled={savingRepaid}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" className="h-7 px-2 text-xs gap-1" onClick={saveRepaid} disabled={savingRepaid}>
+                      {savingRepaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-1">
+                    <p
+                      className={cn(
+                        'text-lg font-extrabold text-emerald-600',
+                        requests.length > 0 && 'cursor-pointer border-b border-dotted border-emerald-600/50 hover:opacity-80',
+                      )}
+                      onClick={requests.length > 0 ? startEditRepaid : undefined}
+                      title={requests.length > 0 ? 'Tap to correct Total Repaid' : undefined}
+                    >
+                      UGX {totalRepaid.toLocaleString()}
+                    </p>
+                    {requests.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={startEditRepaid}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Edit total repaid"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Total Repaid</p>
+                </>
+              )}
             </CardContent></Card>
             <Card><CardContent className="p-3 text-center">
               {editingOutstanding && editableOutstandingReq ? (
