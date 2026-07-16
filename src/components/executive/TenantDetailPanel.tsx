@@ -53,7 +53,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Request edit state — keyed by request id
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [savingRequest, setSavingRequest] = useState(false);
-  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', reason: '' });
+  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', access_fee: '', request_fee: '', reason: '' });
+
+  // Total Repaid inline-edit state (stats card)
+  const [editingRepaid, setEditingRepaid] = useState(false);
+  const [savingRepaid, setSavingRepaid] = useState(false);
+  const [repaidEdit, setRepaidEdit] = useState({ amount: '', reason: '' });
 
   // Outstanding stat inline-edit state
   const [editingOutstanding, setEditingOutstanding] = useState(false);
