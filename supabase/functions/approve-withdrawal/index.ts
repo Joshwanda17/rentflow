@@ -1926,6 +1926,17 @@ Deno.serve(async (req) => {
         processed_at: new Date().toISOString(),
         processed_by: user.id,
         updated_at: new Date().toISOString(),
+        // Re-stamp the settling merchant onto the row. The 15-min stale-claim
+        // cron (`release_stale_cashout_claims`) may have already nulled
+        // `assigned_cashout_agent_id` while the merchant was completing the
+        // MoMo payout in the field. Without this the completed payout would
+        // vanish from that merchant's daily stats / history queries, which
+        // scope on `assigned_cashout_agent_id = me`. Idempotent — safe when
+        // the assignment is still in place. Only stamps for merchant-settled
+        // payouts (FinOps / system paths leave it as-is).
+        ...(actingAsMerchant && agentRow?.id
+          ? { assigned_cashout_agent_id: agentRow.id }
+          : {}),
       } as any)
       .eq("id", withdrawal_id);
 
