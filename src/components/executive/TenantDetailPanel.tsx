@@ -93,8 +93,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         supabase.from('profiles').select('id, full_name, phone, city, created_at').eq('id', tenantId).maybeSingle(),
         supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, access_fee, request_fee, total_repayment, registration_type, created_at, landlord_id, agent_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
         supabase.from('wallet_transactions').select('id, amount, type, created_at, description').or(`sender_id.eq.${tenantId},recipient_id.eq.${tenantId}`).order('created_at', { ascending: false }).limit(10),
-        supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(10),
+        supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method, rent_request_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(200),
       ]);
+
+      const collectionTotalsByRequest = new Map<string, number>();
+      for (const c of collectionsRes.data || []) {
+        const rentRequestId = (c as any).rent_request_id as string | null;
+        if (!rentRequestId) continue;
+        collectionTotalsByRequest.set(
+          rentRequestId,
+          (collectionTotalsByRequest.get(rentRequestId) || 0) + Number((c as any).amount || 0),
+        );
+      }
 
       const agentIds = [...new Set((requestsRes.data || []).flatMap(r => [r.assigned_agent_id, r.agent_id]).filter(Boolean))] as string[];
       const agentRes = agentIds.length > 0
@@ -114,12 +124,19 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           const effectiveAgentId = r.assigned_agent_id || r.agent_id;
           return {
             ...r,
+            amount_repaid: Math.max(
+              Number(r.amount_repaid || 0),
+              Math.min(
+                Number(r.total_repayment || r.rent_amount || 0),
+                collectionTotalsByRequest.get(r.id) || 0,
+              ),
+            ),
             agent_name: (effectiveAgentId && agentMap.get(effectiveAgentId)?.full_name) || 'Not Assigned',
             landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
           };
         }),
         walletTxns: walletRes.data || [],
-        collections: collectionsRes.data || [],
+        collections: (collectionsRes.data || []).slice(0, 10),
       };
     },
   });
@@ -163,6 +180,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const editableOutstandingReq = outstandingEditableReqs[0] || null;
 
   const applyConfirmedRequestUpdates = (updates: Record<string, Record<string, number>>) => {
+    if (Object.keys(updates).length === 0) return;
     setRequestOverrides(prev => {
       const next = { ...prev };
       for (const [id, patch] of Object.entries(updates)) {
@@ -179,6 +197,48 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         )),
       };
     });
+  };
+
+  type CorrectedRentRequest = {
+    id: string;
+    rent_amount: number | null;
+    duration_days: number | null;
+    access_fee: number | null;
+    request_fee: number | null;
+    total_repayment: number | null;
+    daily_repayment: number | null;
+    amount_repaid: number | null;
+  };
+
+  const correctRentRequest = async (
+    rentRequestId: string,
+    reason: string,
+    patch: Partial<Record<'rent_amount' | 'duration_days' | 'access_fee' | 'request_fee' | 'total_repayment' | 'daily_repayment' | 'amount_repaid', number>>,
+  ) => {
+    const { data: corrected, error } = await (supabase as any).rpc('tenant_ops_correct_rent_request', {
+      p_rent_request_id: rentRequestId,
+      p_rent_amount: patch.rent_amount ?? null,
+      p_duration_days: patch.duration_days ?? null,
+      p_access_fee: patch.access_fee ?? null,
+      p_request_fee: patch.request_fee ?? null,
+      p_total_repayment: patch.total_repayment ?? null,
+      p_daily_repayment: patch.daily_repayment ?? null,
+      p_amount_repaid: patch.amount_repaid ?? null,
+      p_reason: reason,
+    });
+    if (error) throw error;
+    const row = (Array.isArray(corrected) ? corrected[0] : corrected) as CorrectedRentRequest | null;
+    if (!row?.id) throw new Error('Rent request correction did not return a saved row');
+
+    const savedPatch: Record<string, number> = {};
+    if (patch.rent_amount !== undefined) savedPatch.rent_amount = Number(row.rent_amount ?? patch.rent_amount);
+    if (patch.duration_days !== undefined) savedPatch.duration_days = Number(row.duration_days ?? patch.duration_days);
+    if (patch.access_fee !== undefined) savedPatch.access_fee = Number(row.access_fee ?? patch.access_fee);
+    if (patch.request_fee !== undefined) savedPatch.request_fee = Number(row.request_fee ?? patch.request_fee);
+    if (patch.total_repayment !== undefined) savedPatch.total_repayment = Number(row.total_repayment ?? patch.total_repayment);
+    if (patch.daily_repayment !== undefined) savedPatch.daily_repayment = Number(row.daily_repayment ?? patch.daily_repayment);
+    if (patch.amount_repaid !== undefined) savedPatch.amount_repaid = Number(row.amount_repaid ?? patch.amount_repaid);
+    return savedPatch;
   };
 
   // --- Total Repaid inline editing ---
@@ -249,28 +309,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         const { req, currentRepaid } = infos[i];
         const newRepaid = shares[i];
         if (newRepaid === currentRepaid) continue;
-        const { error } = await supabase
-          .from('rent_requests')
-          .update({ amount_repaid: newRepaid })
-          .eq('id', req.id);
-        if (error) throw error;
-        confirmedUpdates[req.id] = { amount_repaid: newRepaid };
-
-        await supabase.from('audit_logs').insert({
-          action_type: 'tenant_ops_repaid_correction',
-          user_id: user?.id || null,
-          record_id: req.id,
-          table_name: 'rent_requests',
-          metadata: {
-            tenant_id: tenantId,
-            before: { amount_repaid: currentRepaid },
-            after: { amount_repaid: newRepaid },
-            reason,
-            desired_total_repaid: desired,
-            distribution_method: sumCurrent > 0 ? 'proportional_current' : (sumObligation > 0 ? 'proportional_obligation' : 'even'),
-            request_count: infos.length,
-          },
-        });
+        const persistedPatch = await correctRentRequest(req.id, reason, { amount_repaid: newRepaid });
+        confirmedUpdates[req.id] = persistedPatch;
+        applyConfirmedRequestUpdates({ [req.id]: persistedPatch });
       }
 
       // Do not immediately refetch tenant-detail here: the write is already
@@ -369,33 +410,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         // This way the Total Repaid card visibly reflects the correction.
         const newRepaid = Math.max(0, Math.min(obligation, obligation - shares[i]));
 
-        const before = {
-          amount_repaid: Number((req as any).amount_repaid || 0),
-          total_repayment: Number((req as any).total_repayment || 0),
-        };
         const after: Record<string, number> = { amount_repaid: newRepaid };
 
-        const { error } = await supabase.from('rent_requests').update(after).eq('id', req.id);
-        if (error) throw error;
-        confirmedUpdates[req.id] = after;
-
-        await supabase.from('audit_logs').insert({
-          action_type: 'tenant_ops_outstanding_correction',
-          user_id: user?.id || null,
-          record_id: req.id,
-          table_name: 'rent_requests',
-          metadata: {
-            tenant_id: tenantId,
-            before,
-            after,
-            reason,
-            remaining_entered: remaining,
-            distributed_share: shares[i],
-            distribution_method: sumCurrent > 0 ? 'proportional' : 'even',
-            editable_request_count: reqInfos.length,
-            strategy: 'adjust_amount_repaid',
-          },
-        });
+        const persistedAfter = await correctRentRequest(req.id, reason, after);
+        confirmedUpdates[req.id] = persistedAfter;
+        applyConfirmedRequestUpdates({ [req.id]: persistedAfter });
       }
 
       // Keep the corrected rows in the visible detail cache immediately so the
@@ -526,15 +545,6 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       }
       const newRepaid = Math.max(0, calc.totalRepayment - desiredOutstanding);
 
-      const before = {
-        rent_amount: Number(originalReq.rent_amount || 0),
-        duration_days: Number(originalReq.duration_days || 0),
-        access_fee: Number((originalReq as any).access_fee || 0),
-        request_fee: Number((originalReq as any).request_fee || 0),
-        total_repayment: Number((originalReq as any).total_repayment || 0),
-        daily_repayment: Number(originalReq.daily_repayment || 0),
-        amount_repaid: Number(originalReq.amount_repaid || 0),
-      };
       const after = {
         rent_amount: amount,
         duration_days: days,
@@ -545,8 +555,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         amount_repaid: newRepaid,
       };
 
-      const { error } = await supabase.from('rent_requests').update(after).eq('id', reqId);
-      if (error) throw error;
+      const persistedAfter = await correctRentRequest(reqId, reason, after);
+      applyConfirmedRequestUpdates({ [reqId]: persistedAfter });
 
       // Sync the active subscription charge (cron). Compute new end_date from created_at + new duration.
       const startDate = new Date(originalReq.created_at);
@@ -559,15 +569,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         .in('status', ['active', 'pending']);
       if (subErr) console.warn('Subscription charge sync warning:', subErr);
 
-      await supabase.from('audit_logs').insert({
-        action_type: 'tenant_ops_rent_correction',
-        user_id: user?.id || null,
-        record_id: reqId,
-        table_name: 'rent_requests',
-        metadata: { tenant_id: tenantId, before, after, reason },
-      });
-
-      applyConfirmedRequestUpdates({ [reqId]: after });
+      applyConfirmedRequestUpdates({ [reqId]: persistedAfter });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === 'string' && (q.queryKey[0] as string).startsWith('cfo-') });
