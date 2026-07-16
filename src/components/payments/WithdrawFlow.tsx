@@ -56,6 +56,14 @@ interface WithdrawFlowProps {
    * merchant "Withdraw All" shortcut on `MerchantWithdrawableCard`.
    */
   initialAmount?: number;
+  /**
+   * When true, `availableBalance` is treated as the authoritative cap and
+   * the flow will NOT clamp it against the strict wallet-cache figure.
+   * Used by `MerchantWithdrawableCard` so cash-out commission drives the
+   * withdrawal UI even when other wallet activity (e.g. portfolio top-ups)
+   * has consumed part of the mixed withdrawable bucket.
+   */
+  trustAvailableBalance?: boolean;
 }
 
 const STEPS: Step[] = [
@@ -74,6 +82,7 @@ export default function WithdrawFlow({
   roiBalance = 0,
   onSuccess,
   initialAmount,
+  trustAvailableBalance = false,
 }: WithdrawFlowProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
@@ -186,9 +195,11 @@ export default function WithdrawFlow({
   // The "available" source is the LESSER of (caller-supplied wallet
   // available, ledger-true available). Advance bucket is debt — NOT
   // withdrawable money — so it is excluded.
-  const trueAvailable = ledgerAvailable !== null
-    ? Math.min(availableBalance, ledgerAvailable)
-    : availableBalance;
+  const trueAvailable = trustAvailableBalance
+    ? availableBalance
+    : ledgerAvailable !== null
+      ? Math.min(availableBalance, ledgerAvailable)
+      : availableBalance;
   const maxAmount = source === 'available' ? trueAvailable : roiBalance;
 
   /** Force-fetch the strict ledger balance from the server, bypassing
@@ -759,7 +770,11 @@ export default function WithdrawFlow({
         const fresh = await refetchLedger();
         const freshMax =
           source === 'available'
-            ? (fresh !== null ? Math.min(availableBalance, fresh) : availableBalance)
+            ? (trustAvailableBalance
+                ? availableBalance
+                : fresh !== null
+                  ? Math.min(availableBalance, fresh)
+                  : availableBalance)
             : roiBalance;
         if (fresh === null && ledgerAvailable === null) {
           toast.error(
@@ -784,7 +799,11 @@ export default function WithdrawFlow({
       // numbers. This makes Confirm "always work" from the user's POV.
       if (isStale || validating) {
         const fresh = await refetchLedger();
-        const freshLedger = fresh !== null ? fresh : trueAvailable;
+        const freshLedger = trustAvailableBalance
+          ? availableBalance
+          : fresh !== null
+            ? fresh
+            : trueAvailable;
         if (source === 'available' && amount > freshLedger) {
           toast.error(
             `Insufficient funds after refresh. Available: UGX ${freshLedger.toLocaleString()}.`,
