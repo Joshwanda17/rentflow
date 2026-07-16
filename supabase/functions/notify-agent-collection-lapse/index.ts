@@ -23,8 +23,9 @@ serve(async (req) => {
     // Active tenancies with an assigned collecting agent.
     const { data: rr, error: rrErr } = await supabase
       .from("rent_requests")
-      .select("id, tenant_id, agent_id, assigned_agent_id, funded_at, created_at")
-      .eq("tenancy_status", "active");
+      .select("id, tenant_id, agent_id, assigned_agent_id, funded_at, created_at, collection_locked_at")
+      .eq("tenancy_status", "active")
+      .is("collection_locked_at", null);
 
     if (rrErr) throw rrErr;
     const rows = rr ?? [];
@@ -33,6 +34,7 @@ serve(async (req) => {
     const todayKey = new Date().toISOString().slice(0, 10);
     let warned = 0;
     let skipped = 0;
+      let locked = 0;
 
     // Cache tenant names.
     const tenantIds = [...new Set(rows.map((r: any) => r.tenant_id).filter(Boolean))];
@@ -69,12 +71,27 @@ serve(async (req) => {
       const idemKey = `collection_lapse:${row.tenant_id}:${todayKey}`;
       const daysLeft = Math.max(0, REASSIGN_AT_DAYS - daysSince);
       const tenantName = nameById.get(row.tenant_id) || "your tenant";
+
+      // Day 5+: lock the tenant from this agent so Agent Ops can reassign.
+      if (daysSince >= REASSIGN_AT_DAYS) {
+        const { error: lockErr } = await supabase
+          .from("rent_requests")
+          .update({
+            collection_locked_at: new Date().toISOString(),
+            collection_locked_reason: `No collection for ${daysSince} days (grace period exceeded)`,
+            collection_lock_days: daysSince,
+          })
+          .eq("id", row.id)
+          .is("collection_locked_at", null);
+        if (!lockErr) locked++;
+      }
+
       const title = daysLeft > 0
         ? `Collect rent for ${tenantName}`
-        : `${tenantName} will be reassigned`;
+        : `${tenantName} locked — pending reassignment`;
       const body = daysLeft > 0
         ? `It's been ${daysSince} days since you last collected rent for ${tenantName}. Your tenant will be transferred to an active agent in ${daysLeft} day${daysLeft === 1 ? "" : "s"}. Collect rent to keep the tenant.`
-        : `It's been ${daysSince} days without a rent collection for ${tenantName}. Ops may reassign this tenant to an active agent at any moment. Collect now to keep them.`;
+        : `It's been ${daysSince} days without a rent collection for ${tenantName}. You can no longer collect for this tenant — Agent Ops will transfer them to an active agent.`;
 
       // Fire web push.
       await supabase.functions.invoke("send-push-notification", {
@@ -95,7 +112,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, scanned: rows.length, warned, skipped }),
+      JSON.stringify({ ok: true, scanned: rows.length, warned, locked, skipped }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
