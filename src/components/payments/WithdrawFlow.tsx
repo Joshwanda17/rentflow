@@ -1574,7 +1574,15 @@ export default function WithdrawFlow({
       title="Withdraw Funds"
       steps={STEPS}
       currentStep={currentStep}
-      onStepChange={setCurrentStep}
+      onStepChange={(next) => {
+        // When the user navigates back to edit amount/method/details after a
+        // failed submission, clear the stale 'failed' banner. The next
+        // Confirm attempt will re-set the status honestly.
+        if (next < currentStep && paymentStatus === 'failed') {
+          setPaymentStatus('pending');
+        }
+        setCurrentStep(next);
+      }}
       canGoNext={canProceed()}
       onNext={handleNext}
       showNavigation={currentStep < 5 && !isProcessing && !isComplete}
