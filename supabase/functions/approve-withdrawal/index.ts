@@ -24,6 +24,30 @@ import { parsePayoutConfirmationSms } from "./smsParser.ts";
 const normalizeMomoTid = (tid: string | null | undefined): string =>
   (tid ?? "").replace(/\D+/g, "");
 
+/**
+ * Telecom (MTN/Airtel) sending charge tiers for merchant cash-out payouts.
+ * MUST stay in sync with `src/lib/cashoutCharges.ts`. The merchant's Mobile
+ * Money account is debited by (payout + this charge) for every settlement, so
+ * we deduct the same charge from the merchant's Welile float bucket to keep
+ * the two statements aligned (no unexplained drift).
+ */
+const TELECOM_CHARGE_TIERS: { min: number; max: number; charge: number }[] = [
+  { min: 0, max: 5_000, charge: 100 },
+  { min: 5_001, max: 60_000, charge: 500 },
+  { min: 60_001, max: 500_000, charge: 1_000 },
+  { min: 500_001, max: 1_000_000, charge: 1_500 },
+  { min: 1_000_001, max: 5_000_000, charge: 2_000 },
+];
+function getTelecomSendingCharge(amount: number): number {
+  const amt = Number(amount || 0);
+  if (amt <= 0) return 0;
+  for (const t of TELECOM_CHARGE_TIERS) {
+    if (amt >= t.min && amt <= t.max) return t.charge;
+  }
+  const top = TELECOM_CHARGE_TIERS[TELECOM_CHARGE_TIERS.length - 1];
+  return amt > top.max ? top.charge : 0;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -1604,10 +1628,14 @@ Deno.serve(async (req) => {
         .eq("user_id", user.id)
         .maybeSingle();
       merchantFloatAvailable = Number((merchantWallet as any)?.float_balance ?? 0);
-      if (merchantFloatAvailable < amount) {
+      const telecomCheck = getTelecomSendingCharge(amount);
+      const requiredFloat = amount + telecomCheck;
+      if (merchantFloatAvailable < requiredFloat) {
         const floatMsg =
           `Insufficient merchant float. You hold UGX ${Math.round(merchantFloatAvailable).toLocaleString()} ` +
-          `but this payout needs UGX ${amount.toLocaleString()}. Ask the CFO/treasury to top up your float before claiming.`;
+          `but this payout needs UGX ${requiredFloat.toLocaleString()} ` +
+          `(UGX ${amount.toLocaleString()} payout + UGX ${telecomCheck.toLocaleString()} telecom charge). ` +
+          `Ask the CFO/treasury to top up your float before claiming.`;
         await auditFailedWithdrawalAttempt(floatMsg, "INSUFFICIENT_MERCHANT_FLOAT");
         await releaseClaim();
         return new Response(
@@ -1616,7 +1644,9 @@ Deno.serve(async (req) => {
             error: floatMsg,
             code: "INSUFFICIENT_MERCHANT_FLOAT",
             float_available: Math.round(merchantFloatAvailable),
-            requested: amount,
+            requested: requiredFloat,
+            payout_amount: amount,
+            telecom_charge: telecomCheck,
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -2228,6 +2258,57 @@ Deno.serve(async (req) => {
         }
       } catch (e) {
         console.error("[approve-withdrawal] Merchant float consume exception:", e);
+      }
+    }
+
+    // ── Merchant-agent TELECOM SENDING CHARGE (Float model, 2026-07) ─────
+    // Every Mobile Money payout the merchant sends from their own MTN/Airtel
+    // line costs a tiered sending fee. Since the merchant's float is intended
+    // to cover BOTH the payout amount and its telecom cost, we deduct the
+    // charge from the merchant's float bucket here so the Welile float ledger
+    // always matches what actually left the merchant's MoMo account.
+    //   Merchant Float Allocated = Customer Payouts + Telecom Charges + Remaining Float
+    // Uses the existing `agent_float_settlement` category with a distinct
+    // reference (`<withdrawal_id>-merchant-telecom-charge`) so the daily
+    // reconciliation report can split payouts vs telecom cleanly.
+    let merchantTelecomCharge = 0;
+    if (
+      actingAsMerchant &&
+      !poolFunded &&
+      merchantFloatConsumed > 0 // only post if the principal consume succeeded
+    ) {
+      const telecomCharge = getTelecomSendingCharge(amount);
+      if (telecomCharge > 0) {
+        try {
+          const txDate = new Date().toISOString();
+          const { error: telErr } = await admin.rpc("create_ledger_transaction", {
+            entries: [
+              {
+                user_id: user.id, ledger_scope: "wallet", direction: "cash_out",
+                amount: telecomCharge, category: "agent_float_settlement",
+                recipient_type: "operational_wallet", wallet_bucket: "float",
+                source_table: "withdrawal_requests", source_id: withdrawal_id,
+                description: `Telecom sending charge for merchant cash-out ${withdrawal_id}`,
+                currency: "UGX", reference_id: `${withdrawal_id}-merchant-telecom-charge`, transaction_date: txDate,
+              },
+              {
+                user_id: user.id, ledger_scope: "platform", direction: "cash_in",
+                amount: telecomCharge, category: "agent_float_settlement",
+                source_table: "withdrawal_requests", source_id: withdrawal_id,
+                description: `Telecom sending charge recovered from merchant float for withdrawal ${withdrawal_id}`,
+                currency: "UGX", reference_id: `${withdrawal_id}-merchant-telecom-charge`, transaction_date: txDate,
+              },
+            ],
+            idempotency_key: `approve-withdrawal-merchant-telecom-charge-${withdrawal_id}`,
+          });
+          if (telErr) {
+            console.error("[approve-withdrawal] Merchant telecom charge RPC error:", telErr);
+          } else {
+            merchantTelecomCharge = telecomCharge;
+          }
+        } catch (e) {
+          console.error("[approve-withdrawal] Merchant telecom charge exception:", e);
+        }
       }
     }
 
@@ -3016,6 +3097,8 @@ Deno.serve(async (req) => {
         cashout_commission: cashoutCommission,
         merchant_reimbursed: merchantFloatConsumed,
         merchant_float_consumed: merchantFloatConsumed,
+        merchant_telecom_charge: merchantTelecomCharge,
+        merchant_float_total_debit: merchantFloatConsumed + merchantTelecomCharge,
         settled_available: settledAvailable,
       }),
       {

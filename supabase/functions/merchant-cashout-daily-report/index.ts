@@ -89,6 +89,8 @@ interface SummaryRow {
   payouts: number;
   total_paid: number;
   total_commission: number;
+  total_telecom?: number;
+  total_float_consumed?: number;
 }
 interface DetailRow {
   time: string;
@@ -97,6 +99,8 @@ interface DetailRow {
   customer_name: string | null;
   amount: number;
   commission: number;
+  telecom_charge?: number;
+  float_consumed?: number;
   payout_method: string | null;
   withdrawal_id: string;
 }
@@ -114,11 +118,13 @@ function buildHtml(report: any, prettyDate: string): string {
         <td style="padding:8px 10px;border-bottom:1px solid #eee;color:#555;">${esc(r.merchant_phone || "—")}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${r.payouts}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${fmtUGX(r.total_paid)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;color:#b45309;">${fmtUGX(r.total_telecom || 0)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${fmtUGX(r.total_float_consumed || ((r.total_paid || 0) + (r.total_telecom || 0)))}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;color:#6c21c4;">${fmtUGX(r.total_commission)}</td>
       </tr>`,
         )
         .join("")
-    : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#888;">No merchant cash-out payouts recorded for this day.</td></tr>`;
+    : `<tr><td colspan="7" style="padding:14px;text-align:center;color:#888;">No merchant cash-out payouts recorded for this day.</td></tr>`;
 
   const detailRows = detail
     .map(
@@ -129,6 +135,8 @@ function buildHtml(report: any, prettyDate: string): string {
         <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">${esc(r.customer_name || "—")}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">${esc(r.payout_method || "—")}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;">${fmtUGX(r.amount)}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;color:#b45309;">${fmtUGX(r.telecom_charge || 0)}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;">${fmtUGX(r.float_consumed || ((r.amount || 0) + (r.telecom_charge || 0)))}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;color:#6c21c4;">${fmtUGX(r.commission)}</td>
       </tr>`,
     )
@@ -154,8 +162,18 @@ function buildHtml(report: any, prettyDate: string): string {
           </td>
           <td style="width:10px;"></td>
           <td style="padding:10px;background:#f7f3ff;border-radius:8px;text-align:center;">
-            <div style="font-size:12px;color:#666;">Total Paid Out</div>
+            <div style="font-size:12px;color:#666;">Customer Payouts</div>
             <div style="font-size:20px;font-weight:700;">${fmtUGX(report.total_paid || 0)}</div>
+          </td>
+          <td style="width:10px;"></td>
+          <td style="padding:10px;background:#fff7ed;border-radius:8px;text-align:center;">
+            <div style="font-size:12px;color:#666;">Telecom Charges</div>
+            <div style="font-size:20px;font-weight:700;color:#b45309;">${fmtUGX(report.total_telecom || 0)}</div>
+          </td>
+          <td style="width:10px;"></td>
+          <td style="padding:10px;background:#f7f3ff;border-radius:8px;text-align:center;">
+            <div style="font-size:12px;color:#666;">Float Consumed</div>
+            <div style="font-size:20px;font-weight:700;">${fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0)))}</div>
           </td>
           <td style="width:10px;"></td>
           <td style="padding:10px;background:#f7f3ff;border-radius:8px;text-align:center;">
@@ -165,6 +183,11 @@ function buildHtml(report: any, prettyDate: string): string {
         </tr>
       </table>
 
+      <p style="margin:0 0 14px;font-size:12px;color:#555;background:#f7f3ff;padding:10px 12px;border-radius:8px;">
+        <strong>Reconciliation:</strong> Merchant Float Allocated = Customer Payouts + Telecom Charges + Remaining Float.
+        Every shilling that leaves the merchant's Mobile Money account (payout or telecom fee) is deducted from their float bucket.
+      </p>
+
       <h2 style="font-size:15px;margin:0 0 8px;">Per Merchant Agent</h2>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
@@ -172,7 +195,9 @@ function buildHtml(report: any, prettyDate: string): string {
             <th style="padding:8px 10px;">Merchant</th>
             <th style="padding:8px 10px;">Phone</th>
             <th style="padding:8px 10px;text-align:right;">Payouts</th>
-            <th style="padding:8px 10px;text-align:right;">Paid Out</th>
+            <th style="padding:8px 10px;text-align:right;">Customer Payouts</th>
+            <th style="padding:8px 10px;text-align:right;">Telecom</th>
+            <th style="padding:8px 10px;text-align:right;">Float Consumed</th>
             <th style="padding:8px 10px;text-align:right;">Commission</th>
           </tr>
         </thead>
@@ -190,6 +215,8 @@ function buildHtml(report: any, prettyDate: string): string {
             <th style="padding:6px 8px;">Customer</th>
             <th style="padding:6px 8px;">Method</th>
             <th style="padding:6px 8px;text-align:right;">Amount</th>
+            <th style="padding:6px 8px;text-align:right;">Telecom</th>
+            <th style="padding:6px 8px;text-align:right;">Float Consumed</th>
             <th style="padding:6px 8px;text-align:right;">Commission</th>
           </tr>
         </thead>
@@ -213,14 +240,18 @@ function buildText(report: any, prettyDate: string): string {
   lines.push("");
   lines.push(`Merchants: ${report.merchant_count || 0}`);
   lines.push(`Payouts: ${report.total_payouts || 0}`);
-  lines.push(`Total paid out: ${fmtUGX(report.total_paid || 0)}`);
+  lines.push(`Customer payouts: ${fmtUGX(report.total_paid || 0)}`);
+  lines.push(`Telecom charges: ${fmtUGX(report.total_telecom || 0)}`);
+  lines.push(`Float consumed:  ${fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0)))}`);
   lines.push(`Total commission: ${fmtUGX(report.total_commission || 0)}`);
   lines.push("");
   lines.push("Per merchant agent:");
   for (const r of (report.summary || []) as SummaryRow[]) {
     lines.push(
       `- ${r.merchant_name} (${r.merchant_phone || "—"}): ${r.payouts} payouts, ` +
-        `${fmtUGX(r.total_paid)} paid, ${fmtUGX(r.total_commission)} commission`,
+        `${fmtUGX(r.total_paid)} paid + ${fmtUGX(r.total_telecom || 0)} telecom = ` +
+        `${fmtUGX(r.total_float_consumed || ((r.total_paid || 0) + (r.total_telecom || 0)))} float, ` +
+        `${fmtUGX(r.total_commission)} commission`,
     );
   }
   if (!(report.summary || []).length) lines.push("- No payouts recorded for this day.");
@@ -292,7 +323,7 @@ Deno.serve(async (req) => {
     const text = buildText(report, prettyDate);
     const subject = `Merchant Cash-Out Payouts — ${prettyDate}: ${fmtUGX(
       report?.total_paid || 0,
-    )} across ${report?.total_payouts || 0} payouts`;
+    )} paid + ${fmtUGX(report?.total_telecom || 0)} telecom across ${report?.total_payouts || 0} payouts`;
 
     // Enqueue one email per recipient into the existing Lovable email queue.
     const results: Record<string, string> = {};
@@ -340,6 +371,8 @@ Deno.serve(async (req) => {
         total_payouts: report?.total_payouts ?? 0,
         total_paid: report?.total_paid ?? 0,
         total_commission: report?.total_commission ?? 0,
+        total_telecom: report?.total_telecom ?? 0,
+        total_float_consumed: report?.total_float_consumed ?? 0,
         results,
       },
     });
@@ -360,6 +393,8 @@ Deno.serve(async (req) => {
         total_payouts: report?.total_payouts ?? 0,
         total_paid: report?.total_paid ?? 0,
         total_commission: report?.total_commission ?? 0,
+        total_telecom: report?.total_telecom ?? 0,
+        total_float_consumed: report?.total_float_consumed ?? 0,
         results,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
