@@ -24,6 +24,30 @@ import { parsePayoutConfirmationSms } from "./smsParser.ts";
 const normalizeMomoTid = (tid: string | null | undefined): string =>
   (tid ?? "").replace(/\D+/g, "");
 
+/**
+ * Telecom (MTN/Airtel) sending charge tiers for merchant cash-out payouts.
+ * MUST stay in sync with `src/lib/cashoutCharges.ts`. The merchant's Mobile
+ * Money account is debited by (payout + this charge) for every settlement, so
+ * we deduct the same charge from the merchant's Welile float bucket to keep
+ * the two statements aligned (no unexplained drift).
+ */
+const TELECOM_CHARGE_TIERS: { min: number; max: number; charge: number }[] = [
+  { min: 0, max: 5_000, charge: 100 },
+  { min: 5_001, max: 60_000, charge: 500 },
+  { min: 60_001, max: 500_000, charge: 1_000 },
+  { min: 500_001, max: 1_000_000, charge: 1_500 },
+  { min: 1_000_001, max: 5_000_000, charge: 2_000 },
+];
+function getTelecomSendingCharge(amount: number): number {
+  const amt = Number(amount || 0);
+  if (amt <= 0) return 0;
+  for (const t of TELECOM_CHARGE_TIERS) {
+    if (amt >= t.min && amt <= t.max) return t.charge;
+  }
+  const top = TELECOM_CHARGE_TIERS[TELECOM_CHARGE_TIERS.length - 1];
+  return amt > top.max ? top.charge : 0;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
