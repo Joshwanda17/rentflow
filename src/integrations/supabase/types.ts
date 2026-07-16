@@ -25353,11 +25353,11 @@ export type Database = {
       }
       set_landlord_verification: {
         Args: { p_landlord_id: string; p_reason: string; p_status: string }
-        Returns: undefined
+        Returns: Json
       }
       set_lc1_verification: {
         Args: { p_lc1_id: string; p_reason: string; p_status: string }
-        Returns: undefined
+        Returns: Json
       }
       set_staff_access_password: {
         Args: { p_new_password: string; p_user_id: string }

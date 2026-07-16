@@ -97,14 +97,42 @@ export function ResidenceVerificationPanel() {
     setSaving(true);
     const rpc = entity === 'landlord' ? 'set_landlord_verification' : 'set_lc1_verification';
     const idArg = entity === 'landlord' ? { p_landlord_id: target.id } : { p_lc1_id: target.id };
-    const { error } = await supabase.rpc(rpc as any, { ...idArg, p_status: newStatus, p_reason: reason.trim() } as any);
+    const { data: rpcData, error } = await supabase.rpc(rpc as any, { ...idArg, p_status: newStatus, p_reason: reason.trim() } as any);
     setSaving(false);
     if (error) { toast.error(error.message || 'Could not update status'); return; }
-    toast.success(`${entity === 'landlord' ? 'Landlord' : 'LC1'} set to ${newStatus}`);
+    const result = (rpcData ?? {}) as { agent_id?: string | null; agent_charged?: boolean; charge_amount?: number };
+    const charged = !!result.agent_charged && (result.charge_amount ?? 0) > 0;
+    toast.success(
+      `${entity === 'landlord' ? 'Landlord' : 'LC1'} set to ${newStatus}` +
+        (charged ? ` — UGX ${result.charge_amount!.toLocaleString()} penalty charged to registering agent` : '')
+    );
     // Fire optional email/SMS alerts to linked borrowers (best-effort).
     supabase.functions.invoke('notify-verification-change', {
       body: { entity, id: target.id, status: newStatus, reason: reason.trim() },
     }).catch((e) => console.error('notify-verification-change failed', e));
+
+    // Web push to the registering agent on REJECTION (mirrors house-listing
+    // rejection UX). The RPC already charged UGX 2,000 to their wallet and
+    // wrote an in-app notification; this alerts them on their device.
+    if (newStatus === 'rejected' && result.agent_id) {
+      const noun = entity === 'landlord' ? 'Landlord' : 'LC1 chairperson';
+      const body =
+        `The ${noun.toLowerCase()} "${target.name}" you registered was rejected. ` +
+        `Reason: ${reason.trim()}.` +
+        (charged ? ` UGX ${result.charge_amount!.toLocaleString()} was debited from your wallet.` : '');
+      supabase.functions.invoke('send-push-notification', {
+        body: {
+          userIds: [result.agent_id],
+          payload: {
+            title: `🚫 ${noun} rejected`,
+            body,
+            type: 'warning',
+            url: '/dashboard/agent',
+          },
+        },
+      }).catch((e) => console.error('send-push-notification (agent rejection) failed', e));
+    }
+
     setTarget(null);
     qc.invalidateQueries({ queryKey: ['residence-verification'] });
     qc.invalidateQueries({ queryKey: ['landlord-ops-pending-verification-count'] });
