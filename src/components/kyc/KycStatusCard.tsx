@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Shield, ShieldAlert, ShieldCheck, Lock } from 'lucide-react';
 import { useKycLimits } from '@/hooks/useKycLimits';
-import { formatUGX } from '@/lib/formatUGX';
+import { formatUGX } from '@/lib/rentCalculations';
 
 export function KycStatusCard({ compact = false }: { compact?: boolean }) {
   const { limits, usage, loading } = useKycLimits();
