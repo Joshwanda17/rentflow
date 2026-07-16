@@ -1125,7 +1125,20 @@ export default function Auth() {
                   {/* Full Name */}
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} required />
+                    <Input
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value.replace(/[^A-Za-z\s]/g, ''))}
+                      placeholder="Full name (letters only, min 8)"
+                      className="pl-10 h-12 text-base rounded-xl"
+                      style={{ fontSize: '16px' }}
+                      minLength={8}
+                      pattern="[A-Za-z\s]{8,}"
+                      title="Letters only, minimum 8 characters"
+                      required
+                    />
+                    {fullName.length > 0 && fullName.replace(/\s/g, '').length < 8 && (
+                      <p className="mt-1 text-xs text-destructive">Full name must be at least 8 letters</p>
+                    )}
                   </div>
 
                   {/* Email (optional — lets users sign up without SMS OTP) */}
