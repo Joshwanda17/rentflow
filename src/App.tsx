@@ -47,6 +47,7 @@ const PinAuthProvider = lazyWithRetry(() => import("@/hooks/usePinAuth").then(m 
 const BiometricAuthProvider = lazyWithRetry(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
 const ProfileCompletionGate = optionalLazyWithRetry(() => import("@/components/onboarding/ProfileCompletionGate"), "ProfileCompletionGate");
 const PushNotificationGate = optionalLazyWithRetry(() => import("@/components/notifications/PushNotificationGate"), "PushNotificationGate");
+const RejectionAlertGate = optionalLazyWithRetry(() => import("@/components/notifications/RejectionAlertGate"), "RejectionAlertGate");
 const SubAgentInviteGate = optionalLazyWithRetry(() => import("@/components/agent/SubAgentInviteGate"), "SubAgentInviteGate");
 const ForceResetPasswordGate = optionalLazyWithRetry(() => import("@/components/auth/ForceResetPasswordGate"), "ForceResetPasswordGate");
 
@@ -338,6 +339,7 @@ function GlobalOnboardingGates() {
     <>
       <ProfileCompletionGate />
       <PushNotificationGate />
+      <RejectionAlertGate />
       <SubAgentInviteGate />
     </>
   );
