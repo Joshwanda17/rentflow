@@ -648,6 +648,7 @@ Deno.serve(async (req) => {
   }
 
   const force = body?.force === true;
+  const preview = body?.preview === true;
   const dates: string[] = Array.isArray(body?.dates)
     ? body.dates
     : body?.date
@@ -655,6 +656,17 @@ Deno.serve(async (req) => {
     : [eatToday()];
 
   try {
+    if (preview) {
+      const d = dates[0];
+      const report = await buildReport(admin, d);
+      const prettyDate = new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+      });
+      const html = buildHtml(report, prettyDate);
+      return new Response(html, {
+        headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
     const out: Record<string, unknown>[] = [];
     for (const d of dates) {
       out.push(await sendForDate(admin, d, force));
