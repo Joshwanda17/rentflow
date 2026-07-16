@@ -1020,10 +1020,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                             const totalRepayment = canPreview ? Math.round(newAmount + accessFee + requestFee) : 0;
                             const dailyRepayment = canPreview ? Math.ceil(totalRepayment / newDays) : 0;
                             const preview = canPreview ? { accessFee, requestFee, totalRepayment, dailyRepayment } : null;
-                            const repaid = Number(req.amount_repaid || 0);
-                            const newOutstanding = preview ? preview.totalRepayment - repaid : 0;
+                            const requestedOutstanding = Number(requestEdit.outstanding);
+                            const outstandingValue = Number.isFinite(requestedOutstanding) && requestedOutstanding >= 0 ? requestedOutstanding : 0;
+                            const newRepaid = preview ? Math.max(0, preview.totalRepayment - outstandingValue) : 0;
                             const reasonOk = requestEdit.reason.trim().length >= 10;
-                            const outstandingOk = preview ? preview.totalRepayment >= repaid : false;
+                            const outstandingOk = preview ? Number.isFinite(requestedOutstanding) && requestedOutstanding >= 0 && requestedOutstanding <= preview.totalRepayment : false;
                             const feesValid =
                               (accessOverride == null || (Number.isFinite(accessOverride) && accessOverride >= 0)) &&
                               (requestOverride == null || (Number.isFinite(requestOverride) && requestOverride >= 0));
@@ -1063,6 +1064,15 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                       className="h-8 text-sm"
                                     />
                                   </div>
+                                  <div className="col-span-2">
+                                    <label className="text-[10px] text-muted-foreground">Outstanding (UGX)</label>
+                                    <Input
+                                      type="number"
+                                      value={requestEdit.outstanding}
+                                      onChange={e => setRequestEdit(v => ({ ...v, outstanding: e.target.value }))}
+                                      className="h-8 text-sm"
+                                    />
+                                  </div>
                                 </div>
                                 {preview && (
                                   <div className="rounded-md bg-muted/50 p-2 text-[11px] space-y-0.5">
@@ -1070,12 +1080,13 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                     <div className="flex justify-between"><span className="text-muted-foreground">Request Fee</span><span>UGX {preview.requestFee.toLocaleString()}</span></div>
                                     <div className="flex justify-between font-semibold"><span>New Total Repayment</span><span>UGX {preview.totalRepayment.toLocaleString()}</span></div>
                                     <div className="flex justify-between"><span className="text-muted-foreground">New Daily</span><span>UGX {preview.dailyRepayment.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-emerald-700 font-semibold"><span>New Total Repaid</span><span>UGX {newRepaid.toLocaleString()}</span></div>
                                     <div className={cn('flex justify-between font-semibold pt-1 border-t border-border/40', !outstandingOk && 'text-destructive')}>
                                       <span>New Outstanding</span>
-                                      <span>UGX {newOutstanding.toLocaleString()}</span>
+                                      <span>UGX {outstandingValue.toLocaleString()}</span>
                                     </div>
                                     {!outstandingOk && (
-                                      <p className="text-destructive text-[10px]">New total is below already-repaid (UGX {repaid.toLocaleString()}).</p>
+                                      <p className="text-destructive text-[10px]">Outstanding must be between UGX 0 and UGX {preview.totalRepayment.toLocaleString()}.</p>
                                     )}
                                   </div>
                                 )}
