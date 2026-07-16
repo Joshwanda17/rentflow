@@ -144,10 +144,19 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     const status = String((r as any).status || '').toLowerCase();
     return status !== 'completed' && status !== 'closed' && status !== 'cancelled' && status !== 'rejected';
   });
-  // Allow editing the summary outstanding whenever there's at least one active request.
-  // Single active req → edit it directly. Multiple → distribute the new outstanding
-  // proportionally across all active requests (preserving each request's repaid amount).
-  const editableOutstandingReq = activeReqs.length >= 1 ? activeReqs[0] : null;
+  // Outstanding correction targets any request that still carries a residual
+  // balance — including 'completed'/'closed' rows where the obligation was
+  // never fully repaid. Managers must be able to fix these. Fallback to all
+  // requests so an over-repaid tenant (outstanding = 0) can still be corrected.
+  const outstandingEditableReqs = (() => {
+    const withResidual = requests.filter(r => {
+      const repaid = Number(r.amount_repaid || 0);
+      return obligationFor(r) - repaid > 0;
+    });
+    if (withResidual.length > 0) return withResidual;
+    return activeReqs.length > 0 ? activeReqs : requests;
+  })();
+  const editableOutstandingReq = outstandingEditableReqs[0] || null;
 
   // --- Total Repaid inline editing ---
   // Managers may correct amount_repaid across the tenant's requests. Distribute
@@ -254,7 +263,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   };
 
   const startEditOutstanding = () => {
-    if (activeReqs.length === 0) return;
+    if (outstandingEditableReqs.length === 0) return;
     setOutstandingEdit({
       amount: String(Math.max(0, outstandingTotal)),
       reason: '',
@@ -263,17 +272,17 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   };
 
   const saveOutstanding = async () => {
-    if (activeReqs.length === 0) return;
+    if (outstandingEditableReqs.length === 0) return;
     const remaining = Number(outstandingEdit.amount);
     const reason = outstandingEdit.reason.trim();
     if (!Number.isFinite(remaining) || remaining < 0) { toast.error('Enter a valid outstanding amount'); return; }
     if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
 
     // Build per-request shares of the new total `remaining`.
-    // Distribute proportionally to each active req's current outstanding.
+    // Distribute proportionally to each editable req's current outstanding.
     // If all current outstandings are 0, split evenly. Each req's new total
     // must be >= its already-repaid amount.
-    const reqInfos = activeReqs.map(r => {
+    const reqInfos = outstandingEditableReqs.map(r => {
       const repaid = Number(r.amount_repaid || 0);
       const currentTotal = Number((r as any).total_repayment || 0);
       const currentOutstanding = Math.max(0, currentTotal - repaid);
@@ -878,23 +887,23 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
               ) : (
                 <>
                   <div className="flex items-center justify-center gap-1">
-                    <p
-                      className={cn(
-                        "text-lg font-extrabold text-amber-600",
-                        activeReqs.length > 0 && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
-                      )}
-                      onClick={activeReqs.length > 0 ? startEditOutstanding : undefined}
-                      title={
-                        activeReqs.length === 0
-                          ? undefined
-                          : activeReqs.length === 1
-                            ? "Tap to edit outstanding"
-                            : `Tap to edit — change is split across ${activeReqs.length} active requests`
-                      }
-                    >
+                     <p
+                       className={cn(
+                         "text-lg font-extrabold text-amber-600",
+                         outstandingEditableReqs.length > 0 && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
+                       )}
+                       onClick={outstandingEditableReqs.length > 0 ? startEditOutstanding : undefined}
+                       title={
+                         outstandingEditableReqs.length === 0
+                           ? undefined
+                           : outstandingEditableReqs.length === 1
+                             ? "Tap to edit outstanding"
+                             : `Tap to edit — change is split across ${outstandingEditableReqs.length} rent requests`
+                       }
+                     >
                       UGX {outstandingTotal.toLocaleString()}
                     </p>
-                    {activeReqs.length > 0 && (
+                    {outstandingEditableReqs.length > 0 && (
                       <button
                         type="button"
                         onClick={startEditOutstanding}
