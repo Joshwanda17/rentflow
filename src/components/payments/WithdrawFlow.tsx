@@ -80,6 +80,14 @@ export default function WithdrawFlow({
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
+  // Honor the caller's `initialAmount` prefill (e.g. merchant "Withdraw All")
+  // every time the dialog transitions to open.
+  useEffect(() => {
+    if (open && typeof initialAmount === 'number' && initialAmount > 0) {
+      setAmount(Math.floor(initialAmount));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialAmount]);
   const [currency, setCurrency] = useState('UGX');
   // Saved payout destinations — persisted across withdrawals so users
   // don't re-type MoMo / bank details every time.
