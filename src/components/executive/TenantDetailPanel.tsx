@@ -64,6 +64,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const [editingOutstanding, setEditingOutstanding] = useState(false);
   const [savingOutstanding, setSavingOutstanding] = useState(false);
   const [outstandingEdit, setOutstandingEdit] = useState({ amount: '', reason: '' });
+  const [requestOverrides, setRequestOverrides] = useState<Record<string, Record<string, number>>>({});
 
   // Transfer agent dialog state
   const [transferReq, setTransferReq] = useState<{ id: string; agent_id: string | null } | null>(null);
@@ -124,7 +125,10 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   });
 
   const profile = data?.profile;
-  const requests = data?.requests || [];
+  const rawRequests = data?.requests || [];
+  const requests = rawRequests.map((r: any) => (
+    requestOverrides[r.id] ? { ...r, ...requestOverrides[r.id] } : r
+  ));
   // The true obligation is total_repayment (rent + Welile fees), since amount_repaid
   // is tracked against that same total. rent_amount is only the property's monthly rent
   // kept for context and would understate the obligation, producing negative outstanding.
@@ -159,6 +163,13 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const editableOutstandingReq = outstandingEditableReqs[0] || null;
 
   const applyConfirmedRequestUpdates = (updates: Record<string, Record<string, number>>) => {
+    setRequestOverrides(prev => {
+      const next = { ...prev };
+      for (const [id, patch] of Object.entries(updates)) {
+        next[id] = { ...(next[id] || {}), ...patch };
+      }
+      return next;
+    });
     queryClient.setQueryData(['tenant-detail', tenantId], (old: any) => {
       if (!old?.requests) return old;
       return {
@@ -551,7 +562,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         metadata: { tenant_id: tenantId, before, after, reason },
       });
 
-      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      applyConfirmedRequestUpdates({ [reqId]: after });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === 'string' && (q.queryKey[0] as string).startsWith('cfo-') });
