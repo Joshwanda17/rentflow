@@ -158,6 +158,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   })();
   const editableOutstandingReq = outstandingEditableReqs[0] || null;
 
+  const applyConfirmedRequestUpdates = (updates: Record<string, Record<string, number>>) => {
+    queryClient.setQueryData(['tenant-detail', tenantId], (old: any) => {
+      if (!old?.requests) return old;
+      return {
+        ...old,
+        requests: old.requests.map((r: any) => (
+          updates[r.id] ? { ...r, ...updates[r.id] } : r
+        )),
+      };
+    });
+  };
+
   // --- Total Repaid inline editing ---
   // Managers may correct amount_repaid across the tenant's requests. Distribute
   // proportionally to each request's current amount_repaid (fallback: current
@@ -221,6 +233,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
     setSavingRepaid(true);
     try {
+      const confirmedUpdates: Record<string, Record<string, number>> = {};
       for (let i = 0; i < infos.length; i++) {
         const { req, currentRepaid } = infos[i];
         const newRepaid = shares[i];
@@ -230,6 +243,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           .update({ amount_repaid: newRepaid })
           .eq('id', req.id);
         if (error) throw error;
+        confirmedUpdates[req.id] = { amount_repaid: newRepaid };
 
         await supabase.from('audit_logs').insert({
           action_type: 'tenant_ops_repaid_correction',
@@ -248,7 +262,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         });
       }
 
-      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      applyConfirmedRequestUpdates(confirmedUpdates);
+      await queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       toast.success(
@@ -332,6 +347,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
     setSavingOutstanding(true);
     try {
+      const confirmedUpdates: Record<string, Record<string, number>> = {};
       for (let i = 0; i < reqInfos.length; i++) {
         const { req, obligation } = reqInfos[i];
         // Keep obligation fixed; adjust amount_repaid so that
@@ -347,6 +363,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
         const { error } = await supabase.from('rent_requests').update(after).eq('id', req.id);
         if (error) throw error;
+        confirmedUpdates[req.id] = after;
 
         await supabase.from('audit_logs').insert({
           action_type: 'tenant_ops_outstanding_correction',
@@ -367,7 +384,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         });
       }
 
-      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      applyConfirmedRequestUpdates(confirmedUpdates);
+      await queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       toast.success(
