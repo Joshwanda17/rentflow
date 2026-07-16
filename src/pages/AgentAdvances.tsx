@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent } from 'lucide-react';
+import { ArrowLeft, Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
 import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
 import { differenceInDays } from 'date-fns';
@@ -15,6 +16,7 @@ export default function AgentAdvances() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'overdue'>('all');
   const [issueOpen, setIssueOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
   const { data: advances = [], isLoading, refetch } = useQuery({
     queryKey: ['agent-advances'],
@@ -29,9 +31,17 @@ export default function AgentAdvances() {
   });
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return advances;
-    return advances.filter((a: any) => a.status === filter);
-  }, [advances, filter]);
+    const q = search.trim().toLowerCase();
+    return advances.filter((a: any) => {
+      if (filter !== 'all' && a.status !== filter) return false;
+      if (!q) return true;
+      const name = String(a.profiles?.full_name || '').toLowerCase();
+      const phone = String(a.profiles?.phone || '').toLowerCase();
+      const status = String(a.status || '').toLowerCase();
+      const id = String(a.id || '').toLowerCase();
+      return name.includes(q) || phone.includes(q) || status.includes(q) || id.startsWith(q);
+    });
+  }, [advances, filter, search]);
 
   const totalIssued = advances.reduce((s: number, a: any) => s + Number(a.principal), 0);
   const totalOutstanding = advances.filter((a: any) => a.status !== 'completed').reduce((s: number, a: any) => s + Number(a.outstanding_balance), 0);
@@ -91,11 +101,40 @@ export default function AgentAdvances() {
           </TabsList>
         </Tabs>
 
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search advances by agent name, phone or status…"
+            className="pl-9 pr-9"
+            autoComplete="off"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        {search && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            {filtered.length} of {advances.length} advances match “{search}”
+          </p>
+        )}
+
         {/* Table */}
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">Loading advances...</div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">No advances found</div>
+          <div className="text-center py-12 text-muted-foreground">
+            {search ? `No advances match “${search}”` : 'No advances found'}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

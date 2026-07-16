@@ -84,7 +84,7 @@ export function AgentAdvancePotential() {
   const [selected, setSelected] = useState<PotentialRow | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search), 400);
+    const t = setTimeout(() => setDebounced(search), 150);
     return () => clearTimeout(t);
   }, [search]);
 

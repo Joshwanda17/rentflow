@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import {
   ResponsiveContainer, ComposedChart, Area, Bar, Line, XAxis, YAxis,
@@ -14,7 +15,7 @@ import {
 } from 'recharts';
 import {
   Banknote, TrendingDown, AlertTriangle, CheckCircle2, XCircle,
-  Wallet, Loader2, BellRing, Percent, Users, CalendarClock, Sparkles, CalendarDays,
+  Wallet, Loader2, BellRing, Percent, Users, CalendarClock, Sparkles, CalendarDays, Search, X,
 } from 'lucide-react';
 import { format, subDays, startOfMonth, isSameDay } from 'date-fns';
 
@@ -55,6 +56,7 @@ export function AgentAdvanceRepaymentMonitor() {
   const [days] = useState(7);
   const [remindingId, setRemindingId] = useState<string | null>(null);
   const [bulkSending, setBulkSending] = useState(false);
+  const [search, setSearch] = useState('');
 
   const { data: rows, isLoading, refetch } = useQuery({
     queryKey: ['agent-advance-repayment-monitor', days],
@@ -129,20 +131,31 @@ export function AgentAdvanceRepaymentMonitor() {
 
   const stats = useMemo(() => {
     const list = rows || [];
-    const paid = list.filter((r) => r.paid_today);
-    const unpaid = list.filter((r) => !r.paid_today);
+    const q = search.trim().toLowerCase();
+    const matchesQuery = (r: MonitorRow) => {
+      if (!q) return true;
+      return (
+        String(r.full_name || '').toLowerCase().includes(q) ||
+        String(r.phone || '').toLowerCase().includes(q) ||
+        String(r.status || '').toLowerCase().includes(q)
+      );
+    };
+    const visible = list.filter(matchesQuery);
+    const paid = visible.filter((r) => r.paid_today);
+    const unpaid = visible.filter((r) => !r.paid_today);
     return {
       total: list.length,
+      visibleTotal: visible.length,
       paidCount: paid.length,
       unpaidCount: unpaid.length,
       collectedToday: paid.reduce((s, r) => s + num(r.repaid_today), 0),
-      totalOutstanding: list.reduce((s, r) => s + num(r.outstanding_balance), 0),
-      totalArrears: list.reduce((s, r) => s + num(r.arrears_balance), 0),
-      rateToday: list.length ? Math.round((paid.length / list.length) * 100) : 0,
+      totalOutstanding: visible.reduce((s, r) => s + num(r.outstanding_balance), 0),
+      totalArrears: visible.reduce((s, r) => s + num(r.arrears_balance), 0),
+      rateToday: visible.length ? Math.round((paid.length / visible.length) * 100) : 0,
       unpaid,
       paid,
     };
-  }, [rows]);
+  }, [rows, search]);
 
   const sendReminder = async (agentIds: string[], singleId?: string) => {
     if (!agentIds.length) return;
@@ -191,6 +204,33 @@ export function AgentAdvanceRepaymentMonitor() {
         <KPICard title="Not repaid today" value={stats.unpaidCount} icon={XCircle} loading={isLoading} color="bg-rose-100 text-rose-700" />
         <KPICard title="Total arrears" value={formatUGX(stats.totalArrears)} icon={AlertTriangle} loading={isLoading} color="bg-amber-100 text-amber-700" subtitle={`Outstanding ${formatUGX(stats.totalOutstanding)}`} />
       </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search agents by name, phone or status…"
+          className="pl-9 pr-9"
+          autoComplete="off"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {search && (
+        <p className="text-xs text-muted-foreground -mt-2">
+          Showing {stats.visibleTotal} of {stats.total} agents matching “{search}”
+        </p>
+      )}
 
       {/* Interest revenue KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
