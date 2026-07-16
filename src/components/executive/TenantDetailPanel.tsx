@@ -262,8 +262,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         });
       }
 
+      // Do not immediately refetch tenant-detail here: the write is already
+      // confirmed, and an immediate refetch can briefly restore stale rows in
+      // the summary strip. Patch the local detail cache so Total Repaid changes
+      // on the same render as the correction.
       applyConfirmedRequestUpdates(confirmedUpdates);
-      await queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       toast.success(
@@ -384,8 +387,10 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         });
       }
 
+      // Keep the corrected rows in the visible detail cache immediately so the
+      // Total Repaid card recomputes from the new amount_repaid values without
+      // being overwritten by a stale refetch.
       applyConfirmedRequestUpdates(confirmedUpdates);
-      await queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       toast.success(
