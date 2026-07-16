@@ -93,8 +93,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         supabase.from('profiles').select('id, full_name, phone, city, created_at').eq('id', tenantId).maybeSingle(),
         supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, access_fee, request_fee, total_repayment, registration_type, created_at, landlord_id, agent_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
         supabase.from('wallet_transactions').select('id, amount, type, created_at, description').or(`sender_id.eq.${tenantId},recipient_id.eq.${tenantId}`).order('created_at', { ascending: false }).limit(10),
-        supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(10),
+        supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method, rent_request_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(200),
       ]);
+
+      const collectionTotalsByRequest = new Map<string, number>();
+      for (const c of collectionsRes.data || []) {
+        const rentRequestId = (c as any).rent_request_id as string | null;
+        if (!rentRequestId) continue;
+        collectionTotalsByRequest.set(
+          rentRequestId,
+          (collectionTotalsByRequest.get(rentRequestId) || 0) + Number((c as any).amount || 0),
+        );
+      }
 
       const agentIds = [...new Set((requestsRes.data || []).flatMap(r => [r.assigned_agent_id, r.agent_id]).filter(Boolean))] as string[];
       const agentRes = agentIds.length > 0
@@ -114,12 +124,19 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           const effectiveAgentId = r.assigned_agent_id || r.agent_id;
           return {
             ...r,
+            amount_repaid: Math.max(
+              Number(r.amount_repaid || 0),
+              Math.min(
+                Number(r.total_repayment || r.rent_amount || 0),
+                collectionTotalsByRequest.get(r.id) || 0,
+              ),
+            ),
             agent_name: (effectiveAgentId && agentMap.get(effectiveAgentId)?.full_name) || 'Not Assigned',
             landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
           };
         }),
         walletTxns: walletRes.data || [],
-        collections: collectionsRes.data || [],
+        collections: (collectionsRes.data || []).slice(0, 10),
       };
     },
   });
