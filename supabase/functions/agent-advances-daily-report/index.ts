@@ -175,8 +175,15 @@ interface Report {
   totalRepaid: number;
   repaidToday: number;
   repaidThisMonth: number;
-  repaymentRate: number; // repaid / (repaid + outstanding)
-  payingBackCount: number; // active with some repayment progress
+  repaymentRate: number; // % of live advances that paid today (dashboard rateToday)
+  payingBackCount: number; // dashboard stats.paidCount
+  unpaidCount: number; // dashboard stats.unpaidCount
+  totalArrears: number; // dashboard stats.totalArrears
+  // Interest revenue (dashboard revenue.* — sourced from agent_advance_ledger)
+  interestToday: number;
+  interestMTD: number;
+  dailyAvgInterest: number;
+  collectedMTD: number;
   topOverdue: { name: string; phone: string; outstanding: number }[];
 }
 
@@ -195,7 +202,12 @@ async function buildReport(
   ).toISOString();
   const monthStartDate = `${dateStr.slice(0, 7)}-01`;
 
-  const [reqRes, advRes, ledgerRes, qualifyingRes] = await Promise.all([
+  // The Agent Ops "Advance Repayment Monitor" dashboard reads from exactly
+  // these two sources: the `get_agent_advance_repayment_monitor` RPC (row-
+  // level agent state, arrears, repaid_today, wallet, etc.) and the last ~35
+  // days of `agent_advance_ledger` (for the trend + interest revenue KPIs).
+  // To make this report match the dashboard number-for-number we do the same.
+  const [reqRes, advRes, ledgerRes, qualifyingRes, monitorRes] = await Promise.all([
     admin
       .from("agent_advance_requests")
       .select("id, agent_id, principal, total_payable, status, rejection_reason, cfo_paid_at, created_at"),
@@ -204,17 +216,20 @@ async function buildReport(
       .select("id, agent_id, principal, outstanding_balance, status, issued_at"),
     admin
       .from("agent_advance_ledger")
-      .select("advance_id, amount_deducted, date"),
+      .select("advance_id, amount_deducted, interest_accrued, date"),
     // "Who is an agent" — the canonical behaviour-based set (listed a house,
     // posted a promissory note, made a rent request for a tenant, or has a
     // qualifying sub-agent). This is the same source of truth the Agent Ops
     // dashboard uses, NOT the raw user_roles count (which is ~22k).
     admin.rpc("agent_ops_qualifying_agent_ids"),
+    // Same RPC the AgentAdvanceRepaymentMonitor card calls (default _days=7).
+    admin.rpc("get_agent_advance_repayment_monitor", { _days: 7 }),
   ]);
 
   const requests = reqRes.data ?? [];
   const advances = advRes.data ?? [];
   const ledger = ledgerRes.data ?? [];
+  const monitor = (monitorRes.data ?? []) as any[];
   const totalAgents = new Set(
     ((qualifyingRes.data ?? []) as Array<{ agent_id: string }>)
       .map((r) => r.agent_id)
@@ -271,59 +286,65 @@ async function buildReport(
     monthCounts.push(monthMap[full] || 0);
   }
 
-  // ---- Portfolio / repayment ----
+  // ---- Portfolio / repayment (SAME source as dashboard) ----
+  //
+  // Row-level KPIs mirror `AgentAdvanceRepaymentMonitor.stats`:
+  //   total          = monitor.length
+  //   paidCount      = rows where paid_today
+  //   unpaidCount    = rows where !paid_today
+  //   collectedToday = sum(paid.repaid_today)          → repaidToday
+  //   totalOutstanding = sum(outstanding_balance)      → activeOutstanding + overdueOutstanding
+  //   totalArrears   = sum(arrears_balance)
+  //   rateToday      = paidCount / total * 100          → repaymentRate
+  const paidRows = monitor.filter((r: any) => r.paid_today);
+  const unpaidRows = monitor.filter((r: any) => !r.paid_today);
+  const overdueMonitor = monitor.filter((r: any) => r.is_overdue);
+  const nonOverdueMonitor = monitor.filter((r: any) => !r.is_overdue);
+  const num = (v: any) => Number(v ?? 0);
+
+  const agentsWithActiveAdvances = new Set(
+    monitor.map((r: any) => r.agent_id).filter(Boolean),
+  ).size;
+  const activeOutstanding = nonOverdueMonitor.reduce((s: number, r: any) => s + num(r.outstanding_balance), 0);
+  const overdueOutstanding = overdueMonitor.reduce((s: number, r: any) => s + num(r.outstanding_balance), 0);
+  const totalArrears = monitor.reduce((s: number, r: any) => s + num(r.arrears_balance), 0);
+  const repaidToday = paidRows.reduce((s: number, r: any) => s + num(r.repaid_today), 0);
+  const payingBackCount = paidRows.length;
+  const unpaidCount = unpaidRows.length;
+  const repaymentRate = monitor.length ? (payingBackCount / monitor.length) * 100 : 0;
+
+  // Lifetime numbers still come from `agent_advances` — the dashboard doesn't
+  // display these directly but they give the report its historical context.
   const agentsWithAdvances = new Set(
     advances.map((a: any) => a.agent_id).filter(Boolean),
   ).size;
-  const active = advances.filter((a: any) => String(a.status) === "active");
-  const overdue = advances.filter((a: any) => String(a.status) === "overdue");
   const completed = advances.filter((a: any) => String(a.status) === "completed");
-  const agentsWithActiveAdvances = new Set(
-    [...active, ...overdue].map((a: any) => a.agent_id).filter(Boolean),
-  ).size;
-  const activeOutstanding = active.reduce((s: number, a: any) => s + Number(a.outstanding_balance || 0), 0);
-  const overdueOutstanding = overdue.reduce((s: number, a: any) => s + Number(a.outstanding_balance || 0), 0);
-  const totalPrincipalIssued = advances.reduce((s: number, a: any) => s + Number(a.principal || 0), 0);
+  const totalPrincipalIssued = advances.reduce((s: number, a: any) => s + num(a.principal), 0);
 
-  const totalRepaid = ledger.reduce((s: number, l: any) => s + Number(l.amount_deducted || 0), 0);
-  const repaidToday = ledger
-    .filter((l: any) => l.date === dateStr)
-    .reduce((s: number, l: any) => s + Number(l.amount_deducted || 0), 0);
+  // Ledger-derived KPIs (same query the dashboard runs, last 35 days).
+  const totalRepaid = ledger.reduce((s: number, l: any) => s + num(l.amount_deducted), 0);
   const repaidThisMonth = ledger
     .filter((l: any) => l.date >= monthStartDate && l.date <= dateStr)
-    .reduce((s: number, l: any) => s + Number(l.amount_deducted || 0), 0);
+    .reduce((s: number, l: any) => s + num(l.amount_deducted), 0);
+  const interestToday = ledger
+    .filter((l: any) => l.date === dateStr)
+    .reduce((s: number, l: any) => s + num(l.interest_accrued), 0);
+  const interestMTD = ledger
+    .filter((l: any) => l.date >= monthStartDate && l.date <= dateStr)
+    .reduce((s: number, l: any) => s + num(l.interest_accrued), 0);
+  const collectedMTD = repaidThisMonth;
+  const dayNumber = Math.max(1, Number(dateStr.slice(8, 10)));
+  const dailyAvgInterest = interestMTD / dayNumber;
 
-  const outstandingAll = activeOutstanding + overdueOutstanding;
-  const repaymentRate = totalRepaid + outstandingAll > 0
-    ? (totalRepaid / (totalRepaid + outstandingAll)) * 100
-    : 0;
-  // "Paying back today" = distinct live advances with a deduction posted today.
-  // Uniform with the Agent Ops Repayment Monitor definition (paid_today).
-  const paidTodayAdvanceIds = new Set(
-    ledger
-      .filter((l: any) => l.date === dateStr && Number(l.amount_deducted || 0) > 0)
-      .map((l: any) => l.advance_id)
-      .filter(Boolean),
-  );
-  const payingBackCount = paidTodayAdvanceIds.size;
-
-  // Top overdue agents by outstanding balance.
-  const overdueSorted = [...overdue].sort(
-    (a: any, b: any) => Number(b.outstanding_balance || 0) - Number(a.outstanding_balance || 0),
+  // Top overdue — sourced from the same monitor rows so names/phones match
+  // exactly what Agent Ops sees in the "Not repaid today" column.
+  const overdueSorted = [...overdueMonitor].sort(
+    (a: any, b: any) => num(b.outstanding_balance) - num(a.outstanding_balance),
   ).slice(0, 8);
-  const overdueIds = overdueSorted.map((a: any) => a.agent_id).filter(Boolean);
-  const profilesMap: Record<string, any> = {};
-  if (overdueIds.length) {
-    const { data } = await admin
-      .from("profiles")
-      .select("id, full_name, phone")
-      .in("id", overdueIds);
-    (data ?? []).forEach((p: any) => (profilesMap[p.id] = p));
-  }
-  const topOverdue = overdueSorted.map((a: any) => ({
-    name: nameOf(profilesMap[a.agent_id]),
-    phone: profilesMap[a.agent_id]?.phone || "—",
-    outstanding: Math.round(Number(a.outstanding_balance || 0)),
+  const topOverdue = overdueSorted.map((r: any) => ({
+    name: (r.full_name || "").trim() || "Unknown agent",
+    phone: r.phone || "—",
+    outstanding: Math.round(num(r.outstanding_balance)),
   }));
 
   return {
@@ -343,9 +364,9 @@ async function buildReport(
     monthDays,
     monthCounts,
     monthFullDates,
-    activeCount: active.length,
+    activeCount: nonOverdueMonitor.length,
     activeOutstanding,
-    overdueCount: overdue.length,
+    overdueCount: overdueMonitor.length,
     overdueOutstanding,
     completedCount: completed.length,
     totalPrincipalIssued,
@@ -354,6 +375,12 @@ async function buildReport(
     repaidThisMonth,
     repaymentRate,
     payingBackCount,
+    unpaidCount,
+    totalArrears,
+    interestToday,
+    interestMTD,
+    dailyAvgInterest,
+    collectedMTD,
     topOverdue,
   };
 }
@@ -453,9 +480,9 @@ function buildHtml(r: Report, prettyDate: string): string {
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
           ${kpiCell("Qualifying agents", r.totalAgents.toLocaleString("en-US"), "#1a1a2e", "Meet the agent criteria")}
-          ${kpiCell("Active advances", String(r.agentsWithActiveAdvances), PURPLE, `${r.agentsWithAdvances} ever`)}
-          ${kpiCell("Adoption", pct(adoption), adoption < 1 ? RED : GREEN)}
-          ${kpiCell("Paid today", String(r.payingBackCount), GREEN, "Advances deducted today")}
+          ${kpiCell("Agents with advances", String(r.agentsWithActiveAdvances), PURPLE, `${r.agentsWithAdvances} ever · dashboard total`)}
+          ${kpiCell("Repaid today", `${r.payingBackCount} · ${fmtUGX(r.repaidToday)}`, GREEN, `${pct(r.repaymentRate)} repayment rate`)}
+          ${kpiCell("Not repaid today", String(r.unpaidCount), r.unpaidCount ? RED : GREEN, "Owes a deduction today")}
         </tr>
       </table>
 
@@ -487,16 +514,26 @@ function buildHtml(r: Report, prettyDate: string): string {
       <h2 style="font-size:15px;margin:26px 0 8px;">Repayment health</h2>
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
-          ${kpiCell("Repayment rate", pct(r.repaymentRate), r.repaymentRate >= 70 ? GREEN : AMBER)}
-          ${kpiCell("Repaid today", fmtUGX(r.repaidToday), GREEN)}
+          ${kpiCell("Repayment rate", pct(r.repaymentRate), r.repaymentRate >= 70 ? GREEN : AMBER, "Paid today ÷ live advances")}
+          ${kpiCell("Total arrears", fmtUGX(r.totalArrears), r.totalArrears > 0 ? AMBER : GREEN, `Outstanding ${fmtUGX(r.activeOutstanding + r.overdueOutstanding)}`)}
           ${kpiCell("Repaid this month", fmtUGX(r.repaidThisMonth), GREEN)}
-          ${kpiCell("Repaid all-time", fmtUGX(r.totalRepaid))}
+          ${kpiCell("Repaid (last 35d)", fmtUGX(r.totalRepaid), "#1a1a2e", "Ledger window")}
         </tr>
         <tr>
-          ${kpiCell("Active advances", String(r.activeCount), BLUE, fmtUGX(r.activeOutstanding))}
+          ${kpiCell("Active (on-time)", String(r.activeCount), BLUE, fmtUGX(r.activeOutstanding))}
           ${kpiCell("Overdue advances", String(r.overdueCount), RED, fmtUGX(r.overdueOutstanding))}
           ${kpiCell("Completed", String(r.completedCount), GREEN, "fully repaid")}
           ${kpiCell("Principal issued", fmtUGX(r.totalPrincipalIssued))}
+        </tr>
+      </table>
+
+      <h2 style="font-size:15px;margin:26px 0 8px;">Interest revenue</h2>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
+        <tr>
+          ${kpiCell("Interest today", fmtUGX(r.interestToday), "#4f46e5", "Recognised today")}
+          ${kpiCell("Interest this month", fmtUGX(r.interestMTD), "#4f46e5", `Avg ${fmtUGX(r.dailyAvgInterest)}/day`)}
+          ${kpiCell("Collected this month", fmtUGX(r.collectedMTD), GREEN)}
+          ${kpiCell("Principal this month", fmtUGX(Math.max(0, r.collectedMTD - r.interestMTD)), "#1a1a2e", "Collected − interest")}
         </tr>
       </table>
 
@@ -535,16 +572,16 @@ function buildHtml(r: Report, prettyDate: string): string {
 }
 
 function buildText(r: Report, prettyDate: string): string {
-  const adoption = r.totalAgents ? (r.agentsWithActiveAdvances / r.totalAgents) * 100 : 0;
   const lines: string[] = [];
   lines.push(`Agent Advances Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
-  lines.push(`Total agents: ${r.totalAgents} | Active advances: ${r.agentsWithActiveAdvances} (${r.agentsWithAdvances} ever, ${pct(adoption)} adoption) | Paid today: ${r.payingBackCount}`);
+  lines.push(`Qualifying agents: ${r.totalAgents} | Agents with advances: ${r.agentsWithActiveAdvances} (${r.agentsWithAdvances} ever) | Repaid today: ${r.payingBackCount} · ${fmtUGX(r.repaidToday)} | Not repaid today: ${r.unpaidCount}`);
   lines.push(`Requests today: ${r.requestsToday} (system total ${r.requestsTotal})`);
   lines.push(`Approved today: ${r.approvedToday} (total ${r.approvedTotal}) | Rejected today: ${r.rejectedToday} (total ${r.rejectedTotal}) | Pending: ${r.pendingTotal}`);
   lines.push("");
-  lines.push(`Repayment rate: ${pct(r.repaymentRate)} | Repaid today: ${fmtUGX(r.repaidToday)} | This month: ${fmtUGX(r.repaidThisMonth)} | All-time: ${fmtUGX(r.totalRepaid)}`);
-  lines.push(`Active: ${r.activeCount} (${fmtUGX(r.activeOutstanding)}) | Overdue: ${r.overdueCount} (${fmtUGX(r.overdueOutstanding)}) | Completed: ${r.completedCount}`);
+  lines.push(`Repayment rate: ${pct(r.repaymentRate)} (paid today ÷ live advances) | Total arrears: ${fmtUGX(r.totalArrears)} | Repaid this month: ${fmtUGX(r.repaidThisMonth)} | Repaid (35d): ${fmtUGX(r.totalRepaid)}`);
+  lines.push(`Active on-time: ${r.activeCount} (${fmtUGX(r.activeOutstanding)}) | Overdue: ${r.overdueCount} (${fmtUGX(r.overdueOutstanding)}) | Completed: ${r.completedCount}`);
+  lines.push(`Interest today: ${fmtUGX(r.interestToday)} | Interest MTD: ${fmtUGX(r.interestMTD)} (avg ${fmtUGX(r.dailyAvgInterest)}/day) | Collected MTD: ${fmtUGX(r.collectedMTD)}`);
   lines.push("");
   lines.push("Today's rejection reasons:");
   if (r.reasonsToday.length) {
@@ -557,6 +594,7 @@ async function sendForDate(
   admin: ReturnType<typeof createClient>,
   dateStr: string,
   force: boolean,
+  recipientsOverride?: string[],
 ): Promise<Record<string, unknown>> {
   if (!force) {
     const { data: existing } = await admin
@@ -583,7 +621,10 @@ async function sendForDate(
   const subject = `Agent Advances — ${prettyDate}: ${report.requestsToday} new, ${report.approvedToday} approved, ${report.rejectedToday} rejected · ${pct(report.repaymentRate)} repaid`;
 
   const results: Record<string, string> = {};
-  for (const to of REPORT_RECIPIENTS) {
+  const recipients = recipientsOverride && recipientsOverride.length
+    ? recipientsOverride
+    : REPORT_RECIPIENTS;
+  for (const to of recipients) {
     const messageId = crypto.randomUUID();
     const unsubscribeToken = await ensureUnsubscribeToken(admin, to);
     const payload = {
@@ -621,7 +662,7 @@ async function sendForDate(
     event_type: "agent_advances_daily_report",
     metadata: {
       date: dateStr,
-      recipients: REPORT_RECIPIENTS,
+      recipients,
       requests_today: report.requestsToday,
       approved_today: report.approvedToday,
       rejected_today: report.rejectedToday,
@@ -649,6 +690,9 @@ Deno.serve(async (req) => {
 
   const force = body?.force === true;
   const preview = body?.preview === true;
+  const recipientsOverride: string[] | undefined = Array.isArray(body?.recipients)
+    ? body.recipients.filter((x: unknown) => typeof x === "string" && x.includes("@"))
+    : undefined;
   const dates: string[] = Array.isArray(body?.dates)
     ? body.dates
     : body?.date
@@ -669,7 +713,7 @@ Deno.serve(async (req) => {
     }
     const out: Record<string, unknown>[] = [];
     for (const d of dates) {
-      out.push(await sendForDate(admin, d, force));
+      out.push(await sendForDate(admin, d, force, recipientsOverride));
     }
     return new Response(JSON.stringify({ ok: true, results: out }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
