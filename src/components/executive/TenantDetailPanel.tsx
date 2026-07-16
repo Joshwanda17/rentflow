@@ -332,6 +332,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     setRequestEdit({
       rent_amount: String(req.rent_amount || 0),
       duration_days: String(req.duration_days || 0),
+      access_fee: String((req as any).access_fee ?? ''),
+      request_fee: String((req as any).request_fee ?? ''),
       reason: '',
     });
     setEditingRequestId(req.id);
