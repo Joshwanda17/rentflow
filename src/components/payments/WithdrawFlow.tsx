@@ -50,6 +50,12 @@ interface WithdrawFlowProps {
   availableBalance?: number;
   roiBalance?: number;
   onSuccess?: () => void;
+  /**
+   * Optional pre-fill for the amount step. When set (and > 0), the amount
+   * input starts at this value the next time the dialog opens — used by the
+   * merchant "Withdraw All" shortcut on `MerchantWithdrawableCard`.
+   */
+  initialAmount?: number;
 }
 
 const STEPS: Step[] = [
@@ -67,6 +73,7 @@ export default function WithdrawFlow({
   availableBalance = 0,
   roiBalance = 0,
   onSuccess,
+  initialAmount,
 }: WithdrawFlowProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
