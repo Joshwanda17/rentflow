@@ -887,23 +887,23 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
               ) : (
                 <>
                   <div className="flex items-center justify-center gap-1">
-                    <p
-                      className={cn(
-                        "text-lg font-extrabold text-amber-600",
-                        activeReqs.length > 0 && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
-                      )}
-                      onClick={activeReqs.length > 0 ? startEditOutstanding : undefined}
-                      title={
-                        activeReqs.length === 0
-                          ? undefined
-                          : activeReqs.length === 1
-                            ? "Tap to edit outstanding"
-                            : `Tap to edit — change is split across ${activeReqs.length} active requests`
-                      }
-                    >
+                     <p
+                       className={cn(
+                         "text-lg font-extrabold text-amber-600",
+                         outstandingEditableReqs.length > 0 && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
+                       )}
+                       onClick={outstandingEditableReqs.length > 0 ? startEditOutstanding : undefined}
+                       title={
+                         outstandingEditableReqs.length === 0
+                           ? undefined
+                           : outstandingEditableReqs.length === 1
+                             ? "Tap to edit outstanding"
+                             : `Tap to edit — change is split across ${outstandingEditableReqs.length} rent requests`
+                       }
+                     >
                       UGX {outstandingTotal.toLocaleString()}
                     </p>
-                    {activeReqs.length > 0 && (
+                    {outstandingEditableReqs.length > 0 && (
                       <button
                         type="button"
                         onClick={startEditOutstanding}
