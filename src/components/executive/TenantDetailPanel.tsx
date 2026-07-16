@@ -163,6 +163,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const editableOutstandingReq = outstandingEditableReqs[0] || null;
 
   const applyConfirmedRequestUpdates = (updates: Record<string, Record<string, number>>) => {
+    if (Object.keys(updates).length === 0) return;
     setRequestOverrides(prev => {
       const next = { ...prev };
       for (const [id, patch] of Object.entries(updates)) {
@@ -249,14 +250,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         const { req, currentRepaid } = infos[i];
         const newRepaid = shares[i];
         if (newRepaid === currentRepaid) continue;
-        const { error } = await supabase
+        const { data: updatedReq, error } = await supabase
           .from('rent_requests')
           .update({ amount_repaid: newRepaid })
-          .eq('id', req.id);
+          .eq('id', req.id)
+          .select('id, amount_repaid')
+          .single();
         if (error) throw error;
-        confirmedUpdates[req.id] = { amount_repaid: newRepaid };
+        const persistedRepaid = Number(updatedReq?.amount_repaid ?? newRepaid);
+        confirmedUpdates[req.id] = { amount_repaid: persistedRepaid };
+        applyConfirmedRequestUpdates({ [req.id]: { amount_repaid: persistedRepaid } });
 
-        await supabase.from('audit_logs').insert({
+        const { error: auditError } = await supabase.from('audit_logs').insert({
           action_type: 'tenant_ops_repaid_correction',
           user_id: user?.id || null,
           record_id: req.id,
@@ -264,13 +269,14 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           metadata: {
             tenant_id: tenantId,
             before: { amount_repaid: currentRepaid },
-            after: { amount_repaid: newRepaid },
+            after: { amount_repaid: persistedRepaid },
             reason,
             desired_total_repaid: desired,
             distribution_method: sumCurrent > 0 ? 'proportional_current' : (sumObligation > 0 ? 'proportional_obligation' : 'even'),
             request_count: infos.length,
           },
         });
+        if (auditError) console.warn('Total Repaid correction audit warning:', auditError);
       }
 
       // Do not immediately refetch tenant-detail here: the write is already
@@ -375,11 +381,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         };
         const after: Record<string, number> = { amount_repaid: newRepaid };
 
-        const { error } = await supabase.from('rent_requests').update(after).eq('id', req.id);
+        const { data: updatedReq, error } = await supabase
+          .from('rent_requests')
+          .update(after)
+          .eq('id', req.id)
+          .select('id, amount_repaid')
+          .single();
         if (error) throw error;
-        confirmedUpdates[req.id] = after;
+        const persistedAfter = { amount_repaid: Number(updatedReq?.amount_repaid ?? newRepaid) };
+        confirmedUpdates[req.id] = persistedAfter;
+        applyConfirmedRequestUpdates({ [req.id]: persistedAfter });
 
-        await supabase.from('audit_logs').insert({
+        const { error: auditError } = await supabase.from('audit_logs').insert({
           action_type: 'tenant_ops_outstanding_correction',
           user_id: user?.id || null,
           record_id: req.id,
@@ -387,7 +400,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           metadata: {
             tenant_id: tenantId,
             before,
-            after,
+            after: persistedAfter,
             reason,
             remaining_entered: remaining,
             distributed_share: shares[i],
@@ -396,6 +409,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
             strategy: 'adjust_amount_repaid',
           },
         });
+        if (auditError) console.warn('Outstanding correction audit warning:', auditError);
       }
 
       // Keep the corrected rows in the visible detail cache immediately so the
@@ -545,8 +559,23 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         amount_repaid: newRepaid,
       };
 
-      const { error } = await supabase.from('rent_requests').update(after).eq('id', reqId);
+      const { data: updatedReq, error } = await supabase
+        .from('rent_requests')
+        .update(after)
+        .eq('id', reqId)
+        .select('rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, amount_repaid')
+        .single();
       if (error) throw error;
+      const persistedAfter = {
+        rent_amount: Number(updatedReq?.rent_amount ?? after.rent_amount),
+        duration_days: Number(updatedReq?.duration_days ?? after.duration_days),
+        access_fee: Number(updatedReq?.access_fee ?? after.access_fee),
+        request_fee: Number(updatedReq?.request_fee ?? after.request_fee),
+        total_repayment: Number(updatedReq?.total_repayment ?? after.total_repayment),
+        daily_repayment: Number(updatedReq?.daily_repayment ?? after.daily_repayment),
+        amount_repaid: Number(updatedReq?.amount_repaid ?? after.amount_repaid),
+      };
+      applyConfirmedRequestUpdates({ [reqId]: persistedAfter });
 
       // Sync the active subscription charge (cron). Compute new end_date from created_at + new duration.
       const startDate = new Date(originalReq.created_at);
@@ -559,15 +588,16 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         .in('status', ['active', 'pending']);
       if (subErr) console.warn('Subscription charge sync warning:', subErr);
 
-      await supabase.from('audit_logs').insert({
+      const { error: auditError } = await supabase.from('audit_logs').insert({
         action_type: 'tenant_ops_rent_correction',
         user_id: user?.id || null,
         record_id: reqId,
         table_name: 'rent_requests',
-        metadata: { tenant_id: tenantId, before, after, reason },
+        metadata: { tenant_id: tenantId, before, after: persistedAfter, reason },
       });
+      if (auditError) console.warn('Rent correction audit warning:', auditError);
 
-      applyConfirmedRequestUpdates({ [reqId]: after });
+      applyConfirmedRequestUpdates({ [reqId]: persistedAfter });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === 'string' && (q.queryKey[0] as string).startsWith('cfo-') });
