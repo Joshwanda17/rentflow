@@ -410,10 +410,6 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         // This way the Total Repaid card visibly reflects the correction.
         const newRepaid = Math.max(0, Math.min(obligation, obligation - shares[i]));
 
-        const before = {
-          amount_repaid: Number((req as any).amount_repaid || 0),
-          total_repayment: Number((req as any).total_repayment || 0),
-        };
         const after: Record<string, number> = { amount_repaid: newRepaid };
 
         const persistedAfter = await correctRentRequest(req.id, reason, after);
@@ -549,15 +545,6 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       }
       const newRepaid = Math.max(0, calc.totalRepayment - desiredOutstanding);
 
-      const before = {
-        rent_amount: Number(originalReq.rent_amount || 0),
-        duration_days: Number(originalReq.duration_days || 0),
-        access_fee: Number((originalReq as any).access_fee || 0),
-        request_fee: Number((originalReq as any).request_fee || 0),
-        total_repayment: Number((originalReq as any).total_repayment || 0),
-        daily_repayment: Number(originalReq.daily_repayment || 0),
-        amount_repaid: Number(originalReq.amount_repaid || 0),
-      };
       const after = {
         rent_amount: amount,
         duration_days: days,
