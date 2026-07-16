@@ -1275,16 +1275,9 @@ export function AgentCashPayoutsTab() {
               <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Available Commission</p>
-                  <p className="text-[11px] text-muted-foreground">Ready to withdraw right now</p>
+                  <p className="text-[11px] text-muted-foreground">Ready to withdraw · decreases each time you cash out commission</p>
                 </div>
                 <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(withdrawableCommission ?? 0)}</p>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background px-3 py-2.5">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lifetime Commission Earned</p>
-                  <p className="text-[11px] text-muted-foreground">Total 0.5% commission from every payout you have settled</p>
-                </div>
-                <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(lifetimeCommission ?? 0)}</p>
               </div>
             </div>
           )}
