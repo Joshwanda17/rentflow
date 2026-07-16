@@ -10,6 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -86,6 +96,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<any | null>(null);
+  const [confirm, setConfirm] = useState<{ id: string; amount: number; original: number } | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['advance-requests-queue', stage],
@@ -134,6 +145,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
     onSuccess: (_, { approve }) => {
       toast.success(approve ? 'Request approved' : 'Request rejected');
       setSelected(null);
+      setConfirm(null);
       queryClient.invalidateQueries({ queryKey: ['advance-requests-queue'] });
       queryClient.invalidateQueries({ queryKey: ['advance-requests-reviewed'] });
     },
@@ -296,12 +308,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                     toast.error('Approved amount must be at least UGX 1,000');
                     return;
                   }
-                  const changed = amt !== num(selected.principal);
-                  const confirmMsg = changed
-                    ? `Approve at ${formatUGX(amt)} (agent requested ${formatUGX(num(selected.principal))})?`
-                    : `Approve ${formatUGX(amt)}?`;
-                  if (!window.confirm(confirmMsg)) return;
-                  approveMutation.mutate({ id: selected.id, approve: true, principal: amt });
+                  setConfirm({ id: selected.id, amount: amt, original: num(selected.principal) });
                 }}
                 disabled={approveMutation.isPending}
                 className="flex-1 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -320,6 +327,61 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
           </>
         ) : null}
       />
+
+      <AlertDialog open={!!confirm} onOpenChange={(open) => { if (!open) setConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <AlertDialogTitle className="text-center">Confirm advance approval</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              This sends the request to CFO for final disbursement. This action cannot be undone from here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {confirm && (
+            <div className="my-2 rounded-xl border bg-muted/40 p-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Agent requested</span>
+                <span className="font-semibold">{formatUGX(confirm.original)}</span>
+              </div>
+              <div className="flex items-center justify-between text-base">
+                <span className="font-semibold">Approving</span>
+                <span className="font-bold text-emerald-600">{formatUGX(confirm.amount)}</span>
+              </div>
+              {confirm.amount !== confirm.original && (
+                <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    Adjusted by {formatUGX(Math.abs(confirm.amount - confirm.original))}{' '}
+                    {confirm.amount > confirm.original ? 'above' : 'below'} the agent's request.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approveMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={approveMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!confirm) return;
+                approveMutation.mutate({ id: confirm.id, approve: true, principal: confirm.amount });
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {approveMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-1.5" /> Approving…</>
+              ) : (
+                <>Confirm approval</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
