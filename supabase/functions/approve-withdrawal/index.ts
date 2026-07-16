@@ -1200,6 +1200,16 @@ Deno.serve(async (req) => {
     }
 
     const amount = Number(wr.amount);
+    const isCommissionWithdrawal =
+      !isProxyPayout &&
+      typeof wr.reason === "string" &&
+      [
+        "commission payout",
+        "cash-out commission",
+        "cashout commission",
+        "cash-out commission payout",
+        "cashout commission payout",
+      ].includes(wr.reason.trim().toLowerCase());
     let beneficiaryUserId =
       isProxyPayout && proxyPartnerId ? proxyPartnerId : wr.user_id;
     // Debit the resolved proxy agent's wallet. Fall back to the partner only
@@ -1360,7 +1370,51 @@ Deno.serve(async (req) => {
         isProxyPayout && wr.linked_party && String(wr.linked_party) !== String(fundingUserId)
           ? String(wr.linked_party)
           : null;
-      if (proxyLedgerPartnerId) {
+      if (isCommissionWithdrawal) {
+        // Merchant cash-out commission is its own withdrawable sub-ledger:
+        // lifetime cashout commission earned minus explicit commission debits.
+        // It can be higher than get_user_available_balance() when unrelated
+        // wallet activity drained the mixed withdrawable bucket, so full
+        // commission withdrawal must gate on this commission net instead.
+        const { data: earnedRows, error: earnedErr } = await admin
+          .from("general_ledger")
+          .select("amount")
+          .eq("user_id", fundingUserId)
+          .eq("ledger_scope", "wallet")
+          .eq("direction", "cash_in")
+          .eq("category", "agent_commission_earned")
+          .like("reference_id", "%-cashout-commission");
+        if (earnedErr) throw earnedErr;
+
+        const { data: withdrawnRows, error: withdrawnErr } = await admin
+          .from("general_ledger")
+          .select("amount")
+          .eq("user_id", fundingUserId)
+          .eq("ledger_scope", "wallet")
+          .eq("direction", "cash_out")
+          .in("category", ["agent_commission_withdrawal", "agent_commission_used_for_rent"]);
+        if (withdrawnErr) throw withdrawnErr;
+
+        const { data: pendingCommissionRows, error: pendingCommissionErr } = await admin
+          .from("withdrawal_requests")
+          .select("amount")
+          .eq("user_id", fundingUserId)
+          .neq("id", withdrawal_id)
+          .in("status", ["pending", "requested", "manager_approved", "processing", "approved"])
+          .in("reason", [
+            "Commission payout",
+            "Cash-out commission",
+            "Cashout commission",
+            "Cash-out commission payout",
+            "Cashout commission payout",
+          ]);
+        if (pendingCommissionErr) throw pendingCommissionErr;
+
+        const earnedCommission = (earnedRows || []).reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
+        const withdrawnCommission = (withdrawnRows || []).reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
+        const otherPendingCommission = (pendingCommissionRows || []).reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
+        ledgerAvailable = Math.max(0, earnedCommission - withdrawnCommission - otherPendingCommission);
+      } else if (proxyLedgerPartnerId) {
 
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
@@ -1565,6 +1619,7 @@ Deno.serve(async (req) => {
             funding_user_id: fundingUserId,
             beneficiary_user_id: beneficiaryUserId,
             is_proxy_payout: isProxyPayout,
+            is_commission_withdrawal: isCommissionWithdrawal,
             failed_at: new Date().toISOString(),
           },
         });
@@ -1576,6 +1631,8 @@ Deno.serve(async (req) => {
     if (!poolFunded && !isLandlordFloatPayout && (!wallet || totalSpendable < amount)) {
       const failureReason = isProxyPayout
         ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
+        : isCommissionWithdrawal
+          ? `Insufficient withdrawable commission. Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`
         : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`;
       await auditFailedWithdrawalAttempt(failureReason, "INSUFFICIENT_WITHDRAWABLE");
       await releaseClaim();
@@ -1727,6 +1784,7 @@ Deno.serve(async (req) => {
     const proxyWithdrawablePortion = isProxyPayout ? amount - proxyFloatPortion : 0;
     const withdrawablePortion = poolFunded ? 0 : (isProxyPayout ? proxyWithdrawablePortion : amount);
     const floatPortion = poolFunded ? amount : proxyFloatPortion;
+    const walletDebitCategory = isCommissionWithdrawal ? "agent_commission_withdrawal" : "wallet_withdrawal";
 
     const debitEntries: any[] = [];
     if (poolFunded) {
@@ -1782,10 +1840,12 @@ Deno.serve(async (req) => {
         user_id: fundingUserId,
         amount: withdrawablePortion,
         direction: "cash_out",
-        category: "wallet_withdrawal",
+        category: walletDebitCategory,
         ledger_scope: "wallet",
         description: isProxyPayout
           ? `Proxy partner payout from withdrawable – ${baseDesc}`
+          : isCommissionWithdrawal
+          ? `Commission withdrawal approved – ${baseDesc}`
           : `Wallet withdrawal approved – ${baseDesc}`,
         currency: "UGX",
         source_table: "withdrawal_requests",
@@ -1796,6 +1856,8 @@ Deno.serve(async (req) => {
         wallet_bucket: "withdrawable",
         routing_source: isProxyPayout
           ? "managed_proxy_withdrawal_agent_withdrawable_debit"
+          : isCommissionWithdrawal
+          ? "merchant_commission_withdrawal_debit"
           : "standard_withdrawal_withdrawable_debit",
         ...(autoRouteMeta ? { metadata: autoRouteMeta } : {}),
       });
