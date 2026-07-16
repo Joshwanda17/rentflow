@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
+import { LockedTenantTransferPanel } from './LockedTenantTransferPanel';
 import { AgentTenantConnector } from './AgentTenantConnector';
 import { AgentOpsPipelineHub } from './AgentOpsPipelineHub';
 import { AgentDirectory } from './AgentDirectory';
@@ -49,7 +50,7 @@ import {
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target
-  , Coins, Megaphone
+  , Coins, Megaphone, Lock
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -62,7 +63,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advance-requests' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'advance-potential', icon: Target, label: 'Advance Potential', color: 'bg-purple-700', priority: true },
@@ -90,6 +91,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'earnings', icon: Banknote, label: 'Earnings', color: 'bg-green-500' },
   { key: 'alerts', icon: Bell, label: 'Alerts', color: 'bg-slate-500' },
   { key: 'transfers', icon: ArrowLeftRight, label: 'Transfers', color: 'bg-cyan-600' },
+  { key: 'locked-transfers', icon: Lock, label: 'Locked → Area Transfer', color: 'bg-rose-600', priority: true },
   { key: 'advance-requests', icon: Banknote, label: 'Advances', color: 'bg-purple-600', priority: true },
   { key: 'brief', icon: DollarSign, label: 'Daily Brief', color: 'bg-rose-500' },
 ];
