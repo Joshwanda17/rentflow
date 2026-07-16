@@ -632,6 +632,28 @@ export function AgentCashPayoutsTab() {
     refetchOnWindowFocus: true,
   });
 
+  // Total commission the merchant has already withdrawn. Only counts legs
+  // explicitly tagged as commission withdrawals — never generic wallet cash
+  // movements (deposits, transfers, portfolio top-ups) which are unrelated.
+  const { data: commissionWithdrawn } = useQuery({
+    queryKey: ['cashout-agent-commission-withdrawn', user?.id, isCashoutAgent?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_out')
+        .in('category', ['agent_commission_withdrawal', 'agent_commission_used_for_rent']);
+      if (error) throw error;
+      return (data || []).reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
+    },
+    enabled: !!user && !!isCashoutAgent?.id,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
+  });
+
   // Commission breakdown — totals by date for ALL payouts this agent has
   // processed (every confirmed payout credits a 0.5% commission into the
   // agent's withdrawable wallet via general_ledger). We read the wallet-scope
@@ -735,7 +757,16 @@ export function AgentCashPayoutsTab() {
   // misleads merchants (a merchant who has never cashed out commission would
   // still see a non-zero "withdrawn" if their wallet moved money for any
   // other reason).
-  const { withdrawableBalance: withdrawableCommission } = useAgentBalances();
+  const { withdrawableBalance: _strictWithdrawable } = useAgentBalances();
+  void _strictWithdrawable;
+  // "Available Commission" tracks the merchant's cashout-commission
+  // sub-ledger directly: lifetime earned minus what has been explicitly
+  // withdrawn as commission. Stable against unrelated wallet activity
+  // (deposits, transfers, portfolio top-ups).
+  const withdrawableCommission = Math.max(
+    0,
+    (lifetimeCommission ?? 0) - (commissionWithdrawn ?? 0),
+  );
   // Today's Activity strip: total money paid out today, and the 0.5% agent
   // commission slice on that same volume.
   const todayWithdrawn = dailyStats?.totalAmount ?? 0;
@@ -1244,16 +1275,9 @@ export function AgentCashPayoutsTab() {
               <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Available Commission</p>
-                  <p className="text-[11px] text-muted-foreground">Ready to withdraw right now</p>
+                  <p className="text-[11px] text-muted-foreground">Ready to withdraw · decreases each time you cash out commission</p>
                 </div>
                 <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(withdrawableCommission ?? 0)}</p>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background px-3 py-2.5">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lifetime Commission Earned</p>
-                  <p className="text-[11px] text-muted-foreground">Total 0.5% commission from every payout you have settled</p>
-                </div>
-                <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(lifetimeCommission ?? 0)}</p>
               </div>
             </div>
           )}
