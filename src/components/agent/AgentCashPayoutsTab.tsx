@@ -726,16 +726,16 @@ export function AgentCashPayoutsTab() {
     refetchOnWindowFocus: true,
   });
 
-  // Derived Commission Summary figures. `withdrawableCommission` comes from
-  // the strict ledger-backed available balance (what the agent can actually
-  // cash out right now). `alreadyWithdrawn` is the remainder of lifetime
-  // earnings — preserving the invariant surfaced in the UI:
-  //   Lifetime Commission = Available Commission + Already Withdrawn.
+  // Derived Commission Summary figures. `withdrawableCommission` is the
+  // strict ledger-backed available balance (what the agent can actually cash
+  // out right now). We DELIBERATELY do NOT compute an "already withdrawn"
+  // figure by subtracting available from lifetime — the wallet's withdrawable
+  // bucket is commingled with deposits, transfers and portfolio top-ups, so
+  // that subtraction attributes unrelated wallet activity to commission and
+  // misleads merchants (a merchant who has never cashed out commission would
+  // still see a non-zero "withdrawn" if their wallet moved money for any
+  // other reason).
   const { withdrawableBalance: withdrawableCommission } = useAgentBalances();
-  const alreadyWithdrawn = Math.max(
-    0,
-    (lifetimeCommission ?? 0) - (withdrawableCommission ?? 0),
-  );
   // Today's Activity strip: total money paid out today, and the 0.5% agent
   // commission slice on that same volume.
   const todayWithdrawn = dailyStats?.totalAmount ?? 0;
@@ -1248,17 +1248,10 @@ export function AgentCashPayoutsTab() {
                 </div>
                 <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(withdrawableCommission ?? 0)}</p>
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Already Used</p>
-                  <p className="text-[11px] text-muted-foreground">Cashed out to MoMo or moved to your investor portfolio</p>
-                </div>
-                <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(alreadyWithdrawn)}</p>
-              </div>
               <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background px-3 py-2.5">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lifetime Commission Earned</p>
-                  <p className="text-[11px] text-muted-foreground">Total earned since you started</p>
+                  <p className="text-[11px] text-muted-foreground">Total 0.5% commission from every payout you have settled</p>
                 </div>
                 <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(lifetimeCommission ?? 0)}</p>
               </div>
