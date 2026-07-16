@@ -722,6 +722,21 @@ export function AgentCashPayoutsTab() {
     refetchOnWindowFocus: true,
   });
 
+  // Derived Commission Summary figures. `withdrawableCommission` comes from
+  // the strict ledger-backed available balance (what the agent can actually
+  // cash out right now). `alreadyWithdrawn` is the remainder of lifetime
+  // earnings — preserving the invariant surfaced in the UI:
+  //   Lifetime Commission = Available Commission + Already Withdrawn.
+  const { withdrawableBalance: withdrawableCommission } = useAgentBalances();
+  const alreadyWithdrawn = Math.max(
+    0,
+    (lifetimeCommission ?? 0) - (withdrawableCommission ?? 0),
+  );
+  // Today's Activity strip: total money paid out today, and the 0.5% agent
+  // commission slice on that same volume.
+  const todayWithdrawn = dailyStats?.totalAmount ?? 0;
+  const todayCommission = Math.round(todayWithdrawn * 0.005);
+
   // Payout activity — a per-payout transaction history for this merchant. Lists
   // every withdrawal they settled (all channels), the commission they earned on
   // each, and any principal reimbursement. Sourced from withdrawal_requests
