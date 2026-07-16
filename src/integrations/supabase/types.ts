@@ -9237,6 +9237,262 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_flags: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: number
+          status: string
+          triggering_event_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: number
+          status?: string
+          triggering_event_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: number
+          status?: string
+          triggering_event_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_flags_triggering_event_id_fkey"
+            columns: ["triggering_event_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_risk_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kyc_level_change_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          new_level: number | null
+          old_level: number | null
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          new_level?: number | null
+          old_level?: number | null
+          reason: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          new_level?: number | null
+          old_level?: number | null
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kyc_level_config: {
+        Row: {
+          can_be_agent: boolean
+          can_high_value_transfer: boolean
+          can_register_merchant: boolean
+          created_at: string
+          daily_withdrawal_cap_ugx: number
+          daily_withdrawal_count_cap: number
+          description: string | null
+          label: string
+          level: number
+          max_single_transfer_ugx: number
+          updated_at: string
+        }
+        Insert: {
+          can_be_agent?: boolean
+          can_high_value_transfer?: boolean
+          can_register_merchant?: boolean
+          created_at?: string
+          daily_withdrawal_cap_ugx: number
+          daily_withdrawal_count_cap: number
+          description?: string | null
+          label: string
+          level: number
+          max_single_transfer_ugx: number
+          updated_at?: string
+        }
+        Update: {
+          can_be_agent?: boolean
+          can_high_value_transfer?: boolean
+          can_register_merchant?: boolean
+          created_at?: string
+          daily_withdrawal_cap_ugx?: number
+          daily_withdrawal_count_cap?: number
+          description?: string | null
+          label?: string
+          level?: number
+          max_single_transfer_ugx?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kyc_profiles: {
+        Row: {
+          created_at: string
+          daily_withdrawal_cap_ugx: number | null
+          daily_withdrawal_count_cap: number | null
+          frozen: boolean
+          frozen_at: string | null
+          frozen_by: string | null
+          frozen_reason: string | null
+          kyc_level: number
+          last_reviewed_at: string | null
+          last_reviewed_by: string | null
+          level_source: string
+          nin_number: string | null
+          nin_verified_at: string | null
+          selfie_url: string | null
+          selfie_verified_at: string | null
+          updated_at: string
+          upgraded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_withdrawal_cap_ugx?: number | null
+          daily_withdrawal_count_cap?: number | null
+          frozen?: boolean
+          frozen_at?: string | null
+          frozen_by?: string | null
+          frozen_reason?: string | null
+          kyc_level?: number
+          last_reviewed_at?: string | null
+          last_reviewed_by?: string | null
+          level_source?: string
+          nin_number?: string | null
+          nin_verified_at?: string | null
+          selfie_url?: string | null
+          selfie_verified_at?: string | null
+          updated_at?: string
+          upgraded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_withdrawal_cap_ugx?: number | null
+          daily_withdrawal_count_cap?: number | null
+          frozen?: boolean
+          frozen_at?: string | null
+          frozen_by?: string | null
+          frozen_reason?: string | null
+          kyc_level?: number
+          last_reviewed_at?: string | null
+          last_reviewed_by?: string | null
+          level_source?: string
+          nin_number?: string | null
+          nin_verified_at?: string | null
+          selfie_url?: string | null
+          selfie_verified_at?: string | null
+          updated_at?: string
+          upgraded_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_profiles_kyc_level_fkey"
+            columns: ["kyc_level"]
+            isOneToOne: false
+            referencedRelation: "kyc_level_config"
+            referencedColumns: ["level"]
+          },
+        ]
+      }
+      kyc_risk_events: {
+        Row: {
+          event_type: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          severity: number
+          user_id: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          severity?: number
+          user_id: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          severity?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kyc_risk_scores: {
+        Row: {
+          created_at: string
+          factors: Json
+          last_computed_at: string
+          score: number
+          tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          factors?: Json
+          last_computed_at?: string
+          score?: number
+          tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          factors?: Json
+          last_computed_at?: string
+          score?: number
+          tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       landlord_account_ledger: {
         Row: {
           amount: number
@@ -21767,6 +22023,10 @@ export type Database = {
         Args: { p_withdrawal_id: string }
         Returns: Json
       }
+      admin_freeze_kyc_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
       admin_purge_table_refs: {
         Args: { p_parent_pk_values: string[]; p_parent_table: string }
         Returns: number
@@ -21779,7 +22039,19 @@ export type Database = {
         Args: { p_balance: number; p_user_id: string; p_withdrawable: number }
         Returns: undefined
       }
+      admin_resolve_kyc_flag: {
+        Args: { p_flag_id: string; p_resolution: string; p_status: string }
+        Returns: undefined
+      }
       admin_restore_auth_user: { Args: { p_user_id: string }; Returns: Json }
+      admin_set_kyc_level: {
+        Args: { p_new_level: number; p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
+      admin_unfreeze_kyc_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
       agent_allocate_tenant_payment: {
         Args: {
           p_agent_id: string
@@ -22571,6 +22843,10 @@ export type Database = {
         Returns: Json
       }
       ensure_depositor_profile: { Args: { p_user_id: string }; Returns: string }
+      evaluate_kyc_upgrade_eligibility: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       expire_stale_cash_deposit_codes: { Args: never; Returns: number }
       export_users_with_password_hashes: { Args: never; Returns: string }
       extract_operational_float_allocations: {
@@ -23481,6 +23757,19 @@ export type Database = {
           id: string
           metadata: Json
           reason: string
+        }[]
+      }
+      get_kyc_effective_limits: {
+        Args: { p_user_id: string }
+        Returns: {
+          can_be_agent: boolean
+          can_high_value_transfer: boolean
+          can_register_merchant: boolean
+          daily_withdrawal_cap_ugx: number
+          daily_withdrawal_count_cap: number
+          frozen: boolean
+          kyc_level: number
+          max_single_transfer_ugx: number
         }[]
       }
       get_ledger_balance: { Args: { p_user_id: string }; Returns: number }
@@ -24672,6 +24961,24 @@ export type Database = {
             }
             Returns: undefined
           }
+      recompute_kyc_risk_score: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          factors: Json
+          last_computed_at: string
+          score: number
+          tier: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "kyc_risk_scores"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       recompute_receivables_summary: {
         Args: { p_source: string }
         Returns: undefined
