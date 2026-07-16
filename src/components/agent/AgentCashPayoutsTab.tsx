@@ -757,7 +757,16 @@ export function AgentCashPayoutsTab() {
   // misleads merchants (a merchant who has never cashed out commission would
   // still see a non-zero "withdrawn" if their wallet moved money for any
   // other reason).
-  const { withdrawableBalance: withdrawableCommission } = useAgentBalances();
+  const { withdrawableBalance: _strictWithdrawable } = useAgentBalances();
+  void _strictWithdrawable;
+  // "Available Commission" tracks the merchant's cashout-commission
+  // sub-ledger directly: lifetime earned minus what has been explicitly
+  // withdrawn as commission. Stable against unrelated wallet activity
+  // (deposits, transfers, portfolio top-ups).
+  const withdrawableCommission = Math.max(
+    0,
+    (lifetimeCommission ?? 0) - (commissionWithdrawn ?? 0),
+  );
   // Today's Activity strip: total money paid out today, and the 0.5% agent
   // commission slice on that same volume.
   const todayWithdrawn = dailyStats?.totalAmount ?? 0;
