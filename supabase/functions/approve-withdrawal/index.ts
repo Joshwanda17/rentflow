@@ -1628,10 +1628,14 @@ Deno.serve(async (req) => {
         .eq("user_id", user.id)
         .maybeSingle();
       merchantFloatAvailable = Number((merchantWallet as any)?.float_balance ?? 0);
-      if (merchantFloatAvailable < amount) {
+      const telecomCheck = getTelecomSendingCharge(amount);
+      const requiredFloat = amount + telecomCheck;
+      if (merchantFloatAvailable < requiredFloat) {
         const floatMsg =
           `Insufficient merchant float. You hold UGX ${Math.round(merchantFloatAvailable).toLocaleString()} ` +
-          `but this payout needs UGX ${amount.toLocaleString()}. Ask the CFO/treasury to top up your float before claiming.`;
+          `but this payout needs UGX ${requiredFloat.toLocaleString()} ` +
+          `(UGX ${amount.toLocaleString()} payout + UGX ${telecomCheck.toLocaleString()} telecom charge). ` +
+          `Ask the CFO/treasury to top up your float before claiming.`;
         await auditFailedWithdrawalAttempt(floatMsg, "INSUFFICIENT_MERCHANT_FLOAT");
         await releaseClaim();
         return new Response(
@@ -1640,7 +1644,9 @@ Deno.serve(async (req) => {
             error: floatMsg,
             code: "INSUFFICIENT_MERCHANT_FLOAT",
             float_available: Math.round(merchantFloatAvailable),
-            requested: amount,
+            requested: requiredFloat,
+            payout_amount: amount,
+            telecom_charge: telecomCheck,
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
