@@ -2261,6 +2261,57 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Merchant-agent TELECOM SENDING CHARGE (Float model, 2026-07) ─────
+    // Every Mobile Money payout the merchant sends from their own MTN/Airtel
+    // line costs a tiered sending fee. Since the merchant's float is intended
+    // to cover BOTH the payout amount and its telecom cost, we deduct the
+    // charge from the merchant's float bucket here so the Welile float ledger
+    // always matches what actually left the merchant's MoMo account.
+    //   Merchant Float Allocated = Customer Payouts + Telecom Charges + Remaining Float
+    // Uses the existing `agent_float_settlement` category with a distinct
+    // reference (`<withdrawal_id>-merchant-telecom-charge`) so the daily
+    // reconciliation report can split payouts vs telecom cleanly.
+    let merchantTelecomCharge = 0;
+    if (
+      actingAsMerchant &&
+      !poolFunded &&
+      merchantFloatConsumed > 0 // only post if the principal consume succeeded
+    ) {
+      const telecomCharge = getTelecomSendingCharge(amount);
+      if (telecomCharge > 0) {
+        try {
+          const txDate = new Date().toISOString();
+          const { error: telErr } = await admin.rpc("create_ledger_transaction", {
+            entries: [
+              {
+                user_id: user.id, ledger_scope: "wallet", direction: "cash_out",
+                amount: telecomCharge, category: "agent_float_settlement",
+                recipient_type: "operational_wallet", wallet_bucket: "float",
+                source_table: "withdrawal_requests", source_id: withdrawal_id,
+                description: `Telecom sending charge for merchant cash-out ${withdrawal_id}`,
+                currency: "UGX", reference_id: `${withdrawal_id}-merchant-telecom-charge`, transaction_date: txDate,
+              },
+              {
+                user_id: user.id, ledger_scope: "platform", direction: "cash_in",
+                amount: telecomCharge, category: "agent_float_settlement",
+                source_table: "withdrawal_requests", source_id: withdrawal_id,
+                description: `Telecom sending charge recovered from merchant float for withdrawal ${withdrawal_id}`,
+                currency: "UGX", reference_id: `${withdrawal_id}-merchant-telecom-charge`, transaction_date: txDate,
+              },
+            ],
+            idempotency_key: `approve-withdrawal-merchant-telecom-charge-${withdrawal_id}`,
+          });
+          if (telErr) {
+            console.error("[approve-withdrawal] Merchant telecom charge RPC error:", telErr);
+          } else {
+            merchantTelecomCharge = telecomCharge;
+          }
+        } catch (e) {
+          console.error("[approve-withdrawal] Merchant telecom charge exception:", e);
+        }
+      }
+    }
+
     // Public proof-of-payment receipt link (unguessable token). Fetched once so
     // both the customer SMS and the merchant confirmation SMS can share it.
     let receiptToken: string | null = null;
