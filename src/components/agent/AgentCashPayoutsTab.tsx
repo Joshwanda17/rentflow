@@ -27,6 +27,7 @@ import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
 import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
 import { MerchantWithdrawableCard } from '@/components/agent/MerchantWithdrawableCard';
+import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
 import { MerchantOnlineToggle } from '@/components/agent/MerchantOnlineToggle';
 import { MerchantDispatchHistory } from '@/components/agent/MerchantDispatchHistory';
@@ -721,6 +722,21 @@ export function AgentCashPayoutsTab() {
     refetchOnWindowFocus: true,
   });
 
+  // Derived Commission Summary figures. `withdrawableCommission` comes from
+  // the strict ledger-backed available balance (what the agent can actually
+  // cash out right now). `alreadyWithdrawn` is the remainder of lifetime
+  // earnings — preserving the invariant surfaced in the UI:
+  //   Lifetime Commission = Available Commission + Already Withdrawn.
+  const { withdrawableBalance: withdrawableCommission } = useAgentBalances();
+  const alreadyWithdrawn = Math.max(
+    0,
+    (lifetimeCommission ?? 0) - (withdrawableCommission ?? 0),
+  );
+  // Today's Activity strip: total money paid out today, and the 0.5% agent
+  // commission slice on that same volume.
+  const todayWithdrawn = dailyStats?.totalAmount ?? 0;
+  const todayCommission = Math.round(todayWithdrawn * 0.005);
+
   // Payout activity — a per-payout transaction history for this merchant. Lists
   // every withdrawal they settled (all channels), the commission they earned on
   // each, and any principal reimbursement. Sourced from withdrawal_requests
@@ -1185,25 +1201,71 @@ export function AgentCashPayoutsTab() {
 
       {/* Today's payouts */}
       <section className="space-y-3">
-        <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Payouts</h2>
+        <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Activity</h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-emerald-700 dark:text-emerald-400"><Coins className="h-3.5 w-3.5" /> Total Commission</div>
-            <p className="mt-1.5 text-lg font-bold leading-tight tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(lifetimeCommission ?? 0)}</p>
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-emerald-700 dark:text-emerald-400"><Coins className="h-3.5 w-3.5" /> Today's Commission Earned</div>
+            <p className="mt-1.5 text-lg font-bold leading-tight tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(todayCommission ?? 0)}</p>
           </div>
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-primary"><TrendingUp className="h-3.5 w-3.5" /> Paid</div>
-            <p className="mt-1.5 text-lg font-bold leading-tight tabular-nums text-primary">{formatUGX(dailyStats?.totalAmount ?? 0)}</p>
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-primary"><TrendingUp className="h-3.5 w-3.5" /> Today's Withdrawals</div>
+            <p className="mt-1.5 text-lg font-bold leading-tight tabular-nums text-primary">{formatUGX(todayWithdrawn ?? 0)}</p>
           </div>
         </div>
       </section>
+
+      {/* Commission Summary — makes it unmistakably clear which portion of
+          lifetime earnings is still available versus already withdrawn. */}
+      <Card className="rounded-2xl border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-emerald-600" />
+            Commission Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {(lifetimeCommission ?? 0) <= 0 && (withdrawableCommission ?? 0) <= 0 ? (
+            <div className="rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-3 py-4 text-center">
+              <p className="text-sm font-semibold text-foreground">No commission available for withdrawal.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Complete payout transactions to earn commission.<br />
+                Your earnings will appear here automatically.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Available Commission</p>
+                  <p className="text-[11px] text-muted-foreground">Ready to withdraw right now</p>
+                </div>
+                <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(withdrawableCommission ?? 0)}</p>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Already Withdrawn</p>
+                  <p className="text-[11px] text-muted-foreground">Cashed out to your mobile money</p>
+                </div>
+                <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(alreadyWithdrawn)}</p>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background px-3 py-2.5">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lifetime Commission Earned</p>
+                  <p className="text-[11px] text-muted-foreground">Total earned since you started</p>
+                </div>
+                <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(lifetimeCommission ?? 0)}</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Commission breakdown — totals by date for all approved payouts */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
             <Coins className="h-4 w-4 text-emerald-600" />
-            Commission Earned · 0.5% per payout
+            Commission History · 0.5% per payout
           </CardTitle>
           {/* Quick presets */}
           <div className="flex flex-wrap items-center gap-1.5 mt-3">

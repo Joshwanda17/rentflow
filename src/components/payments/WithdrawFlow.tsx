@@ -50,6 +50,12 @@ interface WithdrawFlowProps {
   availableBalance?: number;
   roiBalance?: number;
   onSuccess?: () => void;
+  /**
+   * Optional pre-fill for the amount step. When set (and > 0), the amount
+   * input starts at this value the next time the dialog opens — used by the
+   * merchant "Withdraw All" shortcut on `MerchantWithdrawableCard`.
+   */
+  initialAmount?: number;
 }
 
 const STEPS: Step[] = [
@@ -67,12 +73,21 @@ export default function WithdrawFlow({
   availableBalance = 0,
   roiBalance = 0,
   onSuccess,
+  initialAmount,
 }: WithdrawFlowProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
+  // Honor the caller's `initialAmount` prefill (e.g. merchant "Withdraw All")
+  // every time the dialog transitions to open.
+  useEffect(() => {
+    if (open && typeof initialAmount === 'number' && initialAmount > 0) {
+      setAmount(Math.floor(initialAmount));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialAmount]);
   const [currency, setCurrency] = useState('UGX');
   // Saved payout destinations — persisted across withdrawals so users
   // don't re-type MoMo / bank details every time.
