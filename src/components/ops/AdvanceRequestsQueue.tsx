@@ -10,6 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -86,6 +96,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<any | null>(null);
+  const [confirm, setConfirm] = useState<{ id: string; amount: number; original: number } | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['advance-requests-queue', stage],
@@ -134,6 +145,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
     onSuccess: (_, { approve }) => {
       toast.success(approve ? 'Request approved' : 'Request rejected');
       setSelected(null);
+      setConfirm(null);
       queryClient.invalidateQueries({ queryKey: ['advance-requests-queue'] });
       queryClient.invalidateQueries({ queryKey: ['advance-requests-reviewed'] });
     },
