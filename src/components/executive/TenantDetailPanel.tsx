@@ -53,7 +53,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Request edit state — keyed by request id
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [savingRequest, setSavingRequest] = useState(false);
-  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', access_fee: '', request_fee: '', reason: '' });
+  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', access_fee: '', request_fee: '', outstanding: '', reason: '' });
 
   // Total Repaid inline-edit state (stats card)
   const [editingRepaid, setEditingRepaid] = useState(false);
@@ -64,6 +64,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const [editingOutstanding, setEditingOutstanding] = useState(false);
   const [savingOutstanding, setSavingOutstanding] = useState(false);
   const [outstandingEdit, setOutstandingEdit] = useState({ amount: '', reason: '' });
+  const [requestOverrides, setRequestOverrides] = useState<Record<string, Record<string, number>>>({});
 
   // Transfer agent dialog state
   const [transferReq, setTransferReq] = useState<{ id: string; agent_id: string | null } | null>(null);
@@ -124,7 +125,10 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   });
 
   const profile = data?.profile;
-  const requests = data?.requests || [];
+  const rawRequests = data?.requests || [];
+  const requests = rawRequests.map((r: any) => (
+    requestOverrides[r.id] ? { ...r, ...requestOverrides[r.id] } : r
+  ));
   // The true obligation is total_repayment (rent + Welile fees), since amount_repaid
   // is tracked against that same total. rent_amount is only the property's monthly rent
   // kept for context and would understate the obligation, producing negative outstanding.
@@ -159,6 +163,13 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const editableOutstandingReq = outstandingEditableReqs[0] || null;
 
   const applyConfirmedRequestUpdates = (updates: Record<string, Record<string, number>>) => {
+    setRequestOverrides(prev => {
+      const next = { ...prev };
+      for (const [id, patch] of Object.entries(updates)) {
+        next[id] = { ...(next[id] || {}), ...patch };
+      }
+      return next;
+    });
     queryClient.setQueryData(['tenant-detail', tenantId], (old: any) => {
       if (!old?.requests) return old;
       return {
@@ -262,8 +273,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         });
       }
 
+      // Do not immediately refetch tenant-detail here: the write is already
+      // confirmed, and an immediate refetch can briefly restore stale rows in
+      // the summary strip. Patch the local detail cache so Total Repaid changes
+      // on the same render as the correction.
       applyConfirmedRequestUpdates(confirmedUpdates);
-      await queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       toast.success(
@@ -384,8 +398,10 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         });
       }
 
+      // Keep the corrected rows in the visible detail cache immediately so the
+      // Total Repaid card recomputes from the new amount_repaid values without
+      // being overwritten by a stale refetch.
       applyConfirmedRequestUpdates(confirmedUpdates);
-      await queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       toast.success(
@@ -460,11 +476,13 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
   // --- Request edit handlers ---
   const startEditRequest = (req: typeof requests[0]) => {
+    const currentOutstanding = Math.max(0, obligationFor(req) - Number(req.amount_repaid || 0));
     setRequestEdit({
       rent_amount: String(req.rent_amount || 0),
       duration_days: String(req.duration_days || 0),
       access_fee: String((req as any).access_fee ?? ''),
       request_fee: String((req as any).request_fee ?? ''),
+      outstanding: String(currentOutstanding),
       reason: '',
     });
     setEditingRequestId(req.id);
@@ -499,13 +517,14 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       const totalRepayment = Math.round(amount + accessFee + requestFee);
       const dailyRepayment = Math.ceil(totalRepayment / days);
       const calc = { accessFee, requestFee, totalRepayment, dailyRepayment };
-      const repaid = Number(originalReq.amount_repaid || 0);
-
-      if (repaid > calc.totalRepayment) {
-        toast.error(`Cannot lower below repaid amount (UGX ${repaid.toLocaleString()}). New total would be UGX ${calc.totalRepayment.toLocaleString()}.`);
+      const desiredOutstanding = Number(requestEdit.outstanding);
+      if (!Number.isFinite(desiredOutstanding) || desiredOutstanding < 0) { toast.error('Outstanding must be zero or positive'); setSavingRequest(false); return; }
+      if (desiredOutstanding > calc.totalRepayment) {
+        toast.error(`Outstanding cannot exceed total repayment (UGX ${calc.totalRepayment.toLocaleString()})`);
         setSavingRequest(false);
         return;
       }
+      const newRepaid = Math.max(0, calc.totalRepayment - desiredOutstanding);
 
       const before = {
         rent_amount: Number(originalReq.rent_amount || 0),
@@ -514,6 +533,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         request_fee: Number((originalReq as any).request_fee || 0),
         total_repayment: Number((originalReq as any).total_repayment || 0),
         daily_repayment: Number(originalReq.daily_repayment || 0),
+        amount_repaid: Number(originalReq.amount_repaid || 0),
       };
       const after = {
         rent_amount: amount,
@@ -522,6 +542,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         request_fee: calc.requestFee,
         total_repayment: calc.totalRepayment,
         daily_repayment: calc.dailyRepayment,
+        amount_repaid: newRepaid,
       };
 
       const { error } = await supabase.from('rent_requests').update(after).eq('id', reqId);
@@ -546,7 +567,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         metadata: { tenant_id: tenantId, before, after, reason },
       });
 
-      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      applyConfirmedRequestUpdates({ [reqId]: after });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === 'string' && (q.queryKey[0] as string).startsWith('cfo-') });
@@ -999,10 +1020,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                             const totalRepayment = canPreview ? Math.round(newAmount + accessFee + requestFee) : 0;
                             const dailyRepayment = canPreview ? Math.ceil(totalRepayment / newDays) : 0;
                             const preview = canPreview ? { accessFee, requestFee, totalRepayment, dailyRepayment } : null;
-                            const repaid = Number(req.amount_repaid || 0);
-                            const newOutstanding = preview ? preview.totalRepayment - repaid : 0;
+                            const requestedOutstanding = Number(requestEdit.outstanding);
+                            const outstandingValue = Number.isFinite(requestedOutstanding) && requestedOutstanding >= 0 ? requestedOutstanding : 0;
+                            const newRepaid = preview ? Math.max(0, preview.totalRepayment - outstandingValue) : 0;
                             const reasonOk = requestEdit.reason.trim().length >= 10;
-                            const outstandingOk = preview ? preview.totalRepayment >= repaid : false;
+                            const outstandingOk = preview ? Number.isFinite(requestedOutstanding) && requestedOutstanding >= 0 && requestedOutstanding <= preview.totalRepayment : false;
                             const feesValid =
                               (accessOverride == null || (Number.isFinite(accessOverride) && accessOverride >= 0)) &&
                               (requestOverride == null || (Number.isFinite(requestOverride) && requestOverride >= 0));
@@ -1042,6 +1064,15 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                       className="h-8 text-sm"
                                     />
                                   </div>
+                                  <div className="col-span-2">
+                                    <label className="text-[10px] text-muted-foreground">Outstanding (UGX)</label>
+                                    <Input
+                                      type="number"
+                                      value={requestEdit.outstanding}
+                                      onChange={e => setRequestEdit(v => ({ ...v, outstanding: e.target.value }))}
+                                      className="h-8 text-sm"
+                                    />
+                                  </div>
                                 </div>
                                 {preview && (
                                   <div className="rounded-md bg-muted/50 p-2 text-[11px] space-y-0.5">
@@ -1049,12 +1080,13 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                     <div className="flex justify-between"><span className="text-muted-foreground">Request Fee</span><span>UGX {preview.requestFee.toLocaleString()}</span></div>
                                     <div className="flex justify-between font-semibold"><span>New Total Repayment</span><span>UGX {preview.totalRepayment.toLocaleString()}</span></div>
                                     <div className="flex justify-between"><span className="text-muted-foreground">New Daily</span><span>UGX {preview.dailyRepayment.toLocaleString()}</span></div>
+                                    <div className="flex justify-between text-emerald-700 font-semibold"><span>New Total Repaid</span><span>UGX {newRepaid.toLocaleString()}</span></div>
                                     <div className={cn('flex justify-between font-semibold pt-1 border-t border-border/40', !outstandingOk && 'text-destructive')}>
                                       <span>New Outstanding</span>
-                                      <span>UGX {newOutstanding.toLocaleString()}</span>
+                                      <span>UGX {outstandingValue.toLocaleString()}</span>
                                     </div>
                                     {!outstandingOk && (
-                                      <p className="text-destructive text-[10px]">New total is below already-repaid (UGX {repaid.toLocaleString()}).</p>
+                                      <p className="text-destructive text-[10px]">Outstanding must be between UGX 0 and UGX {preview.totalRepayment.toLocaleString()}.</p>
                                     )}
                                   </div>
                                 )}
