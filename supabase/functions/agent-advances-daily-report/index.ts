@@ -480,9 +480,9 @@ function buildHtml(r: Report, prettyDate: string): string {
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
           ${kpiCell("Qualifying agents", r.totalAgents.toLocaleString("en-US"), "#1a1a2e", "Meet the agent criteria")}
-          ${kpiCell("Active advances", String(r.agentsWithActiveAdvances), PURPLE, `${r.agentsWithAdvances} ever`)}
-          ${kpiCell("Adoption", pct(adoption), adoption < 1 ? RED : GREEN)}
-          ${kpiCell("Paid today", String(r.payingBackCount), GREEN, "Advances deducted today")}
+          ${kpiCell("Agents with advances", String(r.agentsWithActiveAdvances), PURPLE, `${r.agentsWithAdvances} ever · dashboard total`)}
+          ${kpiCell("Repaid today", `${r.payingBackCount} · ${fmtUGX(r.repaidToday)}`, GREEN, `${pct(r.repaymentRate)} repayment rate`)}
+          ${kpiCell("Not repaid today", String(r.unpaidCount), r.unpaidCount ? RED : GREEN, "Owes a deduction today")}
         </tr>
       </table>
 
@@ -514,16 +514,26 @@ function buildHtml(r: Report, prettyDate: string): string {
       <h2 style="font-size:15px;margin:26px 0 8px;">Repayment health</h2>
       <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
         <tr>
-          ${kpiCell("Repayment rate", pct(r.repaymentRate), r.repaymentRate >= 70 ? GREEN : AMBER)}
-          ${kpiCell("Repaid today", fmtUGX(r.repaidToday), GREEN)}
+          ${kpiCell("Repayment rate", pct(r.repaymentRate), r.repaymentRate >= 70 ? GREEN : AMBER, "Paid today ÷ live advances")}
+          ${kpiCell("Total arrears", fmtUGX(r.totalArrears), r.totalArrears > 0 ? AMBER : GREEN, `Outstanding ${fmtUGX(r.activeOutstanding + r.overdueOutstanding)}`)}
           ${kpiCell("Repaid this month", fmtUGX(r.repaidThisMonth), GREEN)}
-          ${kpiCell("Repaid all-time", fmtUGX(r.totalRepaid))}
+          ${kpiCell("Repaid (last 35d)", fmtUGX(r.totalRepaid), "#1a1a2e", "Ledger window")}
         </tr>
         <tr>
-          ${kpiCell("Active advances", String(r.activeCount), BLUE, fmtUGX(r.activeOutstanding))}
+          ${kpiCell("Active (on-time)", String(r.activeCount), BLUE, fmtUGX(r.activeOutstanding))}
           ${kpiCell("Overdue advances", String(r.overdueCount), RED, fmtUGX(r.overdueOutstanding))}
           ${kpiCell("Completed", String(r.completedCount), GREEN, "fully repaid")}
           ${kpiCell("Principal issued", fmtUGX(r.totalPrincipalIssued))}
+        </tr>
+      </table>
+
+      <h2 style="font-size:15px;margin:26px 0 8px;">Interest revenue</h2>
+      <table style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:8px;">
+        <tr>
+          ${kpiCell("Interest today", fmtUGX(r.interestToday), "#4f46e5", "Recognised today")}
+          ${kpiCell("Interest this month", fmtUGX(r.interestMTD), "#4f46e5", `Avg ${fmtUGX(r.dailyAvgInterest)}/day`)}
+          ${kpiCell("Collected this month", fmtUGX(r.collectedMTD), GREEN)}
+          ${kpiCell("Principal this month", fmtUGX(Math.max(0, r.collectedMTD - r.interestMTD)), "#1a1a2e", "Collected − interest")}
         </tr>
       </table>
 
