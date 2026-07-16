@@ -356,8 +356,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       const originalReq = requests.find(r => r.id === reqId);
       if (!originalReq) throw new Error('Request not found');
 
-      // Recompute fees from rent_amount + duration_days using the canonical engine
-      const calc = calculateRentRepayment(amount, days);
+      // Recompute fees from rent_amount + duration_days using the canonical engine,
+      // but let a manager override Access Fee / Request Fee inline for corrections.
+      const canonical = calculateRentRepayment(amount, days);
+      const accessOverrideRaw = requestEdit.access_fee.trim();
+      const requestOverrideRaw = requestEdit.request_fee.trim();
+      const accessFee = accessOverrideRaw === '' ? canonical.accessFee : Number(accessOverrideRaw);
+      const requestFee = requestOverrideRaw === '' ? canonical.requestFee : Number(requestOverrideRaw);
+      if (!Number.isFinite(accessFee) || accessFee < 0) { toast.error('Access fee must be zero or positive'); setSavingRequest(false); return; }
+      if (!Number.isFinite(requestFee) || requestFee < 0) { toast.error('Request fee must be zero or positive'); setSavingRequest(false); return; }
+      const totalRepayment = Math.round(amount + accessFee + requestFee);
+      const dailyRepayment = Math.ceil(totalRepayment / days);
+      const calc = { accessFee, requestFee, totalRepayment, dailyRepayment };
       const repaid = Number(originalReq.amount_repaid || 0);
 
       if (repaid > calc.totalRepayment) {
