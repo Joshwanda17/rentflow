@@ -53,7 +53,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Request edit state — keyed by request id
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [savingRequest, setSavingRequest] = useState(false);
-  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', access_fee: '', request_fee: '', reason: '' });
+  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', access_fee: '', request_fee: '', outstanding: '', reason: '' });
 
   // Total Repaid inline-edit state (stats card)
   const [editingRepaid, setEditingRepaid] = useState(false);
@@ -476,11 +476,13 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
   // --- Request edit handlers ---
   const startEditRequest = (req: typeof requests[0]) => {
+    const currentOutstanding = Math.max(0, obligationFor(req) - Number(req.amount_repaid || 0));
     setRequestEdit({
       rent_amount: String(req.rent_amount || 0),
       duration_days: String(req.duration_days || 0),
       access_fee: String((req as any).access_fee ?? ''),
       request_fee: String((req as any).request_fee ?? ''),
+      outstanding: String(currentOutstanding),
       reason: '',
     });
     setEditingRequestId(req.id);
@@ -515,13 +517,14 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       const totalRepayment = Math.round(amount + accessFee + requestFee);
       const dailyRepayment = Math.ceil(totalRepayment / days);
       const calc = { accessFee, requestFee, totalRepayment, dailyRepayment };
-      const repaid = Number(originalReq.amount_repaid || 0);
-
-      if (repaid > calc.totalRepayment) {
-        toast.error(`Cannot lower below repaid amount (UGX ${repaid.toLocaleString()}). New total would be UGX ${calc.totalRepayment.toLocaleString()}.`);
+      const desiredOutstanding = Number(requestEdit.outstanding);
+      if (!Number.isFinite(desiredOutstanding) || desiredOutstanding < 0) { toast.error('Outstanding must be zero or positive'); setSavingRequest(false); return; }
+      if (desiredOutstanding > calc.totalRepayment) {
+        toast.error(`Outstanding cannot exceed total repayment (UGX ${calc.totalRepayment.toLocaleString()})`);
         setSavingRequest(false);
         return;
       }
+      const newRepaid = Math.max(0, calc.totalRepayment - desiredOutstanding);
 
       const before = {
         rent_amount: Number(originalReq.rent_amount || 0),
@@ -530,6 +533,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         request_fee: Number((originalReq as any).request_fee || 0),
         total_repayment: Number((originalReq as any).total_repayment || 0),
         daily_repayment: Number(originalReq.daily_repayment || 0),
+        amount_repaid: Number(originalReq.amount_repaid || 0),
       };
       const after = {
         rent_amount: amount,
@@ -538,6 +542,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         request_fee: calc.requestFee,
         total_repayment: calc.totalRepayment,
         daily_repayment: calc.dailyRepayment,
+        amount_repaid: newRepaid,
       };
 
       const { error } = await supabase.from('rent_requests').update(after).eq('id', reqId);
