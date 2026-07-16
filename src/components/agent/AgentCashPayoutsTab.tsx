@@ -765,7 +765,10 @@ export function AgentCashPayoutsTab() {
         .select('id, amount, payout_method, processed_at, reason, mobile_money_number, mobile_money_provider, mobile_money_name, user_id')
         // Only payouts THIS merchant agent actually claimed & settled from the
         // queue — never payouts settled by others through different flows.
-        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
+        // Match on EITHER the claim assignment OR the `processed_by` stamp so
+        // rows whose 15-min claim expired before the merchant pasted the TID
+        // still surface in their history.
+        .or(`assigned_cashout_agent_id.eq.${isCashoutAgent.id},processed_by.eq.${user.id}`)
         .eq('status', 'completed')
         .not('processed_at', 'is', null);
       if (histFromIso) wq = wq.gte('processed_at', histFromIso);
