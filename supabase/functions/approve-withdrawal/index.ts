@@ -3097,6 +3097,8 @@ Deno.serve(async (req) => {
         cashout_commission: cashoutCommission,
         merchant_reimbursed: merchantFloatConsumed,
         merchant_float_consumed: merchantFloatConsumed,
+        merchant_telecom_charge: merchantTelecomCharge,
+        merchant_float_total_debit: merchantFloatConsumed + merchantTelecomCharge,
         settled_available: settledAvailable,
       }),
       {
