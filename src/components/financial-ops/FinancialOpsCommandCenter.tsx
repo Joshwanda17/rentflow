@@ -273,6 +273,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
         {activeTool === 'merchant_claims' && <MerchantClaimsLog />}
         {activeTool === 'merchant_agents' && <CashoutAgentManager />}
+        {activeTool === 'receipt_archive' && <ReceiptArchivePanel />}
         {activeTool === 'merchant_float' && (
           <div className="space-y-4">
             <div>
