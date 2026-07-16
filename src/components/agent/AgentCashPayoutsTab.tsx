@@ -633,8 +633,6 @@ export function AgentCashPayoutsTab() {
   // agent's withdrawable wallet via general_ledger). We read the wallet-scope
   // cash_in legs tagged as the cashout commission and group them by day.
   const { data: commissionBreakdown } = useQuery({
-
-  // (moved) — see derived commission summary below the commissionBreakdown query.
     queryKey: ['cashout-agent-commission-breakdown', user?.id, fromKey, toKey],
     queryFn: async () => {
       if (!user) return { rows: [] as { date: string; count: number; total: number }[], typeRows: [] as { type: string; count: number; total: number }[], grandTotal: 0, grandCount: 0 };
