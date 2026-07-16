@@ -770,7 +770,11 @@ export default function WithdrawFlow({
         const fresh = await refetchLedger();
         const freshMax =
           source === 'available'
-            ? (fresh !== null ? Math.min(availableBalance, fresh) : availableBalance)
+            ? (trustAvailableBalance
+                ? availableBalance
+                : fresh !== null
+                  ? Math.min(availableBalance, fresh)
+                  : availableBalance)
             : roiBalance;
         if (fresh === null && ledgerAvailable === null) {
           toast.error(
@@ -795,7 +799,11 @@ export default function WithdrawFlow({
       // numbers. This makes Confirm "always work" from the user's POV.
       if (isStale || validating) {
         const fresh = await refetchLedger();
-        const freshLedger = fresh !== null ? fresh : trueAvailable;
+        const freshLedger = trustAvailableBalance
+          ? availableBalance
+          : fresh !== null
+            ? fresh
+            : trueAvailable;
         if (source === 'available' && amount > freshLedger) {
           toast.error(
             `Insufficient funds after refresh. Available: UGX ${freshLedger.toLocaleString()}.`,
