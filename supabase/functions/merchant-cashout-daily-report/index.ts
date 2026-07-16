@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
     const text = buildText(report, prettyDate);
     const subject = `Merchant Cash-Out Payouts — ${prettyDate}: ${fmtUGX(
       report?.total_paid || 0,
-    )} across ${report?.total_payouts || 0} payouts`;
+    )} paid + ${fmtUGX(report?.total_telecom || 0)} telecom across ${report?.total_payouts || 0} payouts`;
 
     // Enqueue one email per recipient into the existing Lovable email queue.
     const results: Record<string, string> = {};
@@ -371,6 +371,8 @@ Deno.serve(async (req) => {
         total_payouts: report?.total_payouts ?? 0,
         total_paid: report?.total_paid ?? 0,
         total_commission: report?.total_commission ?? 0,
+        total_telecom: report?.total_telecom ?? 0,
+        total_float_consumed: report?.total_float_consumed ?? 0,
         results,
       },
     });
@@ -391,6 +393,8 @@ Deno.serve(async (req) => {
         total_payouts: report?.total_payouts ?? 0,
         total_paid: report?.total_paid ?? 0,
         total_commission: report?.total_commission ?? 0,
+        total_telecom: report?.total_telecom ?? 0,
+        total_float_consumed: report?.total_float_consumed ?? 0,
         results,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
