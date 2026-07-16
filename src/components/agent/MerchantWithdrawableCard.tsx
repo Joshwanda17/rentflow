@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Coins, Wallet, ArrowUpRight } from 'lucide-react';
+import { Wallet, ArrowUpRight, Zap } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import WithdrawFlow from '@/components/payments/WithdrawFlow';
@@ -18,45 +18,66 @@ import WithdrawFlow from '@/components/payments/WithdrawFlow';
  * separately by MerchantFloatRequestCard.
  */
 export function MerchantWithdrawableCard() {
-  const { withdrawableBalance, commissionBalance, isLoading } = useAgentBalances();
+  const { withdrawableBalance, isLoading } = useAgentBalances();
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [prefillMax, setPrefillMax] = useState(false);
 
   const canWithdraw = !isLoading && withdrawableBalance > 0;
 
+  const openWithdraw = (max: boolean) => {
+    setPrefillMax(max);
+    setShowWithdraw(true);
+  };
+
   return (
     <>
-      <Card className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 to-transparent p-3.5">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            <Wallet className="h-3.5 w-3.5 text-emerald-600" /> Withdrawable Wallet
+      <Card className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 to-transparent p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5 text-emerald-600" /> Withdrawable Commission
+            </div>
+            <p
+              className={cn(
+                'mt-1 text-3xl font-black leading-tight tabular-nums text-emerald-700 dark:text-emerald-400',
+              )}
+            >
+              {isLoading ? '—' : formatUGX(withdrawableBalance)}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+              Available to withdraw now
+            </p>
           </div>
-          <p
-            className={cn(
-              'mt-1 text-2xl font-bold leading-tight tabular-nums text-emerald-700 dark:text-emerald-400',
-            )}
+
+          <Button
+            size="sm"
+            className="shrink-0 gap-1.5"
+            disabled={!canWithdraw}
+            onClick={() => openWithdraw(false)}
           >
-            {isLoading ? '—' : formatUGX(withdrawableBalance)}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-emerald-700/80 dark:text-emerald-400/80">
-            <Coins className="h-3 w-3" /> Commission earned · {formatUGX(commissionBalance)}
-          </p>
+            <ArrowUpRight className="h-4 w-4" />
+            Withdraw
+          </Button>
         </div>
 
-        <Button
-          size="sm"
-          className="shrink-0 gap-1.5"
-          disabled={!canWithdraw}
-          onClick={() => setShowWithdraw(true)}
-        >
-          <ArrowUpRight className="h-4 w-4" />
-          Withdraw
-        </Button>
+        {canWithdraw && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3 w-full gap-1.5 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
+            onClick={() => openWithdraw(true)}
+          >
+            <Zap className="h-3.5 w-3.5" />
+            Withdraw All · {formatUGX(withdrawableBalance)}
+          </Button>
+        )}
       </Card>
 
       <WithdrawFlow
         open={showWithdraw}
         onOpenChange={setShowWithdraw}
         availableBalance={withdrawableBalance}
+        initialAmount={prefillMax ? withdrawableBalance : undefined}
       />
     </>
   );
