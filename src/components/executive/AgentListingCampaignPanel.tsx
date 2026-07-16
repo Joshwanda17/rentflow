@@ -31,8 +31,8 @@ interface TopAgentRow {
   agent_id: string;
   agent_name: string | null;
   agent_phone: string | null;
-  verified_houses: number;
-  invited: number;
+  verified_count: number;
+  invited_count: number;
 }
 
 interface Overview {
@@ -208,10 +208,10 @@ export function AgentListingCampaignPanel() {
                         <div className="text-xs text-muted-foreground">{row.agent_phone}</div>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums">{row.invited}</td>
-                    <td className="px-4 py-2 text-right tabular-nums font-semibold">{row.verified_houses}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{row.invited_count ?? 0}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-semibold">{row.verified_count ?? 0}</td>
                     <td className="px-4 py-2 text-right tabular-nums">
-                      {(row.verified_houses * 3000).toLocaleString()}
+                      {((row.verified_count ?? 0) * 3000).toLocaleString()}
                     </td>
                   </tr>
                 ))}
