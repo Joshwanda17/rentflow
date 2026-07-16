@@ -9,6 +9,18 @@ section[aria-label*="Notifications" i]:empty {
   display: none !important;
 }
 
+/* Toasts must always render above every dialog/sheet/overlay so critical
+   error messages (KYC blocks, validation, etc.) are never hidden behind a
+   modal. Radix Dialog uses z-50; sonner defaults are lower, and on mobile
+   we intentionally `display: contents` the toaster wrapper (see below),
+   which strips its own stacking context. Force a max z-index on the
+   individual toast items themselves so they win regardless. */
+[data-sonner-toaster],
+[data-sonner-toaster] > ol,
+[data-sonner-toast] {
+  z-index: 2147483647 !important;
+}
+
 @media (max-width: 640px) {
   html,
   body,
