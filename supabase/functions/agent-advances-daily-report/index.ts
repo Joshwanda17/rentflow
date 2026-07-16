@@ -572,16 +572,16 @@ function buildHtml(r: Report, prettyDate: string): string {
 }
 
 function buildText(r: Report, prettyDate: string): string {
-  const adoption = r.totalAgents ? (r.agentsWithActiveAdvances / r.totalAgents) * 100 : 0;
   const lines: string[] = [];
   lines.push(`Agent Advances Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
-  lines.push(`Total agents: ${r.totalAgents} | Active advances: ${r.agentsWithActiveAdvances} (${r.agentsWithAdvances} ever, ${pct(adoption)} adoption) | Paid today: ${r.payingBackCount}`);
+  lines.push(`Qualifying agents: ${r.totalAgents} | Agents with advances: ${r.agentsWithActiveAdvances} (${r.agentsWithAdvances} ever) | Repaid today: ${r.payingBackCount} · ${fmtUGX(r.repaidToday)} | Not repaid today: ${r.unpaidCount}`);
   lines.push(`Requests today: ${r.requestsToday} (system total ${r.requestsTotal})`);
   lines.push(`Approved today: ${r.approvedToday} (total ${r.approvedTotal}) | Rejected today: ${r.rejectedToday} (total ${r.rejectedTotal}) | Pending: ${r.pendingTotal}`);
   lines.push("");
-  lines.push(`Repayment rate: ${pct(r.repaymentRate)} | Repaid today: ${fmtUGX(r.repaidToday)} | This month: ${fmtUGX(r.repaidThisMonth)} | All-time: ${fmtUGX(r.totalRepaid)}`);
-  lines.push(`Active: ${r.activeCount} (${fmtUGX(r.activeOutstanding)}) | Overdue: ${r.overdueCount} (${fmtUGX(r.overdueOutstanding)}) | Completed: ${r.completedCount}`);
+  lines.push(`Repayment rate: ${pct(r.repaymentRate)} (paid today ÷ live advances) | Total arrears: ${fmtUGX(r.totalArrears)} | Repaid this month: ${fmtUGX(r.repaidThisMonth)} | Repaid (35d): ${fmtUGX(r.totalRepaid)}`);
+  lines.push(`Active on-time: ${r.activeCount} (${fmtUGX(r.activeOutstanding)}) | Overdue: ${r.overdueCount} (${fmtUGX(r.overdueOutstanding)}) | Completed: ${r.completedCount}`);
+  lines.push(`Interest today: ${fmtUGX(r.interestToday)} | Interest MTD: ${fmtUGX(r.interestMTD)} (avg ${fmtUGX(r.dailyAvgInterest)}/day) | Collected MTD: ${fmtUGX(r.collectedMTD)}`);
   lines.push("");
   lines.push("Today's rejection reasons:");
   if (r.reasonsToday.length) {
