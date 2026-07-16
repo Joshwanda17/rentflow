@@ -263,7 +263,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   };
 
   const startEditOutstanding = () => {
-    if (activeReqs.length === 0) return;
+    if (outstandingEditableReqs.length === 0) return;
     setOutstandingEdit({
       amount: String(Math.max(0, outstandingTotal)),
       reason: '',
@@ -272,17 +272,17 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   };
 
   const saveOutstanding = async () => {
-    if (activeReqs.length === 0) return;
+    if (outstandingEditableReqs.length === 0) return;
     const remaining = Number(outstandingEdit.amount);
     const reason = outstandingEdit.reason.trim();
     if (!Number.isFinite(remaining) || remaining < 0) { toast.error('Enter a valid outstanding amount'); return; }
     if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
 
     // Build per-request shares of the new total `remaining`.
-    // Distribute proportionally to each active req's current outstanding.
+    // Distribute proportionally to each editable req's current outstanding.
     // If all current outstandings are 0, split evenly. Each req's new total
     // must be >= its already-repaid amount.
-    const reqInfos = activeReqs.map(r => {
+    const reqInfos = outstandingEditableReqs.map(r => {
       const repaid = Number(r.amount_repaid || 0);
       const currentTotal = Number((r as any).total_repayment || 0);
       const currentOutstanding = Math.max(0, currentTotal - repaid);
