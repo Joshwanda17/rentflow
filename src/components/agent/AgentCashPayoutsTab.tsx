@@ -1250,8 +1250,8 @@ export function AgentCashPayoutsTab() {
               </div>
               <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Already Withdrawn</p>
-                  <p className="text-[11px] text-muted-foreground">Cashed out to your mobile money</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Already Used</p>
+                  <p className="text-[11px] text-muted-foreground">Cashed out to MoMo or moved to your investor portfolio</p>
                 </div>
                 <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(alreadyWithdrawn)}</p>
               </div>
