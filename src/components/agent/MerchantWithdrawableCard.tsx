@@ -112,6 +112,7 @@ export function MerchantWithdrawableCard() {
         onOpenChange={setShowWithdraw}
         availableBalance={withdrawableBalance}
         initialAmount={prefillMax ? withdrawableBalance : undefined}
+        defaultWithdrawalReason="Commission payout"
         trustAvailableBalance
       />
     </>

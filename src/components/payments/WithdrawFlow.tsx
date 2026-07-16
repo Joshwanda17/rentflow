@@ -64,6 +64,7 @@ interface WithdrawFlowProps {
    * has consumed part of the mixed withdrawable bucket.
    */
   trustAvailableBalance?: boolean;
+  defaultWithdrawalReason?: string;
 }
 
 const STEPS: Step[] = [
@@ -83,6 +84,7 @@ export default function WithdrawFlow({
   onSuccess,
   initialAmount,
   trustAvailableBalance = false,
+  defaultWithdrawalReason = WITHDRAWAL_REASON_OPTIONS[0].value,
 }: WithdrawFlowProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
@@ -95,8 +97,11 @@ export default function WithdrawFlow({
     if (open && typeof initialAmount === 'number' && initialAmount > 0) {
       setAmount(Math.floor(initialAmount));
     }
+    if (open) {
+      setReasonPreset(defaultWithdrawalReason);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialAmount]);
+  }, [open, initialAmount, defaultWithdrawalReason]);
   const [currency, setCurrency] = useState('UGX');
   // Saved payout destinations — persisted across withdrawals so users
   // don't re-type MoMo / bank details every time.
@@ -111,7 +116,7 @@ export default function WithdrawFlow({
   // Reason / purpose the user selects for this withdrawal. The stored reason
   // determines which payout category the request maps to, so it reaches a
   // Cash-Out Agent authorized for that category.
-  const [reasonPreset, setReasonPreset] = useState<string>(WITHDRAWAL_REASON_OPTIONS[0].value);
+  const [reasonPreset, setReasonPreset] = useState<string>(defaultWithdrawalReason);
   const [reasonCustom, setReasonCustom] = useState('');
   const effectiveReason =
     reasonPreset === OTHER_WITHDRAWAL_REASON ? reasonCustom.trim() : reasonPreset;
@@ -322,7 +327,7 @@ export default function WithdrawFlow({
     setAmount(100000);
     setCurrency('UGX');
     setPayoutMode('mobile_money');
-    setReasonPreset(WITHDRAWAL_REASON_OPTIONS[0].value);
+    setReasonPreset(defaultWithdrawalReason);
     setReasonCustom('');
     setMomoNumber('');
     setMomoName('');
@@ -539,8 +544,12 @@ export default function WithdrawFlow({
       // FINAL LEDGER GATE — recompute ledger truth right before submission.
       // Cached props may be stale; the ledger is the source of truth.
       try {
-        const freshAvailable = await refetchLedger();
-        const freshLedger = freshAvailable !== null ? freshAvailable : trueAvailable;
+        const freshAvailable = trustAvailableBalance ? availableBalance : await refetchLedger();
+        const freshLedger = trustAvailableBalance
+          ? availableBalance
+          : freshAvailable !== null
+            ? freshAvailable
+            : trueAvailable;
         if (source === 'available' && amount > freshLedger) {
           toast.error(
             `Insufficient funds. Available: UGX ${freshLedger.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
