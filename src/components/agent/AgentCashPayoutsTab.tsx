@@ -1265,7 +1265,7 @@ export function AgentCashPayoutsTab() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
             <Coins className="h-4 w-4 text-emerald-600" />
-            Commission Earned · 0.5% per payout
+            Commission History · 0.5% per payout
           </CardTitle>
           {/* Quick presets */}
           <div className="flex flex-wrap items-center gap-1.5 mt-3">
