@@ -971,11 +971,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                 <div className="divide-y divide-border">
                   {requests.map((req) => {
                     const isEditing = editingRequestId === req.id;
+                    const rawStatus = String(req.status || '').toLowerCase();
+                    const outstandingLeft = Number((req as any).total_repayment || 0) - Number(req.amount_repaid || 0);
+                    const terminalStatuses = ['cancelled', 'rejected', 'closed', 'defaulted'];
+                    const displayStatus =
+                      (rawStatus === 'completed' || rawStatus === 'fully_repaid') && outstandingLeft > 0
+                        ? 'active'
+                        : rawStatus;
                     return (
                       <div key={req.id} className="px-4 py-3 space-y-1">
                         <div className="flex items-center justify-between">
-                          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', statusColor(req.status || ''))}>
-                            {(req.status || '').replace(/_/g, ' ')}
+                          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', statusColor(displayStatus))}>
+                            {displayStatus.replace(/_/g, ' ')}
                           </Badge>
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs text-muted-foreground">
