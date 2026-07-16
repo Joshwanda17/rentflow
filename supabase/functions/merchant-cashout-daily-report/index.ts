@@ -23,7 +23,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Fixed recipients for the operational report.
-const REPORT_RECIPIENTS = ["weliletenants@gmail.com", "joshwanda17@gmail.com"];
+const REPORT_RECIPIENTS = ["weliletenants@gmail.com", "joshwanda17@gmail.com", "benjaminmuhanguzi29@gmail.com"];
 
 // Email sender identity (matches send-transactional-email scaffold).
 const FROM = "Welile Reports <info@welile.com>";
