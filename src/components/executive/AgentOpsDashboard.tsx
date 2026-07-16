@@ -241,6 +241,11 @@ export function AgentOpsDashboard() {
           <TenantTransferPanel />
         </div>
       );
+      case 'locked-transfers': return (
+        <div className="rounded-2xl border border-border bg-card p-3">
+          <LockedTenantTransferPanel />
+        </div>
+      );
       case 'leaderboard': return <AgentLeaderboardPanel />;
       case 'listing-campaign': return <AgentListingCampaignPanel />;
       case 'earnings': return (
@@ -275,7 +280,7 @@ export function AgentOpsDashboard() {
     { title: '👥 Agent Network', keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
     { title: '💰 Advances', keys: ['advance-requests', 'advance-potential', 'advance-limits', 'advance-repayments'] },
-    { title: '🏢 Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
+    { title: '🏢 Business', keys: ['service-centres', 'transfers', 'locked-transfers', 'float-payouts'] },
     { title: '📊 Insights', keys: ['leaderboard', 'listing-campaign', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
     { title: '🔗 System', keys: ['bulk-ops'] },
   ];
