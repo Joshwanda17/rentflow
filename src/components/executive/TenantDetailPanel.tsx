@@ -53,7 +53,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Request edit state — keyed by request id
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [savingRequest, setSavingRequest] = useState(false);
-  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', reason: '' });
+  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', access_fee: '', request_fee: '', reason: '' });
+
+  // Total Repaid inline-edit state (stats card)
+  const [editingRepaid, setEditingRepaid] = useState(false);
+  const [savingRepaid, setSavingRepaid] = useState(false);
+  const [repaidEdit, setRepaidEdit] = useState({ amount: '', reason: '' });
 
   // Outstanding stat inline-edit state
   const [editingOutstanding, setEditingOutstanding] = useState(false);
@@ -143,6 +148,110 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Single active req → edit it directly. Multiple → distribute the new outstanding
   // proportionally across all active requests (preserving each request's repaid amount).
   const editableOutstandingReq = activeReqs.length >= 1 ? activeReqs[0] : null;
+
+  // --- Total Repaid inline editing ---
+  // Managers may correct amount_repaid across the tenant's requests. Distribute
+  // proportionally to each request's current amount_repaid (fallback: current
+  // total_repayment) so nothing exceeds its request's total_repayment.
+  const startEditRepaid = () => {
+    if (requests.length === 0) return;
+    setRepaidEdit({ amount: String(Math.max(0, totalRepaid)), reason: '' });
+    setEditingRepaid(true);
+  };
+
+  const saveRepaid = async () => {
+    if (requests.length === 0) return;
+    const desired = Number(repaidEdit.amount);
+    const reason = repaidEdit.reason.trim();
+    if (!Number.isFinite(desired) || desired < 0) { toast.error('Enter a valid repaid amount'); return; }
+    if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+
+    // Cap desired at total obligation across all requests.
+    const totalObligation = requests.reduce((s, r) => s + obligationFor(r), 0);
+    if (desired > totalObligation) {
+      toast.error(`Repaid cannot exceed total obligation UGX ${totalObligation.toLocaleString()}`);
+      return;
+    }
+
+    // Build proportional shares based on current amount_repaid; if all zero, use obligation.
+    const infos = requests.map(r => ({
+      req: r,
+      currentRepaid: Number(r.amount_repaid || 0),
+      obligation: obligationFor(r),
+    }));
+    const sumCurrent = infos.reduce((s, x) => s + x.currentRepaid, 0);
+    const sumObligation = infos.reduce((s, x) => s + x.obligation, 0);
+
+    let shares: number[];
+    if (sumCurrent > 0) {
+      shares = infos.map(x => Math.round((x.currentRepaid / sumCurrent) * desired));
+    } else if (sumObligation > 0) {
+      shares = infos.map(x => Math.round((x.obligation / sumObligation) * desired));
+    } else {
+      const each = Math.round(desired / infos.length);
+      shares = infos.map(() => each);
+    }
+    // Fix rounding drift
+    const drift = desired - shares.reduce((s, n) => s + n, 0);
+    if (shares.length > 0) shares[shares.length - 1] += drift;
+
+    // Clamp each share to [0, obligation]. Redistribute overflow to under-cap requests.
+    let overflow = 0;
+    for (let i = 0; i < shares.length; i++) {
+      if (shares[i] < 0) { overflow += shares[i]; shares[i] = 0; }
+      if (shares[i] > infos[i].obligation) { overflow += (shares[i] - infos[i].obligation); shares[i] = infos[i].obligation; }
+    }
+    if (overflow !== 0) {
+      for (let i = 0; i < shares.length && overflow > 0; i++) {
+        const room = infos[i].obligation - shares[i];
+        const add = Math.min(room, overflow);
+        shares[i] += add;
+        overflow -= add;
+      }
+    }
+
+    setSavingRepaid(true);
+    try {
+      for (let i = 0; i < infos.length; i++) {
+        const { req, currentRepaid } = infos[i];
+        const newRepaid = shares[i];
+        if (newRepaid === currentRepaid) continue;
+        const { error } = await supabase
+          .from('rent_requests')
+          .update({ amount_repaid: newRepaid })
+          .eq('id', req.id);
+        if (error) throw error;
+
+        await supabase.from('audit_logs').insert({
+          action_type: 'tenant_ops_repaid_correction',
+          user_id: user?.id || null,
+          record_id: req.id,
+          table_name: 'rent_requests',
+          metadata: {
+            tenant_id: tenantId,
+            before: { amount_repaid: currentRepaid },
+            after: { amount_repaid: newRepaid },
+            reason,
+            desired_total_repaid: desired,
+            distribution_method: sumCurrent > 0 ? 'proportional_current' : (sumObligation > 0 ? 'proportional_obligation' : 'even'),
+            request_count: infos.length,
+          },
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
+      toast.success(
+        infos.length === 1 ? 'Total Repaid updated' : `Total Repaid distributed across ${infos.length} requests`,
+      );
+      setEditingRepaid(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    } finally {
+      setSavingRepaid(false);
+    }
+  };
 
   const startEditOutstanding = () => {
     if (activeReqs.length === 0) return;
@@ -327,6 +436,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     setRequestEdit({
       rent_amount: String(req.rent_amount || 0),
       duration_days: String(req.duration_days || 0),
+      access_fee: String((req as any).access_fee ?? ''),
+      request_fee: String((req as any).request_fee ?? ''),
       reason: '',
     });
     setEditingRequestId(req.id);
@@ -349,8 +460,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       const originalReq = requests.find(r => r.id === reqId);
       if (!originalReq) throw new Error('Request not found');
 
-      // Recompute fees from rent_amount + duration_days using the canonical engine
-      const calc = calculateRentRepayment(amount, days);
+      // Recompute fees from rent_amount + duration_days using the canonical engine,
+      // but let a manager override Access Fee / Request Fee inline for corrections.
+      const canonical = calculateRentRepayment(amount, days);
+      const accessOverrideRaw = requestEdit.access_fee.trim();
+      const requestOverrideRaw = requestEdit.request_fee.trim();
+      const accessFee = accessOverrideRaw === '' ? canonical.accessFee : Number(accessOverrideRaw);
+      const requestFee = requestOverrideRaw === '' ? canonical.requestFee : Number(requestOverrideRaw);
+      if (!Number.isFinite(accessFee) || accessFee < 0) { toast.error('Access fee must be zero or positive'); setSavingRequest(false); return; }
+      if (!Number.isFinite(requestFee) || requestFee < 0) { toast.error('Request fee must be zero or positive'); setSavingRequest(false); return; }
+      const totalRepayment = Math.round(amount + accessFee + requestFee);
+      const dailyRepayment = Math.ceil(totalRepayment / days);
+      const calc = { accessFee, requestFee, totalRepayment, dailyRepayment };
       const repaid = Number(originalReq.amount_repaid || 0);
 
       if (repaid > calc.totalRepayment) {
@@ -673,8 +794,59 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
               <p className="text-[10px] text-muted-foreground">Requests</p>
             </CardContent></Card>
             <Card><CardContent className="p-3 text-center">
-              <p className="text-lg font-extrabold text-emerald-600">UGX {totalRepaid.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground">Total Repaid</p>
+              {editingRepaid ? (
+                <div className="space-y-1.5 text-left">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={repaidEdit.amount}
+                    onChange={e => setRepaidEdit(v => ({ ...v, amount: e.target.value }))}
+                    placeholder="Total Repaid (UGX)"
+                    className="h-8 text-sm"
+                  />
+                  <Textarea
+                    value={repaidEdit.reason}
+                    onChange={e => setRepaidEdit(v => ({ ...v, reason: e.target.value }))}
+                    placeholder="Reason (min 10 chars)"
+                    className="text-[11px] min-h-[44px]"
+                  />
+                  <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingRepaid(false)} disabled={savingRepaid}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" className="h-7 px-2 text-xs gap-1" onClick={saveRepaid} disabled={savingRepaid}>
+                      {savingRepaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-1">
+                    <p
+                      className={cn(
+                        'text-lg font-extrabold text-emerald-600',
+                        requests.length > 0 && 'cursor-pointer border-b border-dotted border-emerald-600/50 hover:opacity-80',
+                      )}
+                      onClick={requests.length > 0 ? startEditRepaid : undefined}
+                      title={requests.length > 0 ? 'Tap to correct Total Repaid' : undefined}
+                    >
+                      UGX {totalRepaid.toLocaleString()}
+                    </p>
+                    {requests.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={startEditRepaid}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Edit total repaid"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Total Repaid</p>
+                </>
+              )}
             </CardContent></Card>
             <Card><CardContent className="p-3 text-center">
               {editingOutstanding && editableOutstandingReq ? (
@@ -786,12 +958,28 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                             const newAmount = Number(requestEdit.rent_amount) || 0;
                             const newDays = Number(requestEdit.duration_days) || 0;
                             const canPreview = newAmount > 0 && newDays > 0;
-                            const preview = canPreview ? calculateRentRepayment(newAmount, newDays) : null;
+                            const canonical = canPreview ? calculateRentRepayment(newAmount, newDays) : null;
+                            const accessRaw = requestEdit.access_fee.trim();
+                            const requestRaw = requestEdit.request_fee.trim();
+                            const accessOverride = accessRaw === '' ? null : Number(accessRaw);
+                            const requestOverride = requestRaw === '' ? null : Number(requestRaw);
+                            const accessFee = accessOverride != null && Number.isFinite(accessOverride) && accessOverride >= 0
+                              ? accessOverride
+                              : canonical?.accessFee ?? 0;
+                            const requestFee = requestOverride != null && Number.isFinite(requestOverride) && requestOverride >= 0
+                              ? requestOverride
+                              : canonical?.requestFee ?? 0;
+                            const totalRepayment = canPreview ? Math.round(newAmount + accessFee + requestFee) : 0;
+                            const dailyRepayment = canPreview ? Math.ceil(totalRepayment / newDays) : 0;
+                            const preview = canPreview ? { accessFee, requestFee, totalRepayment, dailyRepayment } : null;
                             const repaid = Number(req.amount_repaid || 0);
                             const newOutstanding = preview ? preview.totalRepayment - repaid : 0;
                             const reasonOk = requestEdit.reason.trim().length >= 10;
                             const outstandingOk = preview ? preview.totalRepayment >= repaid : false;
-                            const canSave = canPreview && reasonOk && outstandingOk;
+                            const feesValid =
+                              (accessOverride == null || (Number.isFinite(accessOverride) && accessOverride >= 0)) &&
+                              (requestOverride == null || (Number.isFinite(requestOverride) && requestOverride >= 0));
+                            const canSave = canPreview && reasonOk && outstandingOk && feesValid;
                             return (
                               <div className="space-y-2 pt-1">
                                 <div className="grid grid-cols-2 gap-2">
@@ -802,6 +990,30 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                   <div>
                                     <label className="text-[10px] text-muted-foreground">Duration (days)</label>
                                     <Input type="number" value={requestEdit.duration_days} onChange={e => setRequestEdit(v => ({ ...v, duration_days: e.target.value }))} className="h-8 text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground">
+                                      Access Fee (UGX) <span className="text-[9px] opacity-70">— blank = auto</span>
+                                    </label>
+                                    <Input
+                                      type="number"
+                                      value={requestEdit.access_fee}
+                                      onChange={e => setRequestEdit(v => ({ ...v, access_fee: e.target.value }))}
+                                      placeholder={canonical ? String(canonical.accessFee) : 'auto'}
+                                      className="h-8 text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground">
+                                      Request Fee (UGX) <span className="text-[9px] opacity-70">— blank = auto</span>
+                                    </label>
+                                    <Input
+                                      type="number"
+                                      value={requestEdit.request_fee}
+                                      onChange={e => setRequestEdit(v => ({ ...v, request_fee: e.target.value }))}
+                                      placeholder={canonical ? String(canonical.requestFee) : 'auto'}
+                                      className="h-8 text-sm"
+                                    />
                                   </div>
                                 </div>
                                 {preview && (
