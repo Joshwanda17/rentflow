@@ -280,15 +280,20 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
     // Build per-request shares of the new total `remaining`.
     // Distribute proportionally to each editable req's current outstanding.
-    // If all current outstandings are 0, split evenly. Each req's new total
-    // must be >= its already-repaid amount.
+    // If all current outstandings are 0, split evenly. Each share must fit
+    // inside its request's obligation (0 <= share <= obligation).
     const reqInfos = outstandingEditableReqs.map(r => {
       const repaid = Number(r.amount_repaid || 0);
-      const currentTotal = Number((r as any).total_repayment || 0);
-      const currentOutstanding = Math.max(0, currentTotal - repaid);
-      return { req: r, repaid, currentOutstanding };
+      const obligation = obligationFor(r);
+      const currentOutstanding = Math.max(0, obligation - repaid);
+      return { req: r, repaid, obligation, currentOutstanding };
     });
     const sumCurrent = reqInfos.reduce((s, x) => s + x.currentOutstanding, 0);
+    const sumObligation = reqInfos.reduce((s, x) => s + x.obligation, 0);
+    if (remaining > sumObligation) {
+      toast.error(`Outstanding cannot exceed total obligation (UGX ${sumObligation.toLocaleString()})`);
+      return;
+    }
 
     let shares: number[];
     if (sumCurrent > 0) {
@@ -301,53 +306,47 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     const drift = remaining - shares.reduce((s, n) => s + n, 0);
     if (shares.length > 0) shares[shares.length - 1] += drift;
 
-    // Validate: no share can push total below repaid
+    // Clamp shares to [0, obligation] and redistribute overflow so the
+    // total still matches `remaining` exactly.
     for (let i = 0; i < reqInfos.length; i++) {
-      if (shares[i] < 0) {
-        toast.error('Computed share is negative — adjust the outstanding amount');
-        return;
+      if (shares[i] < 0) shares[i] = 0;
+      if (shares[i] > reqInfos[i].obligation) shares[i] = reqInfos[i].obligation;
+    }
+    const clampedDrift = remaining - shares.reduce((s, n) => s + n, 0);
+    if (clampedDrift !== 0 && shares.length > 0) {
+      // Push drift onto the first request that still has headroom.
+      for (let i = 0; i < reqInfos.length; i++) {
+        const room = reqInfos[i].obligation - shares[i];
+        if (clampedDrift > 0 && room > 0) {
+          const add = Math.min(clampedDrift, room);
+          shares[i] += add;
+          break;
+        }
+        if (clampedDrift < 0 && shares[i] > 0) {
+          const sub = Math.min(-clampedDrift, shares[i]);
+          shares[i] -= sub;
+          break;
+        }
       }
     }
 
     setSavingOutstanding(true);
     try {
       for (let i = 0; i < reqInfos.length; i++) {
-        const { req, repaid } = reqInfos[i];
-        const days = Number(req.duration_days || 0) || 1;
-        const newTotal = repaid + shares[i];
-        const newDaily = Math.round(newTotal / days);
+        const { req, obligation } = reqInfos[i];
+        // Keep obligation fixed; adjust amount_repaid so that
+        //   new_outstanding = obligation - new_repaid = shares[i]
+        // This way the Total Repaid card visibly reflects the correction.
+        const newRepaid = Math.max(0, Math.min(obligation, obligation - shares[i]));
 
         const before = {
-          rent_amount: Number((req as any).rent_amount || 0),
+          amount_repaid: Number((req as any).amount_repaid || 0),
           total_repayment: Number((req as any).total_repayment || 0),
-          daily_repayment: Number(req.daily_repayment || 0),
         };
-        // Display formula uses `rent_amount` as the obligation for every
-        // registration_type EXCEPT 'outstanding_balance'. The database also
-        // enforces outstanding-balance totals from `initial_outstanding_balance`,
-        // so update that source field or the trigger will restore the old value.
-        const after: Record<string, number> = {
-          total_repayment: newTotal,
-          daily_repayment: newDaily,
-        };
-        if (String((req as any).registration_type || '') === 'outstanding_balance') {
-          after.initial_outstanding_balance = newTotal;
-        } else {
-          after.rent_amount = newTotal;
-        }
+        const after: Record<string, number> = { amount_repaid: newRepaid };
 
         const { error } = await supabase.from('rent_requests').update(after).eq('id', req.id);
         if (error) throw error;
-
-        const startDate = new Date(req.created_at);
-        const newEnd = new Date(startDate);
-        newEnd.setDate(newEnd.getDate() + days);
-        const { error: subErr } = await supabase
-          .from('subscription_charges')
-          .update({ charge_amount: newDaily, end_date: newEnd.toISOString().slice(0, 10) })
-          .eq('rent_request_id', req.id)
-          .in('status', ['active', 'pending']);
-        if (subErr) console.warn('Subscription charge sync warning:', subErr);
 
         await supabase.from('audit_logs').insert({
           action_type: 'tenant_ops_outstanding_correction',
@@ -362,7 +361,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
             remaining_entered: remaining,
             distributed_share: shares[i],
             distribution_method: sumCurrent > 0 ? 'proportional' : 'even',
-            active_request_count: reqInfos.length,
+            editable_request_count: reqInfos.length,
+            strategy: 'adjust_amount_repaid',
           },
         });
       }
