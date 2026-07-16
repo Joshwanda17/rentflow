@@ -2761,54 +2761,11 @@ Deno.serve(async (req) => {
           .then(() => {}, () => {});
       }
 
-      // ── Receipt copy to the records archive ─────────────────────────────
-      // Policy (locked, unit-tested in receipt-copy-guard.test.ts): the ONLY
-      // internal recipient of a withdrawal-approval receipt copy is the shared
-      // records archive mailbox (weliletenants@gmail.com). No CFO / Financial
-      // Ops / manager / agent address may receive a copy. The customer still
-      // gets their own primary receipt separately. buildReceiptCopyRecipients()
-      // is the single source of truth; enforceArchiveOnly() is a defensive
-      // runtime net that drops any non-archive address before dispatch.
-      try {
-        const { allowed: copyRecipients, rejected } = enforceArchiveOnly(
-          buildReceiptCopyRecipients(),
-        );
-        if (rejected.length > 0) {
-          console.error(
-            "[approve-withdrawal] BLOCKED non-archive receipt copy recipients:",
-            rejected.map((r) => r.email),
-          );
-        }
-
-        // Dedupe by email; the customer already received the primary receipt.
-        const customerEmailLc = (recipientEmailForLog || "").trim().toLowerCase();
-        const seen = new Set<string>();
-        for (const rec of copyRecipients) {
-          const key = rec.email.trim().toLowerCase();
-          if (!key || seen.has(key)) continue;
-          seen.add(key);
-          if (key === customerEmailLc) continue; // already got the primary copy
-          const emailReq = buildWithdrawalPaidReceiptRequest({
-            recipientEmail: rec.email,
-            recipientName: rec.role,
-            withdrawalId: String(withdrawal_id),
-            amount,
-            paymentMethod: payment_method,
-            proofLabel,
-            proofReference: refUpper,
-            receiptUrl,
-            copyFor: rec.role,
-            idempotencySuffix: key.replace(/[^a-z0-9]/g, "").slice(0, 40),
-            commissionEarned: null,
-          });
-          dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
-        }
-        console.log(
-          `[approve-withdrawal] receipt copies queued to ${seen.size} internal/archive recipient(s).`,
-        );
-      } catch (e) {
-        console.error("[approve-withdrawal] receipt copy fan-out failed (non-fatal):", e);
-      }
+      // ── Receipt archive (retired external Gmail fan-out) ────────────────
+      // Withdrawal receipts are now permanently stored inside the platform
+      // (withdrawal_requests row + receipt_token → /r/:token) and surfaced
+      // via the Receipt Archive module in CFO / Financial Ops. No external
+      // copies to weliletenants@gmail.com or any staff address are sent.
     }
 
     // ── User in-app notification (paid) ─────────────────────────────────
