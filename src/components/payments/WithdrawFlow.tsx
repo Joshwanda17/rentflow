@@ -195,9 +195,11 @@ export default function WithdrawFlow({
   // The "available" source is the LESSER of (caller-supplied wallet
   // available, ledger-true available). Advance bucket is debt — NOT
   // withdrawable money — so it is excluded.
-  const trueAvailable = ledgerAvailable !== null
-    ? Math.min(availableBalance, ledgerAvailable)
-    : availableBalance;
+  const trueAvailable = trustAvailableBalance
+    ? availableBalance
+    : ledgerAvailable !== null
+      ? Math.min(availableBalance, ledgerAvailable)
+      : availableBalance;
   const maxAmount = source === 'available' ? trueAvailable : roiBalance;
 
   /** Force-fetch the strict ledger balance from the server, bypassing
