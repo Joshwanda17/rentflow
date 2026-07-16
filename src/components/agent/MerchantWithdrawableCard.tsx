@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { useAgentBalances } from '@/hooks/useAgentBalances';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Wallet, ArrowUpRight, Zap } from 'lucide-react';
@@ -18,7 +20,39 @@ import WithdrawFlow from '@/components/payments/WithdrawFlow';
  * separately by MerchantFloatRequestCard.
  */
 export function MerchantWithdrawableCard() {
-  const { withdrawableBalance, isLoading } = useAgentBalances();
+  const { user } = useAuth();
+  // Merchant's Available Commission = lifetime cashout-commission earned
+  // minus commission already explicitly withdrawn. Same math the Commission
+  // Summary uses, so the two figures always agree.
+  const { data: withdrawableBalance = 0, isLoading } = useQuery({
+    queryKey: ['merchant-available-commission', user?.id],
+    enabled: !!user,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      if (!user) return 0;
+      const [earnedRes, withdrawnRes] = await Promise.all([
+        supabase
+          .from('general_ledger')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('ledger_scope', 'wallet')
+          .eq('direction', 'cash_in')
+          .eq('category', 'agent_commission_earned')
+          .like('reference_id', '%-cashout-commission'),
+        supabase
+          .from('general_ledger')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('ledger_scope', 'wallet')
+          .eq('direction', 'cash_out')
+          .in('category', ['agent_commission_withdrawal', 'agent_commission_used_for_rent']),
+      ]);
+      const earned = (earnedRes.data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const withdrawn = (withdrawnRes.data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      return Math.max(0, earned - withdrawn);
+    },
+  });
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [prefillMax, setPrefillMax] = useState(false);
 
