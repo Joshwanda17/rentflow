@@ -149,6 +149,110 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // proportionally across all active requests (preserving each request's repaid amount).
   const editableOutstandingReq = activeReqs.length >= 1 ? activeReqs[0] : null;
 
+  // --- Total Repaid inline editing ---
+  // Managers may correct amount_repaid across the tenant's requests. Distribute
+  // proportionally to each request's current amount_repaid (fallback: current
+  // total_repayment) so nothing exceeds its request's total_repayment.
+  const startEditRepaid = () => {
+    if (requests.length === 0) return;
+    setRepaidEdit({ amount: String(Math.max(0, totalRepaid)), reason: '' });
+    setEditingRepaid(true);
+  };
+
+  const saveRepaid = async () => {
+    if (requests.length === 0) return;
+    const desired = Number(repaidEdit.amount);
+    const reason = repaidEdit.reason.trim();
+    if (!Number.isFinite(desired) || desired < 0) { toast.error('Enter a valid repaid amount'); return; }
+    if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+
+    // Cap desired at total obligation across all requests.
+    const totalObligation = requests.reduce((s, r) => s + obligationFor(r), 0);
+    if (desired > totalObligation) {
+      toast.error(`Repaid cannot exceed total obligation UGX ${totalObligation.toLocaleString()}`);
+      return;
+    }
+
+    // Build proportional shares based on current amount_repaid; if all zero, use obligation.
+    const infos = requests.map(r => ({
+      req: r,
+      currentRepaid: Number(r.amount_repaid || 0),
+      obligation: obligationFor(r),
+    }));
+    const sumCurrent = infos.reduce((s, x) => s + x.currentRepaid, 0);
+    const sumObligation = infos.reduce((s, x) => s + x.obligation, 0);
+
+    let shares: number[];
+    if (sumCurrent > 0) {
+      shares = infos.map(x => Math.round((x.currentRepaid / sumCurrent) * desired));
+    } else if (sumObligation > 0) {
+      shares = infos.map(x => Math.round((x.obligation / sumObligation) * desired));
+    } else {
+      const each = Math.round(desired / infos.length);
+      shares = infos.map(() => each);
+    }
+    // Fix rounding drift
+    const drift = desired - shares.reduce((s, n) => s + n, 0);
+    if (shares.length > 0) shares[shares.length - 1] += drift;
+
+    // Clamp each share to [0, obligation]. Redistribute overflow to under-cap requests.
+    let overflow = 0;
+    for (let i = 0; i < shares.length; i++) {
+      if (shares[i] < 0) { overflow += shares[i]; shares[i] = 0; }
+      if (shares[i] > infos[i].obligation) { overflow += (shares[i] - infos[i].obligation); shares[i] = infos[i].obligation; }
+    }
+    if (overflow !== 0) {
+      for (let i = 0; i < shares.length && overflow > 0; i++) {
+        const room = infos[i].obligation - shares[i];
+        const add = Math.min(room, overflow);
+        shares[i] += add;
+        overflow -= add;
+      }
+    }
+
+    setSavingRepaid(true);
+    try {
+      for (let i = 0; i < infos.length; i++) {
+        const { req, currentRepaid } = infos[i];
+        const newRepaid = shares[i];
+        if (newRepaid === currentRepaid) continue;
+        const { error } = await supabase
+          .from('rent_requests')
+          .update({ amount_repaid: newRepaid })
+          .eq('id', req.id);
+        if (error) throw error;
+
+        await supabase.from('audit_logs').insert({
+          action_type: 'tenant_ops_repaid_correction',
+          user_id: user?.id || null,
+          record_id: req.id,
+          table_name: 'rent_requests',
+          metadata: {
+            tenant_id: tenantId,
+            before: { amount_repaid: currentRepaid },
+            after: { amount_repaid: newRepaid },
+            reason,
+            desired_total_repaid: desired,
+            distribution_method: sumCurrent > 0 ? 'proportional_current' : (sumObligation > 0 ? 'proportional_obligation' : 'even'),
+            request_count: infos.length,
+          },
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
+      toast.success(
+        infos.length === 1 ? 'Total Repaid updated' : `Total Repaid distributed across ${infos.length} requests`,
+      );
+      setEditingRepaid(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    } finally {
+      setSavingRepaid(false);
+    }
+  };
+
   const startEditOutstanding = () => {
     if (activeReqs.length === 0) return;
     setOutstandingEdit({
