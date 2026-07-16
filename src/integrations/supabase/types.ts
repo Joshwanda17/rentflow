@@ -16052,6 +16052,9 @@ export type Database = {
           assigned_agent_id: string | null
           cfo_reviewed_at: string | null
           cfo_reviewed_by: string | null
+          collection_lock_days: number | null
+          collection_locked_at: string | null
+          collection_locked_reason: string | null
           coo_reviewed_at: string | null
           coo_reviewed_by: string | null
           created_at: string
@@ -16162,6 +16165,9 @@ export type Database = {
           assigned_agent_id?: string | null
           cfo_reviewed_at?: string | null
           cfo_reviewed_by?: string | null
+          collection_lock_days?: number | null
+          collection_locked_at?: string | null
+          collection_locked_reason?: string | null
           coo_reviewed_at?: string | null
           coo_reviewed_by?: string | null
           created_at?: string
@@ -16272,6 +16278,9 @@ export type Database = {
           assigned_agent_id?: string | null
           cfo_reviewed_at?: string | null
           cfo_reviewed_by?: string | null
+          collection_lock_days?: number | null
+          collection_locked_at?: string | null
+          collection_locked_reason?: string | null
           coo_reviewed_at?: string | null
           coo_reviewed_by?: string | null
           created_at?: string
@@ -22146,6 +22155,9 @@ export type Database = {
           assigned_agent_id: string | null
           cfo_reviewed_at: string | null
           cfo_reviewed_by: string | null
+          collection_lock_days: number | null
+          collection_locked_at: string | null
+          collection_locked_reason: string | null
           coo_reviewed_at: string | null
           coo_reviewed_by: string | null
           created_at: string
