@@ -41,6 +41,7 @@ import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
 import { SmsVerificationMonitorPanel } from '@/components/cfo/SmsVerificationMonitorPanel';
 import { AgentAdvancesOutstandingPanel } from '@/components/cfo/AgentAdvancesOutstandingPanel';
 import { MoneySourcesBreakdown } from '@/components/cfo/MoneySourcesBreakdown';
+import { ReceiptArchivePanel } from '@/components/shared/ReceiptArchivePanel';
 export default function CFODashboard() {
   const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
@@ -84,6 +85,7 @@ export default function CFODashboard() {
     { id: 'statements', label: 'Statements', icon: BookOpen },
     { id: 'solvency', label: 'Solvency', icon: Shield },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
+    { id: 'receipt-archive', label: 'Receipt Archive', icon: Receipt },
     { id: 'ledger', label: 'Ledger', icon: ClipboardList },
     { id: 'investments', label: 'Investments', icon: HandCoins },
     { id: 'collections', label: 'Collections', icon: Receipt },
@@ -284,6 +286,11 @@ export default function CFODashboard() {
               Reconciliation panels have been retired. The general ledger is now
               the single source of truth for every wallet bucket.
             </p>
+          </TabsContent>
+
+          {/* Receipt Archive Tab — permanent record of every payout receipt */}
+          <TabsContent value="receipt-archive" className="space-y-6">
+            <ReceiptArchivePanel />
           </TabsContent>
 
           {/* Ledger Tab */}
