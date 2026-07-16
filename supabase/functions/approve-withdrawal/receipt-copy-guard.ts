@@ -1,41 +1,31 @@
-// Single source of truth for who may receive an INTERNAL copy of a
-// withdrawal-approval ("payout paid") receipt.
+// Receipt-copy guard — POLICY UPDATE (2026-07-16):
 //
-// Policy (locked): the ONLY internal recipient of a withdrawal approval
-// receipt copy is the shared records archive mailbox below. No staff, manager,
-// CFO, Financial Ops, or agent address may ever receive a copy. The customer
-// still receives their own primary receipt separately; this guard governs the
-// internal copy fan-out only.
+// The external Gmail archive (weliletenants@gmail.com) is RETIRED. Welile is
+// now the sole system of record for payout receipts. Every withdrawal is
+// permanently stored inside the platform (withdrawal_requests + receipt_token)
+// and surfaced to CFO / Financial Ops via the Receipt Archive module.
 //
-// This module is intentionally pure (no I/O) so it can be unit tested — see
-// receipt-copy-guard.test.ts.
+// This module is kept as a pure, unit-tested no-op so that any future edit
+// that tries to re-introduce an internal receipt-copy fan-out is blocked at
+// its source. Do NOT restore Gmail forwarding here — mint a Receipt Archive
+// record instead.
 
-export const RECEIPT_ARCHIVE_EMAIL = "weliletenants@gmail.com";
+/** Legacy constant retained only so historical imports keep compiling. */
+export const RECEIPT_ARCHIVE_EMAIL = "";
 
 export type ReceiptCopyRecipient = { email: string; role: string };
 
-/** The complete, approved list of internal receipt-copy recipients. */
+/** No internal recipients — the platform Receipt Archive is the record. */
 export function buildReceiptCopyRecipients(): ReceiptCopyRecipient[] {
-  return [{ email: RECEIPT_ARCHIVE_EMAIL, role: "Records Archive" }];
+  return [];
 }
 
 /**
- * Defensive runtime guard. Filters any recipient list down to the approved
- * archive address, returning the allowed list plus any rejected addresses so
- * callers can log/alert. Guarantees no receipt copy is ever dispatched to an
- * address other than the archive — even if future edits reintroduce fan-out.
+ * Defensive runtime guard. All external receipt copies are permanently
+ * disallowed; every recipient is rejected so any accidental caller no-ops.
  */
 export function enforceArchiveOnly(
   recipients: ReceiptCopyRecipient[],
 ): { allowed: ReceiptCopyRecipient[]; rejected: ReceiptCopyRecipient[] } {
-  const allowed: ReceiptCopyRecipient[] = [];
-  const rejected: ReceiptCopyRecipient[] = [];
-  for (const r of recipients) {
-    if ((r.email ?? "").trim().toLowerCase() === RECEIPT_ARCHIVE_EMAIL) {
-      allowed.push(r);
-    } else {
-      rejected.push(r);
-    }
-  }
-  return { allowed, rejected };
+  return { allowed: [], rejected: recipients.slice() };
 }

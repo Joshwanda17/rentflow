@@ -35,6 +35,7 @@ import { CashoutSettlementTimeline } from './CashoutSettlementTimeline';
 import { MerchantClaimsLog } from './MerchantClaimsLog';
 import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
 import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
+import { ReceiptArchivePanel } from '@/components/shared/ReceiptArchivePanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -45,7 +46,7 @@ import {
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
-  , Store
+  , Store, Archive
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -59,7 +60,7 @@ type Tool =
   | 'topup_audit'
   | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
   | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log'
-  | 'merchant_agents' | 'merchant_float';
+  | 'merchant_agents' | 'merchant_float' | 'receipt_archive';
 
 
 /**
@@ -72,6 +73,7 @@ type MoreAction =
   | { kind: 'view'; id: Exclude<View, 'home'>; label: string; desc: string; icon: typeof Gauge };
 
 const moreActions: MoreAction[] = [
+  { kind: 'tool', id: 'receipt_archive', label: 'Receipt Archive', desc: 'Permanent record of every payout receipt — searchable, one URL per receipt', icon: Archive },
   { kind: 'tool', id: 'merchant_agents', label: 'Merchant Agents', desc: 'Manage cash-out (merchant) agents — same module as the CFO Dashboard', icon: Store },
   { kind: 'tool', id: 'merchant_float', label: 'Merchant Float', desc: 'Fund or reject merchant agent operational float requests', icon: HandCoins },
   { kind: 'tool', id: 'user_statements', label: 'User Wallet Statements', desc: 'Search a user — see withdrawable, float, landlord float & advance statements + full profile', icon: ReceiptText },
@@ -271,6 +273,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
         {activeTool === 'merchant_claims' && <MerchantClaimsLog />}
         {activeTool === 'merchant_agents' && <CashoutAgentManager />}
+        {activeTool === 'receipt_archive' && <ReceiptArchivePanel />}
         {activeTool === 'merchant_float' && (
           <div className="space-y-4">
             <div>
