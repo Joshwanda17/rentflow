@@ -6,6 +6,8 @@ import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -82,6 +84,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const queryClient = useQueryClient();
   const config = STAGE_CONFIG[stage];
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<any | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
@@ -100,7 +103,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const { data: potentialMap = {} } = useAgentPotentialMap();
 
   const approveMutation = useMutation({
-    mutationFn: async ({ id, approve }: { id: string; approve: boolean }) => {
+    mutationFn: async ({ id, approve, principal }: { id: string; approve: boolean; principal?: number }) => {
       if (!user?.id) throw new Error('Not authenticated');
       const updateData: any = {};
       if (approve) {
@@ -108,6 +111,9 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         updateData[config.reviewerCol] = user.id;
         updateData[config.reviewedAtCol] = new Date().toISOString();
         if (notes[id]) updateData[config.notesCol] = notes[id];
+        if (typeof principal === 'number' && Number.isFinite(principal) && principal > 0) {
+          updateData.principal = principal;
+        }
       } else {
         updateData.status = 'rejected';
         updateData.rejection_reason = notes[id] || 'Rejected at ' + stage.replace('_', ' ') + ' stage';
@@ -133,6 +139,13 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const getEditedAmount = (req: any): number => {
+    const raw = amounts[req.id];
+    if (raw === undefined || raw === '') return num(req.principal);
+    const parsed = Number(String(raw).replace(/[^0-9.]/g, ''));
+    return Number.isFinite(parsed) ? parsed : num(req.principal);
+  };
 
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
@@ -245,6 +258,25 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         footer={selected ? (
           <>
             <div>
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
+                Approved amount (UGX)
+              </Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1000}
+                step={1000}
+                value={amounts[selected.id] ?? String(num(selected.principal))}
+                onChange={(e) => setAmounts((prev) => ({ ...prev, [selected.id]: e.target.value }))}
+                className="text-sm font-semibold"
+              />
+              {getEditedAmount(selected) !== num(selected.principal) && (
+                <p className="mt-1 text-[10px] text-amber-600 font-medium">
+                  Adjusted from requested {formatUGX(num(selected.principal))} → {formatUGX(getEditedAmount(selected))}
+                </p>
+              )}
+            </div>
+            <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
                 Decision note / rejection reason
               </p>
@@ -258,7 +290,19 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
             </div>
             <div className="flex gap-2">
               <Button
-                onClick={() => approveMutation.mutate({ id: selected.id, approve: true })}
+                onClick={() => {
+                  const amt = getEditedAmount(selected);
+                  if (amt < 1000) {
+                    toast.error('Approved amount must be at least UGX 1,000');
+                    return;
+                  }
+                  const changed = amt !== num(selected.principal);
+                  const confirmMsg = changed
+                    ? `Approve at ${formatUGX(amt)} (agent requested ${formatUGX(num(selected.principal))})?`
+                    : `Approve ${formatUGX(amt)}?`;
+                  if (!window.confirm(confirmMsg)) return;
+                  approveMutation.mutate({ id: selected.id, approve: true, principal: amt });
+                }}
                 disabled={approveMutation.isPending}
                 className="flex-1 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
               >
