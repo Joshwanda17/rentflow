@@ -1248,17 +1248,10 @@ export function AgentCashPayoutsTab() {
                 </div>
                 <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(withdrawableCommission ?? 0)}</p>
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Already Used</p>
-                  <p className="text-[11px] text-muted-foreground">Cashed out to MoMo or moved to your investor portfolio</p>
-                </div>
-                <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(alreadyWithdrawn)}</p>
-              </div>
               <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background px-3 py-2.5">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lifetime Commission Earned</p>
-                  <p className="text-[11px] text-muted-foreground">Total earned since you started</p>
+                  <p className="text-[11px] text-muted-foreground">Total 0.5% commission from every payout you have settled</p>
                 </div>
                 <p className="text-lg font-bold tabular-nums text-foreground">{formatUGX(lifetimeCommission ?? 0)}</p>
               </div>
