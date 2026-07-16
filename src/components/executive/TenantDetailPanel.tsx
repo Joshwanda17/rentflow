@@ -144,10 +144,19 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     const status = String((r as any).status || '').toLowerCase();
     return status !== 'completed' && status !== 'closed' && status !== 'cancelled' && status !== 'rejected';
   });
-  // Allow editing the summary outstanding whenever there's at least one active request.
-  // Single active req → edit it directly. Multiple → distribute the new outstanding
-  // proportionally across all active requests (preserving each request's repaid amount).
-  const editableOutstandingReq = activeReqs.length >= 1 ? activeReqs[0] : null;
+  // Outstanding correction targets any request that still carries a residual
+  // balance — including 'completed'/'closed' rows where the obligation was
+  // never fully repaid. Managers must be able to fix these. Fallback to all
+  // requests so an over-repaid tenant (outstanding = 0) can still be corrected.
+  const outstandingEditableReqs = (() => {
+    const withResidual = requests.filter(r => {
+      const repaid = Number(r.amount_repaid || 0);
+      return obligationFor(r) - repaid > 0;
+    });
+    if (withResidual.length > 0) return withResidual;
+    return activeReqs.length > 0 ? activeReqs : requests;
+  })();
+  const editableOutstandingReq = outstandingEditableReqs[0] || null;
 
   // --- Total Repaid inline editing ---
   // Managers may correct amount_repaid across the tenant's requests. Distribute
