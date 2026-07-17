@@ -917,7 +917,11 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
 
       {/* Confirmation Dialog */}
       {(() => {
-        const req = requests.find((r: any) => r.id === confirmingId);
+        // Look up the request in the full unfiltered list so an active
+        // stage filter never hides the confirmation dialog (e.g. the CFO
+        // has "Approved · Disburse" selected but the next request is
+        // still pending).
+        const req = (allRequests as any[]).find((r: any) => r.id === confirmingId);
         if (!req) return null;
         const profile = req.profiles;
         const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
