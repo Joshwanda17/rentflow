@@ -15,17 +15,15 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useOtpVerification } from "@/hooks/useOtpVerification";
+import { toUgandaE164 } from "@/lib/ugandaPhone";
 
 const SNOOZE_KEY = "welile:phone-collection:snoozed-until";
 
+// Delegates to the shared strict Ugandan normalizer so the client, edge
+// functions and DB uniqueness index all agree on what "the same number" means.
 function normalizePhone(raw: string): string | null {
-  const digits = raw.replace(/[^\d+]/g, "");
-  if (!digits) return null;
-  let d = digits.startsWith("+") ? digits.slice(1) : digits;
-  if (d.startsWith("0")) d = "256" + d.slice(1);
-  if (d.startsWith("7") && d.length === 9) d = "256" + d;
-  if (!d.startsWith("256") || d.length !== 12) return null;
-  return "+" + d;
+  const e164 = toUgandaE164(raw);
+  return e164 ? `+${e164}` : null;
 }
 
 export default function PhoneCollectionGate() {
@@ -95,7 +93,16 @@ export default function PhoneCollectionGate() {
           phone_verified_at: otpVerified ? nowIso : null,
         })
         .eq("id", user!.id);
-      if (error) throw error;
+      if (error) {
+        // Partial UNIQUE index profiles_phone_ug_e164_unique.
+        if ((error as any).code === "23505") {
+          toast.error(
+            "That phone number is already used by another account. Use a different number or contact support to merge accounts.",
+          );
+          return;
+        }
+        throw error;
+      }
       toast.success(
         otpVerified
           ? "Phone verified — you'll now get SMS updates"
