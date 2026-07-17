@@ -7,6 +7,7 @@
 //     - "recipients" defaults to benjamin@welile.com, pexpert46@gmail.com
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -235,24 +236,57 @@ Deno.serve(async (req) => {
 
     const textBody = lines.join('\n');
 
-    // Minimal HTML: monospace block so the aligned columns stay readable.
-    const htmlBody = `<pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.5; color: #111; background: #fafafa; padding: 16px; border: 1px solid #e5e7eb; border-radius: 6px; white-space: pre-wrap;">${textBody
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`;
+    // ---- Build PDF ----
+    const pdfBytes = await buildPdf({
+      dateStr,
+      generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+      kpis: [
+        { label: 'Houses Listed', value: String(listedCount), hint: `${pendingCount} pending`, accent: [30, 64, 175] },
+        { label: 'Verified Today', value: String(verifiedCountToday), hint: `${verifiedInListings.length} same-day`, accent: [16, 122, 87] },
+        { label: 'Rejections', value: String(rejections.length), hint: `${rejectedInListings.length} of today's`, accent: [190, 44, 44] },
+        { label: 'Total Commission', value: fmtUgx(listingCommission + verificationCommission), hint: 'listing + verification', accent: [146, 52, 234] },
+        { label: 'Pending Volume', value: fmtUgx(pendingVolume), hint: 'monthly rent', accent: [202, 138, 4] },
+        { label: 'Verified Volume', value: fmtUgx(verifiedVolume), hint: 'monthly rent', accent: [16, 122, 87] },
+        { label: 'Rejection Volume', value: fmtUgx(rejectionVolume), hint: 'monthly rent lost', accent: [190, 44, 44] },
+        { label: 'Active Regions', value: String(byRegion.size), hint: `top: ${regionRanking[0]?.[0] ?? '—'}`, accent: [30, 64, 175] },
+      ],
+      commissionListing: listingCommission,
+      commissionVerification: verificationCommission,
+      regionRanking,
+      topAgents: topAgentIds.map(([id, count]) => ({ name: agentNameMap[id] || id.slice(0, 8), count })),
+    });
 
-    // ---- Send via Mailgun ----
-    const form = new URLSearchParams();
+    // ---- HTML body (executive summary; PDF has the details) ----
+    const htmlBody = renderHtml({
+      dateStr,
+      listedCount,
+      verifiedCountToday,
+      pendingCount,
+      rejectionsCount: rejections.length,
+      verifiedVolume,
+      pendingVolume,
+      rejectionVolume,
+      totalCommission: listingCommission + verificationCommission,
+      topRegion: regionRanking[0]?.[0] ?? '—',
+      topAgent: topAgentIds[0] ? (agentNameMap[topAgentIds[0][0]] || topAgentIds[0][0].slice(0, 8)) : '—',
+    });
+
+    // ---- Send via Mailgun (multipart for PDF attachment) ----
+    const filename = `welile-landlord-ops-${dateStr}.pdf`;
+    const form = new FormData();
     form.set('from', DEFAULT_FROM);
     recipients.forEach(r => form.append('to', r));
     form.set('subject', `Welile Landlord Ops - Daily Report (${dateStr})`);
     form.set('text', textBody);
     form.set('html', htmlBody);
     form.set('o:tag', 'landlord-ops-daily');
+    form.append('attachment', new Blob([pdfBytes], { type: 'application/pdf' }), filename);
 
     const auth = 'Basic ' + btoa(`api:${mailgunApiKey}`);
     const mgRes = await fetch(`${mailgunBaseUrl}/v3/${mailgunDomain}/messages`, {
       method: 'POST',
-      headers: { Authorization: auth, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
+      headers: { Authorization: auth },
+      body: form,
     });
     const mgText = await mgRes.text();
     if (!mgRes.ok) {
@@ -289,3 +323,210 @@ Deno.serve(async (req) => {
     });
   }
 });
+// ============================================================================
+// PDF renderer (pdf-lib). KPI cards + tables. No emojis, no third-party fonts.
+// ============================================================================
+
+type Kpi = { label: string; value: string; hint?: string; accent: [number, number, number] };
+
+interface PdfArgs {
+  dateStr: string;
+  generatedAt: string;
+  kpis: Kpi[];
+  commissionListing: number;
+  commissionVerification: number;
+  regionRanking: [string, number][];
+  topAgents: { name: string; count: number }[];
+}
+
+async function buildPdf(a: PdfArgs): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const oblique = await doc.embedFont(StandardFonts.HelveticaOblique);
+
+  const page = doc.addPage([595.28, 841.89]); // A4 portrait pt
+  const W = page.getWidth();
+  const H = page.getHeight();
+  const margin = 36;
+
+  const col = (r: number, g: number, b: number) => rgb(r / 255, g / 255, b / 255);
+  const ink = col(17, 17, 17);
+  const muted = col(110, 110, 120);
+  const line = col(230, 230, 235);
+  const brand: [number, number, number] = [88, 28, 135]; // welile purple
+
+  // ---- Header band ----
+  page.drawRectangle({ x: 0, y: H - 90, width: W, height: 90, color: col(...brand) });
+  page.drawText('WELILE', { x: margin, y: H - 40, size: 11, font: bold, color: col(255, 255, 255) });
+  page.drawText('Landlord Operations - Daily Report', { x: margin, y: H - 62, size: 18, font: bold, color: col(255, 255, 255) });
+  page.drawText(`Report date: ${a.dateStr} (UTC)`, { x: margin, y: H - 80, size: 9, font, color: col(230, 220, 245) });
+  page.drawText(`Generated ${a.generatedAt}`, { x: W - margin - font.widthOfTextAtSize(`Generated ${a.generatedAt}`, 9), y: H - 80, size: 9, font, color: col(230, 220, 245) });
+
+  let y = H - 90 - 24;
+
+  // ---- KPI grid (4 per row) ----
+  const gutter = 10;
+  const perRow = 4;
+  const cardW = (W - margin * 2 - gutter * (perRow - 1)) / perRow;
+  const cardH = 68;
+  a.kpis.forEach((k, i) => {
+    const row = Math.floor(i / perRow);
+    const cix = i % perRow;
+    const x = margin + cix * (cardW + gutter);
+    const cy = y - row * (cardH + gutter);
+    // card background
+    page.drawRectangle({ x, y: cy - cardH, width: cardW, height: cardH, color: col(250, 250, 252), borderColor: line, borderWidth: 0.6 });
+    // accent rail
+    page.drawRectangle({ x, y: cy - cardH, width: 3, height: cardH, color: col(...k.accent) });
+    // label
+    page.drawText(k.label.toUpperCase(), { x: x + 10, y: cy - 16, size: 7.5, font: bold, color: muted });
+    // value (truncate to fit)
+    let val = k.value;
+    const maxW = cardW - 20;
+    while (val.length > 3 && bold.widthOfTextAtSize(val, 14) > maxW) val = val.slice(0, -1);
+    if (val !== k.value) val = val.slice(0, -1) + '…';
+    page.drawText(val, { x: x + 10, y: cy - 38, size: 14, font: bold, color: col(...k.accent) });
+    if (k.hint) {
+      page.drawText(k.hint, { x: x + 10, y: cy - 56, size: 7.5, font, color: muted });
+    }
+  });
+  const kpiRows = Math.ceil(a.kpis.length / perRow);
+  y -= kpiRows * (cardH + gutter) + 8;
+
+  // ---- Section: Commissions breakdown ----
+  y = drawSection(page, bold, 'COMMISSIONS BREAKDOWN', margin, y, ink);
+  y = drawKeyValue(page, font, bold, margin, y, 'Listing commission', fmtUgx(a.commissionListing), ink, muted);
+  y = drawKeyValue(page, font, bold, margin, y, 'Verification commission', fmtUgx(a.commissionVerification), ink, muted);
+  y = drawKeyValue(page, font, bold, margin, y, 'Total paid to agents', fmtUgx(a.commissionListing + a.commissionVerification), col(...brand), muted, true);
+  y -= 12;
+
+  // ---- Section: Regions ----
+  y = drawSection(page, bold, 'MOST LISTED BY REGION (TOP 10)', margin, y, ink);
+  if (a.regionRanking.length === 0) {
+    page.drawText('No listings recorded.', { x: margin, y: y - 12, size: 9, font: oblique, color: muted });
+    y -= 24;
+  } else {
+    y = drawTable(page, font, bold, margin, y, W - margin * 2, ['Region', 'Listings'], a.regionRanking.map(([r, c]) => [r, String(c)]), ink, muted, line);
+  }
+  y -= 8;
+
+  // ---- Section: Top agents ----
+  y = drawSection(page, bold, 'TOP LISTING AGENTS (TOP 10)', margin, y, ink);
+  if (a.topAgents.length === 0) {
+    page.drawText('No listings recorded.', { x: margin, y: y - 12, size: 9, font: oblique, color: muted });
+    y -= 24;
+  } else {
+    y = drawTable(page, font, bold, margin, y, W - margin * 2, ['Agent', 'Listings'], a.topAgents.map(a => [a.name, String(a.count)]), ink, muted, line);
+  }
+
+  // ---- Footer ----
+  page.drawLine({ start: { x: margin, y: 40 }, end: { x: W - margin, y: 40 }, color: line, thickness: 0.6 });
+  page.drawText('Automated by Welile - welile.com', { x: margin, y: 26, size: 8, font, color: muted });
+  page.drawText(`Report ${a.dateStr}`, { x: W - margin - font.widthOfTextAtSize(`Report ${a.dateStr}`, 8), y: 26, size: 8, font, color: muted });
+
+  return await doc.save();
+}
+
+function drawSection(page: any, bold: any, label: string, x: number, y: number, ink: any) {
+  page.drawText(label, { x, y: y - 12, size: 9, font: bold, color: ink });
+  page.drawLine({ start: { x, y: y - 16 }, end: { x: page.getWidth() - x, y: y - 16 }, color: rgb(0.9, 0.9, 0.93), thickness: 0.6 });
+  return y - 22;
+}
+
+function drawKeyValue(page: any, font: any, bold: any, x: number, y: number, key: string, val: string, ink: any, muted: any, emphasize = false) {
+  const size = emphasize ? 11 : 9.5;
+  page.drawText(key, { x, y: y - 12, size, font, color: muted });
+  const valFont = emphasize ? bold : bold;
+  const w = valFont.widthOfTextAtSize(val, size);
+  page.drawText(val, { x: page.getWidth() - x - w, y: y - 12, size, font: valFont, color: ink });
+  return y - (emphasize ? 18 : 15);
+}
+
+function drawTable(page: any, font: any, bold: any, x: number, y: number, width: number, headers: string[], rows: string[][], ink: any, muted: any, line: any) {
+  const rowH = 16;
+  const colW = [width * 0.7, width * 0.3];
+  // header
+  page.drawRectangle({ x, y: y - rowH, width, height: rowH, color: rgb(0.96, 0.96, 0.98) });
+  page.drawText(headers[0], { x: x + 6, y: y - rowH + 5, size: 8.5, font: bold, color: muted });
+  const h1w = bold.widthOfTextAtSize(headers[1], 8.5);
+  page.drawText(headers[1], { x: x + width - 6 - h1w, y: y - rowH + 5, size: 8.5, font: bold, color: muted });
+  let cy = y - rowH;
+  rows.forEach((r, i) => {
+    if (i % 2 === 1) {
+      page.drawRectangle({ x, y: cy - rowH, width, height: rowH, color: rgb(0.985, 0.985, 0.99) });
+    }
+    // truncate col 0
+    let label = r[0];
+    const maxW = colW[0] - 12;
+    while (label.length > 3 && font.widthOfTextAtSize(label, 9) > maxW) label = label.slice(0, -1);
+    if (label !== r[0]) label = label.slice(0, -1) + '…';
+    page.drawText(label, { x: x + 6, y: cy - rowH + 5, size: 9, font, color: ink });
+    const vw = bold.widthOfTextAtSize(r[1], 9);
+    page.drawText(r[1], { x: x + width - 6 - vw, y: cy - rowH + 5, size: 9, font: bold, color: ink });
+    cy -= rowH;
+  });
+  page.drawRectangle({ x, y: cy, width, height: y - cy, borderColor: line, borderWidth: 0.6, color: undefined as any, opacity: 0 });
+  return cy - 4;
+}
+
+// ============================================================================
+// HTML email body — clean executive summary. PDF holds the full detail.
+// ============================================================================
+function renderHtml(s: {
+  dateStr: string;
+  listedCount: number;
+  verifiedCountToday: number;
+  pendingCount: number;
+  rejectionsCount: number;
+  verifiedVolume: number;
+  pendingVolume: number;
+  rejectionVolume: number;
+  totalCommission: number;
+  topRegion: string;
+  topAgent: string;
+}) {
+  const kpi = (label: string, value: string, accent: string) => `
+    <td style="padding:6px;" width="25%" valign="top">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fafafc;border:1px solid #eceef2;border-radius:6px;">
+        <tr><td style="border-left:3px solid ${accent};padding:10px 12px;">
+          <div style="font:600 10px -apple-system,Segoe UI,Roboto,Arial;color:#6b7280;letter-spacing:.5px;text-transform:uppercase;">${label}</div>
+          <div style="font:700 16px -apple-system,Segoe UI,Roboto,Arial;color:${accent};margin-top:4px;">${value}</div>
+        </td></tr>
+      </table>
+    </td>`;
+  return `<!doctype html><html><body style="margin:0;background:#f4f4f7;font-family:-apple-system,Segoe UI,Roboto,Arial;color:#111;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+        <tr><td style="background:#581c87;padding:22px 28px;color:#fff;">
+          <div style="font-size:11px;letter-spacing:1.5px;opacity:.75;">WELILE</div>
+          <div style="font-size:20px;font-weight:700;margin-top:4px;">Landlord Operations - Daily Report</div>
+          <div style="font-size:12px;opacity:.85;margin-top:4px;">Report date: ${s.dateStr} (UTC)</div>
+        </td></tr>
+        <tr><td style="padding:20px 22px 4px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+            ${kpi('Houses Listed', String(s.listedCount), '#1e40af')}
+            ${kpi('Verified Today', String(s.verifiedCountToday), '#107a57')}
+            ${kpi('Rejections', String(s.rejectionsCount), '#be2c2c')}
+            ${kpi('Commissions', fmtUgx(s.totalCommission), '#9234ea')}
+          </tr><tr>
+            ${kpi('Pending Volume', fmtUgx(s.pendingVolume), '#ca8a04')}
+            ${kpi('Verified Volume', fmtUgx(s.verifiedVolume), '#107a57')}
+            ${kpi('Rejection Volume', fmtUgx(s.rejectionVolume), '#be2c2c')}
+            ${kpi('Pending Count', String(s.pendingCount), '#1e40af')}
+          </tr></table>
+        </td></tr>
+        <tr><td style="padding:12px 28px 20px;font-size:13px;color:#374151;line-height:1.55;">
+          <p style="margin:12px 0 4px;">Top region today: <strong>${s.topRegion}</strong></p>
+          <p style="margin:4px 0;">Top listing agent: <strong>${s.topAgent}</strong></p>
+          <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">The full breakdown - including per-region and per-agent tables - is attached as PDF.</p>
+        </td></tr>
+        <tr><td style="border-top:1px solid #eceef2;padding:14px 28px;font-size:11px;color:#9ca3af;">
+          Automated by Welile. welile.com
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
