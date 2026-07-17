@@ -34,13 +34,15 @@ async function logPromptEvent(
   } = {},
 ) {
   try {
-    await supabase.from("phone_collection_prompt_events").insert({
-      user_id: userId,
-      action,
-      phone_verified: extras.phone_verified ?? null,
-      had_prior_phone: extras.had_prior_phone ?? null,
-      meta: extras.meta ?? {},
-    });
+    await supabase.from("phone_collection_prompt_events").insert([
+      {
+        user_id: userId,
+        action,
+        phone_verified: extras.phone_verified ?? null,
+        had_prior_phone: extras.had_prior_phone ?? null,
+        meta: (extras.meta ?? {}) as any,
+      },
+    ]);
   } catch (e) {
     console.warn("[PhoneCollectionGate] audit log failed:", e);
   }
