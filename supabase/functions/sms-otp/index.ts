@@ -610,6 +610,68 @@ Deno.serve(async (req) => {
 
     if (action === "send") {
       const now = Date.now();
+      const ip = clientIpFrom(req);
+      const authUserId = await userIdFromAuth(adminClient, req);
+
+      // Cross-phone caps: prevent bypassing the per-phone cooldown/hourly cap
+      // by rotating phone numbers in the request body from the same user or IP.
+      const hourAgoIso = new Date(now - HOUR_MS).toISOString();
+      const dayAgoIso = new Date(now - DAY_MS).toISOString();
+
+      const countEvents = async (
+        filter: (q: any) => any,
+        sinceIso: string,
+      ): Promise<number> => {
+        const query = filter(
+          adminClient
+            .from("otp_send_events")
+            .select("id", { count: "exact", head: true })
+            .gte("created_at", sinceIso),
+        );
+        const { count } = await query;
+        return count ?? 0;
+      };
+
+      if (authUserId) {
+        const [userHour, userDay] = await Promise.all([
+          countEvents((q) => q.eq("user_id", authUserId), hourAgoIso),
+          countEvents((q) => q.eq("user_id", authUserId), dayAgoIso),
+        ]);
+        if (userHour >= MAX_SENDS_PER_USER_HOUR) {
+          return new Response(
+            JSON.stringify({
+              error: `Too many code requests. Please try again in about an hour.`,
+              retry_after: 60 * 60,
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        if (userDay >= MAX_SENDS_PER_USER_DAY) {
+          return new Response(
+            JSON.stringify({
+              error: `Daily verification-code limit reached. Please try again tomorrow.`,
+              retry_after: 60 * 60 * 6,
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+
+      if (ip) {
+        const [ipHour, ipDay] = await Promise.all([
+          countEvents((q) => q.eq("ip", ip), hourAgoIso),
+          countEvents((q) => q.eq("ip", ip), dayAgoIso),
+        ]);
+        if (ipHour >= MAX_SENDS_PER_IP_HOUR || ipDay >= MAX_SENDS_PER_IP_DAY) {
+          return new Response(
+            JSON.stringify({
+              error: `Too many verification requests from your network. Please try again later.`,
+              retry_after: 60 * 60,
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
 
       // Load existing record to enforce durable, DB-backed rate limits AND to
       // decide whether we can REUSE a still-valid code (see below).
