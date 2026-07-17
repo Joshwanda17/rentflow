@@ -9,6 +9,7 @@ import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { motion } from 'framer-motion';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { createShortLink } from '@/lib/createShortLink';
 
 interface InviteAndEarnCardProps {
   variant?: 'tenant' | 'landlord' | 'supporter' | 'default';
@@ -21,6 +22,8 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
   const [copied, setCopied] = useState(false);
   const [referralCount, setReferralCount] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0);
+  const [shortLink, setShortLink] = useState<string | null>(null);
+  const [shortLinkLoading, setShortLinkLoading] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -46,15 +49,36 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
     fetchStats();
   }, [user?.id]);
 
+  // Generate a short link for the landlord variant
+  useEffect(() => {
+    if (!user?.id || variant !== 'landlord' || shortLink) return;
+    let cancelled = false;
+    setShortLinkLoading(true);
+    createShortLink(user.id, '/auth', { role: 'landlord', ref: user.id })
+      .then((url) => {
+        if (!cancelled) setShortLink(url);
+      })
+      .catch(() => {
+        // Fall back to the long link silently
+      })
+      .finally(() => {
+        if (!cancelled) setShortLinkLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [user?.id, variant, shortLink]);
+
   const roleLabel = variant === 'supporter' ? 'supporter' : variant === 'landlord' ? 'landlord' : 'tenant';
   
-  const shareLink = user 
+  const longShareLink = user 
     ? `${getPublicOrigin()}/auth?role=${roleLabel}&ref=${user.id}`
     : `${getPublicOrigin()}/auth?role=${roleLabel}`;
 
+  // Landlord referrals use the shortened link once generated
+  const shareLink = variant === 'landlord' && shortLink ? shortLink : longShareLink;
+
   const messages: Record<string, string> = {
     tenant: `🏠 Struggling with rent? I use Welile to get my rent paid upfront!\n\n💰 Get your full rent today\n📅 Pay back in small daily amounts\n✅ Quick signup - just 2 minutes\n🎁 We BOTH get 500 UGX bonus!\n\nJoin now: ${shareLink}`,
-    landlord: `🏡 Tired of chasing rent? Welile guarantees your monthly rent!\n\n✅ Get rent on time, every month\n🛡️ Zero risk to you\n📲 Free to join\n🎁 I earn 500 UGX for referring you!\n\nRegister now: ${shareLink}`,
+    landlord: `🏡 Tired of chasing rent? Welile guarantees your monthly rent!\n\n✅ Get rent on time, every month\n🛡️ Zero risk to you\n📲 Free to join\n\nRegister now: ${shareLink}`,
     supporter: `💰 Want to earn passive income? I'm earning returns with Welile!\n\n📈 Competitive monthly returns\n🛡️ Backed by real rent payments\n📲 Easy to start\n🎁 Join through my link!\n\nStart now: ${shareLink}`,
     default: `📲 Join Welile - the smartest way to manage rent!\n\n🎁 We BOTH get 500 UGX bonus!\n\nJoin now: ${shareLink}`,
   };
