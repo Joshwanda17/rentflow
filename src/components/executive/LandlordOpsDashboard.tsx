@@ -761,6 +761,70 @@ export function LandlordOpsDashboard() {
     staleTime: 60000,
   });
 
+  // ─── Global Verification Search (across ALL agents/listings, not just the 500 most recent) ───
+  const debouncedVerifySearch = useDebouncedValue(verifySearch.trim(), 300);
+  const { data: globalSearchListings, isFetching: isGlobalSearching } = useQuery({
+    queryKey: ['exec-house-listings-global-search', debouncedVerifySearch],
+    enabled: debouncedVerifySearch.length >= 2,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const q = debouncedVerifySearch;
+      const like = `%${q}%`;
+
+      // 1) Find matching agents/landlords by name/phone
+      const [agentProfiles, landlordMatches] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, phone, email')
+          .or(`full_name.ilike.${like},phone.ilike.${like}`).limit(200),
+        supabase.from('landlords').select('id').or(`name.ilike.${like},phone.ilike.${like}`).limit(200),
+      ]);
+      const agentIds = (agentProfiles.data || []).map(p => p.id);
+      const landlordIds = (landlordMatches.data || []).map(l => l.id);
+
+      // 2) Fetch listings that match by agent id, landlord id, or listing text fields
+      const orParts: string[] = [
+        `title.ilike.${like}`, `district.ilike.${like}`, `village.ilike.${like}`,
+        `region.ilike.${like}`, `address.ilike.${like}`,
+        `lc1_chairperson_name.ilike.${like}`, `lc1_chairperson_phone.ilike.${like}`,
+      ];
+      if (agentIds.length) orParts.push(`agent_id.in.(${agentIds.join(',')})`);
+      if (landlordIds.length) orParts.push(`landlord_id.in.(${landlordIds.join(',')})`);
+
+      const { data } = await supabase.from('house_listings')
+        .select(`
+          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
+          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
+          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
+          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
+        `)
+        .or(orParts.join(','))
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const agentMap = new Map((agentProfiles.data || []).map(p => [p.id, p]));
+      // Fetch any agent profiles we didn't already resolve
+      const missingAgentIds = [...new Set((data || []).map(d => d.agent_id).filter(id => id && !agentMap.has(id)))] as string[];
+      if (missingAgentIds.length) {
+        const { data: more } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', missingAgentIds);
+        (more || []).forEach(p => agentMap.set(p.id, p));
+      }
+      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
+      let tenantMap = new Map<string, any>();
+      if (tenantIds.length) {
+        const { data: tps } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds);
+        tenantMap = new Map((tps || []).map(p => [p.id, p]));
+      }
+
+      return (data || []).map(d => ({
+        ...d,
+        agent_name: d.agent_id ? (agentMap.get(d.agent_id)?.full_name || null) : null,
+        agent_phone: d.agent_id ? (agentMap.get(d.agent_id)?.phone || null) : null,
+        agent_email: d.agent_id ? (agentMap.get(d.agent_id)?.email || null) : null,
+        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
+        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
+      })) as ListingWithLandlord[];
+    },
+  });
+
   // ─── All Landlords Direct Query ───
   const { data: allLandlords, refetch: refetchLandlords } = useQuery({
     queryKey: ['landlord-ops-all-landlords'],
