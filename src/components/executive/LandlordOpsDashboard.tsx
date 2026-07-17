@@ -2831,9 +2831,9 @@ export function LandlordOpsDashboard() {
               </button>
             );
           })}
-          {(houseStatusFilter !== 'pending' || verifyFilter !== 'all' || verifySearch) && (
+          {(houseStatusFilter !== 'pending' || verifyFilter !== 'all' || verifySearch || verifyDateFrom || verifyDateTo) && (
             <button
-              onClick={() => { setHouseStatusFilter('pending'); setVerifyFilter('all'); setVerifySearch(''); }}
+              onClick={() => { setHouseStatusFilter('pending'); setVerifyFilter('all'); setVerifySearch(''); setVerifyDateFrom(''); setVerifyDateTo(''); }}
               className="min-h-[44px] px-3 py-2 rounded-full text-sm font-semibold text-muted-foreground border border-border bg-background hover:bg-muted transition-all flex items-center gap-1.5"
               title="Reset filters"
             >
@@ -2855,6 +2855,36 @@ export function LandlordOpsDashboard() {
           {verifySearch && (
             <button onClick={() => setVerifySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground" aria-label="Clear">
               <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {debouncedVerifySearch.length >= 2 && (
+          <p className="text-[11px] text-muted-foreground -mt-1 pl-1">
+            {isGlobalSearching ? 'Searching all agents & listings…' : `Searching across all listings (not just the latest ${rows.length}).`}
+          </p>
+        )}
+
+        {/* Date range filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] text-muted-foreground font-medium">Date:</span>
+          <Input
+            type="date"
+            value={verifyDateFrom}
+            onChange={e => setVerifyDateFrom(e.target.value)}
+            className="h-8 w-auto text-xs"
+            aria-label="From date"
+          />
+          <span className="text-[11px] text-muted-foreground">to</span>
+          <Input
+            type="date"
+            value={verifyDateTo}
+            onChange={e => setVerifyDateTo(e.target.value)}
+            className="h-8 w-auto text-xs"
+            aria-label="To date"
+          />
+          {(verifyDateFrom || verifyDateTo) && (
+            <button onClick={() => { setVerifyDateFrom(''); setVerifyDateTo(''); }} className="text-[11px] text-muted-foreground hover:text-foreground underline">
+              clear
             </button>
           )}
         </div>
@@ -2894,6 +2924,7 @@ export function LandlordOpsDashboard() {
             {([
               { value: 'newest' as SortOption, label: 'Newest' },
               { value: 'oldest' as SortOption, label: 'Oldest' },
+              { value: 'recently_updated' as SortOption, label: 'Recently Updated' },
               { value: 'highest_rent' as SortOption, label: 'Highest Rent' },
             ]).map(s => (
               <button
