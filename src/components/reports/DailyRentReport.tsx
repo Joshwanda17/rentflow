@@ -279,7 +279,7 @@ export function DailyRentReport({ mode }: Props) {
     ? ['Tx ID', 'Time', 'Tenant', 'Phone', 'Property', 'Landlord', 'Agent', 'Amount (UGX)', 'Balance Before', 'Balance After', 'Method', 'Status', 'Receipt']
     : ['Time', 'Agent', 'Agent ID', 'Tenant', 'Property', 'Landlord', 'Amount (UGX)', 'Commission (UGX)', 'Method', 'Status', 'Receipt'];
 
-  const bodyRows = () => filtered.map(r => mode === 'tenant'
+  const bodyRows = useMemo(() => filtered.map(r => mode === 'tenant'
     ? [
         r.id.slice(0, 8),
         format(new Date(r.created_at), 'HH:mm:ss'),
@@ -296,7 +296,10 @@ export function DailyRentReport({ mode }: Props) {
         Number(r.amount) || 0, r.commission,
         r.payment_method ?? '—', r.status,
         r.tracking_id ?? r.momo_transaction_id ?? '—',
-      ]);
+      ]),
+    [filtered, mode],
+  );
+  const statusColIndex = headers.findIndex(h => h === 'Status');
 
   const filterSummary = () => [
     `Date: ${date}`,
@@ -312,7 +315,7 @@ export function DailyRentReport({ mode }: Props) {
   ];
 
   const exportCsv = () => {
-    const csv = toCsv(headers, bodyRows() as any);
+    const csv = toCsv(headers, bodyRows as any);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -326,7 +329,7 @@ export function DailyRentReport({ mode }: Props) {
     await downloadAuditPdf(
       `daily-${mode === 'tenant' ? 'repayments' : 'collections'}-${date}.pdf`,
       headers,
-      bodyRows() as any,
+      bodyRows as any,
       {
         title: mode === 'tenant'
           ? `Daily Rent Repayments — ${date}`
