@@ -7,6 +7,7 @@
 //     - "recipients" defaults to benjamin@welile.com, pexpert46@gmail.com
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -235,24 +236,57 @@ Deno.serve(async (req) => {
 
     const textBody = lines.join('\n');
 
-    // Minimal HTML: monospace block so the aligned columns stay readable.
-    const htmlBody = `<pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.5; color: #111; background: #fafafa; padding: 16px; border: 1px solid #e5e7eb; border-radius: 6px; white-space: pre-wrap;">${textBody
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`;
+    // ---- Build PDF ----
+    const pdfBytes = await buildPdf({
+      dateStr,
+      generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+      kpis: [
+        { label: 'Houses Listed', value: String(listedCount), hint: `${pendingCount} pending`, accent: [30, 64, 175] },
+        { label: 'Verified Today', value: String(verifiedCountToday), hint: `${verifiedInListings.length} same-day`, accent: [16, 122, 87] },
+        { label: 'Rejections', value: String(rejections.length), hint: `${rejectedInListings.length} of today's`, accent: [190, 44, 44] },
+        { label: 'Total Commission', value: fmtUgx(listingCommission + verificationCommission), hint: 'listing + verification', accent: [146, 52, 234] },
+        { label: 'Pending Volume', value: fmtUgx(pendingVolume), hint: 'monthly rent', accent: [202, 138, 4] },
+        { label: 'Verified Volume', value: fmtUgx(verifiedVolume), hint: 'monthly rent', accent: [16, 122, 87] },
+        { label: 'Rejection Volume', value: fmtUgx(rejectionVolume), hint: 'monthly rent lost', accent: [190, 44, 44] },
+        { label: 'Active Regions', value: String(byRegion.size), hint: `top: ${regionRanking[0]?.[0] ?? '—'}`, accent: [30, 64, 175] },
+      ],
+      commissionListing: listingCommission,
+      commissionVerification: verificationCommission,
+      regionRanking,
+      topAgents: topAgentIds.map(([id, count]) => ({ name: agentNameMap[id] || id.slice(0, 8), count })),
+    });
 
-    // ---- Send via Mailgun ----
-    const form = new URLSearchParams();
+    // ---- HTML body (executive summary; PDF has the details) ----
+    const htmlBody = renderHtml({
+      dateStr,
+      listedCount,
+      verifiedCountToday,
+      pendingCount,
+      rejectionsCount: rejections.length,
+      verifiedVolume,
+      pendingVolume,
+      rejectionVolume,
+      totalCommission: listingCommission + verificationCommission,
+      topRegion: regionRanking[0]?.[0] ?? '—',
+      topAgent: topAgentIds[0] ? (agentNameMap[topAgentIds[0][0]] || topAgentIds[0][0].slice(0, 8)) : '—',
+    });
+
+    // ---- Send via Mailgun (multipart for PDF attachment) ----
+    const filename = `welile-landlord-ops-${dateStr}.pdf`;
+    const form = new FormData();
     form.set('from', DEFAULT_FROM);
     recipients.forEach(r => form.append('to', r));
     form.set('subject', `Welile Landlord Ops - Daily Report (${dateStr})`);
     form.set('text', textBody);
     form.set('html', htmlBody);
     form.set('o:tag', 'landlord-ops-daily');
+    form.append('attachment', new Blob([pdfBytes], { type: 'application/pdf' }), filename);
 
     const auth = 'Basic ' + btoa(`api:${mailgunApiKey}`);
     const mgRes = await fetch(`${mailgunBaseUrl}/v3/${mailgunDomain}/messages`, {
       method: 'POST',
-      headers: { Authorization: auth, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
+      headers: { Authorization: auth },
+      body: form,
     });
     const mgText = await mgRes.text();
     if (!mgRes.ok) {
