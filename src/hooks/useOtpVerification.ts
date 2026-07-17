@@ -96,6 +96,10 @@ export function useOtpVerification() {
     setOtpLoading(true);
     setOtpError(null);
     setSendStatus('idle');
+    // Any re-send targets a phone that has NOT been verified yet. Reset the
+    // verified flag so a stale verification from a previous phone can't slip
+    // past the "verify your phone" gate after the user edits their number.
+    setOtpVerified(false);
     // Supersede any prior polling loop.
     pollTokenRef.current += 1;
     try {
