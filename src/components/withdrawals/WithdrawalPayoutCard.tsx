@@ -18,7 +18,7 @@ import { format } from 'date-fns';
 import {
   Banknote, CheckCircle2, Loader2, Building2, Clock, Smartphone,
   UserCheck, ArrowRight, Phone, CreditCard, ChevronDown, XCircle,
-  Copy, AlertTriangle, ClipboardPaste,
+  Copy, AlertTriangle, ClipboardPaste, Upload, X as XIcon, FileText,
 } from 'lucide-react';
 import { parsePayoutConfirmationSms } from '@/utils/smsParser';
 
@@ -27,7 +27,14 @@ export interface WithdrawalPayoutCardProps {
   isClaimed?: boolean;
   isClaimedByOther?: boolean;
   onClaim?: (confirm?: { momoNumber?: string | null; momoName?: string | null }) => void;
-  onComplete?: (data: { id: string; reference: string; method: string; sms?: string }) => void | Promise<any>;
+  onComplete?: (data: {
+    id: string;
+    reference: string;
+    method: string;
+    sms?: string;
+    proofUrl?: string;
+    proofType?: string;
+  }) => void | Promise<any>;
   /** ID of the withdrawal currently being claimed (for per-request loading) */
   claimingId?: string | null;
   /** ID of the withdrawal currently being completed (for per-request loading) */
@@ -51,6 +58,11 @@ export function WithdrawalPayoutCard({
   // We parse out the TID (auto-fills the reference) and the sent amount, then
   // enforce that the sent amount matches the amount the user requested.
   const [pastedSms, setPastedSms] = useState('');
+  // Uploaded proof-of-payment file (photo of receipt / bank slip / MoMo screenshot).
+  // Required for bank & cash offline payouts; optional for MoMo (which has SMS).
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
+  const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   // Specific, inline reason the LAST confirmation attempt was rejected by the
   // server (amount mismatch / TID mismatch / unreadable). Drives the retry
