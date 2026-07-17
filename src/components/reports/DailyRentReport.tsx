@@ -472,6 +472,7 @@ export function DailyRentReport({ mode }: Props) {
       </div>
 
       {/* Table */}
+      {(() => null)()}
       <Card className="p-0 overflow-hidden">
         <div className="p-3 border-b flex items-center justify-between">
           <div className="text-sm font-semibold">
