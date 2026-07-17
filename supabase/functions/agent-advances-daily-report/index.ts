@@ -481,6 +481,7 @@ function buildHtml(r: Report, prettyDate: string): string {
         <tr>
           ${kpiCell("Qualifying agents", r.totalAgents.toLocaleString("en-US"), "#1a1a2e", "Meet the agent criteria")}
           ${kpiCell("Agents with advances", String(r.agentsWithActiveAdvances), PURPLE, `${r.agentsWithAdvances} ever · dashboard total`)}
+          ${kpiCell("Advance adoption", pct(adoption), adoption < 1 ? RED : GREEN, `${r.agentsWithActiveAdvances}/${r.totalAgents.toLocaleString("en-US")} qualifying`)}
           ${kpiCell("Repaid today", `${r.payingBackCount} · ${fmtUGX(r.repaidToday)}`, GREEN, `${pct(r.repaymentRate)} repayment rate`)}
           ${kpiCell("Not repaid today", String(r.unpaidCount), r.unpaidCount ? RED : GREEN, "Owes a deduction today")}
         </tr>
@@ -576,6 +577,8 @@ function buildText(r: Report, prettyDate: string): string {
   lines.push(`Agent Advances Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
   lines.push(`Qualifying agents: ${r.totalAgents} | Agents with advances: ${r.agentsWithActiveAdvances} (${r.agentsWithAdvances} ever) | Repaid today: ${r.payingBackCount} · ${fmtUGX(r.repaidToday)} | Not repaid today: ${r.unpaidCount}`);
+  const adoption = r.totalAgents ? (r.agentsWithActiveAdvances / r.totalAgents) * 100 : 0;
+  lines.push(`Advance adoption: ${pct(adoption)} (${r.agentsWithActiveAdvances}/${r.totalAgents} qualifying)`);
   lines.push(`Requests today: ${r.requestsToday} (system total ${r.requestsTotal})`);
   lines.push(`Approved today: ${r.approvedToday} (total ${r.approvedTotal}) | Rejected today: ${r.rejectedToday} (total ${r.rejectedTotal}) | Pending: ${r.pendingTotal}`);
   lines.push("");
