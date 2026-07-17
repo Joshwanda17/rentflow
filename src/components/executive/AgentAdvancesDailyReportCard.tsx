@@ -359,8 +359,18 @@ export function AgentAdvancesDailyReportCard() {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Kpi label="Qualifying agents" value={r.totalAgents.toLocaleString('en-US')} sub="Meet agent criteria" />
                 <Kpi label="Active advances" value={String(r.agentsWithActiveAdvances)} color={C.purple} sub={`${r.agentsWithAdvances} ever`} />
-                <Kpi label="Adoption" value={pct(r.adoption)} color={r.adoption < 1 ? C.red : C.green} />
-                <Kpi label="Paid today" value={String(r.payingBackCount)} color={C.green} />
+                <Kpi
+                  label="Advance adoption"
+                  value={pct(r.adoption)}
+                  color={r.adoption < 1 ? C.red : C.green}
+                  sub={`${r.agentsWithActiveAdvances}/${r.totalAgents.toLocaleString('en-US')} qualifying agents`}
+                />
+                <Kpi
+                  label="Paid today"
+                  value={String(r.payingBackCount)}
+                  color={C.green}
+                  sub={`${r.unpaidCount} not paid · ${pct(r.repaymentRate)}`}
+                />
               </div>
             </div>
 
@@ -458,8 +468,8 @@ export function AgentAdvancesDailyReportCard() {
                 <Kpi label="Repaid all-time" value={formatUGX(r.totalRepaid)} />
                 <Kpi label="Active advances" value={String(r.activeCount)} color={C.blue} sub={formatUGX(r.activeOutstanding)} />
                 <Kpi label="Overdue advances" value={String(r.overdueCount)} color={C.red} sub={formatUGX(r.overdueOutstanding)} />
-                <Kpi label="Completed" value={String(r.completedCount)} color={C.green} sub="fully repaid" />
-                <Kpi label="Principal issued" value={formatUGX(r.totalPrincipalIssued)} />
+                <Kpi label="Total arrears" value={formatUGX(r.totalArrears)} color={r.totalArrears > 0 ? C.amber : C.green} sub="Missed daily deductions" />
+                <Kpi label="Completed" value={String(r.completedCount)} color={C.green} sub={`${formatUGX(r.totalPrincipalIssued)} principal issued`} />
               </div>
             </div>
 
