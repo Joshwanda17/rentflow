@@ -108,7 +108,22 @@ Deno.serve(async (req) => {
         },
       }).then(() => {}, () => {});
 
-      const maxDeduction = Math.min(withdrawableSnapshot, balanceAfterInterest);
+      // Cap daily deduction at scheduled installment + any accrued arrears.
+      // Never scoop the agent's whole withdrawable in a single day — the
+      // schedule is `principal + access_fee` spread over cycle_days.
+      const cycleDaysCap = Number(advance.cycle_days) || 30;
+      const totalPayableCap =
+        Number(advance.principal) + Number(advance.access_fee || 0);
+      const scheduledDailyCap =
+        cycleDaysCap > 0 ? Math.round(totalPayableCap / cycleDaysCap) : 0;
+      const arrearsCap = Math.max(0, Number(advance.arrears_balance || 0));
+      const dailyCap = Math.max(0, scheduledDailyCap + arrearsCap);
+
+      const maxDeduction = Math.min(
+        withdrawableSnapshot,
+        balanceAfterInterest,
+        dailyCap > 0 ? dailyCap : balanceAfterInterest,
+      );
       const amountDeducted = Math.max(0, maxDeduction);
       const closingBalance = balanceAfterInterest - amountDeducted;
 
