@@ -69,6 +69,20 @@ export function AgentAdvanceRepaymentMonitor() {
     refetchOnMount: 'always',
   });
 
+  // Qualifying agent base — same source of truth the Agent Ops dashboard
+  // and the daily email report use. Adoption = agents with a live advance /
+  // qualifying agent base.
+  const { data: qualifyingAgentCount } = useQuery({
+    queryKey: ['agent-advance-monitor-qualifying-count'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('agent_ops_qualifying_agent_ids');
+      if (error) throw error;
+      const ids = ((data || []) as Array<{ agent_id: string }>).map((r) => r.agent_id).filter(Boolean);
+      return new Set(ids).size;
+    },
+    staleTime: 5 * 60_000,
+  });
+
   // Ledger for the repayment-rate + collection + interest trend (last ~35 days).
   const { data: ledger } = useQuery({
     queryKey: ['agent-advance-repayment-trend'],
@@ -157,6 +171,12 @@ export function AgentAdvanceRepaymentMonitor() {
     };
   }, [rows, search]);
 
+  const adoptionPct = useMemo(() => {
+    const base = qualifyingAgentCount || 0;
+    if (!base) return 0;
+    return Math.round((stats.total / base) * 1000) / 10;
+  }, [qualifyingAgentCount, stats.total]);
+
   const sendReminder = async (agentIds: string[], singleId?: string) => {
     if (!agentIds.length) return;
     if (singleId) setRemindingId(singleId); else setBulkSending(true);
@@ -198,8 +218,16 @@ export function AgentAdvanceRepaymentMonitor() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPICard title="Agents with advances" value={stats.total} icon={Users} loading={isLoading} color="bg-purple-100 text-purple-700" />
+        <KPICard
+          title="Advance adoption"
+          value={`${adoptionPct}%`}
+          icon={Percent}
+          loading={isLoading}
+          color="bg-fuchsia-100 text-fuchsia-700"
+          subtitle={qualifyingAgentCount ? `${stats.total}/${qualifyingAgentCount.toLocaleString()} qualifying agents` : 'Loading base…'}
+        />
         <KPICard title="Repaid today" value={`${stats.paidCount} · ${formatUGX(stats.collectedToday)}`} icon={CheckCircle2} loading={isLoading} color="bg-emerald-100 text-emerald-700" subtitle={`${stats.rateToday}% repayment rate`} />
         <KPICard title="Not repaid today" value={stats.unpaidCount} icon={XCircle} loading={isLoading} color="bg-rose-100 text-rose-700" />
         <KPICard title="Total arrears" value={formatUGX(stats.totalArrears)} icon={AlertTriangle} loading={isLoading} color="bg-amber-100 text-amber-700" subtitle={`Outstanding ${formatUGX(stats.totalOutstanding)}`} />
