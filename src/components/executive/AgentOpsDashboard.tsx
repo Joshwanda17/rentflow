@@ -43,6 +43,7 @@ import { AgentAdvanceLimits } from './agent-ops-v2/AgentAdvanceLimits';
 import { AdvanceAnalyticsPanel } from './agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
 import { AgentListingCampaignPanel } from './AgentListingCampaignPanel';
+import { DailyRentReport } from '@/components/reports/DailyRentReport';
 import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -63,10 +64,11 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advance-requests' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advance-requests' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'advance-potential', icon: Target, label: 'Advance Potential', color: 'bg-purple-700', priority: true },
+  { key: 'daily-collections-report', icon: FileBarChart, label: 'Daily Rent Collections', color: 'bg-emerald-700', priority: true },
   { key: 'advance-limits', icon: Coins, label: 'Advance Limits', color: 'bg-emerald-800', priority: true },
   { key: 'advance-repayments', icon: TrendingDown, label: 'Repayments', color: 'bg-emerald-700', priority: true },
   { key: 'bulk-ops', icon: Layers, label: 'Bulk Ops Console', color: 'bg-rose-700', priority: true },
