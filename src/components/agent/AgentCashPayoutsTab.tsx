@@ -26,8 +26,6 @@ import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
 import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatRequestCard';
-import { MerchantWithdrawableCard } from '@/components/agent/MerchantWithdrawableCard';
-import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
 import { MerchantOnlineToggle } from '@/components/agent/MerchantOnlineToggle';
 import { MerchantDispatchHistory } from '@/components/agent/MerchantDispatchHistory';
@@ -610,50 +608,6 @@ export function AgentCashPayoutsTab() {
     refetchOnWindowFocus: true,
   });
 
-  // All-time commission earned across every payout this merchant has ever
-  // settled (unfiltered by the date-range picker), for the summary card.
-  const { data: lifetimeCommission } = useQuery({
-    queryKey: ['cashout-agent-lifetime-commission', user?.id, isCashoutAgent?.id],
-    queryFn: async () => {
-      if (!user) return 0;
-      const { data, error } = await supabase
-        .from('general_ledger')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('ledger_scope', 'wallet')
-        .eq('direction', 'cash_in')
-        .eq('category', 'agent_commission_earned')
-        .like('reference_id', '%-cashout-commission');
-      if (error) throw error;
-      return (data || []).reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
-    },
-    enabled: !!user && !!isCashoutAgent?.id,
-    staleTime: 20_000,
-    refetchOnWindowFocus: true,
-  });
-
-  // Total commission the merchant has already withdrawn. Only counts legs
-  // explicitly tagged as commission withdrawals — never generic wallet cash
-  // movements (deposits, transfers, portfolio top-ups) which are unrelated.
-  const { data: commissionWithdrawn } = useQuery({
-    queryKey: ['cashout-agent-commission-withdrawn', user?.id, isCashoutAgent?.id],
-    queryFn: async () => {
-      if (!user) return 0;
-      const { data, error } = await supabase
-        .from('general_ledger')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('ledger_scope', 'wallet')
-        .eq('direction', 'cash_out')
-        .in('category', ['agent_commission_withdrawal', 'agent_commission_used_for_rent']);
-      if (error) throw error;
-      return (data || []).reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
-    },
-    enabled: !!user && !!isCashoutAgent?.id,
-    staleTime: 20_000,
-    refetchOnWindowFocus: true,
-  });
-
   // Commission breakdown — totals by date for ALL payouts this agent has
   // processed (every confirmed payout credits a 0.5% commission into the
   // agent's withdrawable wallet via general_ledger). We read the wallet-scope
@@ -748,25 +702,6 @@ export function AgentCashPayoutsTab() {
     refetchOnWindowFocus: true,
   });
 
-  // Derived Commission Summary figures. `withdrawableCommission` is the
-  // strict ledger-backed available balance (what the agent can actually cash
-  // out right now). We DELIBERATELY do NOT compute an "already withdrawn"
-  // figure by subtracting available from lifetime — the wallet's withdrawable
-  // bucket is commingled with deposits, transfers and portfolio top-ups, so
-  // that subtraction attributes unrelated wallet activity to commission and
-  // misleads merchants (a merchant who has never cashed out commission would
-  // still see a non-zero "withdrawn" if their wallet moved money for any
-  // other reason).
-  const { withdrawableBalance: _strictWithdrawable } = useAgentBalances();
-  void _strictWithdrawable;
-  // "Available Commission" tracks the merchant's cashout-commission
-  // sub-ledger directly: lifetime earned minus what has been explicitly
-  // withdrawn as commission. Stable against unrelated wallet activity
-  // (deposits, transfers, portfolio top-ups).
-  const withdrawableCommission = Math.max(
-    0,
-    (lifetimeCommission ?? 0) - (commissionWithdrawn ?? 0),
-  );
   // Today's Activity strip: total money paid out today, and the 0.5% agent
   // commission slice on that same volume.
   const todayWithdrawn = dailyStats?.totalAmount ?? 0;
@@ -1212,10 +1147,6 @@ export function AgentCashPayoutsTab() {
       {/* Available float — agent requests any amount, CFO owns the allocation. */}
       <MerchantFloatRequestCard />
 
-      {/* Withdrawable wallet — the 0.5% commission earned on every payout
-          lands here and can be cashed out by the merchant agent. */}
-      <MerchantWithdrawableCard />
-
       {/* Authorized payout categories — the CFO permission matrix decides which
           categories of transactions this merchant agent may claim & process.
           Only these appear in the queue below. */}
@@ -1252,39 +1183,8 @@ export function AgentCashPayoutsTab() {
         </div>
       </section>
 
-      {/* Commission Summary — makes it unmistakably clear which portion of
-          lifetime earnings is still available versus already withdrawn. */}
-      <Card className="rounded-2xl border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-emerald-600" />
-            Commission Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {(lifetimeCommission ?? 0) <= 0 && (withdrawableCommission ?? 0) <= 0 ? (
-            <div className="rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-3 py-4 text-center">
-              <p className="text-sm font-semibold text-foreground">No commission available for withdrawal.</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Complete payout transactions to earn commission.<br />
-                Your earnings will appear here automatically.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2">
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Available Commission</p>
-                  <p className="text-[11px] text-muted-foreground">Ready to withdraw · decreases each time you cash out commission</p>
-                </div>
-                <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(withdrawableCommission ?? 0)}</p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Commission breakdown — totals by date for all approved payouts */}
+      {/* Commission history — informational only. All withdrawable commission
+          lives on the Agent Wallet Card (single source of truth for cash-out). */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
