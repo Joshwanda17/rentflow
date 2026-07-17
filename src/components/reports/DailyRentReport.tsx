@@ -350,6 +350,7 @@ export function DailyRentReport({ mode }: Props) {
         kpis: mode === 'tenant'
           ? [
               { label: 'Total Repaid', value: formatUGX(totals.sum), hint: `${totals.count} transactions`, accent: [16, 122, 87] },
+              { label: 'Total Outstanding', value: formatUGX(totals.outstanding), hint: 'still owed by tenants', accent: [190, 44, 44] },
               { label: 'Average Payment', value: formatUGX(Math.round(totals.avg)), hint: 'per transaction', accent: [88, 28, 135] },
               { label: 'Successful', value: String(totals.successful), hint: `${totals.count ? Math.round((totals.successful / totals.count) * 100) : 0}% success rate`, accent: [16, 122, 87] },
               { label: 'Pending', value: String(totals.pending), hint: 'awaiting confirmation', accent: [202, 138, 4] },
