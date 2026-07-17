@@ -1085,6 +1085,13 @@ export function TenantOpsDashboard() {
       icon: MapPin,
       color: 'bg-sky-500/10 text-sky-600 border-sky-200',
     },
+    {
+      id: 'daily-repayments-report' as ActiveView,
+      label: 'Daily Rent Repayments',
+      description: 'Ledger-confirmed rent repayments by tenant for the day',
+      icon: HandCoins,
+      color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+    },
   ];
 
   const goBack = () => {
