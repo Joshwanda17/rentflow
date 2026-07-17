@@ -18,7 +18,7 @@ import { format } from 'date-fns';
 import {
   Banknote, CheckCircle2, Loader2, Building2, Clock, Smartphone,
   UserCheck, ArrowRight, Phone, CreditCard, ChevronDown, XCircle,
-  Copy, AlertTriangle, ClipboardPaste,
+  Copy, AlertTriangle, ClipboardPaste, Upload, X as XIcon, FileText,
 } from 'lucide-react';
 import { parsePayoutConfirmationSms } from '@/utils/smsParser';
 
@@ -27,7 +27,14 @@ export interface WithdrawalPayoutCardProps {
   isClaimed?: boolean;
   isClaimedByOther?: boolean;
   onClaim?: (confirm?: { momoNumber?: string | null; momoName?: string | null }) => void;
-  onComplete?: (data: { id: string; reference: string; method: string; sms?: string }) => void | Promise<any>;
+  onComplete?: (data: {
+    id: string;
+    reference: string;
+    method: string;
+    sms?: string;
+    proofUrl?: string;
+    proofType?: string;
+  }) => void | Promise<any>;
   /** ID of the withdrawal currently being claimed (for per-request loading) */
   claimingId?: string | null;
   /** ID of the withdrawal currently being completed (for per-request loading) */
@@ -51,6 +58,11 @@ export function WithdrawalPayoutCard({
   // We parse out the TID (auto-fills the reference) and the sent amount, then
   // enforce that the sent amount matches the amount the user requested.
   const [pastedSms, setPastedSms] = useState('');
+  // Uploaded proof-of-payment file (photo of receipt / bank slip / MoMo screenshot).
+  // Required for bank & cash offline payouts; optional for MoMo (which has SMS).
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
+  const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   // Specific, inline reason the LAST confirmation attempt was rejected by the
   // server (amount mismatch / TID mismatch / unreadable). Drives the retry
@@ -261,12 +273,59 @@ export function WithdrawalPayoutCard({
     setCompleteError(null);
   }
 
+  // Reset the uploaded proof file/URL after a successful confirm or on manual
+  // clear. Keeps the UI in a clean state for the next payout in this card.
+  function clearProof() {
+    setProofFile(null);
+    setProofUrl(null);
+  }
+
+  // Upload the proof to Cloud storage under the agent's own folder (RLS gate).
+  // Returns the public URL and stored path, or throws with a friendly message.
+  async function uploadProofFile(file: File): Promise<{ url: string; type: string }> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) throw new Error('You must be signed in to upload proof.');
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${user.id}/payout-proofs/${withdrawal.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('payment-proofs')
+      .upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (upErr) throw new Error(upErr.message || 'Failed to upload proof.');
+    const { data: pub } = supabase.storage.from('payment-proofs').getPublicUrl(path);
+    return { url: pub.publicUrl, type: file.type || `image/${ext}` };
+  }
+
   // Submit the payout and, on server-side rejection, surface the SPECIFIC reason
   // inline (instead of only a transient toast) so the agent can fix and retry.
   async function handleConfirmPaid() {
     setCompleteError(null);
     try {
-      await onComplete?.({ id: withdrawal.id, reference, method: methodLabel, sms: pastedSms.trim() || undefined });
+      // Bank & offline cash payouts REQUIRE an uploaded proof (bank slip photo,
+      // handwritten receipt, etc.). MoMo can skip (SMS is the proof).
+      const proofRequired = isBank || isCash;
+      if (proofRequired && !proofFile && !proofUrl) {
+        setCompleteError('Please upload a photo of the payment proof (bank slip, receipt, etc.) before confirming.');
+        return;
+      }
+      let uploaded = proofUrl ? { url: proofUrl, type: proofFile?.type || 'image/jpeg' } : null;
+      if (proofFile && !proofUrl) {
+        setProofUploading(true);
+        try {
+          uploaded = await uploadProofFile(proofFile);
+          setProofUrl(uploaded.url);
+        } finally {
+          setProofUploading(false);
+        }
+      }
+      await onComplete?.({
+        id: withdrawal.id,
+        reference,
+        method: methodLabel,
+        sms: pastedSms.trim() || undefined,
+        proofUrl: uploaded?.url,
+        proofType: uploaded?.type,
+      });
+      clearProof();
     } catch (e: any) {
       setCompleteError(e?.message || 'Payout could not be confirmed. Check the details and try again.');
     }
@@ -706,13 +765,92 @@ export function WithdrawalPayoutCard({
                   />
                   <Button
                     className="h-12 gap-1.5 px-5 sm:w-auto w-full text-base font-semibold"
-                    disabled={!reference.trim() || reference.trim().length < 3 || completingId === withdrawal.id || amountMismatch}
+                    disabled={
+                      !reference.trim() ||
+                      reference.trim().length < 3 ||
+                      completingId === withdrawal.id ||
+                      amountMismatch ||
+                      proofUploading ||
+                      ((isBank || isCash) && !proofFile && !proofUrl)
+                    }
                     onClick={handleConfirmPaid}
                     title={completingId === withdrawal.id ? 'Request is being processed…' : 'Confirm this payout'}
                   >
-                    {completingId === withdrawal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                    {completingId === withdrawal.id ? 'Confirming…' : 'Confirm Paid'}
+                    {completingId === withdrawal.id || proofUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    {proofUploading ? 'Uploading proof…' : completingId === withdrawal.id ? 'Confirming…' : 'Confirm Paid'}
                   </Button>
+                </div>
+                {/* Proof of payment upload — mandatory for bank & offline cash
+                    payouts, optional for MoMo (which is already SMS-verified).
+                    Uploads to Cloud storage under the agent's own folder. */}
+                <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Upload className="h-3.5 w-3.5 text-primary" />
+                      Proof of payment {(isBank || isCash) ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(optional)</span>}
+                    </label>
+                    {proofFile && (
+                      <button
+                        type="button"
+                        onClick={clearProof}
+                        className="text-[11px] font-semibold text-destructive hover:underline inline-flex items-center gap-1"
+                      >
+                        <XIcon className="h-3 w-3" /> Remove
+                      </button>
+                    )}
+                  </div>
+                  {proofFile ? (
+                    <div className="flex items-center gap-3">
+                      {proofFile.type.startsWith('image/') ? (
+                        <img
+                          src={URL.createObjectURL(proofFile)}
+                          alt="Payment proof preview"
+                          className="h-20 w-20 object-cover rounded-lg border"
+                        />
+                      ) : (
+                        <div className="h-20 w-20 flex items-center justify-center rounded-lg border bg-background">
+                          <FileText className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0 text-xs">
+                        <p className="font-semibold truncate">{proofFile.name}</p>
+                        <p className="text-muted-foreground">{(proofFile.size / 1024).toFixed(0)} KB</p>
+                        {proofUrl && <p className="text-emerald-600 font-medium mt-0.5">Uploaded</p>}
+                      </div>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor={`proof-upload-${withdrawal.id}`}
+                      className="flex items-center justify-center gap-2 h-11 rounded-lg border-2 border-dashed border-border cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors text-sm text-muted-foreground"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Tap to add a photo of the receipt / bank slip
+                    </label>
+                  )}
+                  <input
+                    id={`proof-upload-${withdrawal.id}`}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      if (f && f.size > 8 * 1024 * 1024) {
+                        toast.error('File must be under 8 MB');
+                        return;
+                      }
+                      setProofFile(f);
+                      setProofUrl(null);
+                      setCompleteError(null);
+                    }}
+                  />
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    {isBank
+                      ? 'Attach a photo of the bank deposit slip or the bank app confirmation screen.'
+                      : isCash
+                        ? 'Attach a photo of the signed cash receipt or the recipient counting the cash.'
+                        : 'Optional — the SMS already proves this MoMo payout. Attach a screenshot if you want a visual receipt too.'}
+                  </p>
                 </div>
                 <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 mt-px shrink-0 text-emerald-500" />

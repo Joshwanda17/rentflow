@@ -392,7 +392,10 @@ export function AgentCashPayoutsTab() {
     });
   };
 
-  const handleComplete = (data: { id: string; reference: string; method: string; sms?: string }) => {
+  const handleComplete = (data: {
+    id: string; reference: string; method: string; sms?: string;
+    proofUrl?: string; proofType?: string;
+  }) => {
     if (completeLockRef.current.has(data.id)) return Promise.resolve(); // already submitting this request
     completeLockRef.current.add(data.id);
     setCompletingIds(new Set(completeLockRef.current));
@@ -936,7 +939,10 @@ export function AgentCashPayoutsTab() {
 
   // Complete withdrawal via edge function (ledger-backed)
   const completeWithdrawal = useMutation({
-    mutationFn: async ({ id, reference, method, sms }: { id: string; reference: string; method: string; sms?: string }) => {
+    mutationFn: async ({ id, reference, method, sms, proofUrl, proofType }: {
+      id: string; reference: string; method: string; sms?: string;
+      proofUrl?: string; proofType?: string;
+    }) => {
       const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
         // `acting_as_merchant` tells the server this payout is being settled by a
         // merchant agent paying with their OWN MoMo/cash — so they earn the
@@ -944,7 +950,15 @@ export function AgentCashPayoutsTab() {
         // Financial Ops desk never sends this flag.
         // `paste_sms` carries the raw confirmation SMS so the server can
         // re-verify the TID + amount against the withdrawal request.
-        body: { withdrawal_id: id, reference: reference.trim(), payment_method: method, acting_as_merchant: true, paste_sms: sms ?? null },
+        body: {
+          withdrawal_id: id,
+          reference: reference.trim(),
+          payment_method: method,
+          acting_as_merchant: true,
+          paste_sms: sms ?? null,
+          payout_proof: proofUrl ?? null,
+          payout_proof_type: proofType ?? null,
+        },
       });
       if (error || data?.error) {
         const msg = await extractEdgeFunctionError({ data, error }, 'Failed to process withdrawal');
