@@ -186,18 +186,38 @@ export function AgentTenantSearch() {
       const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, Number(w.balance)]));
       const landlordMap = new Map((landlordsRes.data || []).map((l: any) => [l.id, l]));
 
-      // Ledger-based outstanding — same formula as Tenant Ops & rent statements
-      const outstandingByTenant = new Map<string, number>();
-      for (const tid of tenantIds) outstandingByTenant.set(tid, 0);
+      // Outstanding: prefer ledger-derived (rent_obligation - repayments) when present,
+      // otherwise fall back to rent_requests (total_repayment - amount_repaid) summed
+      // across all active plans for that tenant. Ledger coverage is sparse today, so
+      // the fallback ensures the Due Balance column never silently shows UGX 0.
+      const ledgerOutstanding = new Map<string, number>();
+      const ledgerHasObligation = new Set<string>();
+      for (const tid of tenantIds) ledgerOutstanding.set(tid, 0);
       for (const r of (ledgerRes.data || []) as any[]) {
         if (!r.user_id) continue;
         const amt = Number(r.amount || 0);
-        const cur = outstandingByTenant.get(r.user_id) || 0;
+        const cur = ledgerOutstanding.get(r.user_id) || 0;
         if (r.category === 'rent_obligation' && r.direction === 'cash_out') {
-          outstandingByTenant.set(r.user_id, cur + amt);
+          ledgerOutstanding.set(r.user_id, cur + amt);
+          ledgerHasObligation.add(r.user_id);
         } else if (r.direction === 'cash_in') {
-          outstandingByTenant.set(r.user_id, cur - amt);
+          ledgerOutstanding.set(r.user_id, cur - amt);
         }
+      }
+
+      const rrOutstanding = new Map<string, number>();
+      for (const r of rrs) {
+        const due = Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
+        rrOutstanding.set(r.tenant_id, (rrOutstanding.get(r.tenant_id) || 0) + due);
+      }
+
+      const outstandingByTenant = new Map<string, number>();
+      for (const tid of tenantIds) {
+        const fromLedger = Math.max(0, ledgerOutstanding.get(tid) || 0);
+        const fromRr = rrOutstanding.get(tid) || 0;
+        // Use the ledger figure when the tenant actually has a booked obligation;
+        // otherwise fall back to the rent_request math so the column reflects real debt.
+        outstandingByTenant.set(tid, ledgerHasObligation.has(tid) ? fromLedger : fromRr);
       }
 
       // Deduplicate by tenant - show the most recent active request
