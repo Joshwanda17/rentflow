@@ -388,6 +388,18 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
         .limit(1);
       if (existing && existing.length > 0) throw new Error('You already have a pending advance request');
 
+      // Block new requests while any active/overdue advance is still outstanding
+      const { data: activeAdvances } = await supabase
+        .from('agent_advances')
+        .select('id, outstanding_balance, status')
+        .eq('agent_id', user.id)
+        .in('status', ['active', 'overdue'])
+        .gt('outstanding_balance', 0)
+        .limit(1);
+      if (activeAdvances && activeAdvances.length > 0) {
+        throw new Error('You already have an ongoing advance. Repay it in full before requesting a new one.');
+      }
+
       const { error } = await supabase.from('agent_advance_requests').insert({
         agent_id: user.id,
         principal,
