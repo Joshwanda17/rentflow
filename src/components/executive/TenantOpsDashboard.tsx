@@ -1308,6 +1308,8 @@ export function TenantOpsDashboard() {
         return <GlobalVerificationHub />;
       case 'daily-collections':
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
+      case 'daily-repayments-report':
+        return <DailyRentReport mode="tenant" />;
       default:
         return null;
     }
