@@ -2793,8 +2793,8 @@ export function LandlordOpsDashboard() {
         : houseStatusFilter === 'hidden'
         ? baseSource.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted')
         : houseStatusFilter === 'rejected'
-        ? (searchActive ? baseSource.filter(l => l.status === 'rejected') : rejectedListings)
-        : (searchActive ? baseSource.filter(l => !l.verified && l.status !== 'rejected' && l.status !== 'delisted') : unverifiedListings);
+        ? ((searchActive || dateRangeActive) ? baseSource.filter(l => l.status === 'rejected') : rejectedListings)
+        : ((searchActive || dateRangeActive) ? baseSource.filter(l => !l.verified && l.status !== 'rejected' && l.status !== 'delisted') : unverifiedListings);
     let filteredHouses = scopeListings;
 
     // Text search across name, phone, location, agent
