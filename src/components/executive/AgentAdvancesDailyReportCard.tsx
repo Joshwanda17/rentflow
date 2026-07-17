@@ -122,7 +122,7 @@ async function buildReport(): Promise<AdvanceReport> {
   ).toISOString();
   const monthStartDate = `${date.slice(0, 7)}-01`;
 
-  const [reqRes, advRes, ledgerRes, qualifyingRes] = await Promise.all([
+  const [reqRes, advRes, ledgerRes, qualifyingRes, monitorRes] = await Promise.all([
     supabase
       .from('agent_advance_requests')
       .select('id, agent_id, principal, status, rejection_reason, cfo_paid_at, created_at')
@@ -133,11 +133,16 @@ async function buildReport(): Promise<AdvanceReport> {
       .limit(20000),
     supabase.from('agent_advance_ledger').select('advance_id, amount_deducted, date').limit(50000),
     supabase.rpc('agent_ops_qualifying_agent_ids'),
+    // Same RPC the Agent Ops "Advance Repayment Monitor" card calls.
+    // Using it as the single source of truth so the CEO card, the Agent Ops
+    // Monitor and the daily email report all show identical numbers.
+    supabase.rpc('get_agent_advance_repayment_monitor', { _days: 7 } as any),
   ]);
 
   const requests = (reqRes.data ?? []) as any[];
   const advances = (advRes.data ?? []) as any[];
   const ledger = (ledgerRes.data ?? []) as any[];
+  const monitor = ((monitorRes as any)?.data ?? []) as any[];
   const totalAgents = new Set(
     ((qualifyingRes.data ?? []) as Array<{ agent_id: string }>).map((r) => r.agent_id).filter(Boolean),
   ).size;
@@ -183,53 +188,46 @@ async function buildReport(): Promise<AdvanceReport> {
   }
 
   const agentsWithAdvances = new Set(advances.map((a) => a.agent_id).filter(Boolean)).size;
-  const agentsWithActiveAdvances = new Set(
-    advances
-      .filter((a) => String(a.status) === 'active' || String(a.status) === 'overdue')
-      .map((a) => a.agent_id)
-      .filter(Boolean),
-  ).size;
-  const active = advances.filter((a) => String(a.status) === 'active');
-  const overdue = advances.filter((a) => String(a.status) === 'overdue');
   const completed = advances.filter((a) => String(a.status) === 'completed');
-  const activeOutstanding = active.reduce((s, a) => s + Number(a.outstanding_balance || 0), 0);
-  const overdueOutstanding = overdue.reduce((s, a) => s + Number(a.outstanding_balance || 0), 0);
   const totalPrincipalIssued = advances.reduce((s, a) => s + Number(a.principal || 0), 0);
 
+  // ---- Repayment KPIs sourced from the Agent Ops Monitor RPC ----
+  // Mirrors AgentAdvanceRepaymentMonitor.stats exactly so CEO + Agent Ops
+  // dashboards and the daily email report always agree.
+  const num = (v: any) => Number(v ?? 0);
+  const paidRows = monitor.filter((r) => r.paid_today);
+  const unpaidRows = monitor.filter((r) => !r.paid_today);
+  const overdueRows = monitor.filter((r) => r.is_overdue);
+  const nonOverdueRows = monitor.filter((r) => !r.is_overdue);
+  const agentsWithActiveAdvances = new Set(
+    monitor.map((r) => r.agent_id).filter(Boolean),
+  ).size;
+  const activeCount = nonOverdueRows.length;
+  const overdueCount = overdueRows.length;
+  const activeOutstanding = nonOverdueRows.reduce((s, r) => s + num(r.outstanding_balance), 0);
+  const overdueOutstanding = overdueRows.reduce((s, r) => s + num(r.outstanding_balance), 0);
+  const totalArrears = monitor.reduce((s, r) => s + num(r.arrears_balance), 0);
+  const payingBackCount = paidRows.length;
+  const unpaidCount = unpaidRows.length;
+  const repaymentRate = monitor.length ? (payingBackCount / monitor.length) * 100 : 0;
+
   const totalRepaid = ledger.reduce((s, l) => s + Number(l.amount_deducted || 0), 0);
-  const repaidToday = ledger
-    .filter((l) => l.date === date)
-    .reduce((s, l) => s + Number(l.amount_deducted || 0), 0);
+  // Match monitor's collectedToday (sum of paid.repaid_today) instead of raw
+  // ledger sum so the "Repaid today" figure stays in lock-step.
+  const repaidToday = paidRows.reduce((s, r) => s + num(r.repaid_today), 0);
   const repaidThisMonth = ledger
     .filter((l) => l.date >= monthStartDate && l.date <= date)
     .reduce((s, l) => s + Number(l.amount_deducted || 0), 0);
 
-  const outstandingAll = activeOutstanding + overdueOutstanding;
-  const repaymentRate = totalRepaid + outstandingAll > 0 ? (totalRepaid / (totalRepaid + outstandingAll)) * 100 : 0;
-  // "Paid today" — distinct live advances with a deduction posted today.
-  // Uniform with the Agent Ops Repayment Monitor (paid_today) definition so
-  // every dashboard shows the same live figure.
-  const paidTodayAdvanceIds = new Set(
-    ledger
-      .filter((l) => l.date === date && Number(l.amount_deducted || 0) > 0)
-      .map((l) => l.advance_id)
-      .filter(Boolean),
-  );
-  const payingBackCount = paidTodayAdvanceIds.size;
-
-  const overdueSorted = [...overdue]
-    .sort((a, b) => Number(b.outstanding_balance || 0) - Number(a.outstanding_balance || 0))
+  // Top overdue — read straight from the monitor so names/phones match the
+  // Agent Ops "Not repaid today" list without needing a profiles lookup.
+  const overdueSorted = [...overdueRows]
+    .sort((a, b) => num(b.outstanding_balance) - num(a.outstanding_balance))
     .slice(0, 8);
-  const overdueIds = overdueSorted.map((a) => a.agent_id).filter(Boolean);
-  const profilesMap: Record<string, any> = {};
-  if (overdueIds.length) {
-    const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', overdueIds);
-    (data ?? []).forEach((p: any) => (profilesMap[p.id] = p));
-  }
-  const topOverdue = overdueSorted.map((a) => ({
-    name: (profilesMap[a.agent_id]?.full_name || '').trim() || 'Unknown agent',
-    phone: profilesMap[a.agent_id]?.phone || '—',
-    outstanding: Math.round(Number(a.outstanding_balance || 0)),
+  const topOverdue = overdueSorted.map((r) => ({
+    name: (r.full_name || '').trim() || 'Unknown agent',
+    phone: r.phone || '—',
+    outstanding: Math.round(num(r.outstanding_balance)),
   }));
 
   return {
@@ -249,9 +247,9 @@ async function buildReport(): Promise<AdvanceReport> {
     reasonsToday,
     reasonsAllTime,
     monthTrend,
-    activeCount: active.length,
+    activeCount,
     activeOutstanding,
-    overdueCount: overdue.length,
+    overdueCount,
     overdueOutstanding,
     completedCount: completed.length,
     totalPrincipalIssued,
