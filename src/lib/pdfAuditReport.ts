@@ -46,82 +46,111 @@ export async function downloadAuditPdf(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const generatedAt = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  const marginX = 24;
 
-  // Title block
+  // --- Branded header band (Welile purple) ---
+  const bandH = 66;
+  doc.setFillColor(88, 28, 135); // welile purple
+  doc.rect(0, 0, pageWidth, bandH, 'F');
+  // Accent stripe
+  doc.setFillColor(146, 52, 234);
+  doc.rect(0, bandH, pageWidth, 3, 'F');
+  // Eyebrow
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text(meta.title, 32, 36);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(110);
-  let cursorY = 52;
+  doc.setFontSize(8);
+  doc.setTextColor(230, 220, 245);
+  doc.text('WELILE', marginX, 22);
+  // Title
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text(meta.title, marginX, 42);
+  // Subtitle
   if (meta.subtitle) {
-    doc.text(meta.subtitle, 32, cursorY);
-    cursorY += 12;
-  }
-  doc.text(`Generated: ${generatedAt}`, 32, cursorY);
-  cursorY += 12;
-  doc.text(`Rows: ${rows.length}`, 32, cursorY);
-  cursorY += 14;
-
-  if (meta.filters && meta.filters.length > 0) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(60);
-    doc.text('Filters applied', 32, cursorY);
-    cursorY += 11;
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(110);
-    for (const f of meta.filters) {
-      doc.text(`• ${f}`, 36, cursorY);
-      cursorY += 11;
-    }
-    cursorY += 4;
+    doc.setFontSize(9);
+    doc.setTextColor(220, 208, 240);
+    doc.text(meta.subtitle, marginX, 56);
   }
+  // Right-aligned meta on band
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(230, 220, 245);
+  doc.text(`Generated ${generatedAt}`, pageWidth - marginX, 42, { align: 'right' });
+  doc.text(`${rows.length} rows`, pageWidth - marginX, 56, { align: 'right' });
 
-  // KPI card grid (rendered above the table).
+  let cursorY = bandH + 20;
+
+  // --- KPI card grid ---
   if (meta.kpis && meta.kpis.length > 0) {
     const gutter = 10;
-    const marginX = 32;
     const usable = pageWidth - marginX * 2;
     const perRow = Math.min(meta.kpis.length, 4);
     const cardW = (usable - gutter * (perRow - 1)) / perRow;
-    const cardH = 56;
+    const cardH = 62;
     meta.kpis.forEach((k, i) => {
       const row = Math.floor(i / perRow);
       const col = i % perRow;
       const x = marginX + col * (cardW + gutter);
       const y = cursorY + row * (cardH + gutter);
       const accent = k.accent ?? [146, 52, 234];
-      // Card background
-      doc.setDrawColor(230);
-      doc.setFillColor(250, 250, 252);
-      doc.roundedRect(x, y, cardW, cardH, 4, 4, 'FD');
-      // Left accent rail
+      // Card
+      doc.setDrawColor(232, 232, 238);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(x, y, cardW, cardH, 6, 6, 'FD');
+      // Accent rail
       doc.setFillColor(accent[0], accent[1], accent[2]);
       doc.roundedRect(x, y, 3, cardH, 1.5, 1.5, 'F');
       // Label
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(120);
-      doc.text(k.label.toUpperCase(), x + 10, y + 14);
-      // Value
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
+      doc.setFontSize(7.5);
+      doc.setTextColor(120, 120, 130);
+      doc.text(k.label.toUpperCase(), x + 12, y + 16);
+      // Value (truncate to fit)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
       doc.setTextColor(accent[0], accent[1], accent[2]);
-      doc.text(k.value, x + 10, y + 33);
+      let val = k.value;
+      const maxW = cardW - 24;
+      while (val.length > 3 && doc.getTextWidth(val) > maxW) val = val.slice(0, -1);
+      if (val !== k.value) val = val.slice(0, -1) + '…';
+      doc.text(val, x + 12, y + 38);
       // Hint
       if (k.hint) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7.5);
-        doc.setTextColor(140);
-        doc.text(k.hint, x + 10, y + 47);
+        doc.setTextColor(140, 140, 150);
+        doc.text(k.hint, x + 12, y + 52);
       }
     });
-    const rows = Math.ceil(meta.kpis.length / perRow);
-    cursorY += rows * (cardH + gutter) + 6;
-    doc.setTextColor(110);
+    const kpiRows = Math.ceil(meta.kpis.length / perRow);
+    cursorY += kpiRows * (cardH + gutter) + 4;
+  }
+
+  // --- Filter chips (pill row) ---
+  if (meta.filters && meta.filters.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 130);
+    doc.text('FILTERS', marginX, cursorY + 4);
+    let chipX = marginX + 46;
+    const chipY = cursorY - 6;
+    const chipH = 16;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    for (const f of meta.filters) {
+      const w = doc.getTextWidth(f) + 16;
+      if (chipX + w > pageWidth - marginX) {
+        cursorY += chipH + 4;
+        chipX = marginX + 46;
+      }
+      doc.setFillColor(243, 240, 250);
+      doc.setDrawColor(224, 214, 240);
+      doc.roundedRect(chipX, cursorY - 6, w, chipH, 8, 8, 'FD');
+      doc.setTextColor(88, 28, 135);
+      doc.text(f, chipX + 8, cursorY + 4);
+      chipX += w + 6;
+    }
+    cursorY += chipH + 8;
   }
 
   // Render the table — jspdf-autotable handles pagination, column sizing, and
@@ -130,19 +159,23 @@ export async function downloadAuditPdf(
     startY: cursorY,
     head: [headers],
     body: rows.map((r) => r.map((c) => (c === null || c === undefined ? '' : String(c)))),
-    styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak', valign: 'top' },
-    headStyles: { fillColor: [146, 52, 234], textColor: 255, fontStyle: 'bold', fontSize: 7 },
-    alternateRowStyles: { fillColor: [250, 250, 252] },
+    styles: { fontSize: 7.5, cellPadding: 4, overflow: 'linebreak', valign: 'top', textColor: [40, 40, 50], lineColor: [235, 232, 242] },
+    headStyles: { fillColor: [88, 28, 135], textColor: 255, fontStyle: 'bold', fontSize: 7.5, cellPadding: 5 },
+    alternateRowStyles: { fillColor: [250, 248, 253] },
     margin: { left: 24, right: 24, bottom: 36 },
     didDrawPage: () => {
       const pageNum = (doc as any).internal.getNumberOfPages();
+      // Footer divider
+      doc.setDrawColor(230, 226, 240);
+      doc.setLineWidth(0.5);
+      doc.line(24, pageHeight - 26, pageWidth - 24, pageHeight - 26);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(140);
       if (meta.footerLabel) {
-        doc.text(meta.footerLabel, 24, pageHeight - 16);
+        doc.text(`${meta.footerLabel}  ·  welile.com`, 24, pageHeight - 14);
       }
-      doc.text(`Page ${pageNum}`, pageWidth - 24, pageHeight - 16, { align: 'right' });
+      doc.text(`Page ${pageNum}`, pageWidth - 24, pageHeight - 14, { align: 'right' });
     },
   });
 

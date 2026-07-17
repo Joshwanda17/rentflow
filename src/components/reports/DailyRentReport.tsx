@@ -310,8 +310,6 @@ export function DailyRentReport({ mode }: Props) {
     ...(methodFilter !== 'all' ? [`Method: ${methodFilter}`] : []),
     ...(statusFilter !== 'all' ? [`Status: ${statusFilter}`] : []),
     ...(search.trim() ? [`Search: ${search}`] : []),
-    `Total collected: ${formatUGX(totals.sum)}`,
-    `Transactions: ${totals.count}`,
   ];
 
   const exportCsv = () => {
@@ -334,9 +332,28 @@ export function DailyRentReport({ mode }: Props) {
         title: mode === 'tenant'
           ? `Daily Rent Repayments — ${date}`
           : `Daily Rent Collections — ${date}`,
-        subtitle: 'Ledger-confirmed rent transactions',
+        subtitle: mode === 'tenant'
+          ? 'Ledger-confirmed tenant repayments'
+          : 'Ledger-confirmed agent collections',
         filters: filterSummary(),
-        footerLabel: 'Welile Ops',
+        footerLabel: mode === 'tenant' ? 'Welile · Tenant Ops' : 'Welile · Agent Ops',
+        kpis: mode === 'tenant'
+          ? [
+              { label: 'Total Repaid', value: formatUGX(totals.sum), hint: `${totals.count} transactions`, accent: [16, 122, 87] },
+              { label: 'Average Payment', value: formatUGX(Math.round(totals.avg)), hint: 'per transaction', accent: [88, 28, 135] },
+              { label: 'Successful', value: String(totals.successful), hint: `${totals.count ? Math.round((totals.successful / totals.count) * 100) : 0}% success rate`, accent: [16, 122, 87] },
+              { label: 'Pending', value: String(totals.pending), hint: 'awaiting confirmation', accent: [202, 138, 4] },
+              { label: 'Failed', value: String(totals.failed), hint: 'requires review', accent: [190, 44, 44] },
+              { label: 'Unique Tenants', value: String(new Set(filtered.map(r => r.tenant_id)).size), hint: 'active today', accent: [30, 64, 175] },
+            ]
+          : [
+              { label: 'Total Collected', value: formatUGX(totals.sum), hint: `${totals.count} transactions`, accent: [16, 122, 87] },
+              { label: 'Total Commission', value: formatUGX(totals.commission), hint: 'earned by agents', accent: [146, 52, 234] },
+              { label: 'Active Agents', value: String(activeAgents), hint: `avg ${formatUGX(Math.round(avgPerAgent))} each`, accent: [88, 28, 135] },
+              { label: 'Top Agent', value: formatUGX(highest), hint: agentRanking[0]?.agent_name ?? '—', accent: [16, 122, 87] },
+              { label: 'Successful', value: String(totals.successful), hint: `${totals.count ? Math.round((totals.successful / totals.count) * 100) : 0}% success rate`, accent: [16, 122, 87] },
+              { label: 'Pending / Failed', value: `${totals.pending} / ${totals.failed}`, hint: 'need attention', accent: [202, 138, 4] },
+            ],
       },
     );
   };
