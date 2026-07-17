@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +89,7 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
 }
 
 export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardProps) {
+  const navigate = useNavigate();
   const { data: suggestions, isLoading } = useQuery({
     queryKey: ['tenant-suggested-houses', userId],
     queryFn: () => fetchSuggestions(userId),
@@ -140,11 +142,14 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={onViewAll}
+                    onClick={() => navigate(`/house/${house.short_code || house.id}`)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onViewAll(); }
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/house/${house.short_code || house.id}`);
+                      }
                     }}
-                    aria-label={`Browse listed houses like ${house.title}`}
+                    aria-label={`View details for ${house.title}`}
                     className="flex-1 min-w-0 space-y-1 text-left cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
                     <div className="flex justify-end">
