@@ -11,6 +11,37 @@ const corsHeaders = {
 const MAX_SENDS_PER_HOUR = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const HOUR_MS = 3600000;
+const DAY_MS = 86400000;
+// Cross-phone caps enforced per user (auth) and per IP so an attacker cannot
+// bypass the per-phone caps by rotating the phone number in the request body.
+const MAX_SENDS_PER_USER_HOUR = 5;
+const MAX_SENDS_PER_USER_DAY = 10;
+const MAX_SENDS_PER_IP_HOUR = 10;
+const MAX_SENDS_PER_IP_DAY = 30;
+
+function clientIpFrom(req: Request): string | null {
+  const raw = req.headers.get("x-forwarded-for") ||
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") ||
+    "";
+  const first = raw.split(",")[0]?.trim();
+  return first || null;
+}
+
+async function userIdFromAuth(
+  admin: ReturnType<typeof createClient>,
+  req: Request,
+): Promise<string | null> {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  try {
+    const { data } = await admin.auth.getUser(token);
+    return data?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function generateOTP(): string {
   const digits = "0123456789";
@@ -579,6 +610,68 @@ Deno.serve(async (req) => {
 
     if (action === "send") {
       const now = Date.now();
+      const ip = clientIpFrom(req);
+      const authUserId = await userIdFromAuth(adminClient, req);
+
+      // Cross-phone caps: prevent bypassing the per-phone cooldown/hourly cap
+      // by rotating phone numbers in the request body from the same user or IP.
+      const hourAgoIso = new Date(now - HOUR_MS).toISOString();
+      const dayAgoIso = new Date(now - DAY_MS).toISOString();
+
+      const countEvents = async (
+        filter: (q: any) => any,
+        sinceIso: string,
+      ): Promise<number> => {
+        const query = filter(
+          adminClient
+            .from("otp_send_events")
+            .select("id", { count: "exact", head: true })
+            .gte("created_at", sinceIso),
+        );
+        const { count } = await query;
+        return count ?? 0;
+      };
+
+      if (authUserId) {
+        const [userHour, userDay] = await Promise.all([
+          countEvents((q) => q.eq("user_id", authUserId), hourAgoIso),
+          countEvents((q) => q.eq("user_id", authUserId), dayAgoIso),
+        ]);
+        if (userHour >= MAX_SENDS_PER_USER_HOUR) {
+          return new Response(
+            JSON.stringify({
+              error: `Too many code requests. Please try again in about an hour.`,
+              retry_after: 60 * 60,
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        if (userDay >= MAX_SENDS_PER_USER_DAY) {
+          return new Response(
+            JSON.stringify({
+              error: `Daily verification-code limit reached. Please try again tomorrow.`,
+              retry_after: 60 * 60 * 6,
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+
+      if (ip) {
+        const [ipHour, ipDay] = await Promise.all([
+          countEvents((q) => q.eq("ip", ip), hourAgoIso),
+          countEvents((q) => q.eq("ip", ip), dayAgoIso),
+        ]);
+        if (ipHour >= MAX_SENDS_PER_IP_HOUR || ipDay >= MAX_SENDS_PER_IP_DAY) {
+          return new Response(
+            JSON.stringify({
+              error: `Too many verification requests from your network. Please try again later.`,
+              retry_after: 60 * 60,
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
 
       // Load existing record to enforce durable, DB-backed rate limits AND to
       // decide whether we can REUSE a still-valid code (see below).
@@ -684,6 +777,19 @@ Deno.serve(async (req) => {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // Record this send in the cross-phone rate-limit ledger. Best-effort;
+      // never fail the send on a logging error.
+      try {
+        await adminClient.from("otp_send_events").insert({
+          user_id: authUserId,
+          phone: phoneKey,
+          ip,
+          outcome: existingCodeUsable ? "resent" : "sent",
+        });
+      } catch (e) {
+        console.warn("[sms-otp] otp_send_events insert failed:", e);
       }
 
       // The OTP is already persisted above. We now wait *briefly* for the

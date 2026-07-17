@@ -12898,6 +12898,33 @@ export type Database = {
         }
         Relationships: []
       }
+      otp_send_events: {
+        Row: {
+          created_at: string
+          id: string
+          ip: string | null
+          outcome: string
+          phone: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          outcome?: string
+          phone: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          outcome?: string
+          phone?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       otp_verifications: {
         Row: {
           attempts: number
