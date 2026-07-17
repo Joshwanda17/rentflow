@@ -9,6 +9,7 @@ import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { motion } from 'framer-motion';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { createShortLink } from '@/lib/createShortLink';
 
 interface InviteAndEarnCardProps {
   variant?: 'tenant' | 'landlord' | 'supporter' | 'default';
