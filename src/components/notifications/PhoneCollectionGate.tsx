@@ -19,6 +19,35 @@ import { toUgandaE164 } from "@/lib/ugandaPhone";
 
 const SNOOZE_KEY = "welile:phone-collection:snoozed-until";
 
+/**
+ * Fire-and-forget audit write to `phone_collection_prompt_events`.
+ * Never blocks the UI: any error is swallowed so a logging outage cannot
+ * stop a user from actually saving their phone number.
+ */
+async function logPromptEvent(
+  userId: string,
+  action: "shown" | "snoozed" | "submitted" | "error",
+  extras: {
+    phone_verified?: boolean | null;
+    had_prior_phone?: boolean | null;
+    meta?: Record<string, unknown>;
+  } = {},
+) {
+  try {
+    await supabase.from("phone_collection_prompt_events").insert([
+      {
+        user_id: userId,
+        action,
+        phone_verified: extras.phone_verified ?? null,
+        had_prior_phone: extras.had_prior_phone ?? null,
+        meta: (extras.meta ?? {}) as any,
+      },
+    ]);
+  } catch (e) {
+    console.warn("[PhoneCollectionGate] audit log failed:", e);
+  }
+}
+
 // Delegates to the shared strict Ugandan normalizer so the client, edge
 // functions and DB uniqueness index all agree on what "the same number" means.
 function normalizePhone(raw: string): string | null {
@@ -34,6 +63,10 @@ export default function PhoneCollectionGate() {
   const [saving, setSaving] = useState(false);
   const [checked, setChecked] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  // Remembers whether the account had a phone value before this popup opened —
+  // included in every audit row so ops can distinguish first-time onboarding
+  // from a "phone was cleared / invalid" prompt.
+  const [hadPriorPhone, setHadPriorPhone] = useState<boolean | null>(null);
   const {
     otpSent,
     otpVerified,
@@ -58,9 +91,15 @@ export default function PhoneCollectionGate() {
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled || error) return;
-      if (!data?.phone || data.phone.trim() === "") {
+      const priorPhone = String(data?.phone ?? "").trim();
+      if (!priorPhone) {
         setMomoName(data?.mobile_money_name || data?.full_name || "");
+        setHadPriorPhone(false);
         setOpen(true);
+        void logPromptEvent(user.id, "shown", {
+          had_prior_phone: false,
+          meta: { email: user.email ?? null },
+        });
       }
       setChecked(true);
     }
@@ -99,8 +138,18 @@ export default function PhoneCollectionGate() {
           toast.error(
             "That phone number is already used by another account. Use a different number or contact support to merge accounts.",
           );
+          void logPromptEvent(user!.id, "error", {
+            phone_verified: otpVerified,
+            had_prior_phone: hadPriorPhone,
+            meta: { code: "23505", reason: "duplicate_phone" },
+          });
           return;
         }
+        void logPromptEvent(user!.id, "error", {
+          phone_verified: otpVerified,
+          had_prior_phone: hadPriorPhone,
+          meta: { code: (error as any).code ?? null, message: error.message },
+        });
         throw error;
       }
       toast.success(
@@ -108,6 +157,14 @@ export default function PhoneCollectionGate() {
           ? "Phone verified — you'll now get SMS updates"
           : "Phone saved — you can verify it later from Settings",
       );
+      void logPromptEvent(user!.id, "submitted", {
+        phone_verified: otpVerified,
+        had_prior_phone: hadPriorPhone,
+        meta: {
+          momo_name_present: trimmedName.length > 0,
+          otp_used: otpSent,
+        },
+      });
       setOpen(false);
     } catch (e: any) {
       toast.error(e?.message || "Could not save. Try again.");
@@ -121,6 +178,13 @@ export default function PhoneCollectionGate() {
       SNOOZE_KEY,
       String(Date.now() + 24 * 60 * 60 * 1000),
     );
+    if (user?.id) {
+      void logPromptEvent(user.id, "snoozed", {
+        phone_verified: otpVerified,
+        had_prior_phone: hadPriorPhone,
+        meta: { snooze_hours: 24 },
+      });
+    }
     setOpen(false);
   };
 
