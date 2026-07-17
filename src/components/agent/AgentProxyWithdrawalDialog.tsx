@@ -275,23 +275,14 @@ export function AgentProxyWithdrawalDialog({
         <div className="space-y-3">
           {/* Balance */}
           <div className="rounded-lg bg-muted/50 p-3 text-center">
-            <p className="text-xs text-muted-foreground">
-              {funderName}'s available balance
-            </p>
-            <p className="text-lg font-bold">
-              {loadingPartnerBalance || partnerAvailable === null
-                ? <Loader2 className="h-4 w-4 animate-spin inline" />
-                : formatUGX(partnerCeiling)}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Your wallet pool: {formatUGX(walletBalance)}
-            </p>
+            <p className="text-xs text-muted-foreground">Available Balance</p>
+            <p className="text-lg font-bold">{formatUGX(walletBalance)}</p>
           </div>
 
-          {partnerAvailable !== null && partnerCeiling < 500 && (
+          {walletBalance < 500 && (
             <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              {funderName} has no withdrawable balance yet. Ask CFO to credit their ROI/capital before submitting a withdrawal.
+              Insufficient balance for withdrawal
             </div>
           )}
 
@@ -357,17 +348,10 @@ export function AgentProxyWithdrawalDialog({
               value={amount || ''}
               onChange={e => setAmount(Number(e.target.value))}
               min={500}
-              max={effectiveCeiling}
+              max={walletBalance}
             />
-            {amount > partnerCeiling && partnerAvailable !== null && (
-              <p className="text-[10px] text-destructive mt-1">
-                Exceeds {funderName}'s available balance ({formatUGX(partnerCeiling)})
-              </p>
-            )}
-            {amount > walletBalance && amount <= partnerCeiling && (
-              <p className="text-[10px] text-destructive mt-1">
-                Exceeds your proxy wallet pool ({formatUGX(walletBalance)})
-              </p>
+            {amount > walletBalance && (
+              <p className="text-[10px] text-destructive mt-1">Exceeds available balance</p>
             )}
           </div>
 
@@ -394,7 +378,7 @@ export function AgentProxyWithdrawalDialog({
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={!isValid || loading || partnerCeiling < 500 || walletBalance < 500}
+            disabled={!isValid || loading || walletBalance < 500}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Request Withdrawal – {formatUGX(amount || 0)}
