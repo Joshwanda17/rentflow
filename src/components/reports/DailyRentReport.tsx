@@ -436,8 +436,9 @@ export function DailyRentReport({ mode }: Props) {
 
       {/* Summary cards */}
       {mode === 'tenant' ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
           <SummaryCard label="Total Rent Repaid" value={formatUGX(totals.sum)} icon={HandCoins} tone="bg-emerald-500/10 text-emerald-700" />
+          <SummaryCard label="Total Outstanding" value={formatUGX(totals.outstanding)} tone="bg-rose-500/10 text-rose-700" />
           <SummaryCard label="Repayments" value={String(totals.count)} icon={TrendingUp} />
           <SummaryCard label="Average" value={formatUGX(Math.round(totals.avg))} />
           <SummaryCard label="Successful" value={String(totals.successful)} tone="bg-emerald-500/10 text-emerald-700" />
