@@ -779,6 +779,19 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Record this send in the cross-phone rate-limit ledger. Best-effort;
+      // never fail the send on a logging error.
+      try {
+        await adminClient.from("otp_send_events").insert({
+          user_id: authUserId,
+          phone: phoneKey,
+          ip,
+          outcome: existingCodeUsable ? "resent" : "sent",
+        });
+      } catch (e) {
+        console.warn("[sms-otp] otp_send_events insert failed:", e);
+      }
+
       // The OTP is already persisted above. We now wait *briefly* for the
       // gateway to ACCEPT the message (statusCode 101/100) so the button can
       // show real success/failure. Acceptance is fast and is NOT the same as
