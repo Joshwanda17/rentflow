@@ -2768,11 +2768,16 @@ export function LandlordOpsDashboard() {
     // (server-side) search results so that agents whose listings fall outside
     // the most-recent 500 are still findable. Status scope still applies.
     const searchActive = debouncedVerifySearch.length >= 2;
-    const baseSource: ListingWithLandlord[] = searchActive
+    const dateRangeActive = !!(verifyDateFrom || verifyDateTo);
+    const baseSource: ListingWithLandlord[] = (searchActive || dateRangeActive)
       ? (() => {
           const seen = new Set<string>();
           const merged: ListingWithLandlord[] = [];
-          for (const l of [...(globalSearchListings || []), ...rows]) {
+          for (const l of [
+            ...(globalSearchListings || []),
+            ...(globalDateRangeListings || []),
+            ...rows,
+          ]) {
             if (seen.has(l.id)) continue;
             seen.add(l.id);
             merged.push(l);
