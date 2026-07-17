@@ -106,7 +106,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
           <Sparkles className="h-4 w-4 text-primary" />
           Suggested For You
         </h2>
-        <button onClick={onViewAll} className="text-xs text-primary font-medium flex items-center gap-0.5">
+        <button type="button" onClick={onViewAll} className="text-xs text-primary font-medium flex items-center gap-0.5">
           View All <ChevronRight className="h-3 w-3" />
         </button>
       </div>

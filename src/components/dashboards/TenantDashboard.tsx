@@ -214,6 +214,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
     setMenuOpen(false);
     setHousesOpen(true);
   }, []);
+  const goToAllHouses = useCallback(() => {
+    hapticTap();
+    setMenuOpen(false);
+    setHousesOpen(false);
+    navigate('/find-a-house');
+  }, [navigate]);
   const handleHousesOpenChange = useCallback((next: boolean) => {
     setHousesOpen(next);
     if (!next) {
@@ -773,7 +779,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
             </WidgetErrorBoundary>
             <WidgetErrorBoundary label="Suggested houses">
-              <SuggestedHousesCard userId={user.id} onViewAll={() => { navigate('/houses'); }} />
+              <SuggestedHousesCard userId={user.id} onViewAll={goToAllHouses} />
             </WidgetErrorBoundary>
           </div>
 
@@ -933,7 +939,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </LockedActionTooltip>
               <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
             </div>
-            <SuggestedHousesCard userId={user.id} onViewAll={() => { navigate('/houses'); }} />
+            <SuggestedHousesCard userId={user.id} onViewAll={goToAllHouses} />
             {rentRequests.length > 0 && (
               <RentProcessTracker
                 requestStatus={rentRequests[0].status}
