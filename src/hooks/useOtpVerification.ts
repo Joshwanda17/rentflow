@@ -93,7 +93,20 @@ export function useOtpVerification() {
   const sendOtp = useCallback(async (phone: string) => {
     // Hard guard: never fire an overlapping send while a cooldown is active or
     // another request is in flight. Keeps duplicate SMS sends from being queued.
-    if (cooldownSeconds > 0 || otpLoading) return false;
+    if (cooldownSeconds > 0) {
+      toast.message('Please wait before requesting another code', {
+        description: cooldownSeconds >= 60
+          ? `Try again in about ${Math.ceil(cooldownSeconds / 60)} minute${Math.ceil(cooldownSeconds / 60) === 1 ? '' : 's'}.`
+          : `Try again in ${cooldownSeconds} second${cooldownSeconds === 1 ? '' : 's'}.`,
+      });
+      return false;
+    }
+    if (otpLoading) {
+      toast.message('Code request already in progress', {
+        description: 'Please wait a moment while we send the SMS.',
+      });
+      return false;
+    }
     setOtpLoading(true);
     setOtpError(null);
     setSendStatus('idle');
@@ -127,7 +140,9 @@ export function useOtpVerification() {
           const secs = typeof payload?.retry_after === 'number' ? payload.retry_after : 0;
           const mins = secs > 0 ? Math.ceil(secs / 60) : 0;
           toast.error('Too many code requests', {
-            description: mins > 0
+            description: secs > 0 && secs < 60
+              ? `Please try again in ${secs} second${secs === 1 ? '' : 's'}.`
+              : mins > 0
               ? `Please try again in about ${mins} minute${mins === 1 ? '' : 's'}.`
               : (errMsg || 'Please wait before requesting another code.'),
           });
