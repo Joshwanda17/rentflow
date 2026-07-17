@@ -18,6 +18,16 @@ export interface PdfAuditMeta {
   filters?: string[];
   /** Footer label printed on every page (left-aligned). */
   footerLabel?: string;
+  /** Optional KPI cards rendered as a grid above the table. */
+  kpis?: PdfKpi[];
+}
+
+export interface PdfKpi {
+  label: string;
+  value: string;
+  hint?: string;
+  /** RGB accent for the card's left rail + value color. Defaults to brand purple. */
+  accent?: [number, number, number];
 }
 
 export async function downloadAuditPdf(
@@ -68,6 +78,50 @@ export async function downloadAuditPdf(
       cursorY += 11;
     }
     cursorY += 4;
+  }
+
+  // KPI card grid (rendered above the table).
+  if (meta.kpis && meta.kpis.length > 0) {
+    const gutter = 10;
+    const marginX = 32;
+    const usable = pageWidth - marginX * 2;
+    const perRow = Math.min(meta.kpis.length, 4);
+    const cardW = (usable - gutter * (perRow - 1)) / perRow;
+    const cardH = 56;
+    meta.kpis.forEach((k, i) => {
+      const row = Math.floor(i / perRow);
+      const col = i % perRow;
+      const x = marginX + col * (cardW + gutter);
+      const y = cursorY + row * (cardH + gutter);
+      const accent = k.accent ?? [146, 52, 234];
+      // Card background
+      doc.setDrawColor(230);
+      doc.setFillColor(250, 250, 252);
+      doc.roundedRect(x, y, cardW, cardH, 4, 4, 'FD');
+      // Left accent rail
+      doc.setFillColor(accent[0], accent[1], accent[2]);
+      doc.roundedRect(x, y, 3, cardH, 1.5, 1.5, 'F');
+      // Label
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(120);
+      doc.text(k.label.toUpperCase(), x + 10, y + 14);
+      // Value
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(accent[0], accent[1], accent[2]);
+      doc.text(k.value, x + 10, y + 33);
+      // Hint
+      if (k.hint) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(140);
+        doc.text(k.hint, x + 10, y + 47);
+      }
+    });
+    const rows = Math.ceil(meta.kpis.length / perRow);
+    cursorY += rows * (cardH + gutter) + 6;
+    doc.setTextColor(110);
   }
 
   // Render the table — jspdf-autotable handles pagination, column sizing, and
