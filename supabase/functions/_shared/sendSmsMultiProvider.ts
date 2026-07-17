@@ -96,13 +96,74 @@ export interface SmsLogCtx {
   idempotencyKey?: string | null;
 }
 
+/**
+ * Phone-collection gate: any outbound SMS whose recipient is a known user
+ * (recipient_user_id supplied) is blocked until that user has a valid Ugandan
+ * `profiles.phone`. Prevents wasted provider spend and silent "why didn't I
+ * get an SMS?" reports for users who signed up with email only and have not
+ * yet completed the PhoneCollectionGate popup.
+ *
+ * Returns the profile phone when present so the caller can also use it as a
+ * fallback if `phone` was empty, or `{ blocked: true }` when the gate rejects.
+ */
+async function resolveProfilePhoneGate(
+  admin: any,
+  recipient_user_id: string,
+): Promise<{ blocked: boolean; profilePhone: string | null }> {
+  try {
+    const { data } = await admin
+      .from("profiles")
+      .select("phone")
+      .eq("id", recipient_user_id)
+      .maybeSingle();
+    const p = String(data?.phone ?? "").trim();
+    if (!p || !isUgandanPhone(p)) return { blocked: true, profilePhone: null };
+    return { blocked: false, profilePhone: p };
+  } catch {
+    // Fail-open on DB hiccup — do not silently drop SMS due to a lookup error.
+    return { blocked: false, profilePhone: null };
+  }
+}
+
 // Returns true when delivered (or an identical SMS was already delivered before).
 export async function sendSMS(phone: string, message: string, logCtx?: SmsLogCtx): Promise<boolean> {
+  // ── Phone-collection gate ────────────────────────────────────────────────
+  // If the caller identifies a recipient user, require a valid profile phone
+  // BEFORE reserving idempotency or contacting any provider. Blocked sends
+  // are logged with a distinctive error so ops can surface them.
+  let effectivePhone = phone;
+  if (logCtx?.admin && logCtx.recipient_user_id) {
+    const gate = await resolveProfilePhoneGate(logCtx.admin, logCtx.recipient_user_id);
+    if (gate.blocked) {
+      const reason = "Blocked: recipient has no phone on profile (PhoneCollectionGate pending)";
+      try {
+        await logSmsDelivery(logCtx.admin, {
+          recipient_phone: phone || "unknown",
+          recipient_user_id: logCtx.recipient_user_id,
+          recipient_name: logCtx.recipient_name ?? null,
+          message,
+          status: "failed",
+          provider: "gate",
+          attempts: [{ provider: "gate", ok: false, error: reason, attempt: 1 }],
+          retries: 0,
+          reference_id: logCtx.reference_id ?? null,
+          source: logCtx.source,
+          error: reason,
+        });
+      } catch { /* auditing must never throw */ }
+      return false;
+    }
+    // Prefer the profile phone when the caller passed nothing usable.
+    if (!isUgandanPhone(effectivePhone) && gate.profilePhone) {
+      effectivePhone = gate.profilePhone;
+    }
+  }
+
   let reservedLogId: string | null = null;
   if (logCtx?.admin && logCtx.idempotencyKey) {
     const reservation = await reserveSmsIdempotency(logCtx.admin, {
       idempotency_key: logCtx.idempotencyKey,
-      recipient_phone: phone || "unknown",
+      recipient_phone: effectivePhone || "unknown",
       recipient_user_id: logCtx.recipient_user_id ?? null,
       recipient_name: logCtx.recipient_name ?? null,
       message,
@@ -118,11 +179,11 @@ export async function sendSMS(phone: string, message: string, logCtx?: SmsLogCtx
   let delivered = false;
   let invalid = false;
 
-  if (!isUgandanPhone(phone)) {
+  if (!isUgandanPhone(effectivePhone)) {
     invalid = true;
   } else {
     for (const send of [sendViaYoola, sendViaAT, sendViaLana]) {
-      const r = await send(phone, message);
+      const r = await send(effectivePhone, message);
       if (r === null) continue;
       trail.push({ provider: providerNames[send.name] || send.name, ok: r.ok, error: r.error, response: (r as any).response, attempt: 1 });
       if (r.ok) { delivered = true; break; }
@@ -139,7 +200,7 @@ export async function sendSMS(phone: string, message: string, logCtx?: SmsLogCtx
     await finalizeSmsDelivery(logCtx!.admin, reservedLogId, { status: delivered ? "sent" : "failed", attempts: trail, retries: 0, error: errorText });
   } else if (logCtx?.admin) {
     await logSmsDelivery(logCtx.admin, {
-      recipient_phone: phone || "unknown",
+      recipient_phone: effectivePhone || "unknown",
       recipient_user_id: logCtx.recipient_user_id ?? null,
       recipient_name: logCtx.recipient_name ?? null,
       message,
