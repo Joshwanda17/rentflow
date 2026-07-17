@@ -15,6 +15,7 @@ import {
   VAPID_PUBLIC_KEY,
   arrayBufferToBase64,
   isPushSupported,
+  subscriptionUsesCurrentVapidKey,
   urlBase64ToUint8Array,
 } from "@/lib/webPush";
 
@@ -63,7 +64,14 @@ export function PushNotificationGate() {
     // don't nag. Otherwise (permission === "default" or "denied") the user must
     // act — enabling is mandatory so rejection/payout/rent alerts reach them.
     if (!isPushSupported()) return;
-    if (Notification.permission === "granted") return;
+    if (Notification.permission === "granted") {
+      // Silent self-heal: if the stored PushSubscription was created with an
+      // older VAPID key, the server can no longer deliver to it. Rotate it
+      // transparently so previously-subscribed devices resume receiving
+      // notifications without a manual trip to Settings.
+      void refreshSubscriptionIfVapidChanged(user.id);
+      return;
+    }
 
     const isDenied = Notification.permission === "denied";
     // Denied is only snooze-able because the app can't override an OS block.
