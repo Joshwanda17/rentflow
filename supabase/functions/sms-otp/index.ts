@@ -506,9 +506,14 @@ async function sendSMS(
     .trim()
     .toLowerCase() as SmsProviderName;
   const previousIndex = primaryChain.findIndex((p) => p.provider === previousProvider);
-  const backupFirstChain = previousIndex >= 0
-    ? [...primaryChain.slice(previousIndex + 1), ...primaryChain.slice(0, previousIndex + 1)]
-    : [primaryChain[1], primaryChain[2], primaryChain[0]];
+  const backupFirstChain = previousProvider === "yoola"
+    // If Yoola accepted but the user is asking again, the carrier route likely
+    // accepted without handset delivery. Try LANA before AT because AT can also
+    // report gateway acceptance without delivery in this market.
+    ? [primaryChain[2], primaryChain[1], primaryChain[0]]
+    : previousIndex >= 0
+      ? [...primaryChain.slice(previousIndex + 1), ...primaryChain.slice(0, previousIndex + 1)]
+      : [primaryChain[2], primaryChain[1], primaryChain[0]];
   const chain = options.preferBackupRoute ? backupFirstChain : primaryChain;
 
   let bestReason: string | undefined;
@@ -804,14 +809,19 @@ Deno.serve(async (req) => {
       const ACCEPTANCE_TIMEOUT_MS = 4000;
       const TIMED_OUT = Symbol("timed_out");
 
-      const preferBackupRoute = existingCodeUsable && existing?.send_status === "accepted";
+      const previousAcceptedProvider = existing?.send_status_reason ?? null;
+      const previousAcceptedThisProvider =
+        existing?.send_status === "accepted" &&
+        typeof previousAcceptedProvider === "string" &&
+        previousAcceptedProvider.startsWith("provider:");
+      const preferBackupRoute = previousAcceptedThisProvider;
       if (preferBackupRoute) {
         console.log(`[sms-otp] resend for ***${phoneKey.slice(-4)} rotating to backup SMS route first`);
       }
 
       const smsPromise = sendSMS(phone, message, {
         preferBackupRoute,
-        previousAcceptedProvider: existing?.send_status_reason ?? null,
+        previousAcceptedProvider,
       });
       const timeoutPromise = new Promise<typeof TIMED_OUT>((resolve) =>
         setTimeout(() => resolve(TIMED_OUT), ACCEPTANCE_TIMEOUT_MS),
