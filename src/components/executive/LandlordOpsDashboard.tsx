@@ -825,6 +825,54 @@ export function LandlordOpsDashboard() {
     },
   });
 
+  // ─── Global Date-Range Fetch (across ALL listings, not just latest 500) ───
+  const { data: globalDateRangeListings, isFetching: isDateRangeFetching } = useQuery({
+    queryKey: ['exec-house-listings-date-range', verifyDateFrom, verifyDateTo],
+    enabled: !!(verifyDateFrom || verifyDateTo),
+    staleTime: 30_000,
+    queryFn: async () => {
+      let query = supabase.from('house_listings')
+        .select(`
+          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
+          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
+          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
+          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (verifyDateFrom) query = query.gte('created_at', new Date(verifyDateFrom).toISOString());
+      if (verifyDateTo) {
+        const to = new Date(verifyDateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
+        query = query.lte('created_at', new Date(to).toISOString());
+      }
+      const { data } = await query;
+      const agentIds = [...new Set((data || []).map(d => d.agent_id).filter(Boolean))] as string[];
+      const agentMap = new Map<string, any>();
+      if (agentIds.length) {
+        for (let i = 0; i < agentIds.length; i += 200) {
+          const { data: aps } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', agentIds.slice(i, i + 200));
+          (aps || []).forEach(p => agentMap.set(p.id, p));
+        }
+      }
+      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
+      const tenantMap = new Map<string, any>();
+      if (tenantIds.length) {
+        for (let i = 0; i < tenantIds.length; i += 200) {
+          const { data: tps } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(i, i + 200));
+          (tps || []).forEach(p => tenantMap.set(p.id, p));
+        }
+      }
+      return (data || []).map(d => ({
+        ...d,
+        agent_name: d.agent_id ? (agentMap.get(d.agent_id)?.full_name || null) : null,
+        agent_phone: d.agent_id ? (agentMap.get(d.agent_id)?.phone || null) : null,
+        agent_email: d.agent_id ? (agentMap.get(d.agent_id)?.email || null) : null,
+        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
+        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
+      })) as ListingWithLandlord[];
+    },
+  });
+
   // ─── All Landlords Direct Query ───
   const { data: allLandlords, refetch: refetchLandlords } = useQuery({
     queryKey: ['landlord-ops-all-landlords'],
