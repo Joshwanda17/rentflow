@@ -24594,6 +24594,7 @@ export type Database = {
       normalize_phone: { Args: { p: string }; Returns: string }
       normalize_phone_9: { Args: { p_phone: string }; Returns: string }
       normalize_phone_last9: { Args: { phone: string }; Returns: string }
+      normalize_ug_phone: { Args: { raw: string }; Returns: string }
       normalize_uganda_district: { Args: { p_raw: string }; Returns: string }
       normalize_uganda_region: { Args: { p_raw: string }; Returns: string }
       notify_landlord_registration_helper: {
