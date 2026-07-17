@@ -239,6 +239,8 @@ async function buildReport(): Promise<AdvanceReport> {
     agentsWithActiveAdvances,
     adoption: totalAgents ? (agentsWithActiveAdvances / totalAgents) * 100 : 0,
     payingBackCount,
+    unpaidCount,
+    totalArrears,
     requestsTotal,
     requestsToday,
     approvedTotal,
