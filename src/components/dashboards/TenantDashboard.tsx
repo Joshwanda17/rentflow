@@ -773,7 +773,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
             </WidgetErrorBoundary>
             <WidgetErrorBoundary label="Suggested houses">
-              <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
+              <SuggestedHousesCard userId={user.id} onViewAll={() => { navigate('/houses'); }} />
             </WidgetErrorBoundary>
           </div>
 
@@ -933,7 +933,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </LockedActionTooltip>
               <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
             </div>
-            <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
+            <SuggestedHousesCard userId={user.id} onViewAll={() => { navigate('/houses'); }} />
             {rentRequests.length > 0 && (
               <RentProcessTracker
                 requestStatus={rentRequests[0].status}
