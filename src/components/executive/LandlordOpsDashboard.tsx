@@ -2940,6 +2940,9 @@ export function LandlordOpsDashboard() {
               clear
             </button>
           )}
+          {isDateRangeFetching && (
+            <span className="text-[11px] text-muted-foreground">Loading date range…</span>
+          )}
         </div>
 
         {/* Quick filter chips */}
