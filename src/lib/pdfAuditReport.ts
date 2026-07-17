@@ -105,15 +105,17 @@ export async function downloadAuditPdf(
       doc.setFontSize(7.5);
       doc.setTextColor(120, 120, 130);
       doc.text(k.label.toUpperCase(), x + 12, y + 16);
-      // Value (truncate to fit)
+      // Value: auto-shrink font so the full amount always fits (no ellipsis)
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(15);
       doc.setTextColor(accent[0], accent[1], accent[2]);
-      let val = k.value;
       const maxW = cardW - 24;
-      while (val.length > 3 && doc.getTextWidth(val) > maxW) val = val.slice(0, -1);
-      if (val !== k.value) val = val.slice(0, -1) + '…';
-      doc.text(val, x + 12, y + 38);
+      let vSize = 15;
+      doc.setFontSize(vSize);
+      while (vSize > 8 && doc.getTextWidth(k.value) > maxW) {
+        vSize -= 0.5;
+        doc.setFontSize(vSize);
+      }
+      doc.text(k.value, x + 12, y + 38);
       // Hint
       if (k.hint) {
         doc.setFont('helvetica', 'normal');

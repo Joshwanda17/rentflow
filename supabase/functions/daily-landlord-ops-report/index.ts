@@ -129,11 +129,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Listing bonuses (commissions) paid that day
+    // 4. Listing bonuses (commissions) paid that day.
+    // Commissions are ledger-posted with category=agent_commission (cash_in leg)
+    // and source_table identifying the trigger:
+    //   - house_listings / landlords → listing commission (paid when the agent lists)
+    //   - listing_bonus_approvals → verification commission (CFO-approved verified listing)
     const bonusRows = await fetchAll<any>((from, to) => supabase
       .from('general_ledger')
-      .select('amount, category, created_at')
-      .in('category', ['listing_bonus', 'listing_verification_bonus', 'agent_listing_bonus'])
+      .select('amount, category, source_table, direction, created_at')
+      .in('category', ['agent_commission', 'agent_commission_earned'])
+      .in('source_table', ['house_listings', 'landlords', 'listing_bonus_approvals'])
+      .eq('direction', 'cash_in')
       .gte('created_at', startIso)
       .lte('created_at', endIso)
       .range(from, to));
@@ -152,12 +158,12 @@ Deno.serve(async (req) => {
     const verifiedVolume = verifiedToday.reduce((s, l) => s + (Number(l.monthly_rent) || 0), 0);
     const rejectionVolume = rejections.reduce((s, r) => s + (Number(rejListingMap[r.listing_id!]?.monthly_rent) || 0), 0);
 
-    // Commission split by category
+    // Commission split by source_table (see query above).
     const listingCommission = bonusRows
-      .filter(b => b.category === 'listing_bonus' || b.category === 'agent_listing_bonus')
+      .filter(b => b.source_table === 'house_listings' || b.source_table === 'landlords')
       .reduce((s, b) => s + (Number(b.amount) || 0), 0);
     const verificationCommission = bonusRows
-      .filter(b => b.category === 'listing_verification_bonus')
+      .filter(b => b.source_table === 'listing_bonus_approvals')
       .reduce((s, b) => s + (Number(b.amount) || 0), 0);
 
     // Most listed by region (from that day's listings)
@@ -381,12 +387,12 @@ async function buildPdf(a: PdfArgs): Promise<Uint8Array> {
     page.drawRectangle({ x, y: cy - cardH, width: 3, height: cardH, color: col(...k.accent) });
     // label
     page.drawText(k.label.toUpperCase(), { x: x + 10, y: cy - 16, size: 7.5, font: bold, color: muted });
-    // value (truncate to fit)
-    let val = k.value;
+    // value: auto-shrink font so the full amount always fits (no ellipsis)
+    const val = k.value;
     const maxW = cardW - 20;
-    while (val.length > 3 && bold.widthOfTextAtSize(val, 14) > maxW) val = val.slice(0, -1);
-    if (val !== k.value) val = val.slice(0, -1) + '…';
-    page.drawText(val, { x: x + 10, y: cy - 38, size: 14, font: bold, color: col(...k.accent) });
+    let vSize = 14;
+    while (vSize > 8 && bold.widthOfTextAtSize(val, vSize) > maxW) vSize -= 0.5;
+    page.drawText(val, { x: x + 10, y: cy - 38, size: vSize, font: bold, color: col(...k.accent) });
     if (k.hint) {
       page.drawText(k.hint, { x: x + 10, y: cy - 56, size: 7.5, font, color: muted });
     }
