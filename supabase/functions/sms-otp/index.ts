@@ -269,9 +269,7 @@ async function sendYoolaAttempt(
       },
       body: JSON.stringify({
         phone: formatPhoneYoola(phone),
-        sender_id: "WELILE",
         message,
-        sender: "WELILE",
         api_key: apiKey,
       }),
       signal: controller.signal,
