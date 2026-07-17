@@ -1984,6 +1984,17 @@ Deno.serve(async (req) => {
         processed_at: new Date().toISOString(),
         processed_by: user.id,
         updated_at: new Date().toISOString(),
+        // Persist merchant-uploaded proof-of-payment (bank slip photo, cash
+        // receipt, MoMo screenshot) so Financial Ops / CFO can audit offline
+        // payouts without depending on SMS alone.
+        ...((body as any)?.payout_proof
+          ? {
+              payout_proof: String((body as any).payout_proof),
+              payout_proof_type: (body as any)?.payout_proof_type
+                ? String((body as any).payout_proof_type)
+                : 'image',
+            }
+          : {}),
         // Re-stamp the settling merchant onto the row. The 15-min stale-claim
         // cron (`release_stale_cashout_claims`) may have already nulled
         // `assigned_cashout_agent_id` while the merchant was completing the
