@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -443,10 +444,10 @@ export function LandlordOpsDashboard() {
   const [lc1VerifyFilter, setLc1VerifyFilter] = useState<LC1VerifyFilter>('all');
 
   // ─── Sorting ───
-  type SortOption = 'newest' | 'oldest' | 'highest_rent';
+  type SortOption = 'newest' | 'oldest' | 'highest_rent' | 'recently_updated';
   const [verifySort, setVerifySort] = useState<SortOption>(() => {
     const saved = localStorage.getItem('landlordOpsVerifySort');
-    if (saved === 'newest' || saved === 'oldest' || saved === 'highest_rent') return saved;
+    if (saved === 'newest' || saved === 'oldest' || saved === 'highest_rent' || saved === 'recently_updated') return saved;
     return 'newest';
   });
   const [landlordSort, setLandlordSort] = useState<SortOption>(() => {
@@ -454,6 +455,10 @@ export function LandlordOpsDashboard() {
     if (saved === 'newest' || saved === 'oldest' || saved === 'highest_rent') return saved;
     return 'newest';
   });
+
+  // ─── Verification date-range filter ───
+  const [verifyDateFrom, setVerifyDateFrom] = useState<string>('');
+  const [verifyDateTo, setVerifyDateTo] = useState<string>('');
   useEffect(() => {
     localStorage.setItem('landlordOpsVerifySort', verifySort);
   }, [verifySort]);
@@ -754,6 +759,70 @@ export function LandlordOpsDashboard() {
       })) as ListingWithLandlord[];
     },
     staleTime: 60000,
+  });
+
+  // ─── Global Verification Search (across ALL agents/listings, not just the 500 most recent) ───
+  const debouncedVerifySearch = useDebouncedValue(verifySearch.trim(), 300);
+  const { data: globalSearchListings, isFetching: isGlobalSearching } = useQuery({
+    queryKey: ['exec-house-listings-global-search', debouncedVerifySearch],
+    enabled: debouncedVerifySearch.length >= 2,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const q = debouncedVerifySearch;
+      const like = `%${q}%`;
+
+      // 1) Find matching agents/landlords by name/phone
+      const [agentProfiles, landlordMatches] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, phone, email')
+          .or(`full_name.ilike.${like},phone.ilike.${like}`).limit(200),
+        supabase.from('landlords').select('id').or(`name.ilike.${like},phone.ilike.${like}`).limit(200),
+      ]);
+      const agentIds = (agentProfiles.data || []).map(p => p.id);
+      const landlordIds = (landlordMatches.data || []).map(l => l.id);
+
+      // 2) Fetch listings that match by agent id, landlord id, or listing text fields
+      const orParts: string[] = [
+        `title.ilike.${like}`, `district.ilike.${like}`, `village.ilike.${like}`,
+        `region.ilike.${like}`, `address.ilike.${like}`,
+        `lc1_chairperson_name.ilike.${like}`, `lc1_chairperson_phone.ilike.${like}`,
+      ];
+      if (agentIds.length) orParts.push(`agent_id.in.(${agentIds.join(',')})`);
+      if (landlordIds.length) orParts.push(`landlord_id.in.(${landlordIds.join(',')})`);
+
+      const { data } = await supabase.from('house_listings')
+        .select(`
+          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
+          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
+          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
+          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
+        `)
+        .or(orParts.join(','))
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const agentMap = new Map((agentProfiles.data || []).map(p => [p.id, p]));
+      // Fetch any agent profiles we didn't already resolve
+      const missingAgentIds = [...new Set((data || []).map(d => d.agent_id).filter(id => id && !agentMap.has(id)))] as string[];
+      if (missingAgentIds.length) {
+        const { data: more } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', missingAgentIds);
+        (more || []).forEach(p => agentMap.set(p.id, p));
+      }
+      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
+      let tenantMap = new Map<string, any>();
+      if (tenantIds.length) {
+        const { data: tps } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds);
+        tenantMap = new Map((tps || []).map(p => [p.id, p]));
+      }
+
+      return (data || []).map(d => ({
+        ...d,
+        agent_name: d.agent_id ? (agentMap.get(d.agent_id)?.full_name || null) : null,
+        agent_phone: d.agent_id ? (agentMap.get(d.agent_id)?.phone || null) : null,
+        agent_email: d.agent_id ? (agentMap.get(d.agent_id)?.email || null) : null,
+        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
+        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
+      })) as ListingWithLandlord[];
+    },
   });
 
   // ─── All Landlords Direct Query ───
@@ -2647,16 +2716,32 @@ export function LandlordOpsDashboard() {
     ];
 
     // Status scope: pending | verified | hidden | rejected | all
+    // When the operator types a search, we widen the source to the global
+    // (server-side) search results so that agents whose listings fall outside
+    // the most-recent 500 are still findable. Status scope still applies.
+    const searchActive = debouncedVerifySearch.length >= 2;
+    const baseSource: ListingWithLandlord[] = searchActive
+      ? (() => {
+          const seen = new Set<string>();
+          const merged: ListingWithLandlord[] = [];
+          for (const l of [...(globalSearchListings || []), ...rows]) {
+            if (seen.has(l.id)) continue;
+            seen.add(l.id);
+            merged.push(l);
+          }
+          return merged;
+        })()
+      : rows;
     const scopeListings =
       houseStatusFilter === 'all'
-        ? rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id))
+        ? baseSource.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id))
         : houseStatusFilter === 'verified'
-        ? rows.filter(l => l.verified && l.status !== 'rejected' && l.status !== 'delisted')
+        ? baseSource.filter(l => l.verified && l.status !== 'rejected' && l.status !== 'delisted')
         : houseStatusFilter === 'hidden'
-        ? rows.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted')
+        ? baseSource.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted')
         : houseStatusFilter === 'rejected'
-        ? rejectedListings
-        : unverifiedListings;
+        ? (searchActive ? baseSource.filter(l => l.status === 'rejected') : rejectedListings)
+        : (searchActive ? baseSource.filter(l => !l.verified && l.status !== 'rejected' && l.status !== 'delisted') : unverifiedListings);
     let filteredHouses = scopeListings;
 
     // Text search across name, phone, location, agent
@@ -2684,11 +2769,26 @@ export function LandlordOpsDashboard() {
     else if (verifyFilter === 'has_gps') filteredHouses = filteredHouses.filter(h => h.latitude && h.longitude);
     else if (verifyFilter === 'has_lc1') filteredHouses = filteredHouses.filter(h => !!h.lc1_chairperson_name);
 
+    // Date range filter (created_at)
+    if (verifyDateFrom) {
+      const from = new Date(verifyDateFrom).getTime();
+      filteredHouses = filteredHouses.filter(h => new Date(h.created_at).getTime() >= from);
+    }
+    if (verifyDateTo) {
+      const to = new Date(verifyDateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
+      filteredHouses = filteredHouses.filter(h => new Date(h.created_at).getTime() <= to);
+    }
+
     // Sort
     filteredHouses = [...filteredHouses].sort((a, b) => {
       if (verifySort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       if (verifySort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       if (verifySort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+      if (verifySort === 'recently_updated') {
+        const bu = (b as any).updated_at || b.created_at;
+        const au = (a as any).updated_at || a.created_at;
+        return new Date(bu).getTime() - new Date(au).getTime();
+      }
       return 0;
     });
 
@@ -2731,9 +2831,9 @@ export function LandlordOpsDashboard() {
               </button>
             );
           })}
-          {(houseStatusFilter !== 'pending' || verifyFilter !== 'all' || verifySearch) && (
+          {(houseStatusFilter !== 'pending' || verifyFilter !== 'all' || verifySearch || verifyDateFrom || verifyDateTo) && (
             <button
-              onClick={() => { setHouseStatusFilter('pending'); setVerifyFilter('all'); setVerifySearch(''); }}
+              onClick={() => { setHouseStatusFilter('pending'); setVerifyFilter('all'); setVerifySearch(''); setVerifyDateFrom(''); setVerifyDateTo(''); }}
               className="min-h-[44px] px-3 py-2 rounded-full text-sm font-semibold text-muted-foreground border border-border bg-background hover:bg-muted transition-all flex items-center gap-1.5"
               title="Reset filters"
             >
@@ -2755,6 +2855,36 @@ export function LandlordOpsDashboard() {
           {verifySearch && (
             <button onClick={() => setVerifySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground" aria-label="Clear">
               <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {debouncedVerifySearch.length >= 2 && (
+          <p className="text-[11px] text-muted-foreground -mt-1 pl-1">
+            {isGlobalSearching ? 'Searching all agents & listings…' : `Searching across all listings (not just the latest ${rows.length}).`}
+          </p>
+        )}
+
+        {/* Date range filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] text-muted-foreground font-medium">Date:</span>
+          <Input
+            type="date"
+            value={verifyDateFrom}
+            onChange={e => setVerifyDateFrom(e.target.value)}
+            className="h-8 w-auto text-xs"
+            aria-label="From date"
+          />
+          <span className="text-[11px] text-muted-foreground">to</span>
+          <Input
+            type="date"
+            value={verifyDateTo}
+            onChange={e => setVerifyDateTo(e.target.value)}
+            className="h-8 w-auto text-xs"
+            aria-label="To date"
+          />
+          {(verifyDateFrom || verifyDateTo) && (
+            <button onClick={() => { setVerifyDateFrom(''); setVerifyDateTo(''); }} className="text-[11px] text-muted-foreground hover:text-foreground underline">
+              clear
             </button>
           )}
         </div>
@@ -2794,6 +2924,7 @@ export function LandlordOpsDashboard() {
             {([
               { value: 'newest' as SortOption, label: 'Newest' },
               { value: 'oldest' as SortOption, label: 'Oldest' },
+              { value: 'recently_updated' as SortOption, label: 'Recently Updated' },
               { value: 'highest_rent' as SortOption, label: 'Highest Rent' },
             ]).map(s => (
               <button
