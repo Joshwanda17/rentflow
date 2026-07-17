@@ -48,6 +48,7 @@ const BiometricAuthProvider = lazyWithRetry(() => import("@/hooks/useBiometricAu
 const ProfileCompletionGate = optionalLazyWithRetry(() => import("@/components/onboarding/ProfileCompletionGate"), "ProfileCompletionGate");
 const PushNotificationGate = optionalLazyWithRetry(() => import("@/components/notifications/PushNotificationGate"), "PushNotificationGate");
 const PhoneCollectionGate = optionalLazyWithRetry(() => import("@/components/notifications/PhoneCollectionGate"), "PhoneCollectionGate");
+const NameCompletionGate = optionalLazyWithRetry(() => import("@/components/notifications/NameCompletionGate"), "NameCompletionGate");
 const RejectionAlertGate = optionalLazyWithRetry(() => import("@/components/notifications/RejectionAlertGate"), "RejectionAlertGate");
 const SubAgentInviteGate = optionalLazyWithRetry(() => import("@/components/agent/SubAgentInviteGate"), "SubAgentInviteGate");
 const ForceResetPasswordGate = optionalLazyWithRetry(() => import("@/components/auth/ForceResetPasswordGate"), "ForceResetPasswordGate");
@@ -342,6 +343,7 @@ function GlobalOnboardingGates() {
       <ProfileCompletionGate />
       <PushNotificationGate />
       <PhoneCollectionGate />
+      <NameCompletionGate />
       <RejectionAlertGate />
       <SubAgentInviteGate />
     </>
