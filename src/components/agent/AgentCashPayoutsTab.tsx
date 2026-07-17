@@ -608,50 +608,6 @@ export function AgentCashPayoutsTab() {
     refetchOnWindowFocus: true,
   });
 
-  // All-time commission earned across every payout this merchant has ever
-  // settled (unfiltered by the date-range picker), for the summary card.
-  const { data: lifetimeCommission } = useQuery({
-    queryKey: ['cashout-agent-lifetime-commission', user?.id, isCashoutAgent?.id],
-    queryFn: async () => {
-      if (!user) return 0;
-      const { data, error } = await supabase
-        .from('general_ledger')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('ledger_scope', 'wallet')
-        .eq('direction', 'cash_in')
-        .eq('category', 'agent_commission_earned')
-        .like('reference_id', '%-cashout-commission');
-      if (error) throw error;
-      return (data || []).reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
-    },
-    enabled: !!user && !!isCashoutAgent?.id,
-    staleTime: 20_000,
-    refetchOnWindowFocus: true,
-  });
-
-  // Total commission the merchant has already withdrawn. Only counts legs
-  // explicitly tagged as commission withdrawals — never generic wallet cash
-  // movements (deposits, transfers, portfolio top-ups) which are unrelated.
-  const { data: commissionWithdrawn } = useQuery({
-    queryKey: ['cashout-agent-commission-withdrawn', user?.id, isCashoutAgent?.id],
-    queryFn: async () => {
-      if (!user) return 0;
-      const { data, error } = await supabase
-        .from('general_ledger')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('ledger_scope', 'wallet')
-        .eq('direction', 'cash_out')
-        .in('category', ['agent_commission_withdrawal', 'agent_commission_used_for_rent']);
-      if (error) throw error;
-      return (data || []).reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
-    },
-    enabled: !!user && !!isCashoutAgent?.id,
-    staleTime: 20_000,
-    refetchOnWindowFocus: true,
-  });
-
   // Commission breakdown — totals by date for ALL payouts this agent has
   // processed (every confirmed payout credits a 0.5% commission into the
   // agent's withdrawable wallet via general_ledger). We read the wallet-scope
