@@ -206,6 +206,7 @@ export function AgentOpsDashboard() {
   const renderSubView = () => {
     switch (activeView) {
       case 'trust-capture': return <TrustCaptureTab />;
+      case 'daily-collections-report': return <DailyRentReport mode="agent" />;
       case 'performance-report': return <Navigate to="/agent-performance-report" replace />;
       case 'allocation-report': return <AgentAllocationReport />;
       case 'feature-flags': return <AgentFeatureFlagsPanel onBack={() => setActiveView(null)} />;
