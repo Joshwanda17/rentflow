@@ -234,8 +234,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     search: searchText.trim() || undefined,
     // Page through EVERY matching listing — no fixed cap.
     paginate: true,
-    // Keep pages human-sized; users can explicitly continue with Load more.
-    pageSize: 24,
+    // Load a large first page so the District / Sub-County / Village
+    // dropdowns (which derive their options from the currently-loaded
+    // rows) see the full result set immediately. Anything smaller silently
+    // hides districts that aren't in the newest N houses.
+    pageSize: 500,
     enabled: open,
   });
 
