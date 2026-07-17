@@ -1,0 +1,582 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, FileDown, FileSpreadsheet, RefreshCw, TrendingUp, Users, HandCoins, Trophy } from 'lucide-react';
+import { format } from 'date-fns';
+import { downloadAuditPdf } from '@/lib/pdfAuditReport';
+
+const formatUGX = (n: number) => `UGX ${Math.round(Number(n) || 0).toLocaleString('en-UG')}`;
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from 'recharts';
+
+type CollectionRow = {
+  id: string;
+  created_at: string;
+  amount: number | null;
+  payment_method: string | null;
+  tracking_id: string | null;
+  momo_transaction_id: string | null;
+  notes: string | null;
+  float_before: number | null;
+  float_after: number | null;
+  agent_id: string | null;
+  tenant_id: string | null;
+  rent_request_id: string | null;
+};
+
+export type ReportMode = 'tenant' | 'agent';
+
+interface Props {
+  mode: ReportMode;
+}
+
+function todayIso() {
+  return format(new Date(), 'yyyy-MM-dd');
+}
+
+function toCsv(headers: string[], rows: (string | number)[][]) {
+  const esc = (v: any) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
+}
+
+export function DailyRentReport({ mode }: Props) {
+  const qc = useQueryClient();
+  const [date, setDate] = useState<string>(todayIso());
+  const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [tenantFilter, setTenantFilter] = useState<string>('all');
+  const [landlordFilter, setLandlordFilter] = useState<string>('all');
+  const [propertyFilter, setPropertyFilter] = useState<string>('all');
+  const [methodFilter, setMethodFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
+
+  // ---- Load agent_collections for the selected day ----
+  const { data: rawCollections = [], isLoading, refetch } = useQuery({
+    queryKey: ['daily-rent-report', date],
+    queryFn: async () => {
+      const from = new Date(`${date}T00:00:00`).toISOString();
+      const to = new Date(`${date}T23:59:59.999`).toISOString();
+      const { data, error } = await supabase
+        .from('agent_collections')
+        .select('id, created_at, amount, payment_method, tracking_id, momo_transaction_id, notes, float_before, float_after, agent_id, tenant_id, rent_request_id')
+        .gte('created_at', from)
+        .lte('created_at', to)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as CollectionRow[];
+    },
+    staleTime: 30_000,
+  });
+
+  // ---- Realtime: refetch on any new agent_collections row today ----
+  useEffect(() => {
+    const ch = supabase
+      .channel(`daily-rent-report-${date}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agent_collections' }, () => {
+        qc.invalidateQueries({ queryKey: ['daily-rent-report', date] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [date, qc]);
+
+  // ---- Enrichment: tenants / agents / rent_requests / landlords ----
+  const tenantIds = useMemo(() => [...new Set(rawCollections.map(r => r.tenant_id).filter(Boolean) as string[])], [rawCollections]);
+  const agentIds = useMemo(() => [...new Set(rawCollections.map(r => r.agent_id).filter(Boolean) as string[])], [rawCollections]);
+  const rentReqIds = useMemo(() => [...new Set(rawCollections.map(r => r.rent_request_id).filter(Boolean) as string[])], [rawCollections]);
+
+  const { data: profileMap = {} } = useQuery({
+    queryKey: ['daily-rent-profiles', tenantIds.sort().join(','), agentIds.sort().join(',')],
+    enabled: tenantIds.length + agentIds.length > 0,
+    queryFn: async () => {
+      const ids = [...new Set([...tenantIds, ...agentIds])];
+      const map: Record<string, { full_name: string | null; phone: string | null }> = {};
+      const BATCH = 100;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids.slice(i, i + BATCH));
+        (data ?? []).forEach((p: any) => { map[p.id] = { full_name: p.full_name, phone: p.phone }; });
+      }
+      return map;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: rentReqMap = {} } = useQuery({
+    queryKey: ['daily-rent-rentreqs', rentReqIds.sort().join(',')],
+    enabled: rentReqIds.length > 0,
+    queryFn: async () => {
+      const map: Record<string, any> = {};
+      const BATCH = 100;
+      for (let i = 0; i < rentReqIds.length; i += BATCH) {
+        const { data } = await supabase
+          .from('rent_requests')
+          .select('id, landlord_id, house_listing_id, rent_amount')
+          .in('id', rentReqIds.slice(i, i + BATCH));
+        (data ?? []).forEach((r: any) => { map[r.id] = r; });
+      }
+      return map;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const landlordIds = useMemo(
+    () => [...new Set(Object.values(rentReqMap).map((r: any) => r.landlord_id).filter(Boolean) as string[])],
+    [rentReqMap],
+  );
+  const listingIds = useMemo(
+    () => [...new Set(Object.values(rentReqMap).map((r: any) => r.house_listing_id).filter(Boolean) as string[])],
+    [rentReqMap],
+  );
+
+  const { data: landlordMap = {} } = useQuery({
+    queryKey: ['daily-rent-landlords', landlordIds.sort().join(',')],
+    enabled: landlordIds.length > 0,
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      const { data } = await supabase.from('landlords').select('id, full_name').in('id', landlordIds);
+      (data ?? []).forEach((l: any) => { map[l.id] = l.full_name; });
+      return map;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: listingMap = {} } = useQuery({
+    queryKey: ['daily-rent-listings', listingIds.sort().join(',')],
+    enabled: listingIds.length > 0,
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      const { data } = await supabase.from('house_listings').select('id, title, address').in('id', listingIds);
+      (data ?? []).forEach((h: any) => { map[h.id] = h.title || h.address || h.id.slice(0, 6); });
+      return map;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  // ---- Build enriched rows ----
+  type EnrichedRow = CollectionRow & {
+    tenant_name: string;
+    tenant_phone: string;
+    agent_name: string;
+    landlord_name: string;
+    property: string;
+    status: 'successful' | 'pending' | 'failed';
+    commission: number;
+  };
+
+  const enriched: EnrichedRow[] = useMemo(() => rawCollections.map(r => {
+    const rr = r.rent_request_id ? rentReqMap[r.rent_request_id] : null;
+    const status: EnrichedRow['status'] =
+      r.amount && Number(r.amount) > 0 ? 'successful' : (Number(r.amount) === 0 ? 'pending' : 'failed');
+    return {
+      ...r,
+      tenant_name: profileMap[r.tenant_id ?? '']?.full_name || '—',
+      tenant_phone: profileMap[r.tenant_id ?? '']?.phone || '—',
+      agent_name: profileMap[r.agent_id ?? '']?.full_name || '—',
+      landlord_name: rr?.landlord_id ? landlordMap[rr.landlord_id] || '—' : '—',
+      property: rr?.house_listing_id ? listingMap[rr.house_listing_id] || '—' : '—',
+      status,
+      commission: Math.round((Number(r.amount) || 0) * 0.1),
+    };
+  }), [rawCollections, profileMap, rentReqMap, landlordMap, listingMap]);
+
+  // ---- Distinct filter options ----
+  const distinct = (fn: (r: EnrichedRow) => string, label: (r: EnrichedRow) => string) => {
+    const seen = new Map<string, string>();
+    enriched.forEach(r => { const v = fn(r); if (v && v !== '—') seen.set(v, label(r)); });
+    return [...seen.entries()].map(([v, l]) => ({ value: v, label: l }));
+  };
+  const agentOptions = distinct(r => r.agent_id ?? '', r => r.agent_name);
+  const tenantOptions = distinct(r => r.tenant_id ?? '', r => r.tenant_name);
+  const landlordOptions = distinct(r => r.landlord_name, r => r.landlord_name);
+  const propertyOptions = distinct(r => r.property, r => r.property);
+  const methodOptions = distinct(r => r.payment_method ?? '', r => r.payment_method ?? '—');
+
+  // ---- Apply filters ----
+  const filtered = useMemo(() => enriched.filter(r => {
+    if (agentFilter !== 'all' && r.agent_id !== agentFilter) return false;
+    if (tenantFilter !== 'all' && r.tenant_id !== tenantFilter) return false;
+    if (landlordFilter !== 'all' && r.landlord_name !== landlordFilter) return false;
+    if (propertyFilter !== 'all' && r.property !== propertyFilter) return false;
+    if (methodFilter !== 'all' && r.payment_method !== methodFilter) return false;
+    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hay = `${r.tenant_name} ${r.tenant_phone} ${r.agent_name} ${r.landlord_name} ${r.property} ${r.tracking_id ?? ''} ${r.momo_transaction_id ?? ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }), [enriched, agentFilter, tenantFilter, landlordFilter, propertyFilter, methodFilter, statusFilter, search]);
+
+  // ---- Aggregates ----
+  const totals = useMemo(() => {
+    let sum = 0, count = 0, successful = 0, pending = 0, failed = 0, commission = 0;
+    filtered.forEach(r => {
+      sum += Number(r.amount) || 0;
+      count += 1;
+      if (r.status === 'successful') successful += 1;
+      else if (r.status === 'pending') pending += 1;
+      else failed += 1;
+      commission += r.commission;
+    });
+    return { sum, count, successful, pending, failed, commission, avg: count ? sum / count : 0 };
+  }, [filtered]);
+
+  // ---- Agent performance ranking ----
+  const agentRanking = useMemo(() => {
+    const byAgent = new Map<string, { agent_id: string; agent_name: string; count: number; total: number; commission: number; successful: number; failed: number; pending: number }>();
+    filtered.forEach(r => {
+      const id = r.agent_id ?? 'unknown';
+      const cur = byAgent.get(id) ?? { agent_id: id, agent_name: r.agent_name, count: 0, total: 0, commission: 0, successful: 0, failed: 0, pending: 0 };
+      cur.count += 1;
+      cur.total += Number(r.amount) || 0;
+      cur.commission += r.commission;
+      if (r.status === 'successful') cur.successful += 1;
+      else if (r.status === 'pending') cur.pending += 1;
+      else cur.failed += 1;
+      byAgent.set(id, cur);
+    });
+    return [...byAgent.values()].sort((a, b) => b.total - a.total);
+  }, [filtered]);
+
+  const activeAgents = agentRanking.length;
+  const avgPerAgent = activeAgents ? totals.sum / activeAgents : 0;
+  const highest = agentRanking[0]?.total ?? 0;
+  const lowest = agentRanking.length ? agentRanking[agentRanking.length - 1].total : 0;
+
+  // ---- Charts ----
+  const byHour = useMemo(() => {
+    const buckets: Record<string, number> = {};
+    for (let h = 0; h < 24; h++) buckets[String(h).padStart(2, '0')] = 0;
+    filtered.forEach(r => {
+      const h = format(new Date(r.created_at), 'HH');
+      buckets[h] = (buckets[h] ?? 0) + (Number(r.amount) || 0);
+    });
+    return Object.entries(buckets).map(([hour, amount]) => ({ hour, amount }));
+  }, [filtered]);
+
+  const byMethod = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(r => { const k = r.payment_method ?? 'unknown'; map[k] = (map[k] ?? 0) + (Number(r.amount) || 0); });
+    return Object.entries(map).map(([method, amount]) => ({ method, amount }));
+  }, [filtered]);
+
+  const byProperty = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(r => { const k = r.property; map[k] = (map[k] ?? 0) + (Number(r.amount) || 0); });
+    return Object.entries(map).map(([property, amount]) => ({ property, amount })).sort((a, b) => b.amount - a.amount).slice(0, 10);
+  }, [filtered]);
+
+  // ---- Exports ----
+  const headers = mode === 'tenant'
+    ? ['Tx ID', 'Time', 'Tenant', 'Phone', 'Property', 'Landlord', 'Agent', 'Amount (UGX)', 'Balance Before', 'Balance After', 'Method', 'Status', 'Receipt']
+    : ['Time', 'Agent', 'Agent ID', 'Tenant', 'Property', 'Landlord', 'Amount (UGX)', 'Commission (UGX)', 'Method', 'Status', 'Receipt'];
+
+  const bodyRows = useMemo(() => filtered.map(r => mode === 'tenant'
+    ? [
+        r.id.slice(0, 8),
+        format(new Date(r.created_at), 'HH:mm:ss'),
+        r.tenant_name, r.tenant_phone, r.property, r.landlord_name, r.agent_name,
+        Number(r.amount) || 0,
+        Number(r.float_before) || 0,
+        Number(r.float_after) || 0,
+        r.payment_method ?? '—', r.status,
+        r.tracking_id ?? r.momo_transaction_id ?? '—',
+      ]
+    : [
+        format(new Date(r.created_at), 'HH:mm:ss'),
+        r.agent_name, (r.agent_id ?? '').slice(0, 8), r.tenant_name, r.property, r.landlord_name,
+        Number(r.amount) || 0, r.commission,
+        r.payment_method ?? '—', r.status,
+        r.tracking_id ?? r.momo_transaction_id ?? '—',
+      ]),
+    [filtered, mode],
+  );
+  const statusColIndex = headers.findIndex(h => h === 'Status');
+
+  const filterSummary = () => [
+    `Date: ${date}`,
+    ...(agentFilter !== 'all' ? [`Agent: ${agentOptions.find(o => o.value === agentFilter)?.label ?? agentFilter}`] : []),
+    ...(tenantFilter !== 'all' ? [`Tenant: ${tenantOptions.find(o => o.value === tenantFilter)?.label ?? tenantFilter}`] : []),
+    ...(landlordFilter !== 'all' ? [`Landlord: ${landlordFilter}`] : []),
+    ...(propertyFilter !== 'all' ? [`Property: ${propertyFilter}`] : []),
+    ...(methodFilter !== 'all' ? [`Method: ${methodFilter}`] : []),
+    ...(statusFilter !== 'all' ? [`Status: ${statusFilter}`] : []),
+    ...(search.trim() ? [`Search: ${search}`] : []),
+    `Total collected: ${formatUGX(totals.sum)}`,
+    `Transactions: ${totals.count}`,
+  ];
+
+  const exportCsv = () => {
+    const csv = toCsv(headers, bodyRows as any);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-${mode === 'tenant' ? 'repayments' : 'collections'}-${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = async () => {
+    await downloadAuditPdf(
+      `daily-${mode === 'tenant' ? 'repayments' : 'collections'}-${date}.pdf`,
+      headers,
+      bodyRows as any,
+      {
+        title: mode === 'tenant'
+          ? `Daily Rent Repayments — ${date}`
+          : `Daily Rent Collections — ${date}`,
+        subtitle: 'Ledger-confirmed rent transactions',
+        filters: filterSummary(),
+        footerLabel: 'Welile Ops',
+      },
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <Card className="p-3 flex flex-wrap items-end gap-2">
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date</label>
+          <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9 w-40" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Agent</label>
+          <Select value={agentFilter} onValueChange={setAgentFilter}>
+            <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All agents</SelectItem>{agentOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Tenant</label>
+          <Select value={tenantFilter} onValueChange={setTenantFilter}>
+            <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All tenants</SelectItem>{tenantOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Landlord</label>
+          <Select value={landlordFilter} onValueChange={setLandlordFilter}>
+            <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All</SelectItem>{landlordOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Property</label>
+          <Select value={propertyFilter} onValueChange={setPropertyFilter}>
+            <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All</SelectItem>{propertyOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Method</label>
+          <Select value={methodFilter} onValueChange={setMethodFilter}>
+            <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All</SelectItem>{methodOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Status</label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="successful">Successful</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1 min-w-[180px] flex-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Search</label>
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, phone, receipt…" className="h-9" />
+        </div>
+        <div className="flex gap-1.5 ml-auto">
+          <Button size="sm" variant="outline" onClick={() => refetch()} className="h-9 gap-1.5"><RefreshCw className="h-3.5 w-3.5" />Refresh</Button>
+          <Button size="sm" variant="outline" onClick={exportCsv} disabled={!filtered.length} className="h-9 gap-1.5"><FileSpreadsheet className="h-3.5 w-3.5" />CSV</Button>
+          <Button size="sm" variant="outline" onClick={exportPdf} disabled={!filtered.length} className="h-9 gap-1.5"><FileDown className="h-3.5 w-3.5" />PDF</Button>
+        </div>
+      </Card>
+
+      {/* Summary cards */}
+      {mode === 'tenant' ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <SummaryCard label="Total Rent Repaid" value={formatUGX(totals.sum)} icon={HandCoins} tone="bg-emerald-500/10 text-emerald-700" />
+          <SummaryCard label="Repayments" value={String(totals.count)} icon={TrendingUp} />
+          <SummaryCard label="Average" value={formatUGX(Math.round(totals.avg))} />
+          <SummaryCard label="Successful" value={String(totals.successful)} tone="bg-emerald-500/10 text-emerald-700" />
+          <SummaryCard label="Failed" value={String(totals.failed)} tone="bg-rose-500/10 text-rose-700" />
+          <SummaryCard label="Pending" value={String(totals.pending)} tone="bg-amber-500/10 text-amber-700" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <SummaryCard label="Total Collected" value={formatUGX(totals.sum)} icon={HandCoins} tone="bg-emerald-500/10 text-emerald-700" />
+          <SummaryCard label="Collections" value={String(totals.count)} icon={TrendingUp} />
+          <SummaryCard label="Active Agents" value={String(activeAgents)} icon={Users} />
+          <SummaryCard label="Avg per Agent" value={formatUGX(Math.round(avgPerAgent))} />
+          <SummaryCard label="Highest" value={formatUGX(highest)} icon={Trophy} tone="bg-amber-500/10 text-amber-700" />
+          <SummaryCard label="Lowest" value={formatUGX(lowest)} />
+        </div>
+      )}
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <Card className="p-3">
+          <div className="text-xs font-semibold mb-2">{mode === 'tenant' ? 'Repayments' : 'Collections'} by Hour</div>
+          <div className="h-52">
+            <ResponsiveContainer>
+              <BarChart data={byHour}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="hour" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
+                <Tooltip formatter={(v: any) => formatUGX(Number(v))} />
+                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-xs font-semibold mb-2">By Payment Method</div>
+          <div className="h-52">
+            <ResponsiveContainer>
+              <BarChart data={byMethod}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="method" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
+                <Tooltip formatter={(v: any) => formatUGX(Number(v))} />
+                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-xs font-semibold mb-2">Top Properties</div>
+          <div className="h-52">
+            <ResponsiveContainer>
+              <BarChart data={byProperty} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
+                <YAxis type="category" dataKey="property" tick={{ fontSize: 9 }} width={90} />
+                <Tooltip formatter={(v: any) => formatUGX(Number(v))} />
+                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
+
+      {/* Table */}
+      {(() => null)()}
+      <Card className="p-0 overflow-hidden">
+        <div className="p-3 border-b flex items-center justify-between">
+          <div className="text-sm font-semibold">
+            {mode === 'tenant' ? 'Daily Repayments' : 'Daily Collections'} · {filtered.length} rows
+          </div>
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        </div>
+        <div className="overflow-x-auto max-h-[560px]">
+          <table className="w-full text-xs">
+            <thead className="bg-muted sticky top-0 z-10">
+              <tr>
+                {headers.map(h => <th key={h} className="px-2 py-1.5 text-left font-semibold whitespace-nowrap">{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && (
+                <tr><td colSpan={headers.length} className="px-3 py-6 text-center text-muted-foreground">No rows for this day.</td></tr>
+              )}
+              {filtered.map((r, rowIdx) => (
+                <tr key={r.id} className="border-t hover:bg-muted/40">
+                  {(bodyRows[rowIdx] ?? []).map((cell, i) => (
+                    <td key={i} className="px-2 py-1.5 whitespace-nowrap">
+                      {i === statusColIndex ? (
+                        <Badge variant={r.status === 'successful' ? 'default' : r.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">{r.status}</Badge>
+                      ) : typeof cell === 'number' ? (cell as number).toLocaleString() : String(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+            {filtered.length > 0 && (
+              <tfoot className="bg-muted/60 font-semibold">
+                <tr>
+                  <td colSpan={headers.length - 1} className="px-2 py-1.5 text-right">Total</td>
+                  <td className="px-2 py-1.5">{formatUGX(totals.sum)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </Card>
+
+      {/* Agent performance (agent mode only) */}
+      {mode === 'agent' && (
+        <Card className="p-0 overflow-hidden">
+          <div className="p-3 border-b text-sm font-semibold">Agent Performance — sorted by amount</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted">
+                <tr>
+                  {['Agent', 'Collections', 'Total', 'Commission', 'Avg Size', 'Successful', 'Failed', 'Pending', 'Success Rate'].map(h => (
+                    <th key={h} className="px-2 py-1.5 text-left font-semibold whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {agentRanking.map(a => {
+                  const rate = a.count ? (a.successful / a.count) * 100 : 0;
+                  return (
+                    <tr key={a.agent_id} className="border-t">
+                      <td className="px-2 py-1.5">{a.agent_name}</td>
+                      <td className="px-2 py-1.5">{a.count}</td>
+                      <td className="px-2 py-1.5">{formatUGX(a.total)}</td>
+                      <td className="px-2 py-1.5">{formatUGX(a.commission)}</td>
+                      <td className="px-2 py-1.5">{formatUGX(a.count ? Math.round(a.total / a.count) : 0)}</td>
+                      <td className="px-2 py-1.5">{a.successful}</td>
+                      <td className="px-2 py-1.5">{a.failed}</td>
+                      <td className="px-2 py-1.5">{a.pending}</td>
+                      <td className="px-2 py-1.5">{rate.toFixed(1)}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Totals footer */}
+      <Card className="p-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div><div className="text-muted-foreground">Total Rent {mode === 'tenant' ? 'Repaid' : 'Collected'}</div><div className="text-lg font-bold">{formatUGX(totals.sum)}</div></div>
+          <div><div className="text-muted-foreground">Successful</div><div className="text-lg font-bold text-emerald-700">{totals.successful}</div></div>
+          <div><div className="text-muted-foreground">Failed</div><div className="text-lg font-bold text-rose-700">{totals.failed}</div></div>
+          <div><div className="text-muted-foreground">Pending</div><div className="text-lg font-bold text-amber-700">{totals.pending}</div></div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, icon: Icon, tone }: { label: string; value: string; icon?: any; tone?: string }) {
+  return (
+    <Card className="p-3">
+      <div className="flex items-center gap-2">
+        {Icon && <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${tone ?? 'bg-primary/10 text-primary'}`}><Icon className="h-4 w-4" /></div>}
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className="text-sm font-bold truncate">{value}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
