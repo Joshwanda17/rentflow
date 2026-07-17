@@ -49,6 +49,24 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
     fetchStats();
   }, [user?.id]);
 
+  // Generate a short link for the landlord variant
+  useEffect(() => {
+    if (!user?.id || variant !== 'landlord' || shortLink) return;
+    let cancelled = false;
+    setShortLinkLoading(true);
+    createShortLink(user.id, '/auth', { role: 'landlord', ref: user.id })
+      .then((url) => {
+        if (!cancelled) setShortLink(url);
+      })
+      .catch(() => {
+        // Fall back to the long link silently
+      })
+      .finally(() => {
+        if (!cancelled) setShortLinkLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [user?.id, variant, shortLink]);
+
   const roleLabel = variant === 'supporter' ? 'supporter' : variant === 'landlord' ? 'landlord' : 'tenant';
   
   const shareLink = user 
