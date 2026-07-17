@@ -118,7 +118,7 @@ export function DailyRentReport({ mode }: Props) {
       for (let i = 0; i < rentReqIds.length; i += BATCH) {
         const { data } = await supabase
           .from('rent_requests')
-          .select('id, landlord_id, house_listing_id, rent_amount')
+          .select('id, landlord_id, house_listing_id, rent_amount, total_repayment, amount_repaid')
           .in('id', rentReqIds.slice(i, i + BATCH));
         (data ?? []).forEach((r: any) => { map[r.id] = r; });
       }
@@ -169,6 +169,7 @@ export function DailyRentReport({ mode }: Props) {
     property: string;
     status: 'successful' | 'pending' | 'failed';
     commission: number;
+    outstanding: number;
   };
 
   const enriched: EnrichedRow[] = useMemo(() => rawCollections.map(r => {
@@ -184,6 +185,7 @@ export function DailyRentReport({ mode }: Props) {
       property: rr?.house_listing_id ? listingMap[rr.house_listing_id] || '—' : '—',
       status,
       commission: Math.round((Number(r.amount) || 0) * 0.1),
+      outstanding: Math.max(0, (Number(rr?.total_repayment) || 0) - (Number(rr?.amount_repaid) || 0)),
     };
   }), [rawCollections, profileMap, rentReqMap, landlordMap, listingMap]);
 
@@ -217,7 +219,8 @@ export function DailyRentReport({ mode }: Props) {
 
   // ---- Aggregates ----
   const totals = useMemo(() => {
-    let sum = 0, count = 0, successful = 0, pending = 0, failed = 0, commission = 0;
+    let sum = 0, count = 0, successful = 0, pending = 0, failed = 0, commission = 0, outstanding = 0;
+    const seenReq = new Set<string>();
     filtered.forEach(r => {
       sum += Number(r.amount) || 0;
       count += 1;
@@ -225,8 +228,14 @@ export function DailyRentReport({ mode }: Props) {
       else if (r.status === 'pending') pending += 1;
       else failed += 1;
       commission += r.commission;
+      // sum outstanding once per rent_request to avoid double counting
+      const key = r.rent_request_id ?? `t:${r.tenant_id}`;
+      if (key && !seenReq.has(key)) {
+        seenReq.add(key);
+        outstanding += r.outstanding || 0;
+      }
     });
-    return { sum, count, successful, pending, failed, commission, avg: count ? sum / count : 0 };
+    return { sum, count, successful, pending, failed, commission, outstanding, avg: count ? sum / count : 0 };
   }, [filtered]);
 
   // ---- Agent performance ranking ----
@@ -276,7 +285,7 @@ export function DailyRentReport({ mode }: Props) {
 
   // ---- Exports ----
   const headers = mode === 'tenant'
-    ? ['Tx ID', 'Time', 'Tenant', 'Phone', 'Property', 'Landlord', 'Agent', 'Amount (UGX)', 'Balance Before', 'Balance After', 'Method', 'Status', 'Receipt']
+    ? ['Tx ID', 'Time', 'Tenant', 'Phone', 'Property', 'Landlord', 'Agent', 'Amount (UGX)', 'Outstanding (UGX)', 'Balance Before', 'Balance After', 'Method', 'Status', 'Receipt']
     : ['Time', 'Agent', 'Agent ID', 'Tenant', 'Property', 'Landlord', 'Amount (UGX)', 'Commission (UGX)', 'Method', 'Status', 'Receipt'];
 
   const bodyRows = useMemo(() => filtered.map(r => mode === 'tenant'
@@ -285,6 +294,7 @@ export function DailyRentReport({ mode }: Props) {
         format(new Date(r.created_at), 'HH:mm:ss'),
         r.tenant_name, r.tenant_phone, r.property, r.landlord_name, r.agent_name,
         Number(r.amount) || 0,
+        r.outstanding,
         Number(r.float_before) || 0,
         Number(r.float_after) || 0,
         r.payment_method ?? '—', r.status,
@@ -340,6 +350,7 @@ export function DailyRentReport({ mode }: Props) {
         kpis: mode === 'tenant'
           ? [
               { label: 'Total Repaid', value: formatUGX(totals.sum), hint: `${totals.count} transactions`, accent: [16, 122, 87] },
+              { label: 'Total Outstanding', value: formatUGX(totals.outstanding), hint: 'still owed by tenants', accent: [190, 44, 44] },
               { label: 'Average Payment', value: formatUGX(Math.round(totals.avg)), hint: 'per transaction', accent: [88, 28, 135] },
               { label: 'Successful', value: String(totals.successful), hint: `${totals.count ? Math.round((totals.successful / totals.count) * 100) : 0}% success rate`, accent: [16, 122, 87] },
               { label: 'Pending', value: String(totals.pending), hint: 'awaiting confirmation', accent: [202, 138, 4] },
@@ -426,8 +437,9 @@ export function DailyRentReport({ mode }: Props) {
 
       {/* Summary cards */}
       {mode === 'tenant' ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
           <SummaryCard label="Total Rent Repaid" value={formatUGX(totals.sum)} icon={HandCoins} tone="bg-emerald-500/10 text-emerald-700" />
+          <SummaryCard label="Total Outstanding" value={formatUGX(totals.outstanding)} tone="bg-rose-500/10 text-rose-700" />
           <SummaryCard label="Repayments" value={String(totals.count)} icon={TrendingUp} />
           <SummaryCard label="Average" value={formatUGX(Math.round(totals.avg))} />
           <SummaryCard label="Successful" value={String(totals.successful)} tone="bg-emerald-500/10 text-emerald-700" />
