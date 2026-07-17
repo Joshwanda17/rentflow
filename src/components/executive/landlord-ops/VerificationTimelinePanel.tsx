@@ -187,7 +187,7 @@ function TimelineRow({ row }: { row: TimelineRow }) {
 
 export function VerificationTimelinePanel() {
   const [expanded, setExpanded] = useState(false);
-  const LIMIT_COLLAPSED = 5;
+  const LIMIT_COLLAPSED = 0;
 
   const { data: rows, isLoading } = useQuery<TimelineRow[]>({
     queryKey: ['landlord-ops-verification-timeline'],
