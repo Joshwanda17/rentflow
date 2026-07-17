@@ -387,12 +387,12 @@ async function buildPdf(a: PdfArgs): Promise<Uint8Array> {
     page.drawRectangle({ x, y: cy - cardH, width: 3, height: cardH, color: col(...k.accent) });
     // label
     page.drawText(k.label.toUpperCase(), { x: x + 10, y: cy - 16, size: 7.5, font: bold, color: muted });
-    // value (truncate to fit)
-    let val = k.value;
+    // value: auto-shrink font so the full amount always fits (no ellipsis)
+    const val = k.value;
     const maxW = cardW - 20;
-    while (val.length > 3 && bold.widthOfTextAtSize(val, 14) > maxW) val = val.slice(0, -1);
-    if (val !== k.value) val = val.slice(0, -1) + '…';
-    page.drawText(val, { x: x + 10, y: cy - 38, size: 14, font: bold, color: col(...k.accent) });
+    let vSize = 14;
+    while (vSize > 8 && bold.widthOfTextAtSize(val, vSize) > maxW) vSize -= 0.5;
+    page.drawText(val, { x: x + 10, y: cy - 38, size: vSize, font: bold, color: col(...k.accent) });
     if (k.hint) {
       page.drawText(k.hint, { x: x + 10, y: cy - 56, size: 7.5, font, color: muted });
     }
