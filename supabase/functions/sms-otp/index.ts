@@ -11,6 +11,37 @@ const corsHeaders = {
 const MAX_SENDS_PER_HOUR = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const HOUR_MS = 3600000;
+const DAY_MS = 86400000;
+// Cross-phone caps enforced per user (auth) and per IP so an attacker cannot
+// bypass the per-phone caps by rotating the phone number in the request body.
+const MAX_SENDS_PER_USER_HOUR = 5;
+const MAX_SENDS_PER_USER_DAY = 10;
+const MAX_SENDS_PER_IP_HOUR = 10;
+const MAX_SENDS_PER_IP_DAY = 30;
+
+function clientIpFrom(req: Request): string | null {
+  const raw = req.headers.get("x-forwarded-for") ||
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") ||
+    "";
+  const first = raw.split(",")[0]?.trim();
+  return first || null;
+}
+
+async function userIdFromAuth(
+  admin: ReturnType<typeof createClient>,
+  req: Request,
+): Promise<string | null> {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  try {
+    const { data } = await admin.auth.getUser(token);
+    return data?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function generateOTP(): string {
   const digits = "0123456789";
