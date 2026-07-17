@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { validateFullName } from '@/lib/authValidation';
+import { toast } from 'sonner';
 
 const formatUGX = (n: number) =>
   'UGX ' + n.toLocaleString('en-UG');
@@ -48,15 +50,21 @@ export default function LandlordSignup() {
 
   const set = useCallback((k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v })), []);
 
-  const canSubmit = form.fullName && form.phone && form.location && form.units && form.rentPerUnit && agreed && !submitting;
+  const nameOk = validateFullName(form.fullName).valid;
+  const canSubmit = nameOk && form.phone && form.location && form.units && form.rentPerUnit && agreed && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
+    const nameCheck = validateFullName(form.fullName);
+    if (!nameCheck.valid) {
+      toast.error(nameCheck.error || 'Please enter your full name (first and last)');
+      return;
+    }
     setSubmitting(true);
     try {
       const { error } = await supabase.from('landlord_leads').insert({
-        full_name: form.fullName.trim(),
+        full_name: nameCheck.trimmed,
         phone: form.phone.trim(),
         property_location: form.location.trim(),
         number_of_units: Number(form.units),
