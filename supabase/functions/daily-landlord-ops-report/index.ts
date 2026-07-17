@@ -43,6 +43,22 @@ function yesterdayIso() {
   return d.toISOString().slice(0, 10);
 }
 
+// Fetch every row for a query in pages of 1000 to bypass PostgREST's default cap.
+async function fetchAll<T>(
+  build: (from: number, to: number) => any,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    out.push(...(data as T[]));
+    if (data.length < PAGE) break;
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -73,68 +89,73 @@ Deno.serve(async (req) => {
     const { startIso, endIso } = dayBoundaries(dateStr);
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // 1. Listings created that day
-    const { data: listings, error: listErr } = await supabase
+    // 1. Listings created that day (paginated to bypass 1000-row cap)
+    const listings = await fetchAll<any>((from, to) => supabase
       .from('house_listings')
       .select('id, agent_id, status, verified, verified_at, monthly_rent, region, district, created_at')
       .gte('created_at', startIso)
-      .lte('created_at', endIso);
-    if (listErr) throw listErr;
+      .lte('created_at', endIso)
+      .range(from, to));
 
-    // 2. Listings verified that day (verified may have happened after creation)
-    const { data: verifiedToday, error: verErr } = await supabase
+    // 2. Listings verified that day
+    const verifiedToday = await fetchAll<any>((from, to) => supabase
       .from('house_listings')
       .select('id, agent_id, monthly_rent, region')
       .gte('verified_at', startIso)
-      .lte('verified_at', endIso);
-    if (verErr) throw verErr;
+      .lte('verified_at', endIso)
+      .range(from, to));
 
     // 3. Rejections that day
-    const { data: rejections, error: rejErr } = await supabase
+    const rejections = await fetchAll<any>((from, to) => supabase
       .from('agent_listing_rejections')
       .select('id, listing_id, agent_id, rejected_at')
       .gte('rejected_at', startIso)
-      .lte('rejected_at', endIso);
-    if (rejErr) throw rejErr;
+      .lte('rejected_at', endIso)
+      .range(from, to));
 
     // Enrich rejections with listing monthly_rent
-    const rejListingIds = [...new Set((rejections ?? []).map(r => r.listing_id).filter(Boolean))] as string[];
+    const rejListingIds = [...new Set(rejections.map(r => r.listing_id).filter(Boolean))] as string[];
     let rejListingMap: Record<string, { monthly_rent: number | null; region: string | null }> = {};
     if (rejListingIds.length > 0) {
-      const { data: rejL } = await supabase
-        .from('house_listings')
-        .select('id, monthly_rent, region')
-        .in('id', rejListingIds);
-      (rejL ?? []).forEach((l: any) => { rejListingMap[l.id] = { monthly_rent: l.monthly_rent, region: l.region }; });
+      const BATCH = 500;
+      for (let i = 0; i < rejListingIds.length; i += BATCH) {
+        const slice = rejListingIds.slice(i, i + BATCH);
+        const { data: rejL } = await supabase
+          .from('house_listings')
+          .select('id, monthly_rent, region')
+          .in('id', slice);
+        (rejL ?? []).forEach((l: any) => { rejListingMap[l.id] = { monthly_rent: l.monthly_rent, region: l.region }; });
+      }
     }
 
     // 4. Listing bonuses (commissions) paid that day
-    const { data: bonusRows } = await supabase
+    const bonusRows = await fetchAll<any>((from, to) => supabase
       .from('general_ledger')
       .select('amount, category, created_at')
       .in('category', ['listing_bonus', 'listing_verification_bonus', 'agent_listing_bonus'])
       .gte('created_at', startIso)
-      .lte('created_at', endIso);
+      .lte('created_at', endIso)
+      .range(from, to));
 
     // ---- Aggregations ----
-    const all = listings ?? [];
+    const all = listings;
     const listedCount = all.length;
     const pendingListings = all.filter(l => !l.verified && l.status !== 'rejected');
     const rejectedInListings = all.filter(l => l.status === 'rejected');
     const verifiedInListings = all.filter(l => l.verified);
 
     const pendingCount = pendingListings.length;
-    const verifiedCountToday = (verifiedToday ?? []).length;
+    const verifiedCountToday = verifiedToday.length;
 
     const pendingVolume = pendingListings.reduce((s, l) => s + (Number(l.monthly_rent) || 0), 0);
-    const verifiedVolume = (verifiedToday ?? []).reduce((s, l) => s + (Number(l.monthly_rent) || 0), 0);
-    const rejectionVolume = (rejections ?? []).reduce((s, r) => s + (Number(rejListingMap[r.listing_id!]?.monthly_rent) || 0), 0);
+    const verifiedVolume = verifiedToday.reduce((s, l) => s + (Number(l.monthly_rent) || 0), 0);
+    const rejectionVolume = rejections.reduce((s, r) => s + (Number(rejListingMap[r.listing_id!]?.monthly_rent) || 0), 0);
 
     // Commission split by category
-    const listingCommission = (bonusRows ?? [])
+    const listingCommission = bonusRows
       .filter(b => b.category === 'listing_bonus' || b.category === 'agent_listing_bonus')
       .reduce((s, b) => s + (Number(b.amount) || 0), 0);
-    const verificationCommission = (bonusRows ?? [])
+    const verificationCommission = bonusRows
       .filter(b => b.category === 'listing_verification_bonus')
       .reduce((s, b) => s + (Number(b.amount) || 0), 0);
 
@@ -251,7 +272,7 @@ Deno.serve(async (req) => {
         pendingCount,
         verifiedCountToday,
         rejectedCount: rejectedInListings.length,
-        rejectionCount: (rejections ?? []).length,
+        rejectionCount: rejections.length,
         pendingVolume,
         verifiedVolume,
         rejectionVolume,
