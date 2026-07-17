@@ -14601,6 +14601,7 @@ export type Database = {
           last_continuous_location_at: string | null
           managed_by_agent: boolean
           managing_agent_id: string | null
+          mobile_money_name: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
           monthly_rent: number | null
@@ -14678,6 +14679,7 @@ export type Database = {
           last_continuous_location_at?: string | null
           managed_by_agent?: boolean
           managing_agent_id?: string | null
+          mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
@@ -14755,6 +14757,7 @@ export type Database = {
           last_continuous_location_at?: string | null
           managed_by_agent?: boolean
           managing_agent_id?: string | null
+          mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
