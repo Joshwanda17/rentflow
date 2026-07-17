@@ -14611,6 +14611,8 @@ export type Database = {
           ops_note: string | null
           parish: string | null
           phone: string | null
+          phone_verified: boolean
+          phone_verified_at: string | null
           prefers_easy_read: boolean
           previous_full_name: string | null
           primary_persona: string | null
@@ -14689,6 +14691,8 @@ export type Database = {
           ops_note?: string | null
           parish?: string | null
           phone?: string | null
+          phone_verified?: boolean
+          phone_verified_at?: string | null
           prefers_easy_read?: boolean
           previous_full_name?: string | null
           primary_persona?: string | null
@@ -14767,6 +14771,8 @@ export type Database = {
           ops_note?: string | null
           parish?: string | null
           phone?: string | null
+          phone_verified?: boolean
+          phone_verified_at?: string | null
           prefers_easy_read?: boolean
           previous_full_name?: string | null
           primary_persona?: string | null

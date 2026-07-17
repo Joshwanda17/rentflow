@@ -9,10 +9,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Phone } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Phone, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useOtpVerification } from "@/hooks/useOtpVerification";
 
 const SNOOZE_KEY = "welile:phone-collection:snoozed-until";
 
@@ -33,6 +35,18 @@ export default function PhoneCollectionGate() {
   const [momoName, setMomoName] = useState("");
   const [saving, setSaving] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const {
+    otpSent,
+    otpVerified,
+    otpLoading,
+    otpError,
+    sendStatus,
+    cooldownSeconds,
+    sendOtp,
+    verifyOtp,
+    resetOtp,
+  } = useOtpVerification();
 
   useEffect(() => {
     let cancelled = false;
@@ -71,15 +85,22 @@ export default function PhoneCollectionGate() {
     }
     setSaving(true);
     try {
+      const nowIso = new Date().toISOString();
       const { error } = await supabase
         .from("profiles")
         .update({
           phone: normalized,
           mobile_money_name: trimmedName,
+          phone_verified: otpVerified,
+          phone_verified_at: otpVerified ? nowIso : null,
         })
         .eq("id", user!.id);
       if (error) throw error;
-      toast.success("Phone saved — you'll now get SMS updates");
+      toast.success(
+        otpVerified
+          ? "Phone verified — you'll now get SMS updates"
+          : "Phone saved — you can verify it later from Settings",
+      );
       setOpen(false);
     } catch (e: any) {
       toast.error(e?.message || "Could not save. Try again.");
@@ -94,6 +115,40 @@ export default function PhoneCollectionGate() {
       String(Date.now() + 24 * 60 * 60 * 1000),
     );
     setOpen(false);
+  };
+
+  const handleSendCode = async () => {
+    const normalized = normalizePhone(phone);
+    if (!normalized) {
+      toast.error("Enter a valid Ugandan phone number first");
+      return;
+    }
+    const ok = await sendOtp(normalized);
+    if (ok) toast.success(`Code sent to ${normalized}`);
+  };
+
+  const handleVerifyCode = async () => {
+    const normalized = normalizePhone(phone);
+    if (!normalized) return;
+    if (otpCode.length !== 6) {
+      toast.error("Enter the 6-digit code");
+      return;
+    }
+    const ok = await verifyOtp(normalized, otpCode);
+    if (ok) {
+      toast.success("Phone verified ✓");
+      setOtpCode("");
+    }
+  };
+
+  // If the user edits the phone after sending a code, drop the stale OTP state
+  // so the verified badge cannot survive a number change.
+  const handlePhoneChange = (v: string) => {
+    setPhone(v);
+    if (otpSent || otpVerified) {
+      resetOtp();
+      setOtpCode("");
+    }
   };
 
   if (!checked && !open) return null;
@@ -113,7 +168,14 @@ export default function PhoneCollectionGate() {
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="pcg-phone">Phone number</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pcg-phone">Phone number</Label>
+              {otpVerified && (
+                <Badge variant="secondary" className="gap-1">
+                  <ShieldCheck className="h-3 w-3" /> Verified
+                </Badge>
+              )}
+            </div>
             <Input
               id="pcg-phone"
               type="tel"
@@ -121,9 +183,87 @@ export default function PhoneCollectionGate() {
               autoComplete="tel"
               placeholder="0772 123 456"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={saving}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              disabled={saving || otpVerified}
             />
+
+            {!otpVerified && (
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Optional: verify your phone with a one-time code so it's
+                  trusted for payouts and security alerts.
+                </p>
+                {!otpSent ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleSendCode}
+                    disabled={otpLoading || saving || cooldownSeconds > 0}
+                  >
+                    {otpLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Sending…
+                      </>
+                    ) : cooldownSeconds > 0 ? (
+                      `Resend in ${cooldownSeconds}s`
+                    ) : (
+                      "Send verification code"
+                    )}
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      placeholder="6-digit code"
+                      value={otpCode}
+                      onChange={(e) =>
+                        setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      disabled={otpLoading || saving}
+                      className="tracking-widest text-center text-lg"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="flex-1"
+                        onClick={handleVerifyCode}
+                        disabled={otpLoading || saving || otpCode.length !== 6}
+                      >
+                        {otpLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Verifying…
+                          </>
+                        ) : (
+                          "Verify code"
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleSendCode}
+                        disabled={otpLoading || saving || cooldownSeconds > 0}
+                      >
+                        {cooldownSeconds > 0 ? `${cooldownSeconds}s` : "Resend"}
+                      </Button>
+                    </div>
+                    {sendStatus === "pending" && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Waiting for the carrier to deliver your code…
+                      </p>
+                    )}
+                  </div>
+                )}
+                {otpError && (
+                  <p className="text-xs text-destructive">{otpError}</p>
+                )}
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pcg-momo">
