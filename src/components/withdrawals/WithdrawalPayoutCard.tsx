@@ -273,12 +273,59 @@ export function WithdrawalPayoutCard({
     setCompleteError(null);
   }
 
+  // Reset the uploaded proof file/URL after a successful confirm or on manual
+  // clear. Keeps the UI in a clean state for the next payout in this card.
+  function clearProof() {
+    setProofFile(null);
+    setProofUrl(null);
+  }
+
+  // Upload the proof to Cloud storage under the agent's own folder (RLS gate).
+  // Returns the public URL and stored path, or throws with a friendly message.
+  async function uploadProofFile(file: File): Promise<{ url: string; type: string }> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) throw new Error('You must be signed in to upload proof.');
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${user.id}/payout-proofs/${withdrawal.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('payment-proofs')
+      .upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (upErr) throw new Error(upErr.message || 'Failed to upload proof.');
+    const { data: pub } = supabase.storage.from('payment-proofs').getPublicUrl(path);
+    return { url: pub.publicUrl, type: file.type || `image/${ext}` };
+  }
+
   // Submit the payout and, on server-side rejection, surface the SPECIFIC reason
   // inline (instead of only a transient toast) so the agent can fix and retry.
   async function handleConfirmPaid() {
     setCompleteError(null);
     try {
-      await onComplete?.({ id: withdrawal.id, reference, method: methodLabel, sms: pastedSms.trim() || undefined });
+      // Bank & offline cash payouts REQUIRE an uploaded proof (bank slip photo,
+      // handwritten receipt, etc.). MoMo can skip (SMS is the proof).
+      const proofRequired = isBank || isCash;
+      if (proofRequired && !proofFile && !proofUrl) {
+        setCompleteError('Please upload a photo of the payment proof (bank slip, receipt, etc.) before confirming.');
+        return;
+      }
+      let uploaded = proofUrl ? { url: proofUrl, type: proofFile?.type || 'image/jpeg' } : null;
+      if (proofFile && !proofUrl) {
+        setProofUploading(true);
+        try {
+          uploaded = await uploadProofFile(proofFile);
+          setProofUrl(uploaded.url);
+        } finally {
+          setProofUploading(false);
+        }
+      }
+      await onComplete?.({
+        id: withdrawal.id,
+        reference,
+        method: methodLabel,
+        sms: pastedSms.trim() || undefined,
+        proofUrl: uploaded?.url,
+        proofType: uploaded?.type,
+      });
+      clearProof();
     } catch (e: any) {
       setCompleteError(e?.message || 'Payout could not be confirmed. Check the details and try again.');
     }
