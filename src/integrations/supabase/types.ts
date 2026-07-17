@@ -13948,6 +13948,36 @@ export type Database = {
           },
         ]
       }
+      phone_collection_prompt_events: {
+        Row: {
+          action: string
+          created_at: string
+          had_prior_phone: boolean | null
+          id: string
+          meta: Json
+          phone_verified: boolean | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          had_prior_phone?: boolean | null
+          id?: string
+          meta?: Json
+          phone_verified?: boolean | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          had_prior_phone?: boolean | null
+          id?: string
+          meta?: Json
+          phone_verified?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       platform_expense_transfers: {
         Row: {
           agent_id: string
