@@ -444,10 +444,10 @@ export function LandlordOpsDashboard() {
   const [lc1VerifyFilter, setLc1VerifyFilter] = useState<LC1VerifyFilter>('all');
 
   // ─── Sorting ───
-  type SortOption = 'newest' | 'oldest' | 'highest_rent';
+  type SortOption = 'newest' | 'oldest' | 'highest_rent' | 'recently_updated';
   const [verifySort, setVerifySort] = useState<SortOption>(() => {
     const saved = localStorage.getItem('landlordOpsVerifySort');
-    if (saved === 'newest' || saved === 'oldest' || saved === 'highest_rent') return saved;
+    if (saved === 'newest' || saved === 'oldest' || saved === 'highest_rent' || saved === 'recently_updated') return saved;
     return 'newest';
   });
   const [landlordSort, setLandlordSort] = useState<SortOption>(() => {
@@ -455,6 +455,10 @@ export function LandlordOpsDashboard() {
     if (saved === 'newest' || saved === 'oldest' || saved === 'highest_rent') return saved;
     return 'newest';
   });
+
+  // ─── Verification date-range filter ───
+  const [verifyDateFrom, setVerifyDateFrom] = useState<string>('');
+  const [verifyDateTo, setVerifyDateTo] = useState<string>('');
   useEffect(() => {
     localStorage.setItem('landlordOpsVerifySort', verifySort);
   }, [verifySort]);
