@@ -52,13 +52,6 @@ export function AgentProxyWithdrawalDialog({
   const [selectedRouteKey, setSelectedRouteKey] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
   const clientRequestIdRef = useRef<string | null>(null);
-  // The partner's OWN strict withdrawable (ledger-derived). The DB trigger
-  // `enforce_withdrawal_ledger_match` validates the request against this,
-  // NOT against the agent's wallet. If we cap on the agent's wallet only,
-  // partners whose ROI/capital hasn't been credited to their own wallet
-  // post the custody-v2 cutoff will hit `Ledger mismatch detected`.
-  const [partnerAvailable, setPartnerAvailable] = useState<number | null>(null);
-  const [loadingPartnerBalance, setLoadingPartnerBalance] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -72,21 +65,6 @@ export function AgentProxyWithdrawalDialog({
     let cancelled = false;
     (async () => {
       setLoadingRoutes(true);
-      setLoadingPartnerBalance(true);
-      // Fetch the partner's real ledger-strict withdrawable in parallel with routes.
-      (async () => {
-        const { data, error } = await supabase.rpc(
-          'get_user_available_balance',
-          { p_user_id: funderId } as any,
-        );
-        if (cancelled) return;
-        if (error) {
-          setPartnerAvailable(0);
-        } else {
-          setPartnerAvailable(Number(data ?? 0));
-        }
-        setLoadingPartnerBalance(false);
-      })();
       try {
         const [savedRes, portfoliosRes] = await Promise.all([
           supabase
@@ -164,17 +142,9 @@ export function AgentProxyWithdrawalDialog({
 
   const selectedRoute = routes.find(r => r.key === selectedRouteKey) ?? null;
 
-  // The effective ceiling is the PARTNER's own strict withdrawable — that is
-  // what the server-side trigger enforces. We keep the agent-wallet check as
-  // a secondary guard (funds have to physically leave the agent's pool too),
-  // but the primary limit is the partner's balance.
-  const partnerCeiling = partnerAvailable ?? 0;
-  const effectiveCeiling = Math.min(partnerCeiling, walletBalance);
-
   const isValid =
     amount >= 500 &&
-    amount <= effectiveCeiling &&
-    partnerAvailable !== null &&
+    amount <= walletBalance &&
     reason.trim().length >= 10 &&
     !!selectedRoute;
 
@@ -244,30 +214,6 @@ export function AgentProxyWithdrawalDialog({
             return;
           }
           // Idempotency-key collision: original insert succeeded.
-        } else if (
-          String((error as any).message || '').includes('Ledger mismatch detected')
-        ) {
-          // Server-side trigger: partner's own ledger-strict withdrawable is
-          // less than the requested amount. Refresh the partner balance and
-          // surface a clear, non-generic message.
-          const { data: fresh } = await supabase.rpc(
-            'get_user_available_balance',
-            { p_user_id: funderId } as any,
-          );
-          const freshAvail = Number(fresh ?? 0);
-          setPartnerAvailable(freshAvail);
-          toast.error(
-            `${funderName} only has ${formatUGX(freshAvail)} available to withdraw right now.`,
-            {
-              description:
-                `You requested ${formatUGX(amount)}. Partner-level available balance is set by CFO credits (ROI/capital) posted to this partner. Ask CFO to credit the outstanding amount, or lower the request.`,
-              duration: 10000,
-            },
-          );
-          clientRequestIdRef.current = null;
-          isSubmittingRef.current = false;
-          setLoading(false);
-          return;
         } else {
           throw error;
         }
