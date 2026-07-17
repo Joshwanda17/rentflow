@@ -91,6 +91,8 @@ interface AdvanceReport {
   agentsWithActiveAdvances: number;
   adoption: number;
   payingBackCount: number;
+  unpaidCount: number;
+  totalArrears: number;
   requestsTotal: number;
   requestsToday: number;
   approvedTotal: number;
