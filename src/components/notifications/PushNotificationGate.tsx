@@ -20,6 +20,63 @@ import {
 } from "@/lib/webPush";
 
 /**
+ * Silent self-heal for rotated VAPID keys. Runs when Notification permission
+ * is already "granted" — if the device's current PushSubscription was created
+ * with an older VAPID key, unsubscribe, resubscribe with the current key, and
+ * upsert the row in `push_subscriptions` so pushes resume automatically.
+ */
+async function refreshSubscriptionIfVapidChanged(userId: string): Promise<void> {
+  try {
+    if (!isPushSupported()) return;
+    if (Notification.permission !== "granted") return;
+
+    const registration =
+      (await navigator.serviceWorker.getRegistration("/sw.js")) ||
+      (await navigator.serviceWorker.register("/sw.js"));
+    await navigator.serviceWorker.ready;
+
+    let subscription = await registration.pushManager.getSubscription();
+    // Nothing to migrate if no subscription exists on this device.
+    if (!subscription) return;
+    // Current key — nothing to do.
+    if (subscriptionUsesCurrentVapidKey(subscription)) return;
+
+    const staleEndpoint = subscription.endpoint;
+    try { await subscription.unsubscribe(); } catch { /* ignore */ }
+    try {
+      await supabase.from("push_subscriptions").delete().eq("endpoint", staleEndpoint);
+    } catch { /* ignore — row may not exist */ }
+
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+    });
+
+    const json = subscription.toJSON();
+    const p256dh = json.keys?.p256dh ?? arrayBufferToBase64(subscription.getKey("p256dh"));
+    const auth = json.keys?.auth ?? arrayBufferToBase64(subscription.getKey("auth"));
+    if (!p256dh || !auth) return;
+
+    // Take exclusive ownership of the new endpoint (same rationale as the
+    // manual enable path).
+    await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint);
+    const { error } = await supabase.from("push_subscriptions").insert({
+      user_id: userId,
+      endpoint: subscription.endpoint,
+      p256dh,
+      auth,
+    });
+    if (error) {
+      console.warn("[push] silent VAPID rotation upsert failed:", error);
+    } else {
+      console.info("[push] silently rotated subscription to current VAPID key");
+    }
+  } catch (err) {
+    console.warn("[push] refreshSubscriptionIfVapidChanged failed:", err);
+  }
+}
+
+/**
  * PushNotificationGate — a prominent popup shown to signed-in users who have
  * not yet enabled push notifications. Tapping "Enable notifications" triggers
  * the native browser/system permission prompt (allow/deny); if allowed, the
