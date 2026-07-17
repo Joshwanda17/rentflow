@@ -1147,10 +1147,6 @@ export function AgentCashPayoutsTab() {
       {/* Available float — agent requests any amount, CFO owns the allocation. */}
       <MerchantFloatRequestCard />
 
-      {/* Withdrawable wallet — the 0.5% commission earned on every payout
-          lands here and can be cashed out by the merchant agent. */}
-      <MerchantWithdrawableCard />
-
       {/* Authorized payout categories — the CFO permission matrix decides which
           categories of transactions this merchant agent may claim & process.
           Only these appear in the queue below. */}
@@ -1187,39 +1183,8 @@ export function AgentCashPayoutsTab() {
         </div>
       </section>
 
-      {/* Commission Summary — makes it unmistakably clear which portion of
-          lifetime earnings is still available versus already withdrawn. */}
-      <Card className="rounded-2xl border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-emerald-600" />
-            Commission Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {(lifetimeCommission ?? 0) <= 0 && (withdrawableCommission ?? 0) <= 0 ? (
-            <div className="rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-3 py-4 text-center">
-              <p className="text-sm font-semibold text-foreground">No commission available for withdrawal.</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Complete payout transactions to earn commission.<br />
-                Your earnings will appear here automatically.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2">
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Available Commission</p>
-                  <p className="text-[11px] text-muted-foreground">Ready to withdraw · decreases each time you cash out commission</p>
-                </div>
-                <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(withdrawableCommission ?? 0)}</p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Commission breakdown — totals by date for all approved payouts */}
+      {/* Commission history — informational only. All withdrawable commission
+          lives on the Agent Wallet Card (single source of truth for cash-out). */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
