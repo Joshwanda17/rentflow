@@ -207,7 +207,7 @@ export function AgentTenantSearch() {
 
       const rrOutstanding = new Map<string, number>();
       for (const r of rrs) {
-        const due = Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
+        const due = Math.max(0, Number(r.rent_amount || 0) - Number(r.amount_repaid || 0));
         rrOutstanding.set(r.tenant_id, (rrOutstanding.get(r.tenant_id) || 0) + due);
       }
 
