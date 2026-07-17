@@ -494,11 +494,11 @@ export function DailyRentReport({ mode }: Props) {
               {filtered.length === 0 && (
                 <tr><td colSpan={headers.length} className="px-3 py-6 text-center text-muted-foreground">No rows for this day.</td></tr>
               )}
-              {filtered.map(r => (
+              {filtered.map((r, rowIdx) => (
                 <tr key={r.id} className="border-t hover:bg-muted/40">
-                  {(bodyRows().find((_, i) => filtered[i].id === r.id) ?? []).map((cell, i) => (
+                  {(bodyRows[rowIdx] ?? []).map((cell, i) => (
                     <td key={i} className="px-2 py-1.5 whitespace-nowrap">
-                      {i === headers.findIndex(h => h === 'Status') ? (
+                      {i === statusColIndex ? (
                         <Badge variant={r.status === 'successful' ? 'default' : r.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px]">{r.status}</Badge>
                       ) : typeof cell === 'number' ? (cell as number).toLocaleString() : String(cell)}
                     </td>
