@@ -710,10 +710,12 @@ Deno.serve(async (req) => {
       }
 
       if (sendCount >= MAX_SENDS_PER_HOUR) {
-        const resetIn = Math.ceil((HOUR_MS - (now - windowStart)) / 60000);
+        const resetInSeconds = Math.ceil((HOUR_MS - (now - windowStart)) / 1000);
+        const resetIn = Math.ceil(resetInSeconds / 60);
         return new Response(
           JSON.stringify({
             error: `Too many code requests. Please try again in about ${resetIn} minute(s).`,
+            retry_after: resetInSeconds,
           }),
           {
             status: 429,
