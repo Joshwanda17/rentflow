@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { cleanPhoneNumber } from '@/lib/phoneUtils';
+import { toast } from 'sonner';
 
 export type OtpSendStatus = 'idle' | 'pending' | 'accepted' | 'failed';
 
@@ -114,6 +115,7 @@ export function useOtpVerification() {
           payload = await error.context.json().catch(() => null);
         }
         const errMsg = payload?.error || error.message;
+        const status = error?.context?.status;
         // If the backend reports a cooldown window, sync our countdown to it so
         // the messaging is accurate (e.g. after a page reload).
         if (typeof payload?.retry_after === 'number') {
@@ -121,12 +123,24 @@ export function useOtpVerification() {
         }
         setOtpError(errMsg || 'Failed to send OTP');
         setSendStatus('failed');
+        if (status === 429) {
+          const secs = typeof payload?.retry_after === 'number' ? payload.retry_after : 0;
+          const mins = secs > 0 ? Math.ceil(secs / 60) : 0;
+          toast.error('Too many code requests', {
+            description: mins > 0
+              ? `Please try again in about ${mins} minute${mins === 1 ? '' : 's'}.`
+              : (errMsg || 'Please wait before requesting another code.'),
+          });
+        } else {
+          toast.error('Could not send SMS code', { description: errMsg || 'Please try again.' });
+        }
         return false;
       }
       if (data?.error) {
         if (typeof data?.retry_after === 'number') startCooldown(data.retry_after);
         setOtpError(data.error);
         setSendStatus('failed');
+        toast.error('Could not send SMS code', { description: data.error });
         return false;
       }
       setOtpSent(true);
@@ -140,11 +154,13 @@ export function useOtpVerification() {
         void pollSendStatus(phone);
       } else {
         setSendStatus('accepted');
+        toast.success('Verification code sent', { description: 'Check your SMS for the 6-digit code.' });
       }
       return true;
     } catch (e: any) {
       setOtpError(e?.message || 'Failed to send OTP');
       setSendStatus('failed');
+      toast.error('Could not send SMS code', { description: e?.message || 'Network error. Please try again.' });
       return false;
     } finally {
       setOtpLoading(false);
