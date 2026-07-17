@@ -159,19 +159,23 @@ export async function downloadAuditPdf(
     startY: cursorY,
     head: [headers],
     body: rows.map((r) => r.map((c) => (c === null || c === undefined ? '' : String(c)))),
-    styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak', valign: 'top' },
-    headStyles: { fillColor: [146, 52, 234], textColor: 255, fontStyle: 'bold', fontSize: 7 },
-    alternateRowStyles: { fillColor: [250, 250, 252] },
+    styles: { fontSize: 7.5, cellPadding: 4, overflow: 'linebreak', valign: 'top', textColor: [40, 40, 50], lineColor: [235, 232, 242] },
+    headStyles: { fillColor: [88, 28, 135], textColor: 255, fontStyle: 'bold', fontSize: 7.5, cellPadding: 5 },
+    alternateRowStyles: { fillColor: [250, 248, 253] },
     margin: { left: 24, right: 24, bottom: 36 },
     didDrawPage: () => {
       const pageNum = (doc as any).internal.getNumberOfPages();
+      // Footer divider
+      doc.setDrawColor(230, 226, 240);
+      doc.setLineWidth(0.5);
+      doc.line(24, pageHeight - 26, pageWidth - 24, pageHeight - 26);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(140);
       if (meta.footerLabel) {
-        doc.text(meta.footerLabel, 24, pageHeight - 16);
+        doc.text(`${meta.footerLabel}  ·  welile.com`, 24, pageHeight - 14);
       }
-      doc.text(`Page ${pageNum}`, pageWidth - 24, pageHeight - 16, { align: 'right' });
+      doc.text(`Page ${pageNum}`, pageWidth - 24, pageHeight - 14, { align: 'right' });
     },
   });
 
