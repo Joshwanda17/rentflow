@@ -18,6 +18,68 @@ import { useOtpVerification } from "@/hooks/useOtpVerification";
 import { toUgandaE164 } from "@/lib/ugandaPhone";
 
 const SNOOZE_KEY = "welile:phone-collection:snoozed-until";
+const OTP_RATE_KEY = "welile:phone-collection:otp-sends";
+// Client-side rate limits — layered on top of the backend cooldown so users
+// can't burn through SMS credits or trigger carrier abuse flags by spamming
+// the "Send code" button, refreshing, or switching phone numbers.
+const OTP_MAX_PER_PHONE_HOUR = 3;
+const OTP_MAX_PER_HOUR = 5;
+const OTP_MAX_PER_DAY = 10;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+type OtpSendRecord = { phone: string; at: number };
+
+function readSendHistory(): OtpSendRecord[] {
+  try {
+    const raw = localStorage.getItem(OTP_RATE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const cutoff = Date.now() - DAY_MS;
+    return parsed.filter(
+      (r: any) =>
+        r && typeof r.phone === "string" && typeof r.at === "number" && r.at > cutoff,
+    );
+  } catch {
+    return [];
+  }
+}
+
+function recordSend(phone: string) {
+  const history = readSendHistory();
+  history.push({ phone, at: Date.now() });
+  try {
+    localStorage.setItem(OTP_RATE_KEY, JSON.stringify(history));
+  } catch {
+    /* quota exceeded — ignore */
+  }
+}
+
+/**
+ * Returns null if the send is allowed, or a user-facing reason string if it
+ * should be blocked. Enforces per-phone (hourly), global (hourly) and global
+ * (daily) caps against the localStorage history.
+ */
+function checkOtpRateLimit(phone: string): string | null {
+  const history = readSendHistory();
+  const now = Date.now();
+  const dayCount = history.length;
+  if (dayCount >= OTP_MAX_PER_DAY) {
+    return `Too many verification codes today. Try again tomorrow.`;
+  }
+  const hourCount = history.filter((r) => now - r.at < HOUR_MS).length;
+  if (hourCount >= OTP_MAX_PER_HOUR) {
+    return `Too many codes this hour. Wait a bit and try again.`;
+  }
+  const perPhoneHour = history.filter(
+    (r) => r.phone === phone && now - r.at < HOUR_MS,
+  ).length;
+  if (perPhoneHour >= OTP_MAX_PER_PHONE_HOUR) {
+    return `You've requested ${OTP_MAX_PER_PHONE_HOUR} codes for this number in the last hour. Try again later.`;
+  }
+  return null;
+}
 
 /**
  * Fire-and-forget audit write to `phone_collection_prompt_events`.
@@ -194,8 +256,23 @@ export default function PhoneCollectionGate() {
       toast.error("Enter a valid Ugandan phone number first");
       return;
     }
+    const blocked = checkOtpRateLimit(normalized);
+    if (blocked) {
+      toast.error(blocked);
+      if (user?.id) {
+        void logPromptEvent(user.id, "error", {
+          phone_verified: otpVerified,
+          had_prior_phone: hadPriorPhone,
+          meta: { reason: "otp_rate_limited", detail: blocked },
+        });
+      }
+      return;
+    }
     const ok = await sendOtp(normalized);
-    if (ok) toast.success(`Code sent to ${normalized}`);
+    if (ok) {
+      recordSend(normalized);
+      toast.success(`Code sent to ${normalized}`);
+    }
   };
 
   const handleVerifyCode = async () => {
