@@ -22,6 +22,8 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
   const [copied, setCopied] = useState(false);
   const [referralCount, setReferralCount] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0);
+  const [shortLink, setShortLink] = useState<string | null>(null);
+  const [shortLinkLoading, setShortLinkLoading] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
