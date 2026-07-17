@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
 import { addDays, format } from 'date-fns';
+import { validateFullName } from '@/lib/authValidation';
+import { toast } from 'sonner';
 import {
   UserPlus, CheckCircle2, AlertCircle, Phone, User, Home, Banknote,
   Loader2, Navigation, Camera, X, MapPin, Calendar, Calculator, Building2, Users
@@ -167,9 +169,10 @@ export default function RegisterTenantPublic() {
   }, [amount, incomeType, duration, repaymentPeriod]);
 
   const canSubmit = !!(
-    fullName.trim() && phone.trim() && amount > 0 && houseCategory &&
+    validateFullName(fullName).valid && phone.trim() && amount > 0 && houseCategory &&
     landlordName.trim() && landlordPhone.trim() && propertyAddress.trim() &&
-    lc1Name.trim() && lc1Phone.trim() && lc1Village.trim() && guarantorConsent
+    validateFullName(landlordName).valid && lc1Phone.trim() &&
+    validateFullName(lc1Name).valid && lc1Village.trim() && guarantorConsent
   );
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -182,6 +185,12 @@ export default function RegisterTenantPublic() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agentId || !token || !canSubmit || !fees) return;
+    const tenantNameCheck = validateFullName(fullName);
+    const landlordNameCheck = validateFullName(landlordName);
+    const lc1NameCheck = validateFullName(lc1Name);
+    if (!tenantNameCheck.valid) { toast.error(`Tenant name: ${tenantNameCheck.error}`); return; }
+    if (!landlordNameCheck.valid) { toast.error(`Landlord name: ${landlordNameCheck.error}`); return; }
+    if (!lc1NameCheck.valid) { toast.error(`LC1 chairperson name: ${lc1NameCheck.error}`); return; }
     setSubmitting(true);
     setError(null);
 
@@ -192,7 +201,7 @@ export default function RegisterTenantPublic() {
         body: {
           token,
           agent_id: agentId,
-          full_name: fullName,
+          full_name: tenantNameCheck.trimmed,
           phone,
           income_type: incomeType,
           rent_amount: fees.rentAmount,
@@ -203,12 +212,12 @@ export default function RegisterTenantPublic() {
           daily_repayment: fees.dailyRepayment,
           no_smartphone: noSmartphone,
           house_category: houseCategory,
-          landlord_name: landlordName,
+          landlord_name: landlordNameCheck.trimmed,
           landlord_phone: landlordPhone,
           property_address: propertyAddress,
           gps_lat: gpsLocation?.lat ?? null,
           gps_lng: gpsLocation?.lng ?? null,
-          lc1_name: lc1Name,
+          lc1_name: lc1NameCheck.trimmed,
           lc1_phone: lc1Phone,
           lc1_village: lc1Village,
           house_photos: photosBase64,
