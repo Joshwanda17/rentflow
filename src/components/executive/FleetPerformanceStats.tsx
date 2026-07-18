@@ -23,6 +23,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import { useQueryClient } from '@tanstack/react-query';
 import { LastUpdatedChip } from './LastUpdatedChip';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import {
   ComposedChart,
   Bar,
@@ -1345,6 +1346,14 @@ function AgentCollectionsBreakdown({
   const filtersActive = query.trim() !== '' || methodFilter !== 'all' || (Number(minAmount) || 0) > 0;
   const clearFilters = () => { setQuery(''); setMethodFilter('all'); setMinAmount(''); };
 
+  // Read-only detail drawer for a single agent_collections row.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = useMemo(
+    () => rows.find((r) => r.id === selectedId) || null,
+    [rows, selectedId],
+  );
+  const selectedTenant = selected?.tenant_id ? nameById.get(selected.tenant_id) || null : null;
+
   const downloadCsv = () => {
     const header = ['Date (Africa/Kampala)', 'Tenant', 'Tenant ID', 'Amount UGX', 'Payment method', 'Record ID'];
     const body = filteredRows.map((r) => [
@@ -1462,7 +1471,16 @@ function AgentCollectionsBreakdown({
                 }).format(new Date(r.created_at));
                 const tenant = (r.tenant_id && nameById.get(r.tenant_id)) || 'Unknown tenant';
                 return (
-                  <tr key={r.id} className="hover:bg-muted/40">
+                  <tr
+                    key={r.id}
+                    onClick={() => setSelectedId(r.id)}
+                    className="cursor-pointer hover:bg-primary/5 focus:bg-primary/10 outline-none"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(r.id); }
+                    }}
+                    title="View record details"
+                  >
                     <td className="px-2 py-1.5 tabular-nums whitespace-nowrap">{when}</td>
                     <td className="px-2 py-1.5 truncate max-w-[10rem]">{tenant}</td>
                     <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell">
@@ -1518,6 +1536,64 @@ function AgentCollectionsBreakdown({
           </span>
         </div>
       )}
+      <Sheet open={!!selected} onOpenChange={(v) => { if (!v) setSelectedId(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          {selected && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="text-base">Collection record</SheetTitle>
+                <SheetDescription className="text-[11px]">
+                  Read-only view of the underlying <code>agent_collections</code> row.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-4 space-y-3">
+                <DetailStat label="Amount" value={formatUGX(Number(selected.amount) || 0)} accent />
+                <DetailStat
+                  label="Payment method"
+                  value={(selected.payment_method || '—').replace(/_/g, ' ')}
+                />
+                <DetailStat
+                  label="Collected at (Africa/Kampala)"
+                  value={new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short',
+                  }).format(new Date(selected.created_at))}
+                />
+                <DetailStat
+                  label="Collected at (UTC)"
+                  value={new Date(selected.created_at).toISOString()}
+                  mono
+                />
+                <DetailStat label="Tenant" value={selectedTenant || 'Unknown tenant'} />
+                <DetailStat label="Tenant ID" value={selected.tenant_id || '—'} mono />
+                <DetailStat label="Agent" value={agentName} />
+                <DetailStat label="Agent ID" value={agentId} mono />
+                <DetailStat label="Record ID" value={selected.id} mono />
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function DetailStat({
+  label,
+  value,
+  mono = false,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div className="rounded-md border border-border bg-muted/30 px-2.5 py-2">
+      <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-0.5 break-all text-[12px] ${accent ? 'font-bold text-primary' : 'text-foreground'} ${mono ? 'font-mono text-[11px]' : ''}`}>
+        {value}
+      </p>
     </div>
   );
 }
