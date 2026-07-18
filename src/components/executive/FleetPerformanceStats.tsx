@@ -1355,6 +1355,23 @@ function AgentCollectionsBreakdown({
   const selectedTenant = selected?.tenant_id ? nameById.get(selected.tenant_id) || null : null;
 
   const downloadCsv = () => {
+    const s = start.toISOString().slice(0, 10);
+    const e = new Date(end.getTime() - 1).toISOString().slice(0, 10);
+    const min = Number(minAmount) || 0;
+    // Metadata preamble so the downloaded CSV self-documents the view it came from.
+    const meta: (string | number)[][] = [
+      ['Welile — Agent collections export'],
+      ['Agent', agentName],
+      ['Agent ID', agentId],
+      ['Date range (Africa/Kampala)', `${s} to ${e}`],
+      ['Search (tenant name/ID)', query.trim() || '(none)'],
+      ['Payment method filter', methodFilter === 'all' ? 'All methods' : methodFilter.replace(/_/g, ' ')],
+      ['Minimum amount (UGX)', min > 0 ? min : '(none)'],
+      ['Rows exported', filteredRows.length],
+      ['Total (UGX)', total],
+      ['Generated at', new Date().toISOString()],
+      [],
+    ];
     const header = ['Date (Africa/Kampala)', 'Tenant', 'Tenant ID', 'Amount UGX', 'Payment method', 'Record ID'];
     const body = filteredRows.map((r) => [
       new Intl.DateTimeFormat('en-CA', {
@@ -1368,14 +1385,15 @@ function AgentCollectionsBreakdown({
       (r.payment_method || '').replace(/_/g, ' '),
       r.id,
     ]);
-    const csv = [header, ...body].map((r) => r.map(csvEscape).join(',')).join('\n');
+    const csv = [...meta, header, ...body]
+      .map((r) => r.map(csvEscape).join(','))
+      .join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const s = start.toISOString().slice(0, 10);
-    const e = new Date(end.getTime() - 1).toISOString().slice(0, 10);
-    a.download = `collections_${agentName.replace(/\s+/g, '_')}_${s}_to_${e}.csv`;
+    const suffix = filtersActive ? '_filtered' : '';
+    a.download = `collections_${agentName.replace(/\s+/g, '_')}_${s}_to_${e}${suffix}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1393,8 +1411,14 @@ function AgentCollectionsBreakdown({
           onClick={downloadCsv}
           disabled={isLoading || filteredRows.length === 0}
           className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
+          title={
+            filtersActive
+              ? 'Download CSV of the currently filtered rows (filters + search recorded in the file)'
+              : 'Download CSV of all rows in the selected date range'
+          }
         >
-          <Download className="h-3 w-3" /> CSV
+          <Download className="h-3 w-3" />
+          {filtersActive ? 'CSV (filtered)' : 'CSV'}
         </button>
       </div>
       {!isLoading && rows.length > 0 && (
