@@ -508,13 +508,6 @@ export function FleetPerformanceStats({
     );
   }, [expandedId, breakdownParam]);
 
-  // If the URL names an agent on another page, jump to that page once rows load.
-  useEffect(() => {
-    if (!expandedId || rows.length === 0) return;
-    const idx = rows.findIndex((r) => r.id === expandedId);
-    if (idx >= 0) setPage(Math.floor(idx / PAGE_SIZE));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedId, rows]);
 
   // "Verify totals" reconciler: independently re-fetches agent_collections in the range
   // and compares row-count + fleet total + per-agent totals against the cached KPI.
