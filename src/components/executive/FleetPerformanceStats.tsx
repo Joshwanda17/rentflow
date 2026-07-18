@@ -72,6 +72,27 @@ function parsePersistedSort<T extends string>(raw: string | null, validKeys: rea
   return { key, dir };
 }
 
+type SortCriterion<T extends string = SortKey> = { key: T; dir: 'asc' | 'desc' };
+
+/** Parse a persisted multi-sort value like "when:desc,amount:desc" into an ordered array. */
+function parsePersistedMultiSort<T extends string>(raw: string | null, validKeys: readonly T[], defaultKey: T, defaultDir: 'asc' | 'desc'): SortCriterion<T>[] {
+  if (!raw) return [{ key: defaultKey, dir: defaultDir }];
+  const parsed = raw
+    .split(',')
+    .map((part) => {
+      const [k, d] = part.trim().split(':');
+      const key = validKeys.includes(k as T) ? (k as T) : null;
+      const dir = d === 'asc' || d === 'desc' ? d : defaultDir;
+      return key ? { key, dir } : null;
+    })
+    .filter((x): x is SortCriterion<T> => !!x);
+  return parsed.length > 0 ? parsed : [{ key: defaultKey, dir: defaultDir }];
+}
+
+function serializeMultiSort<T extends string>(sorts: SortCriterion<T>[]) {
+  return sorts.map((s) => `${s.key}:${s.dir}`).join(',');
+}
+
 type TrendGranularity = 'hour' | 'day' | 'month';
 
 function granularityFor(days: number): TrendGranularity {
