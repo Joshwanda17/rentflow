@@ -105,20 +105,31 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
   const fetchData = async () => {
     setLoading(true);
     
-    const [requestsResult, paymentsResult, lateFeesResult] = await Promise.all([
+    const [requestsResult, collectionsResult] = await Promise.all([
       supabase
         .from('rent_requests')
         .select('*')
         .eq('tenant_id', userId)
-        .in('status', ['disbursed', 'completed'])
+        .in('status', ['disbursed', 'completed', 'funded', 'repaying'])
         .order('created_at', { ascending: false }),
-      // repayments and late_fees tables removed - stub
-      Promise.resolve({ data: [] }),
-      Promise.resolve({ data: [] })
+      // Payments now come from agent_collections (single source of truth).
+      supabase
+        .from('agent_collections')
+        .select('id, amount, created_at, rent_request_id, payment_method')
+        .eq('tenant_id', userId)
+        .order('created_at', { ascending: false }),
     ]);
-    
+
     setRentRequests(requestsResult.data || []);
-    setRepayments([]);
+    const mapped: Repayment[] = (collectionsResult.data ?? []).map((r: any) => ({
+      id: r.id,
+      amount: Number(r.amount) || 0,
+      payment_date: r.created_at,
+      created_at: r.created_at,
+      rent_request_id: r.rent_request_id ?? '',
+      payment_method: r.payment_method ?? 'cash',
+    } as Repayment));
+    setRepayments(mapped);
     setLateFees([]);
     setLoading(false);
   };
