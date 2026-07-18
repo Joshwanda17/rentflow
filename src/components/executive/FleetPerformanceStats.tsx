@@ -1291,11 +1291,41 @@ function AgentCollectionsBreakdown({
 
   const rows = data?.rows || [];
   const nameById = data?.nameById || new Map<string, string>();
-  const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+  // Filters: free-text search (tenant name / id / record id) + payment method +
+  // minimum amount. Applied client-side against the already-loaded record set.
+  const [query, setQuery] = useState('');
+  const [methodFilter, setMethodFilter] = useState<string>('all');
+  const [minAmount, setMinAmount] = useState<string>('');
+
+  const methodOptions = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => { if (r.payment_method) set.add(r.payment_method); });
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const min = Number(minAmount) || 0;
+    return rows.filter((r) => {
+      if (methodFilter !== 'all' && (r.payment_method || '') !== methodFilter) return false;
+      if (min > 0 && (Number(r.amount) || 0) < min) return false;
+      if (q) {
+        const tenant = ((r.tenant_id && nameById.get(r.tenant_id)) || '').toLowerCase();
+        const hay = `${tenant} ${r.tenant_id || ''} ${r.id}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [rows, nameById, query, methodFilter, minAmount]);
+
+  const total = filteredRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const filtersActive = query.trim() !== '' || methodFilter !== 'all' || (Number(minAmount) || 0) > 0;
+  const clearFilters = () => { setQuery(''); setMethodFilter('all'); setMinAmount(''); };
 
   const downloadCsv = () => {
     const header = ['Date (Africa/Kampala)', 'Tenant', 'Tenant ID', 'Amount UGX', 'Payment method', 'Record ID'];
-    const body = rows.map((r) => [
+    const body = filteredRows.map((r) => [
       new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Africa/Kampala',
         year: 'numeric', month: '2-digit', day: '2-digit',
@@ -1323,17 +1353,62 @@ function AgentCollectionsBreakdown({
     <div className="mt-3 rounded-md border border-border bg-card">
       <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border">
         <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          <Receipt className="h-3 w-3" /> Underlying records · {rows.length} · {formatUGX(total)}
+          <Receipt className="h-3 w-3" /> Underlying records ·{' '}
+          {filtersActive ? `${filteredRows.length} of ${rows.length}` : rows.length} ·{' '}
+          {formatUGX(total)}
         </p>
         <button
           type="button"
           onClick={downloadCsv}
-          disabled={isLoading || rows.length === 0}
+          disabled={isLoading || filteredRows.length === 0}
           className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
         >
           <Download className="h-3 w-3" /> CSV
         </button>
       </div>
+      {!isLoading && rows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 border-b border-border bg-muted/30">
+          <div className="relative flex-1 min-w-[10rem]">
+            <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" aria-hidden />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search tenant name or ID…"
+              className="w-full h-6 pl-6 pr-2 rounded-md border border-border bg-background text-[11px] outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <select
+            value={methodFilter}
+            onChange={(e) => setMethodFilter(e.target.value)}
+            className="h-6 rounded-md border border-border bg-background text-[11px] px-1.5"
+            aria-label="Filter by payment method"
+          >
+            <option value="all">All methods</option>
+            {methodOptions.map((m) => (
+              <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={minAmount}
+            onChange={(e) => setMinAmount(e.target.value)}
+            placeholder="Min UGX"
+            className="h-6 w-[6.5rem] rounded-md border border-border bg-background text-[11px] px-1.5 tabular-nums"
+          />
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="h-6 px-1.5 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 text-muted-foreground hover:bg-muted"
+            >
+              <X className="h-3 w-3" /> Clear
+            </button>
+          )}
+        </div>
+      )}
       {isLoading ? (
         <div className="flex items-center justify-center py-4 text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1341,6 +1416,10 @@ function AgentCollectionsBreakdown({
       ) : rows.length === 0 ? (
         <p className="px-2.5 py-3 text-center text-[11px] text-muted-foreground">
           No collection records for this range.
+        </p>
+      ) : filteredRows.length === 0 ? (
+        <p className="px-2.5 py-3 text-center text-[11px] text-muted-foreground">
+          No records match the current filters.
         </p>
       ) : (
         <div className="max-h-64 overflow-auto">
@@ -1354,7 +1433,7 @@ function AgentCollectionsBreakdown({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {rows.map((r) => {
+              {filteredRows.map((r) => {
                 const when = new Intl.DateTimeFormat('en-GB', {
                   timeZone: 'Africa/Kampala',
                   month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
