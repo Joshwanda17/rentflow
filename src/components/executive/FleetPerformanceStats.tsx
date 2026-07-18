@@ -317,45 +317,36 @@ async function fetchExpectedDailyByAgent(): Promise<Record<string, number>> {
   return byAgent;
 }
 
-/** Collected per agent for a period: sum repayments in window → map via rent_request → agent. */
+/**
+ * Collected per agent for a period.
+ *
+ * Source of truth: `agent_collections` (canonical daily-capacity source —
+ * every tenant-payment RPC and edge fn, including `agent_allocate_tenant_payment`,
+ * writes a row here). Reading directly from it gives us real-time,
+ * agent-tagged totals without needing a rent_request join, and keeps
+ * "Collected" perfectly aligned with the per-agent capacity page.
+ */
 async function fetchCollectedByAgent(start: Date, end: Date): Promise<Record<string, number>> {
-  // 1) Paginate repayments in the window, accumulate per rent_request_id.
-  const byRent: Record<string, number> = {};
+  const byAgent: Record<string, number> = {};
   const PAGE = 1000;
   let from = 0;
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
-      .from('repayments')
-      .select('rent_request_id, amount')
+      .from('agent_collections')
+      .select('agent_id, amount')
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
+      .gt('amount', 0)
       .range(from, from + PAGE - 1);
-    if (error) { console.error('[FleetPerformanceStats] repayments page failed', error); break; }
+    if (error) { console.error('[FleetPerformanceStats] agent_collections page failed', error); break; }
     const rows = data || [];
     rows.forEach((r: any) => {
-      if (!r.rent_request_id) return;
-      byRent[r.rent_request_id] = (byRent[r.rent_request_id] || 0) + (Number(r.amount) || 0);
+      if (!r.agent_id) return;
+      byAgent[r.agent_id] = (byAgent[r.agent_id] || 0) + (Number(r.amount) || 0);
     });
     if (rows.length < PAGE) break;
     from += PAGE;
-  }
-
-  // 2) Resolve rent_request → agent_id in batches.
-  const rentIds = Object.keys(byRent);
-  const byAgent: Record<string, number> = {};
-  const BATCH = 200;
-  for (let i = 0; i < rentIds.length; i += BATCH) {
-    const slice = rentIds.slice(i, i + BATCH);
-    const { data, error } = await supabase
-      .from('rent_requests')
-      .select('id, agent_id')
-      .in('id', slice);
-    if (error) { console.error('[FleetPerformanceStats] rent->agent map failed', error); continue; }
-    (data || []).forEach((r: any) => {
-      if (!r.agent_id) return;
-      byAgent[r.agent_id] = (byAgent[r.agent_id] || 0) + (byRent[r.id] || 0);
-    });
   }
   return byAgent;
 }
@@ -400,12 +391,13 @@ async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranular
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
-      .from('repayments')
+      .from('agent_collections')
       .select('amount, created_at')
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
+      .gt('amount', 0)
       .range(from, from + PAGE - 1);
-    if (error) { console.error('[FleetPerformanceStats] bucket repayments page failed', error); break; }
+    if (error) { console.error('[FleetPerformanceStats] bucket agent_collections page failed', error); break; }
     const rows = data || [];
     rows.forEach((r: any) => {
       if (!r.created_at) return;
