@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +56,32 @@ const CATEGORIES = [
 ];
 
 const SITE_URL = 'https://welileapp.com';
+
+// Location landing pages: /find-a-house/:regionSlug -> region-scoped SEO page.
+// Keep the slug list narrow and matched to the REGIONS array so Google gets
+// crisp, high-intent pages (e.g. "houses for rent in Kampala") without
+// exploding the sitemap. New entries here also need to be added to
+// scripts/generate-sitemap.ts.
+export const REGION_LANDING_SLUGS: Record<string, string> = {
+  kampala: 'Kampala',
+  wakiso: 'Wakiso',
+  mukono: 'Mukono',
+  jinja: 'Jinja',
+  mbale: 'Mbale',
+  mbarara: 'Mbarara',
+  gulu: 'Gulu',
+  lira: 'Lira',
+  'fort-portal': 'Fort Portal',
+  masaka: 'Masaka',
+  entebbe: 'Entebbe',
+  nansana: 'Nansana',
+  kira: 'Kira',
+  bweyogerere: 'Bweyogerere',
+  central: 'Central',
+  eastern: 'Eastern',
+  northern: 'Northern',
+  western: 'Western',
+};
 
 type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
 
