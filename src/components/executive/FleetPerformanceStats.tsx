@@ -1684,13 +1684,15 @@ function AgentCollectionsBreakdown({
       ['Search (tenant name/ID)', query.trim() || '(none)'],
       ['Payment method filter', methodFilter === 'all' ? 'All methods' : methodFilter.replace(/_/g, ' ')],
       ['Minimum amount (UGX)', min > 0 ? min : '(none)'],
-      ['Rows exported', filteredRows.length],
+      ['Sort order', `${sortKey} · ${sortDir === 'asc' ? 'ascending' : 'descending'}`],
+      ['Rows exported', sortedRows.length],
       ['Total (UGX)', total],
       ['Generated at', new Date().toISOString()],
       [],
     ];
     const header = ['Date (Africa/Kampala)', 'Tenant', 'Tenant ID', 'Amount UGX', 'Payment method', 'Record ID'];
-    const body = filteredRows.map((r) => [
+    // Export rows in the same order shown in the sorted drill-down table.
+    const body = sortedRows.map((r) => [
       new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Africa/Kampala',
         year: 'numeric', month: '2-digit', day: '2-digit',
@@ -1726,12 +1728,12 @@ function AgentCollectionsBreakdown({
         <button
           type="button"
           onClick={downloadCsv}
-          disabled={isLoading || filteredRows.length === 0}
+          disabled={isLoading || sortedRows.length === 0}
           className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
           title={
             filtersActive
-              ? 'Download CSV of the currently filtered rows (filters + search recorded in the file)'
-              : 'Download CSV of all rows in the selected date range'
+              ? `Download CSV of the currently filtered rows in ${sortKey} · ${sortDir} order (filters, search and sort recorded in the file)`
+              : `Download CSV of all rows in the selected date range, sorted by ${sortKey} · ${sortDir}`
           }
         >
           <Download className="h-3 w-3" />
