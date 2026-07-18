@@ -931,7 +931,11 @@ export default function FindAHouse() {
               </Button>
               <Home className="h-5 w-5 text-primary shrink-0" />
               <h1 className="font-bold text-lg truncate">
-                {hasGPS && geo.city ? `Houses Near ${geo.city}` : 'Find a House'}
+                {isLandingPage
+                  ? `Houses for Rent in ${landingRegion}`
+                  : hasGPS && geo.city
+                    ? `Houses Near ${geo.city}`
+                    : 'Find a House'}
               </h1>
             </div>
             <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
