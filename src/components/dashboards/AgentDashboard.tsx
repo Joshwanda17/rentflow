@@ -50,6 +50,8 @@ import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
 import { HandCoins } from 'lucide-react';
 import { ShieldCheck } from 'lucide-react';
 import { Trophy } from 'lucide-react';
+import { ShoppingBag, Smartphone, Bike } from 'lucide-react';
+import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -339,6 +341,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [submissionsHighlightId, setSubmissionsHighlightId] = useState<string | undefined>(undefined);
   const [pipelineTab, setPipelineTab] = useState<PipelineTab>('submitted');
   const [submissionsExpanded, setSubmissionsExpanded] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [phoneAmount, setPhoneAmount] = useState('');
+  const [orderingPhone, setOrderingPhone] = useState(false);
+  const [bikeOpen, setBikeOpen] = useState(false);
+  const [bikeAmount, setBikeAmount] = useState('');
+  const [orderingBike, setOrderingBike] = useState(false);
   const { submittedCount, approvedCount, rejectedCount, isLoading: countsLoading } = useAgentPipelineCounts();
   useEffect(() => {
     const handler = (e: Event) => {
@@ -1046,68 +1054,72 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <FieldCollectDailyTotals live />
 
             {/* 2b) Earnings summary — available rewards + lifetime total */}
-            <EarningsSummaryCard />
+            {!isMerchant && (
+              <>
+                <EarningsSummaryCard />
 
-            {/* Merchandise store shortcut */}
-            <button
-              type="button"
-              onClick={() => { hapticTap(); navigate('/merchandise'); }}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-colors text-left touch-manipulation min-h-[56px]"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <ShoppingBag className="h-5 w-5 text-primary shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-foreground">Buy Merchandise</div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    Order branded gear — paid off from your wallet
+                {/* Merchandise store shortcut */}
+                <button
+                  type="button"
+                  onClick={() => { hapticTap(); navigate('/merchandise'); }}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-colors text-left touch-manipulation min-h-[56px]"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <ShoppingBag className="h-5 w-5 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-foreground">Buy Merchandise</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        Order branded gear — paid off from your wallet
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <span className="text-xs font-medium text-primary shrink-0">Shop →</span>
-            </button>
+                  <span className="text-xs font-medium text-primary shrink-0">Shop →</span>
+                </button>
 
-            {/* Order a Welile Smartphone */}
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-                  <Smartphone className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold leading-tight">Order a Welile Smartphone</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Get a company smartphone on credit. Choose how much can be deducted from your wallet.
-                  </p>
-                </div>
-                <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setPhoneAmount(''); setPhoneOpen(true); }}>
-                  Order
-                </Button>
-              </CardContent>
-            </Card>
+                {/* Order a Welile Smartphone */}
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                      <Smartphone className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold leading-tight">Order a Welile Smartphone</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Get a company smartphone on credit. Choose how much can be deducted from your wallet.
+                      </p>
+                    </div>
+                    <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setPhoneAmount(''); setPhoneOpen(true); }}>
+                      Order
+                    </Button>
+                  </CardContent>
+                </Card>
 
-            {/* Smartphone order status */}
-            <SmartphoneOrderStatus userId={user.id} />
+                {/* Smartphone order status */}
+                <SmartphoneOrderStatus userId={user.id} />
 
-            {/* Order a Welile Spiro Bike */}
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-                  <Bike className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold leading-tight">Order a Welile Spiro Bike</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Get a Spiro bike on credit. Choose how much can be deducted from your wallet.
-                  </p>
-                </div>
-                <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setBikeAmount(''); setBikeOpen(true); }}>
-                  Order
-                </Button>
-              </CardContent>
-            </Card>
+                {/* Order a Welile Spiro Bike */}
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                      <Bike className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold leading-tight">Order a Welile Spiro Bike</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Get a Spiro bike on credit. Choose how much can be deducted from your wallet.
+                      </p>
+                    </div>
+                    <Button size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => { setBikeAmount(''); setBikeOpen(true); }}>
+                      Order
+                    </Button>
+                  </CardContent>
+                </Card>
 
-            {/* Spiro bike order status */}
-            <SmartphoneOrderStatus userId={user.id} itemName="Welile Spiro Bike" title="Spiro bike order status" />
+                {/* Spiro bike order status */}
+                <SmartphoneOrderStatus userId={user.id} itemName="Welile Spiro Bike" title="Spiro bike order status" />
+              </>
+            )}
 
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
@@ -1133,7 +1145,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             )}
 
             {/* 4) Live rating — today vs target + 7-day capacity tier */}
-            <AgentRatingCard agentId={user.id} />
+            {!isMerchant && <AgentRatingCard agentId={user.id} />}
 
             {/* 5) Secondary shortcuts — collected receipt helper + my listed houses */}
             <button
