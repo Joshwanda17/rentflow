@@ -23,7 +23,7 @@
  * Mirrors the head produced by src/pages/HouseDetail.tsx (SEO block ~L365-390).
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { copyFileSync } from 'node:fs';
+import { copyFileSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 
@@ -268,6 +268,60 @@ function saveShellToCache(slug, html) {
   writeFileSync(cacheShellPath(slug), html);
 }
 
+/**
+ * Delete stale shells from both the cache and dist/house/ for slugs that no
+ * longer belong to a currently-published listing (unlisted, taken down, or
+ * excluded by the sitemap filter). Prevents WhatsApp/FB from continuing to
+ * scrape stale OG tags for a listing that's gone, and keeps the cache from
+ * growing unbounded over months of builds.
+ *
+ * `activeSlugs` is the union of every short_code + uuid we just wrote this run.
+ */
+function cleanupStaleShells(activeSlugs, prevEntries, nextEntries) {
+  const active = new Set(activeSlugs);
+  let removedCache = 0;
+  let removedDist = 0;
+
+  // 1. Cache: drop shell files for slugs (primary + aliases) no longer active.
+  const knownSlugs = new Set();
+  for (const e of Object.values(prevEntries)) {
+    if (e && Array.isArray(e.slugs)) e.slugs.forEach((s) => knownSlugs.add(s));
+  }
+  for (const e of Object.values(nextEntries)) {
+    if (e && Array.isArray(e.slugs)) e.slugs.forEach((s) => knownSlugs.add(s));
+  }
+  // Also walk the cache dir directly in case the manifest drifted.
+  if (existsSync(CACHE_SHELLS)) {
+    for (const file of readdirSync(CACHE_SHELLS)) {
+      if (!file.endsWith('.html')) continue;
+      knownSlugs.add(file.slice(0, -'.html'.length));
+    }
+  }
+  for (const slug of knownSlugs) {
+    if (active.has(slug)) continue;
+    const p = cacheShellPath(slug);
+    if (existsSync(p)) {
+      try { rmSync(p, { force: true }); removedCache += 1; } catch {}
+    }
+  }
+
+  // 2. Dist: dist/ is usually wiped by `vite build`, but if a prior partial
+  // build left an orphan dir behind, sweep it so scrapers can't reach it.
+  const distHouse = resolve(DIST, 'house');
+  if (existsSync(distHouse)) {
+    for (const entry of readdirSync(distHouse)) {
+      const full = resolve(distHouse, entry);
+      let isDir = false;
+      try { isDir = statSync(full).isDirectory(); } catch { continue; }
+      if (!isDir) continue;
+      if (active.has(entry)) continue;
+      try { rmSync(full, { recursive: true, force: true }); removedDist += 1; } catch {}
+    }
+  }
+
+  return { removedCache, removedDist };
+}
+
 async function main() {
   if (!existsSync(TEMPLATE_PATH)) {
     console.warn(`prerender-houses: ${TEMPLATE_PATH} missing — skip (build not complete?)`);
@@ -291,6 +345,7 @@ async function main() {
   let files = 0;
   let rendered = 0;
   let reused = 0;
+  const activeSlugs = [];
   for (const listing of listings) {
     const slugs = [listing.short_code, listing.id].filter(Boolean);
     if (!slugs.length) continue;
@@ -298,7 +353,9 @@ async function main() {
     // Primary cache lookup keyed by uuid (stable) — short_code can change but
     // uuid can't, so the cached HTML is bit-identical for both slugs.
     const primary = listing.id || listing.short_code;
-    const prevKey = prevEntries[primary];
+    const prevRaw = prevEntries[primary];
+    // Backward-compat: earlier manifest stored a bare string key per entry.
+    const prevKey = typeof prevRaw === 'string' ? prevRaw : prevRaw?.key;
     const cacheHit =
       !templateChanged &&
       prevKey === cacheKey &&
@@ -325,14 +382,16 @@ async function main() {
         saveShellToCache(slug, html);
       }
       files += 1;
+      activeSlugs.push(slug);
     }
-    nextEntries[primary] = cacheKey;
+    nextEntries[primary] = { key: cacheKey, slugs };
   }
+  const { removedCache, removedDist } = cleanupStaleShells(activeSlugs, prevEntries, nextEntries);
   saveManifest({ version: 1, templateHash, entries: nextEntries });
   const mode = templateChanged ? 'full rebuild' : 'incremental';
   console.log(
     `prerender-houses: ${mode} — ${files} shells for ${listings.length} listings ` +
-      `(rendered ${rendered}, reused ${reused})`,
+      `(rendered ${rendered}, reused ${reused}, pruned ${removedCache} cache + ${removedDist} dist)`,
   );
 }
 
