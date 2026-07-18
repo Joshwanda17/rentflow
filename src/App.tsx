@@ -139,6 +139,8 @@ const TryCalculator = lazy(() => import('./pages/TryCalculator'));
 const PublicRentCalculator = lazy(() => import('./pages/PublicRentCalculator'));
 const LandlordSignup = lazy(() => import('./pages/LandlordSignup'));
 const PayRentInstallmentsGuide = lazy(() => import('./pages/PayRentInstallmentsGuide'));
+const CostOfRentingGuide = lazy(() => import('./pages/CostOfRentingGuide'));
+const NeighborhoodComparisonGuide = lazy(() => import('./pages/NeighborhoodComparisonGuide'));
 
 const RegisterTenantPublic = lazy(() => import('./pages/RegisterTenantPublic'));
 const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic'));
