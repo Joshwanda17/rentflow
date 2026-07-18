@@ -498,7 +498,11 @@ export function AgentCashPayoutsTab() {
         .in('status', CASHOUT_QUEUE_STATUSES)
         .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
       if (categoryOrClause) q = q.or(categoryOrClause);
-      if (frozenUserIds.length) q = q.not('user_id', 'in', `(${frozenUserIds.join(',')})`);
+      if (frozenUserIds.length) {
+        const list = `(${frozenUserIds.join(',')})`;
+        q = q.not('user_id', 'in', list);
+        q = q.or(`linked_party.is.null,linked_party.not.in.${list}`);
+      }
       const { count } = await q;
       return count || 0;
     },
