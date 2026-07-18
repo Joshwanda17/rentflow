@@ -477,18 +477,24 @@ export function FleetPerformanceStats({
     queryKey: ['fleet-perf-expected-by-agent'],
     queryFn: fetchExpectedDailyByAgent,
     staleTime: 60_000,
+    refetchInterval: autoRefreshMs || false,
+    refetchIntervalInBackground: false,
   });
 
   const { data: collectedByAgent = {}, isLoading: colLoading, dataUpdatedAt: colUpdatedAt, isFetching: colFetching } = useQuery({
     queryKey: ['fleet-perf-collected-by-agent', rangeKey],
     queryFn: () => fetchCollectedByAgent(start, end),
     staleTime: 30_000,
+    refetchInterval: autoRefreshMs || false,
+    refetchIntervalInBackground: false,
   });
 
   const { data: collectedBuckets = {}, isFetching: bucketFetching } = useQuery({
     queryKey: ['fleet-perf-collected-buckets', rangeKey, granularity],
     queryFn: () => fetchCollectedBuckets(start, end, granularity),
     staleTime: 30_000,
+    refetchInterval: autoRefreshMs || false,
+    refetchIntervalInBackground: false,
   });
 
   const agentIds = useMemo(() => {
