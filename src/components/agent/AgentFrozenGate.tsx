@@ -45,35 +45,54 @@ export function AgentFrozenGate({ children }: { children: React.ReactNode }) {
     : null;
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center">
-      <div className="max-w-md w-full rounded-2xl border border-destructive/30 bg-destructive/5 p-6 sm:p-8 shadow-sm">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/15">
-          <ShieldAlert className="h-7 w-7 text-destructive" />
+    <div
+      role="alert"
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-y-auto bg-red-700 p-6 text-center text-white"
+    >
+      <div className="w-full max-w-lg rounded-2xl border border-white/30 bg-red-800/60 p-6 sm:p-8 shadow-2xl backdrop-blur-sm">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-white/15">
+          <ShieldAlert className="h-9 w-9 text-white" />
         </div>
-        <h1 className="text-xl font-bold text-foreground">Account frozen</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your account has been temporarily blocked. No agent activities — listing houses,
-          collecting rent, deposits, visits or payouts — can take place during this period.
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+          Account Restricted
+        </h1>
+
+        <div className="mt-5 space-y-4 text-sm sm:text-[15px] leading-relaxed text-white/95 text-left">
+          <p>
+            Your account has been restricted due to suspected activity that may violate
+            our Terms and Conditions or applicable laws. As a result, access to your
+            account and its services has been suspended pending review.
+          </p>
+          <p>
+            If investigations confirm fraudulent, unauthorized, or other unlawful
+            activities, the matter may be referred to the relevant law enforcement
+            authorities. Such conduct may result in civil or criminal penalties,
+            including fines or imprisonment, where provided for under applicable law.
+          </p>
+          <p>
+            If you believe this restriction was made in error, please contact our
+            support team to request a review.
+          </p>
+        </div>
 
         {untilStr && (
-          <p className="mt-4 text-sm">
-            <span className="text-muted-foreground">Blocked until </span>
-            <span className="font-semibold text-foreground">{untilStr}</span>
+          <p className="mt-5 text-sm">
+            <span className="text-white/80">Restricted until </span>
+            <span className="font-semibold">{untilStr}</span>
           </p>
         )}
 
         {data?.reason && (
-          <div className="mt-4 rounded-lg border border-border bg-background p-3 text-left">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Reason</p>
-            <p className="mt-1 text-sm font-medium text-foreground">{data.reason}</p>
+          <div className="mt-4 rounded-lg border border-white/25 bg-white/10 p-3 text-left">
+            <p className="text-xs font-medium uppercase tracking-wide text-white/70">Reason</p>
+            <p className="mt-1 text-sm font-medium text-white">{data.reason}</p>
           </div>
         )}
 
         <Button
           variant="outline"
-          className="mt-6 w-full"
-          onClick={() => window.open('https://wa.me/256777607640', '_blank')}
+          className="mt-6 w-full border-white/40 bg-white text-red-700 hover:bg-white/90 hover:text-red-800"
+          onClick={() => window.open('tel:+256777607640', '_self')}
         >
           <Phone className="mr-2 h-4 w-4" />
           Contact support: +256 777 607 640
