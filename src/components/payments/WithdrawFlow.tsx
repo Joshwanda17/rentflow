@@ -238,7 +238,7 @@ export default function WithdrawFlow({
     if (!open || !user) return;
     let cancelled = false;
     (async () => {
-      const [walletRes, rolesRes, ledger] = await Promise.all([
+      const [walletRes, rolesRes, ledger, perfRes] = await Promise.all([
         supabase
           .from('wallets')
           .select('float_balance, advance_balance')
@@ -253,6 +253,11 @@ export default function WithdrawFlow({
         // We compute the same numbers client-side so the WITHDRAW max always
         // matches what the server-side gate will actually allow.
         computeLedgerAvailable(user.id).catch(() => null),
+        supabase
+          .from('v_agent_daily_eligibility' as any)
+          .select('active_count, expected_daily, paid_today, today_pct')
+          .eq('agent_id', user.id)
+          .maybeSingle(),
       ]);
       if (cancelled) return;
       setFloatBalance(Number(walletRes.data?.float_balance ?? 0));
@@ -260,6 +265,17 @@ export default function WithdrawFlow({
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
       if (ledger) setLedgerAvailable(ledger.available);
       if (ledger) setLedgerCheckedAt(Date.now());
+      const pr: any = perfRes?.data;
+      if (pr) {
+        setPerfToday({
+          active_count: Number(pr.active_count) || 0,
+          expected_daily: Number(pr.expected_daily) || 0,
+          paid_today: Number(pr.paid_today) || 0,
+          today_pct: Number(pr.today_pct) || 0,
+        });
+      } else {
+        setPerfToday(null);
+      }
     })();
     return () => { cancelled = true; };
   }, [open, user]);
