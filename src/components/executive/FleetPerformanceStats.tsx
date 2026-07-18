@@ -5,7 +5,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import {
   Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown,
-  Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X,
+  Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X, Download, Receipt,
 } from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
@@ -912,6 +912,12 @@ export function FleetPerformanceStats({
                             <span>{r.rate >= 100 ? `Over target by ${r.rate - 100}%` : `${100 - r.rate}% short of target`}</span>
                             <span className="font-mono text-[9px] opacity-70">{r.id.slice(0, 8)}</span>
                           </p>
+                          <AgentCollectionsBreakdown
+                            agentId={r.id}
+                            agentName={r.name}
+                            start={start}
+                            end={end}
+                          />
                         </div>
                       )}
                     </div>
