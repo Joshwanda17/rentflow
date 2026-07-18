@@ -520,6 +520,10 @@ function AppRoutes() {
           <Route path="/try-calculator" element={<TryCalculator />} />
           <Route path="/rent-calculator" element={<PublicRentCalculator />} />
           <Route path="/guides/pay-rent-in-installments-uganda" element={<PayRentInstallmentsGuide />} />
+          <Route path="/guides/cost-of-renting" element={<CostOfRentingGuide />} />
+          <Route path="/guides/cost-of-renting-in-:citySlug" element={<CostOfRentingGuide />} />
+          <Route path="/guides/compare" element={<NeighborhoodComparisonGuide />} />
+          <Route path="/guides/compare/:comparisonSlug" element={<NeighborhoodComparisonGuide />} />
           <Route path="/find-a-house" element={<FindAHouse />} />
           <Route path="/find-a-house/:regionSlug" element={<FindAHouse />} />
           <Route path="/house/:id" element={<HouseDetail />} />
