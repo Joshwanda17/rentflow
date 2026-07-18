@@ -1868,22 +1868,32 @@ function AgentCollectionsBreakdown({
                   const sortIdx = sorts.findIndex((s) => s.key === h.k);
                   const active = sortIdx !== -1;
                   const s = active ? sorts[sortIdx] : null;
-                  const arrow = active ? (s?.dir === 'asc' ? '▲' : '▼') : '↕';
                   const priority = active ? sortIdx + 1 : null;
+                  const ariaSort = active ? (s?.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+                  const ariaLabel = active
+                    ? `${h.label} sorted ${s?.dir === 'asc' ? 'ascending' : 'descending'}${sorts.length > 1 ? `, sort priority ${priority}` : ''}. Click to change; Shift+click to add or remove a secondary sort.`
+                    : `${h.label}. Click to sort; Shift+click to add or remove a secondary sort.`;
+                  const SortIcon = active
+                    ? s?.dir === 'asc'
+                      ? ArrowUp
+                      : ArrowDown
+                    : ArrowUpDown;
                   return (
                     <th
                       key={h.k}
+                      aria-sort={ariaSort}
                       className={`${h.align === 'right' ? 'text-right' : 'text-left'} font-bold uppercase tracking-wide px-2 py-1.5 text-[9px] ${h.cls}`}
                     >
                       <button
                         type="button"
                         onClick={(e) => toggleSort(h.k, e.shiftKey)}
-                        className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${active ? 'text-foreground' : ''}`}
-                        title={`Sort by ${h.label}. Click to set primary sort; Shift+click to add/remove as a secondary sort.`}
+                        className={`inline-flex items-center gap-1.5 hover:text-foreground transition-colors ${active ? 'text-foreground' : ''}`}
+                        aria-label={ariaLabel}
+                        title={ariaLabel}
                       >
                         {h.label}
-                        <span className={`inline-flex items-center gap-0.5 text-[8px] ${active ? 'opacity-100' : 'opacity-40'}`}>
-                          {arrow}
+                        <span className={`inline-flex items-center gap-0.5 ${active ? 'opacity-100' : 'opacity-40'}`}>
+                          <SortIcon className="h-3 w-3" aria-hidden="true" />
                           {priority !== null && sorts.length > 1 && (
                             <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary/10 px-1 text-[7px] font-bold tabular-nums">
                               {priority}
