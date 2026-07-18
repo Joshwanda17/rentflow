@@ -6,12 +6,14 @@ import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import {
   Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown,
   Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X, Download, Receipt,
+  Info,
 } from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import { useQueryClient } from '@tanstack/react-query';
