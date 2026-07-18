@@ -105,7 +105,7 @@ export function AgentRentCapacityPanel({
       return { ...prev, [agentId]: !current };
     });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, dataUpdatedAt, isFetching, refetch } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
     // Always pull a fresh slice when the panel mounts or regains focus so
     // ratings reflect collections that happened seconds ago.
