@@ -1899,11 +1899,22 @@ function AgentCollectionsBreakdown({
         </div>
       )}
       {!isLoading && rows.length > 0 && (
-        <div className="px-2.5 py-1 text-[9px] text-muted-foreground bg-muted/20 border-b border-border">
+        <div className="flex items-center justify-between gap-2 px-2.5 py-1 text-[9px] text-muted-foreground bg-muted/20 border-b border-border">
           <span className="inline-flex items-center gap-1">
             <SlidersHorizontal className="h-2.5 w-2.5" />
             Click a column to sort. Shift+click to add or remove a secondary sort level.
           </span>
+          <button
+            type="button"
+            onClick={resetSort}
+            disabled={sortsEqual(sorts, DEFAULT_SORTS)}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors"
+            aria-label="Reset sort to default ordering"
+            title="Reset sort to default ordering (newest first)"
+          >
+            <RotateCcw className="h-2.5 w-2.5" />
+            Reset sort
+          </button>
         </div>
       )}
       {isLoading ? (
