@@ -53,6 +53,25 @@ const ALL_TIME_START = new Date(2023, 0, 1);
 
 const STORAGE_KEY = 'fleet-perf-range';
 
+/** Safely read a string from localStorage. */
+function readStorage(key: string): string | null {
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
+
+/** Safely write a string to localStorage. */
+function writeStorage(key: string, value: string) {
+  try { window.localStorage.setItem(key, value); } catch { /* ignore */ }
+}
+
+/** Parse a persisted sort value like "when:desc" into key + direction. */
+function parsePersistedSort<T extends string>(raw: string | null, validKeys: readonly T[], defaultKey: T, defaultDir: 'asc' | 'desc') {
+  if (!raw) return { key: defaultKey, dir: defaultDir };
+  const [k, d] = raw.split(':');
+  const key = validKeys.includes(k as T) ? (k as T) : defaultKey;
+  const dir = d === 'asc' || d === 'desc' ? d : defaultDir;
+  return { key, dir };
+}
+
 type TrendGranularity = 'hour' | 'day' | 'month';
 
 function granularityFor(days: number): TrendGranularity {
@@ -1560,8 +1579,22 @@ function AgentCollectionsBreakdown({
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [minAmount, setMinAmount] = useState<string>('');
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
-  const [sortKey, setSortKey] = useState<SortKey>('when');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
+  const sortStorageKey = `fleet-perf-sort:${agentId}`;
+  const initialSort = useMemo(() => parsePersistedSort<SortKey>(
+    readStorage(sortStorageKey),
+    SORT_KEYS,
+    'when',
+    'desc',
+  ), [sortStorageKey]);
+  const [sortKey, setSortKey] = useState<SortKey>(initialSort.key);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSort.dir);
+
+  // Persist sort choice whenever it changes.
+  useEffect(() => {
+    writeStorage(sortStorageKey, `${sortKey}:${sortDir}`);
+  }, [sortStorageKey, sortKey, sortDir]);
+
   const toggleSort = (k: SortKey) => {
     if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(k); setSortDir(k === 'amount' || k === 'when' ? 'desc' : 'asc'); }
