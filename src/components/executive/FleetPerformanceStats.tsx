@@ -1636,6 +1636,7 @@ function AgentCollectionsBreakdown({
   const [minAmount, setMinAmount] = useState<string>('');
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
   const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
+  const DEFAULT_SORTS: SortCriterion<SortKey>[] = [{ key: 'when', dir: 'desc' }];
   const sortStorageKey = `fleet-perf-sort:${agentId}`;
   const SORT_URL_KEY = 'breakdown-sort';
   const sortUrlValue = searchParams.get(SORT_URL_KEY);
@@ -1655,7 +1656,15 @@ function AgentCollectionsBreakdown({
     const serialized = serializeMultiSort(sorts);
     setSearchParams(
       (prev) => {
-        if (prev.get(SORT_URL_KEY) === serialized) return prev;
+        const current = prev.get(SORT_URL_KEY);
+        // When sort matches the default, keep the URL clean by removing the parameter.
+        if (sortsEqual(sorts, DEFAULT_SORTS)) {
+          if (current === null) return prev;
+          const next = new URLSearchParams(prev);
+          next.delete(SORT_URL_KEY);
+          return next;
+        }
+        if (current === serialized) return prev;
         const next = new URLSearchParams(prev);
         next.set(SORT_URL_KEY, serialized);
         return next;
