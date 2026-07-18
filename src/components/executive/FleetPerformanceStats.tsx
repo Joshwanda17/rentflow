@@ -412,7 +412,10 @@ async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranular
   return byBucket;
 }
 
-export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean } = {}) {
+export function FleetPerformanceStats({
+  detailed = true,
+  autoRefreshMs = 0,
+}: { detailed?: boolean; autoRefreshMs?: number } = {}) {
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
   // Restore last-used range from localStorage.
   const restored = useMemo(() => {
@@ -474,18 +477,24 @@ export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean 
     queryKey: ['fleet-perf-expected-by-agent'],
     queryFn: fetchExpectedDailyByAgent,
     staleTime: 60_000,
+    refetchInterval: autoRefreshMs || false,
+    refetchIntervalInBackground: false,
   });
 
   const { data: collectedByAgent = {}, isLoading: colLoading, dataUpdatedAt: colUpdatedAt, isFetching: colFetching } = useQuery({
     queryKey: ['fleet-perf-collected-by-agent', rangeKey],
     queryFn: () => fetchCollectedByAgent(start, end),
     staleTime: 30_000,
+    refetchInterval: autoRefreshMs || false,
+    refetchIntervalInBackground: false,
   });
 
   const { data: collectedBuckets = {}, isFetching: bucketFetching } = useQuery({
     queryKey: ['fleet-perf-collected-buckets', rangeKey, granularity],
     queryFn: () => fetchCollectedBuckets(start, end, granularity),
     staleTime: 30_000,
+    refetchInterval: autoRefreshMs || false,
+    refetchIntervalInBackground: false,
   });
 
   const agentIds = useMemo(() => {
