@@ -339,6 +339,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [submissionsHighlightId, setSubmissionsHighlightId] = useState<string | undefined>(undefined);
   const [pipelineTab, setPipelineTab] = useState<PipelineTab>('submitted');
   const [submissionsExpanded, setSubmissionsExpanded] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [phoneAmount, setPhoneAmount] = useState('');
+  const [orderingPhone, setOrderingPhone] = useState(false);
+  const [bikeOpen, setBikeOpen] = useState(false);
+  const [bikeAmount, setBikeAmount] = useState('');
+  const [orderingBike, setOrderingBike] = useState(false);
   const { submittedCount, approvedCount, rejectedCount, isLoading: countsLoading } = useAgentPipelineCounts();
   useEffect(() => {
     const handler = (e: Event) => {
