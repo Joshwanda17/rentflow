@@ -1722,6 +1722,13 @@ function AgentCollectionsBreakdown({
   );
   const selectedTenant = selected?.tenant_id ? nameById.get(selected.tenant_id) || null : null;
 
+  const sortOrderLabel = useMemo(() => {
+    if (sorts.length === 0) return 'unsorted';
+    return sorts
+      .map((s, i) => `${i + 1}. ${s.key} ${s.dir === 'asc' ? '↑' : '↓'}`)
+      .join(' · ');
+  }, [sorts]);
+
   const downloadCsv = () => {
     const s = start.toISOString().slice(0, 10);
     const e = new Date(end.getTime() - 1).toISOString().slice(0, 10);
@@ -1735,7 +1742,7 @@ function AgentCollectionsBreakdown({
       ['Search (tenant name/ID)', query.trim() || '(none)'],
       ['Payment method filter', methodFilter === 'all' ? 'All methods' : methodFilter.replace(/_/g, ' ')],
       ['Minimum amount (UGX)', min > 0 ? min : '(none)'],
-      ['Sort order', `${sortKey} · ${sortDir === 'asc' ? 'ascending' : 'descending'}`],
+      ['Sort order', sortOrderLabel],
       ['Rows exported', sortedRows.length],
       ['Total (UGX)', total],
       ['Generated at', new Date().toISOString()],
