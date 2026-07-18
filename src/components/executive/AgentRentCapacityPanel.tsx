@@ -373,12 +373,14 @@ export function AgentRentCapacityPanel({
               Tier = last 7 days' <strong>tenant response rate</strong> (any payment = a daily response) · Hard cap UGX{' '}
               {formatUGX(AGENT_RENT_CAP_UGX)} per agent
             </p>
-            <LastUpdatedChip
-              updatedAt={dataUpdatedAt}
-              isFetching={isFetching}
-              onRefresh={() => refetch()}
-              className="mt-1"
-            />
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <LastUpdatedChip
+                updatedAt={dataUpdatedAt}
+                isFetching={isFetching}
+                onRefresh={() => refetch()}
+              />
+              <AutoRefreshControl value={autoRefreshMs} onChange={setAutoRefreshMs} />
+            </div>
           </div>
           <DailyRatingThresholdPopover />
         </div>
@@ -412,7 +414,7 @@ export function AgentRentCapacityPanel({
           </div>
         )}
 
-        {!compact && <FleetPerformanceStats detailed={showList} />}
+        {!compact && <FleetPerformanceStats detailed={showList} autoRefreshMs={autoRefreshMs} />}
       </div>
 
       {showList && (
