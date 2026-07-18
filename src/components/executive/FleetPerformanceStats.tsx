@@ -1579,8 +1579,22 @@ function AgentCollectionsBreakdown({
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [minAmount, setMinAmount] = useState<string>('');
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
-  const [sortKey, setSortKey] = useState<SortKey>('when');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
+  const sortStorageKey = `fleet-perf-sort:${agentId}`;
+  const initialSort = useMemo(() => parsePersistedSort<SortKey>(
+    readStorage(sortStorageKey),
+    SORT_KEYS,
+    'when',
+    'desc',
+  ), [sortStorageKey]);
+  const [sortKey, setSortKey] = useState<SortKey>(initialSort.key);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSort.dir);
+
+  // Persist sort choice whenever it changes.
+  useEffect(() => {
+    writeStorage(sortStorageKey, `${sortKey}:${sortDir}`);
+  }, [sortStorageKey, sortKey, sortDir]);
+
   const toggleSort = (k: SortKey) => {
     if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(k); setSortDir(k === 'amount' || k === 'when' ? 'desc' : 'asc'); }
