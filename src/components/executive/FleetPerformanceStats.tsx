@@ -805,6 +805,14 @@ export function FleetPerformanceStats({
               value={formatUGX(totalCollected)}
               tone="text-primary"
               info="Sourced from agent_collections — every tenant payment and landlord-float allocation writes a row here, so this total matches the per-agent capacity page."
+              formula={{
+                equation: 'Collected = agent_collections',
+                components: [
+                  { label: 'Tenant payments', description: 'Rent collected from funded tenants (cash, MoMo, bank, etc.)' },
+                  { label: 'Landlord-float allocations', description: 'CFO-approved landlord float moved to an agent for disbursement' },
+                ],
+                footnote: 'Both record an agent_collections row with amount > 0 and tag the responsible agent.',
+              }}
             />
             <Stat icon={<Percent className="h-3.5 w-3.5" />} label="Collection rate" value={`${rate}%`} tone={rateTone} />
           </div>
@@ -1153,19 +1161,25 @@ function Stat({
   value,
   tone,
   info,
+  formula,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   tone: string;
   info?: string;
+  formula?: {
+    equation: string;
+    components: { label: string; description: string }[];
+    footnote?: string;
+  };
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-2">
       <div className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>
         {icon}
         <span className="truncate">{label}</span>
-        {info && (
+        {info && !formula && (
           <UiTooltipProvider delayDuration={100}>
             <UiTooltip>
               <UiTooltipTrigger asChild>
@@ -1181,6 +1195,37 @@ function Stat({
                 {info}
               </UiTooltipContent>
             </UiTooltip>
+          </UiTooltipProvider>
+        )}
+        {formula && (
+          <UiTooltipProvider delayDuration={100}>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${label} formula`}
+                  className="ml-0.5 inline-flex items-center justify-center rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <Info className="h-3 w-3" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="center" className="w-72 p-3 text-xs">
+                <p className="font-mono font-semibold text-foreground">{formula.equation}</p>
+                <div className="mt-2 space-y-2">
+                  {formula.components.map((c, i) => (
+                    <div key={i} className="rounded-md bg-muted/60 p-2">
+                      <p className="font-semibold text-foreground">{c.label}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug">{c.description}</p>
+                    </div>
+                  ))}
+                </div>
+                {formula.footnote && (
+                  <p className="mt-2 text-[10px] text-muted-foreground leading-snug border-t border-border pt-2">
+                    {formula.footnote}
+                  </p>
+                )}
+              </PopoverContent>
+            </Popover>
           </UiTooltipProvider>
         )}
       </div>
