@@ -1628,24 +1628,17 @@ function AgentCollectionsBreakdown({
         }
         return [{ key: k, dir: defaultDirFor(k) }];
       }
-      // Shift+click: add, remove, or toggle direction while preserving other columns.
+      // Shift+click cycle: add → flip direction → remove, while preserving priority of other columns.
       if (idx === -1) {
         return [...prev, { key: k, dir: defaultDirFor(k) }];
       }
-      const next = [...prev];
-      const current = next[idx];
-      const flipped: SortCriterion<SortKey> = { key: k, dir: current.dir === 'asc' ? 'desc' : 'asc' };
-      // If only this criterion remains, just flip direction. Otherwise remove it on second shift-click.
-      if (next.length === 1) {
-        return [flipped];
-      }
-      next.splice(idx, 1);
-      // If direction was already flipped relative to default, treat this shift-click as removal.
-      // Otherwise prepend the flipped version as a new secondary sort.
-      if (current.dir !== defaultDirFor(k)) {
+      const current = prev[idx];
+      if (current.dir === defaultDirFor(k)) {
+        const next = [...prev];
+        next[idx] = { key: k, dir: current.dir === 'asc' ? 'desc' : 'asc' };
         return next;
       }
-      return [...next, flipped];
+      return prev.filter((_, i) => i !== idx);
     });
   };
 
