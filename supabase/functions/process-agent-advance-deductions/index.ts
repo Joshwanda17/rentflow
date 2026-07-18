@@ -79,6 +79,30 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Voluntary prepayment: if the agent has paid ahead, mark today prepaid
+      // (skip cron deduction) and decrement the remaining counter.
+      if (Number(advance.prepaid_installments_remaining || 0) > 0) {
+        await supabase.from('agent_advance_ledger').insert({
+          advance_id: advance.id,
+          date: today,
+          opening_balance: Number(advance.outstanding_balance),
+          interest_accrued: 0,
+          amount_deducted: 0,
+          closing_balance: Number(advance.outstanding_balance),
+          deduction_status: 'prepaid',
+        });
+        await supabase.from('agent_advances').update({
+          prepaid_installments_remaining: Math.max(0, Number(advance.prepaid_installments_remaining) - 1),
+        }).eq('id', advance.id);
+        await notifyAgent(
+          advance.agent_id,
+          `WELILE: Today's advance installment was skipped because you paid ahead. Outstanding ${fmtUGX(advance.outstanding_balance)}.`,
+          'advance_prepaid_skip',
+        );
+        skipped.push(advance.id);
+        continue;
+      }
+
       const advanceMonthlyRate = Number(advance.monthly_rate) || Number(advance.daily_rate) || DEFAULT_MONTHLY_RATE;
       const dailyInterestRate = Math.pow(1 + advanceMonthlyRate, 1 / 30) - 1;
 

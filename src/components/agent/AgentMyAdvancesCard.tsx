@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import {
   Banknote, TrendingDown, Clock, CheckCircle2, AlertTriangle,
-  Download, FileText, FileSpreadsheet, CalendarIcon, X,
+  Download, FileText, FileSpreadsheet, CalendarIcon, X, Zap,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import { differenceInDays, format, isAfter, isBefore, isEqual, startOfDay, endOfDay } from 'date-fns';
@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { generateAdvanceStatementPdf, type AdvanceStatementRow } from '@/lib/advanceStatementPdf';
 import { downloadXlsx } from '@/lib/xlsxExport';
 import { cn } from '@/lib/utils';
+import { VoluntaryRepayAdvanceDialog } from './VoluntaryRepayAdvanceDialog';
 
 const STATUS_META: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; icon: any }> = {
   active: { label: 'Active', variant: 'default', icon: Clock },
@@ -40,6 +41,7 @@ export function AgentMyAdvancesCard() {
   const { user } = useAuth();
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [payAheadFor, setPayAheadFor] = useState<any | null>(null);
 
   const { data: advances = [], isLoading } = useQuery({
     queryKey: ['my-issued-advances', user?.id],
@@ -47,7 +49,7 @@ export function AgentMyAdvancesCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advances')
-        .select('id, principal, outstanding_balance, arrears_balance, status, issued_at, expires_at, created_at')
+        .select('id, principal, outstanding_balance, arrears_balance, status, issued_at, expires_at, created_at, cycle_days, access_fee, prepaid_installments_remaining')
         .eq('agent_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -282,12 +284,34 @@ export function AgentMyAdvancesCard() {
                       ⚠ {formatUGX(Number(adv.arrears_balance))} in missed repayments will be auto-recovered from your next earning(s) before they reach your wallet.
                     </p>
                   )}
+                  {Number(adv.prepaid_installments_remaining || 0) > 0 && adv.status !== 'completed' && (
+                    <p className="rounded-md bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                      ✓ You are paid ahead by {adv.prepaid_installments_remaining} day{Number(adv.prepaid_installments_remaining) === 1 ? '' : 's'} — daily deductions will resume after.
+                    </p>
+                  )}
+                  {adv.status !== 'completed' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full h-8 gap-1.5 text-xs"
+                      onClick={() => setPayAheadFor(adv)}
+                    >
+                      <Zap className="h-3.5 w-3.5" /> Pay ahead
+                    </Button>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </CardContent>
+      {payAheadFor && (
+        <VoluntaryRepayAdvanceDialog
+          open={!!payAheadFor}
+          onOpenChange={(o) => { if (!o) setPayAheadFor(null); }}
+          advance={payAheadFor}
+        />
+      )}
     </Card>
   );
 }
