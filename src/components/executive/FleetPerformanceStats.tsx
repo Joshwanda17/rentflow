@@ -72,7 +72,7 @@ function parsePersistedSort<T extends string>(raw: string | null, validKeys: rea
   return { key, dir };
 }
 
-type SortCriterion<T extends string = SortKey> = { key: T; dir: 'asc' | 'desc' };
+type SortCriterion<T extends string> = { key: T; dir: 'asc' | 'desc' };
 
 /** Parse a persisted multi-sort value like "when:desc,amount:desc" into an ordered array. */
 function parsePersistedMultiSort<T extends string>(raw: string | null, validKeys: readonly T[], defaultKey: T, defaultDir: 'asc' | 'desc'): SortCriterion<T>[] {
