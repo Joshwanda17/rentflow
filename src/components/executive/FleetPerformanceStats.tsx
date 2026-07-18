@@ -6,7 +6,7 @@ import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import {
   Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown,
   Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X, Download, Receipt,
-  Info, AlertTriangle, Eye, SlidersHorizontal,
+  Info, AlertTriangle, Eye, SlidersHorizontal, ShieldCheck, CheckCircle2,
 } from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
@@ -450,6 +450,20 @@ export function FleetPerformanceStats({
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // "Verify totals" reconciler: independently re-fetches agent_collections in the range
+  // and compares row-count + fleet total + per-agent totals against the cached KPI.
+  type VerifyResult = {
+    at: number;
+    rows: number;
+    fleetSum: number;
+    perAgent: Record<string, number>;
+    kpiCollected: number;
+    error?: string;
+  };
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+
   // Alerts panel — flag agents whose collection rate falls below a threshold.
   const ALERT_STORAGE_KEY = 'fleet-perf-alerts';
   const restoredAlerts = useMemo(() => {
@@ -605,6 +619,72 @@ export function FleetPerformanceStats({
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   };
+
+  // Independent recount: pages through agent_collections in the range and returns
+  // per-agent totals + fleet sum + row count. Used by the "Verify totals" control
+  // to reconcile the KPI against the raw table for the exact same window.
+  const runVerifyTotals = async () => {
+    setVerifying(true);
+    const perAgent: Record<string, number> = {};
+    let fleetSum = 0;
+    let rowCount = 0;
+    let errMsg: string | undefined;
+    try {
+      const PAGE = 1000;
+      let fromIdx = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from('agent_collections')
+          .select('agent_id, amount')
+          .gte('created_at', start.toISOString())
+          .lt('created_at', end.toISOString())
+          .gt('amount', 0)
+          .range(fromIdx, fromIdx + PAGE - 1);
+        if (error) { errMsg = error.message; break; }
+        const chunk = data || [];
+        for (const r of chunk as any[]) {
+          const amt = Number(r.amount) || 0;
+          fleetSum += amt;
+          rowCount += 1;
+          if (r.agent_id) perAgent[r.agent_id] = (perAgent[r.agent_id] || 0) + amt;
+        }
+        if (chunk.length < PAGE) break;
+        fromIdx += PAGE;
+      }
+    } catch (e: any) {
+      errMsg = e?.message || 'Verify failed';
+    }
+    setVerifyResult({
+      at: Date.now(),
+      rows: rowCount,
+      fleetSum,
+      perAgent,
+      kpiCollected: totalCollected,
+      error: errMsg,
+    });
+    setVerifying(false);
+    setVerifyOpen(true);
+  };
+
+  // Per-agent deltas between the independent recount and the KPI's cached map.
+  const verifyDeltas = useMemo(() => {
+    if (!verifyResult) return [] as { id: string; name: string; kpi: number; live: number; delta: number }[];
+    const ids = new Set<string>([
+      ...Object.keys(verifyResult.perAgent),
+      ...Object.keys(collectedByAgent),
+    ]);
+    const list: { id: string; name: string; kpi: number; live: number; delta: number }[] = [];
+    ids.forEach((id) => {
+      const kpi = collectedByAgent[id] || 0;
+      const live = verifyResult.perAgent[id] || 0;
+      const delta = live - kpi;
+      if (Math.abs(delta) >= 1) {
+        list.push({ id, name: names[id] || id.slice(0, 8), kpi, live, delta });
+      }
+    });
+    return list.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  }, [verifyResult, collectedByAgent, names]);
 
   // Reset to first page whenever the result set changes.
   useEffect(() => {
@@ -822,6 +902,138 @@ export function FleetPerformanceStats({
           <p className="mt-1.5 text-[10px] text-muted-foreground tabular-nums">
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
           </p>
+
+          {/* Verify totals — independent recount of agent_collections for the exact range */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Popover open={verifyOpen} onOpenChange={setVerifyOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); runVerifyTotals(); }}
+                  disabled={verifying || loading}
+                  className="h-7 px-2.5 rounded-lg text-[11px] font-semibold inline-flex items-center gap-1.5 border border-border bg-background hover:bg-muted transition-colors disabled:opacity-50"
+                  title="Independently recount agent_collections for this range and compare with the Collected KPI."
+                >
+                  {verifying ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                  )}
+                  {verifying ? 'Verifying…' : 'Verify totals'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[320px] p-3 text-[11px]">
+                {!verifyResult ? (
+                  <p className="text-muted-foreground">Running independent recount…</p>
+                ) : verifyResult.error ? (
+                  <div className="space-y-1">
+                    <p className="font-semibold text-destructive inline-flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" /> Verify failed
+                    </p>
+                    <p className="text-muted-foreground break-words">{verifyResult.error}</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const delta = verifyResult.fleetSum - verifyResult.kpiCollected;
+                    const reconciled = Math.abs(delta) < 1;
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-bold uppercase tracking-wide text-muted-foreground">
+                            Reconciliation
+                          </p>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${
+                              reconciled
+                                ? 'bg-emerald-500/15 text-emerald-600'
+                                : 'bg-amber-500/15 text-amber-600'
+                            }`}
+                          >
+                            {reconciled ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                            {reconciled ? 'Reconciled' : 'Drift'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="rounded-md border border-border p-1.5">
+                            <p className="text-[10px] text-muted-foreground">KPI Collected</p>
+                            <p className="font-semibold tabular-nums">{formatUGX(verifyResult.kpiCollected)}</p>
+                          </div>
+                          <div className="rounded-md border border-border p-1.5">
+                            <p className="text-[10px] text-muted-foreground">Live recount</p>
+                            <p className="font-semibold tabular-nums">{formatUGX(verifyResult.fleetSum)}</p>
+                          </div>
+                          <div className="rounded-md border border-border p-1.5">
+                            <p className="text-[10px] text-muted-foreground">Delta</p>
+                            <p className={`font-semibold tabular-nums ${reconciled ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {delta > 0 ? '+' : ''}{formatUGX(delta)}
+                            </p>
+                          </div>
+                          <div className="rounded-md border border-border p-1.5">
+                            <p className="text-[10px] text-muted-foreground">Rows scanned</p>
+                            <p className="font-semibold tabular-nums">{verifyResult.rows.toLocaleString()}</p>
+                          </div>
+                        </div>
+                        {verifyDeltas.length > 0 && (
+                          <div className="mt-1 space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Per-agent drift ({verifyDeltas.length})
+                            </p>
+                            <div className="max-h-40 overflow-y-auto rounded-md border border-border">
+                              <table className="w-full text-[10px]">
+                                <thead className="bg-muted/50 text-muted-foreground">
+                                  <tr>
+                                    <th className="text-left px-1.5 py-1 font-semibold">Agent</th>
+                                    <th className="text-right px-1.5 py-1 font-semibold">Δ</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {verifyDeltas.slice(0, 20).map((d) => (
+                                    <tr
+                                      key={d.id}
+                                      className="border-t border-border cursor-pointer hover:bg-muted/40"
+                                      onClick={() => { setVerifyOpen(false); focusAgent(d.id); }}
+                                    >
+                                      <td className="px-1.5 py-1 truncate max-w-[160px]">{d.name}</td>
+                                      <td className={`px-1.5 py-1 text-right tabular-nums font-semibold ${d.delta > 0 ? 'text-amber-600' : 'text-destructive'}`}>
+                                        {d.delta > 0 ? '+' : ''}{formatUGX(d.delta)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Click a row to jump to that agent.</p>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground">
+                          Range {format(start, 'MMM d, HH:mm')} → {format(end, 'MMM d, HH:mm')}. Recounted {format(new Date(verifyResult.at), 'HH:mm:ss')}.
+                        </p>
+                      </div>
+                    );
+                  })()
+                )}
+              </PopoverContent>
+            </Popover>
+            {verifyResult && !verifyResult.error && (
+              <span
+                className={`text-[10px] font-semibold inline-flex items-center gap-1 ${
+                  Math.abs(verifyResult.fleetSum - verifyResult.kpiCollected) < 1
+                    ? 'text-emerald-600'
+                    : 'text-amber-600'
+                }`}
+              >
+                {Math.abs(verifyResult.fleetSum - verifyResult.kpiCollected) < 1 ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3" /> Reconciled · {verifyResult.rows.toLocaleString()} rows
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-3 w-3" /> Drift {formatUGX(verifyResult.fleetSum - verifyResult.kpiCollected)}
+                  </>
+                )}
+              </span>
+            )}
+          </div>
 
           {/* Collection trend: collected per day vs expected daily target — shown in both summary & detailed modes */}
           {trendData.length > 1 && (
