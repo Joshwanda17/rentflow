@@ -14,6 +14,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
+import { useQueryClient } from '@tanstack/react-query';
+import { LastUpdatedChip } from './LastUpdatedChip';
 import {
   ComposedChart,
   Bar,
@@ -467,19 +469,20 @@ export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean 
 
   const granularity = granularityFor(days);
 
-  const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
+  const queryClient = useQueryClient();
+  const { data: expectedByAgent = {}, isLoading: expLoading, dataUpdatedAt: expUpdatedAt, isFetching: expFetching } = useQuery({
     queryKey: ['fleet-perf-expected-by-agent'],
     queryFn: fetchExpectedDailyByAgent,
     staleTime: 60_000,
   });
 
-  const { data: collectedByAgent = {}, isLoading: colLoading } = useQuery({
+  const { data: collectedByAgent = {}, isLoading: colLoading, dataUpdatedAt: colUpdatedAt, isFetching: colFetching } = useQuery({
     queryKey: ['fleet-perf-collected-by-agent', rangeKey],
     queryFn: () => fetchCollectedByAgent(start, end),
     staleTime: 30_000,
   });
 
-  const { data: collectedBuckets = {} } = useQuery({
+  const { data: collectedBuckets = {}, isFetching: bucketFetching } = useQuery({
     queryKey: ['fleet-perf-collected-buckets', rangeKey, granularity],
     queryFn: () => fetchCollectedBuckets(start, end, granularity),
     staleTime: 30_000,
@@ -614,9 +617,24 @@ export function FleetPerformanceStats({ detailed = true }: { detailed?: boolean 
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
       <div className="flex flex-col gap-2 mb-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            Fleet performance · Expected vs Collected
-          </p>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              Fleet performance · Expected vs Collected
+            </p>
+            <LastUpdatedChip
+              updatedAt={Math.min(
+                expUpdatedAt || Date.now(),
+                colUpdatedAt || Date.now(),
+              )}
+              isFetching={expFetching || colFetching || bucketFetching}
+              onRefresh={() => {
+                queryClient.invalidateQueries({ queryKey: ['fleet-perf-expected-by-agent'] });
+                queryClient.invalidateQueries({ queryKey: ['fleet-perf-collected-by-agent'] });
+                queryClient.invalidateQueries({ queryKey: ['fleet-perf-collected-buckets'] });
+              }}
+              className="mt-1"
+            />
+          </div>
           <button
             type="button"
             onClick={() =>
