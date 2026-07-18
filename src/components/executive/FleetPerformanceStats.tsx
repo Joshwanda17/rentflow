@@ -1099,6 +1099,7 @@ export function FleetPerformanceStats({
                             agentName={r.name}
                             start={start}
                             end={end}
+                            expectedCollected={r.collected}
                           />
                         </div>
                       )}
@@ -1276,11 +1277,14 @@ function AgentCollectionsBreakdown({
   agentName,
   start,
   end,
+  expectedCollected,
 }: {
   agentId: string;
   agentName: string;
   start: Date;
   end: Date;
+  /** The "Collected" figure shown for this agent in the parent row — used for reconciliation. */
+  expectedCollected: number;
 }) {
   const rangeKey = `${start.toISOString()}:${end.toISOString()}`;
   const { data, isLoading } = useQuery({
@@ -1320,6 +1324,24 @@ function AgentCollectionsBreakdown({
   }, [rows, nameById, query, methodFilter, minAmount]);
 
   const total = filteredRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const rawTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const reconDelta = rawTotal - (Number(expectedCollected) || 0);
+  const reconOk = Math.abs(reconDelta) < 1;
+
+  // Per-method subtotals across the currently filtered rows.
+  const methodSubtotals = useMemo(() => {
+    const m = new Map<string, { count: number; sum: number }>();
+    filteredRows.forEach((r) => {
+      const key = r.payment_method || 'unspecified';
+      const cur = m.get(key) || { count: 0, sum: 0 };
+      cur.count += 1;
+      cur.sum += Number(r.amount) || 0;
+      m.set(key, cur);
+    });
+    return Array.from(m.entries())
+      .map(([method, v]) => ({ method, ...v }))
+      .sort((a, b) => b.sum - a.sum);
+  }, [filteredRows]);
   const filtersActive = query.trim() !== '' || methodFilter !== 'all' || (Number(minAmount) || 0) > 0;
   const clearFilters = () => { setQuery(''); setMethodFilter('all'); setMinAmount(''); };
 
@@ -1453,7 +1475,47 @@ function AgentCollectionsBreakdown({
                 );
               })}
             </tbody>
+            <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur border-t border-border">
+              {methodSubtotals.length > 1 && methodSubtotals.map((s) => (
+                <tr key={`sub-${s.method}`} className="text-muted-foreground">
+                  <td className="px-2 py-1 text-[9px] uppercase tracking-wide" colSpan={2}>
+                    Subtotal · {s.method.replace(/_/g, ' ')}
+                  </td>
+                  <td className="px-2 py-1 text-[10px] tabular-nums hidden sm:table-cell">{s.count}</td>
+                  <td className="px-2 py-1 text-right tabular-nums font-semibold">{formatUGX(s.sum)}</td>
+                </tr>
+              ))}
+              <tr className="text-foreground">
+                <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={2}>
+                  {filtersActive ? 'Filtered total' : 'Total'} · {filteredRows.length} row{filteredRows.length === 1 ? '' : 's'}
+                </td>
+                <td className="px-2 py-1.5 hidden sm:table-cell" />
+                <td className="px-2 py-1.5 text-right tabular-nums font-bold text-primary">{formatUGX(total)}</td>
+              </tr>
+            </tfoot>
           </table>
+        </div>
+      )}
+      {!isLoading && rows.length > 0 && (
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 border-t text-[10px] ${
+            reconOk
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+              : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
+          }`}
+          title="Compares the sum of all underlying agent_collections rows in this date range to the 'Collected' figure shown for the agent."
+        >
+          <span className="font-semibold uppercase tracking-wide">
+            {reconOk ? 'Reconciled' : 'Drift'} vs Collected
+          </span>
+          <span className="tabular-nums">
+            Σ records {formatUGX(rawTotal)} · Collected {formatUGX(Number(expectedCollected) || 0)}
+            {!reconOk && (
+              <>
+                {' '}· Δ {reconDelta > 0 ? '+' : ''}{formatUGX(reconDelta)}
+              </>
+            )}
+          </span>
         </div>
       )}
     </div>
