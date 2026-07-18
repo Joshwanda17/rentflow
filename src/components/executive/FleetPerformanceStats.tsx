@@ -586,6 +586,25 @@ export function FleetPerformanceStats({
   const pageStart = safePage * PAGE_SIZE;
   const pageRows = rows.slice(pageStart, pageStart + PAGE_SIZE);
 
+  // Alerts: agents with meaningful expected but rate below threshold, worst gap first.
+  const alertRows = useMemo(() => {
+    return rawRows
+      .filter((r) => r.expected >= alertMinExpected && r.rate < alertThreshold)
+      .map((r) => ({ ...r, gap: Math.max(0, r.expected - r.collected) }))
+      .sort((a, b) => b.gap - a.gap);
+  }, [rawRows, alertThreshold, alertMinExpected]);
+
+  // Jump to a specific agent row in the breakdown table, expand it, and scroll it into view.
+  const focusAgent = (id: string) => {
+    const idx = rows.findIndex((r) => r.id === id);
+    if (idx >= 0) setPage(Math.floor(idx / PAGE_SIZE));
+    setExpandedId(id);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`fleet-row-${id}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   // Reset to first page whenever the result set changes.
   useEffect(() => {
     setPage(0);
