@@ -23,6 +23,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import { useQueryClient } from '@tanstack/react-query';
 import { LastUpdatedChip } from './LastUpdatedChip';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import {
   ComposedChart,
   Bar,
