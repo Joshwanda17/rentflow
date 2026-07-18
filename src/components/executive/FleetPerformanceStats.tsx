@@ -1559,6 +1559,13 @@ function AgentCollectionsBreakdown({
   const [query, setQuery] = useState('');
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [minAmount, setMinAmount] = useState<string>('');
+  type SortKey = 'when' | 'tenant' | 'method' | 'amount';
+  const [sortKey, setSortKey] = useState<SortKey>('when');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const toggleSort = (k: SortKey) => {
+    if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(k); setSortDir(k === 'amount' || k === 'when' ? 'desc' : 'asc'); }
+  };
 
   const methodOptions = useMemo(() => {
     const set = new Set<string>();
@@ -1580,6 +1587,26 @@ function AgentCollectionsBreakdown({
       return true;
     });
   }, [rows, nameById, query, methodFilter, minAmount]);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...filteredRows];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    arr.sort((a, b) => {
+      let av: string | number = 0;
+      let bv: string | number = 0;
+      if (sortKey === 'when') { av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime(); }
+      else if (sortKey === 'amount') { av = Number(a.amount) || 0; bv = Number(b.amount) || 0; }
+      else if (sortKey === 'method') { av = (a.payment_method || '').toLowerCase(); bv = (b.payment_method || '').toLowerCase(); }
+      else if (sortKey === 'tenant') {
+        av = ((a.tenant_id && nameById.get(a.tenant_id)) || '').toLowerCase();
+        bv = ((b.tenant_id && nameById.get(b.tenant_id)) || '').toLowerCase();
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [filteredRows, sortKey, sortDir, nameById]);
 
   const total = filteredRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const rawTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
