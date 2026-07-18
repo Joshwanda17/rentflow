@@ -1602,23 +1602,51 @@ function AgentCollectionsBreakdown({
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
   const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
   const sortStorageKey = `fleet-perf-sort:${agentId}`;
-  const initialSort = useMemo(() => parsePersistedSort<SortKey>(
+  const initialSorts = useMemo(() => parsePersistedMultiSort<SortKey>(
     readStorage(sortStorageKey),
     SORT_KEYS,
     'when',
     'desc',
   ), [sortStorageKey]);
-  const [sortKey, setSortKey] = useState<SortKey>(initialSort.key);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSort.dir);
+  const [sorts, setSorts] = useState<SortCriterion<SortKey>[]>(initialSorts);
 
-  // Persist sort choice whenever it changes.
+  // Persist sort choices whenever they change.
   useEffect(() => {
-    writeStorage(sortStorageKey, `${sortKey}:${sortDir}`);
-  }, [sortStorageKey, sortKey, sortDir]);
+    writeStorage(sortStorageKey, serializeMultiSort(sorts));
+  }, [sortStorageKey, sorts]);
 
-  const toggleSort = (k: SortKey) => {
-    if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(k); setSortDir(k === 'amount' || k === 'when' ? 'desc' : 'asc'); }
+  const defaultDirFor = (k: SortKey): 'asc' | 'desc' =>
+    k === 'amount' || k === 'when' ? 'desc' : 'asc';
+
+  const toggleSort = (k: SortKey, multi: boolean) => {
+    setSorts((prev) => {
+      const idx = prev.findIndex((s) => s.key === k);
+      if (!multi) {
+        // Single click: make this the sole sort column (toggle if already sole primary).
+        if (prev.length === 1 && prev[0].key === k) {
+          return [{ key: k, dir: prev[0].dir === 'asc' ? 'desc' : 'asc' }];
+        }
+        return [{ key: k, dir: defaultDirFor(k) }];
+      }
+      // Shift+click: add, remove, or toggle direction while preserving other columns.
+      if (idx === -1) {
+        return [...prev, { key: k, dir: defaultDirFor(k) }];
+      }
+      const next = [...prev];
+      const current = next[idx];
+      const flipped: SortCriterion<SortKey> = { key: k, dir: current.dir === 'asc' ? 'desc' : 'asc' };
+      // If only this criterion remains, just flip direction. Otherwise remove it on second shift-click.
+      if (next.length === 1) {
+        return [flipped];
+      }
+      next.splice(idx, 1);
+      // If direction was already flipped relative to default, treat this shift-click as removal.
+      // Otherwise prepend the flipped version as a new secondary sort.
+      if (current.dir !== defaultDirFor(k)) {
+        return next;
+      }
+      return [...next, flipped];
+    });
   };
 
   const methodOptions = useMemo(() => {
