@@ -878,6 +878,134 @@ export function FleetPerformanceStats({
 
           {detailed && (
           <>
+          {/* Alerts panel — flags agents whose expected vs collected gap breaches the threshold */}
+          <div className="mt-3 rounded-lg border border-border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setAlertsOpen((v) => !v)}
+              aria-expanded={alertsOpen}
+              className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 text-left transition-colors ${
+                alertRows.length > 0
+                  ? 'bg-destructive/10 hover:bg-destructive/15'
+                  : 'bg-emerald-500/10 hover:bg-emerald-500/15'
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <AlertTriangle
+                  className={`h-4 w-4 shrink-0 ${
+                    alertRows.length > 0 ? 'text-destructive' : 'text-emerald-600'
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className={`text-[11px] font-bold uppercase tracking-wide ${
+                    alertRows.length > 0 ? 'text-destructive' : 'text-emerald-700'
+                  }`}>
+                    Collection alerts
+                    <span className="ml-1 tabular-nums">
+                      · {alertRows.length}
+                    </span>
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Rate &lt; {alertThreshold}% · Expected ≥ {formatUGX(alertMinExpected)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); setAlertConfigOpen((v) => !v); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setAlertConfigOpen((v) => !v);
+                    }
+                  }}
+                  className="h-6 px-1.5 rounded-md inline-flex items-center gap-1 text-[10px] font-semibold bg-background/70 text-foreground hover:bg-background transition-colors"
+                  aria-label="Configure alert threshold"
+                >
+                  <SlidersHorizontal className="h-3 w-3" />
+                  Threshold
+                </span>
+                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${alertsOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+            {alertsOpen && alertConfigOpen && (
+              <div className="grid grid-cols-2 gap-2 px-2.5 py-2 border-t border-border bg-muted/40">
+                <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Rate below (%)
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={alertThreshold}
+                    onChange={(e) => setAlertThreshold(Math.max(1, Math.min(100, Number(e.target.value) || 0)))}
+                    className="h-7 rounded-md border border-border bg-background px-2 text-[11px] font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Min expected (UGX)
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={alertMinExpected}
+                    onChange={(e) => setAlertMinExpected(Math.max(0, Number(e.target.value) || 0))}
+                    className="h-7 rounded-md border border-border bg-background px-2 text-[11px] font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </label>
+              </div>
+            )}
+            {alertsOpen && (
+              <div className="divide-y divide-border border-t border-border">
+                {alertRows.length === 0 ? (
+                  <p className="px-2.5 py-3 text-center text-[11px] text-muted-foreground">
+                    No agents breach the threshold in this period. 🎉
+                  </p>
+                ) : (
+                  alertRows.slice(0, 25).map((r) => {
+                    const tone = r.rate >= 50 ? 'text-amber-600' : 'text-destructive';
+                    const barTone = r.rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
+                    return (
+                      <div
+                        key={r.id}
+                        className="flex items-center gap-2 px-2.5 py-2 hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-semibold text-foreground truncate">{r.name}</p>
+                          <div className="mt-1 flex items-center gap-2">
+                            <div className="h-1 w-16 rounded-full bg-muted overflow-hidden">
+                              <div className={`h-full ${barTone}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
+                            </div>
+                            <span className={`text-[10px] tabular-nums font-bold ${tone}`}>{r.rate}%</span>
+                            <span className="text-[10px] tabular-nums text-muted-foreground truncate">
+                              gap {formatUGX(r.gap)}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => focusAgent(r.id)}
+                          className="h-7 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-foreground text-background hover:opacity-90 transition-opacity shrink-0"
+                        >
+                          <Eye className="h-3 w-3" />
+                          <span className="hidden sm:inline">View contributing transactions</span>
+                          <span className="sm:hidden">View</span>
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+                {alertRows.length > 25 && (
+                  <p className="px-2.5 py-1.5 text-center text-[10px] text-muted-foreground bg-muted/40">
+                    Showing top 25 of {alertRows.length} alerts — narrow the range or raise the threshold to see fewer.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Search — placed prominently above the agent breakdown */}
           <div className="mt-3 relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
