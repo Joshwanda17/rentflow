@@ -5,7 +5,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import {
   Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown,
-  Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X,
+  Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X, Download, Receipt,
 } from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
@@ -912,6 +912,12 @@ export function FleetPerformanceStats({
                             <span>{r.rate >= 100 ? `Over target by ${r.rate - 100}%` : `${100 - r.rate}% short of target`}</span>
                             <span className="font-mono text-[9px] opacity-70">{r.id.slice(0, 8)}</span>
                           </p>
+                          <AgentCollectionsBreakdown
+                            agentId={r.id}
+                            agentName={r.name}
+                            start={start}
+                            end={end}
+                          />
                         </div>
                       )}
                     </div>
@@ -1003,3 +1009,162 @@ function SortHeader({
 }
 
 export default FleetPerformanceStats;
+
+type CollectionRecord = {
+  id: string;
+  tenant_id: string | null;
+  amount: number;
+  created_at: string;
+  payment_method: string | null;
+};
+
+async function fetchAgentCollectionRecords(agentId: string, start: Date, end: Date) {
+  const all: CollectionRecord[] = [];
+  const PAGE = 1000;
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await supabase
+      .from('agent_collections')
+      .select('id, tenant_id, amount, created_at, payment_method')
+      .eq('agent_id', agentId)
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString())
+      .gt('amount', 0)
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) { console.error('[AgentCollectionsBreakdown] page failed', error); break; }
+    const rows = (data || []) as CollectionRecord[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  const tenantIds = Array.from(new Set(all.map((r) => r.tenant_id).filter(Boolean))) as string[];
+  const nameById = new Map<string, string>();
+  const BATCH = 100;
+  for (let i = 0; i < tenantIds.length; i += BATCH) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', tenantIds.slice(i, i + BATCH));
+    (data || []).forEach((p: any) => {
+      nameById.set(p.id, p.full_name || p.phone || 'Tenant');
+    });
+  }
+  return { rows: all, nameById };
+}
+
+function csvEscape(v: string | number) {
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function AgentCollectionsBreakdown({
+  agentId,
+  agentName,
+  start,
+  end,
+}: {
+  agentId: string;
+  agentName: string;
+  start: Date;
+  end: Date;
+}) {
+  const rangeKey = `${start.toISOString()}:${end.toISOString()}`;
+  const { data, isLoading } = useQuery({
+    queryKey: ['fleet-perf-agent-records', agentId, rangeKey],
+    queryFn: () => fetchAgentCollectionRecords(agentId, start, end),
+    staleTime: 30_000,
+  });
+
+  const rows = data?.rows || [];
+  const nameById = data?.nameById || new Map<string, string>();
+  const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+  const downloadCsv = () => {
+    const header = ['Date (Africa/Kampala)', 'Tenant', 'Tenant ID', 'Amount UGX', 'Payment method', 'Record ID'];
+    const body = rows.map((r) => [
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Kampala',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit',
+      }).format(new Date(r.created_at)),
+      (r.tenant_id && nameById.get(r.tenant_id)) || '',
+      r.tenant_id || '',
+      Number(r.amount) || 0,
+      (r.payment_method || '').replace(/_/g, ' '),
+      r.id,
+    ]);
+    const csv = [header, ...body].map((r) => r.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const s = start.toISOString().slice(0, 10);
+    const e = new Date(end.getTime() - 1).toISOString().slice(0, 10);
+    a.download = `collections_${agentName.replace(/\s+/g, '_')}_${s}_to_${e}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="mt-3 rounded-md border border-border bg-card">
+      <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border">
+        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <Receipt className="h-3 w-3" /> Underlying records · {rows.length} · {formatUGX(total)}
+        </p>
+        <button
+          type="button"
+          onClick={downloadCsv}
+          disabled={isLoading || rows.length === 0}
+          className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
+        >
+          <Download className="h-3 w-3" /> CSV
+        </button>
+      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-4 text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="px-2.5 py-3 text-center text-[11px] text-muted-foreground">
+          No collection records for this range.
+        </p>
+      ) : (
+        <div className="max-h-64 overflow-auto">
+          <table className="w-full text-[11px]">
+            <thead className="sticky top-0 bg-muted text-muted-foreground">
+              <tr>
+                <th className="text-left font-bold uppercase tracking-wide px-2 py-1.5 text-[9px]">When</th>
+                <th className="text-left font-bold uppercase tracking-wide px-2 py-1.5 text-[9px]">Tenant</th>
+                <th className="text-left font-bold uppercase tracking-wide px-2 py-1.5 text-[9px] hidden sm:table-cell">Method</th>
+                <th className="text-right font-bold uppercase tracking-wide px-2 py-1.5 text-[9px]">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((r) => {
+                const when = new Intl.DateTimeFormat('en-GB', {
+                  timeZone: 'Africa/Kampala',
+                  month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
+                }).format(new Date(r.created_at));
+                const tenant = (r.tenant_id && nameById.get(r.tenant_id)) || 'Unknown tenant';
+                return (
+                  <tr key={r.id} className="hover:bg-muted/40">
+                    <td className="px-2 py-1.5 tabular-nums whitespace-nowrap">{when}</td>
+                    <td className="px-2 py-1.5 truncate max-w-[10rem]">{tenant}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell">
+                      {(r.payment_method || '—').replace(/_/g, ' ')}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-primary">
+                      {formatUGX(Number(r.amount) || 0)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
