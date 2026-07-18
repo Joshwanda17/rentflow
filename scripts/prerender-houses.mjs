@@ -184,18 +184,33 @@ function buildHead(listing) {
  */
 function stripSitewideMeta(html) {
   const REMOVE_PATTERNS = [
+    // <title> can be multi-line only in edge cases — the sitewide title is
+    // single-line. Match it plainly.
     /<title>[^<]*<\/title>\s*/i,
-    /<meta\s+name="description"[^>]*>\s*/i,
-    /<meta\s+property="og:title"[^>]*>\s*/i,
-    /<meta\s+property="og:description"[^>]*>\s*/i,
-    /<meta\s+property="og:type"[^>]*>\s*/i,
-    /<meta\s+property="og:image"[^>]*>\s*/i,
-    /<meta\s+property="og:image:width"[^>]*>\s*/i,
-    /<meta\s+property="og:image:height"[^>]*>\s*/i,
-    /<meta\s+property="og:url"[^>]*>\s*/i,
-    /<link\s+rel="canonical"[^>]*>\s*/i,
+    // The meta / link tags can be broken across lines (see the <meta name="description"...
+    // block in index.html). Match across newlines and require an attribute
+    // that only real tags have (href=/content=) so we skip prose examples
+    // inside HTML comments.
+    /<meta\s+name="description"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+property="og:title"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+property="og:description"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+property="og:type"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+property="og:image"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+property="og:image:width"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+property="og:image:height"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+property="og:url"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+name="twitter:card"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+name="twitter:title"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+name="twitter:description"[^>]*content=[^>]*>\s*/is,
+    /<meta\s+name="twitter:image"[^>]*content=[^>]*>\s*/is,
+    /<link\s+rel="canonical"[^>]*href=[^>]*>\s*/is,
   ];
+  // Strip HTML comments from <head> that reference these tags so we don't
+  // accidentally match tag-shaped strings inside them. Comments carry no SEO
+  // signal, so removing them is safe.
+  const commentsInHead = /<!--[\s\S]*?-->/g;
   let out = html;
+  out = out.replace(/<head>[\s\S]*?<\/head>/i, (head) => head.replace(commentsInHead, ''));
   for (const re of REMOVE_PATTERNS) out = out.replace(re, '');
   return out;
 }
