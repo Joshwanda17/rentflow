@@ -8,6 +8,7 @@
     "predev": "bunx tsx scripts/generate-sitemap.ts",
     "prebuild": "bunx tsx scripts/generate-sitemap.ts",
     "build": "node scripts/guard-frontend-ledger-writes.mjs && node scripts/guard-deposit-purpose.mjs && node scripts/guard-legacy-domain.mjs && node scripts/guard-canonical-tags.mjs && vite build",
+    "postbuild": "node scripts/prerender-houses.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "guard:persona-routes": "node scripts/guard-persona-routes.mjs",
