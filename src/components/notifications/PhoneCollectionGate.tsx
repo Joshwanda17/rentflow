@@ -120,6 +120,11 @@ function normalizePhone(raw: string): string | null {
 export default function PhoneCollectionGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  // When true, the user MUST verify a phone number before they can use the
+  // app — no snooze, no dismiss, full-screen block. Triggered for Google
+  // (OAuth) sign-ups that arrive with no phone number on the profile.
+  const [mandatory, setMandatory] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [phone, setPhone] = useState("");
   const [momoName, setMomoName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -145,8 +150,22 @@ export default function PhoneCollectionGate() {
     let cancelled = false;
     async function check() {
       if (!user?.id || !user.email) return;
-      const snoozed = Number(localStorage.getItem(SNOOZE_KEY) || 0);
-      if (snoozed && Date.now() < snoozed) return;
+      // Detect Google (or other OAuth) sign-up: Supabase stores the identity
+      // provider on app_metadata.provider and providers[].
+      const meta = (user as any).app_metadata || {};
+      const providers: string[] = Array.isArray(meta.providers)
+        ? meta.providers
+        : meta.provider
+          ? [meta.provider]
+          : [];
+      const isOAuthSignup = providers.some((p) => p && p !== "email" && p !== "phone");
+
+      // Only respect the "Not now" snooze for classic (email) sign-ups.
+      // OAuth sign-ups without a phone must complete the flow before proceeding.
+      if (!isOAuthSignup) {
+        const snoozed = Number(localStorage.getItem(SNOOZE_KEY) || 0);
+        if (snoozed && Date.now() < snoozed) return;
+      }
       const { data, error } = await supabase
         .from("profiles")
         .select("phone, full_name, mobile_money_name")
@@ -157,10 +176,15 @@ export default function PhoneCollectionGate() {
       if (!priorPhone) {
         setMomoName(data?.mobile_money_name || data?.full_name || "");
         setHadPriorPhone(false);
+        setMandatory(isOAuthSignup);
         setOpen(true);
         void logPromptEvent(user.id, "shown", {
           had_prior_phone: false,
-          meta: { email: user.email ?? null },
+          meta: {
+            email: user.email ?? null,
+            providers,
+            mandatory: isOAuthSignup,
+          },
         });
       }
       setChecked(true);
@@ -175,6 +199,10 @@ export default function PhoneCollectionGate() {
     const normalized = normalizePhone(phone);
     if (!normalized) {
       toast.error("Enter a valid Ugandan phone number (e.g. 0772 123 456)");
+      return;
+    }
+    if (mandatory && !otpVerified) {
+      toast.error("Verify your phone number with the code we sent before continuing.");
       return;
     }
     const trimmedName = momoName.trim();
@@ -225,9 +253,11 @@ export default function PhoneCollectionGate() {
         meta: {
           momo_name_present: trimmedName.length > 0,
           otp_used: otpSent,
+          mandatory,
         },
       });
       setOpen(false);
+      setMandatory(false);
     } catch (e: any) {
       toast.error(e?.message || "Could not save. Try again.");
     } finally {
@@ -236,6 +266,7 @@ export default function PhoneCollectionGate() {
   };
 
   const snoozeOneDay = () => {
+    if (mandatory) return; // cannot snooze the OAuth mandatory flow
     localStorage.setItem(
       SNOOZE_KEY,
       String(Date.now() + 24 * 60 * 60 * 1000),
@@ -267,6 +298,33 @@ export default function PhoneCollectionGate() {
         });
       }
       return;
+    }
+    // Pre-check uniqueness so we don't burn an SMS on a number that will be
+    // rejected at save time anyway. The DB unique index remains the source
+    // of truth — this is just a friendlier UX.
+    setCheckingAvailability(true);
+    try {
+      const { data: available, error: availErr } = await supabase.rpc(
+        "is_phone_available",
+        { p_phone: normalized },
+      );
+      if (availErr) {
+        console.warn("[PhoneCollectionGate] is_phone_available failed:", availErr);
+      } else if (available === false) {
+        toast.error(
+          "That phone number is already linked to another account. Use a different number or contact support.",
+        );
+        if (user?.id) {
+          void logPromptEvent(user.id, "error", {
+            phone_verified: false,
+            had_prior_phone: hadPriorPhone,
+            meta: { reason: "phone_in_use", phone: normalized },
+          });
+        }
+        return;
+      }
+    } finally {
+      setCheckingAvailability(false);
     }
     const ok = await sendOtp(normalized);
     if (ok) {
@@ -302,16 +360,34 @@ export default function PhoneCollectionGate() {
   if (!checked && !open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) snoozeOneDay(); }}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (v) return;
+        if (mandatory) return; // block dismiss when phone is required
+        snoozeOneDay();
+      }}
+    >
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => {
+          if (mandatory) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (mandatory) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Phone className="h-6 w-6 text-primary" />
           </div>
-          <DialogTitle className="text-center">Add your phone number</DialogTitle>
+          <DialogTitle className="text-center">
+            {mandatory ? "Complete your profile" : "Add your phone number"}
+          </DialogTitle>
           <DialogDescription className="text-center">
-            We use your phone to send you SMS receipts, payment alerts and
-            security codes. Add it once so you never miss an update.
+            {mandatory
+              ? "Your Google account didn't provide a phone number. Add and verify a mobile number to activate your account — every account must have its own verified phone."
+              : "We use your phone to send you SMS receipts, payment alerts and security codes. Add it once so you never miss an update."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
@@ -348,11 +424,12 @@ export default function PhoneCollectionGate() {
                     size="sm"
                     className="w-full"
                     onClick={handleSendCode}
-                    disabled={otpLoading || saving || cooldownSeconds > 0}
+                    disabled={otpLoading || saving || cooldownSeconds > 0 || checkingAvailability}
                   >
-                    {otpLoading ? (
+                    {otpLoading || checkingAvailability ? (
                       <>
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Sending…
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        {checkingAvailability ? "Checking…" : "Sending…"}
                       </>
                     ) : cooldownSeconds > 0 ? (
                       `Resend in ${cooldownSeconds}s`
@@ -432,23 +509,29 @@ export default function PhoneCollectionGate() {
             </p>
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            {!mandatory && (
+              <Button variant="ghost" onClick={snoozeOneDay} disabled={saving}>
+                Not now
+              </Button>
+            )}
             <Button
-              variant="ghost"
-              onClick={snoozeOneDay}
-              disabled={saving}
+              onClick={handleSave}
+              disabled={saving || (mandatory && !otpVerified)}
             >
-              Not now
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
                 </>
               ) : (
-                "Save phone number"
+                mandatory ? "Activate my account" : "Save phone number"
               )}
             </Button>
           </div>
+          {mandatory && !otpVerified && (
+            <p className="text-center text-[11px] text-muted-foreground">
+              You must verify your phone with the SMS code to activate your account.
+            </p>
+          )}
         </div>
       </DialogContent>
     </Dialog>
