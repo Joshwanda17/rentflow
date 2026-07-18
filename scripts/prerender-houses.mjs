@@ -23,11 +23,20 @@
  * Mirrors the head produced by src/pages/HouseDetail.tsx (SEO block ~L365-390).
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { copyFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 
 const BASE_URL = 'https://welileapp.com';
 const DIST = resolve('dist');
 const TEMPLATE_PATH = resolve(DIST, 'index.html');
+// Persist across builds (dist/ is wiped every `vite build`). node_modules/.cache
+// is a conventional per-project scratch space that survives builds but is
+// gitignored and safe to blow away.
+const CACHE_DIR = resolve('node_modules/.cache/prerender-houses');
+const CACHE_SHELLS = resolve(CACHE_DIR, 'shells');
+const CACHE_MANIFEST = resolve(CACHE_DIR, 'manifest.json');
+const FORCE = process.env.PRERENDER_FORCE === '1' || process.argv.includes('--force');
 
 const CATEGORY_LABELS = {
   single_room: 'Single Room',
@@ -228,31 +237,103 @@ function writeShell(slug, html) {
   writeFileSync(resolve(dir, 'index.html'), html);
 }
 
+function loadManifest() {
+  try {
+    return JSON.parse(readFileSync(CACHE_MANIFEST, 'utf8'));
+  } catch {
+    return { version: 1, templateHash: null, entries: {} };
+  }
+}
+
+function saveManifest(m) {
+  mkdirSync(CACHE_DIR, { recursive: true });
+  writeFileSync(CACHE_MANIFEST, JSON.stringify(m, null, 2));
+}
+
+function cacheShellPath(slug) {
+  return resolve(CACHE_SHELLS, `${slug}.html`);
+}
+
+function copyCachedShell(slug) {
+  const src = cacheShellPath(slug);
+  if (!existsSync(src)) return false;
+  const dir = resolve(DIST, 'house', slug);
+  mkdirSync(dir, { recursive: true });
+  copyFileSync(src, resolve(dir, 'index.html'));
+  return true;
+}
+
+function saveShellToCache(slug, html) {
+  mkdirSync(CACHE_SHELLS, { recursive: true });
+  writeFileSync(cacheShellPath(slug), html);
+}
+
 async function main() {
   if (!existsSync(TEMPLATE_PATH)) {
     console.warn(`prerender-houses: ${TEMPLATE_PATH} missing — skip (build not complete?)`);
     return;
   }
   const template = readFileSync(TEMPLATE_PATH, 'utf8');
+  const templateHash = createHash('sha1').update(template).digest('hex');
+  const prev = loadManifest();
+  // If the built index.html changed (new asset hashes, new sitewide meta,
+  // updated script tags), every shell must be regenerated — the cached HTML
+  // references stale bundle filenames.
+  const templateChanged = FORCE || prev.templateHash !== templateHash;
+  const prevEntries = templateChanged ? {} : prev.entries || {};
+  const nextEntries = {};
+
   const listings = await fetchLiveHouses();
   if (!listings.length) {
     console.log('prerender-houses: no listings to prerender');
     return;
   }
   let files = 0;
+  let rendered = 0;
+  let reused = 0;
   for (const listing of listings) {
-    const html = renderListingHtml(template, listing);
-    // Write per short_code AND per uuid so both URL shapes hit a prerendered shell.
-    if (listing.short_code) {
-      writeShell(listing.short_code, html);
+    const slugs = [listing.short_code, listing.id].filter(Boolean);
+    if (!slugs.length) continue;
+    const cacheKey = `${listing.updated_at || ''}`;
+    // Primary cache lookup keyed by uuid (stable) — short_code can change but
+    // uuid can't, so the cached HTML is bit-identical for both slugs.
+    const primary = listing.id || listing.short_code;
+    const prevKey = prevEntries[primary];
+    const cacheHit =
+      !templateChanged &&
+      prevKey === cacheKey &&
+      existsSync(cacheShellPath(primary));
+
+    let html;
+    if (cacheHit) {
+      html = readFileSync(cacheShellPath(primary), 'utf8');
+      reused += 1;
+    } else {
+      html = renderListingHtml(template, listing);
+      saveShellToCache(primary, html);
+      rendered += 1;
+    }
+
+    for (const slug of slugs) {
+      // The cached shell is identical for every slug of this listing, so if
+      // we just rendered it fresh above the cache copy is already correct;
+      // otherwise copy from cache to dist.
+      if (slug === primary && !cacheHit) {
+        writeShell(slug, html);
+      } else if (!copyCachedShell(slug)) {
+        writeShell(slug, html);
+        saveShellToCache(slug, html);
+      }
       files += 1;
     }
-    if (listing.id) {
-      writeShell(listing.id, html);
-      files += 1;
-    }
+    nextEntries[primary] = cacheKey;
   }
-  console.log(`prerender-houses: wrote ${files} shells for ${listings.length} listings`);
+  saveManifest({ version: 1, templateHash, entries: nextEntries });
+  const mode = templateChanged ? 'full rebuild' : 'incremental';
+  console.log(
+    `prerender-houses: ${mode} — ${files} shells for ${listings.length} listings ` +
+      `(rendered ${rendered}, reused ${reused})`,
+  );
 }
 
 main().catch((err) => {
