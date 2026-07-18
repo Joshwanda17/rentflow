@@ -903,6 +903,138 @@ export function FleetPerformanceStats({
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
           </p>
 
+          {/* Verify totals — independent recount of agent_collections for the exact range */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Popover open={verifyOpen} onOpenChange={setVerifyOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); runVerifyTotals(); }}
+                  disabled={verifying || loading}
+                  className="h-7 px-2.5 rounded-lg text-[11px] font-semibold inline-flex items-center gap-1.5 border border-border bg-background hover:bg-muted transition-colors disabled:opacity-50"
+                  title="Independently recount agent_collections for this range and compare with the Collected KPI."
+                >
+                  {verifying ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                  )}
+                  {verifying ? 'Verifying…' : 'Verify totals'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[320px] p-3 text-[11px]">
+                {!verifyResult ? (
+                  <p className="text-muted-foreground">Running independent recount…</p>
+                ) : verifyResult.error ? (
+                  <div className="space-y-1">
+                    <p className="font-semibold text-destructive inline-flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" /> Verify failed
+                    </p>
+                    <p className="text-muted-foreground break-words">{verifyResult.error}</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const delta = verifyResult.fleetSum - verifyResult.kpiCollected;
+                    const reconciled = Math.abs(delta) < 1;
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-bold uppercase tracking-wide text-muted-foreground">
+                            Reconciliation
+                          </p>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${
+                              reconciled
+                                ? 'bg-emerald-500/15 text-emerald-600'
+                                : 'bg-amber-500/15 text-amber-600'
+                            }`}
+                          >
+                            {reconciled ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                            {reconciled ? 'Reconciled' : 'Drift'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="rounded-md border border-border p-1.5">
+                            <p className="text-[10px] text-muted-foreground">KPI Collected</p>
+                            <p className="font-semibold tabular-nums">{formatUGX(verifyResult.kpiCollected)}</p>
+                          </div>
+                          <div className="rounded-md border border-border p-1.5">
+                            <p className="text-[10px] text-muted-foreground">Live recount</p>
+                            <p className="font-semibold tabular-nums">{formatUGX(verifyResult.fleetSum)}</p>
+                          </div>
+                          <div className="rounded-md border border-border p-1.5">
+                            <p className="text-[10px] text-muted-foreground">Delta</p>
+                            <p className={`font-semibold tabular-nums ${reconciled ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {delta > 0 ? '+' : ''}{formatUGX(delta)}
+                            </p>
+                          </div>
+                          <div className="rounded-md border border-border p-1.5">
+                            <p className="text-[10px] text-muted-foreground">Rows scanned</p>
+                            <p className="font-semibold tabular-nums">{verifyResult.rows.toLocaleString()}</p>
+                          </div>
+                        </div>
+                        {verifyDeltas.length > 0 && (
+                          <div className="mt-1 space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Per-agent drift ({verifyDeltas.length})
+                            </p>
+                            <div className="max-h-40 overflow-y-auto rounded-md border border-border">
+                              <table className="w-full text-[10px]">
+                                <thead className="bg-muted/50 text-muted-foreground">
+                                  <tr>
+                                    <th className="text-left px-1.5 py-1 font-semibold">Agent</th>
+                                    <th className="text-right px-1.5 py-1 font-semibold">Δ</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {verifyDeltas.slice(0, 20).map((d) => (
+                                    <tr
+                                      key={d.id}
+                                      className="border-t border-border cursor-pointer hover:bg-muted/40"
+                                      onClick={() => { setVerifyOpen(false); focusAgent(d.id); }}
+                                    >
+                                      <td className="px-1.5 py-1 truncate max-w-[160px]">{d.name}</td>
+                                      <td className={`px-1.5 py-1 text-right tabular-nums font-semibold ${d.delta > 0 ? 'text-amber-600' : 'text-destructive'}`}>
+                                        {d.delta > 0 ? '+' : ''}{formatUGX(d.delta)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Click a row to jump to that agent.</p>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground">
+                          Range {format(start, 'MMM d, HH:mm')} → {format(end, 'MMM d, HH:mm')}. Recounted {format(new Date(verifyResult.at), 'HH:mm:ss')}.
+                        </p>
+                      </div>
+                    );
+                  })()
+                )}
+              </PopoverContent>
+            </Popover>
+            {verifyResult && !verifyResult.error && (
+              <span
+                className={`text-[10px] font-semibold inline-flex items-center gap-1 ${
+                  Math.abs(verifyResult.fleetSum - verifyResult.kpiCollected) < 1
+                    ? 'text-emerald-600'
+                    : 'text-amber-600'
+                }`}
+              >
+                {Math.abs(verifyResult.fleetSum - verifyResult.kpiCollected) < 1 ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3" /> Reconciled · {verifyResult.rows.toLocaleString()} rows
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-3 w-3" /> Drift {formatUGX(verifyResult.fleetSum - verifyResult.kpiCollected)}
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+
           {/* Collection trend: collected per day vs expected daily target — shown in both summary & detailed modes */}
           {trendData.length > 1 && (
             <div className="mt-3 rounded-lg border border-border bg-card p-3">
