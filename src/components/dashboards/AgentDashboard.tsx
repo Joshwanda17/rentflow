@@ -50,9 +50,7 @@ import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
 import { HandCoins } from 'lucide-react';
 import { ShieldCheck } from 'lucide-react';
 import { Trophy } from 'lucide-react';
-import { ShoppingBag, Smartphone, Bike } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -341,12 +339,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [submissionsHighlightId, setSubmissionsHighlightId] = useState<string | undefined>(undefined);
   const [pipelineTab, setPipelineTab] = useState<PipelineTab>('submitted');
   const [submissionsExpanded, setSubmissionsExpanded] = useState(false);
-  const [phoneOpen, setPhoneOpen] = useState(false);
-  const [phoneAmount, setPhoneAmount] = useState('');
-  const [orderingPhone, setOrderingPhone] = useState(false);
-  const [bikeOpen, setBikeOpen] = useState(false);
-  const [bikeAmount, setBikeAmount] = useState('');
-  const [orderingBike, setOrderingBike] = useState(false);
   const { submittedCount, approvedCount, rejectedCount, isLoading: countsLoading } = useAgentPipelineCounts();
   useEffect(() => {
     const handler = (e: Event) => {
