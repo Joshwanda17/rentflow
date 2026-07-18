@@ -976,12 +976,42 @@ export function FleetPerformanceStats({
   );
 }
 
-function Stat({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: string }) {
+function Stat({
+  icon,
+  label,
+  value,
+  tone,
+  info,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: string;
+  info?: string;
+}) {
   return (
     <div className="rounded-lg border border-border bg-card p-2">
       <div className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>
         {icon}
         <span className="truncate">{label}</span>
+        {info && (
+          <UiTooltipProvider delayDuration={100}>
+            <UiTooltip>
+              <UiTooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${label} data source`}
+                  className="ml-0.5 inline-flex items-center justify-center rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <Info className="h-3 w-3" />
+                </button>
+              </UiTooltipTrigger>
+              <UiTooltipContent side="top" className="max-w-[16rem] text-[11px] leading-snug">
+                {info}
+              </UiTooltipContent>
+            </UiTooltip>
+          </UiTooltipProvider>
+        )}
       </div>
       <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate">{value}</div>
     </div>
