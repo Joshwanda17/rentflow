@@ -1841,6 +1841,14 @@ function AgentCollectionsBreakdown({
           )}
         </div>
       )}
+      {!isLoading && rows.length > 0 && (
+        <div className="px-2.5 py-1 text-[9px] text-muted-foreground bg-muted/20 border-b border-border">
+          <span className="inline-flex items-center gap-1">
+            <SlidersHorizontal className="h-2.5 w-2.5" />
+            Click a column to sort. Shift+click to add or remove a secondary sort level.
+          </span>
+        </div>
+      )}
       {isLoading ? (
         <div className="flex items-center justify-center py-4 text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
