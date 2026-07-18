@@ -928,7 +928,7 @@ export function FleetPerformanceStats({
                   const overLabel = r.rate > 100 ? ` ↑${r.rate - 100}%` : '';
                   const expanded = expandedId === r.id;
                   return (
-                    <div key={r.id}>
+                    <div key={r.id} id={`fleet-row-${r.id}`}>
                       <button
                         type="button"
                         onClick={() => setExpandedId(expanded ? null : r.id)}
