@@ -139,6 +139,8 @@ const TryCalculator = lazy(() => import('./pages/TryCalculator'));
 const PublicRentCalculator = lazy(() => import('./pages/PublicRentCalculator'));
 const LandlordSignup = lazy(() => import('./pages/LandlordSignup'));
 const PayRentInstallmentsGuide = lazy(() => import('./pages/PayRentInstallmentsGuide'));
+const CostOfRentingGuide = lazy(() => import('./pages/CostOfRentingGuide'));
+const NeighborhoodComparisonGuide = lazy(() => import('./pages/NeighborhoodComparisonGuide'));
 
 const RegisterTenantPublic = lazy(() => import('./pages/RegisterTenantPublic'));
 const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic'));
@@ -518,6 +520,10 @@ function AppRoutes() {
           <Route path="/try-calculator" element={<TryCalculator />} />
           <Route path="/rent-calculator" element={<PublicRentCalculator />} />
           <Route path="/guides/pay-rent-in-installments-uganda" element={<PayRentInstallmentsGuide />} />
+          <Route path="/guides/cost-of-renting" element={<CostOfRentingGuide />} />
+          <Route path="/guides/cost-of-renting-in-:citySlug" element={<CostOfRentingGuide />} />
+          <Route path="/guides/compare" element={<NeighborhoodComparisonGuide />} />
+          <Route path="/guides/compare/:comparisonSlug" element={<NeighborhoodComparisonGuide />} />
           <Route path="/find-a-house" element={<FindAHouse />} />
           <Route path="/find-a-house/:regionSlug" element={<FindAHouse />} />
           <Route path="/house/:id" element={<HouseDetail />} />
