@@ -40,10 +40,14 @@ export default function OAuthConsent() {
       const { data: sess } = await supabase.auth.getSession();
       if (!sess.session) {
         // Preserve the FULL consent URL so auth returns the user here.
+        // We also stash it in sessionStorage because Google/Apple OAuth
+        // drops query params after the provider round-trip.
         const next = window.location.pathname + window.location.search;
+        setPostAuthRedirect(next);
         window.location.href = "/auth?redirect=" + encodeURIComponent(next);
         return;
       }
+
       const { data, error } = await oauthApi().getAuthorizationDetails(authorizationId);
       if (!active) return;
       if (error) return setError(error.message);
