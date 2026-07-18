@@ -6,7 +6,7 @@ import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import {
   Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown,
   Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X, Download, Receipt,
-  Info,
+  Info, AlertTriangle, Eye, SlidersHorizontal,
 } from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
