@@ -17,6 +17,15 @@ function oauthApi(): OAuthApi {
   return (supabase.auth as unknown as { oauth: OAuthApi }).oauth;
 }
 
+const POST_AUTH_REDIRECT_KEY = "welile_post_auth_redirect";
+
+function setPostAuthRedirect(path: string) {
+  try {
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, path);
+  } catch { /* non-critical */ }
+}
+
+
 export default function OAuthConsent() {
   const [params] = useSearchParams();
   const authorizationId = params.get("authorization_id") ?? "";
