@@ -476,6 +476,15 @@ export default function WithdrawFlow({
   };
 
   const canProceed = () => {
+    // Agent performance gate — blocks step 0 and 1 for the "available"
+    // (personal wallet) source. Landlord-float payouts use a separate
+    // flow and are exempt. Threshold: today_pct < 20% with active tenants.
+    if (
+      source === 'available' &&
+      isPerfLocked
+    ) {
+      return false;
+    }
     switch (currentStep) {
       case 0: return true;
       case 1:
