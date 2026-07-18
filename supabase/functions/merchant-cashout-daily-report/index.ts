@@ -109,123 +109,100 @@ function buildHtml(report: any, prettyDate: string): string {
   const summary: SummaryRow[] = report.summary || [];
   const detail: DetailRow[] = report.detail || [];
 
-  const summaryRows = summary.length
+  // Summary metric tile — half-width on mobile via inline-block, still stacks
+  // gracefully in email clients that ignore media queries.
+  const metric = (label: string, value: string, accent = "#1a1a2e", bg = "#f7f3ff") => `
+    <div class="metric" style="display:inline-block;vertical-align:top;width:48%;box-sizing:border-box;background:${bg};border-radius:10px;padding:12px 10px;margin:0 1% 8px 0;text-align:center;">
+      <div style="font-size:12px;color:#666;line-height:1.2;">${esc(label)}</div>
+      <div style="font-size:18px;font-weight:700;color:${accent};line-height:1.25;margin-top:4px;word-break:break-word;">${value}</div>
+    </div>`;
+
+  const summaryCards = summary.length
     ? summary
         .map(
-          (r, i) => `
-      <tr style="background:${i % 2 ? "#faf7ff" : "#ffffff"}">
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;">${esc(r.merchant_name)}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;color:#555;">${esc(r.merchant_phone || "—")}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${r.payouts}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${fmtUGX(r.total_paid)}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;color:#b45309;">${fmtUGX(r.total_telecom || 0)}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${fmtUGX(r.total_float_consumed || ((r.total_paid || 0) + (r.total_telecom || 0)))}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;color:#6c21c4;">${fmtUGX(r.total_commission)}</td>
-      </tr>`,
+          (r) => `
+      <div style="border:1px solid #e7e0f5;border-radius:12px;padding:14px;margin:0 0 12px;background:#ffffff;">
+        <div style="font-size:15px;font-weight:700;color:#1a1a2e;line-height:1.3;">${esc(r.merchant_name)}</div>
+        <div style="font-size:12px;color:#666;margin-top:2px;">${esc(r.merchant_phone || "—")} · ${r.payouts} payout${r.payouts === 1 ? "" : "s"}</div>
+        <table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;">
+          <tr><td style="padding:4px 0;color:#666;">Customer payouts</td><td style="padding:4px 0;text-align:right;font-weight:600;">${fmtUGX(r.total_paid)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666;">Telecom</td><td style="padding:4px 0;text-align:right;color:#b45309;">${fmtUGX(r.total_telecom || 0)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666;">Float consumed</td><td style="padding:4px 0;text-align:right;font-weight:600;">${fmtUGX(r.total_float_consumed || ((r.total_paid || 0) + (r.total_telecom || 0)))}</td></tr>
+          <tr><td style="padding:4px 0;color:#666;">Commission</td><td style="padding:4px 0;text-align:right;color:#6c21c4;font-weight:700;">${fmtUGX(r.total_commission)}</td></tr>
+        </table>
+      </div>`,
         )
         .join("")
-    : `<tr><td colspan="7" style="padding:14px;text-align:center;color:#888;">No merchant cash-out payouts recorded for this day.</td></tr>`;
+    : `<div style="padding:16px;text-align:center;color:#888;background:#faf7ff;border-radius:10px;">No merchant cash-out payouts recorded for this day.</div>`;
 
-  const detailRows = detail
+  const detailCards = detail
     .map(
-      (r, i) => `
-      <tr style="background:${i % 2 ? "#faf7ff" : "#ffffff"}">
-        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">${esc(r.time)}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">${esc(r.merchant_name)}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">${esc(r.customer_name || "—")}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">${esc(r.payout_method || "—")}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;">${fmtUGX(r.amount)}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;color:#b45309;">${fmtUGX(r.telecom_charge || 0)}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;">${fmtUGX(r.float_consumed || ((r.amount || 0) + (r.telecom_charge || 0)))}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;color:#6c21c4;">${fmtUGX(r.commission)}</td>
-      </tr>`,
+      (r) => `
+      <div style="border:1px solid #eee;border-radius:10px;padding:10px 12px;margin:0 0 8px;background:#ffffff;">
+        <div style="display:block;font-size:12px;color:#666;">${esc(r.time)} · ${esc(r.payout_method || "—")}</div>
+        <div style="font-size:14px;font-weight:600;color:#1a1a2e;margin-top:2px;line-height:1.3;">${esc(r.merchant_name)}</div>
+        <div style="font-size:12px;color:#555;margin-top:1px;">→ ${esc(r.customer_name || "—")}</div>
+        <table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;">
+          <tr><td style="padding:2px 0;color:#666;">Amount</td><td style="padding:2px 0;text-align:right;font-weight:600;">${fmtUGX(r.amount)}</td></tr>
+          <tr><td style="padding:2px 0;color:#666;">Telecom</td><td style="padding:2px 0;text-align:right;color:#b45309;">${fmtUGX(r.telecom_charge || 0)}</td></tr>
+          <tr><td style="padding:2px 0;color:#666;">Float consumed</td><td style="padding:2px 0;text-align:right;">${fmtUGX(r.float_consumed || ((r.amount || 0) + (r.telecom_charge || 0)))}</td></tr>
+          <tr><td style="padding:2px 0;color:#666;">Commission</td><td style="padding:2px 0;text-align:right;color:#6c21c4;font-weight:600;">${fmtUGX(r.commission)}</td></tr>
+        </table>
+      </div>`,
     )
     .join("");
 
-  return `<!doctype html><html><body style="margin:0;background:#f4f1fa;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;">
-  <div style="max-width:760px;margin:0 auto;padding:20px;">
-    <div style="background:#6c21c4;color:#fff;border-radius:12px 12px 0 0;padding:20px 24px;">
-      <h1 style="margin:0;font-size:20px;">Merchant Cash-Out Daily Payout Report</h1>
-      <p style="margin:6px 0 0;font-size:13px;opacity:.9;">${esc(prettyDate)} (East Africa Time)</p>
+  return `<!doctype html><html><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>Merchant Cash-Out Daily Report</title>
+  <style>
+    body { margin:0; padding:0; background:#f4f1fa; -webkit-text-size-adjust:100%; }
+    a { color:#6c21c4; }
+    @media only screen and (max-width: 480px) {
+      .container { padding:12px !important; }
+      .card { padding:16px !important; border-radius:12px !important; }
+      .header { padding:18px 16px !important; }
+      .header h1 { font-size:18px !important; }
+      .metric { width:48% !important; }
+      .metric-full { width:98% !important; }
+    }
+  </style>
+  </head><body style="margin:0;background:#f4f1fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#1a1a2e;">
+  <div class="container" style="max-width:640px;margin:0 auto;padding:20px;">
+    <div class="header" style="background:#6c21c4;color:#fff;border-radius:12px 12px 0 0;padding:20px 24px;">
+      <h1 style="margin:0;font-size:20px;line-height:1.25;">Merchant Cash-Out Daily Payout Report</h1>
+      <p style="margin:6px 0 0;font-size:13px;opacity:.92;">${esc(prettyDate)} (East Africa Time)</p>
     </div>
-    <div style="background:#fff;padding:20px 24px;border:1px solid #e7e0f5;border-top:0;">
-      <table style="width:100%;border-collapse:collapse;margin-bottom:22px;">
-        <tr>
-          <td style="padding:10px;background:#f7f3ff;border-radius:8px;text-align:center;">
-            <div style="font-size:12px;color:#666;">Merchants</div>
-            <div style="font-size:20px;font-weight:700;">${report.merchant_count || 0}</div>
-          </td>
-          <td style="width:10px;"></td>
-          <td style="padding:10px;background:#f7f3ff;border-radius:8px;text-align:center;">
-            <div style="font-size:12px;color:#666;">Payouts</div>
-            <div style="font-size:20px;font-weight:700;">${report.total_payouts || 0}</div>
-          </td>
-          <td style="width:10px;"></td>
-          <td style="padding:10px;background:#f7f3ff;border-radius:8px;text-align:center;">
-            <div style="font-size:12px;color:#666;">Customer Payouts</div>
-            <div style="font-size:20px;font-weight:700;">${fmtUGX(report.total_paid || 0)}</div>
-          </td>
-          <td style="width:10px;"></td>
-          <td style="padding:10px;background:#fff7ed;border-radius:8px;text-align:center;">
-            <div style="font-size:12px;color:#666;">Telecom Charges</div>
-            <div style="font-size:20px;font-weight:700;color:#b45309;">${fmtUGX(report.total_telecom || 0)}</div>
-          </td>
-          <td style="width:10px;"></td>
-          <td style="padding:10px;background:#f7f3ff;border-radius:8px;text-align:center;">
-            <div style="font-size:12px;color:#666;">Float Consumed</div>
-            <div style="font-size:20px;font-weight:700;">${fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0)))}</div>
-          </td>
-          <td style="width:10px;"></td>
-          <td style="padding:10px;background:#f7f3ff;border-radius:8px;text-align:center;">
-            <div style="font-size:12px;color:#666;">Commission</div>
-            <div style="font-size:20px;font-weight:700;color:#6c21c4;">${fmtUGX(report.total_commission || 0)}</div>
-          </td>
-        </tr>
-      </table>
+    <div class="card" style="background:#fff;padding:18px;border:1px solid #e7e0f5;border-top:0;border-radius:0 0 12px 12px;">
 
-      <p style="margin:0 0 14px;font-size:12px;color:#555;background:#f7f3ff;padding:10px 12px;border-radius:8px;">
+      <div style="font-size:0;margin-bottom:14px;">
+        ${metric("Merchants", String(report.merchant_count || 0))}
+        ${metric("Payouts", String(report.total_payouts || 0))}
+        ${metric("Customer Payouts", fmtUGX(report.total_paid || 0))}
+        ${metric("Telecom Charges", fmtUGX(report.total_telecom || 0), "#b45309", "#fff7ed")}
+        ${metric("Float Consumed", fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0))))}
+        ${metric("Commission", fmtUGX(report.total_commission || 0), "#6c21c4")}
+      </div>
+
+      <p style="margin:0 0 18px;font-size:12px;line-height:1.5;color:#555;background:#f7f3ff;padding:12px;border-radius:10px;">
         <strong>Reconciliation:</strong> Merchant Float Allocated = Customer Payouts + Telecom Charges + Remaining Float.
         Every shilling that leaves the merchant's Mobile Money account (payout or telecom fee) is deducted from their float bucket.
       </p>
 
-      <h2 style="font-size:15px;margin:0 0 8px;">Per Merchant Agent</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="background:#6c21c4;color:#fff;text-align:left;">
-            <th style="padding:8px 10px;">Merchant</th>
-            <th style="padding:8px 10px;">Phone</th>
-            <th style="padding:8px 10px;text-align:right;">Payouts</th>
-            <th style="padding:8px 10px;text-align:right;">Customer Payouts</th>
-            <th style="padding:8px 10px;text-align:right;">Telecom</th>
-            <th style="padding:8px 10px;text-align:right;">Float Consumed</th>
-            <th style="padding:8px 10px;text-align:right;">Commission</th>
-          </tr>
-        </thead>
-        <tbody>${summaryRows}</tbody>
-      </table>
+      <h2 style="font-size:15px;margin:0 0 10px;color:#1a1a2e;">Per Merchant Agent</h2>
+      ${summaryCards}
 
       ${
         detail.length
-          ? `<h2 style="font-size:15px;margin:24px 0 8px;">Individual Payouts (${detail.length})</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead>
-          <tr style="background:#4c1696;color:#fff;text-align:left;">
-            <th style="padding:6px 8px;">Time</th>
-            <th style="padding:6px 8px;">Merchant</th>
-            <th style="padding:6px 8px;">Customer</th>
-            <th style="padding:6px 8px;">Method</th>
-            <th style="padding:6px 8px;text-align:right;">Amount</th>
-            <th style="padding:6px 8px;text-align:right;">Telecom</th>
-            <th style="padding:6px 8px;text-align:right;">Float Consumed</th>
-            <th style="padding:6px 8px;text-align:right;">Commission</th>
-          </tr>
-        </thead>
-        <tbody>${detailRows}</tbody>
-      </table>`
+          ? `<h2 style="font-size:15px;margin:22px 0 10px;color:#1a1a2e;">Individual Payouts (${detail.length})</h2>
+      ${detailCards}`
           : ""
       }
 
-      <p style="margin:24px 0 0;font-size:11px;color:#999;">
+      <p style="margin:22px 0 0;font-size:11px;line-height:1.5;color:#999;">
         Generated automatically from the Welile financial ledger. Figures reflect merchant cash-out
         settlements posted for the reporting day (Africa/Kampala). This is an internal operations report.
       </p>
