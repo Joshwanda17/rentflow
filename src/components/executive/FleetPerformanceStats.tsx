@@ -6,12 +6,19 @@ import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import {
   Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown,
   Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X, Download, Receipt,
+  Info,
 } from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Tooltip as UiTooltip,
+  TooltipContent as UiTooltipContent,
+  TooltipProvider as UiTooltipProvider,
+  TooltipTrigger as UiTooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import { useQueryClient } from '@tanstack/react-query';
@@ -750,7 +757,13 @@ export function FleetPerformanceStats({
         <>
           <div className="grid grid-cols-3 gap-2">
             <Stat icon={<Target className="h-3.5 w-3.5" />} label="Expected" value={formatUGX(totalExpected)} tone="text-violet-600" />
-            <Stat icon={<Banknote className="h-3.5 w-3.5" />} label="Collected" value={formatUGX(totalCollected)} tone="text-primary" />
+            <Stat
+              icon={<Banknote className="h-3.5 w-3.5" />}
+              label="Collected"
+              value={formatUGX(totalCollected)}
+              tone="text-primary"
+              info="Sourced from agent_collections — every tenant payment and landlord-float allocation writes a row here, so this total matches the per-agent capacity page."
+            />
             <Stat icon={<Percent className="h-3.5 w-3.5" />} label="Collection rate" value={`${rate}%`} tone={rateTone} />
           </div>
           <div className="mt-2.5 h-2 w-full rounded-full bg-muted overflow-hidden">
@@ -963,12 +976,42 @@ export function FleetPerformanceStats({
   );
 }
 
-function Stat({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: string }) {
+function Stat({
+  icon,
+  label,
+  value,
+  tone,
+  info,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: string;
+  info?: string;
+}) {
   return (
     <div className="rounded-lg border border-border bg-card p-2">
       <div className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>
         {icon}
         <span className="truncate">{label}</span>
+        {info && (
+          <UiTooltipProvider delayDuration={100}>
+            <UiTooltip>
+              <UiTooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${label} data source`}
+                  className="ml-0.5 inline-flex items-center justify-center rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <Info className="h-3 w-3" />
+                </button>
+              </UiTooltipTrigger>
+              <UiTooltipContent side="top" className="max-w-[16rem] text-[11px] leading-snug">
+                {info}
+              </UiTooltipContent>
+            </UiTooltip>
+          </UiTooltipProvider>
+        )}
       </div>
       <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate">{value}</div>
     </div>
