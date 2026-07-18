@@ -757,7 +757,13 @@ export function FleetPerformanceStats({
         <>
           <div className="grid grid-cols-3 gap-2">
             <Stat icon={<Target className="h-3.5 w-3.5" />} label="Expected" value={formatUGX(totalExpected)} tone="text-violet-600" />
-            <Stat icon={<Banknote className="h-3.5 w-3.5" />} label="Collected" value={formatUGX(totalCollected)} tone="text-primary" />
+            <Stat
+              icon={<Banknote className="h-3.5 w-3.5" />}
+              label="Collected"
+              value={formatUGX(totalCollected)}
+              tone="text-primary"
+              info="Sourced from agent_collections — every tenant payment and landlord-float allocation writes a row here, so this total matches the per-agent capacity page."
+            />
             <Stat icon={<Percent className="h-3.5 w-3.5" />} label="Collection rate" value={`${rate}%`} tone={rateTone} />
           </div>
           <div className="mt-2.5 h-2 w-full rounded-full bg-muted overflow-hidden">
