@@ -1631,12 +1631,12 @@ function AgentCollectionsBreakdown({
   const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
   const sortStorageKey = `fleet-perf-sort:${agentId}`;
   const SORT_URL_KEY = 'breakdown-sort';
+  const sortUrlValue = searchParams.get(SORT_URL_KEY);
   const initialSorts = useMemo(() => {
     // URL takes precedence over localStorage so shared/bookmarked links reproduce exactly.
-    const fromUrl = searchParams.get(SORT_URL_KEY);
-    if (fromUrl) return parsePersistedMultiSort<SortKey>(fromUrl, SORT_KEYS, 'when', 'desc');
+    if (sortUrlValue) return parsePersistedMultiSort<SortKey>(sortUrlValue, SORT_KEYS, 'when', 'desc');
     return parsePersistedMultiSort<SortKey>(readStorage(sortStorageKey), SORT_KEYS, 'when', 'desc');
-  }, [searchParams, sortStorageKey]);
+  }, [sortUrlValue, sortStorageKey]);
   const [sorts, setSorts] = useState<SortCriterion<SortKey>[]>(initialSorts);
 
   // Persist sort choices to localStorage and the URL whenever they change.
@@ -1655,7 +1655,7 @@ function AgentCollectionsBreakdown({
       },
       { replace: true },
     );
-  }, [sorts]);
+  }, [sorts, setSearchParams, SORT_URL_KEY]);
 
   const defaultDirFor = (k: SortKey): 'asc' | 'desc' =>
     k === 'amount' || k === 'when' ? 'desc' : 'asc';
