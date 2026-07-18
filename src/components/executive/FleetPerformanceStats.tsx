@@ -449,6 +449,28 @@ export function FleetPerformanceStats({
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Alerts panel — flag agents whose collection rate falls below a threshold.
+  const ALERT_STORAGE_KEY = 'fleet-perf-alerts';
+  const restoredAlerts = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(ALERT_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as { threshold?: number; minExpected?: number };
+    } catch { return null; }
+  }, []);
+  const [alertThreshold, setAlertThreshold] = useState<number>(restoredAlerts?.threshold ?? 50);
+  const [alertMinExpected, setAlertMinExpected] = useState<number>(restoredAlerts?.minExpected ?? 10_000);
+  const [alertsOpen, setAlertsOpen] = useState<boolean>(true);
+  const [alertConfigOpen, setAlertConfigOpen] = useState<boolean>(false);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        ALERT_STORAGE_KEY,
+        JSON.stringify({ threshold: alertThreshold, minExpected: alertMinExpected }),
+      );
+    } catch { /* ignore */ }
+  }, [alertThreshold, alertMinExpected]);
+
   // Persist the selected range whenever it changes.
   useEffect(() => {
     try {
