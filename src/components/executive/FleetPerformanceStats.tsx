@@ -1099,6 +1099,7 @@ export function FleetPerformanceStats({
                             agentName={r.name}
                             start={start}
                             end={end}
+                            expectedCollected={r.collected}
                           />
                         </div>
                       )}
