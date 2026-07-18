@@ -1620,6 +1620,7 @@ function AgentCollectionsBreakdown({
 
   const rows = data?.rows || [];
   const nameById = data?.nameById || new Map<string, string>();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Filters: free-text search (tenant name / id / record id) + payment method +
   // minimum amount. Applied client-side against the already-loaded record set.
@@ -1629,18 +1630,32 @@ function AgentCollectionsBreakdown({
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
   const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
   const sortStorageKey = `fleet-perf-sort:${agentId}`;
-  const initialSorts = useMemo(() => parsePersistedMultiSort<SortKey>(
-    readStorage(sortStorageKey),
-    SORT_KEYS,
-    'when',
-    'desc',
-  ), [sortStorageKey]);
+  const SORT_URL_KEY = 'breakdown-sort';
+  const initialSorts = useMemo(() => {
+    // URL takes precedence over localStorage so shared/bookmarked links reproduce exactly.
+    const fromUrl = searchParams.get(SORT_URL_KEY);
+    if (fromUrl) return parsePersistedMultiSort<SortKey>(fromUrl, SORT_KEYS, 'when', 'desc');
+    return parsePersistedMultiSort<SortKey>(readStorage(sortStorageKey), SORT_KEYS, 'when', 'desc');
+  }, [searchParams, sortStorageKey]);
   const [sorts, setSorts] = useState<SortCriterion<SortKey>[]>(initialSorts);
 
-  // Persist sort choices whenever they change.
+  // Persist sort choices to localStorage and the URL whenever they change.
   useEffect(() => {
     writeStorage(sortStorageKey, serializeMultiSort(sorts));
   }, [sortStorageKey, sorts]);
+
+  useEffect(() => {
+    const serialized = serializeMultiSort(sorts);
+    setSearchParams(
+      (prev) => {
+        if (prev.get(SORT_URL_KEY) === serialized) return prev;
+        const next = new URLSearchParams(prev);
+        next.set(SORT_URL_KEY, serialized);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [sorts]);
 
   const defaultDirFor = (k: SortKey): 'asc' | 'desc' =>
     k === 'amount' || k === 'when' ? 'desc' : 'asc';
