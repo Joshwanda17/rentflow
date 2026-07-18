@@ -132,9 +132,22 @@ export default function Auth() {
         navigate(redirectParam, { replace: true });
         return;
       }
+      // OAuth consent and other flows that started via Google/Apple lose the
+      // ?redirect query during the provider round-trip, so we recover the
+      // intended path from sessionStorage (set by OAuthConsent before redirect).
+      let storedRedirect: string | null = null;
+      try {
+        storedRedirect = sessionStorage.getItem('welile_post_auth_redirect');
+        if (storedRedirect) sessionStorage.removeItem('welile_post_auth_redirect');
+      } catch { /* ignore */ }
+      if (storedRedirect && storedRedirect.startsWith('/')) {
+        navigate(storedRedirect, { replace: true });
+        return;
+      }
       navigate(roleToSlug(authRoles[0]), { replace: true });
     }
   }, [authLoading, user, authRoles, navigate, searchParams]);
+
 
   // Login mode: phone + password is the default tab on /auth. 'otp' (SMS code)
   // and 'email' remain available as backups via the in-form switchers.
