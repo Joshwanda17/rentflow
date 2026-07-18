@@ -473,16 +473,25 @@ export function FleetPerformanceStats({
   autoRefreshMs = 0,
 }: { detailed?: boolean; autoRefreshMs?: number } = {}) {
   const { agentIds: qualifyingIds, isReady: qualifyingReady } = useQualifyingAgentIds();
-  // Restore last-used range from localStorage.
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Restore last-used range. URL parameters (?period, ?from, ?to) take precedence
+  // over localStorage so shared/bookmarked links reproduce the exact same view.
   const restored = useMemo(() => {
+    const urlPeriod = searchParams.get('period') as PeriodKey | null;
+    const urlFrom = searchParams.get('from');
+    const urlTo = searchParams.get('to');
+    const validPeriods: PeriodKey[] = ['today', 'yesterday', 'last7', 'last30', 'this_month', 'last_month', 'all', 'custom'];
+    if (urlPeriod && validPeriods.includes(urlPeriod)) {
+      return { period: urlPeriod, from: urlFrom || undefined, to: urlTo || undefined };
+    }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
-      const parsed = JSON.parse(raw) as { period?: PeriodKey; from?: string; to?: string };
-      return parsed;
+      return JSON.parse(raw) as { period?: PeriodKey; from?: string; to?: string };
     } catch {
       return null;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [period, setPeriod] = useState<PeriodKey>(restored?.period || 'today');
@@ -495,7 +504,6 @@ export function FleetPerformanceStats({
   );
   const [rangeOpen, setRangeOpen] = useState(false);
   const isMobile = useIsMobile();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(() => searchParams.get('breakdown'));
 
@@ -565,6 +573,33 @@ export function FleetPerformanceStats({
       /* ignore storage failures */
     }
   }, [period, customRange]);
+
+  // Mirror the selected range to the URL so it can be shared/bookmarked and
+  // survives full reloads exactly as viewed.
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (period === 'today') {
+          next.delete('period');
+          next.delete('from');
+          next.delete('to');
+        } else {
+          next.set('period', period);
+          if (period === 'custom' && customRange?.from) {
+            next.set('from', customRange.from.toISOString());
+            if (customRange.to) next.set('to', customRange.to.toISOString());
+            else next.delete('to');
+          } else {
+            next.delete('from');
+            next.delete('to');
+          }
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }, [period, customRange, setSearchParams]);
 
   const { start, end, days } = useMemo(() => {
     if (period === 'custom' && customRange?.from) {
