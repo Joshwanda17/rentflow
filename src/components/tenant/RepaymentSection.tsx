@@ -70,19 +70,30 @@ export default function RepaymentSection({
     const fetchData = async () => {
       setLoading(true);
       
-      const [requestsRes, repaymentsRes] = await Promise.all([
+      const [requestsRes, collectionsRes] = await Promise.all([
         supabase
           .from('rent_requests')
           .select('id, rent_amount, duration_days, total_repayment, daily_repayment, status, created_at, disbursed_at')
           .eq('tenant_id', userId)
-          .in('status', ['disbursed', 'completed', 'approved', 'funded'])
+          .in('status', ['disbursed', 'completed', 'approved', 'funded', 'repaying'])
           .order('created_at', { ascending: false }),
-        // repayments table removed - stub
-        Promise.resolve({ data: [] })
+        // Payments come from agent_collections (single source of truth).
+        supabase
+          .from('agent_collections')
+          .select('id, amount, created_at, rent_request_id')
+          .eq('tenant_id', userId)
+          .order('created_at', { ascending: false }),
       ]);
 
       if (requestsRes.data) setRentRequests(requestsRes.data);
-      setRepayments([]);
+      const mapped: Repayment[] = (collectionsRes.data ?? []).map((r: any) => ({
+        id: r.id,
+        amount: Number(r.amount) || 0,
+        payment_date: r.created_at,
+        created_at: r.created_at,
+        rent_request_id: r.rent_request_id ?? '',
+      }));
+      setRepayments(mapped);
       
       setLoading(false);
     };
