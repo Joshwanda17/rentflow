@@ -548,9 +548,13 @@ export default function FindAHouse() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { regionSlug } = useParams<{ regionSlug?: string }>();
+  const landingRegion = regionSlug ? REGION_LANDING_SLUGS[regionSlug.toLowerCase()] : undefined;
+  const isLandingPage = !!landingRegion;
   const geo = useGeolocation(true);
   const [searchText, setSearchText] = useState(() => searchParams.get('q') || '');
   const [selectedRegion, setSelectedRegion] = useState(() => {
+    if (landingRegion) return landingRegion;
     const r = searchParams.get('region');
     return r && REGIONS.includes(r) ? r : 'All Regions';
   });
@@ -564,6 +568,7 @@ export default function FindAHouse() {
   // If the URL already carries a region (restored filtered list / shared link),
   // skip the geolocation auto-default so we don't override the chosen region.
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(() => {
+    if (landingRegion) return true;
     const r = searchParams.get('region');
     return !!(r && REGIONS.includes(r));
   });
