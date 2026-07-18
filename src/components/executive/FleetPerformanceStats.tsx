@@ -1717,7 +1717,8 @@ function AgentCollectionsBreakdown({
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
   const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
   const DEFAULT_SORTS: SortCriterion<SortKey>[] = [{ key: 'when', dir: 'desc' }];
-  const sortStorageKey = `fleet-perf-sort:${agentId}`;
+  // Shared across all agents so switching drill-downs preserves the same ordering.
+  const sortStorageKey = 'fleet-perf-sort';
   const SORT_URL_KEY = 'breakdown-sort';
   const sortUrlValue = searchParams.get(SORT_URL_KEY);
   const initialSorts = useMemo(() => {
