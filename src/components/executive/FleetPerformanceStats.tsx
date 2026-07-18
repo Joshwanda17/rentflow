@@ -506,7 +506,7 @@ export function FleetPerformanceStats({
       },
       { replace: true },
     );
-  }, [expandedId, breakdownParam]);
+  }, [expandedId, breakdownParam, setSearchParams]);
 
 
   // "Verify totals" reconciler: independently re-fetches agent_collections in the range
