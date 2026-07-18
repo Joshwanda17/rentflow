@@ -216,6 +216,24 @@ export default function WithdrawFlow({
       : availableBalance;
   const maxAmount = source === 'available' ? trueAvailable : roiBalance;
 
+  // Agent performance gate. `isAgent` broadens to anyone with agent-family
+  // roles so hybrid accounts (agent + merchant_agent + proxy_agent, etc.)
+  // are all covered. Locked when today's paid/expected < 20% AND the agent
+  // actually has expected daily collections (avoids divide-by-zero locks
+  // for merchant-only agents with no active tenants).
+  const isAgent =
+    userRoles.includes('agent') ||
+    userRoles.includes('merchant_agent') ||
+    userRoles.includes('proxy_agent') ||
+    userRoles.includes('senior_agent');
+  const perfPct = perfToday?.today_pct ?? null;
+  const isPerfLocked =
+    isAgent &&
+    !!perfToday &&
+    perfToday.expected_daily > 0 &&
+    perfToday.active_count > 0 &&
+    (perfPct ?? 0) < 20;
+
   /** Force-fetch the strict ledger balance from the server, bypassing
    *  any cached values. Updates `ledgerAvailable` + `ledgerCheckedAt`. */
   const refetchLedger = async () => {
