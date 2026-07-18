@@ -805,6 +805,14 @@ export function FleetPerformanceStats({
               value={formatUGX(totalCollected)}
               tone="text-primary"
               info="Sourced from agent_collections — every tenant payment and landlord-float allocation writes a row here, so this total matches the per-agent capacity page."
+              formula={{
+                equation: 'Collected = agent_collections',
+                components: [
+                  { label: 'Tenant payments', description: 'Rent collected from funded tenants (cash, MoMo, bank, etc.)' },
+                  { label: 'Landlord-float allocations', description: 'CFO-approved landlord float moved to an agent for disbursement' },
+                ],
+                footnote: 'Both record an agent_collections row with amount > 0 and tag the responsible agent.',
+              }}
             />
             <Stat icon={<Percent className="h-3.5 w-3.5" />} label="Collection rate" value={`${rate}%`} tone={rateTone} />
           </div>
