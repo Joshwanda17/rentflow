@@ -183,6 +183,16 @@ export default function WithdrawFlow({
   const [floatBalance, setFloatBalance] = useState<number>(0);
   const [advanceBalance, setAdvanceBalance] = useState<number>(0);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  // Agent collection performance gate: agents with active tenants whose
+  // today's collection performance is below 20% cannot withdraw from the
+  // withdrawable/available bucket. Landlord-float payouts use a separate
+  // flow (AgentLandlordPayoutFlow) and are not affected.
+  const [perfToday, setPerfToday] = useState<{
+    active_count: number;
+    expected_daily: number;
+    paid_today: number;
+    today_pct: number;
+  } | null>(null);
   // Ledger-true `available` from get_user_available_balance — the
   // ONLY figure we trust to gate the withdraw button. Cached
   // wallets.balance can drift above this; we always take the lesser.
