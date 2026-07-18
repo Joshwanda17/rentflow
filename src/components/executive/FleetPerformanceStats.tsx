@@ -8,6 +8,7 @@ import {
   Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown,
   Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X, Download, Receipt,
   Info, AlertTriangle, Eye, SlidersHorizontal, ShieldCheck, CheckCircle2,
+  RotateCcw,
 } from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
@@ -92,6 +93,12 @@ function parsePersistedMultiSort<T extends string>(raw: string | null, validKeys
 
 function serializeMultiSort<T extends string>(sorts: SortCriterion<T>[]) {
   return sorts.map((s) => `${s.key}:${s.dir}`).join(',');
+}
+
+/** Returns true when two multi-sort arrays are equivalent. */
+function sortsEqual<T extends string>(a: SortCriterion<T>[], b: SortCriterion<T>[]) {
+  if (a.length !== b.length) return false;
+  return a.every((s, i) => s.key === b[i].key && s.dir === b[i].dir);
 }
 
 type TrendGranularity = 'hour' | 'day' | 'month';
@@ -1629,6 +1636,7 @@ function AgentCollectionsBreakdown({
   const [minAmount, setMinAmount] = useState<string>('');
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
   const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
+  const DEFAULT_SORTS: SortCriterion<SortKey>[] = [{ key: 'when', dir: 'desc' }];
   const sortStorageKey = `fleet-perf-sort:${agentId}`;
   const SORT_URL_KEY = 'breakdown-sort';
   const sortUrlValue = searchParams.get(SORT_URL_KEY);
@@ -1648,7 +1656,15 @@ function AgentCollectionsBreakdown({
     const serialized = serializeMultiSort(sorts);
     setSearchParams(
       (prev) => {
-        if (prev.get(SORT_URL_KEY) === serialized) return prev;
+        const current = prev.get(SORT_URL_KEY);
+        // When sort matches the default, keep the URL clean by removing the parameter.
+        if (sortsEqual(sorts, DEFAULT_SORTS)) {
+          if (current === null) return prev;
+          const next = new URLSearchParams(prev);
+          next.delete(SORT_URL_KEY);
+          return next;
+        }
+        if (current === serialized) return prev;
         const next = new URLSearchParams(prev);
         next.set(SORT_URL_KEY, serialized);
         return next;
@@ -1682,6 +1698,12 @@ function AgentCollectionsBreakdown({
       }
       return prev.filter((_, i) => i !== idx);
     });
+  };
+
+  const resetSort = () => {
+    setSorts(DEFAULT_SORTS);
+    // Clear persisted sort so future visits start from the default order.
+    try { window.localStorage.removeItem(sortStorageKey); } catch { /* ignore */ }
   };
 
   const methodOptions = useMemo(() => {
@@ -1877,11 +1899,22 @@ function AgentCollectionsBreakdown({
         </div>
       )}
       {!isLoading && rows.length > 0 && (
-        <div className="px-2.5 py-1 text-[9px] text-muted-foreground bg-muted/20 border-b border-border">
+        <div className="flex items-center justify-between gap-2 px-2.5 py-1 text-[9px] text-muted-foreground bg-muted/20 border-b border-border">
           <span className="inline-flex items-center gap-1">
             <SlidersHorizontal className="h-2.5 w-2.5" />
             Click a column to sort. Shift+click to add or remove a secondary sort level.
           </span>
+          <button
+            type="button"
+            onClick={resetSort}
+            disabled={sortsEqual(sorts, DEFAULT_SORTS)}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors"
+            aria-label="Reset sort to default ordering"
+            title="Reset sort to default ordering (newest first)"
+          >
+            <RotateCcw className="h-2.5 w-2.5" />
+            Reset sort
+          </button>
         </div>
       )}
       {isLoading ? (
