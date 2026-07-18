@@ -53,6 +53,25 @@ const ALL_TIME_START = new Date(2023, 0, 1);
 
 const STORAGE_KEY = 'fleet-perf-range';
 
+/** Safely read a string from localStorage. */
+function readStorage(key: string): string | null {
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
+
+/** Safely write a string to localStorage. */
+function writeStorage(key: string, value: string) {
+  try { window.localStorage.setItem(key, value); } catch { /* ignore */ }
+}
+
+/** Parse a persisted sort value like "when:desc" into key + direction. */
+function parsePersistedSort<T extends string>(raw: string | null, validKeys: readonly T[], defaultKey: T, defaultDir: 'asc' | 'desc') {
+  if (!raw) return { key: defaultKey, dir: defaultDir };
+  const [k, d] = raw.split(':');
+  const key = validKeys.includes(k as T) ? (k as T) : defaultKey;
+  const dir = d === 'asc' || d === 'desc' ? d : defaultDir;
+  return { key, dir };
+}
+
 type TrendGranularity = 'hour' | 'day' | 'month';
 
 function granularityFor(days: number): TrendGranularity {
