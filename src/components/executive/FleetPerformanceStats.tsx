@@ -72,6 +72,27 @@ function parsePersistedSort<T extends string>(raw: string | null, validKeys: rea
   return { key, dir };
 }
 
+type SortCriterion<T extends string> = { key: T; dir: 'asc' | 'desc' };
+
+/** Parse a persisted multi-sort value like "when:desc,amount:desc" into an ordered array. */
+function parsePersistedMultiSort<T extends string>(raw: string | null, validKeys: readonly T[], defaultKey: T, defaultDir: 'asc' | 'desc'): SortCriterion<T>[] {
+  if (!raw) return [{ key: defaultKey, dir: defaultDir }];
+  const parsed = raw
+    .split(',')
+    .map((part) => {
+      const [k, d] = part.trim().split(':');
+      const key = validKeys.includes(k as T) ? (k as T) : null;
+      const dir = d === 'asc' || d === 'desc' ? d : defaultDir;
+      return key ? { key, dir } : null;
+    })
+    .filter((x): x is SortCriterion<T> => !!x);
+  return parsed.length > 0 ? parsed : [{ key: defaultKey, dir: defaultDir }];
+}
+
+function serializeMultiSort<T extends string>(sorts: SortCriterion<T>[]) {
+  return sorts.map((s) => `${s.key}:${s.dir}`).join(',');
+}
+
 type TrendGranularity = 'hour' | 'day' | 'month';
 
 function granularityFor(days: number): TrendGranularity {
@@ -1581,23 +1602,44 @@ function AgentCollectionsBreakdown({
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
   const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
   const sortStorageKey = `fleet-perf-sort:${agentId}`;
-  const initialSort = useMemo(() => parsePersistedSort<SortKey>(
+  const initialSorts = useMemo(() => parsePersistedMultiSort<SortKey>(
     readStorage(sortStorageKey),
     SORT_KEYS,
     'when',
     'desc',
   ), [sortStorageKey]);
-  const [sortKey, setSortKey] = useState<SortKey>(initialSort.key);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSort.dir);
+  const [sorts, setSorts] = useState<SortCriterion<SortKey>[]>(initialSorts);
 
-  // Persist sort choice whenever it changes.
+  // Persist sort choices whenever they change.
   useEffect(() => {
-    writeStorage(sortStorageKey, `${sortKey}:${sortDir}`);
-  }, [sortStorageKey, sortKey, sortDir]);
+    writeStorage(sortStorageKey, serializeMultiSort(sorts));
+  }, [sortStorageKey, sorts]);
 
-  const toggleSort = (k: SortKey) => {
-    if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(k); setSortDir(k === 'amount' || k === 'when' ? 'desc' : 'asc'); }
+  const defaultDirFor = (k: SortKey): 'asc' | 'desc' =>
+    k === 'amount' || k === 'when' ? 'desc' : 'asc';
+
+  const toggleSort = (k: SortKey, multi: boolean) => {
+    setSorts((prev) => {
+      const idx = prev.findIndex((s) => s.key === k);
+      if (!multi) {
+        // Single click: make this the sole sort column (toggle if already sole primary).
+        if (prev.length === 1 && prev[0].key === k) {
+          return [{ key: k, dir: prev[0].dir === 'asc' ? 'desc' : 'asc' }];
+        }
+        return [{ key: k, dir: defaultDirFor(k) }];
+      }
+      // Shift+click cycle: add → flip direction → remove, while preserving priority of other columns.
+      if (idx === -1) {
+        return [...prev, { key: k, dir: defaultDirFor(k) }];
+      }
+      const current = prev[idx];
+      if (current.dir === defaultDirFor(k)) {
+        const next = [...prev];
+        next[idx] = { key: k, dir: current.dir === 'asc' ? 'desc' : 'asc' };
+        return next;
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   const methodOptions = useMemo(() => {
@@ -1623,23 +1665,25 @@ function AgentCollectionsBreakdown({
 
   const sortedRows = useMemo(() => {
     const arr = [...filteredRows];
-    const dir = sortDir === 'asc' ? 1 : -1;
     arr.sort((a, b) => {
-      let av: string | number = 0;
-      let bv: string | number = 0;
-      if (sortKey === 'when') { av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime(); }
-      else if (sortKey === 'amount') { av = Number(a.amount) || 0; bv = Number(b.amount) || 0; }
-      else if (sortKey === 'method') { av = (a.payment_method || '').toLowerCase(); bv = (b.payment_method || '').toLowerCase(); }
-      else if (sortKey === 'tenant') {
-        av = ((a.tenant_id && nameById.get(a.tenant_id)) || '').toLowerCase();
-        bv = ((b.tenant_id && nameById.get(b.tenant_id)) || '').toLowerCase();
+      for (const s of sorts) {
+        const dir = s.dir === 'asc' ? 1 : -1;
+        let av: string | number = 0;
+        let bv: string | number = 0;
+        if (s.key === 'when') { av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime(); }
+        else if (s.key === 'amount') { av = Number(a.amount) || 0; bv = Number(b.amount) || 0; }
+        else if (s.key === 'method') { av = (a.payment_method || '').toLowerCase(); bv = (b.payment_method || '').toLowerCase(); }
+        else if (s.key === 'tenant') {
+          av = ((a.tenant_id && nameById.get(a.tenant_id)) || '').toLowerCase();
+          bv = ((b.tenant_id && nameById.get(b.tenant_id)) || '').toLowerCase();
+        }
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
       }
-      if (av < bv) return -1 * dir;
-      if (av > bv) return 1 * dir;
       return 0;
     });
     return arr;
-  }, [filteredRows, sortKey, sortDir, nameById]);
+  }, [filteredRows, sorts, nameById]);
 
   const total = filteredRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const rawTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -1671,6 +1715,13 @@ function AgentCollectionsBreakdown({
   );
   const selectedTenant = selected?.tenant_id ? nameById.get(selected.tenant_id) || null : null;
 
+  const sortOrderLabel = useMemo(() => {
+    if (sorts.length === 0) return 'unsorted';
+    return sorts
+      .map((s, i) => `${i + 1}. ${s.key} ${s.dir === 'asc' ? '↑' : '↓'}`)
+      .join(' · ');
+  }, [sorts]);
+
   const downloadCsv = () => {
     const s = start.toISOString().slice(0, 10);
     const e = new Date(end.getTime() - 1).toISOString().slice(0, 10);
@@ -1684,7 +1735,7 @@ function AgentCollectionsBreakdown({
       ['Search (tenant name/ID)', query.trim() || '(none)'],
       ['Payment method filter', methodFilter === 'all' ? 'All methods' : methodFilter.replace(/_/g, ' ')],
       ['Minimum amount (UGX)', min > 0 ? min : '(none)'],
-      ['Sort order', `${sortKey} · ${sortDir === 'asc' ? 'ascending' : 'descending'}`],
+      ['Sort order', sortOrderLabel],
       ['Rows exported', sortedRows.length],
       ['Total (UGX)', total],
       ['Generated at', new Date().toISOString()],
@@ -1732,8 +1783,8 @@ function AgentCollectionsBreakdown({
           className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
           title={
             filtersActive
-              ? `Download CSV of the currently filtered rows in ${sortKey} · ${sortDir} order (filters, search and sort recorded in the file)`
-              : `Download CSV of all rows in the selected date range, sorted by ${sortKey} · ${sortDir}`
+              ? `Download CSV of the currently filtered rows in ${sortOrderLabel} order (filters, search and sort recorded in the file)`
+              : `Download CSV of all rows in the selected date range, sorted by ${sortOrderLabel}`
           }
         >
           <Download className="h-3 w-3" />
@@ -1783,6 +1834,14 @@ function AgentCollectionsBreakdown({
           )}
         </div>
       )}
+      {!isLoading && rows.length > 0 && (
+        <div className="px-2.5 py-1 text-[9px] text-muted-foreground bg-muted/20 border-b border-border">
+          <span className="inline-flex items-center gap-1">
+            <SlidersHorizontal className="h-2.5 w-2.5" />
+            Click a column to sort. Shift+click to add or remove a secondary sort level.
+          </span>
+        </div>
+      )}
       {isLoading ? (
         <div className="flex items-center justify-center py-4 text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1806,8 +1865,11 @@ function AgentCollectionsBreakdown({
                   { k: 'method' as const, label: 'Method', align: 'left', cls: 'hidden sm:table-cell' },
                   { k: 'amount' as const, label: 'Amount', align: 'right', cls: '' },
                 ]).map((h) => {
-                  const active = sortKey === h.k;
-                  const arrow = active ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+                  const sortIdx = sorts.findIndex((s) => s.key === h.k);
+                  const active = sortIdx !== -1;
+                  const s = active ? sorts[sortIdx] : null;
+                  const arrow = active ? (s?.dir === 'asc' ? '▲' : '▼') : '↕';
+                  const priority = active ? sortIdx + 1 : null;
                   return (
                     <th
                       key={h.k}
@@ -1815,12 +1877,19 @@ function AgentCollectionsBreakdown({
                     >
                       <button
                         type="button"
-                        onClick={() => toggleSort(h.k)}
+                        onClick={(e) => toggleSort(h.k, e.shiftKey)}
                         className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${active ? 'text-foreground' : ''}`}
-                        title={`Sort by ${h.label}`}
+                        title={`Sort by ${h.label}. Click to set primary sort; Shift+click to add/remove as a secondary sort.`}
                       >
                         {h.label}
-                        <span className={`text-[8px] ${active ? 'opacity-100' : 'opacity-40'}`}>{arrow}</span>
+                        <span className={`inline-flex items-center gap-0.5 text-[8px] ${active ? 'opacity-100' : 'opacity-40'}`}>
+                          {arrow}
+                          {priority !== null && sorts.length > 1 && (
+                            <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary/10 px-1 text-[7px] font-bold tabular-nums">
+                              {priority}
+                            </span>
+                          )}
+                        </span>
                       </button>
                     </th>
                   );
