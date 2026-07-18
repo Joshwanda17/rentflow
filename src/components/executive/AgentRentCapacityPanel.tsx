@@ -22,6 +22,7 @@ import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThre
 import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 import { FleetPerformanceStats } from './FleetPerformanceStats';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
+import { LastUpdatedChip } from './LastUpdatedChip';
 
 type AgentRow = {
   agent_id: string;
@@ -368,6 +369,12 @@ export function AgentRentCapacityPanel({
               Tier = last 7 days' <strong>tenant response rate</strong> (any payment = a daily response) · Hard cap UGX{' '}
               {formatUGX(AGENT_RENT_CAP_UGX)} per agent
             </p>
+            <LastUpdatedChip
+              updatedAt={dataUpdatedAt}
+              isFetching={isFetching}
+              onRefresh={() => refetch()}
+              className="mt-1"
+            />
           </div>
           <DailyRatingThresholdPopover />
         </div>
