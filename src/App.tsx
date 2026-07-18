@@ -519,6 +519,7 @@ function AppRoutes() {
           <Route path="/rent-calculator" element={<PublicRentCalculator />} />
           <Route path="/guides/pay-rent-in-installments-uganda" element={<PayRentInstallmentsGuide />} />
           <Route path="/find-a-house" element={<FindAHouse />} />
+          <Route path="/find-a-house/:regionSlug" element={<FindAHouse />} />
           <Route path="/house/:id" element={<HouseDetail />} />
           
           <Route path="/shop" element={<ShopEntry />} />

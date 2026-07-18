@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +56,32 @@ const CATEGORIES = [
 ];
 
 const SITE_URL = 'https://welileapp.com';
+
+// Location landing pages: /find-a-house/:regionSlug -> region-scoped SEO page.
+// Keep the slug list narrow and matched to the REGIONS array so Google gets
+// crisp, high-intent pages (e.g. "houses for rent in Kampala") without
+// exploding the sitemap. New entries here also need to be added to
+// scripts/generate-sitemap.ts.
+export const REGION_LANDING_SLUGS: Record<string, string> = {
+  kampala: 'Kampala',
+  wakiso: 'Wakiso',
+  mukono: 'Mukono',
+  jinja: 'Jinja',
+  mbale: 'Mbale',
+  mbarara: 'Mbarara',
+  gulu: 'Gulu',
+  lira: 'Lira',
+  'fort-portal': 'Fort Portal',
+  masaka: 'Masaka',
+  entebbe: 'Entebbe',
+  nansana: 'Nansana',
+  kira: 'Kira',
+  bweyogerere: 'Bweyogerere',
+  central: 'Central',
+  eastern: 'Eastern',
+  northern: 'Northern',
+  western: 'Western',
+};
 
 type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
 
@@ -522,9 +548,13 @@ export default function FindAHouse() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { regionSlug } = useParams<{ regionSlug?: string }>();
+  const landingRegion = regionSlug ? REGION_LANDING_SLUGS[regionSlug.toLowerCase()] : undefined;
+  const isLandingPage = !!landingRegion;
   const geo = useGeolocation(true);
   const [searchText, setSearchText] = useState(() => searchParams.get('q') || '');
   const [selectedRegion, setSelectedRegion] = useState(() => {
+    if (landingRegion) return landingRegion;
     const r = searchParams.get('region');
     return r && REGIONS.includes(r) ? r : 'All Regions';
   });
@@ -538,6 +568,7 @@ export default function FindAHouse() {
   // If the URL already carries a region (restored filtered list / shared link),
   // skip the geolocation auto-default so we don't override the chosen region.
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(() => {
+    if (landingRegion) return true;
     const r = searchParams.get('region');
     return !!(r && REGIONS.includes(r));
   });
@@ -796,16 +827,24 @@ export default function FindAHouse() {
     }
   };
 
-  const pageTitle = hasGPS && geo.city
-    ? `Houses for Rent Near ${geo.city} — Daily Rent | Welile`
-    : 'Find a House Near You — Daily Rent | Welile';
+  const pageTitle = isLandingPage
+    ? `Houses for Rent in ${landingRegion} — Daily Rent from UGX | Welile`
+    : hasGPS && geo.city
+      ? `Houses for Rent Near ${geo.city} — Daily Rent | Welile`
+      : 'Find a House Near You — Daily Rent | Welile';
 
-  const pageDescription = 'Browse affordable rental houses near you. Pay daily rent — no big deposits. Verified listings with Google Maps locations across Uganda.';
+  const pageDescription = isLandingPage
+    ? `Browse verified houses for rent in ${landingRegion}, Uganda. Pay daily — no big deposits. Single rooms, bedsitters and family homes with photos, prices and Google Maps locations.`
+    : 'Browse affordable rental houses near you. Pay daily rent — no big deposits. Verified listings with Google Maps locations across Uganda.';
 
   const lowestPrice = filtered.length > 0 ? filtered[0].daily_rate : null;
   const seoDescription = lowestPrice
-    ? `Rent houses from ${formatUGX(lowestPrice)}/day in Uganda. No deposits. ${filtered.length} verified listings. Pay daily — move in today!`
+    ? isLandingPage
+      ? `Houses for rent in ${landingRegion} from ${formatUGX(lowestPrice)}/day. ${filtered.length} verified listings on Welile. No deposits — pay daily and move in today.`
+      : `Rent houses from ${formatUGX(lowestPrice)}/day in Uganda. No deposits. ${filtered.length} verified listings. Pay daily — move in today!`
     : pageDescription;
+
+  const canonicalPath = isLandingPage ? `/find-a-house/${regionSlug!.toLowerCase()}` : '/find-a-house';
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -850,10 +889,10 @@ export default function FindAHouse() {
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={seoDescription} />
-        <link rel="canonical" href={`${SITE_URL}/find-a-house`} />
+        <link rel="canonical" href={`${SITE_URL}${canonicalPath}`} />
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={seoDescription} />
-        <meta property="og:url" content={`${SITE_URL}/find-a-house`} />
+        <meta property="og:url" content={`${SITE_URL}${canonicalPath}`} />
         <meta property="og:type" content="website" />
         {filtered[0]?.image_urls?.[0] && <meta property="og:image" content={filtered[0].image_urls[0]} />}
         <meta name="twitter:card" content="summary_large_image" />
@@ -892,7 +931,11 @@ export default function FindAHouse() {
               </Button>
               <Home className="h-5 w-5 text-primary shrink-0" />
               <h1 className="font-bold text-lg truncate">
-                {hasGPS && geo.city ? `Houses Near ${geo.city}` : 'Find a House'}
+                {isLandingPage
+                  ? `Houses for Rent in ${landingRegion}`
+                  : hasGPS && geo.city
+                    ? `Houses Near ${geo.city}`
+                    : 'Find a House'}
               </h1>
             </div>
             <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
