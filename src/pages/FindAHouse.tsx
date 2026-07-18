@@ -889,10 +889,10 @@ export default function FindAHouse() {
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={seoDescription} />
-        <link rel="canonical" href={`${SITE_URL}/find-a-house`} />
+        <link rel="canonical" href={`${SITE_URL}${canonicalPath}`} />
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={seoDescription} />
-        <meta property="og:url" content={`${SITE_URL}/find-a-house`} />
+        <meta property="og:url" content={`${SITE_URL}${canonicalPath}`} />
         <meta property="og:type" content="website" />
         {filtered[0]?.image_urls?.[0] && <meta property="og:image" content={filtered[0].image_urls[0]} />}
         <meta name="twitter:card" content="summary_large_image" />
