@@ -1672,23 +1672,25 @@ function AgentCollectionsBreakdown({
 
   const sortedRows = useMemo(() => {
     const arr = [...filteredRows];
-    const dir = sortDir === 'asc' ? 1 : -1;
     arr.sort((a, b) => {
-      let av: string | number = 0;
-      let bv: string | number = 0;
-      if (sortKey === 'when') { av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime(); }
-      else if (sortKey === 'amount') { av = Number(a.amount) || 0; bv = Number(b.amount) || 0; }
-      else if (sortKey === 'method') { av = (a.payment_method || '').toLowerCase(); bv = (b.payment_method || '').toLowerCase(); }
-      else if (sortKey === 'tenant') {
-        av = ((a.tenant_id && nameById.get(a.tenant_id)) || '').toLowerCase();
-        bv = ((b.tenant_id && nameById.get(b.tenant_id)) || '').toLowerCase();
+      for (const s of sorts) {
+        const dir = s.dir === 'asc' ? 1 : -1;
+        let av: string | number = 0;
+        let bv: string | number = 0;
+        if (s.key === 'when') { av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime(); }
+        else if (s.key === 'amount') { av = Number(a.amount) || 0; bv = Number(b.amount) || 0; }
+        else if (s.key === 'method') { av = (a.payment_method || '').toLowerCase(); bv = (b.payment_method || '').toLowerCase(); }
+        else if (s.key === 'tenant') {
+          av = ((a.tenant_id && nameById.get(a.tenant_id)) || '').toLowerCase();
+          bv = ((b.tenant_id && nameById.get(b.tenant_id)) || '').toLowerCase();
+        }
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
       }
-      if (av < bv) return -1 * dir;
-      if (av > bv) return 1 * dir;
       return 0;
     });
     return arr;
-  }, [filteredRows, sortKey, sortDir, nameById]);
+  }, [filteredRows, sorts, nameById]);
 
   const total = filteredRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const rawTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
