@@ -1176,15 +1176,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <span className="text-xs font-medium text-primary">Open →</span>
             </button>
 
-            {/* 6) Single Grow button → reveals every other tool via the menu drawer */}
-            <button
-              onClick={handleOpenMenu}
-              className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 active:scale-[0.98] transition-all touch-manipulation min-h-[56px]"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <TrendingUp className="h-5 w-5 text-primary" strokeWidth={2.2} />
-              <span className="text-sm font-bold text-primary">Grow — more tools</span>
-            </button>
           </div>
         )}
 
