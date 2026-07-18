@@ -31,8 +31,19 @@ export function PaymentStreakCalendar({ userId }: PaymentStreakCalendarProps) {
   const fetchPaymentData = async () => {
     setLoading(true);
     try {
-      // repayments table removed - stub
-      const repayments: any[] = [];
+      // Payments are now sourced from agent_collections (single source of
+      // truth for rent collections — includes both cash collections and
+      // agent landlord-float allocations to this tenant).
+      const { data: collectionRows } = await supabase
+        .from('agent_collections')
+        .select('created_at, amount')
+        .eq('tenant_id', userId)
+        .order('created_at', { ascending: false });
+
+      const repayments = (collectionRows ?? []).map((r: any) => ({
+        payment_date: r.created_at,
+        amount: Number(r.amount) || 0,
+      }));
 
       // Fetch active rent request to know the loan period
       const { data: rentRequest } = await supabase

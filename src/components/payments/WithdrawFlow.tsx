@@ -183,6 +183,16 @@ export default function WithdrawFlow({
   const [floatBalance, setFloatBalance] = useState<number>(0);
   const [advanceBalance, setAdvanceBalance] = useState<number>(0);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  // Agent collection performance gate: agents with active tenants whose
+  // today's collection performance is below 20% cannot withdraw from the
+  // withdrawable/available bucket. Landlord-float payouts use a separate
+  // flow (AgentLandlordPayoutFlow) and are not affected.
+  const [perfToday, setPerfToday] = useState<{
+    active_count: number;
+    expected_daily: number;
+    paid_today: number;
+    today_pct: number;
+  } | null>(null);
   // Ledger-true `available` from get_user_available_balance — the
   // ONLY figure we trust to gate the withdraw button. Cached
   // wallets.balance can drift above this; we always take the lesser.
@@ -206,6 +216,24 @@ export default function WithdrawFlow({
       : availableBalance;
   const maxAmount = source === 'available' ? trueAvailable : roiBalance;
 
+  // Agent performance gate. `isAgent` broadens to anyone with agent-family
+  // roles so hybrid accounts (agent + merchant_agent + proxy_agent, etc.)
+  // are all covered. Locked when today's paid/expected < 20% AND the agent
+  // actually has expected daily collections (avoids divide-by-zero locks
+  // for merchant-only agents with no active tenants).
+  const isAgent =
+    userRoles.includes('agent') ||
+    userRoles.includes('merchant_agent') ||
+    userRoles.includes('proxy_agent') ||
+    userRoles.includes('senior_agent');
+  const perfPct = perfToday?.today_pct ?? null;
+  const isPerfLocked =
+    isAgent &&
+    !!perfToday &&
+    perfToday.expected_daily > 0 &&
+    perfToday.active_count > 0 &&
+    (perfPct ?? 0) < 20;
+
   /** Force-fetch the strict ledger balance from the server, bypassing
    *  any cached values. Updates `ledgerAvailable` + `ledgerCheckedAt`. */
   const refetchLedger = async () => {
@@ -228,7 +256,7 @@ export default function WithdrawFlow({
     if (!open || !user) return;
     let cancelled = false;
     (async () => {
-      const [walletRes, rolesRes, ledger] = await Promise.all([
+      const [walletRes, rolesRes, ledger, perfRes] = await Promise.all([
         supabase
           .from('wallets')
           .select('float_balance, advance_balance')
@@ -243,6 +271,11 @@ export default function WithdrawFlow({
         // We compute the same numbers client-side so the WITHDRAW max always
         // matches what the server-side gate will actually allow.
         computeLedgerAvailable(user.id).catch(() => null),
+        supabase
+          .from('v_agent_daily_eligibility' as any)
+          .select('active_count, expected_daily, paid_today, today_pct')
+          .eq('agent_id', user.id)
+          .maybeSingle(),
       ]);
       if (cancelled) return;
       setFloatBalance(Number(walletRes.data?.float_balance ?? 0));
@@ -250,6 +283,17 @@ export default function WithdrawFlow({
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
       if (ledger) setLedgerAvailable(ledger.available);
       if (ledger) setLedgerCheckedAt(Date.now());
+      const pr: any = perfRes?.data;
+      if (pr) {
+        setPerfToday({
+          active_count: Number(pr.active_count) || 0,
+          expected_daily: Number(pr.expected_daily) || 0,
+          paid_today: Number(pr.paid_today) || 0,
+          today_pct: Number(pr.today_pct) || 0,
+        });
+      } else {
+        setPerfToday(null);
+      }
     })();
     return () => { cancelled = true; };
   }, [open, user]);
@@ -450,6 +494,15 @@ export default function WithdrawFlow({
   };
 
   const canProceed = () => {
+    // Agent performance gate — blocks step 0 and 1 for the "available"
+    // (personal wallet) source. Landlord-float payouts use a separate
+    // flow and are exempt. Threshold: today_pct < 20% with active tenants.
+    if (
+      source === 'available' &&
+      isPerfLocked
+    ) {
+      return false;
+    }
     switch (currentStep) {
       case 0: return true;
       case 1:
@@ -849,6 +902,29 @@ export default function WithdrawFlow({
       case 0:
         return (
           <div className="space-y-4">
+            {isPerfLocked && (
+              <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🚫</span>
+                  <h4 className="font-bold text-destructive">Withdrawals temporarily disabled</h4>
+                </div>
+                <p className="text-sm text-destructive/90">
+                  Your collection performance today is{' '}
+                  <span className="font-bold">{(perfPct ?? 0).toFixed(1)}%</span>{' '}
+                  ({formatCurrency(perfToday!.paid_today, 'UGX')} collected of{' '}
+                  {formatCurrency(perfToday!.expected_daily, 'UGX')} expected across{' '}
+                  {perfToday!.active_count} active tenant{perfToday!.active_count === 1 ? '' : 's'}).
+                </p>
+                <p className="text-xs text-destructive/80">
+                  Welile requires agents to keep daily collection performance
+                  at or above <span className="font-semibold">20%</span> before
+                  withdrawing from their wallet. Collect from more of today's
+                  tenants (or allocate landlord float on their behalf) and
+                  performance will update automatically. Landlord-float payouts
+                  are not affected by this rule.
+                </p>
+              </div>
+            )}
             <Label>Withdraw From</Label>
             <div className="space-y-3">
               <Card 
