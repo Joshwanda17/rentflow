@@ -24513,6 +24513,7 @@ export type Database = {
       is_merchant_agent: { Args: { p_user_id: string }; Returns: boolean }
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
+      is_phone_available: { Args: { p_phone: string }; Returns: boolean }
       is_platform_user_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_proxy_agent_for_partner: {
         Args: { _agent: string; _partner: string }
