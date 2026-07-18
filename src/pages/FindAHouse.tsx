@@ -827,16 +827,24 @@ export default function FindAHouse() {
     }
   };
 
-  const pageTitle = hasGPS && geo.city
-    ? `Houses for Rent Near ${geo.city} — Daily Rent | Welile`
-    : 'Find a House Near You — Daily Rent | Welile';
+  const pageTitle = isLandingPage
+    ? `Houses for Rent in ${landingRegion} — Daily Rent from UGX | Welile`
+    : hasGPS && geo.city
+      ? `Houses for Rent Near ${geo.city} — Daily Rent | Welile`
+      : 'Find a House Near You — Daily Rent | Welile';
 
-  const pageDescription = 'Browse affordable rental houses near you. Pay daily rent — no big deposits. Verified listings with Google Maps locations across Uganda.';
+  const pageDescription = isLandingPage
+    ? `Browse verified houses for rent in ${landingRegion}, Uganda. Pay daily — no big deposits. Single rooms, bedsitters and family homes with photos, prices and Google Maps locations.`
+    : 'Browse affordable rental houses near you. Pay daily rent — no big deposits. Verified listings with Google Maps locations across Uganda.';
 
   const lowestPrice = filtered.length > 0 ? filtered[0].daily_rate : null;
   const seoDescription = lowestPrice
-    ? `Rent houses from ${formatUGX(lowestPrice)}/day in Uganda. No deposits. ${filtered.length} verified listings. Pay daily — move in today!`
+    ? isLandingPage
+      ? `Houses for rent in ${landingRegion} from ${formatUGX(lowestPrice)}/day. ${filtered.length} verified listings on Welile. No deposits — pay daily and move in today.`
+      : `Rent houses from ${formatUGX(lowestPrice)}/day in Uganda. No deposits. ${filtered.length} verified listings. Pay daily — move in today!`
     : pageDescription;
+
+  const canonicalPath = isLandingPage ? `/find-a-house/${regionSlug!.toLowerCase()}` : '/find-a-house';
 
   const jsonLd = {
     '@context': 'https://schema.org',
