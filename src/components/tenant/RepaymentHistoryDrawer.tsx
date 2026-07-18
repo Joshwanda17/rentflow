@@ -63,6 +63,7 @@ interface Repayment {
   payment_date: string;
   created_at: string;
   rent_request_id: string;
+  payment_method?: string;
 }
 
 interface LateFee {
