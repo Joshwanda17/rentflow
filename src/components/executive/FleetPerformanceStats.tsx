@@ -620,6 +620,72 @@ export function FleetPerformanceStats({
     });
   };
 
+  // Independent recount: pages through agent_collections in the range and returns
+  // per-agent totals + fleet sum + row count. Used by the "Verify totals" control
+  // to reconcile the KPI against the raw table for the exact same window.
+  const runVerifyTotals = async () => {
+    setVerifying(true);
+    const perAgent: Record<string, number> = {};
+    let fleetSum = 0;
+    let rowCount = 0;
+    let errMsg: string | undefined;
+    try {
+      const PAGE = 1000;
+      let fromIdx = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from('agent_collections')
+          .select('agent_id, amount')
+          .gte('created_at', start.toISOString())
+          .lt('created_at', end.toISOString())
+          .gt('amount', 0)
+          .range(fromIdx, fromIdx + PAGE - 1);
+        if (error) { errMsg = error.message; break; }
+        const chunk = data || [];
+        for (const r of chunk as any[]) {
+          const amt = Number(r.amount) || 0;
+          fleetSum += amt;
+          rowCount += 1;
+          if (r.agent_id) perAgent[r.agent_id] = (perAgent[r.agent_id] || 0) + amt;
+        }
+        if (chunk.length < PAGE) break;
+        fromIdx += PAGE;
+      }
+    } catch (e: any) {
+      errMsg = e?.message || 'Verify failed';
+    }
+    setVerifyResult({
+      at: Date.now(),
+      rows: rowCount,
+      fleetSum,
+      perAgent,
+      kpiCollected: totalCollected,
+      error: errMsg,
+    });
+    setVerifying(false);
+    setVerifyOpen(true);
+  };
+
+  // Per-agent deltas between the independent recount and the KPI's cached map.
+  const verifyDeltas = useMemo(() => {
+    if (!verifyResult) return [] as { id: string; name: string; kpi: number; live: number; delta: number }[];
+    const ids = new Set<string>([
+      ...Object.keys(verifyResult.perAgent),
+      ...Object.keys(collectedByAgent),
+    ]);
+    const list: { id: string; name: string; kpi: number; live: number; delta: number }[] = [];
+    ids.forEach((id) => {
+      const kpi = collectedByAgent[id] || 0;
+      const live = verifyResult.perAgent[id] || 0;
+      const delta = live - kpi;
+      if (Math.abs(delta) >= 1) {
+        list.push({ id, name: names[id] || id.slice(0, 8), kpi, live, delta });
+      }
+    });
+    return list.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  }, [verifyResult, collectedByAgent, names]);
+
   // Reset to first page whenever the result set changes.
   useEffect(() => {
     setPage(0);
