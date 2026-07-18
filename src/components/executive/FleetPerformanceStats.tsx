@@ -1790,8 +1790,8 @@ function AgentCollectionsBreakdown({
           className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
           title={
             filtersActive
-              ? `Download CSV of the currently filtered rows in ${sortKey} · ${sortDir} order (filters, search and sort recorded in the file)`
-              : `Download CSV of all rows in the selected date range, sorted by ${sortKey} · ${sortDir}`
+              ? `Download CSV of the currently filtered rows in ${sortOrderLabel} order (filters, search and sort recorded in the file)`
+              : `Download CSV of all rows in the selected date range, sorted by ${sortOrderLabel}`
           }
         >
           <Download className="h-3 w-3" />
