@@ -76,6 +76,7 @@ import { hapticTap } from '@/lib/haptics';
 import AgentFrozenGate from '@/components/agent/AgentFrozenGate';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
+import { AgentInactivityWarningBanner } from '@/components/agent/AgentInactivityWarningBanner';
 import { AgentRejectedLandlordsPanel } from '@/components/agent/AgentRejectedLandlordsPanel';
 import { AgentDeadTenantsBanner } from '@/components/agent/AgentDeadTenantsBanner';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
@@ -800,6 +801,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <AgentAgreementBanner />
         <MissionBanner dashboardRole="agent" />
         <AgentPaymentEditAlert agentId={user.id} />
+        <AgentInactivityWarningBanner agentId={user.id} />
 
         {/* Landlord verification rejections — edit & resubmit, or dismiss */}
         <AgentRejectedLandlordsPanel />
