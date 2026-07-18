@@ -902,6 +902,29 @@ export default function WithdrawFlow({
       case 0:
         return (
           <div className="space-y-4">
+            {isPerfLocked && (
+              <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🚫</span>
+                  <h4 className="font-bold text-destructive">Withdrawals temporarily disabled</h4>
+                </div>
+                <p className="text-sm text-destructive/90">
+                  Your collection performance today is{' '}
+                  <span className="font-bold">{(perfPct ?? 0).toFixed(1)}%</span>{' '}
+                  ({formatCurrency(perfToday!.paid_today, 'UGX')} collected of{' '}
+                  {formatCurrency(perfToday!.expected_daily, 'UGX')} expected across{' '}
+                  {perfToday!.active_count} active tenant{perfToday!.active_count === 1 ? '' : 's'}).
+                </p>
+                <p className="text-xs text-destructive/80">
+                  Welile requires agents to keep daily collection performance
+                  at or above <span className="font-semibold">20%</span> before
+                  withdrawing from their wallet. Collect from more of today's
+                  tenants (or allocate landlord float on their behalf) and
+                  performance will update automatically. Landlord-float payouts
+                  are not affected by this rule.
+                </p>
+              </div>
+            )}
             <Label>Withdraw From</Label>
             <div className="space-y-3">
               <Card 
