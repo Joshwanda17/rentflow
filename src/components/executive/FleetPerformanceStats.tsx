@@ -1700,6 +1700,12 @@ function AgentCollectionsBreakdown({
     });
   };
 
+  const resetSort = () => {
+    setSorts(DEFAULT_SORTS);
+    // Clear persisted sort so future visits start from the default order.
+    try { window.localStorage.removeItem(sortStorageKey); } catch { /* ignore */ }
+  };
+
   const methodOptions = useMemo(() => {
     const set = new Set<string>();
     rows.forEach((r) => { if (r.payment_method) set.add(r.payment_method); });
