@@ -889,7 +889,11 @@ export default function FindAHouse() {
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={seoDescription} />
-        <link rel="canonical" href={`${SITE_URL}${canonicalPath}`} />
+        {isLandingPage ? (
+          <link rel="canonical" href={`${SITE_URL}/find-a-house/${regionSlug!.toLowerCase()}`} />
+        ) : (
+          <link rel="canonical" href="https://welileapp.com/find-a-house" />
+        )}
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={seoDescription} />
         <meta property="og:url" content={`${SITE_URL}${canonicalPath}`} />
