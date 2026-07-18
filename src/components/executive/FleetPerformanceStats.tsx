@@ -95,6 +95,12 @@ function serializeMultiSort<T extends string>(sorts: SortCriterion<T>[]) {
   return sorts.map((s) => `${s.key}:${s.dir}`).join(',');
 }
 
+/** Returns true when two multi-sort arrays are equivalent. */
+function sortsEqual<T extends string>(a: SortCriterion<T>[], b: SortCriterion<T>[]) {
+  if (a.length !== b.length) return false;
+  return a.every((s, i) => s.key === b[i].key && s.dir === b[i].dir);
+}
+
 type TrendGranularity = 'hour' | 'day' | 'month';
 
 function granularityFor(days: number): TrendGranularity {
