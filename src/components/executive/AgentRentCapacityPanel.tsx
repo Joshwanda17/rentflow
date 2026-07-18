@@ -23,6 +23,7 @@ import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 import { FleetPerformanceStats } from './FleetPerformanceStats';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import { LastUpdatedChip } from './LastUpdatedChip';
+import { AutoRefreshControl, useAutoRefreshInterval } from './AutoRefreshControl';
 
 type AgentRow = {
   agent_id: string;
@@ -69,6 +70,7 @@ export function AgentRentCapacityPanel({
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
   const [defaultCollapsed] = useState<boolean>(isPhone);
   const queryClient = useQueryClient();
+  const [autoRefreshMs, setAutoRefreshMs] = useAutoRefreshInterval(30_000);
 
   // Force a fresh fetch every time the panel mounts (e.g. user switches to
   // the Agent Rent Capacity tab). Without this, a cached fleet snapshot
@@ -113,6 +115,8 @@ export function AgentRentCapacityPanel({
     staleTime: 15_000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+    refetchInterval: autoRefreshMs || false,
+    refetchIntervalInBackground: false,
     queryFn: async (): Promise<AgentRow[]> => {
       // 1) Pull all active rent requests (drives exposure + expected daily collections)
       const { data: active } = await supabase
