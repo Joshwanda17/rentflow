@@ -1559,6 +1559,13 @@ function AgentCollectionsBreakdown({
   const [query, setQuery] = useState('');
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [minAmount, setMinAmount] = useState<string>('');
+  type SortKey = 'when' | 'tenant' | 'method' | 'amount';
+  const [sortKey, setSortKey] = useState<SortKey>('when');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const toggleSort = (k: SortKey) => {
+    if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(k); setSortDir(k === 'amount' || k === 'when' ? 'desc' : 'asc'); }
+  };
 
   const methodOptions = useMemo(() => {
     const set = new Set<string>();
@@ -1580,6 +1587,26 @@ function AgentCollectionsBreakdown({
       return true;
     });
   }, [rows, nameById, query, methodFilter, minAmount]);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...filteredRows];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    arr.sort((a, b) => {
+      let av: string | number = 0;
+      let bv: string | number = 0;
+      if (sortKey === 'when') { av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime(); }
+      else if (sortKey === 'amount') { av = Number(a.amount) || 0; bv = Number(b.amount) || 0; }
+      else if (sortKey === 'method') { av = (a.payment_method || '').toLowerCase(); bv = (b.payment_method || '').toLowerCase(); }
+      else if (sortKey === 'tenant') {
+        av = ((a.tenant_id && nameById.get(a.tenant_id)) || '').toLowerCase();
+        bv = ((b.tenant_id && nameById.get(b.tenant_id)) || '').toLowerCase();
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [filteredRows, sortKey, sortDir, nameById]);
 
   const total = filteredRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const rawTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -1738,14 +1765,35 @@ function AgentCollectionsBreakdown({
           <table className="w-full text-[11px]">
             <thead className="sticky top-0 bg-muted text-muted-foreground">
               <tr>
-                <th className="text-left font-bold uppercase tracking-wide px-2 py-1.5 text-[9px]">When</th>
-                <th className="text-left font-bold uppercase tracking-wide px-2 py-1.5 text-[9px]">Tenant</th>
-                <th className="text-left font-bold uppercase tracking-wide px-2 py-1.5 text-[9px] hidden sm:table-cell">Method</th>
-                <th className="text-right font-bold uppercase tracking-wide px-2 py-1.5 text-[9px]">Amount</th>
+                {([
+                  { k: 'when' as const, label: 'When', align: 'left', cls: '' },
+                  { k: 'tenant' as const, label: 'Tenant', align: 'left', cls: '' },
+                  { k: 'method' as const, label: 'Method', align: 'left', cls: 'hidden sm:table-cell' },
+                  { k: 'amount' as const, label: 'Amount', align: 'right', cls: '' },
+                ]).map((h) => {
+                  const active = sortKey === h.k;
+                  const arrow = active ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+                  return (
+                    <th
+                      key={h.k}
+                      className={`${h.align === 'right' ? 'text-right' : 'text-left'} font-bold uppercase tracking-wide px-2 py-1.5 text-[9px] ${h.cls}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(h.k)}
+                        className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${active ? 'text-foreground' : ''}`}
+                        title={`Sort by ${h.label}`}
+                      >
+                        {h.label}
+                        <span className={`text-[8px] ${active ? 'opacity-100' : 'opacity-40'}`}>{arrow}</span>
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredRows.map((r) => {
+              {sortedRows.map((r) => {
                 const when = new Intl.DateTimeFormat('en-GB', {
                   timeZone: 'Africa/Kampala',
                   month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
