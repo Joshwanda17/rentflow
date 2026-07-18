@@ -1684,13 +1684,15 @@ function AgentCollectionsBreakdown({
       ['Search (tenant name/ID)', query.trim() || '(none)'],
       ['Payment method filter', methodFilter === 'all' ? 'All methods' : methodFilter.replace(/_/g, ' ')],
       ['Minimum amount (UGX)', min > 0 ? min : '(none)'],
-      ['Rows exported', filteredRows.length],
+      ['Sort order', `${sortKey} · ${sortDir === 'asc' ? 'ascending' : 'descending'}`],
+      ['Rows exported', sortedRows.length],
       ['Total (UGX)', total],
       ['Generated at', new Date().toISOString()],
       [],
     ];
     const header = ['Date (Africa/Kampala)', 'Tenant', 'Tenant ID', 'Amount UGX', 'Payment method', 'Record ID'];
-    const body = filteredRows.map((r) => [
+    // Export rows in the same order shown in the sorted drill-down table.
+    const body = sortedRows.map((r) => [
       new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Africa/Kampala',
         year: 'numeric', month: '2-digit', day: '2-digit',
