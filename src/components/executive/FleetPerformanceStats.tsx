@@ -1277,11 +1277,14 @@ function AgentCollectionsBreakdown({
   agentName,
   start,
   end,
+  expectedCollected,
 }: {
   agentId: string;
   agentName: string;
   start: Date;
   end: Date;
+  /** The "Collected" figure shown for this agent in the parent row — used for reconciliation. */
+  expectedCollected: number;
 }) {
   const rangeKey = `${start.toISOString()}:${end.toISOString()}`;
   const { data, isLoading } = useQuery({
@@ -1321,6 +1324,24 @@ function AgentCollectionsBreakdown({
   }, [rows, nameById, query, methodFilter, minAmount]);
 
   const total = filteredRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const rawTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const reconDelta = rawTotal - (Number(expectedCollected) || 0);
+  const reconOk = Math.abs(reconDelta) < 1;
+
+  // Per-method subtotals across the currently filtered rows.
+  const methodSubtotals = useMemo(() => {
+    const m = new Map<string, { count: number; sum: number }>();
+    filteredRows.forEach((r) => {
+      const key = r.payment_method || 'unspecified';
+      const cur = m.get(key) || { count: 0, sum: 0 };
+      cur.count += 1;
+      cur.sum += Number(r.amount) || 0;
+      m.set(key, cur);
+    });
+    return Array.from(m.entries())
+      .map(([method, v]) => ({ method, ...v }))
+      .sort((a, b) => b.sum - a.sum);
+  }, [filteredRows]);
   const filtersActive = query.trim() !== '' || methodFilter !== 'all' || (Number(minAmount) || 0) > 0;
   const clearFilters = () => { setQuery(''); setMethodFilter('all'); setMinAmount(''); };
 
