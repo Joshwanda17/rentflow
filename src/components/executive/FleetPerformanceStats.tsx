@@ -1864,8 +1864,11 @@ function AgentCollectionsBreakdown({
                   { k: 'method' as const, label: 'Method', align: 'left', cls: 'hidden sm:table-cell' },
                   { k: 'amount' as const, label: 'Amount', align: 'right', cls: '' },
                 ]).map((h) => {
-                  const active = sortKey === h.k;
-                  const arrow = active ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+                  const sortIdx = sorts.findIndex((s) => s.key === h.k);
+                  const active = sortIdx !== -1;
+                  const s = active ? sorts[sortIdx] : null;
+                  const arrow = active ? (s?.dir === 'asc' ? '▲' : '▼') : '↕';
+                  const priority = active ? sortIdx + 1 : null;
                   return (
                     <th
                       key={h.k}
@@ -1873,12 +1876,19 @@ function AgentCollectionsBreakdown({
                     >
                       <button
                         type="button"
-                        onClick={() => toggleSort(h.k)}
+                        onClick={(e) => toggleSort(h.k, e.shiftKey)}
                         className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${active ? 'text-foreground' : ''}`}
-                        title={`Sort by ${h.label}`}
+                        title={`Sort by ${h.label}. Click to set primary sort; Shift+click to add/remove as a secondary sort.`}
                       >
                         {h.label}
-                        <span className={`text-[8px] ${active ? 'opacity-100' : 'opacity-40'}`}>{arrow}</span>
+                        <span className={`inline-flex items-center gap-0.5 text-[8px] ${active ? 'opacity-100' : 'opacity-40'}`}>
+                          {arrow}
+                          {priority !== null && sorts.length > 1 && (
+                            <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary/10 px-1 text-[7px] font-bold tabular-nums">
+                              {priority}
+                            </span>
+                          )}
+                        </span>
                       </button>
                     </th>
                   );
