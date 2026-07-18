@@ -488,7 +488,7 @@ export function FleetPerformanceStats({
   );
   const [rangeOpen, setRangeOpen] = useState(false);
   const isMobile = useIsMobile();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(() => searchParams.get('breakdown'));
 
