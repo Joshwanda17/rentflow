@@ -142,7 +142,11 @@ function applyQueueFilters(q: any, o: QueueFilterOpts) {
 
   // Frozen accounts must vanish from the payout queue — never payable.
   if (o.frozenUserIds && o.frozenUserIds.length) {
-    q = q.not('user_id', 'in', `(${o.frozenUserIds.join(',')})`);
+    const list = `(${o.frozenUserIds.join(',')})`;
+    // Exclude when EITHER the requesting user OR the linked party
+    // (proxy partner withdrawals) is currently frozen.
+    q = q.not('user_id', 'in', list);
+    q = q.or(`linked_party.is.null,linked_party.not.in.${list}`);
   }
 
   // Landlord float payout vs standard payout.
