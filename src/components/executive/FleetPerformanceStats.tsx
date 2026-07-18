@@ -1666,9 +1666,54 @@ function AgentCollectionsBreakdown({
 
   // Filters: free-text search (tenant name / id / record id) + payment method +
   // minimum amount. Applied client-side against the already-loaded record set.
-  const [query, setQuery] = useState('');
-  const [methodFilter, setMethodFilter] = useState<string>('all');
-  const [minAmount, setMinAmount] = useState<string>('');
+  // URL params (?bd-q, ?bd-method, ?bd-min) take precedence over per-agent
+  // localStorage so shared/bookmarked links reproduce the exact same view.
+  const FILTER_STORAGE_KEY = `fleet-perf-filters:${agentId}`;
+  const restoredFilters = useMemo(() => {
+    const urlQ = searchParams.get('bd-q');
+    const urlMethod = searchParams.get('bd-method');
+    const urlMin = searchParams.get('bd-min');
+    if (urlQ !== null || urlMethod !== null || urlMin !== null) {
+      return {
+        query: urlQ || '',
+        methodFilter: urlMethod || 'all',
+        minAmount: urlMin || '',
+      };
+    }
+    try {
+      const raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as { query?: string; methodFilter?: string; minAmount?: string };
+    } catch { return null; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId]);
+  const [query, setQuery] = useState(restoredFilters?.query ?? '');
+  const [methodFilter, setMethodFilter] = useState<string>(restoredFilters?.methodFilter ?? 'all');
+  const [minAmount, setMinAmount] = useState<string>(restoredFilters?.minAmount ?? '');
+
+  // Persist filter choices to localStorage (per-agent) and mirror to the URL so
+  // reloading, sharing, or bookmarking restores the exact drill-down view.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        FILTER_STORAGE_KEY,
+        JSON.stringify({ query, methodFilter, minAmount }),
+      );
+    } catch { /* ignore */ }
+  }, [FILTER_STORAGE_KEY, query, methodFilter, minAmount]);
+
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (query.trim()) next.set('bd-q', query); else next.delete('bd-q');
+        if (methodFilter && methodFilter !== 'all') next.set('bd-method', methodFilter); else next.delete('bd-method');
+        if (minAmount && Number(minAmount) > 0) next.set('bd-min', minAmount); else next.delete('bd-min');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [query, methodFilter, minAmount, setSearchParams]);
   type SortKey = 'when' | 'tenant' | 'method' | 'amount';
   const SORT_KEYS: readonly SortKey[] = ['when', 'tenant', 'method', 'amount'];
   const DEFAULT_SORTS: SortCriterion<SortKey>[] = [{ key: 'when', dir: 'desc' }];
