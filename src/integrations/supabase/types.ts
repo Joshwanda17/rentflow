@@ -567,6 +567,7 @@ export type Database = {
           monthly_rate: number
           outstanding_balance: number
           pre_cancel_outstanding: number | null
+          prepaid_installments_remaining: number
           principal: number
           registration_fee: number | null
           status: string
@@ -593,6 +594,7 @@ export type Database = {
           monthly_rate?: number
           outstanding_balance?: number
           pre_cancel_outstanding?: number | null
+          prepaid_installments_remaining?: number
           principal?: number
           registration_fee?: number | null
           status?: string
@@ -619,6 +621,7 @@ export type Database = {
           monthly_rate?: number
           outstanding_balance?: number
           pre_cancel_outstanding?: number | null
+          prepaid_installments_remaining?: number
           principal?: number
           registration_fee?: number | null
           status?: string
