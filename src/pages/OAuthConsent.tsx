@@ -17,6 +17,15 @@ function oauthApi(): OAuthApi {
   return (supabase.auth as unknown as { oauth: OAuthApi }).oauth;
 }
 
+const POST_AUTH_REDIRECT_KEY = "welile_post_auth_redirect";
+
+function setPostAuthRedirect(path: string) {
+  try {
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, path);
+  } catch { /* non-critical */ }
+}
+
+
 export default function OAuthConsent() {
   const [params] = useSearchParams();
   const authorizationId = params.get("authorization_id") ?? "";
@@ -31,10 +40,14 @@ export default function OAuthConsent() {
       const { data: sess } = await supabase.auth.getSession();
       if (!sess.session) {
         // Preserve the FULL consent URL so auth returns the user here.
+        // We also stash it in sessionStorage because Google/Apple OAuth
+        // drops query params after the provider round-trip.
         const next = window.location.pathname + window.location.search;
+        setPostAuthRedirect(next);
         window.location.href = "/auth?redirect=" + encodeURIComponent(next);
         return;
       }
+
       const { data, error } = await oauthApi().getAuthorizationDetails(authorizationId);
       if (!active) return;
       if (error) return setError(error.message);
