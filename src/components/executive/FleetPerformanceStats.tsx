@@ -450,6 +450,20 @@ export function FleetPerformanceStats({
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // "Verify totals" reconciler: independently re-fetches agent_collections in the range
+  // and compares row-count + fleet total + per-agent totals against the cached KPI.
+  type VerifyResult = {
+    at: number;
+    rows: number;
+    fleetSum: number;
+    perAgent: Record<string, number>;
+    kpiCollected: number;
+    error?: string;
+  };
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+
   // Alerts panel — flag agents whose collection rate falls below a threshold.
   const ALERT_STORAGE_KEY = 'fleet-perf-alerts';
   const restoredAlerts = useMemo(() => {
