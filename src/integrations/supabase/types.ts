@@ -24175,6 +24175,10 @@ export type Database = {
           withdrawable_balance: number
         }[]
       }
+      get_agent_sweepable_withdrawable: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       get_agent_tenant_profile: {
         Args: { p_tenant_id: string }
         Returns: {

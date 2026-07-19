@@ -141,9 +141,12 @@ Deno.serve(async (req) => {
       // STRICT: read withdrawable-only figure (Wallet Withdrawable Strict Rule).
       // Never read wallets.balance — that aggregate includes float/commission
       // custody money that must NEVER be touched for advance recovery.
+      // Peer wallet_transfer credits are shielded from advance sweep.
+      // `get_agent_sweepable_withdrawable` returns strict withdrawable minus any
+      // untouched peer-to-peer transfer inflows since the oldest active advance.
       const { data: availRaw, error: availErr } = await supabase
-        .rpc('get_user_available_balance', { p_user_id: advance.agent_id });
-      if (availErr) console.error(`[process-agent-advance-deductions] available_balance error for agent ${advance.agent_id}:`, availErr);
+        .rpc('get_agent_sweepable_withdrawable', { p_user_id: advance.agent_id });
+      if (availErr) console.error(`[process-agent-advance-deductions] sweepable_withdrawable error for agent ${advance.agent_id}:`, availErr);
       const withdrawableSnapshot = Math.max(0, Number(availRaw ?? 0));
 
       // emit repayment_attempted
