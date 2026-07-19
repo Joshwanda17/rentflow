@@ -111,7 +111,26 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   }, [open, refreshLimit]);
 
   const principal = Math.max(0, parseInt(amount) || 0);
-  const monthlyRate = 0.33;
+
+  // Tiered rate: 33% first advance, 28% on any advance after the agent has
+  // FULLY REPAID at least one prior advance (status = 'completed').
+  // Active / overdue / cancelled advances do NOT unlock the repeat rate.
+  const { data: completedAdvanceCount = 0 } = useQuery({
+    queryKey: ['my-completed-advance-count', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { count, error } = await supabase
+        .from('agent_advances')
+        .select('id', { count: 'exact', head: true })
+        .eq('agent_id', user.id)
+        .eq('status', 'completed');
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user?.id && open,
+  });
+  const isRepeatBorrower = (completedAdvanceCount ?? 0) > 0;
+  const monthlyRate = isRepeatBorrower ? 0.28 : 0.33;
   const accessFee = calculateAccessFee(principal, cycleDays, monthlyRate);
   const registrationFee = calculateRegistrationFee(principal);
   const totalPayable = calculateTotalPayable(principal, cycleDays, monthlyRate);
