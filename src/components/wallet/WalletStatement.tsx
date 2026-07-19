@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useEasyReadMode } from '@/hooks/useEasyReadMode';
+import { useWalletActivityBadge } from '@/hooks/useWalletActivityBadge';
 import {
   Sheet,
   SheetContent,
@@ -288,6 +289,7 @@ async function buildSubAgentEarnings(userId: string, entries: LedgerEntry[]): Pr
 export function WalletStatement() {
   const { user, role } = useAuth();
   const [open, setOpen] = useState(false);
+  const { count: newActivityCount, markSeen, refresh: refreshActivity } = useWalletActivityBadge(user?.id);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
@@ -308,6 +310,8 @@ export function WalletStatement() {
   useEffect(() => {
     if (open && user) {
       fetchStatement();
+      markSeen();
+      void refreshActivity();
     }
   }, [open, user]);
 
@@ -703,9 +707,25 @@ export function WalletStatement() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 text-xs font-semibold text-[#9A4DE7] border-primary-foreground/30 hover:bg-primary-foreground/10 hover:text-white">
+        <Button
+          variant="outline"
+          size="sm"
+          className={`relative gap-2 text-xs font-semibold text-[#9A4DE7] border-primary-foreground/30 hover:bg-primary-foreground/10 hover:text-white ${
+            newActivityCount > 0 ? 'animate-pulse ring-2 ring-warning/60' : ''
+          }`}
+          aria-label={
+            newActivityCount > 0
+              ? `Wallet Statement — ${newActivityCount} new ${newActivityCount === 1 ? 'activity' : 'activities'}`
+              : 'Wallet Statement'
+          }
+        >
           <FileText className="h-3.5 w-3.5" />
           Statement
+          {newActivityCount > 0 && (
+            <Badge className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 flex items-center justify-center text-[10px] font-bold bg-warning text-warning-foreground border border-background shadow">
+              {newActivityCount > 99 ? '99+' : newActivityCount}
+            </Badge>
+          )}
         </Button>
       </SheetTrigger>
 
