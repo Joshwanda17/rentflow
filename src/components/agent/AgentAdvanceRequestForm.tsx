@@ -892,9 +892,22 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                 <span className="text-sm font-bold text-foreground">{cycleDays} days</span>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  Access Fee Rate {isRepeatBorrower ? '(repeat)' : '(first advance)'}
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {Math.round(monthlyRate * 100)}% / month
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Daily Repayment</span>
                 <span className="text-sm font-bold text-primary">{formatUGX(dailyPayment)}</span>
               </div>
+              {!isRepeatBorrower && (
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Fully repay this advance to unlock the 28% repeat-borrower rate on your next advance.
+                </p>
+              )}
             </div>
           )}
 
