@@ -226,7 +226,12 @@ export default function WithdrawFlow({
     userRoles.includes('merchant_agent') ||
     userRoles.includes('proxy_agent') ||
     userRoles.includes('senior_agent');
-  const perfPct = perfToday?.today_pct ?? null;
+  // NOTE: `v_agent_daily_eligibility.today_pct` is a 0-1 FRACTION, not a
+  // percent. We convert to percent here so the 20% gate matches the DB
+  // trigger (`enforce_agent_perf_withdrawal`). Comparing the raw fraction
+  // to `20` silently locked every active agent (0.x < 20 is always true),
+  // which made the Confirm button do nothing on step 4.
+  const perfPct = perfToday?.today_pct != null ? perfToday.today_pct * 100 : null;
   const isPerfLocked =
     isAgent &&
     !!perfToday &&
