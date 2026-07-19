@@ -40,6 +40,13 @@ Deno.serve(async (req) => {
     const results = [];
     const skipped = [];
     const today = new Date().toISOString().split('T')[0];
+    // Same-day skip: never deduct on the calendar day the advance was issued
+    // (Africa/Kampala). Day 0 belongs entirely to the agent — daily schedule
+    // starts the next day at the scheduled sweep time.
+    const todayEAT = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Kampala',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
 
     // Build a phone/name map once so we can notify agents without an extra
     // query per advance.
@@ -67,6 +74,25 @@ Deno.serve(async (req) => {
     };
 
     for (const advance of advances) {
+      const issuedAtEAT = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Kampala',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+      }).format(new Date(advance.issued_at));
+      if (issuedAtEAT === todayEAT) {
+        // Grace-day skip. Also log a "prepaid"-style ledger row so the daily
+        // job's idempotency guard treats today as already handled.
+        await supabase.from('agent_advance_ledger').insert({
+          advance_id: advance.id,
+          date: today,
+          opening_balance: Number(advance.outstanding_balance),
+          interest_accrued: 0,
+          amount_deducted: 0,
+          closing_balance: Number(advance.outstanding_balance),
+          deduction_status: 'none',
+        });
+        skipped.push(advance.id);
+        continue;
+      }
       const { data: existingEntry } = await supabase
         .from('agent_advance_ledger')
         .select('id')
