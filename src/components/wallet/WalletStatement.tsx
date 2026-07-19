@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useEasyReadMode } from '@/hooks/useEasyReadMode';
+import { useWalletActivityBadge } from '@/hooks/useWalletActivityBadge';
 import {
   Sheet,
   SheetContent,
@@ -288,6 +289,7 @@ async function buildSubAgentEarnings(userId: string, entries: LedgerEntry[]): Pr
 export function WalletStatement() {
   const { user, role } = useAuth();
   const [open, setOpen] = useState(false);
+  const { count: newActivityCount, markSeen, refresh: refreshActivity } = useWalletActivityBadge(user?.id);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
@@ -308,6 +310,8 @@ export function WalletStatement() {
   useEffect(() => {
     if (open && user) {
       fetchStatement();
+      markSeen();
+      void refreshActivity();
     }
   }, [open, user]);
 
