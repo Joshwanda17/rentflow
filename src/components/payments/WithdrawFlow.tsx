@@ -289,7 +289,8 @@ export default function WithdrawFlow({
           active_count: Number(pr.active_count) || 0,
           expected_daily: Number(pr.expected_daily) || 0,
           paid_today: Number(pr.paid_today) || 0,
-          today_pct: Number(pr.today_pct) || 0,
+          // v_agent_daily_eligibility returns today_pct as a 0-1 fraction; convert to percent.
+          today_pct: (Number(pr.today_pct) || 0) * 100,
         });
       } else {
         setPerfToday(null);
