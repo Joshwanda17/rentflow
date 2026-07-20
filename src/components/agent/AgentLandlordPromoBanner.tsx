@@ -153,9 +153,9 @@ export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPr
             Register Landlords with Empty Houses
           </h3>
           <p className="text-emerald-100/90 text-sm mt-1 leading-relaxed">
-            Every landlord you register who has an empty house earns you an instant{' '}
+            Every landlord you register who has an empty house earns you{' '}
             <span className="font-bold text-white">UGX {BONUS_PER_LANDLORD.toLocaleString()}</span>{' '}
-            bonus — paid straight to your withdrawable wallet.
+            — paid to your withdrawable wallet once Landlord Ops verifies the landlord.
           </p>
         </div>
 
