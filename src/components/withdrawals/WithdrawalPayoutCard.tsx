@@ -291,8 +291,16 @@ export function WithdrawalPayoutCard({
       .from('payment-proofs')
       .upload(path, file, { upsert: false, contentType: file.type || undefined });
     if (upErr) throw new Error(upErr.message || 'Failed to upload proof.');
-    const { data: pub } = supabase.storage.from('payment-proofs').getPublicUrl(path);
-    return { url: pub.publicUrl, type: file.type || `image/${ext}` };
+    // `payment-proofs` is a PRIVATE bucket — public URLs return object-not-found
+    // when auditors/CFOs later try to open the proof. Persist a long-lived
+    // signed URL instead (matches the pattern used by every other uploader).
+    const { data: signed, error: signErr } = await supabase.storage
+      .from('payment-proofs')
+      .createSignedUrl(path, 60 * 60 * 24 * 365); // 1 year
+    if (signErr || !signed?.signedUrl) {
+      throw new Error(signErr?.message || 'Failed to generate proof link.');
+    }
+    return { url: signed.signedUrl, type: file.type || `image/${ext}` };
   }
 
   // Submit the payout and, on server-side rejection, surface the SPECIFIC reason
