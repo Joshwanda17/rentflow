@@ -74,8 +74,8 @@ describe('VouchAuditLog', () => {
     render(<VouchAuditLog profile={p} />);
     fireEvent.click(screen.getByRole('button', { name: /vouch audit log/i }));
 
-    // Primary components must be labelled Primary.
-    expect(screen.getAllByText(/Primary/i).length).toBe(2);
+    // Primary components must be labelled with the "Primary" badge (uppercase-only badge text).
+    expect(screen.getAllByText('Primary', { selector: 'span' }).length).toBe(2);
 
     // Each computed value must appear in the rendered log.
     const rendered = [
