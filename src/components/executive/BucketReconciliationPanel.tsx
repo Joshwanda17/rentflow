@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -8,6 +8,10 @@ import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Dow
 import { generateBucketReconDetailPdf } from '@/lib/bucketReconDetailPdf';
 import { toast } from 'sonner';
 
+// In-memory session stores for detail-view page size + scroll position.
+// Survive tab switches, filter changes, and re-open of the same row within the session.
+const detailPageSizeStore = new Map<string, number>();
+const detailScrollStore = new Map<string, number>();
 // Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
 const REVIEWED_LS_KEY = 'welile:recon-reviewed:v1';
 type ReviewedStore = { missing: Record<string, number>; extra: Record<string, number> };
