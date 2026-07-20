@@ -1276,7 +1276,7 @@ function ReconDetailView({
           ) : filteredPlanCollections.length === 0 ? (
             <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">No rows match the current filters.</p>
           ) : (
-            <MiniCollectionTable rows={filteredPlanCollections} nameOf={nameOf} />
+            <MiniCollectionTable rows={filteredPlanCollections} nameOf={nameOf} stateKey={`missing:${m.rent_id}:plan`} />
           )}
         </div>
 
@@ -1289,7 +1289,7 @@ function ReconDetailView({
             {filteredTenantOther.length === 0 ? (
               <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">No rows match the current filters.</p>
             ) : (
-              <MiniCollectionTable rows={filteredTenantOther} nameOf={nameOf} />
+              <MiniCollectionTable rows={filteredTenantOther} nameOf={nameOf} stateKey={`missing:${m.rent_id}:tenantOther`} />
             )}
           </div>
         )}
@@ -1390,7 +1390,7 @@ function ReconDetailView({
             <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
               Cumulative timeline for this plan in the bucket ({filteredTimeline.length}{hasFilters ? ` / ${timeline.length}` : ''})
             </div>
-            <TimelineTable rows={filteredTimeline} />
+            <TimelineTable rows={filteredTimeline} stateKey={`extra:${c.collection_id}:timeline`} />
             <p className="mt-1 text-[10px] text-muted-foreground italic">
               The row is flagged as extra because its cumulative pushes the plan over the {c.reason === 'over_remaining' ? 'remaining balance' : c.reason === 'over_daily' ? 'daily expected amount' : 'link/status check'} by <span className="font-bold text-amber-800">+{formatUGX(Math.round(c.extra_amount))}</span>.
             </p>
