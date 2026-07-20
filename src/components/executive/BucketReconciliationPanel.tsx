@@ -1669,10 +1669,10 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
       const k = e.key.toLowerCase();
       if (k === 'j') { e.preventDefault(); jumpToFlagged(); }
-      else if (k === 'n' || e.key === ']') { e.preventDefault(); stepFlagged(1); }
-      else if (k === 'p' || e.key === '[') { e.preventDefault(); stepFlagged(-1); }
-      else if (e.key === 'Home') { e.preventDefault(); jumpToFlaggedEdge('first'); }
-      else if (e.key === 'End') { e.preventDefault(); jumpToFlaggedEdge('last'); }
+      else if (k === 'n' || e.key === ']') { e.preventDefault(); stepFlagged(1, e.key === ']' ? ']' : 'N'); }
+      else if (k === 'p' || e.key === '[') { e.preventDefault(); stepFlagged(-1, e.key === '[' ? '[' : 'P'); }
+      else if (e.key === 'Home') { e.preventDefault(); jumpToFlaggedEdge('first', 'Home'); }
+      else if (e.key === 'End') { e.preventDefault(); jumpToFlaggedEdge('last', 'End'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
