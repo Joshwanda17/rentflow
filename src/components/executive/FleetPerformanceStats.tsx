@@ -1485,6 +1485,8 @@ function Stat({
   tone,
   info,
   formula,
+  onClick,
+  clickHint,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -1496,9 +1498,11 @@ function Stat({
     components: { label: string; description: string }[];
     footnote?: string;
   };
+  onClick?: () => void;
+  clickHint?: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-2">
+    <div className={`rounded-lg border border-border bg-card p-2 ${onClick ? 'hover:border-primary/40 hover:bg-primary/5 transition-colors' : ''}`}>
       <div className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>
         {icon}
         <span className="truncate">{label}</span>
@@ -1552,7 +1556,18 @@ function Stat({
           </UiTooltipProvider>
         )}
       </div>
-      <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate">{value}</div>
+      {onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          title={clickHint || 'Drill into contributing records'}
+          className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate w-full text-left underline decoration-dotted decoration-muted-foreground/40 underline-offset-2 hover:decoration-primary hover:text-primary transition-colors focus:outline-none focus:ring-1 focus:ring-primary rounded"
+        >
+          {value}
+        </button>
+      ) : (
+        <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate">{value}</div>
+      )}
     </div>
   );
 }
