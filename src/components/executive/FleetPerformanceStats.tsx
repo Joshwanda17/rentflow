@@ -1428,8 +1428,26 @@ export function FleetPerformanceStats({
                       >
                         <span className="text-center tabular-nums font-bold text-muted-foreground">{rank}</span>
                         <span className="font-semibold text-foreground truncate">{r.name}</span>
-                        <span className="hidden sm:block text-right tabular-nums text-violet-600">{formatUGX(r.expected)}</span>
-                        <span className="hidden sm:block text-right tabular-nums text-primary font-semibold">{formatUGX(r.collected)}</span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); openExpected({ agentId: r.id, agentName: r.name }); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openExpected({ agentId: r.id, agentName: r.name }); } }}
+                          className="hidden sm:block text-right tabular-nums text-violet-600 underline decoration-dotted decoration-violet-500/40 underline-offset-2 hover:decoration-violet-600 hover:text-violet-700 cursor-pointer"
+                          title="View active rent plans contributing to Expected"
+                        >
+                          {formatUGX(r.expected)}
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); openDrill({ agentId: r.id, agentName: r.name }); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openDrill({ agentId: r.id, agentName: r.name }); } }}
+                          className="hidden sm:block text-right tabular-nums text-primary font-semibold underline decoration-dotted decoration-primary/40 underline-offset-2 hover:decoration-primary hover:text-primary/90 cursor-pointer"
+                          title="View every collection record contributing to Collected"
+                        >
+                          {formatUGX(r.collected)}
+                        </span>
                         <div className="flex flex-col items-end gap-0.5 min-w-[3.5rem]">
                           <div className="h-1 w-10 rounded-full bg-muted overflow-hidden">
                             <div className={`h-full ${barTone} ${r.rate > 100 ? 'brightness-110' : ''}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
@@ -1441,14 +1459,22 @@ export function FleetPerformanceStats({
                       {expanded && (
                         <div className="px-2.5 pb-2.5 pt-0.5 bg-muted/30">
                           <div className="grid grid-cols-2 gap-2 text-[11px] sm:hidden">
-                            <div className="rounded-md border border-border bg-card p-2">
-                              <p className="text-[9px] font-bold uppercase tracking-wide text-violet-600">Expected</p>
-                              <p className="mt-0.5 tabular-nums font-bold text-foreground">{formatUGX(r.expected)}</p>
-                            </div>
-                            <div className="rounded-md border border-border bg-card p-2">
-                              <p className="text-[9px] font-bold uppercase tracking-wide text-primary">Collected</p>
-                              <p className="mt-0.5 tabular-nums font-bold text-foreground">{formatUGX(r.collected)}</p>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openExpected({ agentId: r.id, agentName: r.name }); }}
+                              className="rounded-md border border-border bg-card p-2 text-left hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
+                            >
+                              <p className="text-[9px] font-bold uppercase tracking-wide text-violet-600">Expected · tap to drill</p>
+                              <p className="mt-0.5 tabular-nums font-bold text-foreground underline decoration-dotted decoration-violet-500/40 underline-offset-2">{formatUGX(r.expected)}</p>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openDrill({ agentId: r.id, agentName: r.name }); }}
+                              className="rounded-md border border-border bg-card p-2 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                            >
+                              <p className="text-[9px] font-bold uppercase tracking-wide text-primary">Collected · tap to drill</p>
+                              <p className="mt-0.5 tabular-nums font-bold text-foreground underline decoration-dotted decoration-primary/40 underline-offset-2">{formatUGX(r.collected)}</p>
+                            </button>
                           </div>
                           <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
                             <div className={`h-full ${barTone} ${r.rate > 100 ? 'brightness-110' : ''}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
