@@ -633,6 +633,7 @@ function ReconDetailView({
   const [planQuery, setPlanQuery] = useState('');
   const [fromLocal, setFromLocal] = useState<string>(''); // datetime-local (EAT-ish)
   const [toLocal, setToLocal] = useState<string>('');
+  const [stepsOpen, setStepsOpen] = useState<boolean>(true);
 
   const q = query.trim().toLowerCase();
   const pq = planQuery.trim().toLowerCase();
