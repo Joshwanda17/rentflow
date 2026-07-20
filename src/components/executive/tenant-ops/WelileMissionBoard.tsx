@@ -391,6 +391,33 @@ export function WelileMissionBoard() {
                       <ChevronRight className="h-3 w-3" />
                     </button>
                   )}
+                  {p.key === 'list' && (
+                    <div className="mt-1.5 flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/5 p-0.5 w-fit">
+                      <button
+                        type="button"
+                        onClick={() => setEmptyScope('window')}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-semibold transition',
+                          emptyScope === 'window' ? 'bg-amber-500 text-white' : 'text-amber-700 hover:bg-amber-500/10',
+                        )}
+                      >
+                        In window
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEmptyScope('all')}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-semibold transition',
+                          emptyScope === 'all' ? 'bg-amber-500 text-white' : 'text-amber-700 hover:bg-amber-500/10',
+                        )}
+                      >
+                        All-time
+                      </button>
+                    </div>
+                  )}
+                  {p.key === 'list' && m.extra && (
+                    <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>
+                  )}
                   {m.extra && p.key !== 'list' && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
                   {p.key === 'place' && receivables && (
                     <div className="mt-2 rounded-lg bg-emerald-500/10 px-2 py-1.5">
