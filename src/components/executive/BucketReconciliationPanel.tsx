@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -47,6 +48,102 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
         ))}
       </select>
     </label>
+  );
+}
+
+/**
+ * Virtualized list rendered as a CSS grid so column widths align between the
+ * sticky header row and the virtualized body rows. Keeps DOM node count low
+ * (~15-30 row divs) regardless of `items.length`, so scrolling stays fast even
+ * with tens of thousands of rows.
+ */
+function VirtualRows<T extends { id: string }>({
+  items,
+  rowHeight,
+  gridTemplate,
+  header,
+  renderRow,
+  emptyMessage,
+  maxHeight = 480,
+  scrollToIndex,
+  scrollToDepKey,
+}: {
+  items: T[];
+  rowHeight: number;
+  gridTemplate: string;
+  header: React.ReactNode;
+  renderRow: (item: T, index: number) => React.ReactNode;
+  emptyMessage?: string;
+  maxHeight?: number;
+  scrollToIndex?: number;
+  scrollToDepKey?: string;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 10,
+    getItemKey: (i) => items[i]?.id ?? i,
+  });
+  useEffect(() => {
+    if (typeof scrollToIndex === 'number' && scrollToIndex >= 0 && scrollToIndex < items.length) {
+      // Center the target row on next paint so layout has settled.
+      requestAnimationFrame(() => virtualizer.scrollToIndex(scrollToIndex, { align: 'center' }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToDepKey]);
+
+  const totalSize = virtualizer.getTotalSize();
+  const virtualRows = virtualizer.getVirtualItems();
+  // Fit-to-content when list is short; otherwise cap at maxHeight and scroll.
+  const bodyMaxHeight = Math.min(maxHeight, Math.max(rowHeight, totalSize));
+
+  return (
+    <div className="border border-border rounded-md overflow-hidden text-[11px]">
+      <div
+        className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide grid"
+        style={{ gridTemplateColumns: gridTemplate }}
+      >
+        {header}
+      </div>
+      {items.length === 0 ? (
+        <div className="px-2 py-3 text-center text-[11px] text-muted-foreground italic">
+          {emptyMessage ?? 'No rows.'}
+        </div>
+      ) : (
+        <div
+          ref={parentRef}
+          className="overflow-auto"
+          style={{ maxHeight: bodyMaxHeight, contain: 'strict' }}
+        >
+          <div style={{ height: totalSize, position: 'relative', width: '100%' }}>
+            {virtualRows.map((v) => {
+              const item = items[v.index];
+              if (!item) return null;
+              return (
+                <div
+                  key={v.key}
+                  data-index={v.index}
+                  className="grid border-b border-border last:border-b-0"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${v.start}px)`,
+                    height: v.size,
+                    gridTemplateColumns: gridTemplate,
+                  }}
+                >
+                  {renderRow(item, v.index)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 // Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
@@ -1517,33 +1614,34 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
   );
   return (
     <div className="space-y-1">
-    <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
-      <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
-        <tr>
-          <th className="text-left px-2 py-1.5"><SortBtn k="when" label="When (EAT)" /></th>
-          <th className="text-right px-2 py-1.5"><SortBtn k="amount" label="Amount" align="right" /></th>
-          <th className="text-right px-2 py-1.5">Cumulative</th>
-          <th className="text-right px-2 py-1.5"><SortBtn k="over_daily" label="Over daily" align="right" /></th>
-          <th className="text-right px-2 py-1.5"><SortBtn k="over_remaining" label="Over remaining" align="right" /></th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {page.length === 0 && (
-          <tr><td colSpan={5} className="px-2 py-3 text-center text-[11px] text-muted-foreground italic">No rows match the current filters.</td></tr>
+      <VirtualRows
+        items={page}
+        rowHeight={30}
+        gridTemplate="minmax(140px,1.4fr) 110px 110px 110px 130px"
+        header={(
+          <>
+            <div className="px-2 py-1.5 text-left"><SortBtn k="when" label="When (EAT)" /></div>
+            <div className="px-2 py-1.5 text-right"><SortBtn k="amount" label="Amount" align="right" /></div>
+            <div className="px-2 py-1.5 text-right">Cumulative</div>
+            <div className="px-2 py-1.5 text-right"><SortBtn k="over_daily" label="Over daily" align="right" /></div>
+            <div className="px-2 py-1.5 text-right"><SortBtn k="over_remaining" label="Over remaining" align="right" /></div>
+          </>
         )}
-        {page.map((t) => (
-          <tr key={t.id} className={t.isThis ? 'bg-amber-500/10 font-semibold' : ''}>
-            <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">
+        emptyMessage="No rows match the current filters."
+        scrollToIndex={thisIdx >= 0 ? Math.min(thisIdx, page.length - 1) : undefined}
+        scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}`}
+        renderRow={(t) => (
+          <div className={`contents ${t.isThis ? 'font-semibold' : ''}`}>
+            <div className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>
               {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
-            </td>
-            <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.amount)}</td>
-            <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.cumulative)}</td>
-            <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</td>
-            <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            </div>
+            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>{formatUGX(t.amount)}</div>
+            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>{formatUGX(t.cumulative)}</div>
+            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''} ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</div>
+            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''} ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</div>
+          </div>
+        )}
+      />
       {sorted.length > 0 && (
         <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground px-1 flex-wrap">
           <div className="flex items-center gap-2">
@@ -1617,36 +1715,38 @@ function MiniCollectionTable({ rows, nameOf, stateKey }: { rows: BucketCollectio
     sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   return (
     <div className="space-y-1">
-    <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
-      <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
-        <tr>
-          <th className="text-left px-2 py-1.5">
-            <button type="button" onClick={() => toggle('when')} className="inline-flex items-center gap-1 hover:text-foreground">
-              When (EAT) <Icon k="when" />
-            </button>
-          </th>
-          <th className="text-left px-2 py-1.5">Agent</th>
-          <th className="text-left px-2 py-1.5">Method</th>
-          <th className="text-right px-2 py-1.5">
-            <button type="button" onClick={() => toggle('amount')} className="inline-flex items-center gap-1 justify-end w-full hover:text-foreground">
-              Amount <Icon k="amount" />
-            </button>
-          </th>
-          <th className="text-left px-2 py-1.5">Plan</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {page.map((r) => (
-          <tr key={r.id}>
-            <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(new Date(r.created_at).getTime())}</td>
-            <td className="px-2 py-1.5 truncate max-w-[10rem]">{nameOf(r.agent_id) || '—'}</td>
-            <td className="px-2 py-1.5">{(r.payment_method || '—').replace(/_/g, ' ')}</td>
-            <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{formatUGX(Number(r.amount) || 0)}</td>
-            <td className="px-2 py-1.5 font-mono text-[9px] text-muted-foreground">{r.rent_request_id?.slice(0, 8) || '—'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+      <VirtualRows
+        items={page}
+        rowHeight={30}
+        gridTemplate="140px minmax(120px,1.4fr) 110px 110px 90px"
+        header={(
+          <>
+            <div className="px-2 py-1.5 text-left">
+              <button type="button" onClick={() => toggle('when')} className="inline-flex items-center gap-1 hover:text-foreground">
+                When (EAT) <Icon k="when" />
+              </button>
+            </div>
+            <div className="px-2 py-1.5 text-left">Agent</div>
+            <div className="px-2 py-1.5 text-left">Method</div>
+            <div className="px-2 py-1.5 text-right">
+              <button type="button" onClick={() => toggle('amount')} className="inline-flex items-center gap-1 justify-end w-full hover:text-foreground">
+                Amount <Icon k="amount" />
+              </button>
+            </div>
+            <div className="px-2 py-1.5 text-left">Plan</div>
+          </>
+        )}
+        emptyMessage="No rows to display."
+        renderRow={(r) => (
+          <div className="contents">
+            <div className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(new Date(r.created_at).getTime())}</div>
+            <div className="px-2 py-1.5 truncate">{nameOf(r.agent_id) || '—'}</div>
+            <div className="px-2 py-1.5 truncate">{(r.payment_method || '—').replace(/_/g, ' ')}</div>
+            <div className="px-2 py-1.5 text-right tabular-nums font-semibold">{formatUGX(Number(r.amount) || 0)}</div>
+            <div className="px-2 py-1.5 font-mono text-[9px] text-muted-foreground truncate">{r.rent_request_id?.slice(0, 8) || '—'}</div>
+          </div>
+        )}
+      />
       {sorted.length > 0 && (
         <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground px-1 flex-wrap">
           <div className="flex items-center gap-2">
