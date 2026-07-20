@@ -11,7 +11,11 @@ const corsHeaders = {
 // Verification leg of the UGX 5,000 LC1 registration reward. Paid to the
 // registering agent when Landlord Ops verifies the LC1 chairperson. Also flips
 // the chairperson record to verified.
-const VERIFICATION_BONUS = 4000;
+// Full LC1-registration commission. Paid in a SINGLE payment ONLY after
+// Landlord Ops verifies the LC1 chairperson. There is no longer an instant
+// leg — the previous UGX 1,000 registration reward has been retired so agents
+// are not paid for records that never get approved.
+const VERIFICATION_BONUS = 5000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
