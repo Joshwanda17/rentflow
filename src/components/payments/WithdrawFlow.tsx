@@ -294,8 +294,12 @@ export default function WithdrawFlow({
           active_count: Number(pr.active_count) || 0,
           expected_daily: Number(pr.expected_daily) || 0,
           paid_today: Number(pr.paid_today) || 0,
-          // v_agent_daily_eligibility returns today_pct as a 0-1 fraction; convert to percent.
-          today_pct: (Number(pr.today_pct) || 0) * 100,
+          // v_agent_daily_eligibility returns today_pct as a 0-1 fraction. We
+          // store it as-is; `perfPct` below multiplies by 100 for the 20%
+          // gate + display. (Multiplying here too caused a x100 double-count
+          // that made every agent look 100x their real score, so the "under
+          // 20%" warning card never rendered — see finding.)
+          today_pct: Number(pr.today_pct) || 0,
         });
       } else {
         setPerfToday(null);
