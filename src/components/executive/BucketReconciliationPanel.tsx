@@ -1445,20 +1445,41 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   );
 }
 
+type MiniSortKey = 'when' | 'amount';
 function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameOf: (id: string | null) => string }) {
+  const [sort, setSort] = useState<{ k: MiniSortKey; dir: 'asc' | 'desc' }>({ k: 'when', dir: 'asc' });
+  const toggle = (k: MiniSortKey) =>
+    setSort((s) => (s.k === k ? { k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: k === 'amount' ? 'desc' : 'asc' }));
+  const sorted = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      if (sort.k === 'amount') return ((Number(a.amount) || 0) - (Number(b.amount) || 0)) * dir;
+      return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+    });
+  }, [rows, sort]);
+  const Icon = ({ k }: { k: MiniSortKey }) =>
+    sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   return (
     <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
       <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
         <tr>
-          <th className="text-left px-2 py-1.5">When (EAT)</th>
+          <th className="text-left px-2 py-1.5">
+            <button type="button" onClick={() => toggle('when')} className="inline-flex items-center gap-1 hover:text-foreground">
+              When (EAT) <Icon k="when" />
+            </button>
+          </th>
           <th className="text-left px-2 py-1.5">Agent</th>
           <th className="text-left px-2 py-1.5">Method</th>
-          <th className="text-right px-2 py-1.5">Amount</th>
+          <th className="text-right px-2 py-1.5">
+            <button type="button" onClick={() => toggle('amount')} className="inline-flex items-center gap-1 justify-end w-full hover:text-foreground">
+              Amount <Icon k="amount" />
+            </button>
+          </th>
           <th className="text-left px-2 py-1.5">Plan</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
-        {rows.map((r) => (
+        {sorted.map((r) => (
           <tr key={r.id}>
             <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(new Date(r.created_at).getTime())}</td>
             <td className="px-2 py-1.5 truncate max-w-[10rem]">{nameOf(r.agent_id) || '—'}</td>
