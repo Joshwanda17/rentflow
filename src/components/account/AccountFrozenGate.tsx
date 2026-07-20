@@ -106,11 +106,11 @@ export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
             const msg = encodeURIComponent(
               `Hello Welile Support, my account (${user?.email || user?.phone || user?.id}) has been restricted. I would like to request a review.`,
             );
-            window.open(`https://wa.me/256708257899?text=${msg}`, '_blank', 'noopener');
+            window.open(`https://wa.me/256777607640?text=${msg}`, '_blank', 'noopener');
           }}
         >
           <MessageCircle className="mr-2 h-4 w-4" />
-          Chat support on WhatsApp: +256 708 257 899
+          Chat support on WhatsApp: +256777607640
         </Button>
 
         <button
