@@ -1,0 +1,521 @@
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { formatUGX } from '@/lib/rentCalculations';
+import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download } from 'lucide-react';
+
+type ActiveRent = {
+  id: string;
+  tenant_id: string | null;
+  agent_id: string | null;
+  daily_repayment: number | null;
+  total_repayment: number | null;
+  amount_repaid: number | null;
+  status: string | null;
+};
+
+type BucketCollection = {
+  id: string;
+  amount: number;
+  created_at: string;
+  agent_id: string | null;
+  tenant_id: string | null;
+  payment_method: string | null;
+  rent_request_id: string | null;
+};
+
+async function fetchActiveRents(agentId?: string | null): Promise<ActiveRent[]> {
+  const all: ActiveRent[] = [];
+  const PAGE = 1000;
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    let q = supabase
+      .from('rent_requests')
+      .select('id, tenant_id, agent_id, daily_repayment, total_repayment, amount_repaid, status')
+      .in('status', ACTIVE_RENT_STATUSES)
+      .not('agent_id', 'is', null)
+      .gt('daily_repayment', 0)
+      .range(from, from + PAGE - 1);
+    if (agentId) q = q.eq('agent_id', agentId);
+    const { data, error } = await q;
+    if (error) { console.error('[Reconcile] rents page failed', error); break; }
+    const rows = (data || []) as ActiveRent[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
+async function fetchBucketCollections(opts: { start: Date; end: Date; agentId?: string | null }): Promise<BucketCollection[]> {
+  const all: BucketCollection[] = [];
+  const PAGE = 1000;
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    let q = supabase
+      .from('agent_collections')
+      .select('id, amount, created_at, agent_id, tenant_id, payment_method, rent_request_id')
+      .gte('created_at', opts.start.toISOString())
+      .lt('created_at', opts.end.toISOString())
+      .gt('amount', 0)
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (opts.agentId) q = q.eq('agent_id', opts.agentId);
+    const { data, error } = await q;
+    if (error) { console.error('[Reconcile] collections page failed', error); break; }
+    const rows = (data || []) as BucketCollection[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
+async function fetchNames(ids: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  const BATCH = 100;
+  for (let i = 0; i < unique.length; i += BATCH) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', unique.slice(i, i + BATCH));
+    (data || []).forEach((p: { id: string; full_name?: string | null; phone?: string | null }) => {
+      map.set(p.id, p.full_name || p.phone || p.id.slice(0, 8));
+    });
+  }
+  return map;
+}
+
+type MissingRow = {
+  rent_id: string;
+  tenant_id: string | null;
+  agent_id: string | null;
+  daily: number;
+  collected: number;
+  variance: number;
+  remaining_before: number;
+};
+
+type ExtraRow = {
+  collection_id: string;
+  when_ms: number;
+  amount: number;
+  extra_amount: number;
+  agent_id: string | null;
+  tenant_id: string | null;
+  rent_request_id: string | null;
+  method: string | null;
+  reason: 'no_plan_link' | 'inactive_plan' | 'over_daily' | 'over_remaining';
+  reason_label: string;
+};
+
+type MSort = 'variance' | 'daily' | 'collected' | 'tenant' | 'agent' | 'remaining';
+type ESort = 'when' | 'amount' | 'extra' | 'tenant' | 'agent' | 'reason';
+
+const REASON_LABELS: Record<ExtraRow['reason'], string> = {
+  no_plan_link: 'Not linked to any rent plan',
+  inactive_plan: 'Linked plan is closed / inactive',
+  over_daily: 'Exceeds plan daily repayment',
+  over_remaining: 'Exceeds plan remaining balance',
+};
+
+const fmtWhen = (ms: number) =>
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Kampala', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(ms));
+
+export function BucketReconciliationPanel({
+  open,
+  onOpenChange,
+  start,
+  end,
+  agentId,
+  agentName,
+  bucketLabel,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  start: Date;
+  end: Date;
+  agentId?: string | null;
+  agentName?: string | null;
+  bucketLabel?: string | null;
+}) {
+  const rangeKey = `${start.toISOString()}:${end.toISOString()}:${agentId || 'all'}`;
+
+  const { data: rents = [], isLoading: rLoading } = useQuery({
+    queryKey: ['recon-rents', agentId || 'all'],
+    queryFn: () => fetchActiveRents(agentId),
+    enabled: open,
+    staleTime: 30_000,
+  });
+  const { data: collections = [], isLoading: cLoading } = useQuery({
+    queryKey: ['recon-collections', rangeKey],
+    queryFn: () => fetchBucketCollections({ start, end, agentId }),
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  const rentById = useMemo(() => {
+    const m = new Map<string, ActiveRent>();
+    for (const r of rents) m.set(r.id, r);
+    return m;
+  }, [rents]);
+
+  // Bucket duration in days (min 1/24 for hour buckets, 1 for day buckets).
+  const bucketDays = useMemo(() => {
+    const ms = end.getTime() - start.getTime();
+    return Math.max(1 / 48, ms / 86_400_000);
+  }, [start, end]);
+
+  // Sum collections per plan (for planned matches).
+  const collectedByPlan = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of collections) {
+      if (!c.rent_request_id) continue;
+      m.set(c.rent_request_id, (m.get(c.rent_request_id) || 0) + (Number(c.amount) || 0));
+    }
+    return m;
+  }, [collections]);
+
+  const nameIds = useMemo(() => {
+    const s = new Set<string>();
+    rents.forEach((r) => { if (r.tenant_id) s.add(r.tenant_id); if (r.agent_id) s.add(r.agent_id); });
+    collections.forEach((c) => { if (c.tenant_id) s.add(c.tenant_id); if (c.agent_id) s.add(c.agent_id); });
+    return Array.from(s);
+  }, [rents, collections]);
+  const { data: names } = useQuery({
+    queryKey: ['recon-names', rangeKey, nameIds.length],
+    queryFn: () => fetchNames(nameIds),
+    enabled: open && nameIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+  const nameById = names || new Map<string, string>();
+
+  // MISSING rows: active rents where collected in bucket < expected for bucket.
+  const missingAll = useMemo<MissingRow[]>(() => {
+    const out: MissingRow[] = [];
+    for (const r of rents) {
+      const daily = Number(r.daily_repayment) || 0;
+      if (daily <= 0) continue;
+      const totalDue = Number(r.total_repayment) || 0;
+      const paidBefore = Number(r.amount_repaid) || 0;
+      const remaining = Math.max(0, totalDue - paidBefore);
+      if (remaining <= 0) continue;
+      const expected = Math.min(remaining, daily * bucketDays);
+      const collected = collectedByPlan.get(r.id) || 0;
+      if (collected + 1 >= expected) continue; // fully covered (1 UGX rounding buffer)
+      out.push({
+        rent_id: r.id,
+        tenant_id: r.tenant_id,
+        agent_id: r.agent_id,
+        daily: expected,
+        collected,
+        variance: expected - collected,
+        remaining_before: remaining,
+      });
+    }
+    return out;
+  }, [rents, collectedByPlan, bucketDays]);
+
+  // EXTRA rows: collections that don't map cleanly to an expected daily obligation.
+  const extraAll = useMemo<ExtraRow[]>(() => {
+    const out: ExtraRow[] = [];
+    // Track cumulative collected per plan across the bucket (chronological).
+    const cumByPlan = new Map<string, number>();
+    // Iterate oldest first so cumulative math is right.
+    const chrono = [...collections].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    for (const c of chrono) {
+      const amt = Number(c.amount) || 0;
+      const whenMs = new Date(c.created_at).getTime();
+      const base = {
+        collection_id: c.id,
+        when_ms: whenMs,
+        amount: amt,
+        agent_id: c.agent_id,
+        tenant_id: c.tenant_id,
+        rent_request_id: c.rent_request_id,
+        method: c.payment_method,
+      };
+      if (!c.rent_request_id) {
+        out.push({ ...base, extra_amount: amt, reason: 'no_plan_link', reason_label: REASON_LABELS.no_plan_link });
+        continue;
+      }
+      const plan = rentById.get(c.rent_request_id);
+      if (!plan) {
+        out.push({ ...base, extra_amount: amt, reason: 'inactive_plan', reason_label: REASON_LABELS.inactive_plan });
+        continue;
+      }
+      const daily = Number(plan.daily_repayment) || 0;
+      const remaining = Math.max(0, (Number(plan.total_repayment) || 0) - (Number(plan.amount_repaid) || 0));
+      const expected = Math.min(remaining, daily * bucketDays);
+      const already = cumByPlan.get(c.rent_request_id) || 0;
+      const overDaily = Math.max(0, (already + amt) - expected);
+      const overRemaining = Math.max(0, (already + amt) - remaining);
+      cumByPlan.set(c.rent_request_id, already + amt);
+      if (overRemaining > 0) {
+        out.push({ ...base, extra_amount: overRemaining, reason: 'over_remaining', reason_label: REASON_LABELS.over_remaining });
+      } else if (overDaily > 0) {
+        out.push({ ...base, extra_amount: overDaily, reason: 'over_daily', reason_label: REASON_LABELS.over_daily });
+      }
+    }
+    return out;
+  }, [collections, rentById, bucketDays]);
+
+  const totalExpected = useMemo(() => {
+    let sum = 0;
+    for (const r of rents) {
+      const daily = Number(r.daily_repayment) || 0;
+      if (daily <= 0) continue;
+      const remaining = Math.max(0, (Number(r.total_repayment) || 0) - (Number(r.amount_repaid) || 0));
+      if (remaining <= 0) continue;
+      sum += Math.min(remaining, daily * bucketDays);
+    }
+    return sum;
+  }, [rents, bucketDays]);
+  const totalCollected = useMemo(() => collections.reduce((s, c) => s + (Number(c.amount) || 0), 0), [collections]);
+  const missingTotal = missingAll.reduce((s, r) => s + r.variance, 0);
+  const extraTotal = extraAll.reduce((s, r) => s + r.extra_amount, 0);
+  const rate = totalExpected > 0 ? totalCollected / totalExpected : 0;
+
+  // Sort state.
+  const [tab, setTab] = useState<'missing' | 'extra'>('missing');
+  const [mSort, setMSort] = useState<{ k: MSort; dir: 'asc' | 'desc' }>({ k: 'variance', dir: 'desc' });
+  const [eSort, setESort] = useState<{ k: ESort; dir: 'asc' | 'desc' }>({ k: 'extra', dir: 'desc' });
+
+  const missing = useMemo(() => {
+    const dir = mSort.dir === 'asc' ? 1 : -1;
+    const nameOf = (id: string | null) => (id && nameById.get(id)) || '';
+    return [...missingAll].sort((a, b) => {
+      let av: string | number = 0; let bv: string | number = 0;
+      switch (mSort.k) {
+        case 'variance': av = a.variance; bv = b.variance; break;
+        case 'daily': av = a.daily; bv = b.daily; break;
+        case 'collected': av = a.collected; bv = b.collected; break;
+        case 'remaining': av = a.remaining_before; bv = b.remaining_before; break;
+        case 'tenant': av = nameOf(a.tenant_id).toLowerCase(); bv = nameOf(b.tenant_id).toLowerCase(); break;
+        case 'agent': av = nameOf(a.agent_id).toLowerCase(); bv = nameOf(b.agent_id).toLowerCase(); break;
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+  }, [missingAll, mSort, nameById]);
+
+  const extras = useMemo(() => {
+    const dir = eSort.dir === 'asc' ? 1 : -1;
+    const nameOf = (id: string | null) => (id && nameById.get(id)) || '';
+    return [...extraAll].sort((a, b) => {
+      let av: string | number = 0; let bv: string | number = 0;
+      switch (eSort.k) {
+        case 'when': av = a.when_ms; bv = b.when_ms; break;
+        case 'amount': av = a.amount; bv = b.amount; break;
+        case 'extra': av = a.extra_amount; bv = b.extra_amount; break;
+        case 'reason': av = a.reason; bv = b.reason; break;
+        case 'tenant': av = nameOf(a.tenant_id).toLowerCase(); bv = nameOf(b.tenant_id).toLowerCase(); break;
+        case 'agent': av = nameOf(a.agent_id).toLowerCase(); bv = nameOf(b.agent_id).toLowerCase(); break;
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+  }, [extraAll, eSort, nameById]);
+
+  const toggleM = (k: MSort) => setMSort((s) => (s.k === k ? { k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: 'desc' }));
+  const toggleE = (k: ESort) => setESort((s) => (s.k === k ? { k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: k === 'when' || k === 'amount' || k === 'extra' ? 'desc' : 'asc' }));
+  const MI = ({ k }: { k: MSort }) => (mSort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : mSort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />);
+  const EI = ({ k }: { k: ESort }) => (eSort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : eSort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />);
+
+  const csvEscape = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const downloadCsv = () => {
+    const nameOf = (id: string | null) => (id && nameById.get(id)) || '';
+    const rows: (string | number)[][] = [];
+    rows.push(['section', 'when_eat', 'tenant', 'tenant_id', 'agent', 'agent_id', 'rent_request_id', 'expected_ugx', 'collected_ugx', 'variance_ugx', 'method', 'reason']);
+    for (const r of missing) rows.push(['missing', '', nameOf(r.tenant_id), r.tenant_id || '', nameOf(r.agent_id), r.agent_id || '', r.rent_id, Math.round(r.daily), Math.round(r.collected), Math.round(r.variance), '', 'underpaid_or_no_payment']);
+    for (const r of extras) rows.push(['extra', fmtWhen(r.when_ms), nameOf(r.tenant_id), r.tenant_id || '', nameOf(r.agent_id), r.agent_id || '', r.rent_request_id || '', 0, Math.round(r.amount), Math.round(r.extra_amount), r.method || '', r.reason]);
+    const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reconciliation_${start.toISOString().slice(0, 16).replace(/[:T]/g, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const loading = rLoading || cLoading;
+  const bucketWhen = `${fmtWhen(start.getTime())} → ${fmtWhen(end.getTime())} EAT`;
+  const scopeLabel = agentId ? `${agentName || 'Agent'} · ${bucketLabel || bucketWhen}` : (bucketLabel || bucketWhen);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-4 pb-2 border-b border-border">
+          <DialogTitle className="text-base inline-flex items-center gap-2">
+            <Scale className="h-4 w-4" /> Bucket reconciliation
+          </DialogTitle>
+          <DialogDescription className="text-[11px]">{scopeLabel}</DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /></div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-4 pb-2 border-b border-border">
+              <SummaryCard label="Expected" value={formatUGX(totalExpected)} accent="violet" />
+              <SummaryCard label="Collected" value={formatUGX(totalCollected)} accent="primary" />
+              <SummaryCard label="Missing" value={formatUGX(missingTotal)} sub={`${missingAll.length} plan${missingAll.length === 1 ? '' : 's'}`} accent="rose" />
+              <SummaryCard label="Extra" value={formatUGX(extraTotal)} sub={`${extraAll.length} row${extraAll.length === 1 ? '' : 's'}`} accent="amber" />
+            </div>
+
+            <div className="px-4 py-2 border-b border-border flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">Fulfilment rate</span>
+              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                <div className={`h-full ${rate >= 0.9 ? 'bg-emerald-500' : rate >= 0.6 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(100, rate * 100)}%` }} />
+              </div>
+              <span className="text-[11px] font-bold tabular-nums">{(rate * 100).toFixed(1)}%</span>
+              <button
+                type="button"
+                onClick={downloadCsv}
+                disabled={missingAll.length === 0 && extraAll.length === 0}
+                className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-background border border-border hover:bg-muted disabled:opacity-40"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+            </div>
+
+            <div className="px-4 pt-2 border-b border-border flex items-center gap-1.5">
+              <TabBtn active={tab === 'missing'} onClick={() => setTab('missing')} icon={<AlertCircle className="h-3 w-3" />} label={`Missing (${missingAll.length})`} tone="rose" />
+              <TabBtn active={tab === 'extra'} onClick={() => setTab('extra')} icon={<Plus className="h-3 w-3" />} label={`Extra (${extraAll.length})`} tone="amber" />
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              {tab === 'missing' ? (
+                missing.length === 0 ? (
+                  <p className="p-6 text-center text-[11px] text-muted-foreground">No underpayments — every active plan met its expected obligation in this bucket. 🎯</p>
+                ) : (
+                  <table className="w-full text-[11px]">
+                    <thead className="sticky top-0 bg-muted text-muted-foreground z-10">
+                      <tr>
+                        <TH onClick={() => toggleM('tenant')} align="left"><span className="inline-flex items-center gap-1">Tenant <MI k="tenant" /></span></TH>
+                        <TH onClick={() => toggleM('agent')} align="left" hideMd><span className="inline-flex items-center gap-1">Agent <MI k="agent" /></span></TH>
+                        <TH onClick={() => toggleM('daily')} align="right"><span className="inline-flex items-center gap-1 justify-end w-full">Expected <MI k="daily" /></span></TH>
+                        <TH onClick={() => toggleM('collected')} align="right"><span className="inline-flex items-center gap-1 justify-end w-full">Collected <MI k="collected" /></span></TH>
+                        <TH onClick={() => toggleM('variance')} align="right"><span className="inline-flex items-center gap-1 justify-end w-full">Variance <MI k="variance" /></span></TH>
+                        <TH onClick={() => toggleM('remaining')} align="right" hideMd><span className="inline-flex items-center gap-1 justify-end w-full">Remaining <MI k="remaining" /></span></TH>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {missing.map((r) => (
+                        <tr key={r.rent_id} className="hover:bg-rose-500/5">
+                          <td className="px-2 py-1.5">
+                            <div className="font-semibold text-foreground truncate max-w-[14rem]">{(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}</div>
+                            {r.tenant_id && <div className="text-[9px] font-mono text-muted-foreground">{r.tenant_id.slice(0, 8)} · plan {r.rent_id.slice(0, 8)}</div>}
+                          </td>
+                          <td className="px-2 py-1.5 hidden md:table-cell truncate max-w-[10rem]">{(r.agent_id && nameById.get(r.agent_id)) || '—'}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(Math.round(r.daily))}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(Math.round(r.collected))}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums font-bold text-rose-700">−{formatUGX(Math.round(r.variance))}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground hidden md:table-cell">{formatUGX(Math.round(r.remaining_before))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur border-t border-border">
+                      <tr>
+                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={2}>Missing total</td>
+                        <td />
+                        <td />
+                        <td className="px-2 py-1.5 text-right tabular-nums font-bold text-rose-700">−{formatUGX(Math.round(missingTotal))}</td>
+                        <td className="hidden md:table-cell" />
+                      </tr>
+                    </tfoot>
+                  </table>
+                )
+              ) : (
+                extras.length === 0 ? (
+                  <p className="p-6 text-center text-[11px] text-muted-foreground">No extras — every collection in this bucket maps cleanly to an active plan's expected daily amount. ✅</p>
+                ) : (
+                  <table className="w-full text-[11px]">
+                    <thead className="sticky top-0 bg-muted text-muted-foreground z-10">
+                      <tr>
+                        <TH onClick={() => toggleE('when')} align="left"><span className="inline-flex items-center gap-1">When <EI k="when" /></span></TH>
+                        <TH onClick={() => toggleE('tenant')} align="left"><span className="inline-flex items-center gap-1">Tenant <EI k="tenant" /></span></TH>
+                        <TH onClick={() => toggleE('agent')} align="left" hideMd><span className="inline-flex items-center gap-1">Agent <EI k="agent" /></span></TH>
+                        <TH onClick={() => toggleE('amount')} align="right"><span className="inline-flex items-center gap-1 justify-end w-full">Amount <EI k="amount" /></span></TH>
+                        <TH onClick={() => toggleE('extra')} align="right"><span className="inline-flex items-center gap-1 justify-end w-full">Extra <EI k="extra" /></span></TH>
+                        <TH onClick={() => toggleE('reason')} align="left"><span className="inline-flex items-center gap-1">Reason <EI k="reason" /></span></TH>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {extras.map((r) => (
+                        <tr key={r.collection_id} className="hover:bg-amber-500/5">
+                          <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(r.when_ms)}</td>
+                          <td className="px-2 py-1.5">
+                            <div className="font-semibold text-foreground truncate max-w-[12rem]">{(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}</div>
+                            {r.rent_request_id && <div className="text-[9px] font-mono text-muted-foreground">plan {r.rent_request_id.slice(0, 8)}</div>}
+                          </td>
+                          <td className="px-2 py-1.5 hidden md:table-cell truncate max-w-[10rem]">{(r.agent_id && nameById.get(r.agent_id)) || '—'}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(r.amount)}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums font-bold text-amber-700">+{formatUGX(Math.round(r.extra_amount))}</td>
+                          <td className="px-2 py-1.5">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-800 text-[9px] font-semibold">{r.reason_label}</span>
+                            {r.method && <span className="ml-1 text-[9px] text-muted-foreground">· {r.method.replace(/_/g, ' ')}</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur border-t border-border">
+                      <tr>
+                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={3}>Extra total</td>
+                        <td />
+                        <td className="px-2 py-1.5 text-right tabular-nums font-bold text-amber-700">+{formatUGX(Math.round(extraTotal))}</td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
+                )
+              )}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SummaryCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent: 'violet' | 'primary' | 'rose' | 'amber' }) {
+  const color = accent === 'violet' ? 'text-violet-700' : accent === 'primary' ? 'text-primary' : accent === 'rose' ? 'text-rose-700' : 'text-amber-700';
+  return (
+    <div className="rounded-lg border border-border bg-background p-2">
+      <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`text-sm font-bold tabular-nums ${color}`}>{value}</div>
+      {sub && <div className="text-[9px] text-muted-foreground">{sub}</div>}
+    </div>
+  );
+}
+
+function TH({ children, onClick, align, hideMd }: { children: React.ReactNode; onClick: () => void; align: 'left' | 'right'; hideMd?: boolean }) {
+  return (
+    <th
+      className={`${align === 'right' ? 'text-right' : 'text-left'} font-bold uppercase tracking-wide px-2 py-1.5 text-[9px] ${hideMd ? 'hidden md:table-cell' : ''}`}
+    >
+      <button type="button" onClick={onClick} className="hover:text-foreground transition-colors">{children}</button>
+    </th>
+  );
+}
+
+function TabBtn({ active, onClick, icon, label, tone }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; tone: 'rose' | 'amber' }) {
+  const activeClass = tone === 'rose' ? 'bg-rose-500/10 text-rose-800 border-rose-500/40' : 'bg-amber-500/10 text-amber-800 border-amber-500/40';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-7 px-2 rounded-t-md text-[10px] font-semibold inline-flex items-center gap-1 border-b-0 border ${active ? activeClass : 'bg-transparent text-muted-foreground border-transparent hover:text-foreground'}`}
+    >
+      {icon}{label}
+    </button>
+  );
+}

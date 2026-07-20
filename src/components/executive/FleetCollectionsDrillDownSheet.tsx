@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download, AlertTriangle, BarChart3 } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download, AlertTriangle, BarChart3, Scale } from 'lucide-react';
 import { AmountBreakdownModal } from './AmountBreakdownModal';
+import { BucketReconciliationPanel } from './BucketReconciliationPanel';
 import { CollectionLedgerImpactPanel } from './CollectionLedgerImpactPanel';
 
 type CollectionRow = {
@@ -122,6 +123,7 @@ export function FleetCollectionsDrillDownSheet({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [onlyFlagged, setOnlyFlagged] = useState(false);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [reconOpen, setReconOpen] = useState(false);
 
   // ============= Anomaly detection =============
   const flagsById = useMemo(() => {
@@ -480,6 +482,15 @@ export function FleetCollectionsDrillDownSheet({
               >
                 <BarChart3 className="h-3 w-3" /> Breakdown
               </button>
+              <button
+                type="button"
+                onClick={() => setReconOpen(true)}
+                disabled={isLoading}
+                title="Reconcile Expected vs Collected for this bucket and list the missing/extra collections driving the variance"
+                className="h-7 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-violet-500/10 text-violet-800 border border-violet-500/30 hover:bg-violet-500/15 transition-colors disabled:opacity-40"
+              >
+                <Scale className="h-3 w-3" /> Reconcile
+              </button>
             </div>
 
             {isLoading ? (
@@ -580,6 +591,15 @@ export function FleetCollectionsDrillDownSheet({
         }))}
         nameFor={(id) => nameById.get(id) || null}
         initialDimension={agentId ? 'tenant' : 'agent'}
+      />
+      <BucketReconciliationPanel
+        open={reconOpen}
+        onOpenChange={setReconOpen}
+        start={start}
+        end={end}
+        agentId={agentId}
+        agentName={agentName}
+        bucketLabel={bucketLabel}
       />
     </Sheet>
   );
