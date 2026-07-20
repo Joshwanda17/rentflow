@@ -1518,33 +1518,34 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
   );
   return (
     <div className="space-y-1">
-    <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
-      <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
-        <tr>
-          <th className="text-left px-2 py-1.5"><SortBtn k="when" label="When (EAT)" /></th>
-          <th className="text-right px-2 py-1.5"><SortBtn k="amount" label="Amount" align="right" /></th>
-          <th className="text-right px-2 py-1.5">Cumulative</th>
-          <th className="text-right px-2 py-1.5"><SortBtn k="over_daily" label="Over daily" align="right" /></th>
-          <th className="text-right px-2 py-1.5"><SortBtn k="over_remaining" label="Over remaining" align="right" /></th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {page.length === 0 && (
-          <tr><td colSpan={5} className="px-2 py-3 text-center text-[11px] text-muted-foreground italic">No rows match the current filters.</td></tr>
+      <VirtualRows
+        items={page}
+        rowHeight={30}
+        gridTemplate="minmax(140px,1.4fr) 110px 110px 110px 130px"
+        header={(
+          <>
+            <div className="px-2 py-1.5 text-left"><SortBtn k="when" label="When (EAT)" /></div>
+            <div className="px-2 py-1.5 text-right"><SortBtn k="amount" label="Amount" align="right" /></div>
+            <div className="px-2 py-1.5 text-right">Cumulative</div>
+            <div className="px-2 py-1.5 text-right"><SortBtn k="over_daily" label="Over daily" align="right" /></div>
+            <div className="px-2 py-1.5 text-right"><SortBtn k="over_remaining" label="Over remaining" align="right" /></div>
+          </>
         )}
-        {page.map((t) => (
-          <tr key={t.id} className={t.isThis ? 'bg-amber-500/10 font-semibold' : ''}>
-            <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">
+        emptyMessage="No rows match the current filters."
+        scrollToIndex={thisIdx >= 0 ? Math.min(thisIdx, page.length - 1) : undefined}
+        scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}`}
+        renderRow={(t) => (
+          <div className={`contents ${t.isThis ? 'font-semibold' : ''}`}>
+            <div className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>
               {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
-            </td>
-            <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.amount)}</td>
-            <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.cumulative)}</td>
-            <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</td>
-            <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            </div>
+            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>{formatUGX(t.amount)}</div>
+            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>{formatUGX(t.cumulative)}</div>
+            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''} ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</div>
+            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''} ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</div>
+          </div>
+        )}
+      />
       {sorted.length > 0 && (
         <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground px-1 flex-wrap">
           <div className="flex items-center gap-2">
