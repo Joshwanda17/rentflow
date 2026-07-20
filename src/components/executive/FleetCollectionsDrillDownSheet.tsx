@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download, AlertTriangle } from 'lucide-react';
 import { CollectionLedgerImpactPanel } from './CollectionLedgerImpactPanel';
 
 type CollectionRow = {
@@ -119,6 +119,124 @@ export function FleetCollectionsDrillDownSheet({
   const [sortKey, setSortKey] = useState<SortKey>('when');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [onlyFlagged, setOnlyFlagged] = useState(false);
+
+  // ============= Anomaly detection =============
+  const flagsById = useMemo(() => {
+    const map = new Map<string, { code: string; severity: 'high' | 'medium'; label: string; why: string }[]>();
+    if (rows.length === 0) return map;
+
+    // Precompute agent-level stats
+    const byAgent = new Map<string, CollectionRow[]>();
+    rows.forEach((r) => {
+      const k = r.agent_id || '__none__';
+      if (!byAgent.has(k)) byAgent.set(k, []);
+      byAgent.get(k)!.push(r);
+    });
+    const agentMedian = new Map<string, number>();
+    const agentDayTotals = new Map<string, Map<string, number>>(); // agent -> dayKey -> total
+    const agentDayCounts = new Map<string, Map<string, number>>();
+    byAgent.forEach((list, agent) => {
+      const amounts = list.map((r) => Number(r.amount) || 0).sort((a, b) => a - b);
+      const mid = amounts[Math.floor(amounts.length / 2)] || 0;
+      agentMedian.set(agent, mid);
+      const dayTotals = new Map<string, number>();
+      const dayCounts = new Map<string, number>();
+      list.forEach((r) => {
+        const d = new Date(r.created_at);
+        // Kampala calendar day
+        const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+        dayTotals.set(dayKey, (dayTotals.get(dayKey) || 0) + (Number(r.amount) || 0));
+        dayCounts.set(dayKey, (dayCounts.get(dayKey) || 0) + 1);
+      });
+      agentDayTotals.set(agent, dayTotals);
+      agentDayCounts.set(agent, dayCounts);
+    });
+
+    // Sorted by time for burst / repeated-window scans
+    const byAgentSorted = new Map<string, CollectionRow[]>();
+    byAgent.forEach((list, k) => {
+      byAgentSorted.set(k, [...list].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+    });
+    const byTenantSorted = new Map<string, CollectionRow[]>();
+    rows.forEach((r) => {
+      const k = r.tenant_id || '__none__';
+      if (!byTenantSorted.has(k)) byTenantSorted.set(k, []);
+      byTenantSorted.get(k)!.push(r);
+    });
+    byTenantSorted.forEach((list) => list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+
+    const push = (id: string, f: { code: string; severity: 'high' | 'medium'; label: string; why: string }) => {
+      if (!map.has(id)) map.set(id, []);
+      const arr = map.get(id)!;
+      if (!arr.some((x) => x.code === f.code)) arr.push(f);
+    };
+
+    const KAMPALA_HOUR = (iso: string) => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Kampala', hour: '2-digit', hour12: false }).format(new Date(iso)));
+    const kampalaDay = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+
+    for (const r of rows) {
+      const amt = Number(r.amount) || 0;
+      const agentKey = r.agent_id || '__none__';
+
+      if (amt >= 500_000) {
+        push(r.id, { code: 'OVERSIZED_ABSOLUTE', severity: amt >= 1_000_000 ? 'high' : 'medium', label: 'Oversized', why: `Single collection of ${formatUGX(amt)} — ≥ UGX 500,000 threshold.` });
+      }
+      const med = agentMedian.get(agentKey) || 0;
+      if (med > 0 && amt >= 100_000 && amt >= med * 3) {
+        push(r.id, { code: 'OVERSIZED_AGENT', severity: amt >= med * 5 ? 'high' : 'medium', label: 'Outlier vs agent', why: `${formatUGX(amt)} is ${(amt / med).toFixed(1)}× this agent's median collection (${formatUGX(med)}).` });
+      }
+      if (amt >= 1_000_000 && amt % 100_000 === 0) {
+        push(r.id, { code: 'ROUND_LARGE', severity: 'medium', label: 'Round large amount', why: `Suspiciously round large sum (${formatUGX(amt)} — multiple of 100,000).` });
+      }
+
+      // Late-night collection (22:00–04:59 EAT)
+      const hr = KAMPALA_HOUR(r.created_at);
+      if (hr >= 22 || hr < 5) {
+        push(r.id, { code: 'LATE_NIGHT', severity: 'medium', label: 'Late-night', why: `Posted at ${hr.toString().padStart(2, '0')}:xx EAT — outside normal collection hours (05:00–22:00).` });
+      }
+
+      // Tenant repeated within a 60-minute window (≥3 including this)
+      const tList = byTenantSorted.get(r.tenant_id || '__none__') || [];
+      if (r.tenant_id && tList.length >= 3) {
+        const t = new Date(r.created_at).getTime();
+        const within = tList.filter((x) => Math.abs(new Date(x.created_at).getTime() - t) <= 60 * 60_000);
+        if (within.length >= 3) {
+          push(r.id, { code: 'TENANT_REPEATED', severity: within.length >= 5 ? 'high' : 'medium', label: 'Tenant burst', why: `${within.length} collections for the same tenant within a 60-minute window (${formatUGX(within.reduce((s, x) => s + (Number(x.amount) || 0), 0))} total).` });
+        }
+      }
+
+      // Agent burst: ≥5 collections in a 10-minute window
+      const aList = byAgentSorted.get(agentKey) || [];
+      if (r.agent_id && aList.length >= 5) {
+        const t = new Date(r.created_at).getTime();
+        const within = aList.filter((x) => Math.abs(new Date(x.created_at).getTime() - t) <= 10 * 60_000);
+        if (within.length >= 5) {
+          push(r.id, { code: 'AGENT_BURST', severity: within.length >= 10 ? 'high' : 'medium', label: 'Agent burst', why: `Agent posted ${within.length} collections within a 10-minute window (${formatUGX(within.reduce((s, x) => s + (Number(x.amount) || 0), 0))} total).` });
+        }
+      }
+
+      // Daily concentration: single row ≥60% of that agent's day
+      if (r.agent_id) {
+        const dk = kampalaDay(r.created_at);
+        const dayTotal = agentDayTotals.get(agentKey)?.get(dk) || 0;
+        const dayCount = agentDayCounts.get(agentKey)?.get(dk) || 0;
+        if (dayCount >= 3 && dayTotal > 0 && amt / dayTotal >= 0.6 && amt >= 100_000) {
+          push(r.id, { code: 'AGENT_DAY_CONCENTRATION', severity: 'medium', label: 'Day concentration', why: `This single row is ${Math.round((amt / dayTotal) * 100)}% of the agent's day-total (${formatUGX(dayTotal)} across ${dayCount} rows on ${dk}).` });
+        }
+      }
+    }
+    return map;
+  }, [rows]);
+
+  const flagCounts = useMemo(() => {
+    let flagged = 0, high = 0;
+    flagsById.forEach((fs) => {
+      flagged += 1;
+      if (fs.some((f) => f.severity === 'high')) high += 1;
+    });
+    return { flagged, high };
+  }, [flagsById]);
 
   const methodOptions = useMemo(() => {
     const s = new Set<string>();
@@ -130,13 +248,14 @@ export function FleetCollectionsDrillDownSheet({
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
       if (method !== 'all' && (r.payment_method || '') !== method) return false;
+      if (onlyFlagged && !flagsById.has(r.id)) return false;
       if (!q) return true;
       const agent = (r.agent_id && nameById.get(r.agent_id)) || '';
       const tenant = (r.tenant_id && nameById.get(r.tenant_id)) || '';
       const hay = `${agent} ${tenant} ${r.agent_id || ''} ${r.tenant_id || ''} ${r.id} ${r.momo_phone || ''} ${r.momo_payer_name || ''} ${r.tracking_id || ''}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [rows, query, method, nameById]);
+  }, [rows, query, method, nameById, onlyFlagged, flagsById]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -157,7 +276,7 @@ export function FleetCollectionsDrillDownSheet({
 
   const total = filtered.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const selected = useMemo(() => rows.find((r) => r.id === selectedId) || null, [rows, selectedId]);
-  const filtersActive = query.trim() !== '' || method !== 'all';
+  const filtersActive = query.trim() !== '' || method !== 'all' || onlyFlagged;
 
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -244,6 +363,30 @@ export function FleetCollectionsDrillDownSheet({
               {selected.notes && <Field label="Notes" value={selected.notes} />}
               <Field label="Record ID" value={selected.id} mono />
             </div>
+            {(() => {
+              const fs = flagsById.get(selected.id) || [];
+              if (!fs.length) return null;
+              const hasHigh = fs.some((f) => f.severity === 'high');
+              return (
+                <div className={`mt-4 rounded-lg border p-3 ${hasHigh ? 'bg-rose-500/5 border-rose-500/30' : 'bg-amber-500/5 border-amber-500/30'}`}>
+                  <p className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide mb-1.5 ${hasHigh ? 'text-rose-700' : 'text-amber-800'}`}>
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {fs.length} anomaly flag{fs.length === 1 ? '' : 's'}
+                  </p>
+                  <ul className="space-y-1">
+                    {fs.map((f) => (
+                      <li key={f.code} className="flex items-start gap-2 text-[11px]">
+                        <span className={`mt-[3px] inline-block h-1.5 w-1.5 rounded-full flex-shrink-0 ${f.severity === 'high' ? 'bg-rose-600' : 'bg-amber-500'}`} />
+                        <span>
+                          <span className={`font-bold ${f.severity === 'high' ? 'text-rose-700' : 'text-amber-800'}`}>{f.label}</span>
+                          <span className="text-foreground"> — {f.why}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
             <CollectionLedgerImpactPanel
               collectionId={selected.id}
               agentId={selected.agent_id}
@@ -299,6 +442,16 @@ export function FleetCollectionsDrillDownSheet({
                 <option value="all">All methods</option>
                 {methodOptions.map((m) => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
               </select>
+              <button
+                type="button"
+                onClick={() => setOnlyFlagged((v) => !v)}
+                disabled={flagCounts.flagged === 0}
+                title={flagCounts.flagged === 0 ? 'No anomalies detected in this range' : 'Show only rows with anomaly flags'}
+                className={`h-7 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 border transition-colors disabled:opacity-40 ${onlyFlagged ? 'bg-amber-500/10 text-amber-800 border-amber-500/40' : 'bg-background text-foreground border-border hover:bg-muted'}`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Flagged {flagCounts.flagged > 0 ? `(${flagCounts.flagged}${flagCounts.high ? ` · ${flagCounts.high} high` : ''})` : ''}
+              </button>
               {filtersActive && (
                 <button
                   type="button"
@@ -330,6 +483,7 @@ export function FleetCollectionsDrillDownSheet({
                   <table className="w-full text-[11px]">
                     <thead className="sticky top-0 bg-muted text-muted-foreground">
                       <tr>
+                        <th className="w-6 px-1.5 py-1.5" />
                         {([
                           { k: 'when' as const, label: 'When', align: 'left' },
                           { k: 'agent' as const, label: 'Agent', align: 'left' },
@@ -353,26 +507,40 @@ export function FleetCollectionsDrillDownSheet({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {sorted.map((r) => (
+                      {sorted.map((r) => {
+                        const fs = flagsById.get(r.id) || [];
+                        const highest: 'high' | 'medium' | null = fs.some((f) => f.severity === 'high') ? 'high' : fs.length ? 'medium' : null;
+                        const tip = fs.length
+                          ? `Anomaly flags:\n• ${fs.map((f) => `${f.label}: ${f.why}`).join('\n• ')}`
+                          : '';
+                        return (
                         <tr
                           key={r.id}
                           onClick={() => setSelectedId(r.id)}
                           tabIndex={0}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(r.id); } }}
-                          className="cursor-pointer hover:bg-primary/5 outline-none"
+                          className={`cursor-pointer outline-none ${highest === 'high' ? 'bg-rose-500/5 hover:bg-rose-500/10' : highest === 'medium' ? 'bg-amber-500/5 hover:bg-amber-500/10' : 'hover:bg-primary/5'}`}
                           title="View record details"
                         >
+                          <td className="px-1.5 py-1.5 align-middle">
+                            {highest && (
+                              <span title={tip} className={`inline-flex items-center justify-center h-4 w-4 rounded-full ${highest === 'high' ? 'bg-rose-500/15 text-rose-700' : 'bg-amber-500/15 text-amber-700'}`}>
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                              </span>
+                            )}
+                          </td>
                           <td className="px-2 py-1.5 tabular-nums whitespace-nowrap">{fmtWhen(r.created_at)}</td>
                           <td className="px-2 py-1.5 truncate max-w-[9rem]">{(r.agent_id && nameById.get(r.agent_id)) || '—'}</td>
                           <td className="px-2 py-1.5 truncate max-w-[9rem]">{(r.tenant_id && nameById.get(r.tenant_id)) || '—'}</td>
                           <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell">{(r.payment_method || '—').replace(/_/g, ' ')}</td>
                           <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-primary">{formatUGX(Number(r.amount) || 0)}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                     <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur border-t border-border">
                       <tr>
-                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={4}>
+                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={5}>
                           {filtersActive ? 'Filtered total' : 'Total'} · {filtered.length} row{filtered.length === 1 ? '' : 's'}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums font-bold text-primary">{formatUGX(total)}</td>
