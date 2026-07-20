@@ -52,6 +52,7 @@ const PhoneCollectionGate = optionalLazyWithRetry(() => import("@/components/not
 const NameCompletionGate = optionalLazyWithRetry(() => import("@/components/notifications/NameCompletionGate"), "NameCompletionGate");
 const RejectionAlertGate = optionalLazyWithRetry(() => import("@/components/notifications/RejectionAlertGate"), "RejectionAlertGate");
 const SubAgentInviteGate = optionalLazyWithRetry(() => import("@/components/agent/SubAgentInviteGate"), "SubAgentInviteGate");
+const MerchantAgentReferralGate = optionalLazyWithRetry(() => import("@/components/merchant/MerchantAgentReferralGate"), "MerchantAgentReferralGate");
 const ForceResetPasswordGate = optionalLazyWithRetry(() => import("@/components/auth/ForceResetPasswordGate"), "ForceResetPasswordGate");
 
 // Deferred providers - loaded after first paint
@@ -120,6 +121,9 @@ const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
 const MerchandiseStore = lazy(() => import('./pages/MerchandiseStore'));
 const Join = lazy(() => import('./pages/Join'));
 const SubAgentInvite = lazy(() => import('./pages/SubAgentInvite'));
+const InviteMerchantAgent = lazy(() => import('./pages/InviteMerchantAgent'));
+const MerchantAgentOnboarding = lazy(() => import('./pages/MerchantAgentOnboarding'));
+const MerchantAgentReferrals = lazy(() => import('./pages/MerchantAgentReferrals'));
 const AgentLeaderboard = lazy(() => import('./pages/agent/Leaderboard'));
 const RecordRent = lazy(() => import('./pages/RecordRent'));
 const Calculator = lazy(() => import('./pages/Calculator'));
@@ -349,6 +353,7 @@ function GlobalOnboardingGates() {
       <NameCompletionGate />
       <RejectionAlertGate />
       <SubAgentInviteGate />
+      <MerchantAgentReferralGate />
     </>
   );
 }
@@ -384,6 +389,9 @@ function AppRoutes() {
           <Route path="/receipt/:id" element={<PayoutReceipt />} />
           <Route path="/resume-sms" element={<ResumeSms />} />
           <Route path="/r/:code" element={<ResolveRLink />} />
+          <Route path="/invite/merchant-agent" element={<InviteMerchantAgent />} />
+          <Route path="/merchant-agent/onboarding" element={<MerchantAgentOnboarding />} />
+          <Route path="/merchant-agent-referrals" element={<MerchantAgentReferrals />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
           <Route path="/id/:aiId" element={<HolisticProfile publicMode />} />
           {/* Persona-specific dashboards. URL is the source of truth for which
