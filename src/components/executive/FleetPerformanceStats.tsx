@@ -1227,7 +1227,24 @@ export function FleetPerformanceStats({
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="collected" name="Collected" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} maxBarSize={26} />
+                    <Bar
+                      dataKey="collected"
+                      name="Collected"
+                      fill="hsl(var(--primary))"
+                      radius={[3, 3, 0, 0]}
+                      maxBarSize={26}
+                      cursor="pointer"
+                      onClick={(payload: any) => {
+                        if (!payload || payload.bucketStart == null || payload.bucketEnd == null) return;
+                        openDrill({
+                          bucket: {
+                            start: new Date(payload.bucketStart),
+                            end: new Date(payload.bucketEnd),
+                            label: String(payload.label || ''),
+                          },
+                        });
+                      }}
+                    />
                     <Line
                       type="monotone"
                       dataKey="expected"
