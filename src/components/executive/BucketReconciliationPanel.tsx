@@ -1420,6 +1420,13 @@ function TimelineTable({ rows }: { rows: { id: string; when: number; amount: num
       return (va - vb) * dir;
     });
   }, [rows, sort]);
+  const [visible, setVisible] = useState(DETAIL_PAGE_SIZE);
+  useEffect(() => { setVisible(DETAIL_PAGE_SIZE); }, [rows, sort]);
+  // Always keep the flagged "this row" visible even if it would fall past the cutoff.
+  const thisIdx = sorted.findIndex((r) => r.isThis);
+  const effectiveVisible = thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible;
+  const page = sorted.slice(0, effectiveVisible);
+  const hasMore = sorted.length > effectiveVisible;
   const Icon = ({ k }: { k: TimelineSortKey }) =>
     sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   const SortBtn = ({ k, label, align = 'left' }: { k: TimelineSortKey; label: string; align?: 'left' | 'right' }) => (
@@ -1432,6 +1439,7 @@ function TimelineTable({ rows }: { rows: { id: string; when: number; amount: num
     </button>
   );
   return (
+    <div className="space-y-1">
     <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
       <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
         <tr>
@@ -1443,10 +1451,10 @@ function TimelineTable({ rows }: { rows: { id: string; when: number; amount: num
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
-        {sorted.length === 0 && (
+        {page.length === 0 && (
           <tr><td colSpan={5} className="px-2 py-3 text-center text-[11px] text-muted-foreground italic">No rows match the current filters.</td></tr>
         )}
-        {sorted.map((t) => (
+        {page.map((t) => (
           <tr key={t.id} className={t.isThis ? 'bg-amber-500/10 font-semibold' : ''}>
             <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">
               {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
@@ -1459,6 +1467,20 @@ function TimelineTable({ rows }: { rows: { id: string; when: number; amount: num
         ))}
       </tbody>
     </table>
+      {sorted.length > DETAIL_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+          <span>Showing {page.length} of {sorted.length}{thisIdx >= 0 && thisIdx + 1 > visible ? ' (expanded to include flagged row)' : ''}</span>
+          {hasMore ? (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setVisible((v) => v + DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Load {Math.min(DETAIL_PAGE_SIZE, sorted.length - effectiveVisible)} more</button>
+              <button type="button" onClick={() => setVisible(sorted.length)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Show all</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setVisible(DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Collapse</button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
