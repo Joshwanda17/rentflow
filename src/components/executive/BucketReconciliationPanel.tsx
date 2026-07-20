@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, Search, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X } from 'lucide-react';
 
 type ActiveRent = {
   id: string;
@@ -633,6 +633,7 @@ function ReconDetailView({
   const [planQuery, setPlanQuery] = useState('');
   const [fromLocal, setFromLocal] = useState<string>(''); // datetime-local (EAT-ish)
   const [toLocal, setToLocal] = useState<string>('');
+  const [stepsOpen, setStepsOpen] = useState<boolean>(true);
 
   const q = query.trim().toLowerCase();
   const pq = planQuery.trim().toLowerCase();
@@ -858,6 +859,104 @@ function ReconDetailView({
           </table>
         </div>
 
+        {/* Step-by-step expandable breakdown */}
+        {(() => {
+          const dailyXBucket = dailyPlan * bucketDays;
+          const cappedByRemaining = dailyXBucket > remaining;
+          const expectedAmt = m.daily;
+          // Chronological allocation of collections against the expected amount.
+          const chronoPlanColls = [...planCollections].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+          );
+          let running = 0;
+          const allocation = chronoPlanColls.map((r) => {
+            const amt = Number(r.amount) || 0;
+            const need = Math.max(0, expectedAmt - running);
+            const applied = Math.min(amt, need);
+            const leftover = amt - applied;
+            const before = running;
+            running += applied;
+            return { id: r.id, when: new Date(r.created_at).getTime(), amt, before, applied, leftover, after: running };
+          });
+          const shortfall = Math.max(0, expectedAmt - running);
+          return (
+            <div className="rounded-md border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setStepsOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-2 py-1.5 bg-muted/40 hover:bg-muted transition-colors text-left"
+                aria-expanded={stepsOpen}
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wide text-foreground inline-flex items-center gap-1">
+                  {stepsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  Step-by-step calculation
+                </span>
+                <span className="text-[9px] text-muted-foreground">{allocation.length} collection{allocation.length === 1 ? '' : 's'} allocated · shortfall {formatUGX(Math.round(shortfall))}</span>
+              </button>
+              {stepsOpen && (
+                <div className="p-3 space-y-3 bg-background">
+                  <ol className="space-y-2 text-[11px]">
+                    <Step n={1} title="Compute the raw daily obligation">
+                      <div><span className="text-muted-foreground">Daily × bucket length</span> = {formatUGX(dailyPlan)} × {bucketDays.toFixed(4)} = <span className="font-bold tabular-nums">{formatUGX(Math.round(dailyXBucket))}</span></div>
+                      <div className="text-[10px] text-muted-foreground">Bucket duration: {proration}.</div>
+                    </Step>
+                    <Step n={2} title="Cap by remaining balance">
+                      <div><span className="text-muted-foreground">Remaining on plan</span> = total due {formatUGX(totalDue)} − already repaid {formatUGX(paidBefore)} = <span className="font-bold tabular-nums">{formatUGX(remaining)}</span></div>
+                      <div className="mt-0.5">
+                        <span className="text-muted-foreground">Expected = min(remaining, daily × bucket)</span> = min({formatUGX(remaining)}, {formatUGX(Math.round(dailyXBucket))}) = <span className="font-bold tabular-nums text-violet-700">{formatUGX(Math.round(expectedAmt))}</span>
+                      </div>
+                      {cappedByRemaining && (
+                        <div className="mt-1 text-[10px] text-amber-700 font-semibold">Cap applied — the plan's remaining balance is smaller than the raw daily × bucket amount, so it caps the obligation.</div>
+                      )}
+                    </Step>
+                    <Step n={3} title="Allocate collections against the expected amount">
+                      {allocation.length === 0 ? (
+                        <div className="text-[10px] text-muted-foreground italic">No collections were booked to this plan in the bucket — the entire expected amount is missing.</div>
+                      ) : (
+                        <div className="overflow-auto">
+                          <table className="w-full text-[10px] border border-border rounded-md">
+                            <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
+                              <tr>
+                                <th className="text-left px-1.5 py-1">#</th>
+                                <th className="text-left px-1.5 py-1">When (EAT)</th>
+                                <th className="text-right px-1.5 py-1">Collection</th>
+                                <th className="text-right px-1.5 py-1">Need before</th>
+                                <th className="text-right px-1.5 py-1">Applied</th>
+                                <th className="text-right px-1.5 py-1">Leftover (overpay)</th>
+                                <th className="text-right px-1.5 py-1">Running covered</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {allocation.map((a, idx) => (
+                                <tr key={a.id}>
+                                  <td className="px-1.5 py-1 tabular-nums text-muted-foreground">{idx + 1}</td>
+                                  <td className="px-1.5 py-1 whitespace-nowrap tabular-nums">{fmtWhen(a.when)}</td>
+                                  <td className="px-1.5 py-1 text-right tabular-nums">{formatUGX(a.amt)}</td>
+                                  <td className="px-1.5 py-1 text-right tabular-nums text-muted-foreground">{formatUGX(Math.round(Math.max(0, expectedAmt - a.before)))}</td>
+                                  <td className="px-1.5 py-1 text-right tabular-nums font-semibold text-primary">{formatUGX(Math.round(a.applied))}</td>
+                                  <td className={`px-1.5 py-1 text-right tabular-nums ${a.leftover > 0 ? 'text-amber-700 font-semibold' : 'text-muted-foreground'}`}>{a.leftover > 0 ? `+${formatUGX(Math.round(a.leftover))}` : '—'}</td>
+                                  <td className="px-1.5 py-1 text-right tabular-nums font-bold">{formatUGX(Math.round(a.after))} <span className="text-[9px] text-muted-foreground">/ {formatUGX(Math.round(expectedAmt))}</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </Step>
+                    <Step n={4} title="Resulting variance">
+                      <div><span className="text-muted-foreground">Covered</span> = <span className="font-bold tabular-nums text-primary">{formatUGX(Math.round(running))}</span> · <span className="text-muted-foreground">Expected</span> = <span className="font-bold tabular-nums text-violet-700">{formatUGX(Math.round(expectedAmt))}</span></div>
+                      <div className="mt-0.5"><span className="text-muted-foreground">Shortfall (variance)</span> = <span className="font-bold tabular-nums text-rose-700">−{formatUGX(Math.round(shortfall))}</span></div>
+                      {allocation.some((a) => a.leftover > 0) && (
+                        <div className="mt-1 text-[10px] text-amber-700">Note: some collections overpaid the expected amount; the excess is booked as `extra` on the Extra tab and does not reduce this variance.</div>
+                      )}
+                    </Step>
+                  </ol>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         <div>
           <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
             Collections linked to this plan in this bucket ({filteredPlanCollections.length}{hasFilters ? ` / ${planCollections.length}` : ''})
@@ -1022,6 +1121,18 @@ function MathRow({ label, value, accent, bold }: { label: string; value: string;
       <td className="px-2 py-1.5 text-muted-foreground">{label}</td>
       <td className={`px-2 py-1.5 text-right tabular-nums ${bold ? 'font-bold' : ''} ${color}`}>{value}</td>
     </tr>
+  );
+}
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2">
+      <div className="shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold inline-flex items-center justify-center">{n}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] font-bold text-foreground">{title}</div>
+        <div className="mt-0.5 space-y-0.5">{children}</div>
+      </div>
+    </li>
   );
 }
 
