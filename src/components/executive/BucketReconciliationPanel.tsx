@@ -1596,6 +1596,15 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
     setPageSize(n);
     setVisible(n);
   };
+  // Tick that bumps whenever the user clicks "Jump to flagged row" so the
+  // virtualizer's scrollTo effect re-fires even if sort/page haven't changed.
+  const [jumpTick, setJumpTick] = useState(0);
+  const jumpToFlagged = () => {
+    if (thisIdx < 0) return;
+    // Ensure the flagged row is inside the current window before scrolling.
+    if (thisIdx + 1 > effectiveVisible) setVisible(thisIdx + 1);
+    setJumpTick((n) => n + 1);
+  };
   // Always keep the flagged "this row" visible even if it would fall past the cutoff.
   const thisIdx = sorted.findIndex((r) => r.isThis);
   const effectiveVisible = thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible;
@@ -1629,7 +1638,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
         )}
         emptyMessage="No rows match the current filters."
         scrollToIndex={thisIdx >= 0 ? Math.min(thisIdx, page.length - 1) : undefined}
-        scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}`}
+        scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}:${jumpTick}`}
         renderRow={(t) => (
           <div className={`contents ${t.isThis ? 'font-semibold' : ''}`}>
             <div className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>
