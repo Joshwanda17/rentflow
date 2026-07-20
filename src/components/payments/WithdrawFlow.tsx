@@ -135,6 +135,7 @@ export default function WithdrawFlow({
   // Withdrawal receipts start as `pending` because Financial Ops must
   // approve and disburse before the request is truly successful.
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed'>('pending');
+  const [lastFailureMessage, setLastFailureMessage] = useState<string | null>(null);
   // Real DB UUID of the new withdrawal_requests row. Drives the live
   // status tracker subscription on the success step.
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
@@ -601,6 +602,7 @@ export default function WithdrawFlow({
     if (!user) return false;
     if (isSubmittingRef.current) return false;
     isSubmittingRef.current = true;
+    setLastFailureMessage(null);
 
     try {
       // FINAL LEDGER GATE — recompute ledger truth right before submission.
@@ -613,8 +615,11 @@ export default function WithdrawFlow({
             ? freshAvailable
             : trueAvailable;
         if (source === 'available' && amount > freshLedger) {
+          const message = `Insufficient funds. Available: UGX ${freshLedger.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`;
+          setPaymentStatus('failed');
+          setLastFailureMessage(message);
           toast.error(
-            `Insufficient funds. Available: UGX ${freshLedger.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
+            message,
             { duration: 8000 },
           );
           isSubmittingRef.current = false;
@@ -661,15 +666,21 @@ export default function WithdrawFlow({
           await refetchLedger();
         }
         if (code === 'forbidden') {
+          setPaymentStatus('failed');
+          setLastFailureMessage('Your account is linked to a proxy agent, so withdrawals must be processed by your assigned agent.');
           toast.error('Withdrawals are routed via your assigned agent', {
             description:
               'Your account is linked to a proxy agent, so you cannot submit a withdrawal directly. Contact your assigned agent — they will process the cash-out on your behalf.',
             duration: 10000,
           });
         } else if (code === 'duplicate_pending') {
+          setPaymentStatus('failed');
+          setLastFailureMessage(msg);
           toast.error(msg, { duration: 8000 });
           clientRequestIdRef.current = null;
         } else {
+          setPaymentStatus('failed');
+          setLastFailureMessage(msg);
           toast.error(msg, { duration: 8000 });
         }
         isSubmittingRef.current = false;
@@ -696,6 +707,8 @@ export default function WithdrawFlow({
           errCode === '42501' ||
           /row-level security|violates row-level security policy/i.test(rawMsg)
         ) {
+          setPaymentStatus('failed');
+          setLastFailureMessage('Your account is linked to a proxy agent, so withdrawals must be processed by your assigned agent.');
           toast.error('Withdrawals are routed via your assigned agent', {
             description:
               'Your account is linked to a proxy agent, so you cannot submit a withdrawal directly. Contact your assigned agent — they will process the cash-out on your behalf.',
@@ -705,6 +718,8 @@ export default function WithdrawFlow({
           return false;
         }
         if (rawMsg.includes('Ledger mismatch detected')) {
+          setPaymentStatus('failed');
+          setLastFailureMessage('Ledger mismatch detected. Refresh your balance and try again.');
           toast.error(
             'Ledger mismatch detected. Transaction aborted. Refresh your balance and try again.',
             { duration: 8000 },
@@ -717,8 +732,11 @@ export default function WithdrawFlow({
         if ((requestError as any).code === '23505') {
           const msg = String((requestError as any).message || '');
           if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
+            const duplicateMessage = `You just requested UGX ${amount.toLocaleString()} to this recipient a few minutes ago. To avoid double payouts, wait about 15 minutes (or for the earlier request to be settled) before requesting the same amount again.`;
+            setPaymentStatus('failed');
+            setLastFailureMessage(duplicateMessage);
             toast.error(
-              `You just requested UGX ${amount.toLocaleString()} to this recipient a few minutes ago. To avoid double payouts, wait about 15 minutes (or for the earlier request to be settled) before requesting the same amount again.`,
+              duplicateMessage,
               { duration: 8000 },
             );
             // Reset so a different recipient/amount can be tried.
@@ -822,7 +840,9 @@ export default function WithdrawFlow({
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
       setPaymentStatus('failed');
-      toast.error(error.message || 'Withdrawal failed');
+      const message = error.message || 'Withdrawal failed. Please try again.';
+      setLastFailureMessage(message);
+      toast.error(message);
       // Keep clientRequestIdRef so a manual retry from the user collapses
       // into the same row server-side via the unique index.
       return false;
@@ -1449,8 +1469,7 @@ export default function WithdrawFlow({
                 role="alert"
                 className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-left text-xs text-destructive"
               >
-                Last attempt didn't go through. Tap Confirm to retry — your
-                request will be reused if it actually reached our servers.
+                {lastFailureMessage || 'Last attempt did not go through.'} Tap Confirm to retry — your request will be reused if it actually reached our servers.
               </div>
             )}
             <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
@@ -1700,6 +1719,7 @@ export default function WithdrawFlow({
         // Confirm attempt will re-set the status honestly.
         if (next < currentStep && paymentStatus === 'failed') {
           setPaymentStatus('pending');
+          setLastFailureMessage(null);
         }
         setCurrentStep(next);
       }}
