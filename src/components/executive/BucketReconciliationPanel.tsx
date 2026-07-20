@@ -1429,7 +1429,7 @@ function MathRow({ label, value, accent, bold }: { label: string; value: string;
 }
 
 type TimelineSortKey = 'when' | 'amount' | 'over_daily' | 'over_remaining';
-function TimelineTable({ rows }: { rows: { id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[] }) {
+function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[]; stateKey?: string }) {
   const [sort, setSort] = useState<{ k: TimelineSortKey; dir: 'asc' | 'desc' }>({ k: 'when', dir: 'asc' });
   const toggle = (k: TimelineSortKey) =>
     setSort((s) => (s.k === k ? { k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: k === 'when' ? 'asc' : 'desc' }));
@@ -1441,8 +1441,22 @@ function TimelineTable({ rows }: { rows: { id: string; when: number; amount: num
       return (va - vb) * dir;
     });
   }, [rows, sort]);
-  const [visible, setVisible] = useState(DETAIL_PAGE_SIZE);
-  useEffect(() => { setVisible(DETAIL_PAGE_SIZE); }, [rows, sort]);
+  const [visible, setVisibleState] = useState(() =>
+    (stateKey && detailPageSizeStore.get(stateKey)) || DETAIL_PAGE_SIZE,
+  );
+  // Re-sync when the stateKey identity changes (opening a different detail).
+  useEffect(() => {
+    if (!stateKey) return;
+    const saved = detailPageSizeStore.get(stateKey);
+    setVisibleState(saved && saved > 0 ? saved : DETAIL_PAGE_SIZE);
+  }, [stateKey]);
+  const setVisible = (updater: number | ((v: number) => number)) => {
+    setVisibleState((prev) => {
+      const next = typeof updater === 'function' ? (updater as (v: number) => number)(prev) : updater;
+      if (stateKey) detailPageSizeStore.set(stateKey, next);
+      return next;
+    });
+  };
   // Always keep the flagged "this row" visible even if it would fall past the cutoff.
   const thisIdx = sorted.findIndex((r) => r.isThis);
   const effectiveVisible = thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible;
