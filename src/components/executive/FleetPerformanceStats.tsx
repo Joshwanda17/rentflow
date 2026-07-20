@@ -553,6 +553,28 @@ export function FleetPerformanceStats({
   const [alertMinExpected, setAlertMinExpected] = useState<number>(restoredAlerts?.minExpected ?? 10_000);
   const [alertsOpen, setAlertsOpen] = useState<boolean>(true);
   const [alertConfigOpen, setAlertConfigOpen] = useState<boolean>(false);
+
+  // Drill-down state — every clickable number opens the appropriate sheet.
+  const [drillOpen, setDrillOpen] = useState(false);
+  const [drillAgentId, setDrillAgentId] = useState<string | null>(null);
+  const [drillAgentName, setDrillAgentName] = useState<string | null>(null);
+  const [drillBucket, setDrillBucket] = useState<{ start: Date; end: Date; label: string } | null>(null);
+  const [expectedOpen, setExpectedOpen] = useState(false);
+  const [expectedAgentId, setExpectedAgentId] = useState<string | null>(null);
+  const [expectedAgentName, setExpectedAgentName] = useState<string | null>(null);
+
+  const openDrill = (opts: { agentId?: string | null; agentName?: string | null; bucket?: { start: Date; end: Date; label: string } | null } = {}) => {
+    setDrillAgentId(opts.agentId ?? null);
+    setDrillAgentName(opts.agentName ?? null);
+    setDrillBucket(opts.bucket ?? null);
+    setDrillOpen(true);
+  };
+  const openExpected = (opts: { agentId?: string | null; agentName?: string | null } = {}) => {
+    setExpectedAgentId(opts.agentId ?? null);
+    setExpectedAgentName(opts.agentName ?? null);
+    setExpectedOpen(true);
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(
