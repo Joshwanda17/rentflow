@@ -35,7 +35,10 @@ async function enforceAccountAccess(userId: string): Promise<boolean> {
       }),
     ]);
 
-    if (profile?.is_frozen || fraudBlocked === true) {
+    // Frozen accounts are ALLOWED to sign in — the AccountFrozenGate overlay
+    // renders a full-screen "Account Frozen" screen with support contact info
+    // as soon as the session hydrates. Only hard fraud blocks force sign-out.
+    if (fraudBlocked === true) {
       try {
         localStorage.setItem(
           'welile_account_blocked_reason',

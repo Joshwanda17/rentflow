@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ShieldAlert, Phone, Scale, User } from 'lucide-react';
+import { ShieldAlert, Scale, User, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -21,7 +21,7 @@ interface ListingBlock {
  * Mounted once inside AuthProvider so it applies to the entire authenticated app.
  */
 export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
   const { data: profileFreeze } = useQuery({
     queryKey: ['account-frozen-profile', user?.id],
@@ -119,13 +119,25 @@ export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
         )}
 
         <Button
-          variant="outline"
-          className="mt-6 w-full border-white/40 bg-white text-red-700 hover:bg-white/90 hover:text-red-800"
-          onClick={() => window.open('tel:+256777607640', '_self')}
+          className="mt-6 w-full bg-[#25D366] text-white hover:bg-[#1ebe57] border-0"
+          onClick={() => {
+            const msg = encodeURIComponent(
+              `Hello Welile Support, my account (${user?.email || user?.phone || user?.id}) has been restricted. I would like to request a review.`,
+            );
+            window.open(`https://wa.me/256777607640?text=${msg}`, '_blank', 'noopener');
+          }}
         >
-          <Phone className="mr-2 h-4 w-4" />
-          Contact support: +256 777 607 640
+          <MessageCircle className="mr-2 h-4 w-4" />
+          Chat support on WhatsApp: +256 777 607 640
         </Button>
+
+        <button
+          type="button"
+          onClick={() => signOut()}
+          className="mt-3 w-full text-xs font-medium uppercase tracking-wide text-white/80 underline underline-offset-4 hover:text-white"
+        >
+          Sign out
+        </button>
 
         <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-white/80">
           Your security is important to us. Please cooperate as we ensure a safe and fair platform.
