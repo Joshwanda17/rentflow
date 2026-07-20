@@ -84,15 +84,35 @@ export function useMerchantAgreement() {
 
       const deviceInfo = `${navigator.userAgent} | ${navigator.platform} | ${window.screen.width}x${window.screen.height}`;
 
+      // Pick up the pre-signup intake captured on /invite/merchant-agent
+      // (name, phone, hand-drawn signature). This is what makes the audited
+      // acceptance carry the user's actual signature rather than just their
+      // typed name.
+      let intakeSignature: string | null = null;
+      let intakeName: string | null = null;
+      let intakePhone: string | null = null;
+      try {
+        const raw = localStorage.getItem('merchant_agent_intake');
+        if (raw) {
+          const j = JSON.parse(raw);
+          intakeSignature = typeof j?.signature_data_url === 'string' ? j.signature_data_url : null;
+          intakeName = typeof j?.full_name === 'string' ? j.full_name : null;
+          intakePhone = typeof j?.phone === 'string' ? j.phone : null;
+        }
+      } catch { /* ignore */ }
+
       const { data, error } = await (supabase
         .from('merchant_agreement_acceptance' as any)
         .insert({
           agent_id: user.id,
-          merchant_name: profile?.full_name ?? null,
-          merchant_phone: profile?.phone ?? null,
+          merchant_name: intakeName ?? profile?.full_name ?? null,
+          merchant_phone: intakePhone ?? profile?.phone ?? null,
           agreement_version: MERCHANT_AGREEMENT_VERSION,
           ip_address: ipAddress,
-          device_info: deviceInfo,
+          device_info: intakeSignature
+            ? `${deviceInfo} | signature_captured`
+            : deviceInfo,
+          signature_data_url: intakeSignature,
           status: 'accepted',
         })
         .select()
@@ -102,6 +122,7 @@ export function useMerchantAgreement() {
         console.error('[useMerchantAgreement] accept error:', error);
         return false;
       }
+      try { localStorage.removeItem('merchant_agent_intake'); } catch { /* ignore */ }
       setIsAccepted(true);
       setAcceptance(data as MerchantAgreementAcceptance);
       return true;
