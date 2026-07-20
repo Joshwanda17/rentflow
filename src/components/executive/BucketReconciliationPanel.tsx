@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2, FileText } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2, FileText, Crosshair } from 'lucide-react';
 import { generateBucketReconDetailPdf } from '@/lib/bucketReconDetailPdf';
 import { toast } from 'sonner';
 
@@ -1656,6 +1656,16 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
           <div className="flex items-center gap-2">
             <span>Showing {page.length} of {sorted.length}{thisIdx >= 0 && thisIdx + 1 > visible ? ' (expanded to include flagged row)' : ''}</span>
             <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+            {thisIdx >= 0 && (
+              <button
+                type="button"
+                onClick={jumpToFlagged}
+                title="Scroll to the highlighted collection"
+                className="h-6 px-2 rounded-md font-semibold bg-amber-500/10 border border-amber-500/40 text-amber-800 hover:bg-amber-500/20 inline-flex items-center gap-1"
+              >
+                <Crosshair className="h-3 w-3" /> Jump to flagged row
+              </button>
+            )}
           </div>
           {sorted.length > pageSize && (
             hasMore ? (
