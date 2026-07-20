@@ -23,6 +23,7 @@ const PARTNER_FROM = `Welile Partnerships <partnership@${FROM_DOMAIN}>`
 const PARTNER_REPLY_TO = `partnership@${FROM_DOMAIN}`
 const PARTNER_FUNDER_TEMPLATES = new Set<string>([
   'returns-disbursement-confirmation',
+  'partnership-returns-processing',
   'partner-wallet-deposit',
   'partnership-agreement',
   'partnership-topup',
