@@ -1533,7 +1533,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 
 type MiniSortKey = 'when' | 'amount';
 const DETAIL_PAGE_SIZE = 50;
-function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameOf: (id: string | null) => string }) {
+function MiniCollectionTable({ rows, nameOf, stateKey }: { rows: BucketCollection[]; nameOf: (id: string | null) => string; stateKey?: string }) {
   const [sort, setSort] = useState<{ k: MiniSortKey; dir: 'asc' | 'desc' }>({ k: 'when', dir: 'asc' });
   const toggle = (k: MiniSortKey) =>
     setSort((s) => (s.k === k ? { k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: k === 'amount' ? 'desc' : 'asc' }));
@@ -1544,8 +1544,21 @@ function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameO
       return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
     });
   }, [rows, sort]);
-  const [visible, setVisible] = useState(DETAIL_PAGE_SIZE);
-  useEffect(() => { setVisible(DETAIL_PAGE_SIZE); }, [rows, sort]);
+  const [visible, setVisibleState] = useState(() =>
+    (stateKey && detailPageSizeStore.get(stateKey)) || DETAIL_PAGE_SIZE,
+  );
+  useEffect(() => {
+    if (!stateKey) return;
+    const saved = detailPageSizeStore.get(stateKey);
+    setVisibleState(saved && saved > 0 ? saved : DETAIL_PAGE_SIZE);
+  }, [stateKey]);
+  const setVisible = (updater: number | ((v: number) => number)) => {
+    setVisibleState((prev) => {
+      const next = typeof updater === 'function' ? (updater as (v: number) => number)(prev) : updater;
+      if (stateKey) detailPageSizeStore.set(stateKey, next);
+      return next;
+    });
+  };
   const page = sorted.slice(0, visible);
   const hasMore = sorted.length > visible;
   const Icon = ({ k }: { k: MiniSortKey }) =>
