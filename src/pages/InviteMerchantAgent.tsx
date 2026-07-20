@@ -51,10 +51,10 @@ export default function InviteMerchantAgent() {
       // dashboard directly; otherwise onboarding.
       const { data: ca } = await supabase
         .from('cashout_agents')
-        .select('id, active')
-        .eq('user_id', user.id)
+        .select('id, is_active')
+        .eq('agent_id', user.id)
         .maybeSingle();
-      if (ca?.active) {
+      if (ca?.is_active) {
         navigate('/dashboard/agent', { replace: true });
       } else {
         navigate('/merchant-agent/onboarding', { replace: true });
