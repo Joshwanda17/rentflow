@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight } from 'lucide-react';
 
 type ActiveRent = {
   id: string;
@@ -283,6 +283,61 @@ export function BucketReconciliationPanel({
 
   // Sort state.
   const [tab, setTab] = useState<'missing' | 'extra'>('missing');
+  const [selection, setSelection] = useState<{ kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string } | null>(null);
+
+  // Close selection when switching tabs / bucket.
+  const switchTab = (t: 'missing' | 'extra') => { setTab(t); setSelection(null); };
+
+  // Chronological collections (used for detail views).
+  const chrono = useMemo(
+    () => [...collections].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [collections],
+  );
+
+  // Build the detail payload for the currently selected row.
+  const detail = useMemo(() => {
+    if (!selection) return null;
+    const nameOf = (id: string | null) => (id && nameById.get(id)) || '';
+    if (selection.kind === 'missing') {
+      const m = missingAll.find((r) => r.rent_id === selection.rentId);
+      if (!m) return null;
+      const plan = rentById.get(m.rent_id);
+      const dailyPlan = Number(plan?.daily_repayment) || 0;
+      const totalDue = Number(plan?.total_repayment) || 0;
+      const paidBefore = Number(plan?.amount_repaid) || 0;
+      const remaining = Math.max(0, totalDue - paidBefore);
+      const planCollections = chrono.filter((c) => c.rent_request_id === m.rent_id);
+      const tenantOtherCollections = chrono.filter((c) => c.tenant_id && plan?.tenant_id && c.tenant_id === plan.tenant_id && c.rent_request_id !== m.rent_id);
+      return { kind: 'missing' as const, m, plan, dailyPlan, totalDue, paidBefore, remaining, planCollections, tenantOtherCollections, nameOf };
+    }
+    const c = extraAll.find((r) => r.collection_id === selection.collectionId);
+    if (!c) return null;
+    const plan = c.rent_request_id ? rentById.get(c.rent_request_id) : undefined;
+    const dailyPlan = Number(plan?.daily_repayment) || 0;
+    const totalDue = Number(plan?.total_repayment) || 0;
+    const paidBefore = Number(plan?.amount_repaid) || 0;
+    const remaining = Math.max(0, totalDue - paidBefore);
+    const expected = plan ? Math.min(remaining, dailyPlan * bucketDays) : 0;
+    const timeline = plan
+      ? chrono
+          .filter((x) => x.rent_request_id === c.rent_request_id)
+          .reduce<{ id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[]>((acc, x) => {
+            const prev = acc.length ? acc[acc.length - 1].cumulative : 0;
+            const cumulative = prev + (Number(x.amount) || 0);
+            acc.push({
+              id: x.id,
+              when: new Date(x.created_at).getTime(),
+              amount: Number(x.amount) || 0,
+              cumulative,
+              over_daily: Math.max(0, cumulative - expected),
+              over_remaining: Math.max(0, cumulative - remaining),
+              isThis: x.id === c.collection_id,
+            });
+            return acc;
+          }, [])
+      : [];
+    return { kind: 'extra' as const, c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, timeline, nameOf };
+  }, [selection, missingAll, extraAll, rentById, chrono, bucketDays, nameById]);
   const [mSort, setMSort] = useState<{ k: MSort; dir: 'asc' | 'desc' }>({ k: 'variance', dir: 'desc' });
   const [eSort, setESort] = useState<{ k: ESort; dir: 'asc' | 'desc' }>({ k: 'extra', dir: 'desc' });
 
@@ -388,12 +443,23 @@ export function BucketReconciliationPanel({
             </div>
 
             <div className="px-4 pt-2 border-b border-border flex items-center gap-1.5">
-              <TabBtn active={tab === 'missing'} onClick={() => setTab('missing')} icon={<AlertCircle className="h-3 w-3" />} label={`Missing (${missingAll.length})`} tone="rose" />
-              <TabBtn active={tab === 'extra'} onClick={() => setTab('extra')} icon={<Plus className="h-3 w-3" />} label={`Extra (${extraAll.length})`} tone="amber" />
+              <TabBtn active={tab === 'missing'} onClick={() => switchTab('missing')} icon={<AlertCircle className="h-3 w-3" />} label={`Missing (${missingAll.length})`} tone="rose" />
+              <TabBtn active={tab === 'extra'} onClick={() => switchTab('extra')} icon={<Plus className="h-3 w-3" />} label={`Extra (${extraAll.length})`} tone="amber" />
+              {selection && (
+                <button
+                  type="button"
+                  onClick={() => setSelection(null)}
+                  className="ml-auto h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-background border border-border hover:bg-muted"
+                >
+                  <ArrowLeft className="h-3 w-3" /> Back to list
+                </button>
+              )}
             </div>
 
             <div className="flex-1 overflow-auto">
-              {tab === 'missing' ? (
+              {selection && detail ? (
+                <ReconDetailView detail={detail} bucketDays={bucketDays} onOpenAnother={(sel) => setSelection(sel)} />
+              ) : tab === 'missing' ? (
                 missing.length === 0 ? (
                   <p className="p-6 text-center text-[11px] text-muted-foreground">No underpayments — every active plan met its expected obligation in this bucket. 🎯</p>
                 ) : (
@@ -410,9 +476,12 @@ export function BucketReconciliationPanel({
                     </thead>
                     <tbody className="divide-y divide-border">
                       {missing.map((r) => (
-                        <tr key={r.rent_id} className="hover:bg-rose-500/5">
+                        <tr key={r.rent_id} className="hover:bg-rose-500/5 cursor-pointer" onClick={() => setSelection({ kind: 'missing', rentId: r.rent_id })} title="Open variance breakdown">
                           <td className="px-2 py-1.5">
-                            <div className="font-semibold text-foreground truncate max-w-[14rem]">{(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}</div>
+                            <div className="font-semibold text-foreground truncate max-w-[14rem] inline-flex items-center gap-1">
+                              {(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}
+                              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                            </div>
                             {r.tenant_id && <div className="text-[9px] font-mono text-muted-foreground">{r.tenant_id.slice(0, 8)} · plan {r.rent_id.slice(0, 8)}</div>}
                           </td>
                           <td className="px-2 py-1.5 hidden md:table-cell truncate max-w-[10rem]">{(r.agent_id && nameById.get(r.agent_id)) || '—'}</td>
@@ -451,10 +520,13 @@ export function BucketReconciliationPanel({
                     </thead>
                     <tbody className="divide-y divide-border">
                       {extras.map((r) => (
-                        <tr key={r.collection_id} className="hover:bg-amber-500/5">
+                        <tr key={r.collection_id} className="hover:bg-amber-500/5 cursor-pointer" onClick={() => setSelection({ kind: 'extra', collectionId: r.collection_id })} title="Open extra-collection breakdown">
                           <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(r.when_ms)}</td>
                           <td className="px-2 py-1.5">
-                            <div className="font-semibold text-foreground truncate max-w-[12rem]">{(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}</div>
+                            <div className="font-semibold text-foreground truncate max-w-[12rem] inline-flex items-center gap-1">
+                              {(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}
+                              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                            </div>
                             {r.rent_request_id && <div className="text-[9px] font-mono text-muted-foreground">plan {r.rent_request_id.slice(0, 8)}</div>}
                           </td>
                           <td className="px-2 py-1.5 hidden md:table-cell truncate max-w-[10rem]">{(r.agent_id && nameById.get(r.agent_id)) || '—'}</td>
