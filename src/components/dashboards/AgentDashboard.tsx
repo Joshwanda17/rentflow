@@ -62,6 +62,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
 import { WeeklyListingMissionCard } from '@/components/agent/WeeklyListingMissionCard';
+import { LastWeekWinnerOverlay } from '@/components/agent/LastWeekWinnerOverlay';
 import { SubAgentInviteLinkDialog } from '@/components/agent/SubAgentInviteLinkDialog';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
@@ -961,6 +962,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className={cn("space-y-4", tabAnimClass)}>
             {/* Weekly Listing Mission — recruit sub-agents, list verified houses, earn */}
             {!isMerchant && (
+              <>
+              <LastWeekWinnerOverlay />
               <WeeklyListingMissionCard
                 agentId={user.id}
                 onInvite={() => { hapticTap(); setSubAgentLinkOpen(true); }}
@@ -969,6 +972,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 onViewEarnings={() => { hapticTap(); setSlideDirection('left'); setActiveTab('money'); }}
                 onViewLeaderboard={() => { hapticTap(); navigate('/dashboard/agents/leaderboard'); }}
               />
+              </>
             )}
 
             {/*
