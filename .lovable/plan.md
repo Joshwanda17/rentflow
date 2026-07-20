@@ -1,42 +1,39 @@
-## Goal
-Keep the existing three demo cards in `RentDiscountCarousel` (Modern Apartments / Family House / City Studio) but make tapping the image or title open the real house detail page (`/house/:id`) for a matching real listing, instead of opening the generic Available Houses sheet.
+## Diagnosis (confirmed against production data)
 
-## Current behavior (verified)
-- `src/components/tenant/RentDiscountCarousel.tsx` renders 3 hardcoded cards; tap fires `onSelectHouse`.
-- `src/components/dashboards/TenantDashboard.tsx:794` wires `onSelectHouse` to `openHousesSheet()` — always opens the full unfiltered list.
-- Route `/house/:id` exists (`src/App.tsx:529` → `HouseDetail`).
-- "Apply X%" button is unchanged (still a cosmetic toast + localStorage).
+Kalyango Timothy (`2c6569ce…`) has a referrals row for invitee Tarzan Mark (`94edf49f…`) dated 2026‑07‑20 08:40 with `bonus_amount = 500`, `credited = true`, `credited_at` set — **but zero matching `general_ledger` entries and `wallets.withdrawable_balance = 0`**.
 
-## Changes
+Root cause: there are two competing referral‑credit paths and they collide.
 
-1. **Add a target house id per demo card** in `RentDiscountCarousel.tsx`:
-   ```ts
-   interface RentalCard { id; title; area; monthlyRent; image; houseId?: string }
-   ```
-   Leave `houseId` empty in code — it will be picked from real data at runtime (next step) so we don't ship stale UUIDs.
+1. **Legacy path** – DB trigger `trg_credit_referral_bonus` on `public.profiles` (function `credit_referral_bonus`) fires when a new profile is created with `referrer_id`. It:
+   - INSERTs the `referrals` row already marked `credited = true`
+   - Runs `UPDATE public.wallets SET balance = balance + 500` — this touches only the inert legacy `wallets.balance` column, **not** the `withdrawable_balance` bucket, and never posts to `general_ledger`. Under the Wallet Write Lockdown (`enforce_wallet_ledger_only`) it is either silently ignored or writes to a column no user‑facing balance reads.
 
-2. **Resolve each card to a real listing at render time.** Add a small `useDemoRentalTargets()` hook in the same file (or `src/hooks/useDemoRentalTargets.ts`) that queries `house_listings` once (React Query, 10 min stale) using `PUBLIC_HOUSE_LISTING_COLUMNS` and picks one `status='available'` listing per card by simple rules:
-   - Modern Apartments → first available in `district ilike 'Kampala'` with `sub_county ilike 'Ntinda'` (fallback: any Kampala available).
-   - Family House → first available in `district ilike 'Kabale'` (fallback: any non-Kampala available).
-   - City Studio → first available in `sub_county ilike 'Bukoto'` (fallback: any Kampala available).
-   Returns `Record<cardId, houseId | null>`.
+2. **Ledger‑based path** – trigger `trg_credit_signup_referral_bonus` on `public.referrals` calls `try_credit_qualified_referrals`, which only processes rows where `credited = false`. Because path #1 already set `credited = true`, this path skips the row and no ledger entries are ever created.
 
-3. **Update tap handler** in `RentDiscountCarousel.tsx`:
-   - Replace the current `onClick={() => { hapticTap(); onSelectHouse?.(); }}` on the image/title button with:
-     - If a resolved `houseId` exists → `navigate(`/house/${houseId}`)` (use `useNavigate` from react-router-dom).
-     - Else → fall back to existing `onSelectHouse?.()` so the generic sheet still opens (keeps behavior safe when no matching listing exists).
-   - Keep the aria-label pointing at the specific card title.
+Net effect for Timothy (and every referrer since the ledger path was introduced): the referral is *recorded* as credited, but no money reaches `withdrawable_balance` and `get_user_available_balance` correctly returns 0.
 
-4. **No changes** to:
-   - The "Apply X%" button (still toast + localStorage).
-   - `TenantDashboard.tsx` wiring (fallback path still works).
-   - Any backend, RLS, or ledger code.
+## Plan
 
-## Files touched
-- `src/components/tenant/RentDiscountCarousel.tsx` (add hook usage, navigate on tap)
-- (optional) `src/hooks/useDemoRentalTargets.ts` if extracted
+### 1. Retire the legacy trigger (migration)
+- `DROP TRIGGER trg_credit_referral_bonus ON public.profiles;`
+- Keep the `credit_referral_bonus` function definition for now (unattached) so historical references don't break, with a comment marking it retired.
 
-## Out of scope
-- Replacing the demo cards with fully dynamic real listings.
-- Applying the discount to a real rent plan.
-- Any change to the "View All" / Available Houses sheet.
+### 2. Fix the trigger arg on the ledger path (migration)
+`credit_signup_referral_bonus` currently calls `try_credit_qualified_referrals(NEW.referrer_id)` — the parameter is named `p_referred_id`, so it should be `NEW.referred_id`. Passing the referrer means it looks up referrals where the *referrer* is the invitee, which never matches for the row just inserted. Change to `NEW.referred_id`.
+
+### 3. Backfill Timothy + any other affected referrers (migration, one-shot)
+For every `referrals` row where `credited = true` AND no matching `general_ledger` row with `idempotency_key = 'referral_signup:' || id` exists AND `bonus_amount > 0` AND the referrer is not frozen:
+- Flip `credited = false, credited_at = NULL` on those rows
+- Call `try_credit_qualified_referrals(referred_id)` for each so the standard ledger path posts the correct double-entry (`marketing_expense` platform leg + `referral_bonus` wallet leg into `withdrawable_balance`).
+
+This automatically credits Timothy UGX 500 through the same audited path all new signups will use going forward, and no wallet buckets are touched directly.
+
+### 4. Verify
+- Re-query Timothy's `wallets.withdrawable_balance`, `general_ledger` referral entries, and `get_user_available_balance` — expect UGX 500.
+- Spot-check 2–3 other referrers surfaced by the backfill.
+
+### Technical notes
+- No frontend changes.
+- No new tables. Only trigger drop, one function edit, and a one-shot backfill DO block — all in a single migration.
+- Idempotency key `referral_signup:<referral_id>` prevents any double payout even if the backfill runs twice.
+- Complies with Wallet Sole Writer rule: crediting flows through `create_ledger_transaction` → ledger trigger → `apply_wallet_movement`.
