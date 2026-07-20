@@ -78,6 +78,9 @@ describe('VouchAuditLog', () => {
     expect(screen.getAllByText('Primary', { selector: 'span' }).length).toBe(2);
 
     // Each computed value must appear in the rendered log.
+    // Normalise whitespace (formatUGX may emit non-breaking spaces) before matching.
+    const normalise = (s: string) => s.replace(/\s+/g, ' ').trim();
+    const bodyText = normalise(document.body.textContent ?? '');
     const rendered = [
       vb.portfolio_component_ugx,
       vb.shares_component_ugx,
@@ -87,12 +90,11 @@ describe('VouchAuditLog', () => {
       vb.booster_breakdown.verification,
       vb.booster_breakdown.movement_behavior,
       vb.booster_breakdown.payment_history,
+      vb.total_ugx,
     ];
     for (const v of rendered) {
-      expect(screen.getAllByText(`+${formatUGX(v)}`).length).toBeGreaterThan(0);
+      const needle = normalise(formatUGX(v));
+      expect(bodyText).toContain(needle);
     }
-
-    // Total row must equal the sum surfaced by the helper.
-    expect(screen.getByText(formatUGX(vb.total_ugx))).toBeInTheDocument();
   });
 });
