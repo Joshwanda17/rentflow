@@ -1719,7 +1719,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                   type="button"
                   onClick={() => stepFlagged(-1)}
                   disabled={flaggedIdxs.length < 2}
-                  title="Previous flagged row"
+                  title="Previous flagged row (press P or [)"
                   className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
                 >
                   <ChevronLeft className="h-3 w-3" />
