@@ -627,13 +627,106 @@ function ReconDetailView({
   bucketDays: number;
   onOpenAnother: (sel: { kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string }) => void;
 }) {
+  const csvEscape = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const triggerDownload = (rows: (string | number)[][], filename: string) => {
+    const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const downloadDetailCsv = () => {
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    if (detail.kind === 'missing') {
+      const { m, plan, dailyPlan, totalDue, paidBefore, remaining, planCollections, tenantOtherCollections, nameOf } = detail;
+      const rows: (string | number)[][] = [];
+      rows.push(['section', 'field', 'value']);
+      rows.push(['header', 'tenant', nameOf(m.tenant_id)]);
+      rows.push(['header', 'tenant_id', m.tenant_id || '']);
+      rows.push(['header', 'agent', nameOf(m.agent_id)]);
+      rows.push(['header', 'agent_id', m.agent_id || '']);
+      rows.push(['header', 'rent_request_id', m.rent_id]);
+      rows.push(['header', 'plan_status', plan?.status || '']);
+      rows.push([]);
+      rows.push(['math', 'label', 'value_ugx']);
+      rows.push(['math', 'plan_daily_repayment', Math.round(dailyPlan)]);
+      rows.push(['math', 'bucket_days', bucketDays.toFixed(6)]);
+      rows.push(['math', 'daily_times_bucket', Math.round(dailyPlan * bucketDays)]);
+      rows.push(['math', 'total_due', Math.round(totalDue)]);
+      rows.push(['math', 'already_repaid_before_bucket', Math.round(paidBefore)]);
+      rows.push(['math', 'remaining_balance', Math.round(remaining)]);
+      rows.push(['math', 'expected_in_bucket', Math.round(m.daily)]);
+      rows.push(['math', 'collected_in_bucket', Math.round(m.collected)]);
+      rows.push(['math', 'variance', -Math.round(m.variance)]);
+      rows.push([]);
+      rows.push(['plan_collections', 'when_eat', 'agent', 'agent_id', 'method', 'amount_ugx', 'rent_request_id', 'collection_id']);
+      for (const r of planCollections) {
+        rows.push(['plan_collections', fmtWhen(new Date(r.created_at).getTime()), nameOf(r.agent_id), r.agent_id || '', r.payment_method || '', Math.round(Number(r.amount) || 0), r.rent_request_id || '', r.id]);
+      }
+      if (tenantOtherCollections.length) {
+        rows.push([]);
+        rows.push(['tenant_other_plans', 'when_eat', 'agent', 'agent_id', 'method', 'amount_ugx', 'rent_request_id', 'collection_id']);
+        for (const r of tenantOtherCollections) {
+          rows.push(['tenant_other_plans', fmtWhen(new Date(r.created_at).getTime()), nameOf(r.agent_id), r.agent_id || '', r.payment_method || '', Math.round(Number(r.amount) || 0), r.rent_request_id || '', r.id]);
+        }
+      }
+      triggerDownload(rows, `recon_missing_${m.rent_id.slice(0, 8)}_${stamp}.csv`);
+      return;
+    }
+    const { c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, timeline, nameOf } = detail;
+    const rows: (string | number)[][] = [];
+    rows.push(['section', 'field', 'value']);
+    rows.push(['header', 'collection_id', c.collection_id]);
+    rows.push(['header', 'when_eat', fmtWhen(c.when_ms)]);
+    rows.push(['header', 'amount_ugx', Math.round(c.amount)]);
+    rows.push(['header', 'extra_amount_ugx', Math.round(c.extra_amount)]);
+    rows.push(['header', 'reason', c.reason]);
+    rows.push(['header', 'reason_label', c.reason_label]);
+    rows.push(['header', 'tenant', nameOf(c.tenant_id)]);
+    rows.push(['header', 'tenant_id', c.tenant_id || '']);
+    rows.push(['header', 'agent', nameOf(c.agent_id)]);
+    rows.push(['header', 'agent_id', c.agent_id || '']);
+    rows.push(['header', 'method', c.method || '']);
+    rows.push(['header', 'rent_request_id', c.rent_request_id || '']);
+    if (plan) {
+      rows.push([]);
+      rows.push(['math', 'label', 'value_ugx']);
+      rows.push(['math', 'plan_status', plan.status || '']);
+      rows.push(['math', 'plan_daily_repayment', Math.round(dailyPlan)]);
+      rows.push(['math', 'bucket_days', bucketDays.toFixed(6)]);
+      rows.push(['math', 'total_due', Math.round(totalDue)]);
+      rows.push(['math', 'already_repaid_before_bucket', Math.round(paidBefore)]);
+      rows.push(['math', 'remaining_balance', Math.round(remaining)]);
+      rows.push(['math', 'expected_in_bucket', Math.round(expected)]);
+      rows.push([]);
+      rows.push(['timeline', 'when_eat', 'amount_ugx', 'cumulative_ugx', 'over_daily_ugx', 'over_remaining_ugx', 'is_this_row', 'collection_id']);
+      for (const t of timeline) {
+        rows.push(['timeline', fmtWhen(t.when), Math.round(t.amount), Math.round(t.cumulative), Math.round(t.over_daily), Math.round(t.over_remaining), t.isThis ? 'yes' : 'no', t.id]);
+      }
+    }
+    triggerDownload(rows, `recon_extra_${c.collection_id.slice(0, 8)}_${stamp}.csv`);
+  };
+
   if (detail.kind === 'missing') {
     const { m, plan, dailyPlan, totalDue, paidBefore, remaining, planCollections, tenantOtherCollections, nameOf } = detail;
     const proration = bucketDays >= 0.999 ? '1 full day' : `${(bucketDays * 24).toFixed(2)} hours (${(bucketDays * 100 / 1).toFixed(1)}% of a day)`;
     return (
       <div className="p-4 space-y-4">
         <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-rose-800">Missing collection · variance breakdown</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-rose-800">Missing collection · variance breakdown</div>
+            <button
+              type="button"
+              onClick={downloadDetailCsv}
+              className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-background border border-border hover:bg-muted"
+              title="Download this variance breakdown as CSV"
+            >
+              <Download className="h-3 w-3" /> CSV
+            </button>
+          </div>
           <div className="mt-1 flex items-baseline gap-2">
             <div className="text-base font-bold text-foreground truncate">{nameOf(m.tenant_id) || '(no tenant)'}</div>
             <div className="text-[10px] font-mono text-muted-foreground">{m.tenant_id?.slice(0, 8) || '—'}</div>
@@ -684,7 +777,17 @@ function ReconDetailView({
   return (
     <div className="p-4 space-y-4">
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-        <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Extra collection · why flagged</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Extra collection · why flagged</div>
+          <button
+            type="button"
+            onClick={downloadDetailCsv}
+            className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-background border border-border hover:bg-muted"
+            title="Download this extra-collection breakdown as CSV"
+          >
+            <Download className="h-3 w-3" /> CSV
+          </button>
+        </div>
         <div className="mt-1 flex items-baseline gap-2">
           <div className="text-base font-bold text-foreground">{formatUGX(c.amount)}</div>
           <div className="text-[10px] text-muted-foreground">at {fmtWhen(c.when_ms)}</div>
