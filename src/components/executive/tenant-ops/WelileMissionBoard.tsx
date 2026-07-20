@@ -139,6 +139,7 @@ export function WelileMissionBoard() {
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
   const [explainOpen, setExplainOpen] = useState(false);
+  const [emptyScope, setEmptyScope] = useState<'window' | 'all'>('window');
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const queryClient = useQueryClient();
@@ -226,8 +227,13 @@ export function WelileMissionBoard() {
 
   const metricFor = (s: MissionSummary, key: PriorityKey) => {
     if (key === 'list') {
-      const combinedEmpty = (receivables?.empty_houses_count ?? 0) + (receivables?.unlisted_landlord_count ?? 0);
-      return { big: combinedEmpty, label: 'listed empty houses', extra: '' };
+      const windowEmpty = (receivables?.empty_houses_count ?? 0) + (receivables?.unlisted_landlord_count ?? 0);
+      const allEmpty = s.empty_houses_total;
+      const big = emptyScope === 'all' ? allEmpty : windowEmpty;
+      const extra = emptyScope === 'all'
+        ? `${windowEmpty.toLocaleString()} added in window`
+        : `${allEmpty.toLocaleString()} empty in total`;
+      return { big, label: emptyScope === 'all' ? 'empty houses (all-time)' : 'listed empty houses', extra };
     }
     if (key === 'place') return { big: s.placements_new, label: 'tenants placed', extra: `${placementRate}% of listed houses occupied` };
     return { big: s.funders_new, label: 'new funders', extra: `${formatUGX(s.funders_amount)} committed · ${fundActivation}% active (≥ UGX 10,000)` };
@@ -384,6 +390,33 @@ export function WelileMissionBoard() {
                       {windowDateRangeLabel(effectiveWin, receivables?.earliest_date)}
                       <ChevronRight className="h-3 w-3" />
                     </button>
+                  )}
+                  {p.key === 'list' && (
+                    <div className="mt-1.5 flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/5 p-0.5 w-fit">
+                      <button
+                        type="button"
+                        onClick={() => setEmptyScope('window')}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-semibold transition',
+                          emptyScope === 'window' ? 'bg-amber-500 text-white' : 'text-amber-700 hover:bg-amber-500/10',
+                        )}
+                      >
+                        In window
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEmptyScope('all')}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-semibold transition',
+                          emptyScope === 'all' ? 'bg-amber-500 text-white' : 'text-amber-700 hover:bg-amber-500/10',
+                        )}
+                      >
+                        All-time
+                      </button>
+                    </div>
+                  )}
+                  {p.key === 'list' && m.extra && (
+                    <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>
                   )}
                   {m.extra && p.key !== 'list' && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
                   {p.key === 'place' && receivables && (
