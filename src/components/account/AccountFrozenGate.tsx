@@ -22,7 +22,7 @@ interface ListingBlock {
  * Mounted once inside AuthProvider so it applies to the entire authenticated app.
  */
 export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const { data: profileFreeze } = useQuery({
     queryKey: ['account-frozen-profile', user?.id],
@@ -104,9 +104,6 @@ export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
           >
             <Phone className="mr-2 h-4 w-4" />
             Contact support: +256 777 607 640
-          </Button>
-          <Button variant="ghost" className="w-full" onClick={() => signOut()}>
-            Sign out
           </Button>
         </div>
       </div>
