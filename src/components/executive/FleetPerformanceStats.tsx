@@ -1552,6 +1552,22 @@ export function FleetPerformanceStats({
           )}
         </>
       )}
+      <FleetCollectionsDrillDownSheet
+        open={drillOpen}
+        onOpenChange={setDrillOpen}
+        start={drillBucket?.start ?? start}
+        end={drillBucket?.end ?? end}
+        agentId={drillAgentId}
+        agentName={drillAgentName}
+        bucketLabel={drillBucket?.label ?? null}
+      />
+      <ExpectedContributorsSheet
+        open={expectedOpen}
+        onOpenChange={setExpectedOpen}
+        days={days}
+        agentId={expectedAgentId}
+        agentName={expectedAgentName}
+      />
     </div>
   );
 }
