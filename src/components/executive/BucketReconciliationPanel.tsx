@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, Search, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X } from 'lucide-react';
 
 type ActiveRent = {
   id: string;
