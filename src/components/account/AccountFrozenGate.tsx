@@ -22,7 +22,7 @@ interface ListingBlock {
  * Mounted once inside AuthProvider so it applies to the entire authenticated app.
  */
 export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const { data: profileFreeze } = useQuery({
     queryKey: ['account-frozen-profile', user?.id],
