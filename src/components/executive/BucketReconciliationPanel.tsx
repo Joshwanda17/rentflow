@@ -688,7 +688,8 @@ function ReconDetailView({
     a.click();
     URL.revokeObjectURL(url);
   };
-  const downloadDetailCsv = (opts?: { filteredPlanCollections?: BucketCollection[]; filteredTenantOther?: BucketCollection[]; filteredTimeline?: DetailPayload extends { kind: 'extra'; timeline: infer T } ? T : never }) => {
+  type TimelineRow = { id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean };
+  const downloadDetailCsv = (opts?: { filteredPlanCollections?: BucketCollection[]; filteredTenantOther?: BucketCollection[]; filteredTimeline?: TimelineRow[] }) => {
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
     if (detail.kind === 'missing') {
       const { m, plan, dailyPlan, totalDue, paidBefore, remaining, nameOf } = detail;
