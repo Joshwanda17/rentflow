@@ -343,6 +343,19 @@ export function BucketReconciliationPanel({
   // Sort state.
   const [tab, setTab] = useState<'missing' | 'extra'>('missing');
   const [selection, setSelection] = useState<{ kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string } | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Key identifies which view's scroll position we are saving/restoring.
+  const scrollKey = useMemo(() => {
+    if (!selection) return `list:${tab}`;
+    return selection.kind === 'missing' ? `missing:${selection.rentId}` : `extra:${selection.collectionId}`;
+  }, [selection, tab]);
+  // Restore scroll position whenever the visible view changes.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const saved = detailScrollStore.get(scrollKey) ?? 0;
+    el.scrollTop = saved;
+  }, [scrollKey]);
 
   // Reviewed-status tracking (persisted in localStorage; separate per kind).
   const missingReviewed = useReviewedSet('missing');
