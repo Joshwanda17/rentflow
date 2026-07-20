@@ -1249,6 +1249,63 @@ export function DirectCreditTool() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            <AlertDialog open={!!overdrawInfo} onOpenChange={(o) => { if (!o) { setOverdrawInfo(null); setOverdrawApproved(false); } }}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    Insufficient Available Balance
+                  </AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-3 text-sm">
+                      <p>
+                        The user's live ledger balance is not enough to cover this correction.
+                      </p>
+                      <div className="rounded-md border border-border bg-muted/50 p-3 space-y-1">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Available (strict)</span><strong>UGX {overdrawInfo?.available.toLocaleString()}</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Requested</span><strong>UGX {overdrawInfo?.requested.toLocaleString()}</strong></div>
+                        <div className="flex justify-between text-amber-700"><span>Shortfall</span><strong>UGX {overdrawInfo?.shortfall.toLocaleString()}</strong></div>
+                      </div>
+                      <p>
+                        Proceeding with <strong>Forced Reversal</strong> will still post the full
+                        correction and record the shortfall as a <strong>recoverable debt</strong>
+                        (<code>cfo_debit_obligations</code>, <code>auto_recover=true</code>) that the
+                        recovery cron will settle from the user's next eligible credits.
+                      </p>
+                      <label className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 cursor-pointer">
+                        <Checkbox
+                          checked={overdrawApproved}
+                          onCheckedChange={(v) => setOverdrawApproved(v === true)}
+                          disabled={mutation.isPending}
+                          className="mt-0.5"
+                        />
+                        <span className="text-foreground">
+                          I understand this creates a recoverable debt of{' '}
+                          <strong>UGX {overdrawInfo?.shortfall.toLocaleString()}</strong> and I want to proceed.
+                        </span>
+                      </label>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={mutation.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-amber-600 hover:bg-amber-700"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      mutation.mutate({ allowOverdraw: true }, {
+                        onSettled: () => { setOverdrawInfo(null); setOverdrawApproved(false); },
+                      });
+                    }}
+                    disabled={mutation.isPending || !overdrawApproved}
+                  >
+                    {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Force reversal & create debt
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         )}
       </CardContent>
