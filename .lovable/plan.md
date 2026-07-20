@@ -1,26 +1,42 @@
 ## Goal
+Keep the existing three demo cards in `RentDiscountCarousel` (Modern Apartments / Family House / City Studio) but make tapping the image or title open the real house detail page (`/house/:id`) for a matching real listing, instead of opening the generic Available Houses sheet.
 
-Every invitee who signs up through an inviter's referral link earns the **inviter UGX 500** (invitee gets nothing on signup). Keep the existing **+UGX 200 first-transaction** bonus for the inviter.
+## Current behavior (verified)
+- `src/components/tenant/RentDiscountCarousel.tsx` renders 3 hardcoded cards; tap fires `onSelectHouse`.
+- `src/components/dashboards/TenantDashboard.tsx:794` wires `onSelectHouse` to `openHousesSheet()` — always opens the full unfiltered list.
+- Route `/house/:id` exists (`src/App.tsx:529` → `HouseDetail`).
+- "Apply X%" button is unchanged (still a cosmetic toast + localStorage).
 
 ## Changes
 
-### 1. DB migration — update `credit_referral_bonus` trigger
-`supabase/migrations/20260129055851_...sql` currently credits UGX 500 to **both** the referrer and the new user. Ship a new migration that replaces the function so it:
-- Still inserts the `referrals` row with `bonus_amount = 500`, `credited = true`.
-- Credits **only the referrer's** wallet (`wallets.balance + 500`).
-- Removes the invitee wallet UPDATE and the "🎁 Welcome Bonus!" notification to the new user.
-- Keeps: agent_earnings row, referrer notification, push notification.
-- Leaves the first-transaction (+200) crediting path untouched (that lives elsewhere and continues to fire when the invitee completes their first qualifying transaction).
+1. **Add a target house id per demo card** in `RentDiscountCarousel.tsx`:
+   ```ts
+   interface RentalCard { id; title; area; monthlyRent; image; houseId?: string }
+   ```
+   Leave `houseId` empty in code — it will be picked from real data at runtime (next step) so we don't ship stale UUIDs.
 
-### 2. UI — `src/pages/Referrals.tsx`
-Fix the stale hardcoded copy so it matches the real reward structure:
-- Replace the "UGX 100 / UGX 200 / UGX 300" tri-panel with "**UGX 500** on signup + **UGX 200** on 1st transaction = **UGX 700** total per friend".
-- Keep `totalEarned`, `pendingFirstTxBonus` math (already reads `bonus_amount` from DB, so it auto-reflects 500).
+2. **Resolve each card to a real listing at render time.** Add a small `useDemoRentalTargets()` hook in the same file (or `src/hooks/useDemoRentalTargets.ts`) that queries `house_listings` once (React Query, 10 min stale) using `PUBLIC_HOUSE_LISTING_COLUMNS` and picks one `status='available'` listing per card by simple rules:
+   - Modern Apartments → first available in `district ilike 'Kampala'` with `sub_county ilike 'Ntinda'` (fallback: any Kampala available).
+   - Family House → first available in `district ilike 'Kabale'` (fallback: any non-Kampala available).
+   - City Studio → first available in `sub_county ilike 'Bukoto'` (fallback: any Kampala available).
+   Returns `Record<cardId, houseId | null>`.
 
-### 3. Sweep for other stale copy
-Grep for "UGX 100" / "100 UGX" / "referral bonus" in `src/components/shared/InviteAndEarnCard.tsx`, `ReferralStatsCard.tsx`, `ReferralBanner.tsx`, `MyReferralsCount.tsx`, and any onboarding surfaces; update wording only where it advertises the signup amount. No logic changes there.
+3. **Update tap handler** in `RentDiscountCarousel.tsx`:
+   - Replace the current `onClick={() => { hapticTap(); onSelectHouse?.(); }}` on the image/title button with:
+     - If a resolved `houseId` exists → `navigate(`/house/${houseId}`)` (use `useNavigate` from react-router-dom).
+     - Else → fall back to existing `onSelectHouse?.()` so the generic sheet still opens (keeps behavior safe when no matching listing exists).
+   - Keep the aria-label pointing at the specific card title.
+
+4. **No changes** to:
+   - The "Apply X%" button (still toast + localStorage).
+   - `TenantDashboard.tsx` wiring (fallback path still works).
+   - Any backend, RLS, or ledger code.
+
+## Files touched
+- `src/components/tenant/RentDiscountCarousel.tsx` (add hook usage, navigate on tap)
+- (optional) `src/hooks/useDemoRentalTargets.ts` if extracted
 
 ## Out of scope
-- First-transaction bonus amount and trigger (unchanged).
-- Referral link format, short-link generation, phone-verification gating.
-- Historical `referrals` rows (already stored with their own `bonus_amount`; not backfilled).
+- Replacing the demo cards with fully dynamic real listings.
+- Applying the discount to a real rent plan.
+- Any change to the "View All" / Available Houses sheet.
