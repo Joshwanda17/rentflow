@@ -1,10 +1,63 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+
+// Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
+const REVIEWED_LS_KEY = 'welile:recon-reviewed:v1';
+type ReviewedStore = { missing: Record<string, number>; extra: Record<string, number> };
+function readReviewedStore(): ReviewedStore {
+  if (typeof window === 'undefined') return { missing: {}, extra: {} };
+  try {
+    const raw = window.localStorage.getItem(REVIEWED_LS_KEY);
+    if (!raw) return { missing: {}, extra: {} };
+    const parsed = JSON.parse(raw);
+    return {
+      missing: (parsed?.missing && typeof parsed.missing === 'object') ? parsed.missing : {},
+      extra: (parsed?.extra && typeof parsed.extra === 'object') ? parsed.extra : {},
+    };
+  } catch {
+    return { missing: {}, extra: {} };
+  }
+}
+function writeReviewedStore(s: ReviewedStore) {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(REVIEWED_LS_KEY, JSON.stringify(s)); } catch { /* quota — ignore */ }
+}
+function useReviewedSet(kind: 'missing' | 'extra'): {
+  reviewed: Record<string, number>;
+  isReviewed: (id: string) => boolean;
+  toggle: (id: string) => void;
+  clear: () => void;
+} {
+  const [reviewed, setReviewed] = useState<Record<string, number>>(() => readReviewedStore()[kind]);
+  // Sync across tabs.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== REVIEWED_LS_KEY) return;
+      setReviewed(readReviewedStore()[kind]);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [kind]);
+  const persist = useCallback((next: Record<string, number>) => {
+    setReviewed(next);
+    const store = readReviewedStore();
+    store[kind] = next;
+    writeReviewedStore(store);
+  }, [kind]);
+  const toggle = useCallback((id: string) => {
+    const next = { ...reviewed };
+    if (next[id]) delete next[id]; else next[id] = Date.now();
+    persist(next);
+  }, [reviewed, persist]);
+  const isReviewed = useCallback((id: string) => Boolean(reviewed[id]), [reviewed]);
+  const clear = useCallback(() => persist({}), [persist]);
+  return { reviewed, isReviewed, toggle, clear };
+}
 
 type ActiveRent = {
   id: string;
