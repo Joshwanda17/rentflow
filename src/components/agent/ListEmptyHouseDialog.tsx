@@ -1294,11 +1294,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           .catch((e) => console.warn('[ListEmptyHouseDialog] instant listing bonus failed:', e));
       }
 
-      // ─── LC1 chairperson persistence + two-stage reward ───
+      // ─── LC1 chairperson persistence ───
       // Existing LC1 (picked from search) → nothing to insert, no bonus.
-      // New LC1 (agent registering) → insert with registered_by = agent and
-      // trigger the UGX 1,000 instant reward. The remaining UGX 4,000 is auto-
-      // paid by `credit-lc1-verification-bonus` once Landlord Ops verifies.
+      // New LC1 (agent registering) → insert with registered_by = agent. The
+      // full UGX 5,000 commission is paid in a SINGLE payment by
+      // `credit-lc1-verification-bonus` once Landlord Ops verifies the LC1
+      // chairperson. There is no longer an instant registration reward.
       if (lc1Selection?.mode === 'new') {
         try {
           const lc1Phone = lc1Selection.phone.trim();
@@ -1343,12 +1344,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             lc1Id = createdLc1?.id ?? null;
           }
 
-          // Instant UGX 1,000 LC1-registration reward (best-effort, idempotent).
-          if (lc1Id) {
-            supabase.functions
-              .invoke('credit-lc1-registered-bonus', { body: { lc1_id: lc1Id } })
-              .catch((e) => console.warn('[ListEmptyHouseDialog] instant LC1 reward failed:', e));
-          }
+          // No instant LC1-registration reward — the full UGX 5,000 is credited
+          // only after Landlord Ops verifies the chairperson.
         } catch (lc1Err) {
           console.warn('[ListEmptyHouseDialog] LC1 registration warning:', lc1Err);
         }
