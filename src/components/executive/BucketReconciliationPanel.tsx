@@ -8,6 +8,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2, FileText, Crosshair } from 'lucide-react';
 import { generateBucketReconDetailPdf } from '@/lib/bucketReconDetailPdf';
 import { toast } from 'sonner';
+import {
+  matchTimelineShortcut,
+  useTimelineShortcuts,
+  formatShortcutKey,
+} from '@/lib/timelineShortcutPrefs';
+import { TimelineShortcutSettingsButton } from '@/components/executive/TimelineShortcutSettings';
 
 // In-memory session stores for detail-view page size + scroll position.
 // Survive tab switches, filter changes, and re-open of the same row within the session.
