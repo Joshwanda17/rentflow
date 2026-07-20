@@ -1591,20 +1591,25 @@ function MiniCollectionTable({ rows, nameOf, stateKey }: { rows: BucketCollectio
       return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
     });
   }, [rows, sort]);
+  const [pageSize, setPageSize] = usePageSizePref(stateKey, DETAIL_PAGE_SIZE);
   const [visible, setVisibleState] = useState(() =>
-    (stateKey && detailPageSizeStore.get(stateKey)) || DETAIL_PAGE_SIZE,
+    (stateKey && detailPageSizeStore.get(stateKey)) || pageSize,
   );
   useEffect(() => {
     if (!stateKey) return;
     const saved = detailPageSizeStore.get(stateKey);
-    setVisibleState(saved && saved > 0 ? saved : DETAIL_PAGE_SIZE);
-  }, [stateKey]);
+    setVisibleState(saved && saved > 0 ? saved : pageSize);
+  }, [stateKey, pageSize]);
   const setVisible = (updater: number | ((v: number) => number)) => {
     setVisibleState((prev) => {
       const next = typeof updater === 'function' ? (updater as (v: number) => number)(prev) : updater;
       if (stateKey) detailPageSizeStore.set(stateKey, next);
       return next;
     });
+  };
+  const onPageSizeChange = (n: number) => {
+    setPageSize(n);
+    setVisible(n);
   };
   const page = sorted.slice(0, visible);
   const hasMore = sorted.length > visible;
@@ -1642,16 +1647,21 @@ function MiniCollectionTable({ rows, nameOf, stateKey }: { rows: BucketCollectio
         ))}
       </tbody>
     </table>
-      {sorted.length > DETAIL_PAGE_SIZE && (
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
-          <span>Showing {page.length} of {sorted.length}</span>
-          {hasMore ? (
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setVisible((v) => v + DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Load {Math.min(DETAIL_PAGE_SIZE, sorted.length - visible)} more</button>
-              <button type="button" onClick={() => setVisible(sorted.length)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Show all</button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => setVisible(DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Collapse</button>
+      {sorted.length > 0 && (
+        <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground px-1 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span>Showing {page.length} of {sorted.length}</span>
+            <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+          </div>
+          {sorted.length > pageSize && (
+            hasMore ? (
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setVisible((v) => v + pageSize)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Load {Math.min(pageSize, sorted.length - visible)} more</button>
+                <button type="button" onClick={() => setVisible(sorted.length)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Show all</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setVisible(pageSize)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Collapse</button>
+            )
           )}
         </div>
       )}
