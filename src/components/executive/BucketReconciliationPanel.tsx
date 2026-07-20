@@ -1738,7 +1738,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
               <div className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-800 overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => jumpToFlaggedEdge('first')}
+                  onClick={() => jumpToFlaggedEdge('first', 'Home')}
                   disabled={flaggedIdxs.length < 2 || cursor === 0}
                   title="First flagged row (press Home)"
                   className="h-6 px-1 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center border-r border-amber-500/40"
@@ -1748,7 +1748,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                 </button>
                 <button
                   type="button"
-                  onClick={() => stepFlagged(-1)}
+                  onClick={() => stepFlagged(-1, 'P')}
                   disabled={flaggedIdxs.length < 2}
                   title="Previous flagged row (press P or [)"
                   className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
@@ -1766,7 +1766,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                 </button>
                 <button
                   type="button"
-                  onClick={() => stepFlagged(1)}
+                  onClick={() => stepFlagged(1, 'N')}
                   disabled={flaggedIdxs.length < 2}
                   title="Next flagged row (press N or ])"
                   className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
@@ -1775,7 +1775,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                 </button>
                 <button
                   type="button"
-                  onClick={() => jumpToFlaggedEdge('last')}
+                  onClick={() => jumpToFlaggedEdge('last', 'End')}
                   disabled={flaggedIdxs.length < 2 || cursor === flaggedIdxs.length - 1}
                   title="Last flagged row (press End)"
                   className="h-6 px-1 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center border-l border-amber-500/40"
@@ -1784,6 +1784,14 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                   <ChevronRight className="h-3 w-3 -ml-2" />
                 </button>
               </div>
+            )}
+            {jumpStatus && (
+              <span
+                key={jumpStatus.at}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-semibold tabular-nums animate-pulse"
+              >
+                {jumpStatus.key} → row {jumpStatus.targetRow}
+              </span>
             )}
           </div>
           {sorted.length > pageSize && (
