@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2, FileText } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2, FileText, Crosshair } from 'lucide-react';
 import { generateBucketReconDetailPdf } from '@/lib/bucketReconDetailPdf';
 import { toast } from 'sonner';
 
@@ -1596,6 +1596,15 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
     setPageSize(n);
     setVisible(n);
   };
+  // Tick that bumps whenever the user clicks "Jump to flagged row" so the
+  // virtualizer's scrollTo effect re-fires even if sort/page haven't changed.
+  const [jumpTick, setJumpTick] = useState(0);
+  const jumpToFlagged = () => {
+    if (thisIdx < 0) return;
+    // Ensure the flagged row is inside the current window before scrolling.
+    if (thisIdx + 1 > effectiveVisible) setVisible(thisIdx + 1);
+    setJumpTick((n) => n + 1);
+  };
   // Always keep the flagged "this row" visible even if it would fall past the cutoff.
   const thisIdx = sorted.findIndex((r) => r.isThis);
   const effectiveVisible = thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible;
@@ -1629,7 +1638,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
         )}
         emptyMessage="No rows match the current filters."
         scrollToIndex={thisIdx >= 0 ? Math.min(thisIdx, page.length - 1) : undefined}
-        scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}`}
+        scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}:${jumpTick}`}
         renderRow={(t) => (
           <div className={`contents ${t.isThis ? 'font-semibold' : ''}`}>
             <div className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>
@@ -1647,6 +1656,16 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
           <div className="flex items-center gap-2">
             <span>Showing {page.length} of {sorted.length}{thisIdx >= 0 && thisIdx + 1 > visible ? ' (expanded to include flagged row)' : ''}</span>
             <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+            {thisIdx >= 0 && (
+              <button
+                type="button"
+                onClick={jumpToFlagged}
+                title="Scroll to the highlighted collection"
+                className="h-6 px-2 rounded-md font-semibold bg-amber-500/10 border border-amber-500/40 text-amber-800 hover:bg-amber-500/20 inline-flex items-center gap-1"
+              >
+                <Crosshair className="h-3 w-3" /> Jump to flagged row
+              </button>
+            )}
           </div>
           {sorted.length > pageSize && (
             hasMore ? (
