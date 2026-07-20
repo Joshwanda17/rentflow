@@ -141,6 +141,7 @@ export function WelileMissionBoard() {
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
   const [explainOpen, setExplainOpen] = useState(false);
   const [emptyScope, setEmptyScope] = useState<'window' | 'all'>('window');
+  const [comparePrev, setComparePrev] = useState<boolean>(false);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const queryClient = useQueryClient();
