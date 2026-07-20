@@ -31,14 +31,19 @@ export function LastWeekWinnerOverlay() {
     (async () => {
       const { data, error } = await supabase
         .from('agent_listing_campaign_bonuses')
-        .select('agent_id, amount, week_start, week_end, profiles:profiles!agent_listing_campaign_bonuses_agent_id_fkey(full_name, avatar_url)')
+        .select('agent_id, amount, week_start, week_end')
         .lt('week_end', new Date().toISOString().slice(0, 10))
         .order('week_start', { ascending: false })
         .order('amount', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (cancelled || error || !data) return;
-      const prof: any = (data as any).profiles;
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', data.agent_id)
+        .maybeSingle();
+      if (cancelled) return;
       setWinner({
         agent_id: data.agent_id,
         amount: Number(data.amount),
