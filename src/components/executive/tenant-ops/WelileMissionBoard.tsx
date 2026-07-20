@@ -27,7 +27,7 @@ import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
-import { applyDayBoundary, type DayBoundary } from '@/hooks/useWelileOpsCounters';
+import { applyDayBoundary, windowToISO, type DayBoundary } from '@/hooks/useWelileOpsCounters';
 import { useLandlordPriorityBreakdown, type LandlordPriorityBucket } from '@/hooks/useWelileOpsCounters';
 import { useMissionReceivables } from '@/hooks/useWelileOpsCounters';
 import { useMissionLandlordReceivables, type MissionLandlordReceivable } from '@/hooks/useWelileOpsCounters';
@@ -45,6 +45,7 @@ import {
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
   ChevronsUpDown, X, Image as ImageIcon, CalendarDays, Info, ChevronLeft, ArrowUpDown,
+  ArrowUp, ArrowDown, Minus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildRentEstimator } from '@/lib/missionProjection';
@@ -140,6 +141,7 @@ export function WelileMissionBoard() {
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
   const [explainOpen, setExplainOpen] = useState(false);
   const [emptyScope, setEmptyScope] = useState<'window' | 'all'>('window');
+  const [comparePrev, setComparePrev] = useState<boolean>(false);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const queryClient = useQueryClient();
@@ -172,6 +174,38 @@ export function WelileMissionBoard() {
   const agents: MissionAgentRow[] = agentData ?? [];
   const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(effectiveWin, intervalMs);
   const { data: receivables } = useMissionReceivables(effectiveWin, intervalMs);
+
+  // Previous-window comparison for the "listed empty houses" priority card.
+  // The mission-receivables RPC counts empties created since p_since, so the
+  // count for the equal-duration previous window = receivables(prevSince) − receivables(currSince).
+  const prevSinceISO = useMemo(() => {
+    const currISO = windowToISO(effectiveWin);
+    if (!currISO) return null; // "all" window has no previous period
+    const cur = new Date(currISO).getTime();
+    const dur = Date.now() - cur;
+    if (!isFinite(dur) || dur <= 0) return null;
+    return new Date(cur - dur).toISOString();
+  }, [effectiveWin]);
+
+  const { data: prevReceivables } = useQuery({
+    enabled: comparePrev && emptyScope === 'window' && !!prevSinceISO,
+    queryKey: ['welile-mission-receivables-prev', prevSinceISO],
+    staleTime: 60_000,
+    refetchInterval: intervalMs || false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('welile_mission_receivables' as any, { p_since: prevSinceISO });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row as { empty_houses_count: number; unlisted_landlord_count: number } | null;
+    },
+  });
+
+  const currWindowEmpty = (receivables?.empty_houses_count ?? 0) + (receivables?.unlisted_landlord_count ?? 0);
+  const prevWindowEmpty = prevReceivables
+    ? Math.max(0, ((prevReceivables.empty_houses_count ?? 0) + (prevReceivables.unlisted_landlord_count ?? 0)) - currWindowEmpty)
+    : null;
+  const emptyDelta = prevWindowEmpty != null ? currWindowEmpty - prevWindowEmpty : null;
+  const emptyDeltaPct = prevWindowEmpty && prevWindowEmpty > 0 ? Math.round(((currWindowEmpty - prevWindowEmpty) / prevWindowEmpty) * 100) : null;
   const { data: landlordBreakdown } = useLandlordPriorityBreakdown(effectiveWin, intervalMs);
 
   // ROI payable OUT to funders in the next cycle (~next 31 days).
@@ -377,6 +411,25 @@ export function WelileMissionBoard() {
                 <div className="mt-2">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-2xl font-bold leading-none">{m.big.toLocaleString()}</span>
+                    {p.key === 'list' && comparePrev && emptyScope === 'window' && emptyDelta != null && (
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums',
+                          emptyDelta > 0
+                            ? 'bg-red-500/15 text-red-700'
+                            : emptyDelta < 0
+                              ? 'bg-emerald-500/15 text-emerald-700'
+                              : 'bg-muted text-muted-foreground',
+                        )}
+                        title={`Previous window: ${(prevWindowEmpty ?? 0).toLocaleString()} empty added`}
+                      >
+                        {emptyDelta > 0 ? <ArrowUp className="h-3 w-3" /> : emptyDelta < 0 ? <ArrowDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                        {emptyDelta > 0 ? '+' : ''}{emptyDelta.toLocaleString()}
+                        {emptyDeltaPct != null && (
+                          <span className="opacity-70">({emptyDeltaPct > 0 ? '+' : ''}{emptyDeltaPct}%)</span>
+                        )}
+                      </span>
+                    )}
                     {p.key === 'list' ? (
                       <TooltipProvider delayDuration={100}>
                         <Tooltip>
@@ -439,7 +492,31 @@ export function WelileMissionBoard() {
                       >
                         All-time
                       </button>
+                      {emptyScope === 'window' && prevSinceISO && (
+                        <button
+                          type="button"
+                          onClick={() => setComparePrev((v) => !v)}
+                          className={cn(
+                            'ml-1 px-2 py-0.5 rounded text-[10px] font-semibold transition inline-flex items-center gap-1',
+                            comparePrev ? 'bg-amber-500 text-white' : 'text-amber-700 hover:bg-amber-500/10',
+                          )}
+                          title="Compare with the previous equal-length window"
+                        >
+                          <ArrowUpDown className="h-3 w-3" />
+                          Compare
+                        </button>
+                      )}
                     </div>
+                  )}
+                  {p.key === 'list' && comparePrev && emptyScope === 'window' && emptyDelta != null && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Previous window: <span className="font-semibold text-foreground tabular-nums">{(prevWindowEmpty ?? 0).toLocaleString()}</span> empty added ·{' '}
+                      {emptyDelta === 0
+                        ? 'no change'
+                        : emptyDelta > 0
+                          ? `${emptyDelta.toLocaleString()} more this window`
+                          : `${Math.abs(emptyDelta).toLocaleString()} fewer this window`}
+                    </p>
                   )}
                   {p.key === 'list' && m.extra && (
                     <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>
