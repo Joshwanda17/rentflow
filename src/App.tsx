@@ -389,6 +389,9 @@ function AppRoutes() {
           <Route path="/receipt/:id" element={<PayoutReceipt />} />
           <Route path="/resume-sms" element={<ResumeSms />} />
           <Route path="/r/:code" element={<ResolveRLink />} />
+          <Route path="/invite/merchant-agent" element={<InviteMerchantAgent />} />
+          <Route path="/merchant-agent/onboarding" element={<MerchantAgentOnboarding />} />
+          <Route path="/merchant-agent-referrals" element={<MerchantAgentReferrals />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
           <Route path="/id/:aiId" element={<HolisticProfile publicMode />} />
           {/* Persona-specific dashboards. URL is the source of truth for which
