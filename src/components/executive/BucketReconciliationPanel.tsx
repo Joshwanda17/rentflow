@@ -781,12 +781,14 @@ type DetailPayload =
 function ReconDetailView({
   detail,
   bucketDays,
+  bucketLabel,
   onOpenAnother,
   isReviewed,
   onToggleReviewed,
 }: {
   detail: DetailPayload;
   bucketDays: number;
+  bucketLabel: string;
   onOpenAnother: (sel: { kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string }) => void;
   isReviewed: boolean;
   onToggleReviewed: () => void;
