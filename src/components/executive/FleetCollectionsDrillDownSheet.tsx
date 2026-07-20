@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download, AlertTriangle, BarChart3 } from 'lucide-react';
+import { AmountBreakdownModal } from './AmountBreakdownModal';
 import { CollectionLedgerImpactPanel } from './CollectionLedgerImpactPanel';
 
 type CollectionRow = {
@@ -120,6 +121,7 @@ export function FleetCollectionsDrillDownSheet({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [onlyFlagged, setOnlyFlagged] = useState(false);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   // ============= Anomaly detection =============
   const flagsById = useMemo(() => {
@@ -469,6 +471,15 @@ export function FleetCollectionsDrillDownSheet({
               >
                 <Download className="h-3 w-3" /> CSV
               </button>
+              <button
+                type="button"
+                onClick={() => setBreakdownOpen(true)}
+                disabled={isLoading || sorted.length === 0}
+                title="Break the filtered total into per-tenant, per-method, per-hour sub-amounts"
+                className="h-7 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/30 hover:bg-primary/15 transition-colors disabled:opacity-40"
+              >
+                <BarChart3 className="h-3 w-3" /> Breakdown
+              </button>
             </div>
 
             {isLoading ? (
@@ -553,6 +564,23 @@ export function FleetCollectionsDrillDownSheet({
           </>
         )}
       </SheetContent>
+      <AmountBreakdownModal
+        open={breakdownOpen}
+        onOpenChange={setBreakdownOpen}
+        title={agentId ? `${agentName || 'Agent'} · Collections breakdown` : 'Fleet collections breakdown'}
+        rows={filtered.map((r) => ({
+          id: r.id,
+          amount: Number(r.amount) || 0,
+          created_at: r.created_at,
+          agent_id: r.agent_id,
+          tenant_id: r.tenant_id,
+          payment_method: r.payment_method,
+          rent_request_id: r.rent_request_id,
+          momo_provider: r.momo_provider,
+        }))}
+        nameFor={(id) => nameById.get(id) || null}
+        initialDimension={agentId ? 'tenant' : 'agent'}
+      />
     </Sheet>
   );
 }
