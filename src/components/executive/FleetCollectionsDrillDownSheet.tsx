@@ -459,6 +459,7 @@ export function FleetCollectionsDrillDownSheet({
                   <table className="w-full text-[11px]">
                     <thead className="sticky top-0 bg-muted text-muted-foreground">
                       <tr>
+                        <th className="w-6 px-1.5 py-1.5" />
                         {([
                           { k: 'when' as const, label: 'When', align: 'left' },
                           { k: 'agent' as const, label: 'Agent', align: 'left' },
@@ -482,26 +483,40 @@ export function FleetCollectionsDrillDownSheet({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {sorted.map((r) => (
+                      {sorted.map((r) => {
+                        const fs = flagsById.get(r.id) || [];
+                        const highest: 'high' | 'medium' | null = fs.some((f) => f.severity === 'high') ? 'high' : fs.length ? 'medium' : null;
+                        const tip = fs.length
+                          ? `Anomaly flags:\n• ${fs.map((f) => `${f.label}: ${f.why}`).join('\n• ')}`
+                          : '';
+                        return (
                         <tr
                           key={r.id}
                           onClick={() => setSelectedId(r.id)}
                           tabIndex={0}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(r.id); } }}
-                          className="cursor-pointer hover:bg-primary/5 outline-none"
+                          className={`cursor-pointer outline-none ${highest === 'high' ? 'bg-rose-500/5 hover:bg-rose-500/10' : highest === 'medium' ? 'bg-amber-500/5 hover:bg-amber-500/10' : 'hover:bg-primary/5'}`}
                           title="View record details"
                         >
+                          <td className="px-1.5 py-1.5 align-middle">
+                            {highest && (
+                              <span title={tip} className={`inline-flex items-center justify-center h-4 w-4 rounded-full ${highest === 'high' ? 'bg-rose-500/15 text-rose-700' : 'bg-amber-500/15 text-amber-700'}`}>
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                              </span>
+                            )}
+                          </td>
                           <td className="px-2 py-1.5 tabular-nums whitespace-nowrap">{fmtWhen(r.created_at)}</td>
                           <td className="px-2 py-1.5 truncate max-w-[9rem]">{(r.agent_id && nameById.get(r.agent_id)) || '—'}</td>
                           <td className="px-2 py-1.5 truncate max-w-[9rem]">{(r.tenant_id && nameById.get(r.tenant_id)) || '—'}</td>
                           <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell">{(r.payment_method || '—').replace(/_/g, ' ')}</td>
                           <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-primary">{formatUGX(Number(r.amount) || 0)}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                     <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur border-t border-border">
                       <tr>
-                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={4}>
+                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={5}>
                           {filtersActive ? 'Filtered total' : 'Total'} · {filtered.length} row{filtered.length === 1 ? '' : 's'}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums font-bold text-primary">{formatUGX(total)}</td>
