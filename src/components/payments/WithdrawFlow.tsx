@@ -1024,13 +1024,20 @@ export default function WithdrawFlow({
               <Input
                 id="amount"
                 type="number"
-                value={amount}
+                inputMode="numeric"
+                value={amount === 0 ? '' : amount}
                 onChange={(e) => {
-                  // Accept the raw user value (no silent clamp) so the inline
-                  // error below can explain WHY the Continue button is disabled.
-                  const v = Number(e.target.value);
-                  setAmount(Number.isFinite(v) ? v : 0);
+                  // Allow the field to be fully cleared while typing — don't
+                  // slam a persistent "0" back in on every keystroke.
+                  const raw = e.target.value;
+                  if (raw === '') {
+                    setAmount(0);
+                    return;
+                  }
+                  const v = Number(raw);
+                  if (Number.isFinite(v)) setAmount(v);
                 }}
+                placeholder="0"
                 max={maxAmount}
                 min={MIN_WITHDRAWAL}
                 className="text-2xl h-14 font-bold text-center"
