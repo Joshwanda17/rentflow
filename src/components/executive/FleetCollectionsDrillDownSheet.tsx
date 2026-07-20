@@ -121,6 +121,7 @@ export function FleetCollectionsDrillDownSheet({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [onlyFlagged, setOnlyFlagged] = useState(false);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   // ============= Anomaly detection =============
   const flagsById = useMemo(() => {
@@ -469,6 +470,15 @@ export function FleetCollectionsDrillDownSheet({
                 className="h-7 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
               >
                 <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => setBreakdownOpen(true)}
+                disabled={isLoading || sorted.length === 0}
+                title="Break the filtered total into per-tenant, per-method, per-hour sub-amounts"
+                className="h-7 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/30 hover:bg-primary/15 transition-colors disabled:opacity-40"
+              >
+                <BarChart3 className="h-3 w-3" /> Breakdown
               </button>
             </div>
 
