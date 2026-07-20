@@ -591,3 +591,216 @@ function TabBtn({ active, onClick, icon, label, tone }: { active: boolean; onCli
     </button>
   );
 }
+
+type DetailPayload =
+  | {
+      kind: 'missing';
+      m: MissingRow;
+      plan: ActiveRent | undefined;
+      dailyPlan: number;
+      totalDue: number;
+      paidBefore: number;
+      remaining: number;
+      planCollections: BucketCollection[];
+      tenantOtherCollections: BucketCollection[];
+      nameOf: (id: string | null) => string;
+    }
+  | {
+      kind: 'extra';
+      c: ExtraRow;
+      plan: ActiveRent | undefined;
+      dailyPlan: number;
+      totalDue: number;
+      paidBefore: number;
+      remaining: number;
+      expected: number;
+      timeline: { id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[];
+      nameOf: (id: string | null) => string;
+    };
+
+function ReconDetailView({
+  detail,
+  bucketDays,
+  onOpenAnother,
+}: {
+  detail: DetailPayload;
+  bucketDays: number;
+  onOpenAnother: (sel: { kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string }) => void;
+}) {
+  if (detail.kind === 'missing') {
+    const { m, plan, dailyPlan, totalDue, paidBefore, remaining, planCollections, tenantOtherCollections, nameOf } = detail;
+    const proration = bucketDays >= 0.999 ? '1 full day' : `${(bucketDays * 24).toFixed(2)} hours (${(bucketDays * 100 / 1).toFixed(1)}% of a day)`;
+    return (
+      <div className="p-4 space-y-4">
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-rose-800">Missing collection · variance breakdown</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <div className="text-base font-bold text-foreground truncate">{nameOf(m.tenant_id) || '(no tenant)'}</div>
+            <div className="text-[10px] font-mono text-muted-foreground">{m.tenant_id?.slice(0, 8) || '—'}</div>
+          </div>
+          <div className="text-[10px] text-muted-foreground">Agent: <span className="text-foreground font-semibold">{nameOf(m.agent_id) || '—'}</span> · Plan <span className="font-mono">{m.rent_id.slice(0, 8)}</span> · Status <span className="font-semibold">{plan?.status || '—'}</span></div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Prorated obligation for this bucket</div>
+          <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+            <tbody className="divide-y divide-border">
+              <MathRow label="Plan daily repayment" value={formatUGX(dailyPlan)} />
+              <MathRow label="Bucket length" value={proration} />
+              <MathRow label="Daily × bucket length" value={formatUGX(Math.round(dailyPlan * bucketDays))} />
+              <MathRow label="Total due on plan" value={formatUGX(totalDue)} />
+              <MathRow label="Already repaid (before bucket)" value={formatUGX(paidBefore)} />
+              <MathRow label="Remaining balance" value={formatUGX(remaining)} />
+              <MathRow label="Expected in bucket = min(remaining, daily × bucket)" value={formatUGX(Math.round(m.daily))} accent="violet" bold />
+              <MathRow label="Collected in bucket" value={formatUGX(Math.round(m.collected))} accent="primary" bold />
+              <MathRow label="Variance = expected − collected" value={`−${formatUGX(Math.round(m.variance))}`} accent="rose" bold />
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Collections linked to this plan in this bucket ({planCollections.length})</div>
+          {planCollections.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">Zero collections — the plan received nothing in this window.</p>
+          ) : (
+            <MiniCollectionTable rows={planCollections} nameOf={nameOf} />
+          )}
+        </div>
+
+        {tenantOtherCollections.length > 0 && (
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
+              Same tenant paid on {tenantOtherCollections.length} other plan{tenantOtherCollections.length === 1 ? '' : 's'} in this bucket
+            </div>
+            <p className="text-[10px] text-muted-foreground mb-1 italic">Collections booked to a different `rent_request_id` for the same tenant — often the source of misattribution.</p>
+            <MiniCollectionTable rows={tenantOtherCollections} nameOf={nameOf} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const { c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, timeline, nameOf } = detail;
+  return (
+    <div className="p-4 space-y-4">
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+        <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Extra collection · why flagged</div>
+        <div className="mt-1 flex items-baseline gap-2">
+          <div className="text-base font-bold text-foreground">{formatUGX(c.amount)}</div>
+          <div className="text-[10px] text-muted-foreground">at {fmtWhen(c.when_ms)}</div>
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          Tenant: <span className="text-foreground font-semibold">{nameOf(c.tenant_id) || '—'}</span> · Agent: <span className="text-foreground font-semibold">{nameOf(c.agent_id) || '—'}</span>
+          {c.method && <> · Method: <span className="text-foreground font-semibold">{c.method.replace(/_/g, ' ')}</span></>}
+        </div>
+        <div className="mt-1">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-900 text-[10px] font-semibold">{c.reason_label}</span>
+          <span className="ml-2 text-[10px] text-muted-foreground">Extra amount: <span className="font-bold text-amber-800">+{formatUGX(Math.round(c.extra_amount))}</span></span>
+        </div>
+      </div>
+
+      {plan ? (
+        <>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Linked plan obligation</div>
+            <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+              <tbody className="divide-y divide-border">
+                <MathRow label="Plan" value={`${plan.id.slice(0, 8)} · ${plan.status || '—'}`} />
+                <MathRow label="Plan daily repayment" value={formatUGX(dailyPlan)} />
+                <MathRow label="Total due" value={formatUGX(totalDue)} />
+                <MathRow label="Already repaid (before bucket)" value={formatUGX(paidBefore)} />
+                <MathRow label="Remaining balance" value={formatUGX(remaining)} />
+                <MathRow label="Expected in bucket" value={formatUGX(Math.round(expected))} accent="violet" bold />
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Cumulative timeline for this plan in the bucket</div>
+            <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+              <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
+                <tr>
+                  <th className="text-left px-2 py-1.5">When (EAT)</th>
+                  <th className="text-right px-2 py-1.5">Amount</th>
+                  <th className="text-right px-2 py-1.5">Cumulative</th>
+                  <th className="text-right px-2 py-1.5">Over daily</th>
+                  <th className="text-right px-2 py-1.5">Over remaining</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {timeline.map((t) => (
+                  <tr key={t.id} className={t.isThis ? 'bg-amber-500/10 font-semibold' : ''}>
+                    <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">
+                      {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.amount)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.cumulative)}</td>
+                    <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</td>
+                    <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-1 text-[10px] text-muted-foreground italic">
+              The row is flagged as extra because its cumulative pushes the plan over the {c.reason === 'over_remaining' ? 'remaining balance' : c.reason === 'over_daily' ? 'daily expected amount' : 'link/status check'} by <span className="font-bold text-amber-800">+{formatUGX(Math.round(c.extra_amount))}</span>.
+            </p>
+          </div>
+        </>
+      ) : (
+        <div className="rounded-md border border-dashed border-border p-3 text-[11px] text-muted-foreground">
+          {c.reason === 'no_plan_link'
+            ? 'This collection was recorded without any `rent_request_id`, so it cannot be attributed to a plan obligation. Investigate whether it should be re-linked or refunded.'
+            : 'The linked plan is not currently active (closed / cancelled / paid off), so no daily obligation exists for it in this bucket.'}
+        </div>
+      )}
+
+      {/* Suggest jumping to the missing plan for the same tenant if any. */}
+      {plan && (
+        <button
+          type="button"
+          onClick={() => onOpenAnother({ kind: 'missing', rentId: plan.id })}
+          className="text-[10px] font-semibold text-primary hover:underline"
+        >
+          → View this plan's variance in the Missing tab
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MathRow({ label, value, accent, bold }: { label: string; value: string; accent?: 'violet' | 'primary' | 'rose'; bold?: boolean }) {
+  const color = accent === 'violet' ? 'text-violet-700' : accent === 'primary' ? 'text-primary' : accent === 'rose' ? 'text-rose-700' : 'text-foreground';
+  return (
+    <tr>
+      <td className="px-2 py-1.5 text-muted-foreground">{label}</td>
+      <td className={`px-2 py-1.5 text-right tabular-nums ${bold ? 'font-bold' : ''} ${color}`}>{value}</td>
+    </tr>
+  );
+}
+
+function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameOf: (id: string | null) => string }) {
+  return (
+    <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+      <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
+        <tr>
+          <th className="text-left px-2 py-1.5">When (EAT)</th>
+          <th className="text-left px-2 py-1.5">Agent</th>
+          <th className="text-left px-2 py-1.5">Method</th>
+          <th className="text-right px-2 py-1.5">Amount</th>
+          <th className="text-left px-2 py-1.5">Plan</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+        {rows.map((r) => (
+          <tr key={r.id}>
+            <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(new Date(r.created_at).getTime())}</td>
+            <td className="px-2 py-1.5 truncate max-w-[10rem]">{nameOf(r.agent_id) || '—'}</td>
+            <td className="px-2 py-1.5">{(r.payment_method || '—').replace(/_/g, ' ')}</td>
+            <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{formatUGX(Number(r.amount) || 0)}</td>
+            <td className="px-2 py-1.5 font-mono text-[9px] text-muted-foreground">{r.rent_request_id?.slice(0, 8) || '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
