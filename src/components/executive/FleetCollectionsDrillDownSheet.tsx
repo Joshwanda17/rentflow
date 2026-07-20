@@ -564,6 +564,23 @@ export function FleetCollectionsDrillDownSheet({
           </>
         )}
       </SheetContent>
+      <AmountBreakdownModal
+        open={breakdownOpen}
+        onOpenChange={setBreakdownOpen}
+        title={agentId ? `${agentName || 'Agent'} · Collections breakdown` : 'Fleet collections breakdown'}
+        rows={filtered.map((r) => ({
+          id: r.id,
+          amount: Number(r.amount) || 0,
+          created_at: r.created_at,
+          agent_id: r.agent_id,
+          tenant_id: r.tenant_id,
+          payment_method: r.payment_method,
+          rent_request_id: r.rent_request_id,
+          momo_provider: r.momo_provider,
+        }))}
+        nameFor={(id) => nameById.get(id) || null}
+        initialDimension={agentId ? 'tenant' : 'agent'}
+      />
     </Sheet>
   );
 }
