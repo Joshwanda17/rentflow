@@ -2132,6 +2132,7 @@ async function sweepLinkedPendingDeposits(
     .select('id, status, amount, user_id, transaction_id, provider')
     .in('id', depIds)
     .eq('status', 'pending')
+    .in('provider', ['mtn', 'airtel'])
     .limit(25);
   if (!deps?.length) return;
 
