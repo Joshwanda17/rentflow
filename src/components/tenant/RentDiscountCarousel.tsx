@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Home, BadgePercent, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
+import { useDemoRentalTargets, type DemoRentalCardId } from '@/hooks/useDemoRentalTargets';
 import rental1 from '@/assets/rental-1.jpg';
 import rental2 from '@/assets/rental-2.jpg';
 import rental3 from '@/assets/rental-3.jpg';
@@ -32,6 +34,8 @@ const STORAGE_KEY = 'welile.tenant.rentDiscount.appliedId';
 
 export function RentDiscountCarousel({ discountPct, onSelectHouse }: RentDiscountCarouselProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { data: targets } = useDemoRentalTargets();
   const [appliedId, setAppliedId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -88,7 +92,15 @@ export function RentDiscountCarousel({ discountPct, onSelectHouse }: RentDiscoun
               >
                 <button
                   type="button"
-                  onClick={() => { hapticTap(); onSelectHouse?.(); }}
+                  onClick={() => {
+                    hapticTap();
+                    const houseId = targets?.[r.id as DemoRentalCardId] ?? null;
+                    if (houseId) {
+                      navigate(`/house/${houseId}`);
+                    } else {
+                      onSelectHouse?.();
+                    }
+                  }}
                   aria-label={`View available houses like ${r.title}`}
                   className="block w-full text-left rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
