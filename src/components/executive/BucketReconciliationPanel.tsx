@@ -12,6 +12,43 @@ import { toast } from 'sonner';
 // Survive tab switches, filter changes, and re-open of the same row within the session.
 const detailPageSizeStore = new Map<string, number>();
 const detailScrollStore = new Map<string, number>();
+// User-selected "rows per page" per detail table (survives tab switches / filter changes).
+const detailPageSizePrefStore = new Map<string, number>();
+const DETAIL_PAGE_SIZE_OPTIONS = [25, 50, 100, 200] as const;
+
+function usePageSizePref(stateKey: string | undefined, fallback: number) {
+  const [size, setSizeState] = useState<number>(() =>
+    (stateKey && detailPageSizePrefStore.get(stateKey)) || fallback,
+  );
+  useEffect(() => {
+    if (!stateKey) return;
+    const saved = detailPageSizePrefStore.get(stateKey);
+    setSizeState(saved && saved > 0 ? saved : fallback);
+  }, [stateKey, fallback]);
+  const setSize = (v: number) => {
+    setSizeState(v);
+    if (stateKey) detailPageSizePrefStore.set(stateKey, v);
+  };
+  return [size, setSize] as const;
+}
+
+function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <label className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+      Rows
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-6 px-1 rounded-md text-[10px] font-semibold bg-background border border-border hover:bg-muted cursor-pointer"
+        title="Rows per page"
+      >
+        {DETAIL_PAGE_SIZE_OPTIONS.map((n) => (
+          <option key={n} value={n}>{n}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 // Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
 const REVIEWED_LS_KEY = 'welile:recon-reviewed:v1';
 type ReviewedStore = { missing: Record<string, number>; extra: Record<string, number> };
@@ -1441,21 +1478,26 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
       return (va - vb) * dir;
     });
   }, [rows, sort]);
+  const [pageSize, setPageSize] = usePageSizePref(stateKey, DETAIL_PAGE_SIZE);
   const [visible, setVisibleState] = useState(() =>
-    (stateKey && detailPageSizeStore.get(stateKey)) || DETAIL_PAGE_SIZE,
+    (stateKey && detailPageSizeStore.get(stateKey)) || pageSize,
   );
   // Re-sync when the stateKey identity changes (opening a different detail).
   useEffect(() => {
     if (!stateKey) return;
     const saved = detailPageSizeStore.get(stateKey);
-    setVisibleState(saved && saved > 0 ? saved : DETAIL_PAGE_SIZE);
-  }, [stateKey]);
+    setVisibleState(saved && saved > 0 ? saved : pageSize);
+  }, [stateKey, pageSize]);
   const setVisible = (updater: number | ((v: number) => number)) => {
     setVisibleState((prev) => {
       const next = typeof updater === 'function' ? (updater as (v: number) => number)(prev) : updater;
       if (stateKey) detailPageSizeStore.set(stateKey, next);
       return next;
     });
+  };
+  const onPageSizeChange = (n: number) => {
+    setPageSize(n);
+    setVisible(n);
   };
   // Always keep the flagged "this row" visible even if it would fall past the cutoff.
   const thisIdx = sorted.findIndex((r) => r.isThis);
@@ -1502,16 +1544,21 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
         ))}
       </tbody>
     </table>
-      {sorted.length > DETAIL_PAGE_SIZE && (
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
-          <span>Showing {page.length} of {sorted.length}{thisIdx >= 0 && thisIdx + 1 > visible ? ' (expanded to include flagged row)' : ''}</span>
-          {hasMore ? (
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setVisible((v) => v + DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Load {Math.min(DETAIL_PAGE_SIZE, sorted.length - effectiveVisible)} more</button>
-              <button type="button" onClick={() => setVisible(sorted.length)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Show all</button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => setVisible(DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Collapse</button>
+      {sorted.length > 0 && (
+        <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground px-1 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span>Showing {page.length} of {sorted.length}{thisIdx >= 0 && thisIdx + 1 > visible ? ' (expanded to include flagged row)' : ''}</span>
+            <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+          </div>
+          {sorted.length > pageSize && (
+            hasMore ? (
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setVisible((v) => v + pageSize)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Load {Math.min(pageSize, sorted.length - effectiveVisible)} more</button>
+                <button type="button" onClick={() => setVisible(sorted.length)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Show all</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setVisible(pageSize)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Collapse</button>
+            )
           )}
         </div>
       )}
@@ -1544,20 +1591,25 @@ function MiniCollectionTable({ rows, nameOf, stateKey }: { rows: BucketCollectio
       return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
     });
   }, [rows, sort]);
+  const [pageSize, setPageSize] = usePageSizePref(stateKey, DETAIL_PAGE_SIZE);
   const [visible, setVisibleState] = useState(() =>
-    (stateKey && detailPageSizeStore.get(stateKey)) || DETAIL_PAGE_SIZE,
+    (stateKey && detailPageSizeStore.get(stateKey)) || pageSize,
   );
   useEffect(() => {
     if (!stateKey) return;
     const saved = detailPageSizeStore.get(stateKey);
-    setVisibleState(saved && saved > 0 ? saved : DETAIL_PAGE_SIZE);
-  }, [stateKey]);
+    setVisibleState(saved && saved > 0 ? saved : pageSize);
+  }, [stateKey, pageSize]);
   const setVisible = (updater: number | ((v: number) => number)) => {
     setVisibleState((prev) => {
       const next = typeof updater === 'function' ? (updater as (v: number) => number)(prev) : updater;
       if (stateKey) detailPageSizeStore.set(stateKey, next);
       return next;
     });
+  };
+  const onPageSizeChange = (n: number) => {
+    setPageSize(n);
+    setVisible(n);
   };
   const page = sorted.slice(0, visible);
   const hasMore = sorted.length > visible;
@@ -1595,16 +1647,21 @@ function MiniCollectionTable({ rows, nameOf, stateKey }: { rows: BucketCollectio
         ))}
       </tbody>
     </table>
-      {sorted.length > DETAIL_PAGE_SIZE && (
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
-          <span>Showing {page.length} of {sorted.length}</span>
-          {hasMore ? (
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setVisible((v) => v + DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Load {Math.min(DETAIL_PAGE_SIZE, sorted.length - visible)} more</button>
-              <button type="button" onClick={() => setVisible(sorted.length)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Show all</button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => setVisible(DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Collapse</button>
+      {sorted.length > 0 && (
+        <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground px-1 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span>Showing {page.length} of {sorted.length}</span>
+            <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+          </div>
+          {sorted.length > pageSize && (
+            hasMore ? (
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setVisible((v) => v + pageSize)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Load {Math.min(pageSize, sorted.length - visible)} more</button>
+                <button type="button" onClick={() => setVisible(sorted.length)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Show all</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setVisible(pageSize)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Collapse</button>
+            )
           )}
         </div>
       )}
