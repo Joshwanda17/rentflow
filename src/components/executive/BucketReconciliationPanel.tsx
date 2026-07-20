@@ -1617,32 +1617,42 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
   // Tick that bumps whenever the user jumps so the virtualizer's scrollTo effect
   // re-fires even if sort/page haven't changed.
   const [jumpTick, setJumpTick] = useState(0);
+  // Transient status label showing the last shortcut action and target row.
+  const [jumpStatus, setJumpStatus] = useState<{ key: string; targetRow: number; at: number } | null>(null);
+  useEffect(() => {
+    if (!jumpStatus) return;
+    const id = setTimeout(() => setJumpStatus(null), 2000);
+    return () => clearTimeout(id);
+  }, [jumpStatus]);
   // Always keep the current flagged row visible even if it would fall past the cutoff.
   const effectiveVisible = activeFlaggedIdx >= 0
     ? Math.max(visible, activeFlaggedIdx + 1)
     : (thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible);
   const page = sorted.slice(0, effectiveVisible);
   const hasMore = sorted.length > effectiveVisible;
-  const stepFlagged = (delta: 1 | -1) => {
+  const stepFlagged = (delta: 1 | -1, keyLabel: string) => {
     if (flaggedIdxs.length === 0) return;
     const next = (cursor + delta + flaggedIdxs.length) % flaggedIdxs.length;
     setCursor(next);
     const targetIdx = flaggedIdxs[next];
     if (targetIdx + 1 > effectiveVisible) setVisible(targetIdx + 1);
     setJumpTick((n) => n + 1);
+    setJumpStatus({ key: keyLabel, targetRow: targetIdx + 1, at: Date.now() });
   };
   const jumpToFlagged = () => {
     if (activeFlaggedIdx < 0) return;
     if (activeFlaggedIdx + 1 > effectiveVisible) setVisible(activeFlaggedIdx + 1);
     setJumpTick((n) => n + 1);
+    setJumpStatus({ key: 'J', targetRow: activeFlaggedIdx + 1, at: Date.now() });
   };
-  const jumpToFlaggedEdge = (edge: 'first' | 'last') => {
+  const jumpToFlaggedEdge = (edge: 'first' | 'last', keyLabel: string) => {
     if (flaggedIdxs.length === 0) return;
     const pos = edge === 'first' ? 0 : flaggedIdxs.length - 1;
     setCursor(pos);
     const targetIdx = flaggedIdxs[pos];
     if (targetIdx + 1 > effectiveVisible) setVisible(targetIdx + 1);
     setJumpTick((n) => n + 1);
+    setJumpStatus({ key: keyLabel, targetRow: targetIdx + 1, at: Date.now() });
   };
   // Keyboard shortcuts while the timeline is mounted:
   //   J → jump to the currently highlighted flagged row
