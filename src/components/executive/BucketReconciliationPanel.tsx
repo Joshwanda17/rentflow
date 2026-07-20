@@ -12,6 +12,43 @@ import { toast } from 'sonner';
 // Survive tab switches, filter changes, and re-open of the same row within the session.
 const detailPageSizeStore = new Map<string, number>();
 const detailScrollStore = new Map<string, number>();
+// User-selected "rows per page" per detail table (survives tab switches / filter changes).
+const detailPageSizePrefStore = new Map<string, number>();
+const DETAIL_PAGE_SIZE_OPTIONS = [25, 50, 100, 200] as const;
+
+function usePageSizePref(stateKey: string | undefined, fallback: number) {
+  const [size, setSizeState] = useState<number>(() =>
+    (stateKey && detailPageSizePrefStore.get(stateKey)) || fallback,
+  );
+  useEffect(() => {
+    if (!stateKey) return;
+    const saved = detailPageSizePrefStore.get(stateKey);
+    setSizeState(saved && saved > 0 ? saved : fallback);
+  }, [stateKey, fallback]);
+  const setSize = (v: number) => {
+    setSizeState(v);
+    if (stateKey) detailPageSizePrefStore.set(stateKey, v);
+  };
+  return [size, setSize] as const;
+}
+
+function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <label className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+      Rows
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-6 px-1 rounded-md text-[10px] font-semibold bg-background border border-border hover:bg-muted cursor-pointer"
+        title="Rows per page"
+      >
+        {DETAIL_PAGE_SIZE_OPTIONS.map((n) => (
+          <option key={n} value={n}>{n}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 // Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
 const REVIEWED_LS_KEY = 'welile:recon-reviewed:v1';
 type ReviewedStore = { missing: Record<string, number>; extra: Record<string, number> };
