@@ -19,6 +19,7 @@ import MyVouchedLoansCard from '@/components/vouch/borrower/MyVouchedLoansCard';
 import BorrowerVouchDisclosureModal from '@/components/vouch/borrower/BorrowerVouchDisclosureModal';
 import { useBorrowerVouchDisclosure } from '@/hooks/useBorrowerVouchDisclosure';
 import { EarnedVouchRangeBreakdown } from '@/components/agent/EarnedVouchRangeBreakdown';
+import { VouchAuditLog } from '@/components/ai-id/VouchAuditLog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { buildProfileShareUrl, shareProfileOnWhatsApp } from '@/lib/shareTrustProfile';
 import { isValidAiId } from '@/lib/welileAiId';
@@ -338,6 +339,11 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                 </Card>
               </div>
             )}
+
+            {/* Full audit log — inputs + formulas for every vouch component */}
+            <div className="mt-3">
+              <VouchAuditLog profile={profile} />
+            </div>
           </motion.div>
         )}
 
