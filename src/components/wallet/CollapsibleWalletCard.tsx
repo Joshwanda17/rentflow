@@ -137,7 +137,7 @@ export function CollapsibleWalletCard() {
                     <>
                       {(() => {
                         const phone = profile.phone;
-                        const isMTN = phone.startsWith('+25677') || phone.startsWith('+25678') || phone.startsWith('077') || phone.startsWith('078') || phone.startsWith('+25676') || phone.startsWith('076');
+                        const isMTN = phone.startsWith('+25677') || phone.startsWith('+25678') || phone.startsWith('+25679') || phone.startsWith('077') || phone.startsWith('078') || phone.startsWith('079') || phone.startsWith('+25676') || phone.startsWith('076');
                         const isAirtel = phone.startsWith('+25675') || phone.startsWith('+25670') || phone.startsWith('075') || phone.startsWith('070') || phone.startsWith('+25674') || phone.startsWith('074');
                         return (
                           <>

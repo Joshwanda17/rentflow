@@ -50,7 +50,7 @@ function networkMatchesPrefix(network: string, phone: string): boolean {
   // MTN: 077, 078, 076, 039  · Airtel: 070, 074, 075, 020
   const p3 = phone.slice(0, 3);
   const n = network.toLowerCase();
-  if (n === 'mtn') return ['077', '078', '076', '039'].includes(p3);
+  if (n === 'mtn') return ['077', '078', '076', '079', '039'].includes(p3);
   if (n === 'airtel') return ['070', '074', '075', '020'].includes(p3);
   return true; // unknown network → don't block
 }
