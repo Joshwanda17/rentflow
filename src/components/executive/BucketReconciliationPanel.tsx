@@ -1,10 +1,63 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+
+// Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
+const REVIEWED_LS_KEY = 'welile:recon-reviewed:v1';
+type ReviewedStore = { missing: Record<string, number>; extra: Record<string, number> };
+function readReviewedStore(): ReviewedStore {
+  if (typeof window === 'undefined') return { missing: {}, extra: {} };
+  try {
+    const raw = window.localStorage.getItem(REVIEWED_LS_KEY);
+    if (!raw) return { missing: {}, extra: {} };
+    const parsed = JSON.parse(raw);
+    return {
+      missing: (parsed?.missing && typeof parsed.missing === 'object') ? parsed.missing : {},
+      extra: (parsed?.extra && typeof parsed.extra === 'object') ? parsed.extra : {},
+    };
+  } catch {
+    return { missing: {}, extra: {} };
+  }
+}
+function writeReviewedStore(s: ReviewedStore) {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(REVIEWED_LS_KEY, JSON.stringify(s)); } catch { /* quota — ignore */ }
+}
+function useReviewedSet(kind: 'missing' | 'extra'): {
+  reviewed: Record<string, number>;
+  isReviewed: (id: string) => boolean;
+  toggle: (id: string) => void;
+  clear: () => void;
+} {
+  const [reviewed, setReviewed] = useState<Record<string, number>>(() => readReviewedStore()[kind]);
+  // Sync across tabs.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== REVIEWED_LS_KEY) return;
+      setReviewed(readReviewedStore()[kind]);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [kind]);
+  const persist = useCallback((next: Record<string, number>) => {
+    setReviewed(next);
+    const store = readReviewedStore();
+    store[kind] = next;
+    writeReviewedStore(store);
+  }, [kind]);
+  const toggle = useCallback((id: string) => {
+    const next = { ...reviewed };
+    if (next[id]) delete next[id]; else next[id] = Date.now();
+    persist(next);
+  }, [reviewed, persist]);
+  const isReviewed = useCallback((id: string) => Boolean(reviewed[id]), [reviewed]);
+  const clear = useCallback(() => persist({}), [persist]);
+  return { reviewed, isReviewed, toggle, clear };
+}
 
 type ActiveRent = {
   id: string;
@@ -285,6 +338,11 @@ export function BucketReconciliationPanel({
   const [tab, setTab] = useState<'missing' | 'extra'>('missing');
   const [selection, setSelection] = useState<{ kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string } | null>(null);
 
+  // Reviewed-status tracking (persisted in localStorage; separate per kind).
+  const missingReviewed = useReviewedSet('missing');
+  const extraReviewed = useReviewedSet('extra');
+  const [hideReviewed, setHideReviewed] = useState(false);
+
   // Close selection when switching tabs / bucket.
   const switchTab = (t: 'missing' | 'extra') => { setTab(t); setSelection(null); };
 
@@ -445,6 +503,31 @@ export function BucketReconciliationPanel({
             <div className="px-4 pt-2 border-b border-border flex items-center gap-1.5">
               <TabBtn active={tab === 'missing'} onClick={() => switchTab('missing')} icon={<AlertCircle className="h-3 w-3" />} label={`Missing (${missingAll.length})`} tone="rose" />
               <TabBtn active={tab === 'extra'} onClick={() => switchTab('extra')} icon={<Plus className="h-3 w-3" />} label={`Extra (${extraAll.length})`} tone="amber" />
+              {(() => {
+                const reviewedCount = tab === 'missing'
+                  ? missing.filter((r) => missingReviewed.isReviewed(r.rent_id)).length
+                  : extras.filter((r) => extraReviewed.isReviewed(r.collection_id)).length;
+                const total = tab === 'missing' ? missing.length : extras.length;
+                return (
+                  <div className="ml-2 flex items-center gap-1.5">
+                    <span
+                      className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-800 border border-emerald-500/20"
+                      title="Rows you have marked as reviewed in this tab"
+                    >
+                      <CheckCircle2 className="h-3 w-3" /> {reviewedCount}/{total} reviewed
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setHideReviewed((v) => !v)}
+                      className={`h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 border ${hideReviewed ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-background border-border hover:bg-muted'}`}
+                      title={hideReviewed ? 'Currently hiding reviewed rows — click to show them again' : 'Hide rows already marked as reviewed'}
+                    >
+                      {hideReviewed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      {hideReviewed ? 'Reviewed hidden' : 'Hide reviewed'}
+                    </button>
+                  </div>
+                );
+              })()}
               {selection && (
                 <button
                   type="button"
@@ -458,14 +541,36 @@ export function BucketReconciliationPanel({
 
             <div className="flex-1 overflow-auto">
               {selection && detail ? (
-                <ReconDetailView detail={detail} bucketDays={bucketDays} onOpenAnother={(sel) => setSelection(sel)} />
+                <ReconDetailView
+                  detail={detail}
+                  bucketDays={bucketDays}
+                  onOpenAnother={(sel) => setSelection(sel)}
+                  isReviewed={
+                    detail.kind === 'missing'
+                      ? missingReviewed.isReviewed(detail.m.rent_id)
+                      : extraReviewed.isReviewed(detail.c.collection_id)
+                  }
+                  onToggleReviewed={() =>
+                    detail.kind === 'missing'
+                      ? missingReviewed.toggle(detail.m.rent_id)
+                      : extraReviewed.toggle(detail.c.collection_id)
+                  }
+                />
               ) : tab === 'missing' ? (
-                missing.length === 0 ? (
+                (() => {
+                  const missingVisible = hideReviewed
+                    ? missing.filter((r) => !missingReviewed.isReviewed(r.rent_id))
+                    : missing;
+                  const visibleMissingTotal = missingVisible.reduce((s, r) => s + r.variance, 0);
+                  return missing.length === 0 ? (
                   <p className="p-6 text-center text-[11px] text-muted-foreground">No underpayments — every active plan met its expected obligation in this bucket. 🎯</p>
+                ) : missingVisible.length === 0 ? (
+                  <p className="p-6 text-center text-[11px] text-muted-foreground">All {missing.length} underpaid plan{missing.length === 1 ? '' : 's'} in this bucket are marked as reviewed. Toggle “Reviewed hidden” to see them again.</p>
                 ) : (
                   <table className="w-full text-[11px]">
                     <thead className="sticky top-0 bg-muted text-muted-foreground z-10">
                       <tr>
+                        <th className="w-8 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide" title="Reviewed">✓</th>
                         <TH onClick={() => toggleM('tenant')} align="left"><span className="inline-flex items-center gap-1">Tenant <MI k="tenant" /></span></TH>
                         <TH onClick={() => toggleM('agent')} align="left" hideMd><span className="inline-flex items-center gap-1">Agent <MI k="agent" /></span></TH>
                         <TH onClick={() => toggleM('daily')} align="right"><span className="inline-flex items-center gap-1 justify-end w-full">Expected <MI k="daily" /></span></TH>
@@ -475,8 +580,25 @@ export function BucketReconciliationPanel({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {missing.map((r) => (
-                        <tr key={r.rent_id} className="hover:bg-rose-500/5 cursor-pointer" onClick={() => setSelection({ kind: 'missing', rentId: r.rent_id })} title="Open variance breakdown">
+                      {missingVisible.map((r) => {
+                        const reviewed = missingReviewed.isReviewed(r.rent_id);
+                        return (
+                        <tr
+                          key={r.rent_id}
+                          className={`hover:bg-rose-500/5 cursor-pointer ${reviewed ? 'bg-emerald-500/[0.04] text-muted-foreground line-through decoration-emerald-600/40' : ''}`}
+                          onClick={() => setSelection({ kind: 'missing', rentId: r.rent_id })}
+                          title="Open variance breakdown"
+                        >
+                          <td className="px-2 py-1.5 align-middle" onClick={(e) => { e.stopPropagation(); missingReviewed.toggle(r.rent_id); }}>
+                            <button
+                              type="button"
+                              className={`h-4 w-4 inline-flex items-center justify-center rounded border ${reviewed ? 'bg-emerald-600 border-emerald-700 text-white' : 'bg-background border-border hover:border-emerald-500'}`}
+                              title={reviewed ? 'Reviewed — click to unmark' : 'Mark as reviewed'}
+                              aria-pressed={reviewed}
+                            >
+                              {reviewed && <Check className="h-3 w-3" />}
+                            </button>
+                          </td>
                           <td className="px-2 py-1.5">
                             <div className="font-semibold text-foreground truncate max-w-[14rem] inline-flex items-center gap-1">
                               {(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}
@@ -490,26 +612,40 @@ export function BucketReconciliationPanel({
                           <td className="px-2 py-1.5 text-right tabular-nums font-bold text-rose-700">−{formatUGX(Math.round(r.variance))}</td>
                           <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground hidden md:table-cell">{formatUGX(Math.round(r.remaining_before))}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                     <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur border-t border-border">
                       <tr>
-                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={2}>Missing total</td>
+                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={3}>
+                          {hideReviewed ? `Missing total (visible ${missingVisible.length}/${missing.length})` : 'Missing total'}
+                        </td>
                         <td />
                         <td />
-                        <td className="px-2 py-1.5 text-right tabular-nums font-bold text-rose-700">−{formatUGX(Math.round(missingTotal))}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums font-bold text-rose-700">
+                          −{formatUGX(Math.round(hideReviewed ? visibleMissingTotal : missingTotal))}
+                        </td>
                         <td className="hidden md:table-cell" />
                       </tr>
                     </tfoot>
                   </table>
-                )
+                );
+                })()
               ) : (
-                extras.length === 0 ? (
+                (() => {
+                  const extrasVisible = hideReviewed
+                    ? extras.filter((r) => !extraReviewed.isReviewed(r.collection_id))
+                    : extras;
+                  const visibleExtraTotal = extrasVisible.reduce((s, r) => s + r.extra_amount, 0);
+                  return extras.length === 0 ? (
                   <p className="p-6 text-center text-[11px] text-muted-foreground">No extras — every collection in this bucket maps cleanly to an active plan's expected daily amount. ✅</p>
+                ) : extrasVisible.length === 0 ? (
+                  <p className="p-6 text-center text-[11px] text-muted-foreground">All {extras.length} extra collection{extras.length === 1 ? '' : 's'} in this bucket are marked as reviewed. Toggle “Reviewed hidden” to see them again.</p>
                 ) : (
                   <table className="w-full text-[11px]">
                     <thead className="sticky top-0 bg-muted text-muted-foreground z-10">
                       <tr>
+                        <th className="w-8 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide" title="Reviewed">✓</th>
                         <TH onClick={() => toggleE('when')} align="left"><span className="inline-flex items-center gap-1">When <EI k="when" /></span></TH>
                         <TH onClick={() => toggleE('tenant')} align="left"><span className="inline-flex items-center gap-1">Tenant <EI k="tenant" /></span></TH>
                         <TH onClick={() => toggleE('agent')} align="left" hideMd><span className="inline-flex items-center gap-1">Agent <EI k="agent" /></span></TH>
@@ -519,8 +655,25 @@ export function BucketReconciliationPanel({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {extras.map((r) => (
-                        <tr key={r.collection_id} className="hover:bg-amber-500/5 cursor-pointer" onClick={() => setSelection({ kind: 'extra', collectionId: r.collection_id })} title="Open extra-collection breakdown">
+                      {extrasVisible.map((r) => {
+                        const reviewed = extraReviewed.isReviewed(r.collection_id);
+                        return (
+                        <tr
+                          key={r.collection_id}
+                          className={`hover:bg-amber-500/5 cursor-pointer ${reviewed ? 'bg-emerald-500/[0.04] text-muted-foreground line-through decoration-emerald-600/40' : ''}`}
+                          onClick={() => setSelection({ kind: 'extra', collectionId: r.collection_id })}
+                          title="Open extra-collection breakdown"
+                        >
+                          <td className="px-2 py-1.5 align-middle" onClick={(e) => { e.stopPropagation(); extraReviewed.toggle(r.collection_id); }}>
+                            <button
+                              type="button"
+                              className={`h-4 w-4 inline-flex items-center justify-center rounded border ${reviewed ? 'bg-emerald-600 border-emerald-700 text-white' : 'bg-background border-border hover:border-emerald-500'}`}
+                              title={reviewed ? 'Reviewed — click to unmark' : 'Mark as reviewed'}
+                              aria-pressed={reviewed}
+                            >
+                              {reviewed && <Check className="h-3 w-3" />}
+                            </button>
+                          </td>
                           <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(r.when_ms)}</td>
                           <td className="px-2 py-1.5">
                             <div className="font-semibold text-foreground truncate max-w-[12rem] inline-flex items-center gap-1">
@@ -537,18 +690,24 @@ export function BucketReconciliationPanel({
                             {r.method && <span className="ml-1 text-[9px] text-muted-foreground">· {r.method.replace(/_/g, ' ')}</span>}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                     <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur border-t border-border">
                       <tr>
-                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={3}>Extra total</td>
+                        <td className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide" colSpan={4}>
+                          {hideReviewed ? `Extra total (visible ${extrasVisible.length}/${extras.length})` : 'Extra total'}
+                        </td>
                         <td />
-                        <td className="px-2 py-1.5 text-right tabular-nums font-bold text-amber-700">+{formatUGX(Math.round(extraTotal))}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums font-bold text-amber-700">
+                          +{formatUGX(Math.round(hideReviewed ? visibleExtraTotal : extraTotal))}
+                        </td>
                         <td />
                       </tr>
                     </tfoot>
                   </table>
-                )
+                );
+                })()
               )}
             </div>
           </>
@@ -622,10 +781,14 @@ function ReconDetailView({
   detail,
   bucketDays,
   onOpenAnother,
+  isReviewed,
+  onToggleReviewed,
 }: {
   detail: DetailPayload;
   bucketDays: number;
   onOpenAnother: (sel: { kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string }) => void;
+  isReviewed: boolean;
+  onToggleReviewed: () => void;
 }) {
   // Local search/filter state — resets when switching detail rows (via key on wrapper below is not needed;
   // we intentionally keep filters stable while the operator drills through related rows).
@@ -824,6 +987,16 @@ function ReconDetailView({
         <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="text-[10px] font-bold uppercase tracking-wide text-rose-800">Missing collection · variance breakdown</div>
+            <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onToggleReviewed}
+              className={`h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 border ${isReviewed ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-background border-border hover:bg-muted'}`}
+              title={isReviewed ? 'Reviewed — click to unmark this plan' : 'Mark this plan as reviewed'}
+              aria-pressed={isReviewed}
+            >
+              {isReviewed ? <><CheckCircle2 className="h-3 w-3" /> Reviewed</> : <><Check className="h-3 w-3" /> Mark reviewed</>}
+            </button>
             <button
               type="button"
               onClick={() => downloadDetailCsv({ filteredPlanCollections, filteredTenantOther })}
@@ -832,6 +1005,7 @@ function ReconDetailView({
             >
               <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
             </button>
+            </div>
           </div>
           <div className="mt-1 flex items-baseline gap-2">
             <div className="text-base font-bold text-foreground truncate">{nameOf(m.tenant_id) || '(no tenant)'}</div>
@@ -1015,6 +1189,16 @@ function ReconDetailView({
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
         <div className="flex items-center justify-between gap-2">
           <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Extra collection · why flagged</div>
+          <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onToggleReviewed}
+            className={`h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 border ${isReviewed ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-background border-border hover:bg-muted'}`}
+            title={isReviewed ? 'Reviewed — click to unmark this collection' : 'Mark this collection as reviewed'}
+            aria-pressed={isReviewed}
+          >
+            {isReviewed ? <><CheckCircle2 className="h-3 w-3" /> Reviewed</> : <><Check className="h-3 w-3" /> Mark reviewed</>}
+          </button>
           <button
             type="button"
             onClick={() => downloadDetailCsv({ filteredTimeline })}
@@ -1023,6 +1207,7 @@ function ReconDetailView({
           >
             <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
           </button>
+          </div>
         </div>
         <div className="mt-1 flex items-baseline gap-2">
           <div className="text-base font-bold text-foreground">{formatUGX(c.amount)}</div>
