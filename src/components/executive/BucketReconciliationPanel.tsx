@@ -781,10 +781,14 @@ function ReconDetailView({
   detail,
   bucketDays,
   onOpenAnother,
+  isReviewed,
+  onToggleReviewed,
 }: {
   detail: DetailPayload;
   bucketDays: number;
   onOpenAnother: (sel: { kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string }) => void;
+  isReviewed: boolean;
+  onToggleReviewed: () => void;
 }) {
   // Local search/filter state — resets when switching detail rows (via key on wrapper below is not needed;
   // we intentionally keep filters stable while the operator drills through related rows).
