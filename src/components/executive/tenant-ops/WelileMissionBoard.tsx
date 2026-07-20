@@ -174,6 +174,38 @@ export function WelileMissionBoard() {
   const agents: MissionAgentRow[] = agentData ?? [];
   const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(effectiveWin, intervalMs);
   const { data: receivables } = useMissionReceivables(effectiveWin, intervalMs);
+
+  // Previous-window comparison for the "listed empty houses" priority card.
+  // The mission-receivables RPC counts empties created since p_since, so the
+  // count for the equal-duration previous window = receivables(prevSince) − receivables(currSince).
+  const prevSinceISO = useMemo(() => {
+    const currISO = windowToISO(effectiveWin);
+    if (!currISO) return null; // "all" window has no previous period
+    const cur = new Date(currISO).getTime();
+    const dur = Date.now() - cur;
+    if (!isFinite(dur) || dur <= 0) return null;
+    return new Date(cur - dur).toISOString();
+  }, [effectiveWin]);
+
+  const { data: prevReceivables } = useQuery({
+    enabled: comparePrev && emptyScope === 'window' && !!prevSinceISO,
+    queryKey: ['welile-mission-receivables-prev', prevSinceISO],
+    staleTime: 60_000,
+    refetchInterval: intervalMs || false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('welile_mission_receivables' as any, { p_since: prevSinceISO });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row as { empty_houses_count: number; unlisted_landlord_count: number } | null;
+    },
+  });
+
+  const currWindowEmpty = (receivables?.empty_houses_count ?? 0) + (receivables?.unlisted_landlord_count ?? 0);
+  const prevWindowEmpty = prevReceivables
+    ? Math.max(0, ((prevReceivables.empty_houses_count ?? 0) + (prevReceivables.unlisted_landlord_count ?? 0)) - currWindowEmpty)
+    : null;
+  const emptyDelta = prevWindowEmpty != null ? currWindowEmpty - prevWindowEmpty : null;
+  const emptyDeltaPct = prevWindowEmpty && prevWindowEmpty > 0 ? Math.round(((currWindowEmpty - prevWindowEmpty) / prevWindowEmpty) * 100) : null;
   const { data: landlordBreakdown } = useLandlordPriorityBreakdown(effectiveWin, intervalMs);
 
   // ROI payable OUT to funders in the next cycle (~next 31 days).
