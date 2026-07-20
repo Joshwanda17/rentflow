@@ -12763,6 +12763,7 @@ export type Database = {
           ip_address: string | null
           merchant_name: string | null
           merchant_phone: string | null
+          signature_data_url: string | null
           status: string
         }
         Insert: {
@@ -12775,6 +12776,7 @@ export type Database = {
           ip_address?: string | null
           merchant_name?: string | null
           merchant_phone?: string | null
+          signature_data_url?: string | null
           status?: string
         }
         Update: {
@@ -12787,6 +12789,7 @@ export type Database = {
           ip_address?: string | null
           merchant_name?: string | null
           merchant_phone?: string | null
+          signature_data_url?: string | null
           status?: string
         }
         Relationships: []
