@@ -1617,32 +1617,42 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
   // Tick that bumps whenever the user jumps so the virtualizer's scrollTo effect
   // re-fires even if sort/page haven't changed.
   const [jumpTick, setJumpTick] = useState(0);
+  // Transient status label showing the last shortcut action and target row.
+  const [jumpStatus, setJumpStatus] = useState<{ key: string; targetRow: number; at: number } | null>(null);
+  useEffect(() => {
+    if (!jumpStatus) return;
+    const id = setTimeout(() => setJumpStatus(null), 2000);
+    return () => clearTimeout(id);
+  }, [jumpStatus]);
   // Always keep the current flagged row visible even if it would fall past the cutoff.
   const effectiveVisible = activeFlaggedIdx >= 0
     ? Math.max(visible, activeFlaggedIdx + 1)
     : (thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible);
   const page = sorted.slice(0, effectiveVisible);
   const hasMore = sorted.length > effectiveVisible;
-  const stepFlagged = (delta: 1 | -1) => {
+  const stepFlagged = (delta: 1 | -1, keyLabel: string) => {
     if (flaggedIdxs.length === 0) return;
     const next = (cursor + delta + flaggedIdxs.length) % flaggedIdxs.length;
     setCursor(next);
     const targetIdx = flaggedIdxs[next];
     if (targetIdx + 1 > effectiveVisible) setVisible(targetIdx + 1);
     setJumpTick((n) => n + 1);
+    setJumpStatus({ key: keyLabel, targetRow: targetIdx + 1, at: Date.now() });
   };
   const jumpToFlagged = () => {
     if (activeFlaggedIdx < 0) return;
     if (activeFlaggedIdx + 1 > effectiveVisible) setVisible(activeFlaggedIdx + 1);
     setJumpTick((n) => n + 1);
+    setJumpStatus({ key: 'J', targetRow: activeFlaggedIdx + 1, at: Date.now() });
   };
-  const jumpToFlaggedEdge = (edge: 'first' | 'last') => {
+  const jumpToFlaggedEdge = (edge: 'first' | 'last', keyLabel: string) => {
     if (flaggedIdxs.length === 0) return;
     const pos = edge === 'first' ? 0 : flaggedIdxs.length - 1;
     setCursor(pos);
     const targetIdx = flaggedIdxs[pos];
     if (targetIdx + 1 > effectiveVisible) setVisible(targetIdx + 1);
     setJumpTick((n) => n + 1);
+    setJumpStatus({ key: keyLabel, targetRow: targetIdx + 1, at: Date.now() });
   };
   // Keyboard shortcuts while the timeline is mounted:
   //   J → jump to the currently highlighted flagged row
@@ -1659,10 +1669,10 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
       const k = e.key.toLowerCase();
       if (k === 'j') { e.preventDefault(); jumpToFlagged(); }
-      else if (k === 'n' || e.key === ']') { e.preventDefault(); stepFlagged(1); }
-      else if (k === 'p' || e.key === '[') { e.preventDefault(); stepFlagged(-1); }
-      else if (e.key === 'Home') { e.preventDefault(); jumpToFlaggedEdge('first'); }
-      else if (e.key === 'End') { e.preventDefault(); jumpToFlaggedEdge('last'); }
+      else if (k === 'n' || e.key === ']') { e.preventDefault(); stepFlagged(1, e.key === ']' ? ']' : 'N'); }
+      else if (k === 'p' || e.key === '[') { e.preventDefault(); stepFlagged(-1, e.key === '[' ? '[' : 'P'); }
+      else if (e.key === 'Home') { e.preventDefault(); jumpToFlaggedEdge('first', 'Home'); }
+      else if (e.key === 'End') { e.preventDefault(); jumpToFlaggedEdge('last', 'End'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1728,7 +1738,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
               <div className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-800 overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => jumpToFlaggedEdge('first')}
+                  onClick={() => jumpToFlaggedEdge('first', 'Home')}
                   disabled={flaggedIdxs.length < 2 || cursor === 0}
                   title="First flagged row (press Home)"
                   className="h-6 px-1 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center border-r border-amber-500/40"
@@ -1738,7 +1748,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                 </button>
                 <button
                   type="button"
-                  onClick={() => stepFlagged(-1)}
+                  onClick={() => stepFlagged(-1, 'P')}
                   disabled={flaggedIdxs.length < 2}
                   title="Previous flagged row (press P or [)"
                   className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
@@ -1756,7 +1766,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                 </button>
                 <button
                   type="button"
-                  onClick={() => stepFlagged(1)}
+                  onClick={() => stepFlagged(1, 'N')}
                   disabled={flaggedIdxs.length < 2}
                   title="Next flagged row (press N or ])"
                   className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
@@ -1765,7 +1775,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                 </button>
                 <button
                   type="button"
-                  onClick={() => jumpToFlaggedEdge('last')}
+                  onClick={() => jumpToFlaggedEdge('last', 'End')}
                   disabled={flaggedIdxs.length < 2 || cursor === flaggedIdxs.length - 1}
                   title="Last flagged row (press End)"
                   className="h-6 px-1 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center border-l border-amber-500/40"
@@ -1774,6 +1784,14 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                   <ChevronRight className="h-3 w-3 -ml-2" />
                 </button>
               </div>
+            )}
+            {jumpStatus && (
+              <span
+                key={jumpStatus.at}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-semibold tabular-nums animate-pulse"
+              >
+                {jumpStatus.key} → row {jumpStatus.targetRow}
+              </span>
             )}
           </div>
           {sorted.length > pageSize && (
