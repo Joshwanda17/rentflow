@@ -627,6 +627,56 @@ function ReconDetailView({
   bucketDays: number;
   onOpenAnother: (sel: { kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string }) => void;
 }) {
+  // Local search/filter state — resets when switching detail rows (via key on wrapper below is not needed;
+  // we intentionally keep filters stable while the operator drills through related rows).
+  const [query, setQuery] = useState('');
+  const [planQuery, setPlanQuery] = useState('');
+  const [fromLocal, setFromLocal] = useState<string>(''); // datetime-local (EAT-ish)
+  const [toLocal, setToLocal] = useState<string>('');
+
+  const q = query.trim().toLowerCase();
+  const pq = planQuery.trim().toLowerCase();
+  // datetime-local strings are naive; treat them as EAT (UTC+3) → ms.
+  const parseLocalAsEatMs = (s: string): number | null => {
+    if (!s) return null;
+    // s like "2026-07-20T14:30"
+    const [d, t] = s.split('T');
+    if (!d || !t) return null;
+    const [y, mo, day] = d.split('-').map(Number);
+    const [hh, mm] = t.split(':').map(Number);
+    if (!y || !mo || !day) return null;
+    // UTC ms for that wall time - 3h offset (EAT is UTC+3, no DST)
+    return Date.UTC(y, mo - 1, day, hh || 0, mm || 0) - 3 * 3600 * 1000;
+  };
+  const fromMs = parseLocalAsEatMs(fromLocal);
+  const toMs = parseLocalAsEatMs(toLocal);
+
+  const matchCollection = (row: BucketCollection, nameOf: (id: string | null) => string): boolean => {
+    const when = new Date(row.created_at).getTime();
+    if (fromMs !== null && when < fromMs) return false;
+    if (toMs !== null && when > toMs) return false;
+    if (pq) {
+      const planStr = (row.rent_request_id || '').toLowerCase();
+      if (!planStr.includes(pq)) return false;
+    }
+    if (q) {
+      const hay = [
+        nameOf(row.tenant_id),
+        nameOf(row.agent_id),
+        row.tenant_id || '',
+        row.agent_id || '',
+        row.rent_request_id || '',
+        row.payment_method || '',
+        row.id,
+      ].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  };
+
+  const hasFilters = Boolean(q || pq || fromMs !== null || toMs !== null);
+  const clearFilters = () => { setQuery(''); setPlanQuery(''); setFromLocal(''); setToLocal(''); };
+
   const csvEscape = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const triggerDownload = (rows: (string | number)[][], filename: string) => {
     const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\n');
@@ -638,10 +688,12 @@ function ReconDetailView({
     a.click();
     URL.revokeObjectURL(url);
   };
-  const downloadDetailCsv = () => {
+  const downloadDetailCsv = (opts?: { filteredPlanCollections?: BucketCollection[]; filteredTenantOther?: BucketCollection[]; filteredTimeline?: DetailPayload extends { kind: 'extra'; timeline: infer T } ? T : never }) => {
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
     if (detail.kind === 'missing') {
-      const { m, plan, dailyPlan, totalDue, paidBefore, remaining, planCollections, tenantOtherCollections, nameOf } = detail;
+      const { m, plan, dailyPlan, totalDue, paidBefore, remaining, nameOf } = detail;
+      const planCollections = opts?.filteredPlanCollections ?? detail.planCollections;
+      const tenantOtherCollections = opts?.filteredTenantOther ?? detail.tenantOtherCollections;
       const rows: (string | number)[][] = [];
       rows.push(['section', 'field', 'value']);
       rows.push(['header', 'tenant', nameOf(m.tenant_id)]);
@@ -650,6 +702,12 @@ function ReconDetailView({
       rows.push(['header', 'agent_id', m.agent_id || '']);
       rows.push(['header', 'rent_request_id', m.rent_id]);
       rows.push(['header', 'plan_status', plan?.status || '']);
+      if (hasFilters) {
+        rows.push(['header', 'filter_text', q]);
+        rows.push(['header', 'filter_plan', pq]);
+        rows.push(['header', 'filter_from_eat', fromLocal]);
+        rows.push(['header', 'filter_to_eat', toLocal]);
+      }
       rows.push([]);
       rows.push(['math', 'label', 'value_ugx']);
       rows.push(['math', 'plan_daily_repayment', Math.round(dailyPlan)]);
@@ -676,7 +734,8 @@ function ReconDetailView({
       triggerDownload(rows, `recon_missing_${m.rent_id.slice(0, 8)}_${stamp}.csv`);
       return;
     }
-    const { c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, timeline, nameOf } = detail;
+    const { c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, nameOf } = detail;
+    const timeline = opts?.filteredTimeline ?? detail.timeline;
     const rows: (string | number)[][] = [];
     rows.push(['section', 'field', 'value']);
     rows.push(['header', 'collection_id', c.collection_id]);
@@ -691,6 +750,12 @@ function ReconDetailView({
     rows.push(['header', 'agent_id', c.agent_id || '']);
     rows.push(['header', 'method', c.method || '']);
     rows.push(['header', 'rent_request_id', c.rent_request_id || '']);
+    if (hasFilters) {
+      rows.push(['header', 'filter_text', q]);
+      rows.push(['header', 'filter_plan', pq]);
+      rows.push(['header', 'filter_from_eat', fromLocal]);
+      rows.push(['header', 'filter_to_eat', toLocal]);
+    }
     if (plan) {
       rows.push([]);
       rows.push(['math', 'label', 'value_ugx']);
@@ -710,9 +775,48 @@ function ReconDetailView({
     triggerDownload(rows, `recon_extra_${c.collection_id.slice(0, 8)}_${stamp}.csv`);
   };
 
+  const filterBar = (
+    <div className="rounded-md border border-border bg-muted/30 p-2 flex flex-wrap items-center gap-1.5">
+      <div className="relative flex-1 min-w-[10rem]">
+        <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search tenant, agent, method, id…"
+          className="w-full h-7 pl-6 pr-2 rounded-md text-[11px] bg-background border border-border focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+      </div>
+      <input
+        value={planQuery}
+        onChange={(e) => setPlanQuery(e.target.value)}
+        placeholder="Plan id starts with…"
+        className="h-7 px-2 rounded-md text-[11px] bg-background border border-border focus:outline-none focus:ring-1 focus:ring-primary w-[9rem]"
+      />
+      <label className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+        From
+        <input type="datetime-local" value={fromLocal} onChange={(e) => setFromLocal(e.target.value)} className="h-7 px-1 rounded-md text-[10px] bg-background border border-border" />
+      </label>
+      <label className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+        To
+        <input type="datetime-local" value={toLocal} onChange={(e) => setToLocal(e.target.value)} className="h-7 px-1 rounded-md text-[10px] bg-background border border-border" />
+      </label>
+      {hasFilters && (
+        <button
+          type="button"
+          onClick={clearFilters}
+          className="h-7 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-background border border-border hover:bg-muted"
+        >
+          <X className="h-3 w-3" /> Clear
+        </button>
+      )}
+    </div>
+  );
+
   if (detail.kind === 'missing') {
     const { m, plan, dailyPlan, totalDue, paidBefore, remaining, planCollections, tenantOtherCollections, nameOf } = detail;
     const proration = bucketDays >= 0.999 ? '1 full day' : `${(bucketDays * 24).toFixed(2)} hours (${(bucketDays * 100 / 1).toFixed(1)}% of a day)`;
+    const filteredPlanCollections = planCollections.filter((r) => matchCollection(r, nameOf));
+    const filteredTenantOther = tenantOtherCollections.filter((r) => matchCollection(r, nameOf));
     return (
       <div className="p-4 space-y-4">
         <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
@@ -720,11 +824,11 @@ function ReconDetailView({
             <div className="text-[10px] font-bold uppercase tracking-wide text-rose-800">Missing collection · variance breakdown</div>
             <button
               type="button"
-              onClick={downloadDetailCsv}
+              onClick={() => downloadDetailCsv({ filteredPlanCollections, filteredTenantOther })}
               className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-background border border-border hover:bg-muted"
-              title="Download this variance breakdown as CSV"
+              title={hasFilters ? 'Download the filtered variance breakdown as CSV' : 'Download this variance breakdown as CSV'}
             >
-              <Download className="h-3 w-3" /> CSV
+              <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
             </button>
           </div>
           <div className="mt-1 flex items-baseline gap-2">
@@ -733,6 +837,8 @@ function ReconDetailView({
           </div>
           <div className="text-[10px] text-muted-foreground">Agent: <span className="text-foreground font-semibold">{nameOf(m.agent_id) || '—'}</span> · Plan <span className="font-mono">{m.rent_id.slice(0, 8)}</span> · Status <span className="font-semibold">{plan?.status || '—'}</span></div>
         </div>
+
+        {filterBar}
 
         <div>
           <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Prorated obligation for this bucket</div>
@@ -752,21 +858,29 @@ function ReconDetailView({
         </div>
 
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Collections linked to this plan in this bucket ({planCollections.length})</div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
+            Collections linked to this plan in this bucket ({filteredPlanCollections.length}{hasFilters ? ` / ${planCollections.length}` : ''})
+          </div>
           {planCollections.length === 0 ? (
             <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">Zero collections — the plan received nothing in this window.</p>
+          ) : filteredPlanCollections.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">No rows match the current filters.</p>
           ) : (
-            <MiniCollectionTable rows={planCollections} nameOf={nameOf} />
+            <MiniCollectionTable rows={filteredPlanCollections} nameOf={nameOf} />
           )}
         </div>
 
         {tenantOtherCollections.length > 0 && (
           <div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
-              Same tenant paid on {tenantOtherCollections.length} other plan{tenantOtherCollections.length === 1 ? '' : 's'} in this bucket
+              Same tenant paid on {tenantOtherCollections.length} other plan{tenantOtherCollections.length === 1 ? '' : 's'} in this bucket{hasFilters ? ` (${filteredTenantOther.length} match filters)` : ''}
             </div>
             <p className="text-[10px] text-muted-foreground mb-1 italic">Collections booked to a different `rent_request_id` for the same tenant — often the source of misattribution.</p>
-            <MiniCollectionTable rows={tenantOtherCollections} nameOf={nameOf} />
+            {filteredTenantOther.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">No rows match the current filters.</p>
+            ) : (
+              <MiniCollectionTable rows={filteredTenantOther} nameOf={nameOf} />
+            )}
           </div>
         )}
       </div>
@@ -774,6 +888,28 @@ function ReconDetailView({
   }
 
   const { c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, timeline, nameOf } = detail;
+  // Timeline filter: apply text/plan/date filters against each timeline row (plus its underlying tenant/agent from the parent extra row).
+  const filteredTimeline = timeline.filter((t) => {
+    if (fromMs !== null && t.when < fromMs) return false;
+    if (toMs !== null && t.when > toMs) return false;
+    if (pq) {
+      const planStr = (c.rent_request_id || '').toLowerCase();
+      if (!planStr.includes(pq)) return false;
+    }
+    if (q) {
+      const hay = [
+        nameOf(c.tenant_id),
+        nameOf(c.agent_id),
+        c.tenant_id || '',
+        c.agent_id || '',
+        c.rent_request_id || '',
+        c.method || '',
+        t.id,
+      ].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
   return (
     <div className="p-4 space-y-4">
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
@@ -781,11 +917,11 @@ function ReconDetailView({
           <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Extra collection · why flagged</div>
           <button
             type="button"
-            onClick={downloadDetailCsv}
+            onClick={() => downloadDetailCsv({ filteredTimeline })}
             className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-background border border-border hover:bg-muted"
-            title="Download this extra-collection breakdown as CSV"
+            title={hasFilters ? 'Download the filtered extra-collection breakdown as CSV' : 'Download this extra-collection breakdown as CSV'}
           >
-            <Download className="h-3 w-3" /> CSV
+            <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
           </button>
         </div>
         <div className="mt-1 flex items-baseline gap-2">
@@ -801,6 +937,8 @@ function ReconDetailView({
           <span className="ml-2 text-[10px] text-muted-foreground">Extra amount: <span className="font-bold text-amber-800">+{formatUGX(Math.round(c.extra_amount))}</span></span>
         </div>
       </div>
+
+      {filterBar}
 
       {plan ? (
         <>
@@ -819,7 +957,9 @@ function ReconDetailView({
           </div>
 
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Cumulative timeline for this plan in the bucket</div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
+              Cumulative timeline for this plan in the bucket ({filteredTimeline.length}{hasFilters ? ` / ${timeline.length}` : ''})
+            </div>
             <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
               <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
                 <tr>
@@ -831,7 +971,10 @@ function ReconDetailView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {timeline.map((t) => (
+                {filteredTimeline.length === 0 && (
+                  <tr><td colSpan={5} className="px-2 py-3 text-center text-[11px] text-muted-foreground italic">No rows match the current filters.</td></tr>
+                )}
+                {filteredTimeline.map((t) => (
                   <tr key={t.id} className={t.isThis ? 'bg-amber-500/10 font-semibold' : ''}>
                     <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">
                       {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
