@@ -488,6 +488,57 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Real-time strict-ledger solvency gate for CFO Debits ─────────────
+    // Mirror the withdrawal flow: query `get_user_available_balance` at the
+    // exact moment of the correction, using the double-entry ledger (not the
+    // cached wallets.balance). If the user does not have enough available
+    // AND the CFO did not explicitly enable Forced Reversal (allow_overdraw),
+    // reject with a structured code so the client can offer an explicit
+    // "create recoverable debt" confirmation before retrying with the flag.
+    // Wallet-transfer debits (peer→peer) already run through their own
+    // solvency path in create_ledger_transaction; skip only when we are
+    // explicitly overdrawing.
+    if (op === "debit" && !allowOverdraw) {
+      try {
+        const { data: availData, error: availErr } = await adminClient.rpc(
+          "get_user_available_balance",
+          { p_user_id: walletUserId },
+        );
+        if (availErr) {
+          console.error(
+            "[cfo-direct-credit] get_user_available_balance failed:",
+            availErr.message,
+          );
+        } else {
+          const available = Number(availData ?? 0);
+          if (available < amount) {
+            const shortfall = amount - available;
+            return new Response(
+              JSON.stringify({
+                error:
+                  `INSUFFICIENT_AVAILABLE_BALANCE: strict available balance is ${available}, ` +
+                  `requested ${amount}, shortfall ${shortfall}. ` +
+                  `Enable Forced Reversal (allow_overdraw) to create a recoverable debt.`,
+                code: "INSUFFICIENT_AVAILABLE_BALANCE",
+                available_balance: available,
+                requested_amount: amount,
+                shortfall,
+              }),
+              {
+                status: 422,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
+            );
+          }
+        }
+      } catch (gateErr) {
+        console.error(
+          "[cfo-direct-credit] solvency gate exception:",
+          (gateErr as Error).message,
+        );
+      }
+    }
+
     const groupId = crypto.randomUUID();
 
     // Generate trackable PAY- reference (same format COO uses) for every CFO direct credit/debit
