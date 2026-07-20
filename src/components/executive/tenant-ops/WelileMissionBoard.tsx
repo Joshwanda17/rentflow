@@ -27,7 +27,7 @@ import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
-import { applyDayBoundary, type DayBoundary } from '@/hooks/useWelileOpsCounters';
+import { applyDayBoundary, windowToISO, type DayBoundary } from '@/hooks/useWelileOpsCounters';
 import { useLandlordPriorityBreakdown, type LandlordPriorityBucket } from '@/hooks/useWelileOpsCounters';
 import { useMissionReceivables } from '@/hooks/useWelileOpsCounters';
 import { useMissionLandlordReceivables, type MissionLandlordReceivable } from '@/hooks/useWelileOpsCounters';
@@ -45,6 +45,7 @@ import {
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
   ChevronsUpDown, X, Image as ImageIcon, CalendarDays, Info, ChevronLeft, ArrowUpDown,
+  ArrowUp, ArrowDown, Minus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildRentEstimator } from '@/lib/missionProjection';
