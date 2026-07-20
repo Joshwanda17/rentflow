@@ -1667,7 +1667,6 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
           ? Math.min(activeFlaggedIdx, page.length - 1)
           : (thisIdx >= 0 ? Math.min(thisIdx, page.length - 1) : undefined)}
         scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}:${activeFlaggedIdx}:${jumpTick}`}
-        renderRow={(t) => (
         renderRow={(t, i) => {
           const isActive = i === activeFlaggedIdx;
           const bg = t.isThis
