@@ -28,7 +28,7 @@ import { WITHDRAWAL_REASON_OPTIONS, OTHER_WITHDRAWAL_REASON } from '@/lib/cashou
  * Maps a Ugandan mobile-money number to its provider based on the operator
  * prefix. Returns null when the prefix is unknown so we don't override the
  * user's manual choice on incomplete input.
- * - MTN: 077, 078, 076, 039
+ * - MTN: 077, 078, 076, 079, 039
  * - Airtel: 070, 074, 075
  */
 function detectMomoProvider(raw: string): 'MTN' | 'Airtel' | null {
@@ -37,7 +37,7 @@ function detectMomoProvider(raw: string): 'MTN' | 'Airtel' | null {
   const normalised = digits.startsWith('256') ? `0${digits.slice(3)}` : digits;
   if (normalised.length < 3) return null;
   const prefix = normalised.slice(0, 3);
-  if (['077', '078', '076', '039'].includes(prefix)) return 'MTN';
+  if (['077', '078', '076', '079', '039'].includes(prefix)) return 'MTN';
   if (['070', '074', '075'].includes(prefix)) return 'Airtel';
   return null;
 }
