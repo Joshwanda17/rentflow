@@ -22,6 +22,21 @@ export interface TrustProfile {
     tier: string;
     data_points: number;
     borrowing_limit_ugx: number;
+    vouch_breakdown?: {
+      total_ugx: number;
+      portfolio_component_ugx: number;
+      angel_shares_ugx: number;
+      shares_component_ugx: number;
+      boosters_ugx: number;
+      booster_breakdown: {
+        wallet_activity: number;
+        network_contribution: number;
+        agent_performance: number;
+        verification: number;
+        movement_behavior: number;
+        payment_history: number;
+      };
+    };
     breakdown: {
       supporter?: number;
       payment: number;
@@ -61,6 +76,7 @@ export interface TrustProfile {
     roi_paid_30d: number;
     roi_paid_180d: number;
     roi_monthly_avg: number;
+    angel_shares_ugx?: number;
   };
   payment_history: {
     total_rent_plans: number;
