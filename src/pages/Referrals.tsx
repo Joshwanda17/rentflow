@@ -164,7 +164,7 @@ export default function Referrals() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-center gap-4 p-3 bg-muted/30 rounded-lg">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-primary">UGX 100</p>
+                  <p className="text-lg font-bold text-primary">UGX 500</p>
                   <p className="text-xs text-muted-foreground">On signup</p>
                 </div>
                 <span className="text-xl text-muted-foreground">+</span>
@@ -174,8 +174,8 @@ export default function Referrals() {
                 </div>
                 <span className="text-xl text-muted-foreground">=</span>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-warning">UGX 300</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-lg font-bold text-warning">UGX 700</p>
+                  <p className="text-xs text-muted-foreground">Per friend</p>
                 </div>
               </div>
               
