@@ -4,7 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2, FileText } from 'lucide-react';
+import { generateBucketReconDetailPdf } from '@/lib/bucketReconDetailPdf';
+import { toast } from 'sonner';
 
 // Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
 const REVIEWED_LS_KEY = 'welile:recon-reviewed:v1';
@@ -544,6 +546,7 @@ export function BucketReconciliationPanel({
                 <ReconDetailView
                   detail={detail}
                   bucketDays={bucketDays}
+                  bucketLabel={scopeLabel}
                   onOpenAnother={(sel) => setSelection(sel)}
                   isReviewed={
                     detail.kind === 'missing'
@@ -780,12 +783,14 @@ type DetailPayload =
 function ReconDetailView({
   detail,
   bucketDays,
+  bucketLabel,
   onOpenAnother,
   isReviewed,
   onToggleReviewed,
 }: {
   detail: DetailPayload;
   bucketDays: number;
+  bucketLabel: string;
   onOpenAnother: (sel: { kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string }) => void;
   isReviewed: boolean;
   onToggleReviewed: () => void;
@@ -940,6 +945,107 @@ function ReconDetailView({
     triggerDownload(rows, `recon_extra_${c.collection_id.slice(0, 8)}_${stamp}.csv`);
   };
 
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const downloadDetailPdf = async (opts?: { filteredPlanCollections?: BucketCollection[]; filteredTenantOther?: BucketCollection[]; filteredTimeline?: TimelineRow[] }) => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      const filterMeta = {
+        bucketLabel,
+        filterText: q || undefined,
+        filterPlan: pq || undefined,
+        filterFromEat: fromLocal || undefined,
+        filterToEat: toLocal || undefined,
+      };
+      let blob: Blob;
+      let filename: string;
+      if (detail.kind === 'missing') {
+        const { m, plan, dailyPlan, totalDue, paidBefore, remaining, nameOf } = detail;
+        const planCollections = opts?.filteredPlanCollections ?? detail.planCollections;
+        const tenantOtherCollections = opts?.filteredTenantOther ?? detail.tenantOtherCollections;
+        blob = await generateBucketReconDetailPdf({
+          kind: 'missing',
+          tenantName: nameOf(m.tenant_id),
+          tenantId: m.tenant_id ?? null,
+          agentName: nameOf(m.agent_id),
+          agentId: m.agent_id ?? null,
+          rentRequestId: m.rent_id,
+          planStatus: plan?.status || '',
+          dailyPlan,
+          bucketDays,
+          totalDue,
+          paidBefore,
+          remaining,
+          expectedInBucket: m.daily,
+          collectedInBucket: m.collected,
+          variance: m.variance,
+          planCollections: planCollections.map((r) => ({
+            whenEat: fmtWhen(new Date(r.created_at).getTime()),
+            agent: nameOf(r.agent_id),
+            method: r.payment_method || '',
+            amount: Number(r.amount) || 0,
+            collectionId: r.id,
+          })),
+          tenantOtherCollections: tenantOtherCollections.map((r) => ({
+            whenEat: fmtWhen(new Date(r.created_at).getTime()),
+            agent: nameOf(r.agent_id),
+            method: r.payment_method || '',
+            amount: Number(r.amount) || 0,
+            rentRequestId: r.rent_request_id || '',
+            collectionId: r.id,
+          })),
+        }, filterMeta);
+        filename = `recon_missing_${m.rent_id.slice(0, 8)}_${stamp}.pdf`;
+      } else {
+        const { c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, nameOf } = detail;
+        const timeline = opts?.filteredTimeline ?? detail.timeline;
+        blob = await generateBucketReconDetailPdf({
+          kind: 'extra',
+          collectionId: c.collection_id,
+          whenEat: fmtWhen(c.when_ms),
+          amount: c.amount,
+          extraAmount: c.extra_amount,
+          reasonLabel: c.reason_label,
+          tenantName: nameOf(c.tenant_id),
+          tenantId: c.tenant_id ?? null,
+          agentName: nameOf(c.agent_id),
+          agentId: c.agent_id ?? null,
+          method: c.method || '',
+          rentRequestId: c.rent_request_id ?? null,
+          planStatus: plan?.status || undefined,
+          dailyPlan: plan ? dailyPlan : undefined,
+          bucketDays: plan ? bucketDays : undefined,
+          totalDue: plan ? totalDue : undefined,
+          paidBefore: plan ? paidBefore : undefined,
+          remaining: plan ? remaining : undefined,
+          expectedInBucket: plan ? expected : undefined,
+          timeline: timeline.map((t) => ({
+            whenEat: fmtWhen(t.when),
+            amount: t.amount,
+            cumulative: t.cumulative,
+            overDaily: t.over_daily,
+            overRemaining: t.over_remaining,
+            isThis: t.isThis,
+            collectionId: t.id,
+          })),
+        }, filterMeta);
+        filename = `recon_extra_${c.collection_id.slice(0, 8)}_${stamp}.pdf`;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[bucket-recon] PDF export failed', err);
+      toast.error('PDF export failed — try again.');
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const filterBar = (
     <div className="rounded-md border border-border bg-muted/30 p-2 flex flex-wrap items-center gap-1.5">
       <div className="relative flex-1 min-w-[10rem]">
@@ -1004,6 +1110,15 @@ function ReconDetailView({
               title={hasFilters ? 'Download the filtered variance breakdown as CSV' : 'Download this variance breakdown as CSV'}
             >
               <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadDetailPdf({ filteredPlanCollections, filteredTenantOther })}
+              disabled={pdfBusy}
+              className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-rose-600 text-white border border-rose-700 hover:bg-rose-700 disabled:opacity-50"
+              title={hasFilters ? 'Download the filtered variance breakdown as PDF' : 'Download this variance breakdown as PDF'}
+            >
+              {pdfBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF{hasFilters ? ' (filtered)' : ''}
             </button>
             </div>
           </div>
@@ -1206,6 +1321,15 @@ function ReconDetailView({
             title={hasFilters ? 'Download the filtered extra-collection breakdown as CSV' : 'Download this extra-collection breakdown as CSV'}
           >
             <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadDetailPdf({ filteredTimeline })}
+            disabled={pdfBusy}
+            className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-amber-600 text-white border border-amber-700 hover:bg-amber-700 disabled:opacity-50"
+            title={hasFilters ? 'Download the filtered extra-collection breakdown as PDF' : 'Download this extra-collection breakdown as PDF'}
+          >
+            {pdfBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF{hasFilters ? ' (filtered)' : ''}
           </button>
           </div>
         </div>
