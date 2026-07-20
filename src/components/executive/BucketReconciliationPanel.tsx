@@ -1407,6 +1407,61 @@ function MathRow({ label, value, accent, bold }: { label: string; value: string;
   );
 }
 
+type TimelineSortKey = 'when' | 'amount' | 'over_daily' | 'over_remaining';
+function TimelineTable({ rows }: { rows: { id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[] }) {
+  const [sort, setSort] = useState<{ k: TimelineSortKey; dir: 'asc' | 'desc' }>({ k: 'when', dir: 'asc' });
+  const toggle = (k: TimelineSortKey) =>
+    setSort((s) => (s.k === k ? { k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: k === 'when' ? 'asc' : 'desc' }));
+  const sorted = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const va = sort.k === 'when' ? a.when : sort.k === 'amount' ? a.amount : sort.k === 'over_daily' ? a.over_daily : a.over_remaining;
+      const vb = sort.k === 'when' ? b.when : sort.k === 'amount' ? b.amount : sort.k === 'over_daily' ? b.over_daily : b.over_remaining;
+      return (va - vb) * dir;
+    });
+  }, [rows, sort]);
+  const Icon = ({ k }: { k: TimelineSortKey }) =>
+    sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  const SortBtn = ({ k, label, align = 'left' }: { k: TimelineSortKey; label: string; align?: 'left' | 'right' }) => (
+    <button
+      type="button"
+      onClick={() => toggle(k)}
+      className={`inline-flex items-center gap-1 hover:text-foreground ${align === 'right' ? 'justify-end w-full' : ''}`}
+    >
+      {label} <Icon k={k} />
+    </button>
+  );
+  return (
+    <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+      <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
+        <tr>
+          <th className="text-left px-2 py-1.5"><SortBtn k="when" label="When (EAT)" /></th>
+          <th className="text-right px-2 py-1.5"><SortBtn k="amount" label="Amount" align="right" /></th>
+          <th className="text-right px-2 py-1.5">Cumulative</th>
+          <th className="text-right px-2 py-1.5"><SortBtn k="over_daily" label="Over daily" align="right" /></th>
+          <th className="text-right px-2 py-1.5"><SortBtn k="over_remaining" label="Over remaining" align="right" /></th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+        {sorted.length === 0 && (
+          <tr><td colSpan={5} className="px-2 py-3 text-center text-[11px] text-muted-foreground italic">No rows match the current filters.</td></tr>
+        )}
+        {sorted.map((t) => (
+          <tr key={t.id} className={t.isThis ? 'bg-amber-500/10 font-semibold' : ''}>
+            <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">
+              {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
+            </td>
+            <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.amount)}</td>
+            <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.cumulative)}</td>
+            <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</td>
+            <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-2">
