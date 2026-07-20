@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
     const reason =
       customMessage ||
       profile.frozen_reason ||
-      "Your account has been FROZEN for violating platform policies. All transactions are blocked. Contact support on WhatsApp: 0708 257 899";
+      "Your account has been FROZEN for violating platform policies. All transactions are blocked. Contact support on WhatsApp: +256777607640";
 
     let sent = false;
     if (phone) {
