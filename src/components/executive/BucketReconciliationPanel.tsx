@@ -50,6 +50,102 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
     </label>
   );
 }
+
+/**
+ * Virtualized list rendered as a CSS grid so column widths align between the
+ * sticky header row and the virtualized body rows. Keeps DOM node count low
+ * (~15-30 row divs) regardless of `items.length`, so scrolling stays fast even
+ * with tens of thousands of rows.
+ */
+function VirtualRows<T extends { id: string }>({
+  items,
+  rowHeight,
+  gridTemplate,
+  header,
+  renderRow,
+  emptyMessage,
+  maxHeight = 480,
+  scrollToIndex,
+  scrollToDepKey,
+}: {
+  items: T[];
+  rowHeight: number;
+  gridTemplate: string;
+  header: React.ReactNode;
+  renderRow: (item: T, index: number) => React.ReactNode;
+  emptyMessage?: string;
+  maxHeight?: number;
+  scrollToIndex?: number;
+  scrollToDepKey?: string;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 10,
+    getItemKey: (i) => items[i]?.id ?? i,
+  });
+  useEffect(() => {
+    if (typeof scrollToIndex === 'number' && scrollToIndex >= 0 && scrollToIndex < items.length) {
+      // Center the target row on next paint so layout has settled.
+      requestAnimationFrame(() => virtualizer.scrollToIndex(scrollToIndex, { align: 'center' }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToDepKey]);
+
+  const totalSize = virtualizer.getTotalSize();
+  const virtualRows = virtualizer.getVirtualItems();
+  // Fit-to-content when list is short; otherwise cap at maxHeight and scroll.
+  const bodyMaxHeight = Math.min(maxHeight, Math.max(rowHeight, totalSize));
+
+  return (
+    <div className="border border-border rounded-md overflow-hidden text-[11px]">
+      <div
+        className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide grid"
+        style={{ gridTemplateColumns: gridTemplate }}
+      >
+        {header}
+      </div>
+      {items.length === 0 ? (
+        <div className="px-2 py-3 text-center text-[11px] text-muted-foreground italic">
+          {emptyMessage ?? 'No rows.'}
+        </div>
+      ) : (
+        <div
+          ref={parentRef}
+          className="overflow-auto"
+          style={{ maxHeight: bodyMaxHeight, contain: 'strict' }}
+        >
+          <div style={{ height: totalSize, position: 'relative', width: '100%' }}>
+            {virtualRows.map((v) => {
+              const item = items[v.index];
+              if (!item) return null;
+              return (
+                <div
+                  key={v.key}
+                  data-index={v.index}
+                  className="grid border-b border-border last:border-b-0"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${v.start}px)`,
+                    height: v.size,
+                    gridTemplateColumns: gridTemplate,
+                  }}
+                >
+                  {renderRow(item, v.index)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 // Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
 const REVIEWED_LS_KEY = 'welile:recon-reviewed:v1';
 type ReviewedStore = { missing: Record<string, number>; extra: Record<string, number> };
