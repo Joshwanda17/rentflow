@@ -80,8 +80,78 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ─── Parent-agent web push (skip merchant/cash-out parents) ───
+    let parentPushSent = 0;
+    let parentAgentId: string | null = null;
+    try {
+      const { data: link } = await admin
+        .from("agent_subagents")
+        .select("parent_agent_id")
+        .eq("sub_agent_id", listing.agent_id)
+        .eq("status", "verified")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      parentAgentId = link?.parent_agent_id ?? null;
+
+      if (parentAgentId && parentAgentId !== listing.agent_id) {
+        const { data: merchant } = await admin
+          .from("cashout_agents")
+          .select("id")
+          .eq("agent_id", parentAgentId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (!merchant) {
+          const [{ data: subProfile }, { count: rejCount }] = await Promise.all([
+            admin.from("profiles").select("full_name").eq("id", listing.agent_id).maybeSingle(),
+            admin
+              .from("agent_listing_rejections")
+              .select("id", { count: "exact", head: true })
+              .eq("agent_id", listing.agent_id),
+          ]);
+
+          const subName = subProfile?.full_name || "your sub-agent";
+          const count = rejCount ?? 0;
+          const charged = count > 0 && count % 3 === 0;
+          const body = charged
+            ? `Sub-agent ${subName}'s house "${title}" was rejected. Reason: ${String(reason).trim()}. UGX 6,000 was deducted (3 of their listings rejected).`
+            : `Sub-agent ${subName}'s house "${title}" was rejected. Reason: ${String(reason).trim()}. You'll be deducted UGX 6,000 if a 3rd of their listings is rejected (${count}/3).`;
+
+          const { data: parentPushRes, error: parentPushErr } = await admin.functions.invoke(
+            "send-push-notification",
+            {
+              body: {
+                userIds: [parentAgentId],
+                payload: {
+                  title: "⚠️ Sub-agent listing rejected",
+                  body,
+                  type: "warning",
+                  url: "/dashboard/agent",
+                },
+              },
+            },
+          );
+          if (parentPushErr) {
+            console.error("[notify-listing-rejected] parent push invoke error", parentPushErr);
+          } else {
+            parentPushSent = Number((parentPushRes as any)?.sent ?? 0);
+          }
+        }
+      }
+    } catch (parentErr) {
+      console.error("[notify-listing-rejected] parent push flow failed", parentErr);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, push_sent: pushSent, has_subscription: hasSubscription }),
+      JSON.stringify({
+        success: true,
+        push_sent: pushSent,
+        has_subscription: hasSubscription,
+        parent_agent_id: parentAgentId,
+        parent_push_sent: parentPushSent,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
