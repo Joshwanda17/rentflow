@@ -1195,7 +1195,7 @@ export function DirectCreditTool() {
                   setFloatConfirmOpen(true);
                   return;
                 }
-                mutation.mutate();
+                mutation.mutate(undefined);
               }}
               disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId || !recipientType}
             >
