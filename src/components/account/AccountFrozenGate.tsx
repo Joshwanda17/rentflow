@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import posterAsset from '@/assets/account-restricted-poster.png.asset.json';
 
@@ -59,18 +57,6 @@ export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
 
   if (!frozen) return <>{children}</>;
 
-  const rawReason = profileFreeze?.frozen_reason || listingBlock?.reason || null;
-  const reason = rawReason?.replace('0708 257 899', '+256777607640');
-  const until = listingBlock?.blocked_until ? new Date(listingBlock.blocked_until) : null;
-  const untilStr = until
-    ? until.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        timeZone: 'Africa/Kampala',
-      })
-    : null;
-
   return (
     <div
       role="alert"
@@ -83,36 +69,6 @@ export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
           className="w-full h-auto rounded-xl shadow-2xl select-none"
           draggable={false}
         />
-
-        {(reason || untilStr) && (
-          <div className="w-full rounded-lg border border-red-500/40 bg-red-950/60 p-3 text-left backdrop-blur-sm">
-            {untilStr && (
-              <p className="text-sm">
-                <span className="text-white/70">Restricted until </span>
-                <span className="font-semibold text-white">{untilStr}</span>
-              </p>
-            )}
-            {reason && (
-              <>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300">Reason</p>
-                <p className="mt-1 text-sm font-medium text-white">{reason}</p>
-              </>
-            )}
-          </div>
-        )}
-
-        <Button
-          className="w-full bg-[#25D366] text-white hover:bg-[#1ebe57] border-0 font-semibold"
-          onClick={() => {
-            const msg = encodeURIComponent(
-              `Hello Welile Support, my account (${user?.email || user?.phone || user?.id}) has been restricted. I would like to request a review.`,
-            );
-            window.open(`https://wa.me/256777607640?text=${msg}`, '_blank', 'noopener');
-          }}
-        >
-          <MessageCircle className="mr-2 h-4 w-4" />
-          Chat support on WhatsApp: +256777607640
-        </Button>
 
         <button
           type="button"
