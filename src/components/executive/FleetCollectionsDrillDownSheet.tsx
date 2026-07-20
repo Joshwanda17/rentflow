@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download, AlertTriangle, BarChart3 } from 'lucide-react';
+import { AmountBreakdownModal } from './AmountBreakdownModal';
 import { CollectionLedgerImpactPanel } from './CollectionLedgerImpactPanel';
 
 type CollectionRow = {
