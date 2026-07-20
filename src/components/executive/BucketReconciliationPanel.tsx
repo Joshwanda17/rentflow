@@ -558,7 +558,11 @@ export function BucketReconciliationPanel({
               )}
             </div>
 
-            <div className="flex-1 overflow-auto">
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-auto"
+              onScroll={(e) => { detailScrollStore.set(scrollKey, (e.target as HTMLDivElement).scrollTop); }}
+            >
               {selection && detail ? (
                 <ReconDetailView
                   detail={detail}
