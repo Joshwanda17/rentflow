@@ -592,6 +592,15 @@ export function FleetCollectionsDrillDownSheet({
         nameFor={(id) => nameById.get(id) || null}
         initialDimension={agentId ? 'tenant' : 'agent'}
       />
+      <BucketReconciliationPanel
+        open={reconOpen}
+        onOpenChange={setReconOpen}
+        start={start}
+        end={end}
+        agentId={agentId}
+        agentName={agentName}
+        bucketLabel={bucketLabel}
+      />
     </Sheet>
   );
 }
