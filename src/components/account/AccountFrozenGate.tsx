@@ -105,9 +105,6 @@ export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
             <Phone className="mr-2 h-4 w-4" />
             Contact support: +256 777 607 640
           </Button>
-          <Button variant="ghost" className="w-full" onClick={() => signOut()}>
-            Sign out
-          </Button>
         </div>
       </div>
     </div>
