@@ -1636,10 +1636,19 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
     if (activeFlaggedIdx + 1 > effectiveVisible) setVisible(activeFlaggedIdx + 1);
     setJumpTick((n) => n + 1);
   };
+  const jumpToFlaggedEdge = (edge: 'first' | 'last') => {
+    if (flaggedIdxs.length === 0) return;
+    const pos = edge === 'first' ? 0 : flaggedIdxs.length - 1;
+    setCursor(pos);
+    const targetIdx = flaggedIdxs[pos];
+    if (targetIdx + 1 > effectiveVisible) setVisible(targetIdx + 1);
+    setJumpTick((n) => n + 1);
+  };
   // Keyboard shortcuts while the timeline is mounted:
   //   J → jump to the currently highlighted flagged row
   //   N / ] → next flagged row
   //   P / [ → previous flagged row
+  //   Home → first flagged row · End → last flagged row
   // Ignored while the user is typing in an input/textarea/contentEditable.
   useEffect(() => {
     if (flaggedIdxs.length === 0) return;
@@ -1652,6 +1661,8 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
       if (k === 'j') { e.preventDefault(); jumpToFlagged(); }
       else if (k === 'n' || e.key === ']') { e.preventDefault(); stepFlagged(1); }
       else if (k === 'p' || e.key === '[') { e.preventDefault(); stepFlagged(-1); }
+      else if (e.key === 'Home') { e.preventDefault(); jumpToFlaggedEdge('first'); }
+      else if (e.key === 'End') { e.preventDefault(); jumpToFlaggedEdge('last'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
