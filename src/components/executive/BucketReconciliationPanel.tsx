@@ -338,6 +338,11 @@ export function BucketReconciliationPanel({
   const [tab, setTab] = useState<'missing' | 'extra'>('missing');
   const [selection, setSelection] = useState<{ kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string } | null>(null);
 
+  // Reviewed-status tracking (persisted in localStorage; separate per kind).
+  const missingReviewed = useReviewedSet('missing');
+  const extraReviewed = useReviewedSet('extra');
+  const [hideReviewed, setHideReviewed] = useState(false);
+
   // Close selection when switching tabs / bucket.
   const switchTab = (t: 'missing' | 'extra') => { setTab(t); setSelection(null); };
 
