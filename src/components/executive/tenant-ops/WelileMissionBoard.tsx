@@ -411,6 +411,25 @@ export function WelileMissionBoard() {
                 <div className="mt-2">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-2xl font-bold leading-none">{m.big.toLocaleString()}</span>
+                    {p.key === 'list' && comparePrev && emptyScope === 'window' && emptyDelta != null && (
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums',
+                          emptyDelta > 0
+                            ? 'bg-red-500/15 text-red-700'
+                            : emptyDelta < 0
+                              ? 'bg-emerald-500/15 text-emerald-700'
+                              : 'bg-muted text-muted-foreground',
+                        )}
+                        title={`Previous window: ${(prevWindowEmpty ?? 0).toLocaleString()} empty added`}
+                      >
+                        {emptyDelta > 0 ? <ArrowUp className="h-3 w-3" /> : emptyDelta < 0 ? <ArrowDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                        {emptyDelta > 0 ? '+' : ''}{emptyDelta.toLocaleString()}
+                        {emptyDeltaPct != null && (
+                          <span className="opacity-70">({emptyDeltaPct > 0 ? '+' : ''}{emptyDeltaPct}%)</span>
+                        )}
+                      </span>
+                    )}
                     {p.key === 'list' ? (
                       <TooltipProvider delayDuration={100}>
                         <Tooltip>
@@ -473,7 +492,31 @@ export function WelileMissionBoard() {
                       >
                         All-time
                       </button>
+                      {emptyScope === 'window' && prevSinceISO && (
+                        <button
+                          type="button"
+                          onClick={() => setComparePrev((v) => !v)}
+                          className={cn(
+                            'ml-1 px-2 py-0.5 rounded text-[10px] font-semibold transition inline-flex items-center gap-1',
+                            comparePrev ? 'bg-amber-500 text-white' : 'text-amber-700 hover:bg-amber-500/10',
+                          )}
+                          title="Compare with the previous equal-length window"
+                        >
+                          <ArrowUpDown className="h-3 w-3" />
+                          Compare
+                        </button>
+                      )}
                     </div>
+                  )}
+                  {p.key === 'list' && comparePrev && emptyScope === 'window' && emptyDelta != null && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Previous window: <span className="font-semibold text-foreground tabular-nums">{(prevWindowEmpty ?? 0).toLocaleString()}</span> empty added ·{' '}
+                      {emptyDelta === 0
+                        ? 'no change'
+                        : emptyDelta > 0
+                          ? `${emptyDelta.toLocaleString()} more this window`
+                          : `${Math.abs(emptyDelta).toLocaleString()} fewer this window`}
+                    </p>
                   )}
                   {p.key === 'list' && m.extra && (
                     <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>
