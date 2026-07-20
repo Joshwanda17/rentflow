@@ -377,7 +377,33 @@ export function WelileMissionBoard() {
                 <div className="mt-2">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-2xl font-bold leading-none">{m.big.toLocaleString()}</span>
-                    <span className="text-[11px] text-muted-foreground">{m.label}</span>
+                    {p.key === 'list' ? (
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-[11px] text-muted-foreground inline-flex items-center gap-0.5 cursor-help">
+                              {m.label}
+                              <Info className="h-3 w-3 text-muted-foreground/70" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[280px] space-y-1.5">
+                            <p className="text-[11px] font-semibold">How “listed empty houses” is calculated</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              The number for the selected date window is the sum of two components:
+                            </p>
+                            <ul className="text-[11px] text-muted-foreground list-disc pl-3 space-y-0.5">
+                              <li>Empty house listings created within the window.</li>
+                              <li>Unlisted landlords with vacant houses registered within the same window.</li>
+                            </ul>
+                            <p className="text-[11px] text-muted-foreground">
+                              Toggle <span className="font-semibold text-foreground">All-time</span> to see every currently empty listing instead.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">{m.label}</span>
+                    )}
                   </div>
                   {p.key === 'list' && (
                     <button
