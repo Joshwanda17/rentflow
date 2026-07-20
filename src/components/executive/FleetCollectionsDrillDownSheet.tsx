@@ -363,6 +363,30 @@ export function FleetCollectionsDrillDownSheet({
               {selected.notes && <Field label="Notes" value={selected.notes} />}
               <Field label="Record ID" value={selected.id} mono />
             </div>
+            {(() => {
+              const fs = flagsById.get(selected.id) || [];
+              if (!fs.length) return null;
+              const hasHigh = fs.some((f) => f.severity === 'high');
+              return (
+                <div className={`mt-4 rounded-lg border p-3 ${hasHigh ? 'bg-rose-500/5 border-rose-500/30' : 'bg-amber-500/5 border-amber-500/30'}`}>
+                  <p className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide mb-1.5 ${hasHigh ? 'text-rose-700' : 'text-amber-800'}`}>
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {fs.length} anomaly flag{fs.length === 1 ? '' : 's'}
+                  </p>
+                  <ul className="space-y-1">
+                    {fs.map((f) => (
+                      <li key={f.code} className="flex items-start gap-2 text-[11px]">
+                        <span className={`mt-[3px] inline-block h-1.5 w-1.5 rounded-full flex-shrink-0 ${f.severity === 'high' ? 'bg-rose-600' : 'bg-amber-500'}`} />
+                        <span>
+                          <span className={`font-bold ${f.severity === 'high' ? 'text-rose-700' : 'text-amber-800'}`}>{f.label}</span>
+                          <span className="text-foreground"> — {f.why}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
             <CollectionLedgerImpactPanel
               collectionId={selected.id}
               agentId={selected.agent_id}
