@@ -8,6 +8,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Search, X, Check, Eye, EyeOff, CheckCircle2, FileText, Crosshair } from 'lucide-react';
 import { generateBucketReconDetailPdf } from '@/lib/bucketReconDetailPdf';
 import { toast } from 'sonner';
+import {
+  matchTimelineShortcut,
+  useTimelineShortcuts,
+  formatShortcutKey,
+} from '@/lib/timelineShortcutPrefs';
+import { TimelineShortcutSettingsButton } from '@/components/executive/TimelineShortcutSettings';
 
 // In-memory session stores for detail-view page size + scroll position.
 // Survive tab switches, filter changes, and re-open of the same row within the session.
@@ -1654,12 +1660,11 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
     setJumpTick((n) => n + 1);
     setJumpStatus({ key: keyLabel, targetRow: targetIdx + 1, at: Date.now() });
   };
-  // Keyboard shortcuts while the timeline is mounted:
-  //   J → jump to the currently highlighted flagged row
-  //   N / ] → next flagged row
-  //   P / [ → previous flagged row
-  //   Home → first flagged row · End → last flagged row
+  // Keyboard shortcuts are user-customizable — bindings come from
+  // localStorage-backed prefs (see TimelineShortcutSettings). Defaults:
+  //   J → jump · N/] → next · P/[ → prev · Home → first · End → last
   // Ignored while the user is typing in an input/textarea/contentEditable.
+  const shortcutPrefs = useTimelineShortcuts();
   useEffect(() => {
     if (flaggedIdxs.length === 0) return;
     const onKey = (e: KeyboardEvent) => {
@@ -1667,17 +1672,20 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
-      const k = e.key.toLowerCase();
-      if (k === 'j') { e.preventDefault(); jumpToFlagged(); }
-      else if (k === 'n' || e.key === ']') { e.preventDefault(); stepFlagged(1, e.key === ']' ? ']' : 'N'); }
-      else if (k === 'p' || e.key === '[') { e.preventDefault(); stepFlagged(-1, e.key === '[' ? '[' : 'P'); }
-      else if (e.key === 'Home') { e.preventDefault(); jumpToFlaggedEdge('first', 'Home'); }
-      else if (e.key === 'End') { e.preventDefault(); jumpToFlaggedEdge('last', 'End'); }
+      const action = matchTimelineShortcut(e.key, shortcutPrefs);
+      if (!action) return;
+      e.preventDefault();
+      const label = formatShortcutKey(e.key);
+      if (action === 'jump') jumpToFlagged();
+      else if (action === 'next') stepFlagged(1, label);
+      else if (action === 'prev') stepFlagged(-1, label);
+      else if (action === 'first') jumpToFlaggedEdge('first', label);
+      else if (action === 'last') jumpToFlaggedEdge('last', label);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flaggedIdxs, cursor, effectiveVisible, activeFlaggedIdx]);
+  }, [flaggedIdxs, cursor, effectiveVisible, activeFlaggedIdx, shortcutPrefs]);
   const Icon = ({ k }: { k: TimelineSortKey }) =>
     sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   const SortBtn = ({ k, label, align = 'left' }: { k: TimelineSortKey; label: string; align?: 'left' | 'right' }) => (
@@ -1734,6 +1742,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
           <div className="flex items-center gap-2">
             <span>Showing {page.length} of {sorted.length}{thisIdx >= 0 && thisIdx + 1 > visible ? ' (expanded to include flagged row)' : ''}</span>
             <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+            <TimelineShortcutSettingsButton />
             {flaggedIdxs.length > 0 && (
               <div className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-800 overflow-hidden">
                 <button
