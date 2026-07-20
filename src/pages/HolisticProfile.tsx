@@ -288,6 +288,56 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                 />
               </div>
             )}
+
+            {/* Portfolio-first vouch composition — shows exactly which
+                components make up the Welile vouch: primary portfolio (1×),
+                Welile shares (2×), and behavioural boosters on top. */}
+            {profile.trust.vouch_breakdown && (
+              <div className="mt-3">
+                <Card className="border-emerald-500/20">
+                  <CardContent className="p-4 space-y-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-emerald-700 dark:text-emerald-400">
+                        How this vouch is built
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Your partnership portfolio is the primary vouch (1×). Welile shares add 2×. Everything else stacks on top.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5 text-[12px]">
+                      <VouchRow
+                        label="Partnership portfolio (primary, 1×)"
+                        value={profile.trust.vouch_breakdown.portfolio_component_ugx}
+                        emphasis
+                      />
+                      <VouchRow
+                        label={`Welile shares (2× of ${formatUGX(profile.trust.vouch_breakdown.angel_shares_ugx)})`}
+                        value={profile.trust.vouch_breakdown.shares_component_ugx}
+                        emphasis
+                      />
+                      <div className="pt-1 mt-1 border-t border-border/60">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                          Boosters
+                        </p>
+                        <VouchRow label="Wallet activity" value={profile.trust.vouch_breakdown.booster_breakdown.wallet_activity} />
+                        <VouchRow label="Network contribution" value={profile.trust.vouch_breakdown.booster_breakdown.network_contribution} />
+                        <VouchRow label="Agent performance" value={profile.trust.vouch_breakdown.booster_breakdown.agent_performance} />
+                        <VouchRow label="Verification" value={profile.trust.vouch_breakdown.booster_breakdown.verification} />
+                        <VouchRow label="Movement behaviour" value={profile.trust.vouch_breakdown.booster_breakdown.movement_behavior} />
+                        <VouchRow label="Payment history" value={profile.trust.vouch_breakdown.booster_breakdown.payment_history} />
+                      </div>
+                      <div className="flex items-center justify-between pt-2 mt-1 border-t border-border">
+                        <span className="text-[12px] font-bold">Total Welile vouch</span>
+                        <span className="text-[13px] font-black tabular-nums text-emerald-700 dark:text-emerald-400">
+                          {formatUGX(profile.trust.vouch_breakdown.total_ugx)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </motion.div>
         )}
 
