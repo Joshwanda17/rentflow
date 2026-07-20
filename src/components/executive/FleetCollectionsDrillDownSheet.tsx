@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Receipt, Search, X, Download } from 'lucide-react';
+import { CollectionLedgerImpactPanel } from './CollectionLedgerImpactPanel';
 
 type CollectionRow = {
   id: string;
@@ -243,6 +244,13 @@ export function FleetCollectionsDrillDownSheet({
               {selected.notes && <Field label="Notes" value={selected.notes} />}
               <Field label="Record ID" value={selected.id} mono />
             </div>
+            <CollectionLedgerImpactPanel
+              collectionId={selected.id}
+              agentId={selected.agent_id}
+              tenantId={selected.tenant_id}
+              agentName={(selected.agent_id && nameById.get(selected.agent_id)) || null}
+              tenantName={(selected.tenant_id && nameById.get(selected.tenant_id)) || null}
+            />
           </>
         ) : (
           <>
