@@ -295,6 +295,52 @@ export function buildReturnsDisbursementRequest(input: ReturnsDisbursementInput)
   };
 }
 
+export interface ReturnsProcessingInput {
+  recipientEmail: string;
+  partnerName: string | null | undefined;
+  partnerId: string;
+  txGroupId: string;             // idempotency scoping
+  amount: number;
+  transactionId: string;         // human-readable ref shown in email
+  portfolioCode?: string;
+  payoutMethod?: string;         // e.g. "Wallet"
+  isManagedByAgent?: boolean;
+  agentName?: string;
+}
+
+/**
+ * Stage 1 partner email: sent immediately after ROI is APPROVED and wallet-credited
+ * by process-supporter-roi. Tells the partner the payout has been approved and is
+ * being prepared. The final Stage 2 confirmation email (returns-disbursement-confirmation)
+ * is only sent later once the payout has actually been paid out via approve-withdrawal.
+ */
+export function buildReturnsProcessingRequest(input: ReturnsProcessingInput) {
+  return {
+    templateName: "partnership-returns-processing",
+    recipientEmail: input.recipientEmail,
+    idempotencyKey: `returns-processing-${input.partnerId}-${input.txGroupId}`,
+    templateData: {
+      partner_name: input.partnerName || "Partner",
+      transaction_id: input.transactionId,
+      portfolio_code: input.portfolioCode || "",
+      amount: input.amount,
+      currency: CURRENCY,
+      date: new Date().toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }),
+      payout_method: input.payoutMethod || "Wallet",
+      is_managed_by_agent: !!input.isManagedByAgent,
+      agent_name: input.agentName || "",
+      company_name: COMPANY_NAME,
+      logo_url: LOGO_URL,
+      unsubscribe_url: UNSUBSCRIBE_URL,
+      contact_url: CONTACT_URL,
+    },
+  };
+}
+
 export interface WithdrawalPaidReceiptInput {
   recipientEmail: string;
   recipientName?: string | null;

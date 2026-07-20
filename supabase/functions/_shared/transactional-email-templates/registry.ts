@@ -1,5 +1,6 @@
 import { template as testTemplate } from './test-email.tsx'
 import { template as returnsDisbursementTemplate } from './returns-disbursement-confirmation.tsx'
+import { template as partnershipReturnsProcessingTemplate } from './partnership-returns-processing.tsx'
 import { template as partnerWalletDepositTemplate } from './partner-wallet-deposit.tsx'
 import { template as partnershipAgreementTemplate } from './partnership-agreement.tsx'
 import { template as partnershipTopupTemplate } from './partnership-topup.tsx'
@@ -42,6 +43,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'director-requisition-new': directorRequisitionNewTemplate,
   'director-requisition-status': directorRequisitionStatusTemplate,
   'returns-disbursement-confirmation': returnsDisbursementTemplate,
+  'partnership-returns-processing': partnershipReturnsProcessingTemplate,
   'partner-wallet-deposit': partnerWalletDepositTemplate,
   'partnership-agreement': partnershipAgreementTemplate,
   'partnership-topup': partnershipTopupTemplate,

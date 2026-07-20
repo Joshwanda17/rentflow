@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import {
-  buildReturnsDisbursementRequest,
+  buildReturnsProcessingRequest,
   buildPartnerCompoundRequest,
   buildProxyManagedPayoutRequest,
   buildPartnershipTopupRequest,
@@ -291,8 +291,8 @@ Deno.serve(async (req) => {
             // Partner notification — money went to their wallet, agent will deliver.
             await supabase.from('notifications').insert({
               user_id: rr.supporter_id,
-              title: '💰 Monthly Reward Credited to Wallet',
-              message: `Your reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) was credited to your wallet. Your proxy agent ${managedProxy.agentName || 'agent'} will initiate a withdrawal for delivery.`,
+              title: '⏳ Monthly Return Approved — Processing',
+              message: `Your monthly return of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) has been approved and is being processed. Your proxy agent ${managedProxy.agentName || 'agent'} will complete the payout. You'll get a final confirmation once the funds are delivered.`,
               type: 'earning',
               metadata: {
                 rent_request_id: rr.id,
@@ -319,39 +319,33 @@ Deno.serve(async (req) => {
           } else {
             await supabase.from('notifications').insert({
               user_id: rr.supporter_id,
-              title: '💰 Monthly Reward Paid!',
-              message: `Your 15% monthly reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) has been credited to your wallet.`,
+              title: '⏳ Monthly Return Approved — Processing',
+              message: `Your monthly return of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) has been approved and is being processed. You'll receive a final confirmation as soon as the payout is delivered.`,
               type: 'earning',
               metadata: { rent_request_id: rr.id, roi_amount: roiAmount, payment_number: paymentNumber },
             });
           }
 
-          // Returns Disbursement email — fire-and-forget (mirrors cfo-direct-credit)
+          // Stage 1 email: "Processing" — sent on approval only.
+          // The Stage 2 "Paid" email (returns-disbursement-confirmation) is
+          // dispatched later by approve-withdrawal once funds actually leave.
           try {
             const { data: partnerProfile } = await supabase
               .from('profiles').select('email, full_name').eq('id', rr.supporter_id).maybeSingle();
             if (partnerProfile?.email) {
-              const walletOwnerId = rr.supporter_id;
-              const { data: partnerWallet } = await supabase
-                .from('wallets').select('id').eq('user_id', walletOwnerId).maybeSingle();
-              const walletLast4 = partnerWallet?.id ? partnerWallet.id.replace(/-/g, '').slice(-4) : '';
               dispatchTransactionalEmail(
                 Deno.env.get('SUPABASE_URL')!,
                 Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-                buildReturnsDisbursementRequest({
+                buildReturnsProcessingRequest({
                   recipientEmail: partnerProfile.email,
                   partnerName: partnerProfile.full_name,
                   partnerId: rr.supporter_id,
                   txGroupId: `${rr.id}-${paymentNumber}`,
                   amount: roiAmount,
                   transactionId: `ROI-${rr.id.slice(0, 8).toUpperCase()}-${paymentNumber}`,
-                  walletIdLast4: walletLast4,
                   payoutMethod: 'Wallet',
                   isManagedByAgent: !!managedProxy,
                   agentName: managedProxy?.agentName || undefined,
-                  // Pass principal so template derives the actual ROI %
-                  // (e.g. 12% / 15%) instead of falling back to a static label.
-                  principalAmount: Number(rr.rent_amount) || undefined,
                 }),
                 'process-supporter-roi',
               );
