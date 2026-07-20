@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Download, ArrowLeft, ChevronRight } from 'lucide-react';
 
 type ActiveRent = {
   id: string;
@@ -283,6 +283,61 @@ export function BucketReconciliationPanel({
 
   // Sort state.
   const [tab, setTab] = useState<'missing' | 'extra'>('missing');
+  const [selection, setSelection] = useState<{ kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string } | null>(null);
+
+  // Close selection when switching tabs / bucket.
+  const switchTab = (t: 'missing' | 'extra') => { setTab(t); setSelection(null); };
+
+  // Chronological collections (used for detail views).
+  const chrono = useMemo(
+    () => [...collections].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [collections],
+  );
+
+  // Build the detail payload for the currently selected row.
+  const detail = useMemo(() => {
+    if (!selection) return null;
+    const nameOf = (id: string | null) => (id && nameById.get(id)) || '';
+    if (selection.kind === 'missing') {
+      const m = missingAll.find((r) => r.rent_id === selection.rentId);
+      if (!m) return null;
+      const plan = rentById.get(m.rent_id);
+      const dailyPlan = Number(plan?.daily_repayment) || 0;
+      const totalDue = Number(plan?.total_repayment) || 0;
+      const paidBefore = Number(plan?.amount_repaid) || 0;
+      const remaining = Math.max(0, totalDue - paidBefore);
+      const planCollections = chrono.filter((c) => c.rent_request_id === m.rent_id);
+      const tenantOtherCollections = chrono.filter((c) => c.tenant_id && plan?.tenant_id && c.tenant_id === plan.tenant_id && c.rent_request_id !== m.rent_id);
+      return { kind: 'missing' as const, m, plan, dailyPlan, totalDue, paidBefore, remaining, planCollections, tenantOtherCollections, nameOf };
+    }
+    const c = extraAll.find((r) => r.collection_id === selection.collectionId);
+    if (!c) return null;
+    const plan = c.rent_request_id ? rentById.get(c.rent_request_id) : undefined;
+    const dailyPlan = Number(plan?.daily_repayment) || 0;
+    const totalDue = Number(plan?.total_repayment) || 0;
+    const paidBefore = Number(plan?.amount_repaid) || 0;
+    const remaining = Math.max(0, totalDue - paidBefore);
+    const expected = plan ? Math.min(remaining, dailyPlan * bucketDays) : 0;
+    const timeline = plan
+      ? chrono
+          .filter((x) => x.rent_request_id === c.rent_request_id)
+          .reduce<{ id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[]>((acc, x) => {
+            const prev = acc.length ? acc[acc.length - 1].cumulative : 0;
+            const cumulative = prev + (Number(x.amount) || 0);
+            acc.push({
+              id: x.id,
+              when: new Date(x.created_at).getTime(),
+              amount: Number(x.amount) || 0,
+              cumulative,
+              over_daily: Math.max(0, cumulative - expected),
+              over_remaining: Math.max(0, cumulative - remaining),
+              isThis: x.id === c.collection_id,
+            });
+            return acc;
+          }, [])
+      : [];
+    return { kind: 'extra' as const, c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, timeline, nameOf };
+  }, [selection, missingAll, extraAll, rentById, chrono, bucketDays, nameById]);
   const [mSort, setMSort] = useState<{ k: MSort; dir: 'asc' | 'desc' }>({ k: 'variance', dir: 'desc' });
   const [eSort, setESort] = useState<{ k: ESort; dir: 'asc' | 'desc' }>({ k: 'extra', dir: 'desc' });
 
@@ -388,12 +443,23 @@ export function BucketReconciliationPanel({
             </div>
 
             <div className="px-4 pt-2 border-b border-border flex items-center gap-1.5">
-              <TabBtn active={tab === 'missing'} onClick={() => setTab('missing')} icon={<AlertCircle className="h-3 w-3" />} label={`Missing (${missingAll.length})`} tone="rose" />
-              <TabBtn active={tab === 'extra'} onClick={() => setTab('extra')} icon={<Plus className="h-3 w-3" />} label={`Extra (${extraAll.length})`} tone="amber" />
+              <TabBtn active={tab === 'missing'} onClick={() => switchTab('missing')} icon={<AlertCircle className="h-3 w-3" />} label={`Missing (${missingAll.length})`} tone="rose" />
+              <TabBtn active={tab === 'extra'} onClick={() => switchTab('extra')} icon={<Plus className="h-3 w-3" />} label={`Extra (${extraAll.length})`} tone="amber" />
+              {selection && (
+                <button
+                  type="button"
+                  onClick={() => setSelection(null)}
+                  className="ml-auto h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-background border border-border hover:bg-muted"
+                >
+                  <ArrowLeft className="h-3 w-3" /> Back to list
+                </button>
+              )}
             </div>
 
             <div className="flex-1 overflow-auto">
-              {tab === 'missing' ? (
+              {selection && detail ? (
+                <ReconDetailView detail={detail} bucketDays={bucketDays} onOpenAnother={(sel) => setSelection(sel)} />
+              ) : tab === 'missing' ? (
                 missing.length === 0 ? (
                   <p className="p-6 text-center text-[11px] text-muted-foreground">No underpayments — every active plan met its expected obligation in this bucket. 🎯</p>
                 ) : (
@@ -410,9 +476,12 @@ export function BucketReconciliationPanel({
                     </thead>
                     <tbody className="divide-y divide-border">
                       {missing.map((r) => (
-                        <tr key={r.rent_id} className="hover:bg-rose-500/5">
+                        <tr key={r.rent_id} className="hover:bg-rose-500/5 cursor-pointer" onClick={() => setSelection({ kind: 'missing', rentId: r.rent_id })} title="Open variance breakdown">
                           <td className="px-2 py-1.5">
-                            <div className="font-semibold text-foreground truncate max-w-[14rem]">{(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}</div>
+                            <div className="font-semibold text-foreground truncate max-w-[14rem] inline-flex items-center gap-1">
+                              {(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}
+                              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                            </div>
                             {r.tenant_id && <div className="text-[9px] font-mono text-muted-foreground">{r.tenant_id.slice(0, 8)} · plan {r.rent_id.slice(0, 8)}</div>}
                           </td>
                           <td className="px-2 py-1.5 hidden md:table-cell truncate max-w-[10rem]">{(r.agent_id && nameById.get(r.agent_id)) || '—'}</td>
@@ -451,10 +520,13 @@ export function BucketReconciliationPanel({
                     </thead>
                     <tbody className="divide-y divide-border">
                       {extras.map((r) => (
-                        <tr key={r.collection_id} className="hover:bg-amber-500/5">
+                        <tr key={r.collection_id} className="hover:bg-amber-500/5 cursor-pointer" onClick={() => setSelection({ kind: 'extra', collectionId: r.collection_id })} title="Open extra-collection breakdown">
                           <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(r.when_ms)}</td>
                           <td className="px-2 py-1.5">
-                            <div className="font-semibold text-foreground truncate max-w-[12rem]">{(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}</div>
+                            <div className="font-semibold text-foreground truncate max-w-[12rem] inline-flex items-center gap-1">
+                              {(r.tenant_id && nameById.get(r.tenant_id)) || '(no tenant)'}
+                              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                            </div>
                             {r.rent_request_id && <div className="text-[9px] font-mono text-muted-foreground">plan {r.rent_request_id.slice(0, 8)}</div>}
                           </td>
                           <td className="px-2 py-1.5 hidden md:table-cell truncate max-w-[10rem]">{(r.agent_id && nameById.get(r.agent_id)) || '—'}</td>
@@ -517,5 +589,218 @@ function TabBtn({ active, onClick, icon, label, tone }: { active: boolean; onCli
     >
       {icon}{label}
     </button>
+  );
+}
+
+type DetailPayload =
+  | {
+      kind: 'missing';
+      m: MissingRow;
+      plan: ActiveRent | undefined;
+      dailyPlan: number;
+      totalDue: number;
+      paidBefore: number;
+      remaining: number;
+      planCollections: BucketCollection[];
+      tenantOtherCollections: BucketCollection[];
+      nameOf: (id: string | null) => string;
+    }
+  | {
+      kind: 'extra';
+      c: ExtraRow;
+      plan: ActiveRent | undefined;
+      dailyPlan: number;
+      totalDue: number;
+      paidBefore: number;
+      remaining: number;
+      expected: number;
+      timeline: { id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[];
+      nameOf: (id: string | null) => string;
+    };
+
+function ReconDetailView({
+  detail,
+  bucketDays,
+  onOpenAnother,
+}: {
+  detail: DetailPayload;
+  bucketDays: number;
+  onOpenAnother: (sel: { kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string }) => void;
+}) {
+  if (detail.kind === 'missing') {
+    const { m, plan, dailyPlan, totalDue, paidBefore, remaining, planCollections, tenantOtherCollections, nameOf } = detail;
+    const proration = bucketDays >= 0.999 ? '1 full day' : `${(bucketDays * 24).toFixed(2)} hours (${(bucketDays * 100 / 1).toFixed(1)}% of a day)`;
+    return (
+      <div className="p-4 space-y-4">
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-rose-800">Missing collection · variance breakdown</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <div className="text-base font-bold text-foreground truncate">{nameOf(m.tenant_id) || '(no tenant)'}</div>
+            <div className="text-[10px] font-mono text-muted-foreground">{m.tenant_id?.slice(0, 8) || '—'}</div>
+          </div>
+          <div className="text-[10px] text-muted-foreground">Agent: <span className="text-foreground font-semibold">{nameOf(m.agent_id) || '—'}</span> · Plan <span className="font-mono">{m.rent_id.slice(0, 8)}</span> · Status <span className="font-semibold">{plan?.status || '—'}</span></div>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Prorated obligation for this bucket</div>
+          <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+            <tbody className="divide-y divide-border">
+              <MathRow label="Plan daily repayment" value={formatUGX(dailyPlan)} />
+              <MathRow label="Bucket length" value={proration} />
+              <MathRow label="Daily × bucket length" value={formatUGX(Math.round(dailyPlan * bucketDays))} />
+              <MathRow label="Total due on plan" value={formatUGX(totalDue)} />
+              <MathRow label="Already repaid (before bucket)" value={formatUGX(paidBefore)} />
+              <MathRow label="Remaining balance" value={formatUGX(remaining)} />
+              <MathRow label="Expected in bucket = min(remaining, daily × bucket)" value={formatUGX(Math.round(m.daily))} accent="violet" bold />
+              <MathRow label="Collected in bucket" value={formatUGX(Math.round(m.collected))} accent="primary" bold />
+              <MathRow label="Variance = expected − collected" value={`−${formatUGX(Math.round(m.variance))}`} accent="rose" bold />
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Collections linked to this plan in this bucket ({planCollections.length})</div>
+          {planCollections.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">Zero collections — the plan received nothing in this window.</p>
+          ) : (
+            <MiniCollectionTable rows={planCollections} nameOf={nameOf} />
+          )}
+        </div>
+
+        {tenantOtherCollections.length > 0 && (
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
+              Same tenant paid on {tenantOtherCollections.length} other plan{tenantOtherCollections.length === 1 ? '' : 's'} in this bucket
+            </div>
+            <p className="text-[10px] text-muted-foreground mb-1 italic">Collections booked to a different `rent_request_id` for the same tenant — often the source of misattribution.</p>
+            <MiniCollectionTable rows={tenantOtherCollections} nameOf={nameOf} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const { c, plan, dailyPlan, totalDue, paidBefore, remaining, expected, timeline, nameOf } = detail;
+  return (
+    <div className="p-4 space-y-4">
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+        <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Extra collection · why flagged</div>
+        <div className="mt-1 flex items-baseline gap-2">
+          <div className="text-base font-bold text-foreground">{formatUGX(c.amount)}</div>
+          <div className="text-[10px] text-muted-foreground">at {fmtWhen(c.when_ms)}</div>
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          Tenant: <span className="text-foreground font-semibold">{nameOf(c.tenant_id) || '—'}</span> · Agent: <span className="text-foreground font-semibold">{nameOf(c.agent_id) || '—'}</span>
+          {c.method && <> · Method: <span className="text-foreground font-semibold">{c.method.replace(/_/g, ' ')}</span></>}
+        </div>
+        <div className="mt-1">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-900 text-[10px] font-semibold">{c.reason_label}</span>
+          <span className="ml-2 text-[10px] text-muted-foreground">Extra amount: <span className="font-bold text-amber-800">+{formatUGX(Math.round(c.extra_amount))}</span></span>
+        </div>
+      </div>
+
+      {plan ? (
+        <>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Linked plan obligation</div>
+            <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+              <tbody className="divide-y divide-border">
+                <MathRow label="Plan" value={`${plan.id.slice(0, 8)} · ${plan.status || '—'}`} />
+                <MathRow label="Plan daily repayment" value={formatUGX(dailyPlan)} />
+                <MathRow label="Total due" value={formatUGX(totalDue)} />
+                <MathRow label="Already repaid (before bucket)" value={formatUGX(paidBefore)} />
+                <MathRow label="Remaining balance" value={formatUGX(remaining)} />
+                <MathRow label="Expected in bucket" value={formatUGX(Math.round(expected))} accent="violet" bold />
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Cumulative timeline for this plan in the bucket</div>
+            <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+              <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
+                <tr>
+                  <th className="text-left px-2 py-1.5">When (EAT)</th>
+                  <th className="text-right px-2 py-1.5">Amount</th>
+                  <th className="text-right px-2 py-1.5">Cumulative</th>
+                  <th className="text-right px-2 py-1.5">Over daily</th>
+                  <th className="text-right px-2 py-1.5">Over remaining</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {timeline.map((t) => (
+                  <tr key={t.id} className={t.isThis ? 'bg-amber-500/10 font-semibold' : ''}>
+                    <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">
+                      {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.amount)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.cumulative)}</td>
+                    <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</td>
+                    <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-1 text-[10px] text-muted-foreground italic">
+              The row is flagged as extra because its cumulative pushes the plan over the {c.reason === 'over_remaining' ? 'remaining balance' : c.reason === 'over_daily' ? 'daily expected amount' : 'link/status check'} by <span className="font-bold text-amber-800">+{formatUGX(Math.round(c.extra_amount))}</span>.
+            </p>
+          </div>
+        </>
+      ) : (
+        <div className="rounded-md border border-dashed border-border p-3 text-[11px] text-muted-foreground">
+          {c.reason === 'no_plan_link'
+            ? 'This collection was recorded without any `rent_request_id`, so it cannot be attributed to a plan obligation. Investigate whether it should be re-linked or refunded.'
+            : 'The linked plan is not currently active (closed / cancelled / paid off), so no daily obligation exists for it in this bucket.'}
+        </div>
+      )}
+
+      {/* Suggest jumping to the missing plan for the same tenant if any. */}
+      {plan && (
+        <button
+          type="button"
+          onClick={() => onOpenAnother({ kind: 'missing', rentId: plan.id })}
+          className="text-[10px] font-semibold text-primary hover:underline"
+        >
+          → View this plan's variance in the Missing tab
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MathRow({ label, value, accent, bold }: { label: string; value: string; accent?: 'violet' | 'primary' | 'rose'; bold?: boolean }) {
+  const color = accent === 'violet' ? 'text-violet-700' : accent === 'primary' ? 'text-primary' : accent === 'rose' ? 'text-rose-700' : 'text-foreground';
+  return (
+    <tr>
+      <td className="px-2 py-1.5 text-muted-foreground">{label}</td>
+      <td className={`px-2 py-1.5 text-right tabular-nums ${bold ? 'font-bold' : ''} ${color}`}>{value}</td>
+    </tr>
+  );
+}
+
+function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameOf: (id: string | null) => string }) {
+  return (
+    <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
+      <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
+        <tr>
+          <th className="text-left px-2 py-1.5">When (EAT)</th>
+          <th className="text-left px-2 py-1.5">Agent</th>
+          <th className="text-left px-2 py-1.5">Method</th>
+          <th className="text-right px-2 py-1.5">Amount</th>
+          <th className="text-left px-2 py-1.5">Plan</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+        {rows.map((r) => (
+          <tr key={r.id}>
+            <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(new Date(r.created_at).getTime())}</td>
+            <td className="px-2 py-1.5 truncate max-w-[10rem]">{nameOf(r.agent_id) || '—'}</td>
+            <td className="px-2 py-1.5">{(r.payment_method || '—').replace(/_/g, ' ')}</td>
+            <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{formatUGX(Number(r.amount) || 0)}</td>
+            <td className="px-2 py-1.5 font-mono text-[9px] text-muted-foreground">{r.rent_request_id?.slice(0, 8) || '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
