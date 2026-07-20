@@ -353,6 +353,17 @@ export function DirectCreditTool() {
   const [floatConfirmOpen, setFloatConfirmOpen] = useState(false);
   const [floatApproved, setFloatApproved] = useState(false);
 
+  // Forced-Reversal confirmation state — opened when the edge function
+  // rejects a debit for insufficient strict-ledger balance. The CFO must
+  // explicitly consent to creating a recoverable debt before we retry with
+  // allow_overdraw=true.
+  const [overdrawInfo, setOverdrawInfo] = useState<{
+    available: number;
+    requested: number;
+    shortfall: number;
+  } | null>(null);
+  const [overdrawApproved, setOverdrawApproved] = useState(false);
+
   // ── Expense-Only Withdrawal state ──────────────────────────────────
   // Used when operation === 'withdraw'. Captures HOW the company is
   // paying the expense out (Cash / MoMo / Bank) and WHO/WHERE it goes.
@@ -480,7 +491,7 @@ export function DirectCreditTool() {
   }, [selectedCategory, operation]);
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts?: { allowOverdraw?: boolean }) => {
       const amt = parseFloat(amount);
       if (!amt || amt <= 0) throw new Error('Invalid amount');
       if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
@@ -557,10 +568,28 @@ export function DirectCreditTool() {
           // Manual CFO payout — never subject to email-origin idempotency.
           // Allows paying any user, any category/sub-category, countless times.
           manual_credit: true,
+          // Forced Reversal — set only after CFO explicitly confirms creating
+          // a recoverable debt in the shortfall dialog.
+          allow_overdraw: opts?.allowOverdraw === true,
+          solvency_bypass_reason: opts?.allowOverdraw === true ? 'duplicate_reversal' : undefined,
         },
       });
       if (error) {
         const msg = await extractFromErrorObject(error, 'Something went wrong');
+        if (msg.includes('INSUFFICIENT_AVAILABLE_BALANCE')) {
+          const availMatch = msg.match(/strict available balance is (\d+)/);
+          const reqMatch = msg.match(/requested (\d+)/);
+          const shortMatch = msg.match(/shortfall (\d+)/);
+          setOverdrawInfo({
+            available: availMatch ? Number(availMatch[1]) : 0,
+            requested: reqMatch ? Number(reqMatch[1]) : amt,
+            shortfall: shortMatch ? Number(shortMatch[1]) : Math.max(0, amt - (availMatch ? Number(availMatch[1]) : 0)),
+          });
+          setOverdrawApproved(false);
+          const silent: any = new Error('INSUFFICIENT_AVAILABLE_BALANCE');
+          silent.__silent = true;
+          throw silent;
+        }
         if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
         if (msg.includes('Insufficient permissions')) throw new Error('Your role does not have CFO privileges.');
         if (msg.includes('Target user not found')) throw new Error('The selected user could not be found.');
