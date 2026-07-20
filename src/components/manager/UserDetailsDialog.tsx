@@ -413,7 +413,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         .from('profiles')
         .update({
           is_frozen: newFrozen,
-          frozen_reason: newFrozen ? 'Your account has been frozen for violating platform policies. Contact support on WhatsApp: 0708 257 899' : null,
+          frozen_reason: newFrozen ? 'Your account has been frozen for violating platform policies. Contact support on WhatsApp: +256777607640' : null,
           frozen_at: newFrozen ? new Date().toISOString() : null,
         })
         .eq('id', user.id);
