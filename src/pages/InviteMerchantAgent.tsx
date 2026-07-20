@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Store, Wallet, HandCoins, ShieldCheck, ChevronLeft, ChevronRight,
-  PenLine, CheckCircle2, Loader2, FileText, BadgeCheck,
+  PenLine, CheckCircle2, Loader2, FileText, BadgeCheck, Download, Printer,
 } from 'lucide-react';
 import SignaturePad from '@/components/shared/SignaturePad';
 import { buildMerchantAgreementHtml } from '@/components/merchant/agreement/merchantAgreementTemplate';
@@ -212,6 +212,45 @@ export default function InviteMerchantAgent() {
           <div className="px-4 py-3 border-b border-border bg-muted/40 flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
             <p className="text-sm font-bold flex-1">Welile Merchant Agent Agreement</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-lg"
+              onClick={() => {
+                const w = window.open('', '_blank');
+                if (!w) {
+                  toast.error('Enable pop-ups to print the agreement.');
+                  return;
+                }
+                w.document.write(contractHtml);
+                w.document.close();
+                w.focus();
+                setTimeout(() => w.print(), 300);
+              }}
+            >
+              <Printer className="h-3.5 w-3.5 mr-1" /> Print
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-lg"
+              onClick={() => {
+                const blob = new Blob([contractHtml], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Welile-Merchant-Agent-Agreement-${MERCHANT_AGREEMENT_VERSION}.html`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                toast.success('Agreement downloaded. Open it and use Print → Save as PDF for a PDF copy.');
+              }}
+            >
+              <Download className="h-3.5 w-3.5 mr-1" /> Download
+            </Button>
           </div>
           <iframe
             title="Merchant Agent Agreement"
