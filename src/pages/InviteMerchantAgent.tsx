@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Store, Wallet, HandCoins, ShieldCheck, ChevronLeft, ChevronRight,
-  PenLine, CheckCircle2, Loader2, FileText, BadgeCheck, Download, Printer,
+  PenLine, CheckCircle2, Loader2, FileText, BadgeCheck,
 } from 'lucide-react';
 import SignaturePad from '@/components/shared/SignaturePad';
 import { buildMerchantAgreementHtml } from '@/components/merchant/agreement/merchantAgreementTemplate';
