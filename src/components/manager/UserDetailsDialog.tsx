@@ -423,7 +423,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         await supabase.from('notifications').insert({
           user_id: user.id,
           title: '🚫 Account Frozen',
-          message: 'Your account has been FROZEN for violating platform policies. All transactions are blocked. Contact support on WhatsApp: 0708 257 899',
+          message: 'Your account has been FROZEN for violating platform policies. All transactions are blocked. Contact support on WhatsApp: +256777607640',
           type: 'warning',
           metadata: { severity: 'critical', support_action_required: true },
         });
@@ -434,7 +434,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             body: {
               user_id: user.id,
               message:
-                'Your account has been FROZEN for violating platform policies. All transactions are blocked. Contact support on WhatsApp: 0708 257 899',
+                'Your account has been FROZEN for violating platform policies. All transactions are blocked. Contact support on WhatsApp: +256777607640',
             },
           });
         } catch (smsErr) {

@@ -112,7 +112,7 @@ function DashboardContent() {
 
   // Derive frozen state from profile (no separate DB call)
   const isFrozen = profile?.is_frozen ?? false;
-  const frozenReason = profile?.frozen_reason || 'Your account has been frozen for violating platform policies.';
+  const frozenReason = (profile?.frozen_reason || 'Your account has been frozen for violating platform policies.').replace('0708 257 899', '+256777607640');
   
 
   // Monitor online status
@@ -283,8 +283,8 @@ function DashboardContent() {
           </div>
           <div className="bg-card border rounded-lg p-4 space-y-2">
             <p className="text-sm font-medium">Need help? Contact Support on WhatsApp</p>
-            <a href="https://wa.me/256708257899" target="_blank" rel="noopener noreferrer" className="block text-lg font-bold text-green-600 underline">
-              💬 0708 257 899
+            <a href="https://wa.me/256777607640" target="_blank" rel="noopener noreferrer" className="block text-lg font-bold text-green-600 underline">
+              💬 +256777607640
             </a>
             <p className="text-xs text-muted-foreground">
               WhatsApp only
