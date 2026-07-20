@@ -1728,6 +1728,16 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
               <div className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-800 overflow-hidden">
                 <button
                   type="button"
+                  onClick={() => jumpToFlaggedEdge('first')}
+                  disabled={flaggedIdxs.length < 2 || cursor === 0}
+                  title="First flagged row (press Home)"
+                  className="h-6 px-1 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center border-r border-amber-500/40"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  <ChevronLeft className="h-3 w-3 -ml-2" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => stepFlagged(-1)}
                   disabled={flaggedIdxs.length < 2}
                   title="Previous flagged row (press P or [)"
@@ -1738,7 +1748,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                 <button
                   type="button"
                   onClick={jumpToFlagged}
-                  title="Scroll to the highlighted collection"
+                  title="Scroll to the highlighted collection (press J)"
                   className="h-6 px-2 font-semibold hover:bg-amber-500/20 inline-flex items-center gap-1 border-x border-amber-500/40"
                 >
                   <Crosshair className="h-3 w-3" />
@@ -1748,10 +1758,20 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                   type="button"
                   onClick={() => stepFlagged(1)}
                   disabled={flaggedIdxs.length < 2}
-                  title="Next flagged row"
+                  title="Next flagged row (press N or ])"
                   className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
                 >
                   <ChevronRight className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => jumpToFlaggedEdge('last')}
+                  disabled={flaggedIdxs.length < 2 || cursor === flaggedIdxs.length - 1}
+                  title="Last flagged row (press End)"
+                  className="h-6 px-1 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center border-l border-amber-500/40"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                  <ChevronRight className="h-3 w-3 -ml-2" />
                 </button>
               </div>
             )}
