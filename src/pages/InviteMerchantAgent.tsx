@@ -115,6 +115,23 @@ export default function InviteMerchantAgent() {
       };
       try { localStorage.setItem(INTAKE_KEY, JSON.stringify(intake)); } catch { /* ignore */ }
 
+      // Auto-download the fully-signed contract so the merchant keeps a copy.
+      try {
+        const blob = new Blob([contractHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = intake.full_name.replace(/[^a-z0-9]+/gi, '-') || 'Merchant-Agent';
+        a.download = `Welile-Merchant-Agent-Agreement-${safeName}-${MERCHANT_AGREEMENT_VERSION}.html`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast.success('Signed agreement downloaded to your device.');
+      } catch (dlErr) {
+        console.warn('[InviteMerchantAgent] auto-download failed', dlErr);
+      }
+
       if (user?.id) {
         // Signed in already — stamp pending flag and go straight to onboarding.
         if (ref && ref !== user.id) {
