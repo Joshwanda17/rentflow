@@ -1636,6 +1636,27 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
     if (activeFlaggedIdx + 1 > effectiveVisible) setVisible(activeFlaggedIdx + 1);
     setJumpTick((n) => n + 1);
   };
+  // Keyboard shortcuts while the timeline is mounted:
+  //   J → jump to the currently highlighted flagged row
+  //   N / ] → next flagged row
+  //   P / [ → previous flagged row
+  // Ignored while the user is typing in an input/textarea/contentEditable.
+  useEffect(() => {
+    if (flaggedIdxs.length === 0) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
+      const k = e.key.toLowerCase();
+      if (k === 'j') { e.preventDefault(); jumpToFlagged(); }
+      else if (k === 'n' || e.key === ']') { e.preventDefault(); stepFlagged(1); }
+      else if (k === 'p' || e.key === '[') { e.preventDefault(); stepFlagged(-1); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flaggedIdxs, cursor, effectiveVisible, activeFlaggedIdx]);
   const Icon = ({ k }: { k: TimelineSortKey }) =>
     sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   const SortBtn = ({ k, label, align = 'left' }: { k: TimelineSortKey; label: string; align?: 'left' | 'right' }) => (
