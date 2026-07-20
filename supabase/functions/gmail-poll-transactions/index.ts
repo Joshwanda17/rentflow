@@ -2049,11 +2049,18 @@ async function loadMomoSignupSmsTemplate(
       .eq('key', 'momo_sender_signup_sms')
       .maybeSingle();
     const v = (data?.value ?? {}) as Partial<MomoSignupSmsTemplate>;
+    // Safety net: force the canonical public domain even if a stale
+    // system_config row still references the legacy welilereceipts.com host.
+    const rawLink = (v.signup_link ?? DEFAULT_MOMO_SIGNUP_SMS.signup_link).toString();
+    const signup_link = rawLink.replace(
+      /https?:\/\/(www\.)?welilereceipts?\.com/gi,
+      'https://welileapp.com',
+    );
     return {
       enabled: v.enabled !== false,
       thank_you_text: (v.thank_you_text ?? DEFAULT_MOMO_SIGNUP_SMS.thank_you_text).toString(),
       signup_prompt: (v.signup_prompt ?? DEFAULT_MOMO_SIGNUP_SMS.signup_prompt).toString(),
-      signup_link: (v.signup_link ?? DEFAULT_MOMO_SIGNUP_SMS.signup_link).toString(),
+      signup_link,
       address: (v.address ?? DEFAULT_MOMO_SIGNUP_SMS.address).toString(),
       website: (v.website ?? DEFAULT_MOMO_SIGNUP_SMS.website).toString(),
       support_email: (v.support_email ?? DEFAULT_MOMO_SIGNUP_SMS.support_email).toString(),
