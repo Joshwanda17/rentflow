@@ -544,6 +544,7 @@ export function BucketReconciliationPanel({
                 <ReconDetailView
                   detail={detail}
                   bucketDays={bucketDays}
+                  bucketLabel={scopeLabel}
                   onOpenAnother={(sel) => setSelection(sel)}
                   isReviewed={
                     detail.kind === 'missing'
