@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Users, CheckCircle2, Clock, Wallet, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { formatUGX } from '@/lib/formatUGX';
+import { formatUGX } from '@/lib/rentCalculations';
 import InviteMerchantAgentCard from '@/components/agent/InviteMerchantAgentCard';
 
 interface ReferralRow {
