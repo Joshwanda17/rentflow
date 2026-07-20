@@ -353,6 +353,7 @@ function GlobalOnboardingGates() {
       <NameCompletionGate />
       <RejectionAlertGate />
       <SubAgentInviteGate />
+      <MerchantAgentReferralGate />
     </>
   );
 }
