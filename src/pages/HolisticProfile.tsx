@@ -551,3 +551,14 @@ function Stat({
     </div>
   );
 }
+
+function VouchRow({ label, value, emphasis }: { label: string; value: number; emphasis?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className={`text-[11px] ${emphasis ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{label}</span>
+      <span className={`text-[11px] tabular-nums ${emphasis ? 'font-bold text-foreground' : 'font-semibold text-foreground/80'}`}>
+        {formatUGX(value)}
+      </span>
+    </div>
+  );
+}
