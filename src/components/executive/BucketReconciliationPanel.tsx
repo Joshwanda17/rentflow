@@ -1124,6 +1124,18 @@ function MathRow({ label, value, accent, bold }: { label: string; value: string;
   );
 }
 
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2">
+      <div className="shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold inline-flex items-center justify-center">{n}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] font-bold text-foreground">{title}</div>
+        <div className="mt-0.5 space-y-0.5">{children}</div>
+      </div>
+    </li>
+  );
+}
+
 function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameOf: (id: string | null) => string }) {
   return (
     <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
