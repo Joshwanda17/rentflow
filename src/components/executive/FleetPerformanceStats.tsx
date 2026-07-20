@@ -26,6 +26,8 @@ import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import { useQueryClient } from '@tanstack/react-query';
 import { LastUpdatedChip } from './LastUpdatedChip';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { FleetCollectionsDrillDownSheet } from './FleetCollectionsDrillDownSheet';
+import { ExpectedContributorsSheet } from './ExpectedContributorsSheet';
 import {
   ComposedChart,
   Bar,
@@ -551,6 +553,28 @@ export function FleetPerformanceStats({
   const [alertMinExpected, setAlertMinExpected] = useState<number>(restoredAlerts?.minExpected ?? 10_000);
   const [alertsOpen, setAlertsOpen] = useState<boolean>(true);
   const [alertConfigOpen, setAlertConfigOpen] = useState<boolean>(false);
+
+  // Drill-down state — every clickable number opens the appropriate sheet.
+  const [drillOpen, setDrillOpen] = useState(false);
+  const [drillAgentId, setDrillAgentId] = useState<string | null>(null);
+  const [drillAgentName, setDrillAgentName] = useState<string | null>(null);
+  const [drillBucket, setDrillBucket] = useState<{ start: Date; end: Date; label: string } | null>(null);
+  const [expectedOpen, setExpectedOpen] = useState(false);
+  const [expectedAgentId, setExpectedAgentId] = useState<string | null>(null);
+  const [expectedAgentName, setExpectedAgentName] = useState<string | null>(null);
+
+  const openDrill = (opts: { agentId?: string | null; agentName?: string | null; bucket?: { start: Date; end: Date; label: string } | null } = {}) => {
+    setDrillAgentId(opts.agentId ?? null);
+    setDrillAgentName(opts.agentName ?? null);
+    setDrillBucket(opts.bucket ?? null);
+    setDrillOpen(true);
+  };
+  const openExpected = (opts: { agentId?: string | null; agentName?: string | null } = {}) => {
+    setExpectedAgentId(opts.agentId ?? null);
+    setExpectedAgentName(opts.agentName ?? null);
+    setExpectedOpen(true);
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -808,7 +832,7 @@ export function FleetPerformanceStats({
 
   // Trend series of collected vs expected, bucketed by hour / day / month.
   const trendData = useMemo(() => {
-    const out: { label: string; collected: number; expected: number }[] = [];
+    const out: { label: string; collected: number; expected: number; bucketStart: number; bucketEnd: number }[] = [];
     const endMs = end.getTime();
     if (granularity === 'hour') {
       const cursor = new Date(start);
@@ -816,7 +840,9 @@ export function FleetPerformanceStats({
       const expectedPerHour = expectedPerDay / 24;
       while (cursor.getTime() < endMs) {
         const k = hourKey(cursor);
-        out.push({ label: format(cursor, 'h a'), collected: collectedBuckets[k] || 0, expected: expectedPerHour });
+        const bs = new Date(cursor);
+        const be = new Date(cursor); be.setHours(be.getHours() + 1);
+        out.push({ label: format(cursor, 'h a'), collected: collectedBuckets[k] || 0, expected: expectedPerHour, bucketStart: Math.max(bs.getTime(), start.getTime()), bucketEnd: Math.min(be.getTime(), endMs) });
         cursor.setHours(cursor.getHours() + 1);
       }
     } else if (granularity === 'month') {
@@ -827,14 +853,16 @@ export function FleetPerformanceStats({
         const nextMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
         const bucketEnd = Math.min(nextMonth.getTime(), endMs);
         const dCount = Math.max(1, Math.round((bucketEnd - bucketStart) / 86_400_000));
-        out.push({ label: format(cursor, 'MMM yy'), collected: collectedBuckets[k] || 0, expected: expectedPerDay * dCount });
+        out.push({ label: format(cursor, 'MMM yy'), collected: collectedBuckets[k] || 0, expected: expectedPerDay * dCount, bucketStart, bucketEnd });
         cursor.setMonth(cursor.getMonth() + 1);
       }
     } else {
       const cursor = startOfDay(start);
       while (cursor.getTime() < endMs) {
         const k = dayKey(cursor);
-        out.push({ label: format(cursor, 'MMM d'), collected: collectedBuckets[k] || 0, expected: expectedPerDay });
+        const bs = new Date(cursor);
+        const be = new Date(cursor); be.setDate(be.getDate() + 1);
+        out.push({ label: format(cursor, 'MMM d'), collected: collectedBuckets[k] || 0, expected: expectedPerDay, bucketStart: Math.max(bs.getTime(), start.getTime()), bucketEnd: Math.min(be.getTime(), endMs) });
         cursor.setDate(cursor.getDate() + 1);
       }
     }
@@ -987,7 +1015,14 @@ export function FleetPerformanceStats({
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
-            <Stat icon={<Target className="h-3.5 w-3.5" />} label="Expected" value={formatUGX(totalExpected)} tone="text-violet-600" />
+            <Stat
+              icon={<Target className="h-3.5 w-3.5" />}
+              label="Expected"
+              value={formatUGX(totalExpected)}
+              tone="text-violet-600"
+              onClick={() => openExpected()}
+              clickHint="View every active rent plan contributing to Expected"
+            />
             <Stat
               icon={<Banknote className="h-3.5 w-3.5" />}
               label="Collected"
@@ -1002,6 +1037,8 @@ export function FleetPerformanceStats({
                 ],
                 footnote: 'Both record an agent_collections row with amount > 0 and tag the responsible agent.',
               }}
+              onClick={() => openDrill()}
+              clickHint="View every collection record contributing to this total"
             />
             <Stat icon={<Percent className="h-3.5 w-3.5" />} label="Collection rate" value={`${rate}%`} tone={rateTone} />
           </div>
@@ -1190,7 +1227,24 @@ export function FleetPerformanceStats({
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="collected" name="Collected" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} maxBarSize={26} />
+                    <Bar
+                      dataKey="collected"
+                      name="Collected"
+                      fill="hsl(var(--primary))"
+                      radius={[3, 3, 0, 0]}
+                      maxBarSize={26}
+                      cursor="pointer"
+                      onClick={(payload: any) => {
+                        if (!payload || payload.bucketStart == null || payload.bucketEnd == null) return;
+                        openDrill({
+                          bucket: {
+                            start: new Date(payload.bucketStart),
+                            end: new Date(payload.bucketEnd),
+                            label: String(payload.label || ''),
+                          },
+                        });
+                      }}
+                    />
                     <Line
                       type="monotone"
                       dataKey="expected"
@@ -1395,8 +1449,26 @@ export function FleetPerformanceStats({
                       >
                         <span className="text-center tabular-nums font-bold text-muted-foreground">{rank}</span>
                         <span className="font-semibold text-foreground truncate">{r.name}</span>
-                        <span className="hidden sm:block text-right tabular-nums text-violet-600">{formatUGX(r.expected)}</span>
-                        <span className="hidden sm:block text-right tabular-nums text-primary font-semibold">{formatUGX(r.collected)}</span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); openExpected({ agentId: r.id, agentName: r.name }); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openExpected({ agentId: r.id, agentName: r.name }); } }}
+                          className="hidden sm:block text-right tabular-nums text-violet-600 underline decoration-dotted decoration-violet-500/40 underline-offset-2 hover:decoration-violet-600 hover:text-violet-700 cursor-pointer"
+                          title="View active rent plans contributing to Expected"
+                        >
+                          {formatUGX(r.expected)}
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); openDrill({ agentId: r.id, agentName: r.name }); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openDrill({ agentId: r.id, agentName: r.name }); } }}
+                          className="hidden sm:block text-right tabular-nums text-primary font-semibold underline decoration-dotted decoration-primary/40 underline-offset-2 hover:decoration-primary hover:text-primary/90 cursor-pointer"
+                          title="View every collection record contributing to Collected"
+                        >
+                          {formatUGX(r.collected)}
+                        </span>
                         <div className="flex flex-col items-end gap-0.5 min-w-[3.5rem]">
                           <div className="h-1 w-10 rounded-full bg-muted overflow-hidden">
                             <div className={`h-full ${barTone} ${r.rate > 100 ? 'brightness-110' : ''}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
@@ -1408,14 +1480,22 @@ export function FleetPerformanceStats({
                       {expanded && (
                         <div className="px-2.5 pb-2.5 pt-0.5 bg-muted/30">
                           <div className="grid grid-cols-2 gap-2 text-[11px] sm:hidden">
-                            <div className="rounded-md border border-border bg-card p-2">
-                              <p className="text-[9px] font-bold uppercase tracking-wide text-violet-600">Expected</p>
-                              <p className="mt-0.5 tabular-nums font-bold text-foreground">{formatUGX(r.expected)}</p>
-                            </div>
-                            <div className="rounded-md border border-border bg-card p-2">
-                              <p className="text-[9px] font-bold uppercase tracking-wide text-primary">Collected</p>
-                              <p className="mt-0.5 tabular-nums font-bold text-foreground">{formatUGX(r.collected)}</p>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openExpected({ agentId: r.id, agentName: r.name }); }}
+                              className="rounded-md border border-border bg-card p-2 text-left hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
+                            >
+                              <p className="text-[9px] font-bold uppercase tracking-wide text-violet-600">Expected · tap to drill</p>
+                              <p className="mt-0.5 tabular-nums font-bold text-foreground underline decoration-dotted decoration-violet-500/40 underline-offset-2">{formatUGX(r.expected)}</p>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openDrill({ agentId: r.id, agentName: r.name }); }}
+                              className="rounded-md border border-border bg-card p-2 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                            >
+                              <p className="text-[9px] font-bold uppercase tracking-wide text-primary">Collected · tap to drill</p>
+                              <p className="mt-0.5 tabular-nums font-bold text-foreground underline decoration-dotted decoration-primary/40 underline-offset-2">{formatUGX(r.collected)}</p>
+                            </button>
                           </div>
                           <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
                             <div className={`h-full ${barTone} ${r.rate > 100 ? 'brightness-110' : ''}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
@@ -1472,6 +1552,22 @@ export function FleetPerformanceStats({
           )}
         </>
       )}
+      <FleetCollectionsDrillDownSheet
+        open={drillOpen}
+        onOpenChange={setDrillOpen}
+        start={drillBucket?.start ?? start}
+        end={drillBucket?.end ?? end}
+        agentId={drillAgentId}
+        agentName={drillAgentName}
+        bucketLabel={drillBucket?.label ?? null}
+      />
+      <ExpectedContributorsSheet
+        open={expectedOpen}
+        onOpenChange={setExpectedOpen}
+        days={days}
+        agentId={expectedAgentId}
+        agentName={expectedAgentName}
+      />
     </div>
   );
 }
@@ -1483,6 +1579,8 @@ function Stat({
   tone,
   info,
   formula,
+  onClick,
+  clickHint,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -1494,9 +1592,11 @@ function Stat({
     components: { label: string; description: string }[];
     footnote?: string;
   };
+  onClick?: () => void;
+  clickHint?: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-2">
+    <div className={`rounded-lg border border-border bg-card p-2 ${onClick ? 'hover:border-primary/40 hover:bg-primary/5 transition-colors' : ''}`}>
       <div className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>
         {icon}
         <span className="truncate">{label}</span>
@@ -1550,7 +1650,18 @@ function Stat({
           </UiTooltipProvider>
         )}
       </div>
-      <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate">{value}</div>
+      {onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          title={clickHint || 'Drill into contributing records'}
+          className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate w-full text-left underline decoration-dotted decoration-muted-foreground/40 underline-offset-2 hover:decoration-primary hover:text-primary transition-colors focus:outline-none focus:ring-1 focus:ring-primary rounded"
+        >
+          {value}
+        </button>
+      ) : (
+        <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate">{value}</div>
+      )}
     </div>
   );
 }
