@@ -2050,7 +2050,7 @@ async function loadMomoSignupSmsTemplate(
       .maybeSingle();
     const v = (data?.value ?? {}) as Partial<MomoSignupSmsTemplate>;
     // Safety net: force the canonical public domain even if a stale
-    // system_config row still references the legacy welilereceipts.com host.
+    // system_config row still references the legacy host. legacy-domain-guard-allow
     const rawLink = (v.signup_link ?? DEFAULT_MOMO_SIGNUP_SMS.signup_link).toString();
     const signup_link = rawLink.replace(
       /https?:\/\/(www\.)?welilereceipts?\.com/gi,
