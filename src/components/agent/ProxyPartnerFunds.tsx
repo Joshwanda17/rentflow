@@ -170,6 +170,10 @@ export function ProxyPartnerFunds() {
   // is credited to the AGENT's wallet (not their own), so the ceiling clamp
   // must use the agent's strict withdrawable instead of the partner's zero.
   const [managedPartnerIds, setManagedPartnerIds] = useState<Set<string>>(new Set());
+  // Partners whose proxy assignment was CREATED on a Saturday or Sunday.
+  // Surfaced as a "Weekend" badge next to the partner name so the agent can
+  // quickly spot weekend-only assignments (usually different SLA / cadence).
+  const [weekendPartnerIds, setWeekendPartnerIds] = useState<Set<string>>(new Set());
   // Agent's own strict withdrawable — shared ceiling across managed cards.
   const [agentStrictWithdrawable, setAgentStrictWithdrawable] = useState<number>(0);
   // Removed managedPartnerIds state as ROI now always goes to the partner's wallet.
@@ -358,7 +362,7 @@ export function ProxyPartnerFunds() {
       // Resolve active proxy partners delegated to this agent (Custody v2).
       const { data: proxyAssignments } = await supabase
         .from('proxy_agent_assignments')
-        .select('beneficiary_id, is_managed_account')
+        .select('beneficiary_id, is_managed_account, created_at')
         .eq('agent_id', user.id)
         .eq('is_active', true)
         .eq('approval_status', 'approved');
@@ -375,6 +379,18 @@ export function ProxyPartnerFunds() {
           .map((r: any) => r.beneficiary_id as string),
       );
       setManagedPartnerIds(managedSet);
+
+      // Weekend assignments — Sat (6) or Sun (0) at the assignment's creation.
+      const weekendSet = new Set<string>(
+        (proxyAssignments || [])
+          .filter((r: any) => {
+            if (!r.beneficiary_id || !r.created_at) return false;
+            const dow = new Date(r.created_at).getDay();
+            return dow === 0 || dow === 6;
+          })
+          .map((r: any) => r.beneficiary_id as string),
+      );
+      setWeekendPartnerIds(weekendSet);
 
       // Load through the backend helper instead of a browser-side
       // `.in(source_id, hundreds...)` query. The long URL was returning 400,
@@ -1620,7 +1636,19 @@ export function ProxyPartnerFunds() {
                     />
                   )}
                   <div>
-                  <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
+                    {weekendPartnerIds.has(partner.partnerId) && (
+                      <Badge
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-400/60 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 gap-1"
+                        title="Proxy assignment created on a weekend"
+                      >
+                        Weekend
+                      </Badge>
+                    )}
+                  </div>
                   {(partner.portfolioCode || partner.accountName) && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       📁 {partner.accountName || partner.portfolioCode}
