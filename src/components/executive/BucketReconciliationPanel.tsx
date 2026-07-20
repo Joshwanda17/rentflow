@@ -1636,10 +1636,19 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
     if (activeFlaggedIdx + 1 > effectiveVisible) setVisible(activeFlaggedIdx + 1);
     setJumpTick((n) => n + 1);
   };
+  const jumpToFlaggedEdge = (edge: 'first' | 'last') => {
+    if (flaggedIdxs.length === 0) return;
+    const pos = edge === 'first' ? 0 : flaggedIdxs.length - 1;
+    setCursor(pos);
+    const targetIdx = flaggedIdxs[pos];
+    if (targetIdx + 1 > effectiveVisible) setVisible(targetIdx + 1);
+    setJumpTick((n) => n + 1);
+  };
   // Keyboard shortcuts while the timeline is mounted:
   //   J → jump to the currently highlighted flagged row
   //   N / ] → next flagged row
   //   P / [ → previous flagged row
+  //   Home → first flagged row · End → last flagged row
   // Ignored while the user is typing in an input/textarea/contentEditable.
   useEffect(() => {
     if (flaggedIdxs.length === 0) return;
@@ -1652,6 +1661,8 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
       if (k === 'j') { e.preventDefault(); jumpToFlagged(); }
       else if (k === 'n' || e.key === ']') { e.preventDefault(); stepFlagged(1); }
       else if (k === 'p' || e.key === '[') { e.preventDefault(); stepFlagged(-1); }
+      else if (e.key === 'Home') { e.preventDefault(); jumpToFlaggedEdge('first'); }
+      else if (e.key === 'End') { e.preventDefault(); jumpToFlaggedEdge('last'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1717,6 +1728,16 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
               <div className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-800 overflow-hidden">
                 <button
                   type="button"
+                  onClick={() => jumpToFlaggedEdge('first')}
+                  disabled={flaggedIdxs.length < 2 || cursor === 0}
+                  title="First flagged row (press Home)"
+                  className="h-6 px-1 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center border-r border-amber-500/40"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  <ChevronLeft className="h-3 w-3 -ml-2" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => stepFlagged(-1)}
                   disabled={flaggedIdxs.length < 2}
                   title="Previous flagged row (press P or [)"
@@ -1727,7 +1748,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                 <button
                   type="button"
                   onClick={jumpToFlagged}
-                  title="Scroll to the highlighted collection"
+                  title="Scroll to the highlighted collection (press J)"
                   className="h-6 px-2 font-semibold hover:bg-amber-500/20 inline-flex items-center gap-1 border-x border-amber-500/40"
                 >
                   <Crosshair className="h-3 w-3" />
@@ -1737,10 +1758,20 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
                   type="button"
                   onClick={() => stepFlagged(1)}
                   disabled={flaggedIdxs.length < 2}
-                  title="Next flagged row"
+                  title="Next flagged row (press N or ])"
                   className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
                 >
                   <ChevronRight className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => jumpToFlaggedEdge('last')}
+                  disabled={flaggedIdxs.length < 2 || cursor === flaggedIdxs.length - 1}
+                  title="Last flagged row (press End)"
+                  className="h-6 px-1 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center border-l border-amber-500/40"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                  <ChevronRight className="h-3 w-3 -ml-2" />
                 </button>
               </div>
             )}
