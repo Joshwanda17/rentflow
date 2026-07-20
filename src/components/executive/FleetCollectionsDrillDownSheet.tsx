@@ -418,6 +418,16 @@ export function FleetCollectionsDrillDownSheet({
                 <option value="all">All methods</option>
                 {methodOptions.map((m) => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
               </select>
+              <button
+                type="button"
+                onClick={() => setOnlyFlagged((v) => !v)}
+                disabled={flagCounts.flagged === 0}
+                title={flagCounts.flagged === 0 ? 'No anomalies detected in this range' : 'Show only rows with anomaly flags'}
+                className={`h-7 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 border transition-colors disabled:opacity-40 ${onlyFlagged ? 'bg-amber-500/10 text-amber-800 border-amber-500/40' : 'bg-background text-foreground border-border hover:bg-muted'}`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Flagged {flagCounts.flagged > 0 ? `(${flagCounts.flagged}${flagCounts.high ? ` · ${flagCounts.high} high` : ''})` : ''}
+              </button>
               {filtersActive && (
                 <button
                   type="button"
