@@ -12621,6 +12621,137 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_agent_referrals: {
+        Row: {
+          bonus_amount: number
+          cashout_agent_id: string | null
+          created_at: string
+          id: string
+          invitee_id: string
+          ledger_txn_id: string | null
+          paid_at: string | null
+          referrer_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bonus_amount?: number
+          cashout_agent_id?: string | null
+          created_at?: string
+          id?: string
+          invitee_id: string
+          ledger_txn_id?: string | null
+          paid_at?: string | null
+          referrer_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bonus_amount?: number
+          cashout_agent_id?: string | null
+          created_at?: string
+          id?: string
+          invitee_id?: string
+          ledger_txn_id?: string | null
+          paid_at?: string | null
+          referrer_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_agent_referrals_cashout_agent_id_fkey"
+            columns: ["cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "merchant_agent_referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       merchant_agreement_acceptance: {
         Row: {
           accepted_at: string
@@ -15221,6 +15352,7 @@ export type Database = {
           last_continuous_location_at: string | null
           managed_by_agent: boolean
           managing_agent_id: string | null
+          merchant_agent_referrer_id: string | null
           mobile_money_name: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
@@ -15230,6 +15362,7 @@ export type Database = {
           occupation: string | null
           ops_note: string | null
           parish: string | null
+          pending_merchant_agent: boolean
           phone: string | null
           phone_verified: boolean
           phone_verified_at: string | null
@@ -15301,6 +15434,7 @@ export type Database = {
           last_continuous_location_at?: string | null
           managed_by_agent?: boolean
           managing_agent_id?: string | null
+          merchant_agent_referrer_id?: string | null
           mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
@@ -15310,6 +15444,7 @@ export type Database = {
           occupation?: string | null
           ops_note?: string | null
           parish?: string | null
+          pending_merchant_agent?: boolean
           phone?: string | null
           phone_verified?: boolean
           phone_verified_at?: string | null
@@ -15381,6 +15516,7 @@ export type Database = {
           last_continuous_location_at?: string | null
           managed_by_agent?: boolean
           managing_agent_id?: string | null
+          merchant_agent_referrer_id?: string | null
           mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
@@ -15390,6 +15526,7 @@ export type Database = {
           occupation?: string | null
           ops_note?: string | null
           parish?: string | null
+          pending_merchant_agent?: boolean
           phone?: string | null
           phone_verified?: boolean
           phone_verified_at?: string | null
@@ -15448,6 +15585,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lc1_phone_duplicates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
+            columns: ["merchant_agent_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
+            columns: ["merchant_agent_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
+            columns: ["merchant_agent_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
+            columns: ["merchant_agent_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
+            columns: ["merchant_agent_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "profiles_merchant_agent_referrer_id_fkey"
+            columns: ["merchant_agent_referrer_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "profiles_wallet_id_fkey"
