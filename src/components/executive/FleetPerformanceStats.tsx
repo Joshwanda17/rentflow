@@ -832,7 +832,7 @@ export function FleetPerformanceStats({
 
   // Trend series of collected vs expected, bucketed by hour / day / month.
   const trendData = useMemo(() => {
-    const out: { label: string; collected: number; expected: number }[] = [];
+    const out: { label: string; collected: number; expected: number; bucketStart: number; bucketEnd: number }[] = [];
     const endMs = end.getTime();
     if (granularity === 'hour') {
       const cursor = new Date(start);
@@ -840,7 +840,9 @@ export function FleetPerformanceStats({
       const expectedPerHour = expectedPerDay / 24;
       while (cursor.getTime() < endMs) {
         const k = hourKey(cursor);
-        out.push({ label: format(cursor, 'h a'), collected: collectedBuckets[k] || 0, expected: expectedPerHour });
+        const bs = new Date(cursor);
+        const be = new Date(cursor); be.setHours(be.getHours() + 1);
+        out.push({ label: format(cursor, 'h a'), collected: collectedBuckets[k] || 0, expected: expectedPerHour, bucketStart: Math.max(bs.getTime(), start.getTime()), bucketEnd: Math.min(be.getTime(), endMs) });
         cursor.setHours(cursor.getHours() + 1);
       }
     } else if (granularity === 'month') {
@@ -851,14 +853,16 @@ export function FleetPerformanceStats({
         const nextMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
         const bucketEnd = Math.min(nextMonth.getTime(), endMs);
         const dCount = Math.max(1, Math.round((bucketEnd - bucketStart) / 86_400_000));
-        out.push({ label: format(cursor, 'MMM yy'), collected: collectedBuckets[k] || 0, expected: expectedPerDay * dCount });
+        out.push({ label: format(cursor, 'MMM yy'), collected: collectedBuckets[k] || 0, expected: expectedPerDay * dCount, bucketStart, bucketEnd });
         cursor.setMonth(cursor.getMonth() + 1);
       }
     } else {
       const cursor = startOfDay(start);
       while (cursor.getTime() < endMs) {
         const k = dayKey(cursor);
-        out.push({ label: format(cursor, 'MMM d'), collected: collectedBuckets[k] || 0, expected: expectedPerDay });
+        const bs = new Date(cursor);
+        const be = new Date(cursor); be.setDate(be.getDate() + 1);
+        out.push({ label: format(cursor, 'MMM d'), collected: collectedBuckets[k] || 0, expected: expectedPerDay, bucketStart: Math.max(bs.getTime(), start.getTime()), bucketEnd: Math.min(be.getTime(), endMs) });
         cursor.setDate(cursor.getDate() + 1);
       }
     }
