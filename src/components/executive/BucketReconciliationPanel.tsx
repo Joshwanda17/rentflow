@@ -1369,33 +1369,7 @@ function ReconDetailView({
             <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
               Cumulative timeline for this plan in the bucket ({filteredTimeline.length}{hasFilters ? ` / ${timeline.length}` : ''})
             </div>
-            <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
-              <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
-                <tr>
-                  <th className="text-left px-2 py-1.5">When (EAT)</th>
-                  <th className="text-right px-2 py-1.5">Amount</th>
-                  <th className="text-right px-2 py-1.5">Cumulative</th>
-                  <th className="text-right px-2 py-1.5">Over daily</th>
-                  <th className="text-right px-2 py-1.5">Over remaining</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredTimeline.length === 0 && (
-                  <tr><td colSpan={5} className="px-2 py-3 text-center text-[11px] text-muted-foreground italic">No rows match the current filters.</td></tr>
-                )}
-                {filteredTimeline.map((t) => (
-                  <tr key={t.id} className={t.isThis ? 'bg-amber-500/10 font-semibold' : ''}>
-                    <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">
-                      {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
-                    </td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.amount)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{formatUGX(t.cumulative)}</td>
-                    <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</td>
-                    <td className={`px-2 py-1.5 text-right tabular-nums ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <TimelineTable rows={filteredTimeline} />
             <p className="mt-1 text-[10px] text-muted-foreground italic">
               The row is flagged as extra because its cumulative pushes the plan over the {c.reason === 'over_remaining' ? 'remaining balance' : c.reason === 'over_daily' ? 'daily expected amount' : 'link/status check'} by <span className="font-bold text-amber-800">+{formatUGX(Math.round(c.extra_amount))}</span>.
             </p>
