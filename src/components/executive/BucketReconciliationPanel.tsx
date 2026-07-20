@@ -1596,20 +1596,46 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
     setPageSize(n);
     setVisible(n);
   };
-  // Tick that bumps whenever the user clicks "Jump to flagged row" so the
-  // virtualizer's scrollTo effect re-fires even if sort/page haven't changed.
-  const [jumpTick, setJumpTick] = useState(0);
-  const jumpToFlagged = () => {
-    if (thisIdx < 0) return;
-    // Ensure the flagged row is inside the current window before scrolling.
-    if (thisIdx + 1 > effectiveVisible) setVisible(thisIdx + 1);
-    setJumpTick((n) => n + 1);
-  };
-  // Always keep the flagged "this row" visible even if it would fall past the cutoff.
+  // Flagged rows = the "this row" plus any row that breached daily/remaining caps.
+  // These are the highlights the user can step through with Prev/Next.
+  const flaggedIdxs = useMemo(
+    () => sorted.reduce<number[]>((acc, r, i) => {
+      if (r.isThis || r.over_daily > 0 || r.over_remaining > 0) acc.push(i);
+      return acc;
+    }, []),
+    [sorted],
+  );
   const thisIdx = sorted.findIndex((r) => r.isThis);
-  const effectiveVisible = thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible;
+  // Cursor into flaggedIdxs; resets when the sort/filter changes the flagged set.
+  const [cursor, setCursor] = useState(0);
+  useEffect(() => {
+    if (flaggedIdxs.length === 0) { setCursor(0); return; }
+    const thisPos = thisIdx >= 0 ? flaggedIdxs.indexOf(thisIdx) : -1;
+    setCursor(thisPos >= 0 ? thisPos : 0);
+  }, [flaggedIdxs, thisIdx]);
+  const activeFlaggedIdx = flaggedIdxs[cursor] ?? -1;
+  // Tick that bumps whenever the user jumps so the virtualizer's scrollTo effect
+  // re-fires even if sort/page haven't changed.
+  const [jumpTick, setJumpTick] = useState(0);
+  // Always keep the current flagged row visible even if it would fall past the cutoff.
+  const effectiveVisible = activeFlaggedIdx >= 0
+    ? Math.max(visible, activeFlaggedIdx + 1)
+    : (thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible);
   const page = sorted.slice(0, effectiveVisible);
   const hasMore = sorted.length > effectiveVisible;
+  const stepFlagged = (delta: 1 | -1) => {
+    if (flaggedIdxs.length === 0) return;
+    const next = (cursor + delta + flaggedIdxs.length) % flaggedIdxs.length;
+    setCursor(next);
+    const targetIdx = flaggedIdxs[next];
+    if (targetIdx + 1 > effectiveVisible) setVisible(targetIdx + 1);
+    setJumpTick((n) => n + 1);
+  };
+  const jumpToFlagged = () => {
+    if (activeFlaggedIdx < 0) return;
+    if (activeFlaggedIdx + 1 > effectiveVisible) setVisible(activeFlaggedIdx + 1);
+    setJumpTick((n) => n + 1);
+  };
   const Icon = ({ k }: { k: TimelineSortKey }) =>
     sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   const SortBtn = ({ k, label, align = 'left' }: { k: TimelineSortKey; label: string; align?: 'left' | 'right' }) => (
@@ -1637,34 +1663,66 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
           </>
         )}
         emptyMessage="No rows match the current filters."
-        scrollToIndex={thisIdx >= 0 ? Math.min(thisIdx, page.length - 1) : undefined}
-        scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}:${jumpTick}`}
+        scrollToIndex={activeFlaggedIdx >= 0
+          ? Math.min(activeFlaggedIdx, page.length - 1)
+          : (thisIdx >= 0 ? Math.min(thisIdx, page.length - 1) : undefined)}
+        scrollToDepKey={`${stateKey ?? ''}:${sort.k}:${sort.dir}:${page.length}:${activeFlaggedIdx}:${jumpTick}`}
         renderRow={(t) => (
-          <div className={`contents ${t.isThis ? 'font-semibold' : ''}`}>
-            <div className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>
-              {fmtWhen(t.when)}{t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
+        renderRow={(t, i) => {
+          const isActive = i === activeFlaggedIdx;
+          const bg = t.isThis
+            ? (isActive ? 'bg-amber-500/25' : 'bg-amber-500/10')
+            : (isActive ? 'bg-amber-500/15' : '');
+          return (
+            <div className={`contents ${t.isThis ? 'font-semibold' : ''}`}>
+              <div className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${bg}`}>
+                {fmtWhen(t.when)}
+                {t.isThis && <span className="ml-1 text-[9px] text-amber-700">← this row</span>}
+                {isActive && !t.isThis && <span className="ml-1 text-[9px] text-amber-700">← flagged</span>}
+              </div>
+              <div className={`px-2 py-1.5 text-right tabular-nums ${bg}`}>{formatUGX(t.amount)}</div>
+              <div className={`px-2 py-1.5 text-right tabular-nums ${bg}`}>{formatUGX(t.cumulative)}</div>
+              <div className={`px-2 py-1.5 text-right tabular-nums ${bg} ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</div>
+              <div className={`px-2 py-1.5 text-right tabular-nums ${bg} ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</div>
             </div>
-            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>{formatUGX(t.amount)}</div>
-            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''}`}>{formatUGX(t.cumulative)}</div>
-            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''} ${t.over_daily > 0 ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>{t.over_daily > 0 ? `+${formatUGX(Math.round(t.over_daily))}` : '—'}</div>
-            <div className={`px-2 py-1.5 text-right tabular-nums ${t.isThis ? 'bg-amber-500/10' : ''} ${t.over_remaining > 0 ? 'text-rose-700 font-bold' : 'text-muted-foreground'}`}>{t.over_remaining > 0 ? `+${formatUGX(Math.round(t.over_remaining))}` : '—'}</div>
-          </div>
-        )}
+          );
+        }}
       />
       {sorted.length > 0 && (
         <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground px-1 flex-wrap">
           <div className="flex items-center gap-2">
             <span>Showing {page.length} of {sorted.length}{thisIdx >= 0 && thisIdx + 1 > visible ? ' (expanded to include flagged row)' : ''}</span>
             <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
-            {thisIdx >= 0 && (
-              <button
-                type="button"
-                onClick={jumpToFlagged}
-                title="Scroll to the highlighted collection"
-                className="h-6 px-2 rounded-md font-semibold bg-amber-500/10 border border-amber-500/40 text-amber-800 hover:bg-amber-500/20 inline-flex items-center gap-1"
-              >
-                <Crosshair className="h-3 w-3" /> Jump to flagged row
-              </button>
+            {flaggedIdxs.length > 0 && (
+              <div className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-800 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => stepFlagged(-1)}
+                  disabled={flaggedIdxs.length < 2}
+                  title="Previous flagged row"
+                  className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={jumpToFlagged}
+                  title="Scroll to the highlighted collection"
+                  className="h-6 px-2 font-semibold hover:bg-amber-500/20 inline-flex items-center gap-1 border-x border-amber-500/40"
+                >
+                  <Crosshair className="h-3 w-3" />
+                  <span className="tabular-nums">{cursor + 1} / {flaggedIdxs.length}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => stepFlagged(1)}
+                  disabled={flaggedIdxs.length < 2}
+                  title="Next flagged row"
+                  className="h-6 px-1.5 hover:bg-amber-500/20 disabled:opacity-40 disabled:hover:bg-transparent inline-flex items-center"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
             )}
           </div>
           {sorted.length > pageSize && (
