@@ -1111,6 +1111,15 @@ function ReconDetailView({
             >
               <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
             </button>
+            <button
+              type="button"
+              onClick={() => downloadDetailPdf({ filteredPlanCollections, filteredTenantOther })}
+              disabled={pdfBusy}
+              className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-rose-600 text-white border border-rose-700 hover:bg-rose-700 disabled:opacity-50"
+              title={hasFilters ? 'Download the filtered variance breakdown as PDF' : 'Download this variance breakdown as PDF'}
+            >
+              {pdfBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF{hasFilters ? ' (filtered)' : ''}
+            </button>
             </div>
           </div>
           <div className="mt-1 flex items-baseline gap-2">
@@ -1312,6 +1321,15 @@ function ReconDetailView({
             title={hasFilters ? 'Download the filtered extra-collection breakdown as CSV' : 'Download this extra-collection breakdown as CSV'}
           >
             <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadDetailPdf({ filteredTimeline })}
+            disabled={pdfBusy}
+            className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-amber-600 text-white border border-amber-700 hover:bg-amber-700 disabled:opacity-50"
+            title={hasFilters ? 'Download the filtered extra-collection breakdown as PDF' : 'Download this extra-collection breakdown as PDF'}
+          >
+            {pdfBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF{hasFilters ? ' (filtered)' : ''}
           </button>
           </div>
         </div>
