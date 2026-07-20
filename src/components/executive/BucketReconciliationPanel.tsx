@@ -1475,6 +1475,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 }
 
 type MiniSortKey = 'when' | 'amount';
+const DETAIL_PAGE_SIZE = 50;
 function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameOf: (id: string | null) => string }) {
   const [sort, setSort] = useState<{ k: MiniSortKey; dir: 'asc' | 'desc' }>({ k: 'when', dir: 'asc' });
   const toggle = (k: MiniSortKey) =>
@@ -1486,9 +1487,14 @@ function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameO
       return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
     });
   }, [rows, sort]);
+  const [visible, setVisible] = useState(DETAIL_PAGE_SIZE);
+  useEffect(() => { setVisible(DETAIL_PAGE_SIZE); }, [rows, sort]);
+  const page = sorted.slice(0, visible);
+  const hasMore = sorted.length > visible;
   const Icon = ({ k }: { k: MiniSortKey }) =>
     sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   return (
+    <div className="space-y-1">
     <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
       <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
         <tr>
@@ -1508,7 +1514,7 @@ function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameO
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
-        {sorted.map((r) => (
+        {page.map((r) => (
           <tr key={r.id}>
             <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(new Date(r.created_at).getTime())}</td>
             <td className="px-2 py-1.5 truncate max-w-[10rem]">{nameOf(r.agent_id) || '—'}</td>
@@ -1519,5 +1525,19 @@ function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameO
         ))}
       </tbody>
     </table>
+      {sorted.length > DETAIL_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+          <span>Showing {page.length} of {sorted.length}</span>
+          {hasMore ? (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setVisible((v) => v + DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Load {Math.min(DETAIL_PAGE_SIZE, sorted.length - visible)} more</button>
+              <button type="button" onClick={() => setVisible(sorted.length)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Show all</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setVisible(DETAIL_PAGE_SIZE)} className="h-6 px-2 rounded-md font-semibold bg-background border border-border hover:bg-muted">Collapse</button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
