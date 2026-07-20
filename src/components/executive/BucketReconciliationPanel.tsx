@@ -1742,6 +1742,7 @@ function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; a
           <div className="flex items-center gap-2">
             <span>Showing {page.length} of {sorted.length}{thisIdx >= 0 && thisIdx + 1 > visible ? ' (expanded to include flagged row)' : ''}</span>
             <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+            <TimelineShortcutSettingsButton />
             {flaggedIdxs.length > 0 && (
               <div className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-800 overflow-hidden">
                 <button
