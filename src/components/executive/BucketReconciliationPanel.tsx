@@ -987,6 +987,16 @@ function ReconDetailView({
         <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="text-[10px] font-bold uppercase tracking-wide text-rose-800">Missing collection · variance breakdown</div>
+            <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onToggleReviewed}
+              className={`h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 border ${isReviewed ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-background border-border hover:bg-muted'}`}
+              title={isReviewed ? 'Reviewed — click to unmark this plan' : 'Mark this plan as reviewed'}
+              aria-pressed={isReviewed}
+            >
+              {isReviewed ? <><CheckCircle2 className="h-3 w-3" /> Reviewed</> : <><Check className="h-3 w-3" /> Mark reviewed</>}
+            </button>
             <button
               type="button"
               onClick={() => downloadDetailCsv({ filteredPlanCollections, filteredTenantOther })}
@@ -995,6 +1005,7 @@ function ReconDetailView({
             >
               <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
             </button>
+            </div>
           </div>
           <div className="mt-1 flex items-baseline gap-2">
             <div className="text-base font-bold text-foreground truncate">{nameOf(m.tenant_id) || '(no tenant)'}</div>
@@ -1178,6 +1189,16 @@ function ReconDetailView({
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
         <div className="flex items-center justify-between gap-2">
           <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Extra collection · why flagged</div>
+          <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onToggleReviewed}
+            className={`h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 border ${isReviewed ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-background border-border hover:bg-muted'}`}
+            title={isReviewed ? 'Reviewed — click to unmark this collection' : 'Mark this collection as reviewed'}
+            aria-pressed={isReviewed}
+          >
+            {isReviewed ? <><CheckCircle2 className="h-3 w-3" /> Reviewed</> : <><Check className="h-3 w-3" /> Mark reviewed</>}
+          </button>
           <button
             type="button"
             onClick={() => downloadDetailCsv({ filteredTimeline })}
@@ -1186,6 +1207,7 @@ function ReconDetailView({
           >
             <Download className="h-3 w-3" /> CSV{hasFilters ? ' (filtered)' : ''}
           </button>
+          </div>
         </div>
         <div className="mt-1 flex items-baseline gap-2">
           <div className="text-base font-bold text-foreground">{formatUGX(c.amount)}</div>
