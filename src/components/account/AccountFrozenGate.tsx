@@ -59,7 +59,8 @@ export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
 
   if (!frozen) return <>{children}</>;
 
-  const reason = profileFreeze?.frozen_reason || listingBlock?.reason || null;
+  const rawReason = profileFreeze?.frozen_reason || listingBlock?.reason || null;
+  const reason = rawReason?.replace('0708 257 899', '+256777607640');
   const until = listingBlock?.blocked_until ? new Date(listingBlock.blocked_until) : null;
   const untilStr = until
     ? until.toLocaleDateString('en-GB', {
