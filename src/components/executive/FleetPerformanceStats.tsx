@@ -1011,7 +1011,14 @@ export function FleetPerformanceStats({
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
-            <Stat icon={<Target className="h-3.5 w-3.5" />} label="Expected" value={formatUGX(totalExpected)} tone="text-violet-600" />
+            <Stat
+              icon={<Target className="h-3.5 w-3.5" />}
+              label="Expected"
+              value={formatUGX(totalExpected)}
+              tone="text-violet-600"
+              onClick={() => openExpected()}
+              clickHint="View every active rent plan contributing to Expected"
+            />
             <Stat
               icon={<Banknote className="h-3.5 w-3.5" />}
               label="Collected"
@@ -1026,6 +1033,8 @@ export function FleetPerformanceStats({
                 ],
                 footnote: 'Both record an agent_collections row with amount > 0 and tag the responsible agent.',
               }}
+              onClick={() => openDrill()}
+              clickHint="View every collection record contributing to this total"
             />
             <Stat icon={<Percent className="h-3.5 w-3.5" />} label="Collection rate" value={`${rate}%`} tone={rateTone} />
           </div>
