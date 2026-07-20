@@ -976,6 +976,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </>
             )}
 
+            {/* Merchant Agents: invite other Merchant Agents (UGX 50,000 per approved invitee) */}
+            {isMerchant && <InviteMerchantAgentCard />}
+
             {/*
 
              * Minimalist home: priorities lead → today's total → urgent alerts →
