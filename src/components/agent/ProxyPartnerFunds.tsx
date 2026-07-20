@@ -1636,7 +1636,19 @@ export function ProxyPartnerFunds() {
                     />
                   )}
                   <div>
-                  <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
+                    {weekendPartnerIds.has(partner.partnerId) && (
+                      <Badge
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-400/60 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 gap-1"
+                        title="Proxy assignment created on a weekend"
+                      >
+                        Weekend
+                      </Badge>
+                    )}
+                  </div>
                   {(partner.portfolioCode || partner.accountName) && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       📁 {partner.accountName || partner.portfolioCode}
