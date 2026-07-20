@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -8,6 +8,10 @@ import { ArrowUp, ArrowDown, ArrowUpDown, Loader2, Scale, AlertCircle, Plus, Dow
 import { generateBucketReconDetailPdf } from '@/lib/bucketReconDetailPdf';
 import { toast } from 'sonner';
 
+// In-memory session stores for detail-view page size + scroll position.
+// Survive tab switches, filter changes, and re-open of the same row within the session.
+const detailPageSizeStore = new Map<string, number>();
+const detailScrollStore = new Map<string, number>();
 // Reviewed-status persistence — separate namespaces for Missing (plan ids) and Extra (collection ids).
 const REVIEWED_LS_KEY = 'welile:recon-reviewed:v1';
 type ReviewedStore = { missing: Record<string, number>; extra: Record<string, number> };
@@ -339,6 +343,19 @@ export function BucketReconciliationPanel({
   // Sort state.
   const [tab, setTab] = useState<'missing' | 'extra'>('missing');
   const [selection, setSelection] = useState<{ kind: 'missing'; rentId: string } | { kind: 'extra'; collectionId: string } | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Key identifies which view's scroll position we are saving/restoring.
+  const scrollKey = useMemo(() => {
+    if (!selection) return `list:${tab}`;
+    return selection.kind === 'missing' ? `missing:${selection.rentId}` : `extra:${selection.collectionId}`;
+  }, [selection, tab]);
+  // Restore scroll position whenever the visible view changes.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const saved = detailScrollStore.get(scrollKey) ?? 0;
+    el.scrollTop = saved;
+  }, [scrollKey]);
 
   // Reviewed-status tracking (persisted in localStorage; separate per kind).
   const missingReviewed = useReviewedSet('missing');
@@ -541,7 +558,11 @@ export function BucketReconciliationPanel({
               )}
             </div>
 
-            <div className="flex-1 overflow-auto">
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-auto"
+              onScroll={(e) => { detailScrollStore.set(scrollKey, (e.target as HTMLDivElement).scrollTop); }}
+            >
               {selection && detail ? (
                 <ReconDetailView
                   detail={detail}
@@ -1255,7 +1276,7 @@ function ReconDetailView({
           ) : filteredPlanCollections.length === 0 ? (
             <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">No rows match the current filters.</p>
           ) : (
-            <MiniCollectionTable rows={filteredPlanCollections} nameOf={nameOf} />
+            <MiniCollectionTable rows={filteredPlanCollections} nameOf={nameOf} stateKey={`missing:${m.rent_id}:plan`} />
           )}
         </div>
 
@@ -1268,7 +1289,7 @@ function ReconDetailView({
             {filteredTenantOther.length === 0 ? (
               <p className="text-[11px] text-muted-foreground italic border border-dashed border-border rounded-md p-3">No rows match the current filters.</p>
             ) : (
-              <MiniCollectionTable rows={filteredTenantOther} nameOf={nameOf} />
+              <MiniCollectionTable rows={filteredTenantOther} nameOf={nameOf} stateKey={`missing:${m.rent_id}:tenantOther`} />
             )}
           </div>
         )}
@@ -1369,7 +1390,7 @@ function ReconDetailView({
             <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
               Cumulative timeline for this plan in the bucket ({filteredTimeline.length}{hasFilters ? ` / ${timeline.length}` : ''})
             </div>
-            <TimelineTable rows={filteredTimeline} />
+            <TimelineTable rows={filteredTimeline} stateKey={`extra:${c.collection_id}:timeline`} />
             <p className="mt-1 text-[10px] text-muted-foreground italic">
               The row is flagged as extra because its cumulative pushes the plan over the {c.reason === 'over_remaining' ? 'remaining balance' : c.reason === 'over_daily' ? 'daily expected amount' : 'link/status check'} by <span className="font-bold text-amber-800">+{formatUGX(Math.round(c.extra_amount))}</span>.
             </p>
@@ -1408,7 +1429,7 @@ function MathRow({ label, value, accent, bold }: { label: string; value: string;
 }
 
 type TimelineSortKey = 'when' | 'amount' | 'over_daily' | 'over_remaining';
-function TimelineTable({ rows }: { rows: { id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[] }) {
+function TimelineTable({ rows, stateKey }: { rows: { id: string; when: number; amount: number; cumulative: number; over_daily: number; over_remaining: number; isThis: boolean }[]; stateKey?: string }) {
   const [sort, setSort] = useState<{ k: TimelineSortKey; dir: 'asc' | 'desc' }>({ k: 'when', dir: 'asc' });
   const toggle = (k: TimelineSortKey) =>
     setSort((s) => (s.k === k ? { k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: k === 'when' ? 'asc' : 'desc' }));
@@ -1420,8 +1441,22 @@ function TimelineTable({ rows }: { rows: { id: string; when: number; amount: num
       return (va - vb) * dir;
     });
   }, [rows, sort]);
-  const [visible, setVisible] = useState(DETAIL_PAGE_SIZE);
-  useEffect(() => { setVisible(DETAIL_PAGE_SIZE); }, [rows, sort]);
+  const [visible, setVisibleState] = useState(() =>
+    (stateKey && detailPageSizeStore.get(stateKey)) || DETAIL_PAGE_SIZE,
+  );
+  // Re-sync when the stateKey identity changes (opening a different detail).
+  useEffect(() => {
+    if (!stateKey) return;
+    const saved = detailPageSizeStore.get(stateKey);
+    setVisibleState(saved && saved > 0 ? saved : DETAIL_PAGE_SIZE);
+  }, [stateKey]);
+  const setVisible = (updater: number | ((v: number) => number)) => {
+    setVisibleState((prev) => {
+      const next = typeof updater === 'function' ? (updater as (v: number) => number)(prev) : updater;
+      if (stateKey) detailPageSizeStore.set(stateKey, next);
+      return next;
+    });
+  };
   // Always keep the flagged "this row" visible even if it would fall past the cutoff.
   const thisIdx = sorted.findIndex((r) => r.isThis);
   const effectiveVisible = thisIdx >= 0 ? Math.max(visible, thisIdx + 1) : visible;
@@ -1498,7 +1533,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 
 type MiniSortKey = 'when' | 'amount';
 const DETAIL_PAGE_SIZE = 50;
-function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameOf: (id: string | null) => string }) {
+function MiniCollectionTable({ rows, nameOf, stateKey }: { rows: BucketCollection[]; nameOf: (id: string | null) => string; stateKey?: string }) {
   const [sort, setSort] = useState<{ k: MiniSortKey; dir: 'asc' | 'desc' }>({ k: 'when', dir: 'asc' });
   const toggle = (k: MiniSortKey) =>
     setSort((s) => (s.k === k ? { k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: k === 'amount' ? 'desc' : 'asc' }));
@@ -1509,8 +1544,21 @@ function MiniCollectionTable({ rows, nameOf }: { rows: BucketCollection[]; nameO
       return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
     });
   }, [rows, sort]);
-  const [visible, setVisible] = useState(DETAIL_PAGE_SIZE);
-  useEffect(() => { setVisible(DETAIL_PAGE_SIZE); }, [rows, sort]);
+  const [visible, setVisibleState] = useState(() =>
+    (stateKey && detailPageSizeStore.get(stateKey)) || DETAIL_PAGE_SIZE,
+  );
+  useEffect(() => {
+    if (!stateKey) return;
+    const saved = detailPageSizeStore.get(stateKey);
+    setVisibleState(saved && saved > 0 ? saved : DETAIL_PAGE_SIZE);
+  }, [stateKey]);
+  const setVisible = (updater: number | ((v: number) => number)) => {
+    setVisibleState((prev) => {
+      const next = typeof updater === 'function' ? (updater as (v: number) => number)(prev) : updater;
+      if (stateKey) detailPageSizeStore.set(stateKey, next);
+      return next;
+    });
+  };
   const page = sorted.slice(0, visible);
   const hasMore = sorted.length > visible;
   const Icon = ({ k }: { k: MiniSortKey }) =>
