@@ -1619,36 +1619,38 @@ function MiniCollectionTable({ rows, nameOf, stateKey }: { rows: BucketCollectio
     sort.k !== k ? <ArrowUpDown className="h-3 w-3 opacity-40" /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   return (
     <div className="space-y-1">
-    <table className="w-full text-[11px] border border-border rounded-md overflow-hidden">
-      <thead className="bg-muted text-muted-foreground text-[9px] uppercase tracking-wide">
-        <tr>
-          <th className="text-left px-2 py-1.5">
-            <button type="button" onClick={() => toggle('when')} className="inline-flex items-center gap-1 hover:text-foreground">
-              When (EAT) <Icon k="when" />
-            </button>
-          </th>
-          <th className="text-left px-2 py-1.5">Agent</th>
-          <th className="text-left px-2 py-1.5">Method</th>
-          <th className="text-right px-2 py-1.5">
-            <button type="button" onClick={() => toggle('amount')} className="inline-flex items-center gap-1 justify-end w-full hover:text-foreground">
-              Amount <Icon k="amount" />
-            </button>
-          </th>
-          <th className="text-left px-2 py-1.5">Plan</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {page.map((r) => (
-          <tr key={r.id}>
-            <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(new Date(r.created_at).getTime())}</td>
-            <td className="px-2 py-1.5 truncate max-w-[10rem]">{nameOf(r.agent_id) || '—'}</td>
-            <td className="px-2 py-1.5">{(r.payment_method || '—').replace(/_/g, ' ')}</td>
-            <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{formatUGX(Number(r.amount) || 0)}</td>
-            <td className="px-2 py-1.5 font-mono text-[9px] text-muted-foreground">{r.rent_request_id?.slice(0, 8) || '—'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+      <VirtualRows
+        items={page}
+        rowHeight={30}
+        gridTemplate="140px minmax(120px,1.4fr) 110px 110px 90px"
+        header={(
+          <>
+            <div className="px-2 py-1.5 text-left">
+              <button type="button" onClick={() => toggle('when')} className="inline-flex items-center gap-1 hover:text-foreground">
+                When (EAT) <Icon k="when" />
+              </button>
+            </div>
+            <div className="px-2 py-1.5 text-left">Agent</div>
+            <div className="px-2 py-1.5 text-left">Method</div>
+            <div className="px-2 py-1.5 text-right">
+              <button type="button" onClick={() => toggle('amount')} className="inline-flex items-center gap-1 justify-end w-full hover:text-foreground">
+                Amount <Icon k="amount" />
+              </button>
+            </div>
+            <div className="px-2 py-1.5 text-left">Plan</div>
+          </>
+        )}
+        emptyMessage="No rows to display."
+        renderRow={(r) => (
+          <div className="contents">
+            <div className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">{fmtWhen(new Date(r.created_at).getTime())}</div>
+            <div className="px-2 py-1.5 truncate">{nameOf(r.agent_id) || '—'}</div>
+            <div className="px-2 py-1.5 truncate">{(r.payment_method || '—').replace(/_/g, ' ')}</div>
+            <div className="px-2 py-1.5 text-right tabular-nums font-semibold">{formatUGX(Number(r.amount) || 0)}</div>
+            <div className="px-2 py-1.5 font-mono text-[9px] text-muted-foreground truncate">{r.rent_request_id?.slice(0, 8) || '—'}</div>
+          </div>
+        )}
+      />
       {sorted.length > 0 && (
         <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground px-1 flex-wrap">
           <div className="flex items-center gap-2">
