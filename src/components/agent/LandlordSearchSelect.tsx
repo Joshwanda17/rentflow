@@ -255,7 +255,7 @@ export function LandlordSearchSelect({
       setDebounced('');
       return;
     }
-    const t = setTimeout(() => setDebounced(next), 160);
+    const t = setTimeout(() => setDebounced(next), 300);
     return () => clearTimeout(t);
   }, [query]);
 
@@ -332,12 +332,8 @@ export function LandlordSearchSelect({
         }).abortSignal(signal);
         if (error) throw error;
         if (!isAborted()) {
-          // Only verified landlords are selectable — unverified ("Needs Ops")
-          // records are hidden from the picker entirely.
-          const verifiedOnly = ((data ?? []) as unknown as LandlordOption[]).filter(
-            (l) => !!l.verified,
-          );
-          setResults(verifiedOnly);
+          // RPC already filters to verified landlords only.
+          setResults(((data ?? []) as unknown as LandlordOption[]));
           // This search finished — clear any lingering cancellation note.
           setCancelledInfo(null);
         }
@@ -348,6 +344,7 @@ export function LandlordSearchSelect({
           let q = supabase
             .from('landlords_directory')
             .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
+            .eq('verified', true)
             .order('name', { ascending: true })
             .limit(20);
           if (debounced.length > 0) {
@@ -361,10 +358,7 @@ export function LandlordSearchSelect({
           const { data, error } = await q.abortSignal(signal);
           if (error) throw error;
           if (!isAborted()) {
-            const verifiedOnly = ((data ?? []) as LandlordOption[]).filter(
-              (l) => !!l.verified,
-            );
-            setResults(verifiedOnly);
+            setResults(((data ?? []) as LandlordOption[]));
             setCancelledInfo(null);
           }
         } catch (fallbackErr) {
