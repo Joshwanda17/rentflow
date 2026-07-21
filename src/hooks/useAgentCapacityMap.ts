@@ -464,15 +464,23 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const good_days_last_week = goodDaysByAgent.get(id) || 0;
         const unlimited_posting =
           good_days_last_week >= GOOD_DAYS_UNLOCK_THRESHOLD;
-        // Daily "Good" floor: if the agent is meeting today's collection
-        // threshold (≥ DAILY_ELIGIBILITY_THRESHOLD), guarantee at least the
-        // new-agent per-tenant floor. This keeps the green "You can post
-        // new rent requests today" banner in sync with the per-tenant cap
-        // — previously agents on a low weekly tier (Bad/Very Bad → 1M/0)
-        // saw the green banner but were still blocked when trying to post
-        // an ordinary rent, which read as a bug.
+        // Daily "Good" floor: any agent who is currently allowed to post
+        // today (green banner) is guaranteed at least the new-agent
+        // per-tenant floor. We key this off the SAME conditions that drive
+        // `can_post_rent_today` below — today's OR yesterday's OR the
+        // blended `effective_pct` clearing the daily threshold — so the
+        // banner and the per-tenant cap can never disagree. Previously the
+        // floor only tracked `effective_pct`, so agents rated Very Bad on
+        // the 7-day tier (→ UGX 0 cap) but visibly productive today (e.g.
+        // 68% collected) would see the green banner AND a "UGX 0 posting
+        // cap" error at the same time.
+        const daily_pct_for_floor = Math.max(
+          elig?.today_pct ?? 0,
+          elig?.yesterday_pct ?? 0,
+          elig?.effective_pct ?? 0,
+        );
         const daily_good_floor =
-          exp.count > 0 && (elig?.effective_pct ?? 0) >= DAILY_ELIGIBILITY_THRESHOLD
+          exp.count > 0 && daily_pct_for_floor >= DAILY_ELIGIBILITY_THRESHOLD
             ? NEW_AGENT_RENT_CAP_UGX
             : 0;
         const per_tenant_max = unlimited_posting
