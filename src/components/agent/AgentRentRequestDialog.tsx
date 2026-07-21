@@ -2592,7 +2592,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       // trigger and gives the agent a clear, immediate error.
       try {
         const { data: landlordRow, error: landlordLookupError } = await supabase
-          .from('landlords')
+          .from('landlords_directory')
           .select('id, verified')
           .eq('id', landlordId)
           .maybeSingle();
