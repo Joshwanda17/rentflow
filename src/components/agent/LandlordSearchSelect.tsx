@@ -332,7 +332,12 @@ export function LandlordSearchSelect({
         }).abortSignal(signal);
         if (error) throw error;
         if (!isAborted()) {
-          setResults((data ?? []) as unknown as LandlordOption[]);
+          // Verified landlords always rank first; unverified matches still
+          // surface so the searched name isn't hidden, but they're flagged.
+          const sorted = [...((data ?? []) as unknown as LandlordOption[])].sort(
+            (a, b) => Number(!!b.verified) - Number(!!a.verified),
+          );
+          setResults(sorted);
           // This search finished — clear any lingering cancellation note.
           setCancelledInfo(null);
         }
@@ -356,7 +361,10 @@ export function LandlordSearchSelect({
           const { data, error } = await q.abortSignal(signal);
           if (error) throw error;
           if (!isAborted()) {
-            setResults((data ?? []) as LandlordOption[]);
+            const sorted = [...((data ?? []) as LandlordOption[])].sort(
+              (a, b) => Number(!!b.verified) - Number(!!a.verified),
+            );
+            setResults(sorted);
             setCancelledInfo(null);
           }
         } catch (fallbackErr) {
@@ -796,8 +804,8 @@ export function LandlordSearchSelect({
                           <ShieldCheck className="h-3 w-3" /> Verified
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
-                          <ShieldAlert className="h-3 w-3" /> Needs Ops
+                        <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold text-destructive border border-destructive/30">
+                          <ShieldAlert className="h-3 w-3" /> Not Verified
                         </span>
                       )}
                     </div>
