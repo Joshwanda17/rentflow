@@ -3169,7 +3169,11 @@ export function LandlordOpsDashboard() {
         })()}
 
         <div className="space-y-3">
-          {filteredHouses.map(house => (
+          {(() => {
+            const visibleAgentIds = displayedHouses
+              .map((h) => h.agent_id)
+              .filter((x): x is string => !!x);
+            return displayedHouses.map(house => (
             <div key={house.id} className={`rounded-xl border bg-card overflow-hidden ${verifySelectedIds.has(house.id) ? 'border-primary ring-1 ring-primary/40' : 'border-border'}`}>
               {/* ── Card Header ── */}
               <div className="p-4 pb-3 space-y-3">
