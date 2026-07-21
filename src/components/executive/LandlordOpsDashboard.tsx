@@ -3292,7 +3292,11 @@ export function LandlordOpsDashboard() {
                     )}
                     {house.agent_id && (
                       <div className="pt-1.5 mt-1 border-t border-indigo-500/10">
-                        <AgentListingBlockControl agentId={house.agent_id} agentName={house.agent_name} />
+                        <BatchedAgentListingBlockControl
+                          agentId={house.agent_id}
+                          agentName={house.agent_name}
+                          agentIdsInView={visibleAgentIds}
+                        />
                       </div>
                     )}
                   </div>
