@@ -158,7 +158,7 @@ export function ActiveAdvancesPanel() {
                   <TableRow>
                     <TableHead>Agent</TableHead>
                     <TableHead className="text-right">Principal</TableHead>
-                    <TableHead className="text-right">Outstanding</TableHead>
+                    <TableHead className="text-right">Outstanding / Repaid</TableHead>
                     <TableHead className="text-right">Daily</TableHead>
                     <TableHead className="text-center">Cycle</TableHead>
                     <TableHead>Issued</TableHead>
@@ -168,22 +168,39 @@ export function ActiveAdvancesPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map(r => (
+                  {filtered.map(r => {
+                    const totalDue = Number(r.principal || 0) + Number(r.access_fee || 0) + Number(r.registration_fee || 0);
+                    const outstanding = Number(r.outstanding_balance || 0);
+                    const repaid = Math.max(0, totalDue - outstanding);
+                    const pct = totalDue > 0 ? Math.min(100, Math.round((repaid / totalDue) * 100)) : 0;
+                    const arrears = Number(r.arrears_balance || 0);
+                    const isBehind = arrears > 0;
+                    return (
                     <TableRow key={r.id}>
                       <TableCell>
                         <div className="font-medium">{r.agent_name}</div>
                         <div className="text-xs text-muted-foreground">{r.agent_phone}</div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatUGX(r.principal)}</TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold">{formatUGX(r.outstanding_balance)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <div className="font-semibold">{formatUGX(outstanding)}</div>
+                        <div className="text-[11px] text-emerald-600">Repaid {formatUGX(repaid)} · {pct}%</div>
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">{formatUGX(r.daily_installment)}</TableCell>
                       <TableCell className="text-center">{r.cycle_days}d</TableCell>
                       <TableCell className="text-xs">{r.issued_at ? format(new Date(r.issued_at), 'dd MMM yy') : '—'}</TableCell>
                       <TableCell className="text-xs">{r.expires_at ? format(new Date(r.expires_at), 'dd MMM yy') : '—'}</TableCell>
                       <TableCell>
-                        <Badge className={STATUS_TONE[r.status] || 'bg-slate-100 text-slate-600'} variant="secondary">
-                          {r.status}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge className={STATUS_TONE[r.status] || 'bg-slate-100 text-slate-600'} variant="secondary">
+                            {r.status}
+                          </Badge>
+                          {isBehind && (
+                            <span className="text-[11px] font-medium text-rose-600">
+                              Behind {formatUGX(arrears)}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="outline" onClick={() => setEditing(r)}>
@@ -191,7 +208,8 @@ export function ActiveAdvancesPanel() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
