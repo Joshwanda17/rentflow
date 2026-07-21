@@ -294,6 +294,8 @@ export default function SubAgentAnalytics() {
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [releaseConfirmOpen, setReleaseConfirmOpen] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const [expandedTimelines, setExpandedTimelines] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<SubAgentSection>('subagent-overview');
 
