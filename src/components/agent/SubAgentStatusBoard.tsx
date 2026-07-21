@@ -5,11 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/UserAvatar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, Coins, ShieldCheck, Users, Loader2, XCircle,
-  ChevronRight, Wallet, ReceiptText, TrendingUp,
+  ChevronRight, Wallet, ReceiptText, TrendingUp, UserMinus,
 } from 'lucide-react';
 
 interface OverrideAgg {
@@ -90,6 +102,48 @@ export function SubAgentStatusBoard() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<StatusRow | null>(null);
   const [drawer, setDrawer] = useState<DrawerData>({ loading: false, wallet: null, events: [], splits: [] });
+  const [confirmUnlink, setConfirmUnlink] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
+
+  const handleUnlink = async () => {
+    if (!selected || !user) return;
+    setUnlinking(true);
+    try {
+      const { error } = await supabase.rpc('release_sub_agent', {
+        p_sub_agent_id: selected.sub_agent_id,
+      });
+      if (error) {
+        toast.error('Could not unlink sub-agent', { description: error.message });
+        return;
+      }
+
+      // Fire-and-forget web-push to the released sub-agent.
+      supabase.functions
+        .invoke('send-push-notification', {
+          body: {
+            userIds: [selected.sub_agent_id],
+            payload: {
+              title: 'You are now an independent agent',
+              body:
+                'Your lead agent has released you from their team. Your override earnings from them have stopped. You can be invited again by another agent, or keep growing on your own.',
+              type: 'sub_agent_released',
+              url: '/dashboard',
+            },
+          },
+        })
+        .catch(() => {});
+
+      toast.success(`${selected.name} unlinked`, {
+        description: 'They are now an independent agent and can be reinvited.',
+      });
+      setConfirmUnlink(false);
+      setSelected(null);
+      // Refresh the board
+      setRows((prev) => prev.filter((r) => r.sub_agent_id !== selected.sub_agent_id));
+    } finally {
+      setUnlinking(false);
+    }
+  };
 
   // Load wallet + override breakdown when a row is opened
   useEffect(() => {
@@ -434,12 +488,59 @@ export function SubAgentStatusBoard() {
                       </div>
                     )}
                   </div>
+
+                  {/* Unlink sub-agent */}
+                  <div className="pt-2 border-t border-border/60">
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setConfirmUnlink(true)}
+                    >
+                      <UserMinus className="h-4 w-4" />
+                      Unlink sub-agent
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
+                      They become an independent agent. Your override earnings from them stop, and they can be reinvited.
+                    </p>
+                  </div>
                 </div>
               )}
             </>
           )}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={confirmUnlink} onOpenChange={setConfirmUnlink}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unlink {selected?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They will be released from your team and become an independent agent. Your recruiter override
+              earnings on their activity will stop immediately. They can be invited again later by you or
+              another agent. They will be notified of this change.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unlinking}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleUnlink();
+              }}
+              disabled={unlinking}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {unlinking ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Unlinking…
+                </>
+              ) : (
+                'Yes, unlink'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
