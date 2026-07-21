@@ -2118,7 +2118,7 @@ export function LandlordOpsDashboard() {
                             {landlord.verified ? (
                               <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-0">Pending</Badge>
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-red-100 text-red-700 border-0 font-semibold">Not Verified</Badge>
                             )}
                             {tenantCount > 0 && (
                               <Badge variant="outline" className="text-[9px] px-1.5 py-0">{tenantCount} tenants</Badge>
@@ -2133,7 +2133,7 @@ export function LandlordOpsDashboard() {
                         {landlord.verified ? (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 border-0">Pending</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-100 text-red-700 border-0 font-semibold">Not Verified</Badge>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{tenantCount > 0 ? tenantCount : '—'}</td>
