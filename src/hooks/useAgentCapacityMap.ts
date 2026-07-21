@@ -464,9 +464,20 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const good_days_last_week = goodDaysByAgent.get(id) || 0;
         const unlimited_posting =
           good_days_last_week >= GOOD_DAYS_UNLOCK_THRESHOLD;
+        // Daily "Good" floor: if the agent is meeting today's collection
+        // threshold (≥ DAILY_ELIGIBILITY_THRESHOLD), guarantee at least the
+        // new-agent per-tenant floor. This keeps the green "You can post
+        // new rent requests today" banner in sync with the per-tenant cap
+        // — previously agents on a low weekly tier (Bad/Very Bad → 1M/0)
+        // saw the green banner but were still blocked when trying to post
+        // an ordinary rent, which read as a bug.
+        const daily_good_floor =
+          exp.count > 0 && (elig?.effective_pct ?? 0) >= DAILY_ELIGIBILITY_THRESHOLD
+            ? NEW_AGENT_RENT_CAP_UGX
+            : 0;
         const per_tenant_max = unlimited_posting
           ? UNLIMITED_PER_TENANT_MAX
-          : base_per_tenant_max;
+          : Math.max(base_per_tenant_max, daily_good_floor);
         const headroom = Math.max(AGENT_RENT_CAP_UGX - exp.used, 0);
         const pct = Math.min(100, Math.round((exp.used / AGENT_RENT_CAP_UGX) * 100));
         // Server-side eligibility values (Africa/Kampala TZ, from
