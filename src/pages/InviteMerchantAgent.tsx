@@ -91,6 +91,7 @@ export default function InviteMerchantAgent() {
   const contractHtml = useMemo(
     () => buildMerchantAgreementHtml({
       merchantName: fullName.trim() || phone.trim() || 'Merchant Agent',
+      merchantPhone: phone.trim(),
       agreementDate: new Date(),
     }),
     [fullName, phone],

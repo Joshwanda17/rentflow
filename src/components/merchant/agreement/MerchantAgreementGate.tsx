@@ -25,8 +25,12 @@ export function MerchantAgreementGate({ children }: { children: React.ReactNode 
 
   const merchantName = profile?.full_name || profile?.phone || 'Merchant Agent';
   const html = useMemo(
-    () => buildMerchantAgreementHtml({ merchantName, agreementDate: new Date() }),
-    [merchantName],
+    () => buildMerchantAgreementHtml({
+      merchantName,
+      merchantPhone: profile?.phone,
+      agreementDate: new Date(),
+    }),
+    [merchantName, profile?.phone],
   );
 
   if (isLoading) return null;
