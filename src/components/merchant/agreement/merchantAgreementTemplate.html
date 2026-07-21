@@ -353,7 +353,7 @@
 <body>
 
   <!-- ==================== PAGE 1 ==================== -->
-  <div class="page-section">
+  <div class="page-section final-page">
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
@@ -872,35 +872,33 @@
       </div>
 
       <!-- Signatures Block -->
-      <div class="section-container" style="page-break-inside: avoid; margin-top: 30px;">
-        <table class="sig-table">
-          <tr>
-            <td>
-              <div class="sig-placeholder-line"></div>
-              <div class="sig-detail-name">{{MerchantName}}</div>
-              <div class="sig-detail-role">Merchant Agent / Cash-Out Agent</div>
-              <div class="sig-detail-role">{{MerchantPhone}}</div>
-              <div class="sig-detail-date">Date: <span>{{StampDate}}</span></div>
-            </td>
-            <td style="position: relative;">
-              <div class="sig-placeholder-line"></div>
-              <div class="sig-detail-name">Mercy Bayo</div>
-              <div class="sig-detail-role">Authorized Signatory, Welile Technologies Limited</div>
-              <div class="sig-detail-date">Date: <span>{{StampDate}}</span></div>
-              <div class="sig-stamp" aria-hidden="true">
-                <div class="stamp">
-                  <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
-                  <div class="middle-row">
-                    <span class="star">&#9733;</span>
-                    <span class="date">{{StampDate}}</span>
-                    <span class="star">&#9733;</span>
-                  </div>
-                  <div class="address">PO Box 167564 Kampala Uganda</div>
+      <div class="signatures-panel">
+        <div class="sig-grid">
+          <div class="sig-card">
+            <div class="sig-placeholder-line"></div>
+            <div class="sig-detail-name">{{MerchantName}}</div>
+            <div class="sig-detail-role">Merchant Agent / Cash-Out Agent</div>
+            <div class="sig-detail-role">{{MerchantPhone}}</div>
+            <div class="sig-detail-date">Date: <span>{{StampDate}}</span></div>
+          </div>
+          <div class="sig-card welile-signature-card">
+            <div class="sig-stamp" aria-hidden="true">
+              <div class="stamp">
+                <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
+                <div class="middle-row">
+                  <span class="star">&#9733;</span>
+                  <span class="date">{{StampDate}}</span>
+                  <span class="star">&#9733;</span>
                 </div>
+                <div class="address">PO Box 167564 Kampala Uganda</div>
               </div>
-            </td>
-          </tr>
-        </table>
+            </div>
+            <div class="sig-placeholder-line"></div>
+            <div class="sig-detail-name">Mercy Bayo</div>
+            <div class="sig-detail-role">Authorized Signatory, Welile Technologies Limited</div>
+            <div class="sig-detail-date">Date: <span>{{StampDate}}</span></div>
+          </div>
+        </div>
       </div>
     </div>
 
