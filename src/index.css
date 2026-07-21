@@ -928,10 +928,22 @@ input[type="checkbox"], input[type="radio"] {
   100% { transform: translateX(100%); }
 }
 .skeleton-shimmer {
-  animation: skeleton-shimmer 1.8s linear infinite;
+  animation: skeleton-shimmer 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation-delay: 0.3s;
+  will-change: transform;
 }
 html.lite-mode .skeleton-shimmer { animation: none !important; }
+
+/* Soften Tailwind's default animate-pulse — the stock 0.5↔1 opacity swing
+   reads as a harsh blink when many skeletons stack on one card. */
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+.animate-pulse {
+  animation: soft-pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+html.lite-mode .animate-pulse { animation: none !important; }
 
 /* Reduce paint on low-end GPUs */
 @media (max-resolution: 1.5dppx) {
