@@ -21,6 +21,7 @@ import ExportUsersWithHashesCard from '@/components/cto/ExportUsersWithHashesCar
 import { CTOPasswordResetPanel } from '@/components/cto/CTOPasswordResetPanel';
 import PlatformControlsPanel from '@/components/cto/PlatformControlsPanel';
 import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
+import InviteMerchantAgentCard from '@/components/agent/InviteMerchantAgentCard';
 import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
 import { SeoCoverageDashboard } from './SeoCoverageDashboard';
 import { SeoRedirectAuditPanel } from './SeoRedirectAuditPanel';
@@ -56,6 +57,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   }
   if (activeTab === 'agent-freeze') {
     return <CTOAgentFreezePanel />;
+  }
+  if (activeTab === 'merchant-invites') {
+    return <InviteMerchantAgentCard />;
   }
 
   // Real: active users in last 7 days
