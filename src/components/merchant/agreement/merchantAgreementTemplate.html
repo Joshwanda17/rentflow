@@ -44,7 +44,7 @@
 
     /* Page-by-Page Layout */
     .page-section {
-      width: min(210mm, calc(100vw - 32px));
+      width: 210mm;
       /* Standard A4 Width */
       min-height: 297mm;
       /* Standard A4 Height */
@@ -57,7 +57,6 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      overflow: hidden;
     }
 
     .page-content {
@@ -192,56 +191,27 @@
       font-weight: 600;
     }
 
-    /* Final-page signatures */
-    .final-page .page-content {
-      display: flex;
-      flex-direction: column;
+    /* Signatures Table */
+    .sig-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
     }
 
-    .final-page .section-container {
-      margin-bottom: 14px;
+    .sig-table td {
+      width: 50%;
+      vertical-align: top;
+      padding: 0 20px 0 0;
     }
 
-    .final-page .clause-block {
-      margin-bottom: 8px;
-    }
-
-    .final-page .bullet-list li,
-    .final-page .clause-text {
-      font-size: 11.4px;
-      line-height: 1.42;
-    }
-
-    .final-page .bullet-list {
-      margin-top: 5px;
-      margin-bottom: 5px;
-    }
-
-    .signatures-panel {
-      margin-top: auto;
-      padding-top: 16px;
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-
-    .sig-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 34px;
-      align-items: end;
-    }
-
-    .sig-card {
-      min-height: 128px;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
+    .sig-table td:last-child {
+      padding-right: 0;
+      padding-left: 20px;
     }
 
     .sig-placeholder-line {
       border-bottom: 1.5px solid var(--border-color);
-      height: 42px;
+      height: 45px;
       margin-bottom: 8px;
     }
 
@@ -271,20 +241,27 @@
       height: 14px;
     }
 
-    .sig-stamp {
+    .stamp-box-container {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .stamp-container {
       position: absolute;
-      right: 2px;
-      top: 0;
-      transform: rotate(-7deg);
-      opacity: 0.88;
+      right: 120px;
+      bottom: 160px;
+      transform: scale(1.5) rotate(-45deg);
+      opacity: 0.82;
+      display: inline-block;
       pointer-events: none;
     }
 
     .stamp {
-      width: 178px;
+      width: 200px;
       border: 2px solid #1134a6;
       border-radius: 6px;
-      padding: 7px 9px;
+      padding: 8px 10px;
       text-align: center;
       background-color: transparent;
       box-sizing: border-box;
@@ -294,7 +271,7 @@
       color: #1134a6;
       font-family: 'Crimson Text', serif;
       font-weight: 700;
-      font-size: 10.5px;
+      font-size: 12px;
       line-height: 1.1;
       letter-spacing: 0.4px;
       margin-bottom: 6px;
@@ -317,7 +294,7 @@
     .stamp .date {
       color: #e51921;
       font-family: 'Oswald', sans-serif;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 500;
       letter-spacing: 0.8px;
     }
@@ -325,7 +302,7 @@
     .stamp .address {
       color: #1134a6;
       font-family: 'Nunito', sans-serif;
-      font-size: 8px;
+      font-size: 9px;
       font-weight: 700;
       letter-spacing: 0.2px;
     }
@@ -338,7 +315,6 @@
       }
 
       .page-section {
-        width: 210mm;
         margin: 0;
         box-shadow: none;
         border: none;
@@ -354,10 +330,21 @@
 
   <!-- ==================== PAGE 1 ==================== -->
   <div class="page-section">
+    <div class="stamp-container" aria-hidden="true">
+      <div class="stamp">
+        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
+        <div class="middle-row">
+          <span class="star">&#9733;</span>
+          <span class="date">21 JUL 2026</span>
+          <span class="star">&#9733;</span>
+        </div>
+        <div class="address">PO Box 167564 Kampala Uganda</div>
+      </div>
+    </div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
-          <img src="{{LogoUrl}}" alt="Welile Logo">
+          <img src="/assets/welile-wordmark-CVERVVA-.png" alt="Welile Logo">
         </div>
         <div class="header-title-meta">
           Welile Merchant Agent Agreement
@@ -377,9 +364,9 @@
           <p class="clause-text">
             <strong>1.1</strong> This Agreement is entered into between <strong>Welile Technologies Limited</strong>
             (&ldquo;Welile&rdquo;, &ldquo;the Company&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) and the Merchant
-            Agent, <strong>{{MerchantName}}</strong> (&ldquo;Merchant Agent&rdquo;, &ldquo;Cash-Out Agent&rdquo;,
-            &ldquo;you&rdquo;), for the platform <strong>welile.com</strong>, effective <strong>{{EffectiveDate}}</strong>
-            (Version <strong>{{Version}}</strong>). By clicking &ldquo;I Agree&rdquo;, you confirm that you have read,
+            Agent, <strong>JOSH</strong> (&ldquo;Merchant Agent&rdquo;, &ldquo;Cash-Out Agent&rdquo;,
+            &ldquo;you&rdquo;), for the platform <strong>welile.com</strong>, effective <strong>21 July 2026</strong>
+            (Version <strong>v1.0</strong>). By clicking &ldquo;I Agree&rdquo;, you confirm that you have read,
             understood, and accepted this Agreement in full. This Agreement sets out the terms under which you act as a
             Welile Merchant Agent (also called a Cash-Out Agent).
           </p>
@@ -444,7 +431,7 @@
     </div>
 
     <footer class="footer-block">
-      <div>Welile Technologies Limited &middot; Page 1 of 4</div>
+      <div>Welile Technologies Limited &middot; Page 1 of 5</div>
       <div>Platform: <a href="https://welile.com" target="_blank">welile.com</a></div>
     </footer>
   </div>
@@ -452,10 +439,21 @@
 
   <!-- ==================== PAGE 2 ==================== -->
   <div class="page-section">
+    <div class="stamp-container" aria-hidden="true">
+      <div class="stamp">
+        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
+        <div class="middle-row">
+          <span class="star">&#9733;</span>
+          <span class="date">21 JUL 2026</span>
+          <span class="star">&#9733;</span>
+        </div>
+        <div class="address">PO Box 167564 Kampala Uganda</div>
+      </div>
+    </div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
-          <img src="{{LogoUrl}}" alt="Welile Logo">
+          <img src="/assets/welile-wordmark-CVERVVA-.png" alt="Welile Logo">
         </div>
         <div class="header-title-meta">
           Welile Merchant Agent Agreement
@@ -542,7 +540,7 @@
     </div>
 
     <footer class="footer-block">
-      <div>Welile Technologies Limited &middot; Page 2 of 4</div>
+      <div>Welile Technologies Limited &middot; Page 2 of 5</div>
       <div>Platform: <a href="https://welile.com" target="_blank">welile.com</a></div>
     </footer>
   </div>
@@ -550,10 +548,21 @@
 
   <!-- ==================== PAGE 3 ==================== -->
   <div class="page-section">
+    <div class="stamp-container" aria-hidden="true">
+      <div class="stamp">
+        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
+        <div class="middle-row">
+          <span class="star">&#9733;</span>
+          <span class="date">21 JUL 2026</span>
+          <span class="star">&#9733;</span>
+        </div>
+        <div class="address">PO Box 167564 Kampala Uganda</div>
+      </div>
+    </div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
-          <img src="{{LogoUrl}}" alt="Welile Logo">
+          <img src="/assets/welile-wordmark-CVERVVA-.png" alt="Welile Logo">
         </div>
         <div class="header-title-meta">
           Welile Merchant Agent Agreement
@@ -669,18 +678,29 @@
     </div>
 
     <footer class="footer-block">
-      <div>Welile Technologies Limited &middot; Page 3 of 4</div>
+      <div>Welile Technologies Limited &middot; Page 3 of 5</div>
       <div>Platform: <a href="https://welile.com" target="_blank">welile.com</a></div>
     </footer>
   </div>
 
 
   <!-- ==================== PAGE 4 ==================== -->
-  <div class="page-section final-page">
+  <div class="page-section">
+    <div class="stamp-container" aria-hidden="true">
+      <div class="stamp">
+        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
+        <div class="middle-row">
+          <span class="star">&#9733;</span>
+          <span class="date">21 JUL 2026</span>
+          <span class="star">&#9733;</span>
+        </div>
+        <div class="address">PO Box 167564 Kampala Uganda</div>
+      </div>
+    </div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
-          <img src="{{LogoUrl}}" alt="Welile Logo">
+          <img src="/assets/welile-wordmark-CVERVVA-.png" alt="Welile Logo">
         </div>
         <div class="header-title-meta">
           Welile Merchant Agent Agreement
@@ -806,6 +826,36 @@
           </p>
         </div>
       </div>
+    </div>
+
+    <footer class="footer-block">
+      <div>Welile Technologies Limited &middot; Page 4 of 5</div>
+      <div>Platform: <a href="https://welile.com" target="_blank">welile.com</a></div>
+    </footer>
+  </div>
+
+  <!-- ==================== PAGE 5 ==================== -->
+  <div class="page-section">
+    <div class="stamp-container" aria-hidden="true">
+      <div class="stamp">
+        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
+        <div class="middle-row">
+          <span class="star">&#9733;</span>
+          <span class="date">21 JUL 2026</span>
+          <span class="star">&#9733;</span>
+        </div>
+        <div class="address">PO Box 167564 Kampala Uganda</div>
+      </div>
+    </div>
+    <div class="page-content">
+      <header class="header-block">
+        <div class="header-logo">
+          <img src="/assets/welile-wordmark-CVERVVA-.png" alt="Welile Logo">
+        </div>
+        <div class="header-title-meta">
+          Welile Merchant Agent Agreement
+        </div>
+      </header>
 
       <!-- Section 11 -->
       <div class="section-container">
@@ -872,38 +922,28 @@
       </div>
 
       <!-- Signatures Block -->
-      <div class="signatures-panel">
-        <div class="sig-grid">
-          <div class="sig-card">
-            <div class="sig-placeholder-line"></div>
-            <div class="sig-detail-name">{{MerchantName}}</div>
-            <div class="sig-detail-role">Merchant Agent / Cash-Out Agent</div>
-            <div class="sig-detail-role">{{MerchantPhone}}</div>
-            <div class="sig-detail-date">Date: <span>{{StampDate}}</span></div>
-          </div>
-          <div class="sig-card welile-signature-card">
-            <div class="sig-stamp" aria-hidden="true">
-              <div class="stamp">
-                <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
-                <div class="middle-row">
-                  <span class="star">&#9733;</span>
-                  <span class="date">{{StampDate}}</span>
-                  <span class="star">&#9733;</span>
-                </div>
-                <div class="address">PO Box 167564 Kampala Uganda</div>
-              </div>
-            </div>
-            <div class="sig-placeholder-line"></div>
-            <div class="sig-detail-name">Mercy Bayo</div>
-            <div class="sig-detail-role">Authorized Signatory, Welile Technologies Limited</div>
-            <div class="sig-detail-date">Date: <span>{{StampDate}}</span></div>
-          </div>
-        </div>
+      <div class="section-container" style="page-break-inside: avoid; margin-top: 30px;">
+        <table class="sig-table">
+          <tr>
+            <td>
+              <div class="sig-placeholder-line"></div>
+              <div class="sig-detail-name">JOSH</div>
+              <div class="sig-detail-role">Merchant Agent / Cash-Out Agent</div>
+              <div class="sig-detail-date">Date: <span></span></div>
+            </td>
+            <td style="position: relative;">
+              <div class="sig-placeholder-line"></div>
+              <div class="sig-detail-name">Welile Technologies Limited</div>
+              <div class="sig-detail-role">Authorized Signatory</div>
+              <div class="sig-detail-date">Date: <span></span></div>
+            </td>
+          </tr>
+        </table>
       </div>
     </div>
 
     <footer class="footer-block">
-      <div>Welile Technologies Limited &middot; Page 4 of 4</div>
+      <div>Welile Technologies Limited &middot; Page 5 of 5</div>
       <div>Platform: <a href="https://welile.com" target="_blank">welile.com</a></div>
     </footer>
   </div>
