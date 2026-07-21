@@ -367,7 +367,10 @@ export function LandlordOpsDashboard() {
   const [search, setSearch] = useState('');
   const [navSheetOpen, setNavSheetOpen] = useState(false);
   const [landlordPage, setLandlordPage] = useState(1);
-  const [landlordCategory, setLandlordCategory] = useState('all');
+  // Default to the Verified filter so ops only sees trusted landlords by
+  // default. Search bypasses this filter at the RPC level so unverified
+  // matches still surface — flagged with a red "Not Verified" badge.
+  const [landlordCategory, setLandlordCategory] = useState('verified');
   const [verifying, setVerifying] = useState<string | null>(null);
   const queryClient = useQueryClient();
   // Optimistically removed from the verification queue (until refetch confirms or rollback restores).
