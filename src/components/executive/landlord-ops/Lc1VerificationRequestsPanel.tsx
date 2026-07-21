@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle, MapPin } from 'lucide-react';
+import { ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Lc1VerificationRequest {
   id: string;
