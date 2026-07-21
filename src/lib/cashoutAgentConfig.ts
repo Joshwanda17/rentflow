@@ -67,7 +67,7 @@ export const PAYOUT_CATEGORY_GROUPS: PayoutCategoryGroup[] = [
   {
     group: 'Proxy Partner Withdrawals',
     items: [
-      { id: 'proxy_partner_withdrawal', label: 'Proxy Partner Withdrawal', hint: 'Withdrawals routed through proxy / managed partners.', defaultApproval: 'finance_cfo' },
+      { id: 'proxy_partner_withdrawal', label: 'Partner Withdrawal (Proxy Initiated)', hint: 'All partner payouts — ROI, capital, profit share — initiated by a Proxy Agent. This is the single unified partner payout channel.', defaultApproval: 'finance_cfo' },
     ],
   },
   {
@@ -98,12 +98,6 @@ export const PAYOUT_CATEGORY_GROUPS: PayoutCategoryGroup[] = [
       { id: 'tenant_placement_bonuses', label: 'Tenant Placement Bonuses', defaultApproval: 'none' },
       { id: 'listing_bonuses', label: 'Listing Bonuses', defaultApproval: 'none' },
       { id: 'verification_bonuses', label: 'Verification Bonuses', defaultApproval: 'none' },
-    ],
-  },
-  {
-    group: 'ROI / Supporter Returns',
-    items: [
-      { id: 'roi_payments', label: 'ROI Payments', hint: 'Supporter earnings and scheduled ROI disbursements.', defaultApproval: 'cfo_only' },
     ],
   },
   {
@@ -279,11 +273,16 @@ const reasonOf = (w: any) => String(w?.reason || '').toLowerCase();
 export const QUEUE_CATEGORY_DEFS: QueueCategoryDef[] = [
   {
     id: 'proxy_partner_withdrawal',
-    label: 'Proxy Partner Withdrawal',
+    label: 'Partner Withdrawal (Proxy Initiated)',
     configIds: ['proxy_partner_withdrawal'],
-    match: (w) => reasonOf(w).includes('proxy'),
-    orPredicates: ['reason.ilike.*proxy*'],
-    notPredicates: ['reason.not.ilike.*proxy*'],
+    // Any partner payout — proxy-initiated wallet withdrawal OR legacy ROI/returns
+    // rows that predate the unified flow — belongs to this single queue.
+    match: (w) => {
+      const r = reasonOf(w);
+      return r.includes('proxy') || r.includes('roi') || r.includes('return');
+    },
+    orPredicates: ['reason.ilike.*proxy*', 'reason.ilike.*roi*', 'reason.ilike.*return*'],
+    notPredicates: ['reason.not.ilike.*proxy*', 'reason.not.ilike.*roi*', 'reason.not.ilike.*return*'],
   },
   {
     id: 'landlord_payouts',
@@ -292,14 +291,6 @@ export const QUEUE_CATEGORY_DEFS: QueueCategoryDef[] = [
     match: (w) => reasonOf(w).startsWith('landlord float payout'),
     orPredicates: ['reason.ilike.Landlord float payout*'],
     notPredicates: ['reason.not.ilike.Landlord float payout*'],
-  },
-  {
-    id: 'roi_payments',
-    label: 'ROI Payments',
-    configIds: ['roi_payments'],
-    match: (w) => /roi|return/.test(reasonOf(w)),
-    orPredicates: ['reason.ilike.*roi*', 'reason.ilike.*return*'],
-    notPredicates: ['reason.not.ilike.*roi*', 'reason.not.ilike.*return*'],
   },
   {
     id: 'payroll_payments',
@@ -408,6 +399,5 @@ export const OTHER_WITHDRAWAL_REASON = '__other__';
 export const WITHDRAWAL_REASON_OPTIONS: WithdrawalReasonOption[] = [
   { value: 'Wallet withdrawal', label: 'Personal / wallet withdrawal', queueCategory: 'wallet_withdrawals' },
   { value: 'Commission payout', label: 'Commission earnings', queueCategory: 'agent_commissions' },
-  { value: 'ROI returns payout', label: 'Investment returns (ROI)', queueCategory: 'roi_payments' },
   { value: 'Salary / payroll payout', label: 'Salary / payroll', queueCategory: 'payroll_payments' },
 ];
