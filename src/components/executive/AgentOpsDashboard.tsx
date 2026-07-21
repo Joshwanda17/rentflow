@@ -5,6 +5,7 @@ import { AgentOpsBottomNav, type BottomTab } from './agent-ops-v2/AgentOpsBottom
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { AdvanceRequestsReviewed } from '@/components/ops/AdvanceRequestsReviewed';
 import { AdvanceRepaymentsPanel } from '@/components/ops/AdvanceRepaymentsPanel';
+import { ActiveAdvancesPanel } from '@/components/ops/ActiveAdvancesPanel';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery } from '@tanstack/react-query';
@@ -50,7 +51,7 @@ import {
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
-  LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target
+  LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target, Activity
   , Coins, Megaphone, Lock
 } from 'lucide-react';
 import {
@@ -64,7 +65,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advance-requests' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'advance-potential', icon: Target, label: 'Advance Potential', color: 'bg-purple-700', priority: true },
@@ -95,6 +96,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'transfers', icon: ArrowLeftRight, label: 'Transfers', color: 'bg-cyan-600' },
   { key: 'locked-transfers', icon: Lock, label: 'Locked → Area Transfer', color: 'bg-rose-600', priority: true },
   { key: 'advance-requests', icon: Banknote, label: 'Advances', color: 'bg-purple-600', priority: true },
+  { key: 'active-advances', icon: Activity, label: 'Active Advances', color: 'bg-purple-500', priority: true },
   { key: 'brief', icon: DollarSign, label: 'Daily Brief', color: 'bg-rose-500' },
 ];
 
@@ -235,6 +237,7 @@ export function AgentOpsDashboard() {
           <RentHistoryVerificationQueue dept="agent_ops" />
         </div>
       );
+      case 'active-advances': return <ActiveAdvancesPanel />;
       case 'advance-potential': return <AgentAdvancePotential />;
       case 'advance-limits': return <AgentAdvanceLimits />;
       case 'advance-repayments': return <AdvanceRepaymentsPanel />;
@@ -282,7 +285,7 @@ export function AgentOpsDashboard() {
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
     { title: '👥 Agent Network', keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
-    { title: '💰 Advances', keys: ['advance-requests', 'advance-potential', 'advance-limits', 'advance-repayments'] },
+    { title: '💰 Advances', keys: ['advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments'] },
     { title: '🏢 Business', keys: ['service-centres', 'transfers', 'locked-transfers', 'float-payouts'] },
     { title: '📊 Insights', keys: ['leaderboard', 'listing-campaign', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
     { title: '🔗 System', keys: ['bulk-ops'] },
@@ -462,7 +465,7 @@ function AgentOpsSideNav({
   // collapsible so the nav never over-scrolls. Agent Network sits right
   // below Priority and is open by default (this dashboard is agent-centric).
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
-    { title: 'Advances', pinned: true, keys: ['advance-requests', 'advance-potential', 'advance-limits', 'advance-repayments'] },
+    { title: 'Advances', pinned: true, keys: ['advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments'] },
     { title: 'Agent Network', defaultOpen: true, keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
     { title: 'Operations', keys: ['pipeline', 'escalations', 'tasks', 'connector'] },
     { title: 'Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
