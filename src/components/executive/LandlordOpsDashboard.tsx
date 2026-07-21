@@ -81,6 +81,80 @@ import { Lc1VerificationRequestsPanel } from './landlord-ops/Lc1VerificationRequ
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
 
+/**
+ * Thin wrapper that fetches active listing blocks + recent rejection counts
+ * for ALL agent IDs currently visible in the Verification Queue in a SINGLE
+ * batched query, then hands the per-agent slice down to the underlying
+ * `AgentListingBlockControl` via `preloadedStatus`.
+ *
+ * Every rendered card shares the same react-query key (`agentIdsInView`
+ * joined + sorted), so react-query dedupes the fetch to a single request
+ * regardless of how many cards are mounted. This replaces what used to be
+ * `2 × N` per-card queries (blocks + rejections) with `2` total per page.
+ */
+function BatchedAgentListingBlockControl({
+  agentId,
+  agentName,
+  agentIdsInView,
+}: {
+  agentId: string;
+  agentName?: string | null;
+  agentIdsInView: string[];
+}) {
+  const batchKey = useMemo(
+    () => Array.from(new Set(agentIdsInView.filter(Boolean))).sort().join(','),
+    [agentIdsInView],
+  );
+  const { data: statusMap } = useQuery({
+    queryKey: ['agent-posting-status-batch', batchKey],
+    queryFn: async () => {
+      const ids = batchKey ? batchKey.split(',') : [];
+      const empty = new Map<string, { block: any; recentRejections: number }>();
+      if (ids.length === 0) return empty;
+      const nowIso = new Date().toISOString();
+      const [blocksRes, rejsRes] = await Promise.all([
+        supabase
+          .from('agent_listing_blocks')
+          .select('agent_id, id, blocked_until, reason, auto_blocked, rejection_count, created_at')
+          .in('agent_id', ids)
+          .eq('active', true)
+          .gt('blocked_until', nowIso),
+        supabase
+          .from('agent_listing_rejections')
+          .select('agent_id')
+          .in('agent_id', ids),
+      ]);
+      const m = new Map<string, { block: any; recentRejections: number }>();
+      ids.forEach((id) => m.set(id, { block: null, recentRejections: 0 }));
+      (blocksRes.data || []).forEach((b: any) => {
+        const cur = m.get(b.agent_id) || { block: null, recentRejections: 0 };
+        m.set(b.agent_id, { ...cur, block: b });
+      });
+      const counts: Record<string, number> = {};
+      (rejsRes.data || []).forEach((r: any) => {
+        counts[r.agent_id] = (counts[r.agent_id] || 0) + 1;
+      });
+      ids.forEach((id) => {
+        const cur = m.get(id)!;
+        m.set(id, { ...cur, recentRejections: counts[id] || 0 });
+      });
+      return m;
+    },
+    enabled: !!batchKey,
+    staleTime: 60_000,
+  });
+  const preloaded = statusMap
+    ? statusMap.get(agentId) ?? { block: null, recentRejections: 0 }
+    : undefined;
+  return (
+    <AgentListingBlockControl
+      agentId={agentId}
+      agentName={agentName}
+      preloadedStatus={preloaded}
+    />
+  );
+}
+
 
 interface ListingWithLandlord {
   id: string;
