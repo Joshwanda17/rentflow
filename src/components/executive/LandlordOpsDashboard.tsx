@@ -1707,8 +1707,11 @@ export function LandlordOpsDashboard() {
     return [...map.entries()].sort((a, b) => b[1].listings.length - a[1].listings.length);
   }, [rows]);
 
-  const totalMonthlyRevenue = occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
-  const lostMonthlyRevenue = emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
+  // Prefer the server-computed totals so the home dashboard doesn't need the
+  // full landlord set loaded. Fall back to iterating landlordsList only when
+  // it happens to already be loaded (occupied/empty views).
+  const totalMonthlyRevenue = occupiedMonthlyRevenue ?? occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
+  const lostMonthlyRevenue  = emptyMonthlyRevenue    ?? emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
 
   // ─── Navigate to any section (resets transient search/filter state) ───
   const goToView = (id: View) => {
@@ -3574,7 +3577,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-2 gap-2">
           <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
           <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-          <KPICard title="📱 Landlords" value={smartphoneLandlords.length} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${landlordsList.length}`} />
+          <KPICard title="📱 Landlords" value={smartphoneLandlordsCount} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${totalLandlordsCount}`} />
           <KPICard title="Bonuses Pending" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
         </div>
         <VacancyAnalytics listings={rows as any} />
@@ -3741,10 +3744,10 @@ export function LandlordOpsDashboard() {
 
       {/* KPIs — responsive card grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KPICard title="Total Properties" value={landlordsList.length} icon={Home} loading={isLoading} onClick={() => setView('houses-by-landlord')} />
-        <KPICard title="Occupied" value={occupiedLandlords.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} onClick={() => setView('occupied')} />
-        <KPICard title="Empty" value={emptyLandlords.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} onClick={() => setView('empty')} />
-        <KPICard title="Landlords" value={landlordsList.length} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} onClick={() => setView('landlords')} />
+        <KPICard title="Total Properties" value={totalLandlordsCount} icon={Home} loading={isLoading} onClick={() => setView('houses-by-landlord')} />
+        <KPICard title="Occupied" value={occupiedLandlordsCount} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} onClick={() => setView('occupied')} />
+        <KPICard title="Empty" value={emptyLandlordsCount} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} onClick={() => setView('empty')} />
+        <KPICard title="Landlords" value={totalLandlordsCount} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlordsCount} verified`} onClick={() => setView('landlords')} />
         <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" onClick={() => setView('cities')} />
         <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" onClick={() => setView('no-landlord')} />
       </div>
@@ -3806,7 +3809,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navItems.filter(n => n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-              item.id === 'landlords' ? `${landlordsList.length}` :
+              item.id === 'landlords' ? `${totalLandlordsCount}` :
               item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
               item.id === 'locations' ? `${locationGroups.length}` :
               item.id === 'lc1' ? `${lc1Groups.length}` :
@@ -3827,8 +3830,8 @@ export function LandlordOpsDashboard() {
           {navItems.filter(n => !n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)}
               badge={
-                item.id === 'empty' ? `${emptyLandlords.length}` :
-                item.id === 'occupied' ? `${occupiedLandlords.length}` :
+                item.id === 'empty' ? `${emptyLandlordsCount}` :
+                item.id === 'occupied' ? `${occupiedLandlordsCount}` :
                 item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
                 item.id === 'agents' ? `${agentSummary.length}` : undefined
               } />
