@@ -1991,7 +1991,9 @@ export function LandlordOpsDashboard() {
             <Button size="sm" onClick={() => setBulkImportLandlordsOpen(true)} className="h-9">
               <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
             </Button>
-            <span className="text-xs text-muted-foreground">{filtered.length} landlords</span>
+            <span className="text-xs text-muted-foreground">
+              {landlordOpsListFetching ? 'Loading…' : `${totalMatched} landlords`}
+            </span>
           </div>
         </div>
 
@@ -2091,7 +2093,7 @@ export function LandlordOpsDashboard() {
                 <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">No landlords found</td></tr>
               ) : (
                 paginated.map(landlord => {
-                  const tenantCount = landlord.tenants?.length || 0;
+                  const tenantCount = landlord.tenant_count || 0;
                   const isExpanded = expandedLandlordId === landlord.id;
                   return (
                     <Fragment key={landlord.id}>
@@ -2200,10 +2202,10 @@ export function LandlordOpsDashboard() {
         </div>
 
         {/* Pagination controls */}
-        {filtered.length > perPage && (
+        {totalMatched > perPage && (
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-muted-foreground">
-              Showing {(safePage - 1) * perPage + 1}–{Math.min(safePage * perPage, filtered.length)} of {filtered.length}
+              Showing {(safePage - 1) * perPage + 1}–{Math.min(safePage * perPage, totalMatched)} of {totalMatched}
             </span>
             <div className="flex items-center gap-2">
               <Button
