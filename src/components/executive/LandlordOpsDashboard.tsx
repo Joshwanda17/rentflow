@@ -1525,6 +1525,28 @@ export function LandlordOpsDashboard() {
 
   const clearVerifySelection = () => setVerifySelectedIds(new Set());
 
+  // Run an async `fn` over `items` with a bounded concurrency window so bulk
+  // actions on the Verification Queue don't block on a serial `await` loop.
+  async function runBulk<T, R>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = new Array(items.length);
+    let cursor = 0;
+    const workers = Array.from(
+      { length: Math.min(Math.max(1, limit), items.length) },
+      async () => {
+        while (cursor < items.length) {
+          const idx = cursor++;
+          results[idx] = await fn(items[idx]);
+        }
+      },
+    );
+    await Promise.all(workers);
+    return results;
+  }
+
   // Hide or unhide every selected house from the tenant dashboard.
   const handleBulkHide = async (selected: ListingWithLandlord[], nextHidden: boolean) => {
     if (!user || selected.length === 0) return;
@@ -1540,8 +1562,7 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy(nextHidden ? 'hide' : 'unhide');
-    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
-    for (const h of selected) {
+    const results = await runBulk(selected, 6, async (h) => {
       try {
         const { error } = await supabase.from('house_listings').update({ is_hidden: nextHidden }).eq('id', h.id);
         if (error) throw error;
@@ -1554,11 +1575,11 @@ export function LandlordOpsDashboard() {
         });
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, is_hidden: nextHidden } : l) : old);
-        results.push({ id: h.id, title: h.title, ok: true });
+        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
       } catch (err: any) {
-        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
       }
-    }
+    });
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
@@ -1582,19 +1603,18 @@ export function LandlordOpsDashboard() {
     }
     if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
     setBulkBusy('verify');
-    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
-    for (const h of targets) {
+    const results = await runBulk(targets, 6, async (h) => {
       try {
         const { data, error } = await supabase.functions.invoke('credit-listing-bonus', { body: { listing_id: h.id } });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, verified: true, listing_bonus_paid: true } : l) : old);
-        results.push({ id: h.id, title: h.title, ok: true });
+        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
       } catch (err: any) {
-        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
       }
-    }
+    });
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
@@ -1619,24 +1639,23 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy('reject');
-    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
-    for (const h of selected) {
+    const results = await runBulk(selected, 6, async (h) => {
       try {
         const { data, error } = await supabase.rpc('reject_house_listing', { p_listing_id: h.id, p_reason: trimmed });
         if (error) throw error;
         if (data && typeof data === 'object' && 'error' in (data as any)) throw new Error((data as any).error);
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
-        results.push({ id: h.id, title: h.title, ok: true });
         // Web-push only (no SMS) — best effort, never blocks the bulk loop.
-        await invokeEdgeFunction('notify-listing-rejected', {
+        invokeEdgeFunction('notify-listing-rejected', {
           body: { listing_id: h.id, reason: trimmed },
           silent: true,
-        });
+        }).catch(() => { /* best-effort */ });
+        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
       } catch (err: any) {
-        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
       }
-    }
+    });
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
