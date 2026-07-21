@@ -332,12 +332,12 @@ export function LandlordSearchSelect({
         }).abortSignal(signal);
         if (error) throw error;
         if (!isAborted()) {
-          // Verified landlords always rank first; unverified matches still
-          // surface so the searched name isn't hidden, but they're flagged.
-          const sorted = [...((data ?? []) as unknown as LandlordOption[])].sort(
-            (a, b) => Number(!!b.verified) - Number(!!a.verified),
+          // Only verified landlords are selectable — unverified ("Needs Ops")
+          // records are hidden from the picker entirely.
+          const verifiedOnly = ((data ?? []) as unknown as LandlordOption[]).filter(
+            (l) => !!l.verified,
           );
-          setResults(sorted);
+          setResults(verifiedOnly);
           // This search finished — clear any lingering cancellation note.
           setCancelledInfo(null);
         }
@@ -361,10 +361,10 @@ export function LandlordSearchSelect({
           const { data, error } = await q.abortSignal(signal);
           if (error) throw error;
           if (!isAborted()) {
-            const sorted = [...((data ?? []) as LandlordOption[])].sort(
-              (a, b) => Number(!!b.verified) - Number(!!a.verified),
+            const verifiedOnly = ((data ?? []) as LandlordOption[]).filter(
+              (l) => !!l.verified,
             );
-            setResults(sorted);
+            setResults(verifiedOnly);
             setCancelledInfo(null);
           }
         } catch (fallbackErr) {
