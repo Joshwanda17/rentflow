@@ -44,7 +44,7 @@
 
     /* Page-by-Page Layout */
     .page-section {
-      width: 210mm;
+      width: min(210mm, calc(100vw - 32px));
       /* Standard A4 Width */
       min-height: 297mm;
       /* Standard A4 Height */
@@ -57,6 +57,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      overflow: hidden;
     }
 
     .page-content {
@@ -324,6 +325,7 @@
       }
 
       .page-section {
+        width: 210mm;
         margin: 0;
         box-shadow: none;
         border: none;
@@ -339,7 +341,6 @@
 
   <!-- ==================== PAGE 1 ==================== -->
   <div class="page-section">
-</div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
@@ -438,7 +439,6 @@
 
   <!-- ==================== PAGE 2 ==================== -->
   <div class="page-section">
-</div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
@@ -537,7 +537,6 @@
 
   <!-- ==================== PAGE 3 ==================== -->
   <div class="page-section">
-</div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
@@ -665,7 +664,6 @@
 
   <!-- ==================== PAGE 4 ==================== -->
   <div class="page-section">
-</div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
