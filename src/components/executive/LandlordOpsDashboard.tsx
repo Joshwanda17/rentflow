@@ -1081,6 +1081,17 @@ export function LandlordOpsDashboard() {
   const rows = listings || [];
   const landlordsList = allLandlords || [];
   const noLandlordList = noLandlordTenants || [];
+  // Server-derived counts (constant-time, no full-table pull). Used by home KPIs
+  // and the "All Landlords" list category chips. Fall back to landlordsList
+  // counts only for the occupied/empty views where the full set is already loaded.
+  const totalLandlordsCount = landlordOpsTotals?.total ?? landlordsList.length;
+  const verifiedLandlordsCount = landlordOpsTotals?.verified ?? landlordsList.filter(l => l.verified).length;
+  const pendingLandlordsCount = landlordOpsTotals?.pending ?? landlordsList.filter(l => !l.verified).length;
+  const smartphoneLandlordsCount = landlordOpsTotals?.smartphone ?? landlordsList.filter(l => l.has_smartphone).length;
+  const occupiedLandlordsCount = landlordOpsTotals?.has_tenants ?? 0;
+  const emptyLandlordsCount = landlordOpsTotals?.no_tenants ?? 0;
+  const occupiedMonthlyRevenue = landlordOpsTotals?.occupied_monthly_revenue;
+  const emptyMonthlyRevenue = landlordOpsTotals?.empty_monthly_revenue;
   const unverifiedListings = rows.filter(l =>
     !l.verified
     && l.status !== 'rejected'
