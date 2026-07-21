@@ -46,7 +46,8 @@ import {
   ChevronDown,
   History,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  UserMinus,
 } from 'lucide-react';
 import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -67,6 +68,16 @@ import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { SubAgentBottomNav, type SubAgentSection } from '@/components/agent/SubAgentBottomNav';
 import { SubAgentPayoutAudit } from '@/components/agent/SubAgentPayoutAudit';
 import { SubAgentStatusBoard } from '@/components/agent/SubAgentStatusBoard';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   BarChart,
   Bar,
