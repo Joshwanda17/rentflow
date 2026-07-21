@@ -460,6 +460,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 }
