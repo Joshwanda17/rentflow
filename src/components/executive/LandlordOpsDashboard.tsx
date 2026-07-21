@@ -2888,6 +2888,14 @@ export function LandlordOpsDashboard() {
       return 0;
     });
 
+    // ── Client-side pagination for the queue render ──
+    // The parent query already caps rows; this just prevents mounting 500
+    // heavy cards at once (which was the primary source of the "long load"
+    // and the unresponsive bulk-select toggles).
+    const totalFiltered = filteredHouses.length;
+    const displayedHouses = filteredHouses.slice(0, verifyPage * VERIFY_PAGE_SIZE);
+    const hasMoreHouses = displayedHouses.length < totalFiltered;
+
     return (
       <>
       <div className="space-y-3">
