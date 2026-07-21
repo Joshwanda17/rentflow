@@ -99,7 +99,15 @@ export default function MerchantAgentOnboarding() {
         <div className="mt-6 space-y-2">
           <Button
             className="w-full h-11 rounded-xl"
-            onClick={() => navigate('/dashboard/agent', { replace: true })}
+            onClick={async () => {
+              if (user?.id) {
+                await supabase
+                  .from('profiles')
+                  .update({ pending_merchant_agent: false })
+                  .eq('id', user.id);
+              }
+              navigate('/dashboard/agent', { replace: true });
+            }}
           >
             Go to dashboard
           </Button>
