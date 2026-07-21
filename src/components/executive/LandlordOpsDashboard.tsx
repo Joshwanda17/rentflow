@@ -32,6 +32,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import {
+  useLandlordOpsTotals,
+  useLandlordOpsList,
+  type LandlordCategory as LandlordOpsCategory,
+  type LandlordPendingFilter as LandlordOpsPendingFilter,
+  type LandlordSort as LandlordOpsSort,
+} from '@/hooks/useLandlordOps';
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import {
