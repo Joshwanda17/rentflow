@@ -9,7 +9,11 @@ import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPd
  */
 export async function downloadMerchantAgreementPdf(opts?: { name?: string; phone?: string }) {
   const merchantName = opts?.name?.trim() || opts?.phone?.trim() || 'Merchant Agent';
-  const html = buildMerchantAgreementHtml({ merchantName, agreementDate: new Date() });
+  const html = buildMerchantAgreementHtml({
+    merchantName,
+    merchantPhone: opts?.phone,
+    agreementDate: new Date(),
+  });
 
   const base64 = await renderAgreementPdfBase64(html);
   const byteChars = atob(base64);
