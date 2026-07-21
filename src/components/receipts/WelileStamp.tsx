@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import stampAsset from '@/assets/welile-official-stamp.png.asset.json';
 
 /** Today's date in the exact physical-stamp format, e.g. "15 JUN 2026". */
 export function stampDate(): string {
@@ -51,68 +52,37 @@ export function WelileStamp({
         opacity: watermark ? 0.16 : 0.85,
         pointerEvents: 'none',
         userSelect: 'none',
+        position: 'relative',
+        width: 460,
       }}
     >
+      {/* Official Welile Technologies Limited company stamp artwork */}
+      <img
+        src={stampAsset.url}
+        alt=""
+        style={{ width: '100%', height: 'auto', display: 'block' }}
+        draggable={false}
+      />
+      {/* Dynamic date overlay — covers the baked "21 JUL 2026" with today's date
+          so the same official stamp stays authentic on every day. */}
       <div
         style={{
-          width: 460,
-          border: '5px solid #1134a6',
-          borderRadius: 12,
-          padding: '20px 25px',
-          textAlign: 'center',
-          backgroundColor: 'transparent',
-          boxSizing: 'border-box',
+          position: 'absolute',
+          top: '46%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#ffffff',
+          padding: '2px 14px',
+          color: '#e51921',
+          fontFamily: "'Oswald', sans-serif",
+          fontSize: 44,
+          fontWeight: 500,
+          letterSpacing: 2,
+          lineHeight: 1,
+          whiteSpace: 'nowrap',
         }}
       >
-        <div
-          style={{
-            color: '#1134a6',
-            fontFamily: "'Crimson Text', serif",
-            fontWeight: 700,
-            fontSize: 32,
-            lineHeight: 1.1,
-            letterSpacing: 1,
-            marginBottom: 25,
-          }}
-        >
-          WELILE TECHNOLOGIES<br />LIMITED
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 25,
-            padding: '0 10px',
-          }}
-        >
-          <div style={{ color: '#1134a6', fontSize: 40, lineHeight: 1 }}>★</div>
-          <div
-            style={{
-              color: '#e51921',
-              fontFamily: "'Oswald', sans-serif",
-              fontSize: 48,
-              fontWeight: 500,
-              letterSpacing: 2,
-            }}
-          >
-            {date}
-          </div>
-          <div style={{ color: '#1134a6', fontSize: 40, lineHeight: 1 }}>★</div>
-        </div>
-
-        <div
-          style={{
-            color: '#1134a6',
-            fontFamily: "'Nunito', sans-serif",
-            fontSize: 24,
-            fontWeight: 700,
-            letterSpacing: 0.5,
-          }}
-        >
-          PO Box 167564 Kampala Uganda
-        </div>
+        {date}
       </div>
     </div>
   );
