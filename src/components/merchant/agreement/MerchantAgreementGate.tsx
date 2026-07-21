@@ -39,6 +39,11 @@ export function MerchantAgreementGate({ children }: { children: React.ReactNode 
   const handleAccept = async () => {
     const ok = await acceptAgreement();
     if (ok) {
+      try {
+        await downloadMerchantAgreementPdf({ name: profile?.full_name, phone: profile?.phone });
+      } catch (err) {
+        console.warn('[MerchantAgreementGate] pdf download failed', err);
+      }
       toast.success('Merchant Agent Agreement accepted — payouts unlocked.');
       setOpen(false);
     } else {
