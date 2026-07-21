@@ -444,6 +444,9 @@ export function LandlordOpsDashboard() {
     action: string;
     results: { id: string; title: string; ok: boolean; error?: string }[];
   }>(null);
+  // ─── Verification Queue pagination (client-side, keeps DOM light) ───
+  const VERIFY_PAGE_SIZE = 30;
+  const [verifyPage, setVerifyPage] = useState(1);
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
