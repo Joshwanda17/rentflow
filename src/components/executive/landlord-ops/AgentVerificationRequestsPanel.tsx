@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle,
   MapPin, Home, Banknote, Smartphone, Calendar, Search, Building2,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 
