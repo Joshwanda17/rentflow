@@ -1235,7 +1235,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     (async () => {
       try {
         const { data, error } = await supabase
-          .from('landlords')
+          .from('landlords_directory')
           .select('id, verified')
           .eq('id', landlordId)
           .maybeSingle();
