@@ -1966,52 +1966,19 @@ export function LandlordOpsDashboard() {
     const perPage = 20;
     const categoryFilter = (landlordCategory || 'all') as LandlordCategory;
 
-    let filtered = landlordsList.filter(l => !rejectedLandlordIds.has(l.id));
-
-    // Category filter
-    if (categoryFilter === 'verified') filtered = filtered.filter(l => l.verified);
-    else if (categoryFilter === 'pending') filtered = filtered.filter(l => !l.verified);
-    else if (categoryFilter === 'has_tenants') filtered = filtered.filter(l => l.tenants && l.tenants.length > 0);
-    else if (categoryFilter === 'no_tenants') filtered = filtered.filter(l => !l.tenants || l.tenants.length === 0);
-
-    // Search filter (name, phone, tenant, agent, location)
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(l =>
-        l.name?.toLowerCase().includes(q) || l.phone?.includes(q) ||
-        l.tenant_name?.toLowerCase().includes(q) || l.agent_name?.toLowerCase().includes(q) ||
-        l.district?.toLowerCase().includes(q) || l.region?.toLowerCase().includes(q) ||
-        l.village?.toLowerCase().includes(q) || l.property_address?.toLowerCase().includes(q)
-      );
-    }
-
-    // Only apply pending-specific quick filters when actually viewing pending category
-    if (categoryFilter === 'pending') {
-      if (pendingFilter === 'has_address') filtered = filtered.filter(l => !!l.property_address);
-      else if (pendingFilter === 'has_phone') filtered = filtered.filter(l => !!l.phone && l.phone.length >= 9);
-      else if (pendingFilter === 'has_smartphone') filtered = filtered.filter(l => l.has_smartphone === true);
-      else if (pendingFilter === 'has_bank') filtered = filtered.filter(l => !!l.bank_name && !!l.account_number);
-      else if (pendingFilter === 'has_momo') filtered = filtered.filter(l => !!l.mobile_money_number);
-    }
-
-    // Sort
-    filtered = [...filtered].sort((a, b) => {
-      if (landlordSort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      if (landlordSort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      if (landlordSort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
-      return 0;
-    });
-
-    const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+    // Server-driven data: rows, total count, and category counts all come from
+    // the `landlord-ops` edge function (RPC-backed). No full-table client fetch.
+    const paginated = (landlordOpsList?.rows ?? []).filter(l => !rejectedLandlordIds.has(l.id));
+    const totalMatched = landlordOpsList?.totalMatched ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalMatched / perPage));
     const safePage = Math.min(landlordPage, totalPages);
-    const paginated = filtered.slice((safePage - 1) * perPage, safePage * perPage);
 
     const categoryCounts = {
-      all: landlordsList.length,
-      verified: landlordsList.filter(l => l.verified).length,
-      pending: landlordsList.filter(l => !l.verified).length,
-      has_tenants: landlordsList.filter(l => l.tenants && l.tenants.length > 0).length,
-      no_tenants: landlordsList.filter(l => !l.tenants || l.tenants.length === 0).length,
+      all: landlordOpsTotals?.total ?? 0,
+      verified: landlordOpsTotals?.verified ?? 0,
+      pending: landlordOpsTotals?.pending ?? 0,
+      has_tenants: landlordOpsTotals?.has_tenants ?? 0,
+      no_tenants: landlordOpsTotals?.no_tenants ?? 0,
     };
 
     return (
