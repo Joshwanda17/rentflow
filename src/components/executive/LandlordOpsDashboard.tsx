@@ -991,6 +991,10 @@ export function LandlordOpsDashboard() {
       });
     },
     staleTime: 60000,
+    // Only load the full landlord set when a view actually needs to iterate over
+    // every row (occupied/empty lists, or a shared entity deep-link resolver).
+    // The primary "All Landlords" list is now server-paginated via `landlord-ops`.
+    enabled: view === 'occupied' || view === 'empty' || !!searchParams.get('eid'),
   });
 
   // ─── Rent Requests without Landlord Query ───
