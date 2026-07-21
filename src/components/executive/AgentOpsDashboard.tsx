@@ -51,7 +51,7 @@ import {
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, TrendingDown, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
-  LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target
+  LayoutGrid, ChevronDown, ToggleRight, Layers, Gauge, Target, Activity
   , Coins, Megaphone, Lock
 } from 'lucide-react';
 import {
@@ -237,6 +237,7 @@ export function AgentOpsDashboard() {
           <RentHistoryVerificationQueue dept="agent_ops" />
         </div>
       );
+      case 'active-advances': return <ActiveAdvancesPanel />;
       case 'advance-potential': return <AgentAdvancePotential />;
       case 'advance-limits': return <AgentAdvanceLimits />;
       case 'advance-repayments': return <AdvanceRepaymentsPanel />;
