@@ -97,15 +97,12 @@ export default function MerchantAgentOnboarding() {
         </ul>
 
         <div className="mt-6 space-y-2">
-          {!phoneOk || !nameOk ? (
-            <Button className="w-full h-11 rounded-xl" onClick={() => navigate('/settings')}>
-              Complete profile
-            </Button>
-          ) : (
-            <div className="rounded-xl bg-muted p-3 text-center text-sm text-muted-foreground">
-              Your profile is submitted. We'll notify you as soon as your Merchant Agent status is approved.
-            </div>
-          )}
+          <Button
+            className="w-full h-11 rounded-xl"
+            onClick={() => navigate('/dashboard/agent', { replace: true })}
+          >
+            Go to dashboard
+          </Button>
           <Button variant="ghost" className="w-full" onClick={() => signOut()}>
             Sign out
           </Button>
