@@ -172,23 +172,30 @@ export default function PhoneCollectionGate() {
       }
       const { data, error } = await supabase
         .from("profiles")
-        .select("phone, full_name, mobile_money_name")
+        .select("phone, full_name, mobile_money_name, phone_verified")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled || error) return;
       const priorPhone = String(data?.phone ?? "").trim();
-      if (!priorPhone) {
+      const priorVerified = Boolean((data as any)?.phone_verified);
+      // For OAuth (Google) sign-ups we ALSO force verification when a phone
+      // exists but is not yet verified — Google SSO accounts must complete
+      // SMS OTP verification before they can use the app.
+      const needsPrompt = !priorPhone || (isOAuthSignup && !priorVerified);
+      if (needsPrompt) {
         const mustVerify = isOAuthSignup || forceMandatory;
         setMomoName(data?.mobile_money_name || data?.full_name || "");
-        setHadPriorPhone(false);
+        setHadPriorPhone(Boolean(priorPhone));
+        if (priorPhone) setPhone(priorPhone);
         setMandatory(mustVerify);
         setOpen(true);
         void logPromptEvent(user.id, "shown", {
-          had_prior_phone: false,
+          had_prior_phone: Boolean(priorPhone),
           meta: {
             email: user.email ?? null,
             providers,
             mandatory: mustVerify,
+            reason: !priorPhone ? "no_phone" : "oauth_phone_unverified",
           },
         });
       }
