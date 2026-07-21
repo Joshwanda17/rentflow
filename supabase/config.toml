@@ -109,6 +109,8 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.agent-ops-balances]
     verify_jwt = false
+  [functions.landlord-ops]
+    verify_jwt = false
   [functions.send-transactional-email]
     verify_jwt = false
   [functions.preview-transactional-email]
