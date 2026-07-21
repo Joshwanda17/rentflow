@@ -3449,7 +3449,23 @@ export function LandlordOpsDashboard() {
                 />
               </div>
             </div>
-          ))}
+          ));
+          })()}
+          {hasMoreHouses && (
+            <div className="pt-2 flex flex-col items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-4 font-semibold gap-2"
+                onClick={() => setVerifyPage((p) => p + 1)}
+              >
+                Load more ({totalFiltered - displayedHouses.length} remaining)
+              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                Showing {displayedHouses.length} of {totalFiltered}
+              </p>
+            </div>
+          )}
           {filteredHouses.length === 0 && scopeListings.length > 0 && (
             <div className="text-center py-10">
               <Search className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
