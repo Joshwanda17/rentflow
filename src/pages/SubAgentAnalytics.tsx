@@ -2358,6 +2358,46 @@ export default function SubAgentAnalytics() {
         ]}
         position="bottom-right"
       />
+
+      <AlertDialog
+        open={releaseConfirmOpen}
+        onOpenChange={(open) => {
+          if (!releasing) setReleaseConfirmOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Unlink {selectedSubAgent?.profile?.full_name || 'this sub-agent'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will no longer be your sub-agent. All parent benefits stop
+              immediately — you will no longer earn the 2% override on their
+              collections and they will leave your team. This does not remove
+              their own agent account or their tenants.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={releasing}>Keep sub-agent</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleReleaseSubAgent();
+              }}
+              disabled={releasing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {releasing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Unlinking…
+                </>
+              ) : (
+                'Unlink sub-agent'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
