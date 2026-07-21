@@ -420,6 +420,31 @@ export default function SubAgentAnalytics() {
     setSearchParams(next, { replace: true });
   };
 
+  const handleReleaseSubAgent = async () => {
+    if (!selectedSubAgent) return;
+    const target = selectedSubAgent;
+    setReleasing(true);
+    const { error } = await supabase.rpc('release_sub_agent', {
+      p_sub_agent_id: target.sub_agent_id,
+    });
+    setReleasing(false);
+    if (error) {
+      toast({
+        title: 'Could not unlink sub-agent',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    setReleaseConfirmOpen(false);
+    toast({
+      title: `${target.profile?.full_name || 'Sub-agent'} unlinked`,
+      description: 'They are no longer your sub-agent. Override commission and benefits have stopped.',
+    });
+    closeDetail();
+    fetchSubAgentAnalytics();
+  };
+
   // Clear tenant search and reset houses pagination when switching sub-agents
   useEffect(() => {
     setTenantSearch('');
