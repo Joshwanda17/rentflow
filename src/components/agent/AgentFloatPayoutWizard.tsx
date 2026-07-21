@@ -285,8 +285,110 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const [activePayoutId, setActivePayoutId] = useState<string | null>(null);
   const [disburseError, setDisburseError] = useState<string | null>(null);
   const [isDisbursing, setIsDisbursing] = useState(false);
+  const [isRetryingDisburse, setIsRetryingDisburse] = useState(false);
+
+  // ─── Challenge row is the SINGLE SOURCE OF TRUTH ───────────────────────
+  // Every decision the wizard makes (show OTP inputs / hide them / advance
+  // to disburse / offer a retry / restart) is derived from this row rather
+  // than from local booleans. Poll every 2–3s while the challenge is live so
+  // remounts, refreshes, and slow networks all converge on the same state.
+  const { data: challenge } = useQuery({
+    queryKey: ['landlord-otp-challenge', landlordOtp.challengeId],
+    queryFn: async () => {
+      if (!landlordOtp.challengeId) return null;
+      const { data } = await supabase
+        .from('landlord_payout_otp_challenges')
+        .select('id,status,verified_at,resulting_payout_id,otp_expires_at,attempts,max_attempts')
+        .eq('id', landlordOtp.challengeId)
+        .maybeSingle();
+      return data as {
+        id: string;
+        status: 'pending' | 'verified' | 'expired' | 'failed';
+        verified_at: string | null;
+        resulting_payout_id: string | null;
+        otp_expires_at: string;
+        attempts: number;
+        max_attempts: number;
+      } | null;
+    },
+    enabled: !!landlordOtp.challengeId && open,
+    refetchInterval: (q) => {
+      const s = (q.state.data as any)?.status;
+      if (!s || s === 'pending') return 3000;
+      if (s === 'verified' && !(q.state.data as any)?.resulting_payout_id) return 2000;
+      return false;
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+
+  const challengeVerified = challenge?.status === 'verified';
+  const challengeTerminalFailed = challenge?.status === 'expired' || challenge?.status === 'failed';
+
+  // Drive step transitions from the challenge row instead of the verify
+  // response. If verification succeeded but the disburse leg failed or the
+  // response never reached the client, the poller still finds status=verified
+  // + resulting_payout_id and we advance forward automatically — the user
+  // never sees the OTP UI again.
+  useEffect(() => {
+    if (!challenge) return;
+    if (
+      challenge.status === 'verified' &&
+      challenge.resulting_payout_id &&
+      step === 'otp'
+    ) {
+      setActivePayoutId(challenge.resulting_payout_id);
+      setStep('disburse');
+    }
+  }, [challenge, step]);
+
+  // Recover from partial success: OTP verified, disburse didn't produce a
+  // payout. Re-trigger landlord-payout-disburse without re-verifying.
+  const retryDisburse = async () => {
+    if (!selectedRequest || !challenge || !challengeVerified) return;
+    setIsRetryingDisburse(true);
+    setDisburseError(null);
+    try {
+      const r = selectedRequest;
+      const { data, error } = await supabase.functions.invoke('landlord-payout-disburse', {
+        body: {
+          rent_request_id: r.id,
+          landlord_id: r.landlord_id,
+          tenant_id: r.tenant_id,
+          amount: effectiveAmount,
+          landlord_phone: landlordPhone,
+          landlord_name: r.landlord?.name,
+          mobile_money_provider: 'MTN',
+          otp_verified_at: challenge.verified_at ?? new Date().toISOString(),
+          agent_latitude: null,
+          agent_longitude: null,
+          property_latitude: r.landlord?.latitude ?? null,
+          property_longitude: r.landlord?.longitude ?? null,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.payout_id) {
+        await supabase
+          .from('landlord_payout_otp_challenges')
+          .update({ resulting_payout_id: (data as any).payout_id })
+          .eq('id', challenge.id);
+      }
+      qc.invalidateQueries({ queryKey: ['landlord-otp-challenge', challenge.id] });
+      toast.success('Disbursement retried');
+    } catch (e: any) {
+      setDisburseError(e?.message || 'Retry failed');
+      toast.error(e?.message || 'Retry failed');
+    } finally {
+      setIsRetryingDisburse(false);
+    }
+  };
 
   const handleVerifyOtp = async (code: string) => {
+    // Never re-verify a challenge that is already verified — the DB row is
+    // the source of truth and the endpoint is now idempotent, but stopping
+    // here keeps us honest and prevents extra round-trips from InputOTP
+    // re-firing during React remounts.
+    if (challengeVerified) return;
     setOtpCode(code);
     if (code.length === 6) {
       setIsDisbursing(true);
@@ -294,13 +396,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       try {
         const result = await landlordOtp.verifyPayoutOtp(code);
         if (result?.success) {
-          toast.success('OTP verified — auto-disbursing now');
+          if (!result.already_verified) toast.success('OTP verified — auto-disbursing now');
           if (result.payout_id) {
             setActivePayoutId(result.payout_id);
             setStep('disburse');
           }
-        } else {
-          // Error is already set in the hook
+          // If no payout_id, the challenge poller + retryDisburse take over.
+          qc.invalidateQueries({ queryKey: ['landlord-otp-challenge', landlordOtp.challengeId] });
         }
       } catch (e: any) {
         setDisburseError(e?.message || 'Verification failed');
