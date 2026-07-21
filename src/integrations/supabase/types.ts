@@ -7747,6 +7747,92 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_requisitions: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          attachment_urls: string[]
+          category: string
+          created_at: string
+          currency: string
+          department: string | null
+          description: string | null
+          employee_email: string
+          employee_id: string | null
+          employee_name: string
+          employee_phone: string | null
+          id: string
+          link_id: string | null
+          priority: string
+          purpose: string
+          rejection_reason: string | null
+          required_by: string | null
+          status: string
+          submitted_at: string
+          submitter_ip: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          attachment_urls?: string[]
+          category: string
+          created_at?: string
+          currency?: string
+          department?: string | null
+          description?: string | null
+          employee_email: string
+          employee_id?: string | null
+          employee_name: string
+          employee_phone?: string | null
+          id?: string
+          link_id?: string | null
+          priority?: string
+          purpose: string
+          rejection_reason?: string | null
+          required_by?: string | null
+          status?: string
+          submitted_at?: string
+          submitter_ip?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          attachment_urls?: string[]
+          category?: string
+          created_at?: string
+          currency?: string
+          department?: string | null
+          description?: string | null
+          employee_email?: string
+          employee_id?: string | null
+          employee_name?: string
+          employee_phone?: string | null
+          id?: string
+          link_id?: string | null
+          priority?: string
+          purpose?: string
+          rejection_reason?: string | null
+          required_by?: string | null
+          status?: string
+          submitted_at?: string
+          submitter_ip?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_requisitions_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "requisition_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fee_revenue_ledger: {
         Row: {
           created_at: string
@@ -17377,6 +17463,51 @@ export type Database = {
             referencedColumns: ["rent_request_id"]
           },
         ]
+      }
+      requisition_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          department: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          label: string | null
+          max_submissions: number | null
+          revoked_at: string | null
+          submission_count: number
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          department?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          max_submissions?: number | null
+          revoked_at?: string | null
+          submission_count?: number
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          max_submissions?: number | null
+          revoked_at?: string | null
+          submission_count?: number
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       revenue_recognition_runs: {
         Row: {
