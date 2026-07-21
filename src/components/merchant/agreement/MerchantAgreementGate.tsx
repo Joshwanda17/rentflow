@@ -1,15 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ShieldCheck, FileCheck, Loader2, Download } from 'lucide-react';
+import { ShieldCheck, FileCheck, Loader2, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMerchantAgreement } from '@/hooks/useMerchantAgreement';
 import { useProfile } from '@/hooks/useProfile';
 import { MERCHANT_AGREEMENT_VERSION } from './MerchantAgreementContent';
-import { buildMerchantAgreementHtml } from './merchantAgreementTemplate';
 import { downloadMerchantAgreementPdf } from './merchantAgreementPdf';
 
 /**
@@ -24,14 +23,19 @@ export function MerchantAgreementGate({ children }: { children: React.ReactNode 
   const [confirmed, setConfirmed] = useState(false);
 
   const merchantName = profile?.full_name || profile?.phone || 'Merchant Agent';
-  const html = useMemo(
-    () => buildMerchantAgreementHtml({
-      merchantName,
-      merchantPhone: profile?.phone,
-      agreementDate: new Date(),
-    }),
-    [merchantName, profile?.phone],
-  );
+  const [downloaded, setDownloaded] = useState(false);
+  void merchantName;
+
+  const handleDownload = async () => {
+    try {
+      await downloadMerchantAgreementPdf({ name: profile?.full_name, phone: profile?.phone });
+      setDownloaded(true);
+      toast.success('Agreement PDF downloaded — please review before accepting.');
+    } catch (err) {
+      console.warn('[MerchantAgreementGate] pdf download failed', err);
+      toast.error('Could not download the PDF. Please try again.');
+    }
+  };
 
   if (isLoading) return null;
   if (isAccepted) return <>{children}</>;
@@ -83,22 +87,38 @@ export function MerchantAgreementGate({ children }: { children: React.ReactNode 
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Welile Merchant Agent Agreement</DialogTitle>
           </DialogHeader>
-          <div className="rounded-lg overflow-hidden border border-border bg-[#f1f5f9]">
-            <iframe
-              title="Merchant Agent Agreement"
-              srcDoc={html}
-              className="w-full block border-0"
-              style={{ height: '55vh' }}
-            />
+          <div className="rounded-lg border border-border bg-muted/40 p-5 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-lg bg-primary/10 shrink-0">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold">Merchant Agent Agreement ({MERCHANT_AGREEMENT_VERSION})</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Download and read the full PDF on your device before accepting. Your acceptance is
+                  recorded with the date, device and version for compliance.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" className="w-full gap-1.5" onClick={handleDownload}>
+              <Download className="h-4 w-4" /> {downloaded ? 'Download again' : 'Download Agreement PDF'}
+            </Button>
           </div>
           <div className="flex items-start gap-2 pt-1">
-            <Checkbox id="merchant-agree" checked={confirmed} onCheckedChange={(v) => setConfirmed(!!v)} className="mt-0.5" />
+            <Checkbox
+              id="merchant-agree"
+              checked={confirmed}
+              onCheckedChange={(v) => setConfirmed(!!v)}
+              disabled={!downloaded}
+              className="mt-0.5"
+            />
             <label htmlFor="merchant-agree" className="text-sm text-foreground cursor-pointer">
-              I have read, understood and agree to the Welile Merchant Agent Agreement ({MERCHANT_AGREEMENT_VERSION}).
+              I have downloaded, read, understood and agree to the Welile Merchant Agent Agreement
+              ({MERCHANT_AGREEMENT_VERSION}).
             </label>
           </div>
           <Button className="w-full gap-1.5" disabled={!confirmed || accepting} onClick={handleAccept}>
