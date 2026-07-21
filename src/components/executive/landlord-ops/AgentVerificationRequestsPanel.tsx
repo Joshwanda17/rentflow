@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle,
   MapPin, Home, Banknote, Smartphone, Calendar, Search, Building2,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 
@@ -87,6 +88,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [details, setDetails] = useState<Record<string, DetailBundle>>({});
+  const [isOpen, setIsOpen] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -238,7 +240,13 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
 
   return (
     <div className="rounded-2xl border-2 border-amber-500/50 bg-amber-50/60 dark:bg-amber-500/5 p-4 space-y-3 shadow-sm">
-      <div className="flex items-center gap-2.5">
+      <button
+        type="button"
+        onClick={() => setIsOpen(v => !v)}
+        className="w-full flex items-center gap-2.5 text-left group"
+        aria-expanded={isOpen}
+        aria-label={isOpen ? 'Collapse landlord verification requests' : 'Expand landlord verification requests'}
+      >
         <div className="p-2 rounded-xl bg-amber-500/15">
           <ShieldQuestion className="h-[18px] w-[18px] text-amber-600 shrink-0" />
         </div>
@@ -251,7 +259,16 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
             An agent tried to post a rent request but the landlord is registered &amp; not yet verified.
           </p>
         </div>
-      </div>
+        <div className="ml-auto shrink-0 p-1.5 rounded-md hover:bg-amber-500/10 transition-colors">
+          {isOpen ? (
+            <ChevronUp className="h-4 w-4 text-amber-700" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-amber-700" />
+          )}
+        </div>
+      </button>
+
+      {isOpen && (
 
       <ul className="space-y-2.5">
         {requests.map(req => (
@@ -443,6 +460,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 }
