@@ -24,9 +24,11 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
   CheckCircle2, XCircle, Loader2, Clock, User, Info,
-  Users, ChevronRight, Target, AlertTriangle,
+  Users, ChevronRight, Target, AlertTriangle, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AgentAdvanceEvaluationDialog,
   type PotentialInfo,
@@ -97,6 +99,8 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<any | null>(null);
   const [confirm, setConfirm] = useState<{ id: string; amount: number; original: number } | null>(null);
+  const [skipCfo, setSkipCfo] = useState(false);
+  const [skipReason, setSkipReason] = useState('');
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['advance-requests-queue', stage],
@@ -114,8 +118,21 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const { data: potentialMap = {} } = useAgentPotentialMap();
 
   const approveMutation = useMutation({
-    mutationFn: async ({ id, approve, principal }: { id: string; approve: boolean; principal?: number }) => {
+    mutationFn: async ({ id, approve, principal, skip, reason }: { id: string; approve: boolean; principal?: number; skip?: boolean; reason?: string }) => {
       if (!user?.id) throw new Error('Not authenticated');
+      // Short-circuit: Agent Ops chose to skip CFO and disburse immediately.
+      if (approve && skip) {
+        const req = requests.find((r: any) => r.id === id);
+        if (!req) throw new Error('Request no longer available');
+        await disburseAgentAdvanceRequest({
+          req,
+          actorId: user.id,
+          principal,
+          notes: notes[id] || null,
+          skipReason: reason || null,
+        });
+        return { disbursed: true };
+      }
       const updateData: any = {};
       if (approve) {
         updateData.status = config.nextStatus;
@@ -141,13 +158,23 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
       if (!data) {
         throw new Error('Approval blocked — your role may not have permission, or the request has already moved to a later stage.');
       }
+      return { disbursed: false };
     },
-    onSuccess: (_, { approve }) => {
-      toast.success(approve ? 'Request approved' : 'Request rejected');
+    onSuccess: (result: any, { approve }) => {
+      toast.success(
+        !approve
+          ? 'Request rejected'
+          : result?.disbursed
+            ? 'Advance approved & disbursed to agent wallet'
+            : 'Request approved — sent to CFO',
+      );
       setSelected(null);
       setConfirm(null);
+      setSkipCfo(false);
+      setSkipReason('');
       queryClient.invalidateQueries({ queryKey: ['advance-requests-queue'] });
       queryClient.invalidateQueries({ queryKey: ['advance-requests-reviewed'] });
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -328,7 +355,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         ) : null}
       />
 
-      <AlertDialog open={!!confirm} onOpenChange={(open) => { if (!open) setConfirm(null); }}>
+      <AlertDialog open={!!confirm} onOpenChange={(open) => { if (!open) { setConfirm(null); setSkipCfo(false); setSkipReason(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -336,7 +363,8 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
             </div>
             <AlertDialogTitle className="text-center">Confirm advance approval</AlertDialogTitle>
             <AlertDialogDescription className="text-center">
-              This sends the request to CFO for final disbursement. This action cannot be undone from here.
+              By default this sends the request to CFO for final disbursement. You can skip
+              the CFO step and disburse to the agent&apos;s wallet immediately below.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -362,19 +390,61 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
             </div>
           )}
 
+          <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
+            <label className="flex items-start gap-2 cursor-pointer select-none">
+              <Checkbox
+                checked={skipCfo}
+                onCheckedChange={(v) => setSkipCfo(!!v)}
+                className="mt-0.5"
+                disabled={approveMutation.isPending}
+              />
+              <div className="flex-1">
+                <p className="text-xs font-bold flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-amber-600" />
+                  Skip CFO — disburse to agent wallet now
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Approves, disburses and starts daily deductions in one step. Use for
+                  time-critical advances. A reason is required for the audit trail.
+                </p>
+              </div>
+            </label>
+            {skipCfo && (
+              <Textarea
+                placeholder="Reason for skipping CFO (min 10 chars) — e.g. urgent field float, CFO unavailable…"
+                value={skipReason}
+                onChange={(e) => setSkipReason(e.target.value)}
+                rows={2}
+                className="text-xs"
+                disabled={approveMutation.isPending}
+              />
+            )}
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={approveMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={approveMutation.isPending}
+              disabled={approveMutation.isPending || (skipCfo && skipReason.trim().length < 10)}
               onClick={(e) => {
                 e.preventDefault();
                 if (!confirm) return;
-                approveMutation.mutate({ id: confirm.id, approve: true, principal: confirm.amount });
+                approveMutation.mutate({
+                  id: confirm.id,
+                  approve: true,
+                  principal: confirm.amount,
+                  skip: skipCfo,
+                  reason: skipCfo ? skipReason.trim() : undefined,
+                });
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className={cn(
+                'text-white',
+                skipCfo ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700',
+              )}
             >
               {approveMutation.isPending ? (
-                <><Loader2 className="h-4 w-4 animate-spin mr-1.5" /> Approving…</>
+                <><Loader2 className="h-4 w-4 animate-spin mr-1.5" /> {skipCfo ? 'Disbursing…' : 'Approving…'}</>
+              ) : skipCfo ? (
+                <><Zap className="h-4 w-4 mr-1.5" /> Approve &amp; disburse now</>
               ) : (
                 <>Confirm approval</>
               )}
