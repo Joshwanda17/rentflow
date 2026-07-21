@@ -26362,6 +26362,7 @@ export type Database = {
           phone: string
           property_address: string
           town_council: string
+          verified: boolean
           village: string
         }[]
       }
