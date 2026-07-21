@@ -40,6 +40,8 @@ import { ReceiptArchivePanel } from '@/components/shared/ReceiptArchivePanel';
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
+import { EmployeeRequisitionLinksPanel } from './EmployeeRequisitionLinksPanel';
+import { EmployeeRequisitionQueuePanel } from './EmployeeRequisitionQueuePanel';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
@@ -61,6 +63,7 @@ type Tool =
   | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
   | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log'
   | 'merchant_agents' | 'merchant_float' | 'receipt_archive';
+// Extend Tool type via union above; add new tools:
 
 
 /**
