@@ -247,6 +247,15 @@
       justify-content: flex-end;
     }
 
+    .sig-stamp {
+      position: absolute;
+      right: 10px;
+      top: -30px;
+      transform: rotate(-8deg);
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
     .stamp-container {
       position: absolute;
       right: 120px;
@@ -330,17 +339,7 @@
 
   <!-- ==================== PAGE 1 ==================== -->
   <div class="page-section">
-    <div class="stamp-container" aria-hidden="true">
-      <div class="stamp">
-        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
-        <div class="middle-row">
-          <span class="star">&#9733;</span>
-          <span class="date">{{StampDate}}</span>
-          <span class="star">&#9733;</span>
-        </div>
-        <div class="address">PO Box 167564 Kampala Uganda</div>
-      </div>
-    </div>
+</div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
@@ -439,17 +438,7 @@
 
   <!-- ==================== PAGE 2 ==================== -->
   <div class="page-section">
-    <div class="stamp-container" aria-hidden="true">
-      <div class="stamp">
-        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
-        <div class="middle-row">
-          <span class="star">&#9733;</span>
-          <span class="date">{{StampDate}}</span>
-          <span class="star">&#9733;</span>
-        </div>
-        <div class="address">PO Box 167564 Kampala Uganda</div>
-      </div>
-    </div>
+</div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
@@ -548,17 +537,7 @@
 
   <!-- ==================== PAGE 3 ==================== -->
   <div class="page-section">
-    <div class="stamp-container" aria-hidden="true">
-      <div class="stamp">
-        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
-        <div class="middle-row">
-          <span class="star">&#9733;</span>
-          <span class="date">{{StampDate}}</span>
-          <span class="star">&#9733;</span>
-        </div>
-        <div class="address">PO Box 167564 Kampala Uganda</div>
-      </div>
-    </div>
+</div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
@@ -686,17 +665,7 @@
 
   <!-- ==================== PAGE 4 ==================== -->
   <div class="page-section">
-    <div class="stamp-container" aria-hidden="true">
-      <div class="stamp">
-        <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
-        <div class="middle-row">
-          <span class="star">&#9733;</span>
-          <span class="date">{{StampDate}}</span>
-          <span class="star">&#9733;</span>
-        </div>
-        <div class="address">PO Box 167564 Kampala Uganda</div>
-      </div>
-    </div>
+</div>
     <div class="page-content">
       <header class="header-block">
         <div class="header-logo">
@@ -907,6 +876,17 @@
               <div class="sig-detail-name">Mercy Bayo</div>
               <div class="sig-detail-role">Authorized Signatory, Welile Technologies Limited</div>
               <div class="sig-detail-date">Date: <span>{{StampDate}}</span></div>
+              <div class="sig-stamp" aria-hidden="true">
+                <div class="stamp">
+                  <div class="company">WELILE TECHNOLOGIES<br>LIMITED</div>
+                  <div class="middle-row">
+                    <span class="star">&#9733;</span>
+                    <span class="date">{{StampDate}}</span>
+                    <span class="star">&#9733;</span>
+                  </div>
+                  <div class="address">PO Box 167564 Kampala Uganda</div>
+                </div>
+              </div>
             </td>
           </tr>
         </table>
