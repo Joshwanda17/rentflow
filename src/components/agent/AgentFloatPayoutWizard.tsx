@@ -886,7 +886,60 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                   </div>
               </div>
 
-              {!landlordOtp.otpSent ? (
+              {challengeVerified ? (
+                <div className="space-y-3 p-4 rounded-xl border-2 border-success/30 bg-success/5 text-center">
+                  <CheckCircle2 className="h-8 w-8 mx-auto text-success" />
+                  <p className="text-sm font-semibold text-success">Verification Complete</p>
+                  <p className="text-xs text-muted-foreground">
+                    {challenge?.resulting_payout_id
+                      ? 'Opening disbursement…'
+                      : 'Final payout is being processed…'}
+                  </p>
+                  {!challenge?.resulting_payout_id && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      disabled={isRetryingDisburse}
+                      onClick={retryDisburse}
+                    >
+                      {isRetryingDisburse ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      Retry Payout
+                    </Button>
+                  )}
+                  {disburseError && (
+                    <p className="text-[11px] text-destructive">{disburseError}</p>
+                  )}
+                </div>
+              ) : challengeTerminalFailed ? (
+                <div className="space-y-3 p-4 rounded-xl border-2 border-destructive/30 bg-destructive/5 text-center">
+                  <AlertTriangle className="h-6 w-6 mx-auto text-destructive" />
+                  <p className="text-sm font-semibold text-destructive">
+                    {challenge?.status === 'expired' ? 'OTP Expired' : 'Verification Failed'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Start over and request a new code.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      landlordOtp.resetOtp();
+                      setOtpCode('');
+                      sentLandlordsRef.current.delete(String(selectedRequest?.landlord_id));
+                      autoSendRef.current = null;
+                    }}
+                    className="gap-2"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Restart
+                  </Button>
+                </div>
+              ) : !landlordOtp.otpSent ? (
                 <Button
                   type="button"
                   onClick={() => handleSendOtp('manual')}
@@ -922,7 +975,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                       maxLength={6}
                       value={otpCode}
                       onChange={handleVerifyOtp}
-                      disabled={landlordOtp.otpLoading || isDisbursing || landlordOtp.otpVerified}
+                      disabled={landlordOtp.otpLoading || isDisbursing || challengeVerified}
                     >
                       <InputOTPGroup>
                         <InputOTPSlot index={0} />
