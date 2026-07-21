@@ -8,6 +8,7 @@ import { MERCHANT_AGREEMENT_VERSION } from './MerchantAgreementContent';
 
 export interface MerchantAgreementFillData {
   merchantName?: string;
+  merchantPhone?: string;
   agreementDate?: Date;
 }
 
@@ -15,6 +16,7 @@ export interface MerchantAgreementFillData {
 export function buildMerchantAgreementHtml(data: MerchantAgreementFillData = {}): string {
   const date = data.agreementDate ?? new Date();
   const name = (data.merchantName?.trim() || 'Merchant Agent');
+  const phone = (data.merchantPhone?.trim() || '');
 
   const effectiveDate = date.toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -28,6 +30,7 @@ export function buildMerchantAgreementHtml(data: MerchantAgreementFillData = {})
   const tokens: Record<string, string> = {
     LogoUrl: welileLogo,
     MerchantName: name,
+    MerchantPhone: phone,
     EffectiveDate: effectiveDate,
     StampDate: stampDate,
     Version: MERCHANT_AGREEMENT_VERSION,
