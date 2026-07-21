@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import SignaturePad from '@/components/shared/SignaturePad';
 import { buildMerchantAgreementHtml } from '@/components/merchant/agreement/merchantAgreementTemplate';
+import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/merchantAgreementPdf';
 import { MERCHANT_AGREEMENT_VERSION } from '@/components/merchant/agreement/MerchantAgreementContent';
 import welileLogo from '@/assets/welile-contract-logo.png';
 
@@ -116,18 +117,9 @@ export default function InviteMerchantAgent() {
       };
       try { localStorage.setItem(INTAKE_KEY, JSON.stringify(intake)); } catch { /* ignore */ }
 
-      // Auto-download the fully-signed contract so the merchant keeps a copy.
+      // Auto-download the fully-signed contract as a PDF (pixel-identical to preview).
       try {
-        const blob = new Blob([contractHtml], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const safeName = intake.full_name.replace(/[^a-z0-9]+/gi, '-') || 'Merchant-Agent';
-        a.download = `Welile-Merchant-Agent-Agreement-${safeName}-${MERCHANT_AGREEMENT_VERSION}.html`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        await downloadMerchantAgreementPdf({ name: intake.full_name, phone: intake.phone });
         toast.success('Signed agreement downloaded to your device.');
       } catch (dlErr) {
         console.warn('[InviteMerchantAgent] auto-download failed', dlErr);
