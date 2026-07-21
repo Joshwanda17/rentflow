@@ -730,26 +730,6 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                     </div>
                   )}
                 </div>
-                {sub.status !== 'rejected' && sub.status !== 'released' && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setReleaseTarget(sub);
-                    }}
-                    disabled={releasingId === sub.sub_agent_id}
-                    title={`Release ${sub.full_name}`}
-                    aria-label={`Release ${sub.full_name}`}
-                  >
-                    {releasingId === sub.sub_agent_id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <UserMinus className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                )}
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>

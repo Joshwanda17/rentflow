@@ -46,7 +46,8 @@ import {
   ChevronDown,
   History,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  UserMinus,
 } from 'lucide-react';
 import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -67,6 +68,16 @@ import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { SubAgentBottomNav, type SubAgentSection } from '@/components/agent/SubAgentBottomNav';
 import { SubAgentPayoutAudit } from '@/components/agent/SubAgentPayoutAudit';
 import { SubAgentStatusBoard } from '@/components/agent/SubAgentStatusBoard';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   BarChart,
   Bar,
@@ -283,6 +294,8 @@ export default function SubAgentAnalytics() {
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [releaseConfirmOpen, setReleaseConfirmOpen] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const [expandedTimelines, setExpandedTimelines] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<SubAgentSection>('subagent-overview');
 
@@ -405,6 +418,31 @@ export default function SubAgentAnalytics() {
     const next = new URLSearchParams(searchParams);
     next.delete('id');
     setSearchParams(next, { replace: true });
+  };
+
+  const handleReleaseSubAgent = async () => {
+    if (!selectedSubAgent) return;
+    const target = selectedSubAgent;
+    setReleasing(true);
+    const { error } = await supabase.rpc('release_sub_agent', {
+      p_sub_agent_id: target.sub_agent_id,
+    });
+    setReleasing(false);
+    if (error) {
+      toast({
+        title: 'Could not unlink sub-agent',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    setReleaseConfirmOpen(false);
+    toast({
+      title: `${target.profile?.full_name || 'Sub-agent'} unlinked`,
+      description: 'They are no longer your sub-agent. Override commission and benefits have stopped.',
+    });
+    closeDetail();
+    fetchSubAgentAnalytics();
   };
 
   // Clear tenant search and reset houses pagination when switching sub-agents
@@ -1605,7 +1643,7 @@ export default function SubAgentAnalytics() {
 
             <div className="p-4 space-y-4">
               {/* Quick contact actions */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <a
                   href={selectedSubAgent.profile?.phone ? `tel:${selectedSubAgent.profile.phone}` : undefined}
                   className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium border transition-colors ${
@@ -1630,6 +1668,14 @@ export default function SubAgentAnalytics() {
                   <Mail className="h-4 w-4" />
                   WhatsApp
                 </a>
+                <button
+                  type="button"
+                  onClick={() => setReleaseConfirmOpen(true)}
+                  className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium border border-destructive/20 bg-destructive/10 text-destructive active:bg-destructive/20 transition-colors"
+                >
+                  <UserMinus className="h-4 w-4" />
+                  Unlink
+                </button>
               </div>
 
               {/* Profile Details */}
@@ -2312,6 +2358,46 @@ export default function SubAgentAnalytics() {
         ]}
         position="bottom-right"
       />
+
+      <AlertDialog
+        open={releaseConfirmOpen}
+        onOpenChange={(open) => {
+          if (!releasing) setReleaseConfirmOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Unlink {selectedSubAgent?.profile?.full_name || 'this sub-agent'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will no longer be your sub-agent. All parent benefits stop
+              immediately — you will no longer earn the 2% override on their
+              collections and they will leave your team. This does not remove
+              their own agent account or their tenants.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={releasing}>Keep sub-agent</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleReleaseSubAgent();
+              }}
+              disabled={releasing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {releasing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Unlinking…
+                </>
+              ) : (
+                'Unlink sub-agent'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
