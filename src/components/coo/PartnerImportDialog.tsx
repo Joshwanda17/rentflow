@@ -48,6 +48,7 @@ interface ImportGroup {
 
 interface ImportResult {
   partnersCreated: number;
+  partnersMatched: number;
   portfoliosCreated: number;
   skippedDuplicates: number;
   errors: { partner: string; error: unknown }[];
