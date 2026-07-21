@@ -192,27 +192,56 @@
       font-weight: 600;
     }
 
-    /* Signatures Table */
-    .sig-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 30px;
+    /* Final-page signatures */
+    .final-page .page-content {
+      display: flex;
+      flex-direction: column;
     }
 
-    .sig-table td {
-      width: 50%;
-      vertical-align: top;
-      padding: 0 20px 0 0;
+    .final-page .section-container {
+      margin-bottom: 14px;
     }
 
-    .sig-table td:last-child {
-      padding-right: 0;
-      padding-left: 20px;
+    .final-page .clause-block {
+      margin-bottom: 8px;
+    }
+
+    .final-page .bullet-list li,
+    .final-page .clause-text {
+      font-size: 11.4px;
+      line-height: 1.42;
+    }
+
+    .final-page .bullet-list {
+      margin-top: 5px;
+      margin-bottom: 5px;
+    }
+
+    .signatures-panel {
+      margin-top: auto;
+      padding-top: 16px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .sig-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 34px;
+      align-items: end;
+    }
+
+    .sig-card {
+      min-height: 128px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
     }
 
     .sig-placeholder-line {
       border-bottom: 1.5px solid var(--border-color);
-      height: 45px;
+      height: 42px;
       margin-bottom: 8px;
     }
 
@@ -242,36 +271,20 @@
       height: 14px;
     }
 
-    .stamp-box-container {
-      margin-top: 20px;
-      display: flex;
-      justify-content: flex-end;
-    }
-
     .sig-stamp {
       position: absolute;
-      right: 10px;
-      top: -30px;
-      transform: rotate(-8deg);
-      opacity: 0.9;
-      pointer-events: none;
-    }
-
-    .stamp-container {
-      position: absolute;
-      right: 120px;
-      bottom: 160px;
-      transform: scale(1.5) rotate(-45deg);
-      opacity: 0.82;
-      display: inline-block;
+      right: 2px;
+      top: 0;
+      transform: rotate(-7deg);
+      opacity: 0.88;
       pointer-events: none;
     }
 
     .stamp {
-      width: 200px;
+      width: 178px;
       border: 2px solid #1134a6;
       border-radius: 6px;
-      padding: 8px 10px;
+      padding: 7px 9px;
       text-align: center;
       background-color: transparent;
       box-sizing: border-box;
@@ -281,7 +294,7 @@
       color: #1134a6;
       font-family: 'Crimson Text', serif;
       font-weight: 700;
-      font-size: 12px;
+      font-size: 10.5px;
       line-height: 1.1;
       letter-spacing: 0.4px;
       margin-bottom: 6px;
@@ -304,7 +317,7 @@
     .stamp .date {
       color: #e51921;
       font-family: 'Oswald', sans-serif;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 500;
       letter-spacing: 0.8px;
     }
@@ -312,7 +325,7 @@
     .stamp .address {
       color: #1134a6;
       font-family: 'Nunito', sans-serif;
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 700;
       letter-spacing: 0.2px;
     }
