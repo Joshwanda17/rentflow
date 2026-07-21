@@ -1,39 +1,82 @@
-## Diagnosis (confirmed against production data)
+## Shareable Employee Requisition Links (CFO-managed)
 
-Kalyango Timothy (`2c6569ce…`) has a referrals row for invitee Tarzan Mark (`94edf49f…`) dated 2026‑07‑20 08:40 with `bonus_amount = 500`, `credited = true`, `credited_at` set — **but zero matching `general_ledger` entries and `wallets.withdrawable_balance = 0`**.
+Public link an employee opens (no login) → submits requisition → lands as **Pending CFO Approval** in the CFO Financial Ops → Requisitions tab.
 
-Root cause: there are two competing referral‑credit paths and they collide.
+### Database (new migration)
 
-1. **Legacy path** – DB trigger `trg_credit_referral_bonus` on `public.profiles` (function `credit_referral_bonus`) fires when a new profile is created with `referrer_id`. It:
-   - INSERTs the `referrals` row already marked `credited = true`
-   - Runs `UPDATE public.wallets SET balance = balance + 500` — this touches only the inert legacy `wallets.balance` column, **not** the `withdrawable_balance` bucket, and never posts to `general_ledger`. Under the Wallet Write Lockdown (`enforce_wallet_ledger_only`) it is either silently ignored or writes to a column no user‑facing balance reads.
+**`requisition_links`** — CFO-issued tokens
+- `id`, `token` (64-char random, unique), `created_by` (uuid), `department` (text, nullable), `label` (text, nullable)
+- `expires_at` (timestamptz, nullable), `max_submissions` (int, nullable), `submission_count` (int, default 0)
+- `is_active` (bool, default true), `revoked_at`, `created_at`, `updated_at`
+- RLS: CFO/super_admin can select/insert/update their own; no anon access. Grants to `authenticated` + `service_role` only.
 
-2. **Ledger‑based path** – trigger `trg_credit_signup_referral_bonus` on `public.referrals` calls `try_credit_qualified_referrals`, which only processes rows where `credited = false`. Because path #1 already set `credited = true`, this path skips the row and no ledger entries are ever created.
+**`employee_requisitions`** — public submissions
+- `id`, `link_id` (fk), `employee_name`, `employee_id` (nullable), `department`, `employee_phone`, `employee_email`
+- `purpose`, `category`, `amount` (numeric), `currency` (default 'UGX'), `priority` (low/normal/high/urgent)
+- `required_by` (date), `description`, `attachment_urls` (text[])
+- `status` (pending/approved/rejected/paid/cancelled, default 'pending')
+- `submitted_at`, `submitter_ip` (text), `approved_by`, `approved_at`, `rejection_reason`, `created_at`, `updated_at`
+- RLS: no direct anon access. Only CFO/super_admin can read/update. Inserts go through edge function using `service_role`.
+- Grants: `SELECT, UPDATE ON ... TO authenticated`; `ALL ... TO service_role`.
 
-Net effect for Timothy (and every referrer since the ledger path was introduced): the referral is *recorded* as credited, but no money reaches `withdrawable_balance` and `get_user_available_balance` correctly returns 0.
+**Storage bucket** `requisition-attachments` (public read of signed URLs only; uploads via edge function).
 
-## Plan
+### Edge functions
 
-### 1. Retire the legacy trigger (migration)
-- `DROP TRIGGER trg_credit_referral_bonus ON public.profiles;`
-- Keep the `credit_referral_bonus` function definition for now (unattached) so historical references don't break, with a comment marking it retired.
+- `requisition-link-validate` (public, no JWT) — `GET ?token=...` → returns `{ valid, label, department, expires_at }` or error.
+- `requisition-submit` (public, no JWT) — validates token, checks `expires_at`, `is_active`, `max_submissions`; accepts JSON body + already-uploaded attachment paths; inserts row; atomically increments `submission_count`; emits `system_events` (`requisition.submitted`); triggers `create-notification` for all CFO users; returns `{ ok: true, id }`. Rate-limits per-IP (max 5/hour) using an in-memory bucket table or check on `submitter_ip` in last hour.
+- `requisition-upload` (public) — accepts multipart file (max 10MB, allowlist mime pdf/jpg/png/webp), stores in `requisition-attachments/<token>/<uuid>-<name>`, returns path.
+- `requisition-decide` (authenticated CFO) — approve/reject, writes `approved_by`, `approved_at`, or `rejection_reason`; sends SMS via Yoola (omit sender) + email to employee.
 
-### 2. Fix the trigger arg on the ledger path (migration)
-`credit_signup_referral_bonus` currently calls `try_credit_qualified_referrals(NEW.referrer_id)` — the parameter is named `p_referred_id`, so it should be `NEW.referred_id`. Passing the referrer means it looks up referrals where the *referrer* is the invitee, which never matches for the row just inserted. Change to `NEW.referred_id`.
+### CFO UI
 
-### 3. Backfill Timothy + any other affected referrers (migration, one-shot)
-For every `referrals` row where `credited = true` AND no matching `general_ledger` row with `idempotency_key = 'referral_signup:' || id` exists AND `bonus_amount > 0` AND the referrer is not frozen:
-- Flip `credited = false, credited_at = NULL` on those rows
-- Call `try_credit_qualified_referrals(referred_id)` for each so the standard ledger path posts the correct double-entry (`marketing_expense` platform leg + `referral_bonus` wallet leg into `withdrawable_balance`).
+Add a **Requisitions** tab (or panel inside existing Financial Ops Command Center) with two sections:
 
-This automatically credits Timothy UGX 500 through the same audited path all new signups will use going forward, and no wallet buckets are touched directly.
+1. **Shareable Links** panel (`RequisitionLinksPanel.tsx`)
+   - "Generate link" dialog: label, optional department, expires_at (date picker, default 30d), optional max_submissions.
+   - Table of links: label, URL preview, expires, submissions used/limit, active state.
+   - Actions per row: **Copy**, **Share on WhatsApp** (opens `https://wa.me/?text=...`), **Revoke**, **Regenerate token**.
 
-### 4. Verify
-- Re-query Timothy's `wallets.withdrawable_balance`, `general_ledger` referral entries, and `get_user_available_balance` — expect UGX 500.
-- Spot-check 2–3 other referrers surfaced by the backfill.
+2. **Pending Requisitions Queue** (`EmployeeRequisitionsQueue.tsx`)
+   - Filter by status (default pending). Columns: employee, dept, amount (formatUGX), purpose, submitted_at.
+   - Row expand shows description + attachment links (signed URLs).
+   - **Approve** (confirmation) and **Reject** (requires 10-char reason) buttons calling `requisition-decide`.
+   - Optional: forward-to-finance handoff simply flips status to approved (existing finance workflow reads approved list).
 
-### Technical notes
-- No frontend changes.
-- No new tables. Only trigger drop, one function edit, and a one-shot backfill DO block — all in a single migration.
-- Idempotency key `referral_signup:<referral_id>` prevents any double payout even if the backfill runs twice.
-- Complies with Wallet Sole Writer rule: crediting flows through `create_ledger_transaction` → ledger trigger → `apply_wallet_movement`.
+### Public page
+
+`/requisition/new?t=<token>` — new route `src/pages/PublicRequisitionForm.tsx`
+- On mount calls `requisition-link-validate`; shows friendly expired/inactive/exhausted screen when invalid.
+- Form (zod-validated): all fields listed in spec, with attachment uploader (calls `requisition-upload`).
+- On submit → `requisition-submit` → success screen with reference ID.
+
+### Notifications
+
+- New submission → row inserted in `notifications` for every user with CFO role, plus optional SMS to CFO phone(s).
+- Decision → email + SMS to employee (email required in form; phone optional).
+
+### Security
+
+- 32-byte random tokens (base64url, ~43 chars) via `crypto.getRandomValues` in edge; DB has UNIQUE constraint.
+- No sequential IDs in URL.
+- File allowlist + 10MB size cap enforced server-side.
+- Per-IP + per-token rate limiting.
+- Audit log entry in `audit_logs` on generate/revoke/approve/reject with 10-char reason.
+
+### Files
+
+New:
+- `supabase/migrations/<ts>_employee_requisitions.sql`
+- `supabase/functions/requisition-link-validate/index.ts`
+- `supabase/functions/requisition-submit/index.ts`
+- `supabase/functions/requisition-upload/index.ts`
+- `supabase/functions/requisition-decide/index.ts`
+- `src/pages/PublicRequisitionForm.tsx` + route in `App.tsx`
+- `src/components/financial-ops/RequisitionLinksPanel.tsx`
+- `src/components/financial-ops/EmployeeRequisitionsQueue.tsx`
+
+Updated:
+- `src/components/financial-ops/FinancialOpsCommandCenter.tsx` — mount the two new panels under a Requisitions tab.
+- `src/App.tsx` — add the public route.
+
+No existing wallet/ledger logic is touched; requisitions become ledger transactions only after CFO approves and (separately) Finance processes payout — reusing the current finance queue.
