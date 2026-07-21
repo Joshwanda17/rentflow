@@ -1643,7 +1643,7 @@ export default function SubAgentAnalytics() {
 
             <div className="p-4 space-y-4">
               {/* Quick contact actions */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <a
                   href={selectedSubAgent.profile?.phone ? `tel:${selectedSubAgent.profile.phone}` : undefined}
                   className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium border transition-colors ${
@@ -1668,6 +1668,14 @@ export default function SubAgentAnalytics() {
                   <Mail className="h-4 w-4" />
                   WhatsApp
                 </a>
+                <button
+                  type="button"
+                  onClick={() => setReleaseConfirmOpen(true)}
+                  className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium border border-destructive/20 bg-destructive/10 text-destructive active:bg-destructive/20 transition-colors"
+                >
+                  <UserMinus className="h-4 w-4" />
+                  Unlink
+                </button>
               </div>
 
               {/* Profile Details */}
