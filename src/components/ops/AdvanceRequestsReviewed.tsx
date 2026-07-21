@@ -13,9 +13,10 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { format, formatDistanceToNowStrict } from 'date-fns';
-import { CheckCircle2, XCircle, Loader2, User, Inbox, Clock, Wallet, Ban, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, User, Inbox, Clock, Wallet, Ban, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
+import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
 
 const num = (v: any) => Number(v ?? 0);
 
@@ -85,12 +86,13 @@ function EmptyState({ label }: { label: string }) {
 }
 
 function RequestRow({
-  req, tone, onOpen, onCancel,
+  req, tone, onOpen, onCancel, onDisburse,
 }: {
   req: any;
   tone: 'approved' | 'rejected';
   onOpen: (req: any) => void;
   onCancel?: (req: any) => void;
+  onDisburse?: (req: any) => void;
 }) {
   const rejectedByCfo = req.status === 'cfo_rejected';
   const note = tone === 'rejected' ? (req.rejection_reason || 'No reason recorded') : approvalNote(req);
@@ -102,6 +104,8 @@ function RequestRow({
     ? 'text-muted-foreground'
     : holdDays >= 5 ? 'text-rose-600' : holdDays >= 2 ? 'text-amber-600' : 'text-emerald-600';
   const canCancelRequest = tone === 'approved' && !paid && onCancel;
+  const canDisburse = tone === 'approved' && !paid && onDisburse
+    && (req.status === 'agent_ops_approved' || req.status === 'cfo_approved');
   return (
     <button
       type="button"
@@ -172,8 +176,19 @@ function RequestRow({
           </span>{note}
         </div>
       )}
-      {canCancelRequest && (
-        <div className="mt-2 flex justify-end">
+      {(canCancelRequest || canDisburse) && (
+        <div className="mt-2 flex justify-end gap-2">
+          {canDisburse && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 gap-1 bg-amber-600 hover:bg-amber-700 text-white text-[11px]"
+              onClick={(e) => { e.stopPropagation(); onDisburse!(req); }}
+            >
+              <Zap className="h-3 w-3" /> Disburse now
+            </Button>
+          )}
+          {canCancelRequest && (
           <Button
             type="button"
             size="sm"
@@ -183,6 +198,7 @@ function RequestRow({
           >
             <Ban className="h-3 w-3" /> Cancel request
           </Button>
+          )}
         </div>
       )}
     </button>
@@ -195,6 +211,38 @@ export function AdvanceRequestsReviewed() {
   const [evalReq, setEvalReq] = useState<any | null>(null);
   const [cancelReq, setCancelReq] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [disburseReq, setDisburseReq] = useState<any | null>(null);
+  const [disburseReason, setDisburseReason] = useState('');
+
+  const disburseMutation = useMutation({
+    mutationFn: async ({ req, reason }: { req: any; reason: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const trimmed = reason.trim();
+      // CFO-approved advances don't require a skip reason. Only agent_ops_approved does.
+      if (req.status === 'agent_ops_approved' && trimmed.length < 10) {
+        throw new Error('Please provide a reason for skipping the CFO (min 10 chars).');
+      }
+      await disburseAgentAdvanceRequest({
+        req,
+        actorId: user.id,
+        skipReason: req.status === 'agent_ops_approved' ? trimmed : null,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Advance disbursed to agent wallet');
+      setDisburseReq(null);
+      setDisburseReason('');
+      queryClient.invalidateQueries({ queryKey: ['advance-requests-reviewed'] });
+      queryClient.invalidateQueries({ queryKey: ['advance-requests-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const openDisburse = (req: any) => {
+    setDisburseReq(req);
+    setDisburseReason('');
+  };
 
   const cancelMutation = useMutation({
     mutationFn: async ({ req, reason }: { req: any; reason: string }) => {
@@ -282,7 +330,14 @@ export function AdvanceRequestsReviewed() {
           ) : (
             <div className="space-y-2">
               {approved.map((req: any) => (
-                <RequestRow key={req.id} req={req} tone="approved" onOpen={setEvalReq} onCancel={openCancel} />
+                <RequestRow
+                  key={req.id}
+                  req={req}
+                  tone="approved"
+                  onOpen={setEvalReq}
+                  onCancel={openCancel}
+                  onDisburse={openDisburse}
+                />
               ))}
             </div>
           )}
@@ -357,6 +412,61 @@ export function AdvanceRequestsReviewed() {
             >
               {cancelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
               Confirm cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disburse-now confirm dialog */}
+      <Dialog open={!!disburseReq} onOpenChange={(o) => { if (!o && !disburseMutation.isPending) { setDisburseReq(null); setDisburseReason(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Zap className="h-5 w-5 text-amber-600" /> Disburse advance now
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {disburseReq ? (
+                <>Disburse <span className="font-semibold text-foreground">{formatUGX(num(disburseReq.principal))}</span> to{' '}
+                  <span className="font-semibold text-foreground">{disburseReq.agent_full_name || 'this agent'}</span>&apos;s wallet.
+                  Daily deductions start immediately.{' '}
+                  {disburseReq.status === 'agent_ops_approved'
+                    ? 'This bypasses the CFO — a reason is required.'
+                    : 'Already CFO-approved — no reason required.'}
+                </>
+              ) : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {disburseReq?.status === 'agent_ops_approved' && (
+            <div className="space-y-2 py-1">
+              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Reason for skipping CFO (min 10 chars)</Label>
+              <Textarea
+                value={disburseReason}
+                onChange={(e) => setDisburseReason(e.target.value)}
+                rows={3}
+                placeholder="E.g. urgent field float, CFO unavailable, time-critical…"
+                className="text-sm"
+              />
+            </div>
+          )}
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => { setDisburseReq(null); setDisburseReason(''); }}
+              disabled={disburseMutation.isPending}
+            >
+              <X className="h-4 w-4 mr-1" /> Cancel
+            </Button>
+            <Button
+              className="w-full sm:w-auto gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={
+                disburseMutation.isPending ||
+                (disburseReq?.status === 'agent_ops_approved' && disburseReason.trim().length < 10)
+              }
+              onClick={() => disburseReq && disburseMutation.mutate({ req: disburseReq, reason: disburseReason })}
+            >
+              {disburseMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              Disburse now
             </Button>
           </DialogFooter>
         </DialogContent>
