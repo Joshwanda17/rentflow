@@ -976,8 +976,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </>
             )}
 
-            {/* Merchant Agents: invite other Merchant Agents (UGX 50,000 per approved invitee) */}
-            {isMerchant && <InviteMerchantAgentCard />}
+            {/* Merchant Agent invites moved to CTO dashboard → "Merchant Invites" tab */}
 
             {/*
 
