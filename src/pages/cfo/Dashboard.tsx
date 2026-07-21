@@ -53,6 +53,8 @@ import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
+import { EmployeeRequisitionLinksPanel } from '@/components/financial-ops/EmployeeRequisitionLinksPanel';
+import { EmployeeRequisitionQueuePanel } from '@/components/financial-ops/EmployeeRequisitionQueuePanel';
 import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { AgentFloatManagement } from '@/components/cfo/AgentFloatManagement';
@@ -339,6 +341,31 @@ export default function CFODashboardPage() {
         return <ManagerApprovalAudit />;
       case 'agent-requisitions':
         return <CFOAgentRequisitions />;
+      case 'employee-requisition-links':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">🔗 Employee Requisition Links</h1>
+              <p className="text-sm text-muted-foreground">
+                Generate secure, shareable links so employees can submit financial requisitions without a Welile account.
+                Copy or send via WhatsApp — revoke anytime.
+              </p>
+            </div>
+            <EmployeeRequisitionLinksPanel />
+          </div>
+        );
+      case 'employee-requisitions':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">📥 Employee Requisitions</h1>
+              <p className="text-sm text-muted-foreground">
+                Review, approve or reject requisitions submitted through shareable public links.
+              </p>
+            </div>
+            <EmployeeRequisitionQueuePanel />
+          </div>
+        );
       case 'rent-collections':
         return <RentCollectionsFeed />;
       case 'agent-rankings':

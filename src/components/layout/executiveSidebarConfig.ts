@@ -92,6 +92,8 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Withdrawal History', icon: ClipboardList, id: 'withdrawal-history' },
         { label: 'Staff & Payroll', icon: Users, id: 'payroll' },
         { label: 'Agent Requests', icon: FileText, id: 'agent-requisitions' },
+        { label: 'Requisition Links', icon: FileText, id: 'employee-requisition-links' },
+        { label: 'Employee Requisitions', icon: ClipboardList, id: 'employee-requisitions' },
         { label: 'Wallet Removals', icon: MinusCircle, id: 'retractions' },
         { label: 'Mark-Not-Funded Approvals', icon: ShieldCheck, id: 'unfunding-approvals' },
       ],
