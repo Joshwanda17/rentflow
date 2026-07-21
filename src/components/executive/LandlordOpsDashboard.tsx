@@ -81,6 +81,80 @@ import { Lc1VerificationRequestsPanel } from './landlord-ops/Lc1VerificationRequ
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
 
+/**
+ * Thin wrapper that fetches active listing blocks + recent rejection counts
+ * for ALL agent IDs currently visible in the Verification Queue in a SINGLE
+ * batched query, then hands the per-agent slice down to the underlying
+ * `AgentListingBlockControl` via `preloadedStatus`.
+ *
+ * Every rendered card shares the same react-query key (`agentIdsInView`
+ * joined + sorted), so react-query dedupes the fetch to a single request
+ * regardless of how many cards are mounted. This replaces what used to be
+ * `2 × N` per-card queries (blocks + rejections) with `2` total per page.
+ */
+function BatchedAgentListingBlockControl({
+  agentId,
+  agentName,
+  agentIdsInView,
+}: {
+  agentId: string;
+  agentName?: string | null;
+  agentIdsInView: string[];
+}) {
+  const batchKey = useMemo(
+    () => Array.from(new Set(agentIdsInView.filter(Boolean))).sort().join(','),
+    [agentIdsInView],
+  );
+  const { data: statusMap } = useQuery({
+    queryKey: ['agent-posting-status-batch', batchKey],
+    queryFn: async () => {
+      const ids = batchKey ? batchKey.split(',') : [];
+      const empty = new Map<string, { block: any; recentRejections: number }>();
+      if (ids.length === 0) return empty;
+      const nowIso = new Date().toISOString();
+      const [blocksRes, rejsRes] = await Promise.all([
+        supabase
+          .from('agent_listing_blocks')
+          .select('agent_id, id, blocked_until, reason, auto_blocked, rejection_count, created_at')
+          .in('agent_id', ids)
+          .eq('active', true)
+          .gt('blocked_until', nowIso),
+        supabase
+          .from('agent_listing_rejections')
+          .select('agent_id')
+          .in('agent_id', ids),
+      ]);
+      const m = new Map<string, { block: any; recentRejections: number }>();
+      ids.forEach((id) => m.set(id, { block: null, recentRejections: 0 }));
+      (blocksRes.data || []).forEach((b: any) => {
+        const cur = m.get(b.agent_id) || { block: null, recentRejections: 0 };
+        m.set(b.agent_id, { ...cur, block: b });
+      });
+      const counts: Record<string, number> = {};
+      (rejsRes.data || []).forEach((r: any) => {
+        counts[r.agent_id] = (counts[r.agent_id] || 0) + 1;
+      });
+      ids.forEach((id) => {
+        const cur = m.get(id)!;
+        m.set(id, { ...cur, recentRejections: counts[id] || 0 });
+      });
+      return m;
+    },
+    enabled: !!batchKey,
+    staleTime: 60_000,
+  });
+  const preloaded = statusMap
+    ? statusMap.get(agentId) ?? { block: null, recentRejections: 0 }
+    : undefined;
+  return (
+    <AgentListingBlockControl
+      agentId={agentId}
+      agentName={agentName}
+      preloadedStatus={preloaded}
+    />
+  );
+}
+
 
 interface ListingWithLandlord {
   id: string;
@@ -444,6 +518,9 @@ export function LandlordOpsDashboard() {
     action: string;
     results: { id: string; title: string; ok: boolean; error?: string }[];
   }>(null);
+  // ─── Verification Queue pagination (client-side, keeps DOM light) ───
+  const VERIFY_PAGE_SIZE = 30;
+  const [verifyPage, setVerifyPage] = useState(1);
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
@@ -469,6 +546,11 @@ export function LandlordOpsDashboard() {
   // ─── Verification date-range filter ───
   const [verifyDateFrom, setVerifyDateFrom] = useState<string>('');
   const [verifyDateTo, setVerifyDateTo] = useState<string>('');
+  // Reset queue pagination whenever any filter/sort/scope changes so the user
+  // never sees "Load more" leftover from a previous, larger result set.
+  useEffect(() => {
+    setVerifyPage(1);
+  }, [verifySearch, verifyFilter, houseStatusFilter, verifyDateFrom, verifyDateTo, verifySort]);
   useEffect(() => {
     localStorage.setItem('landlordOpsVerifySort', verifySort);
   }, [verifySort]);
@@ -1522,6 +1604,28 @@ export function LandlordOpsDashboard() {
 
   const clearVerifySelection = () => setVerifySelectedIds(new Set());
 
+  // Run an async `fn` over `items` with a bounded concurrency window so bulk
+  // actions on the Verification Queue don't block on a serial `await` loop.
+  async function runBulk<T, R>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = new Array(items.length);
+    let cursor = 0;
+    const workers = Array.from(
+      { length: Math.min(Math.max(1, limit), items.length) },
+      async () => {
+        while (cursor < items.length) {
+          const idx = cursor++;
+          results[idx] = await fn(items[idx]);
+        }
+      },
+    );
+    await Promise.all(workers);
+    return results;
+  }
+
   // Hide or unhide every selected house from the tenant dashboard.
   const handleBulkHide = async (selected: ListingWithLandlord[], nextHidden: boolean) => {
     if (!user || selected.length === 0) return;
@@ -1537,8 +1641,7 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy(nextHidden ? 'hide' : 'unhide');
-    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
-    for (const h of selected) {
+    const results = await runBulk(selected, 6, async (h) => {
       try {
         const { error } = await supabase.from('house_listings').update({ is_hidden: nextHidden }).eq('id', h.id);
         if (error) throw error;
@@ -1551,11 +1654,11 @@ export function LandlordOpsDashboard() {
         });
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, is_hidden: nextHidden } : l) : old);
-        results.push({ id: h.id, title: h.title, ok: true });
+        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
       } catch (err: any) {
-        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
       }
-    }
+    });
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
@@ -1579,19 +1682,18 @@ export function LandlordOpsDashboard() {
     }
     if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
     setBulkBusy('verify');
-    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
-    for (const h of targets) {
+    const results = await runBulk(targets, 6, async (h) => {
       try {
         const { data, error } = await supabase.functions.invoke('credit-listing-bonus', { body: { listing_id: h.id } });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, verified: true, listing_bonus_paid: true } : l) : old);
-        results.push({ id: h.id, title: h.title, ok: true });
+        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
       } catch (err: any) {
-        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
       }
-    }
+    });
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
@@ -1616,24 +1718,23 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy('reject');
-    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
-    for (const h of selected) {
+    const results = await runBulk(selected, 6, async (h) => {
       try {
         const { data, error } = await supabase.rpc('reject_house_listing', { p_listing_id: h.id, p_reason: trimmed });
         if (error) throw error;
         if (data && typeof data === 'object' && 'error' in (data as any)) throw new Error((data as any).error);
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
-        results.push({ id: h.id, title: h.title, ok: true });
         // Web-push only (no SMS) — best effort, never blocks the bulk loop.
-        await invokeEdgeFunction('notify-listing-rejected', {
+        invokeEdgeFunction('notify-listing-rejected', {
           body: { listing_id: h.id, reason: trimmed },
           silent: true,
-        });
+        }).catch(() => { /* best-effort */ });
+        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
       } catch (err: any) {
-        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
       }
-    }
+    });
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
@@ -2866,6 +2967,14 @@ export function LandlordOpsDashboard() {
       return 0;
     });
 
+    // ── Client-side pagination for the queue render ──
+    // The parent query already caps rows; this just prevents mounting 500
+    // heavy cards at once (which was the primary source of the "long load"
+    // and the unresponsive bulk-select toggles).
+    const totalFiltered = filteredHouses.length;
+    const displayedHouses = filteredHouses.slice(0, verifyPage * VERIFY_PAGE_SIZE);
+    const hasMoreHouses = displayedHouses.length < totalFiltered;
+
     return (
       <>
       <div className="space-y-3">
@@ -3060,7 +3169,11 @@ export function LandlordOpsDashboard() {
         })()}
 
         <div className="space-y-3">
-          {filteredHouses.map(house => (
+          {(() => {
+            const visibleAgentIds = displayedHouses
+              .map((h) => h.agent_id)
+              .filter((x): x is string => !!x);
+            return displayedHouses.map(house => (
             <div key={house.id} className={`rounded-xl border bg-card overflow-hidden ${verifySelectedIds.has(house.id) ? 'border-primary ring-1 ring-primary/40' : 'border-border'}`}>
               {/* ── Card Header ── */}
               <div className="p-4 pb-3 space-y-3">
@@ -3179,7 +3292,11 @@ export function LandlordOpsDashboard() {
                     )}
                     {house.agent_id && (
                       <div className="pt-1.5 mt-1 border-t border-indigo-500/10">
-                        <AgentListingBlockControl agentId={house.agent_id} agentName={house.agent_name} />
+                        <BatchedAgentListingBlockControl
+                          agentId={house.agent_id}
+                          agentName={house.agent_name}
+                          agentIdsInView={visibleAgentIds}
+                        />
                       </div>
                     )}
                   </div>
@@ -3336,7 +3453,23 @@ export function LandlordOpsDashboard() {
                 />
               </div>
             </div>
-          ))}
+          ));
+          })()}
+          {hasMoreHouses && (
+            <div className="pt-2 flex flex-col items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-4 font-semibold gap-2"
+                onClick={() => setVerifyPage((p) => p + 1)}
+              >
+                Load more ({totalFiltered - displayedHouses.length} remaining)
+              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                Showing {displayedHouses.length} of {totalFiltered}
+              </p>
+            </div>
+          )}
           {filteredHouses.length === 0 && scopeListings.length > 0 && (
             <div className="text-center py-10">
               <Search className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />

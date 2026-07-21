@@ -18,6 +18,13 @@ import { toast } from 'sonner';
 interface AgentListingBlockControlProps {
   agentId: string;
   agentName?: string | null;
+  /**
+   * Optional preloaded posting status. When provided, the control skips its own
+   * per-mount fetch (avoids N+1 when rendered inside a large list). Pass `null`
+   * for "known: no block, zero rejections". Pass `undefined` (default) to let
+   * the control fetch its own status on mount.
+   */
+  preloadedStatus?: { block: ActiveBlock | null; recentRejections: number } | null;
 }
 
 interface ActiveBlock {
@@ -36,10 +43,11 @@ interface ActiveBlock {
  * - While blocked the agent earns no listing rewards or commission (DB enforced
  *   via the insert trigger that rejects new listings).
  */
-export function AgentListingBlockControl({ agentId, agentName }: AgentListingBlockControlProps) {
-  const [block, setBlock] = useState<ActiveBlock | null>(null);
-  const [recentRejections, setRecentRejections] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+export function AgentListingBlockControl({ agentId, agentName, preloadedStatus }: AgentListingBlockControlProps) {
+  const hasPreload = preloadedStatus !== undefined;
+  const [block, setBlock] = useState<ActiveBlock | null>(preloadedStatus?.block ?? null);
+  const [recentRejections, setRecentRejections] = useState<number>(preloadedStatus?.recentRejections ?? 0);
+  const [loading, setLoading] = useState(!hasPreload);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [mode, setMode] = useState<'block' | 'unblock'>('block');
   const [reason, setReason] = useState('');
@@ -90,8 +98,17 @@ export function AgentListingBlockControl({ agentId, agentName }: AgentListingBlo
   }, [agentId]);
 
   useEffect(() => {
+    // If the parent preloaded status (batched query pattern), just sync into
+    // local state and skip the per-mount fetch. This is the fast path for
+    // list-heavy screens like the Verification Queue.
+    if (hasPreload) {
+      setBlock(preloadedStatus?.block ?? null);
+      setRecentRejections(preloadedStatus?.recentRejections ?? 0);
+      setLoading(false);
+      return;
+    }
     load();
-  }, [load]);
+  }, [load, hasPreload, preloadedStatus]);
 
   const openBlock = () => { setMode('block'); setReason(''); setDays('2'); setDialogOpen(true); };
   const openUnblock = () => { setMode('unblock'); setReason(''); setDialogOpen(true); };
