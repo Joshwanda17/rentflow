@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
     }
 
     let partnersCreated = 0;
+    let partnersMatched = 0;
     let portfoliosCreated = 0;
     let skippedDuplicates = 0;
     const errors: { partner: string; error: string }[] = [];
@@ -207,6 +208,9 @@ Deno.serve(async (req) => {
               continue;
             }
           }
+          // Existing partner — count so the results screen doesn't show
+          // "0 Partners" when portfolios were actually added to their account.
+          partnersMatched++;
         } else {
           // Create auth user with standard default password
           const tempPassword = `Welile1234!`;
@@ -454,6 +458,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       partnersCreated,
+      partnersMatched,
       portfoliosCreated,
       skippedDuplicates,
       errors,
