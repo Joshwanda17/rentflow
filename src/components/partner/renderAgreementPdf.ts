@@ -4,8 +4,8 @@ import { jsPDF } from 'jspdf';
 // Rasterise the SAME filled contract HTML the admin previews into a multi-page
 // A4 PDF. Each `.page-section` becomes its own page, so the stored/emailed PDF
 // is pixel-identical to the on-screen preview (single HTML -> PDF pipeline).
-async function waitForImages(doc: Document): Promise<void> {
-  const imgs = Array.from(doc.images || []);
+async function waitForImages(root: ParentNode): Promise<void> {
+  const imgs = Array.from(root.querySelectorAll('img'));
   await Promise.all(
     imgs.map((img) =>
       img.complete && img.naturalWidth > 0
@@ -18,33 +18,51 @@ async function waitForImages(doc: Document): Promise<void> {
   );
 }
 
+// Extract the <body> inner HTML + collected <style> blocks so we can mount the
+// contract inside the parent document (html2canvas rasterises off-screen
+// iframes as blank pages in most browsers — see uploaded blank PDF report).
+function splitAgreementHtml(html: string): { styles: string; body: string } {
+  const styleMatches = Array.from(html.matchAll(/<style[^>]*>[\s\S]*?<\/style>/gi)).map((m) => m[0]);
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  return {
+    styles: styleMatches.join('\n'),
+    body: bodyMatch ? bodyMatch[1] : html,
+  };
+}
+
 /** Returns the rendered contract as a base64 (no data: prefix) PDF string. */
 export async function renderAgreementPdfBase64(html: string): Promise<string> {
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.left = '-10000px';
-  iframe.style.top = '0';
-  iframe.style.width = '900px';
-  iframe.style.height = '1200px';
-  iframe.style.border = '0';
-  iframe.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(iframe);
+  // Mount the contract inside the parent document (off-screen but in-layout)
+  // so html2canvas can walk real computed styles. Rendering into an off-screen
+  // <iframe> produced blank pages on Chromium/WebKit.
+  const { styles, body } = splitAgreementHtml(html);
+
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = [
+    'position:fixed',
+    'left:-10000px',
+    'top:0',
+    'width:900px',
+    'background:#ffffff',
+    'z-index:-1',
+    'pointer-events:none',
+  ].join(';');
+  host.innerHTML = `${styles}<div class="agreement-print-root" style="width:900px;background:#ffffff;">${body}</div>`;
+  document.body.appendChild(host);
 
   try {
-    const doc = iframe.contentDocument!;
-    doc.open();
-    doc.write(html);
-    doc.close();
-
     // Allow layout + webfonts/images to settle.
-    await new Promise((r) => setTimeout(r, 120));
-    await waitForImages(doc);
-    if ((doc as any).fonts?.ready) {
-      try { await (doc as any).fonts.ready; } catch { /* ignore */ }
+    await new Promise((r) => setTimeout(r, 150));
+    await waitForImages(host);
+    if ((document as any).fonts?.ready) {
+      try { await (document as any).fonts.ready; } catch { /* ignore */ }
     }
 
-    const sections = Array.from(doc.querySelectorAll<HTMLElement>('.page-section'));
-    const targets = sections.length ? sections : [doc.querySelector<HTMLElement>('.document-wrapper') || doc.body];
+    const sections = Array.from(host.querySelectorAll<HTMLElement>('.page-section'));
+    const targets = sections.length
+      ? sections
+      : [host.querySelector<HTMLElement>('.document-wrapper') || (host.firstElementChild as HTMLElement) || host];
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = pdf.internal.pageSize.getWidth();
@@ -79,6 +97,6 @@ export async function renderAgreementPdfBase64(html: string): Promise<string> {
     const comma = dataUri.indexOf(',');
     return comma >= 0 ? dataUri.slice(comma + 1) : dataUri;
   } finally {
-    document.body.removeChild(iframe);
+    document.body.removeChild(host);
   }
 }
