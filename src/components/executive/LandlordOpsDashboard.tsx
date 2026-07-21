@@ -546,6 +546,11 @@ export function LandlordOpsDashboard() {
   // ─── Verification date-range filter ───
   const [verifyDateFrom, setVerifyDateFrom] = useState<string>('');
   const [verifyDateTo, setVerifyDateTo] = useState<string>('');
+  // Reset queue pagination whenever any filter/sort/scope changes so the user
+  // never sees "Load more" leftover from a previous, larger result set.
+  useEffect(() => {
+    setVerifyPage(1);
+  }, [verifySearch, verifyFilter, houseStatusFilter, verifyDateFrom, verifyDateTo, verifySort]);
   useEffect(() => {
     localStorage.setItem('landlordOpsVerifySort', verifySort);
   }, [verifySort]);
