@@ -473,6 +473,30 @@ export function LandlordOpsDashboard() {
     localStorage.setItem('landlordOpsLandlordSort', landlordSort);
   }, [landlordSort]);
 
+  // ─── Server-side landlord ops totals & paginated list ─────────────────────
+  // Powers the "All Landlords" view + home KPI counters without ever loading
+  // the entire landlords table client-side (33k+ rows). See mem://architecture/agent-ops-scale.
+  const debouncedLandlordSearch = useDebouncedValue(search, 300);
+  const { data: landlordOpsTotalsData } = useLandlordOpsTotals();
+  const landlordOpsTotals = landlordOpsTotalsData?.totals;
+  const landlordOpsListParams = {
+    search: debouncedLandlordSearch,
+    sort: (landlordSort === 'recently_updated' ? 'newest' : landlordSort) as LandlordOpsSort,
+    category: (landlordCategory || 'all') as LandlordOpsCategory,
+    pendingFilter: pendingFilter as LandlordOpsPendingFilter,
+    page: landlordPage,
+    perPage: 20,
+    enabled: view === 'landlords',
+  };
+  const {
+    data: landlordOpsList,
+    isFetching: landlordOpsListFetching,
+  } = useLandlordOpsList(landlordOpsListParams);
+  // Reset to page 1 when the user changes any filter/search/sort.
+  useEffect(() => {
+    setLandlordPage(1);
+  }, [debouncedLandlordSearch, landlordSort, landlordCategory, pendingFilter]);
+
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
   const [allReqDeleteDialog, setAllReqDeleteDialog] = useState<{ open: boolean; requestId: string; tenantName: string }>({ open: false, requestId: '', tenantName: '' });
