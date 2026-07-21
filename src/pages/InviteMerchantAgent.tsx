@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,10 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Store, Wallet, HandCoins, ShieldCheck, ChevronLeft, ChevronRight,
-  PenLine, CheckCircle2, Loader2, FileText, BadgeCheck,
+  PenLine, CheckCircle2, Loader2, FileText, BadgeCheck, Download,
 } from 'lucide-react';
 import SignaturePad from '@/components/shared/SignaturePad';
-import { buildMerchantAgreementHtml } from '@/components/merchant/agreement/merchantAgreementTemplate';
 import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/merchantAgreementPdf';
 import { MERCHANT_AGREEMENT_VERSION } from '@/components/merchant/agreement/MerchantAgreementContent';
 import welileLogo from '@/assets/welile-contract-logo.png';
@@ -67,6 +66,7 @@ export default function InviteMerchantAgent() {
   const [phone, setPhone] = useState('');
   const [signature, setSignature] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   // Persist referrer straight away so it survives every downstream bounce.
   useEffect(() => {
@@ -89,16 +89,23 @@ export default function InviteMerchantAgent() {
     })();
   }, [user?.id, loading, navigate]);
 
-  const contractHtml = useMemo(
-    () => buildMerchantAgreementHtml({
-      merchantName: fullName.trim() || phone.trim() || 'Merchant Agent',
-      merchantPhone: phone.trim(),
-      agreementDate: new Date(),
-    }),
-    [fullName, phone],
-  );
+  const canSubmit =
+    fullName.trim().length >= 3 &&
+    /^[+0-9 -]{7,}$/.test(phone.trim()) &&
+    !!signature &&
+    downloaded;
 
-  const canSubmit = fullName.trim().length >= 3 && /^[+0-9 -]{7,}$/.test(phone.trim()) && !!signature;
+  const handleDownloadContract = async () => {
+    const name = fullName.trim() || 'Merchant Agent';
+    try {
+      await downloadMerchantAgreementPdf({ name, phone: phone.trim() });
+      setDownloaded(true);
+      toast.success('Agreement PDF downloaded — please read it before signing.');
+    } catch (err) {
+      console.warn('[InviteMerchantAgent] download failed', err);
+      toast.error('Could not download the PDF. Please try again.');
+    }
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit) {
@@ -223,12 +230,26 @@ export default function InviteMerchantAgent() {
             <FileText className="h-4 w-4 text-primary" />
             <p className="text-sm font-bold flex-1">Welile Merchant Agent Agreement</p>
           </div>
-          <iframe
-            title="Merchant Agent Agreement"
-            srcDoc={contractHtml}
-            className="w-full block border-0 bg-[#f1f5f9]"
-            style={{ height: '60vh' }}
-          />
+          <div className="p-5 space-y-3 bg-background">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              The full Merchant Agent Agreement is provided as a downloadable PDF. Please
+              download and read it in full before signing below.
+            </p>
+            <Button
+              type="button"
+              variant={downloaded ? 'outline' : 'default'}
+              className="w-full h-11 rounded-xl gap-1.5"
+              onClick={handleDownloadContract}
+            >
+              <Download className="h-4 w-4" />
+              {downloaded ? 'Download agreement again' : 'Download Agreement PDF'}
+            </Button>
+            {downloaded && (
+              <p className="text-[11px] text-primary font-semibold flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> PDF downloaded. You can now sign below.
+              </p>
+            )}
+          </div>
         </Card>
 
         {/* Signer details */}
