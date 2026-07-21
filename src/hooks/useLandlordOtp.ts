@@ -319,7 +319,13 @@ export function useLandlordOtp() {
         return null;
       }
       setOtpVerified(true);
-      return data as { success: boolean; challenge_id: string; payout_id?: string | null; verified_at?: string } | null;
+      return data as {
+        success: boolean;
+        already_verified?: boolean;
+        challenge_id: string;
+        payout_id?: string | null;
+        verified_at?: string;
+      } | null;
     } catch (e: any) {
       setOtpError(friendlyOtpError(e?.message, 'Verification failed'));
       return null;

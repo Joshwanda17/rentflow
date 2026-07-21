@@ -78,13 +78,34 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (chErr || !ch) return json({ error: "Challenge not found" }, 404);
 
+    // Idempotency: a verified challenge is NOT an error. Return the same
+    // success payload every time so the client can safely re-verify after
+    // network hiccups, remounts, refreshes, or duplicate submits without
+    // ever seeing "Challenge already verified" while the OTP UI is still
+    // rendered. Verification and disbursement are decoupled — the caller
+    // must never be asked to re-verify a challenge that already reached
+    // status='verified'.
+    if (ch.status === "verified") {
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: "already_verified",
+        failure_reason: "already_verified",
+        detail: "Idempotent re-verify — challenge was already verified",
+      });
+      return json({
+        success: true,
+        already_verified: true,
+        challenge_id,
+        payout_id: ch.resulting_payout_id ?? null,
+        verified_at: ch.verified_at,
+      });
+    }
     if (ch.status !== "pending") {
       await logEvent(admin, ch, challenge_id, agentId, {
-        event_type: ch.status === "verified" ? "already_verified" : "failed",
-        failure_reason: ch.status === "verified" ? "already_verified" : `challenge_${ch.status}`,
+        event_type: "failed",
+        failure_reason: `challenge_${ch.status}`,
         detail: `Challenge already ${ch.status}`,
       });
-      return json({ error: `Challenge already ${ch.status}` }, 400);
+      return json({ error: `Challenge already ${ch.status}`, status: ch.status }, 400);
     }
     if (new Date(ch.otp_expires_at).getTime() < Date.now()) {
       await admin.from("landlord_payout_otp_challenges").update({ status: "expired" }).eq("id", challenge_id);
