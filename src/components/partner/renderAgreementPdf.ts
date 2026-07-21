@@ -31,7 +31,11 @@ function splitAgreementHtml(html: string): { styles: string; body: string } {
 }
 
 /** Returns the rendered contract as a base64 (no data: prefix) PDF string. */
-export async function renderAgreementPdfBase64(html: string): Promise<string> {
+export async function renderAgreementPdfBase64(
+  html: string,
+  opts?: { format?: 'a4' | 'letter' },
+): Promise<string> {
+  const format = opts?.format ?? 'a4';
   // Mount the contract inside the parent document (off-screen but in-layout)
   // so html2canvas can walk real computed styles. Rendering into an off-screen
   // <iframe> produced blank pages on Chromium/WebKit.
@@ -64,7 +68,7 @@ export async function renderAgreementPdfBase64(html: string): Promise<string> {
       ? sections
       : [host.querySelector<HTMLElement>('.document-wrapper') || (host.firstElementChild as HTMLElement) || host];
 
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 8;
