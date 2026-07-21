@@ -156,6 +156,7 @@ const TrackedRedirect = lazy(() => import('./pages/TrackedRedirect'));
 const RentAccessLimitPublic = lazy(() => import('./pages/RentAccessLimitPublic'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const StopSms = lazy(() => import('./pages/StopSms'));
+const PublicRequisitionForm = lazy(() => import('./pages/PublicRequisitionForm'));
 const PayoutReceipt = lazy(() => import('./pages/PayoutReceipt'));
 const ResumeSms = lazy(() => import('./pages/ResumeSms'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
@@ -386,6 +387,7 @@ function AppRoutes() {
           <Route path="/partner-onboarding" element={<PartnerOnboarding />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/stop-sms" element={<StopSms />} />
+          <Route path="/requisition/new" element={<PublicRequisitionForm />} />
           <Route path="/receipt/:id" element={<PayoutReceipt />} />
           <Route path="/resume-sms" element={<ResumeSms />} />
           <Route path="/r/:code" element={<ResolveRLink />} />
