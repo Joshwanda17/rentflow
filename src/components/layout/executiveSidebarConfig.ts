@@ -45,6 +45,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Platform Controls', icon: SlidersHorizontal, id: 'platform-controls' },
         { label: 'Agent Freeze', icon: Snowflake, id: 'agent-freeze' },
         { label: 'Reset Password', icon: KeyRound, id: 'password-reset' },
+        { label: 'Merchant Invites', icon: HandCoins, id: 'merchant-invites' },
         { label: 'Developer Tools', icon: Wrench, id: 'tools' },
         { label: 'System Logs', icon: FileText, id: 'system-logs' },
         { label: 'Browser Compatibility', icon: MonitorSmartphone, id: 'browser-compat' },
