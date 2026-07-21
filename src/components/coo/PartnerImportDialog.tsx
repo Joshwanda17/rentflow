@@ -220,6 +220,7 @@ function formatImportError(error: unknown, partnerName?: string): string {
 function normalizeImportResult(data: any): ImportResult {
   return {
     partnersCreated: Number(data?.partnersCreated || 0),
+    partnersMatched: Number(data?.partnersMatched || 0),
     portfoliosCreated: Number(data?.portfoliosCreated || 0),
     skippedDuplicates: Number(data?.skippedDuplicates || 0),
     errors: Array.isArray(data?.errors)
@@ -548,14 +549,14 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <StatCard icon={<Users className="h-4 w-4" />} label="Partners Created" value={importResult.partnersCreated} color="text-primary" />
+              <StatCard icon={<Users className="h-4 w-4" />} label="Partners" value={importResult.partnersCreated + importResult.partnersMatched} color="text-primary" />
               <StatCard icon={<Briefcase className="h-4 w-4" />} label="Portfolios Created" value={importResult.portfoliosCreated} color="text-emerald-600" />
               <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Skipped" value={importResult.skippedDuplicates} color="text-amber-600" />
             </div>
 
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs space-y-1">
               <p className="font-semibold text-foreground">🔐 Login Credentials</p>
-              <p className="text-muted-foreground">Partners can log in using their <strong>phone number</strong> and the default password:</p>
+              <p className="text-muted-foreground">{importResult.partnersCreated} new · {importResult.partnersMatched} existing. Partners log in using their <strong>phone number</strong> and the default password:</p>
               <p className="font-mono font-bold text-primary text-sm">Welile[last 6 digits of phone]!</p>
               <p className="text-muted-foreground">Example: Phone 0700405936 → Password: <strong className="font-mono">Welile405936!</strong></p>
               <p className="text-[10px] text-muted-foreground mt-1">Partners should change their password after first login.</p>
