@@ -200,7 +200,10 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     Number.isFinite(parsedAmount) && parsedAmount > 0
       ? parsedAmount
       : Number(selectedRequest?.rent_amount ?? 0);
-  const amountValid = effectiveAmount > 0 && effectiveAmount <= Number(selectedRequest?.rent_amount ?? 0);
+  const rentDue = Number(selectedRequest?.rent_amount ?? 0);
+  const withinRent = effectiveAmount > 0 && effectiveAmount <= rentDue;
+  const withinFloat = effectiveAmount > 0 && effectiveAmount <= Number(floatBalance ?? 0);
+  const amountValid = withinRent && withinFloat;
   const phoneValid = /^(?:\+?256|0)?\d{9}$/.test(landlordPhone.replace(/\s+/g, ''));
 
   const handleSendOtp = async (source: 'auto' | 'manual' = 'manual') => {
@@ -212,7 +215,9 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       toast.error(
         effectiveAmount <= 0
           ? 'Enter an amount greater than 0'
-          : `Amount cannot exceed rent due (${formatUGX(Number(selectedRequest?.rent_amount ?? 0))})`,
+          : !withinRent
+            ? `Amount cannot exceed rent due (${formatUGX(rentDue)})`
+            : `Amount exceeds your landlord float (${formatUGX(Number(floatBalance ?? 0))}). Reduce the amount or top up float first.`,
       );
       return;
     }
@@ -794,9 +799,14 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                     <p className="text-[11px] text-muted-foreground">
                       Rent due: {formatUGX(Number(req?.rent_amount ?? 0))} · You can pay less for a partial payout.
                     </p>
-                    {!amountValid && effectiveAmount > 0 && (
+                    {effectiveAmount > 0 && !withinRent && (
                       <p className="text-[11px] text-destructive">
                         Amount cannot exceed the rent due.
+                      </p>
+                    )}
+                    {effectiveAmount > 0 && withinRent && !withinFloat && (
+                      <p className="text-[11px] text-destructive">
+                        Amount exceeds your landlord float ({formatUGX(Number(floatBalance ?? 0))}). Reduce the amount or top up float first.
                       </p>
                     )}
                   </div>
