@@ -251,6 +251,7 @@ export function Lc1VerificationRequestsPanel({ onResolved }: Props) {
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 }
