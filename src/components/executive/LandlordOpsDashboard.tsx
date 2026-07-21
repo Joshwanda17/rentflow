@@ -32,6 +32,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import {
+  useLandlordOpsTotals,
+  useLandlordOpsList,
+  type LandlordCategory as LandlordOpsCategory,
+  type LandlordPendingFilter as LandlordOpsPendingFilter,
+  type LandlordSort as LandlordOpsSort,
+} from '@/hooks/useLandlordOps';
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -465,6 +472,30 @@ export function LandlordOpsDashboard() {
   useEffect(() => {
     localStorage.setItem('landlordOpsLandlordSort', landlordSort);
   }, [landlordSort]);
+
+  // ─── Server-side landlord ops totals & paginated list ─────────────────────
+  // Powers the "All Landlords" view + home KPI counters without ever loading
+  // the entire landlords table client-side (33k+ rows). See mem://architecture/agent-ops-scale.
+  const debouncedLandlordSearch = useDebouncedValue(search, 300);
+  const { data: landlordOpsTotalsData } = useLandlordOpsTotals();
+  const landlordOpsTotals = landlordOpsTotalsData?.totals;
+  const landlordOpsListParams = {
+    search: debouncedLandlordSearch,
+    sort: (landlordSort === 'recently_updated' ? 'newest' : landlordSort) as LandlordOpsSort,
+    category: (landlordCategory || 'all') as LandlordOpsCategory,
+    pendingFilter: pendingFilter as LandlordOpsPendingFilter,
+    page: landlordPage,
+    perPage: 20,
+    enabled: view === 'landlords',
+  };
+  const {
+    data: landlordOpsList,
+    isFetching: landlordOpsListFetching,
+  } = useLandlordOpsList(landlordOpsListParams);
+  // Reset to page 1 when the user changes any filter/search/sort.
+  useEffect(() => {
+    setLandlordPage(1);
+  }, [debouncedLandlordSearch, landlordSort, landlordCategory, pendingFilter]);
 
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
@@ -984,6 +1015,10 @@ export function LandlordOpsDashboard() {
       });
     },
     staleTime: 60000,
+    // Only load the full landlord set when a view actually needs to iterate over
+    // every row (occupied/empty lists, or a shared entity deep-link resolver).
+    // The primary "All Landlords" list is now server-paginated via `landlord-ops`.
+    enabled: view === 'occupied' || view === 'empty' || !!searchParams.get('eid'),
   });
 
   // ─── Rent Requests without Landlord Query ───
@@ -1046,6 +1081,17 @@ export function LandlordOpsDashboard() {
   const rows = listings || [];
   const landlordsList = allLandlords || [];
   const noLandlordList = noLandlordTenants || [];
+  // Server-derived counts (constant-time, no full-table pull). Used by home KPIs
+  // and the "All Landlords" list category chips. Fall back to landlordsList
+  // counts only for the occupied/empty views where the full set is already loaded.
+  const totalLandlordsCount = landlordOpsTotals?.total ?? landlordsList.length;
+  const verifiedLandlordsCount = landlordOpsTotals?.verified ?? landlordsList.filter(l => l.verified).length;
+  const pendingLandlordsCount = landlordOpsTotals?.pending ?? landlordsList.filter(l => !l.verified).length;
+  const smartphoneLandlordsCount = landlordOpsTotals?.smartphone ?? landlordsList.filter(l => l.has_smartphone).length;
+  const occupiedLandlordsCount = landlordOpsTotals?.has_tenants ?? 0;
+  const emptyLandlordsCount = landlordOpsTotals?.no_tenants ?? 0;
+  const occupiedMonthlyRevenue = landlordOpsTotals?.occupied_monthly_revenue;
+  const emptyMonthlyRevenue = landlordOpsTotals?.empty_monthly_revenue;
   const unverifiedListings = rows.filter(l =>
     !l.verified
     && l.status !== 'rejected'
@@ -1661,8 +1707,11 @@ export function LandlordOpsDashboard() {
     return [...map.entries()].sort((a, b) => b[1].listings.length - a[1].listings.length);
   }, [rows]);
 
-  const totalMonthlyRevenue = occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
-  const lostMonthlyRevenue = emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
+  // Prefer the server-computed totals so the home dashboard doesn't need the
+  // full landlord set loaded. Fall back to iterating landlordsList only when
+  // it happens to already be loaded (occupied/empty views).
+  const totalMonthlyRevenue = occupiedMonthlyRevenue ?? occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
+  const lostMonthlyRevenue  = emptyMonthlyRevenue    ?? emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
 
   // ─── Navigate to any section (resets transient search/filter state) ───
   const goToView = (id: View) => {
@@ -1917,52 +1966,19 @@ export function LandlordOpsDashboard() {
     const perPage = 20;
     const categoryFilter = (landlordCategory || 'all') as LandlordCategory;
 
-    let filtered = landlordsList.filter(l => !rejectedLandlordIds.has(l.id));
-
-    // Category filter
-    if (categoryFilter === 'verified') filtered = filtered.filter(l => l.verified);
-    else if (categoryFilter === 'pending') filtered = filtered.filter(l => !l.verified);
-    else if (categoryFilter === 'has_tenants') filtered = filtered.filter(l => l.tenants && l.tenants.length > 0);
-    else if (categoryFilter === 'no_tenants') filtered = filtered.filter(l => !l.tenants || l.tenants.length === 0);
-
-    // Search filter (name, phone, tenant, agent, location)
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(l =>
-        l.name?.toLowerCase().includes(q) || l.phone?.includes(q) ||
-        l.tenant_name?.toLowerCase().includes(q) || l.agent_name?.toLowerCase().includes(q) ||
-        l.district?.toLowerCase().includes(q) || l.region?.toLowerCase().includes(q) ||
-        l.village?.toLowerCase().includes(q) || l.property_address?.toLowerCase().includes(q)
-      );
-    }
-
-    // Only apply pending-specific quick filters when actually viewing pending category
-    if (categoryFilter === 'pending') {
-      if (pendingFilter === 'has_address') filtered = filtered.filter(l => !!l.property_address);
-      else if (pendingFilter === 'has_phone') filtered = filtered.filter(l => !!l.phone && l.phone.length >= 9);
-      else if (pendingFilter === 'has_smartphone') filtered = filtered.filter(l => l.has_smartphone === true);
-      else if (pendingFilter === 'has_bank') filtered = filtered.filter(l => !!l.bank_name && !!l.account_number);
-      else if (pendingFilter === 'has_momo') filtered = filtered.filter(l => !!l.mobile_money_number);
-    }
-
-    // Sort
-    filtered = [...filtered].sort((a, b) => {
-      if (landlordSort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      if (landlordSort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      if (landlordSort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
-      return 0;
-    });
-
-    const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+    // Server-driven data: rows, total count, and category counts all come from
+    // the `landlord-ops` edge function (RPC-backed). No full-table client fetch.
+    const paginated = (landlordOpsList?.rows ?? []).filter(l => !rejectedLandlordIds.has(l.id));
+    const totalMatched = landlordOpsList?.totalMatched ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalMatched / perPage));
     const safePage = Math.min(landlordPage, totalPages);
-    const paginated = filtered.slice((safePage - 1) * perPage, safePage * perPage);
 
     const categoryCounts = {
-      all: landlordsList.length,
-      verified: landlordsList.filter(l => l.verified).length,
-      pending: landlordsList.filter(l => !l.verified).length,
-      has_tenants: landlordsList.filter(l => l.tenants && l.tenants.length > 0).length,
-      no_tenants: landlordsList.filter(l => !l.tenants || l.tenants.length === 0).length,
+      all: landlordOpsTotals?.total ?? 0,
+      verified: landlordOpsTotals?.verified ?? 0,
+      pending: landlordOpsTotals?.pending ?? 0,
+      has_tenants: landlordOpsTotals?.has_tenants ?? 0,
+      no_tenants: landlordOpsTotals?.no_tenants ?? 0,
     };
 
     return (
@@ -1975,7 +1991,9 @@ export function LandlordOpsDashboard() {
             <Button size="sm" onClick={() => setBulkImportLandlordsOpen(true)} className="h-9">
               <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
             </Button>
-            <span className="text-xs text-muted-foreground">{filtered.length} landlords</span>
+            <span className="text-xs text-muted-foreground">
+              {landlordOpsListFetching ? 'Loading…' : `${totalMatched} landlords`}
+            </span>
           </div>
         </div>
 
@@ -2075,7 +2093,7 @@ export function LandlordOpsDashboard() {
                 <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">No landlords found</td></tr>
               ) : (
                 paginated.map(landlord => {
-                  const tenantCount = landlord.tenants?.length || 0;
+                  const tenantCount = landlord.tenant_count || 0;
                   const isExpanded = expandedLandlordId === landlord.id;
                   return (
                     <Fragment key={landlord.id}>
@@ -2184,10 +2202,10 @@ export function LandlordOpsDashboard() {
         </div>
 
         {/* Pagination controls */}
-        {filtered.length > perPage && (
+        {totalMatched > perPage && (
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-muted-foreground">
-              Showing {(safePage - 1) * perPage + 1}–{Math.min(safePage * perPage, filtered.length)} of {filtered.length}
+              Showing {(safePage - 1) * perPage + 1}–{Math.min(safePage * perPage, totalMatched)} of {totalMatched}
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -3528,7 +3546,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-2 gap-2">
           <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
           <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-          <KPICard title="📱 Landlords" value={smartphoneLandlords.length} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${landlordsList.length}`} />
+          <KPICard title="📱 Landlords" value={smartphoneLandlordsCount} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${totalLandlordsCount}`} />
           <KPICard title="Bonuses Pending" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
         </div>
         <VacancyAnalytics listings={rows as any} />
@@ -3695,10 +3713,10 @@ export function LandlordOpsDashboard() {
 
       {/* KPIs — responsive card grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KPICard title="Total Properties" value={landlordsList.length} icon={Home} loading={isLoading} onClick={() => setView('houses-by-landlord')} />
-        <KPICard title="Occupied" value={occupiedLandlords.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} onClick={() => setView('occupied')} />
-        <KPICard title="Empty" value={emptyLandlords.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} onClick={() => setView('empty')} />
-        <KPICard title="Landlords" value={landlordsList.length} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} onClick={() => setView('landlords')} />
+        <KPICard title="Total Properties" value={totalLandlordsCount} icon={Home} loading={isLoading} onClick={() => setView('houses-by-landlord')} />
+        <KPICard title="Occupied" value={occupiedLandlordsCount} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} onClick={() => setView('occupied')} />
+        <KPICard title="Empty" value={emptyLandlordsCount} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} onClick={() => setView('empty')} />
+        <KPICard title="Landlords" value={totalLandlordsCount} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlordsCount} verified`} onClick={() => setView('landlords')} />
         <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" onClick={() => setView('cities')} />
         <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" onClick={() => setView('no-landlord')} />
       </div>
@@ -3760,7 +3778,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {navItems.filter(n => n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-              item.id === 'landlords' ? `${landlordsList.length}` :
+              item.id === 'landlords' ? `${totalLandlordsCount}` :
               item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
               item.id === 'locations' ? `${locationGroups.length}` :
               item.id === 'lc1' ? `${lc1Groups.length}` :
@@ -3781,8 +3799,8 @@ export function LandlordOpsDashboard() {
           {navItems.filter(n => !n.priority).map(item => (
             <NavCard key={item.id} item={item} onClick={() => setView(item.id)}
               badge={
-                item.id === 'empty' ? `${emptyLandlords.length}` :
-                item.id === 'occupied' ? `${occupiedLandlords.length}` :
+                item.id === 'empty' ? `${emptyLandlordsCount}` :
+                item.id === 'occupied' ? `${occupiedLandlordsCount}` :
                 item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
                 item.id === 'agents' ? `${agentSummary.length}` : undefined
               } />
