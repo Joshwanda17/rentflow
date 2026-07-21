@@ -137,7 +137,13 @@ export function Lc1VerificationRequestsPanel({ onResolved }: Props) {
 
   return (
     <div className="rounded-2xl border-2 border-amber-500/50 bg-amber-50/60 dark:bg-amber-500/5 p-4 space-y-3 shadow-sm">
-      <div className="flex items-center gap-2.5">
+      <button
+        type="button"
+        onClick={() => setIsOpen(v => !v)}
+        className="w-full flex items-center gap-2.5 text-left group"
+        aria-expanded={isOpen}
+        aria-label={isOpen ? 'Collapse LC1 verification requests' : 'Expand LC1 verification requests'}
+      >
         <div className="p-2 rounded-xl bg-amber-500/15">
           <ShieldQuestion className="h-[18px] w-[18px] text-amber-600 shrink-0" />
         </div>
@@ -150,8 +156,16 @@ export function Lc1VerificationRequestsPanel({ onResolved }: Props) {
             An agent tried to post a rent request but the LC1 chairperson is registered &amp; not yet verified.
           </p>
         </div>
-      </div>
+        <div className="ml-auto shrink-0 p-1.5 rounded-md hover:bg-amber-500/10 transition-colors">
+          {isOpen ? (
+            <ChevronUp className="h-4 w-4 text-amber-700" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-amber-700" />
+          )}
+        </div>
+      </button>
 
+      {isOpen && (
       <ul className="space-y-2.5">
         {requests.map(req => (
           <li key={req.id} className="rounded-xl border border-amber-500/40 bg-background p-3 space-y-2">
