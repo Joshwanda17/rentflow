@@ -38,6 +38,7 @@ export function Lc1VerificationRequestsPanel({ onResolved }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
