@@ -265,6 +265,25 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             <AgentRequisitionForm />
           </div>
         )}
+        {activeTool === 'employee_requisition_links' && (
+          <div className="space-y-2">
+            <h2 className="text-lg font-bold">Employee Requisition Links</h2>
+            <p className="text-sm text-muted-foreground">
+              Share secure links so employees can submit requisitions without a Welile account.
+              Every submission is routed straight into your approval queue.
+            </p>
+            <EmployeeRequisitionLinksPanel />
+          </div>
+        )}
+        {activeTool === 'employee_requisition_queue' && (
+          <div className="space-y-2">
+            <h2 className="text-lg font-bold">Employee Requisitions</h2>
+            <p className="text-sm text-muted-foreground">
+              Approve or reject requisitions submitted through your public links.
+            </p>
+            <EmployeeRequisitionQueuePanel />
+          </div>
+        )}
         {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
         {activeTool === 'withdrawal_history' && <WithdrawalHistoryStatement />}
         {activeTool === 'funded_tenants' && <FundedTenantsList />}
