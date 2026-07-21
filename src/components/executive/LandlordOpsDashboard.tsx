@@ -367,7 +367,10 @@ export function LandlordOpsDashboard() {
   const [search, setSearch] = useState('');
   const [navSheetOpen, setNavSheetOpen] = useState(false);
   const [landlordPage, setLandlordPage] = useState(1);
-  const [landlordCategory, setLandlordCategory] = useState('all');
+  // Default to the Verified filter so ops only sees trusted landlords by
+  // default. Search bypasses this filter at the RPC level so unverified
+  // matches still surface — flagged with a red "Not Verified" badge.
+  const [landlordCategory, setLandlordCategory] = useState('verified');
   const [verifying, setVerifying] = useState<string | null>(null);
   const queryClient = useQueryClient();
   // Optimistically removed from the verification queue (until refetch confirms or rollback restores).
@@ -2115,7 +2118,7 @@ export function LandlordOpsDashboard() {
                             {landlord.verified ? (
                               <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-0">Pending</Badge>
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-red-100 text-red-700 border-0 font-semibold">Not Verified</Badge>
                             )}
                             {tenantCount > 0 && (
                               <Badge variant="outline" className="text-[9px] px-1.5 py-0">{tenantCount} tenants</Badge>
@@ -2130,7 +2133,7 @@ export function LandlordOpsDashboard() {
                         {landlord.verified ? (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 border-0">Pending</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-100 text-red-700 border-0 font-semibold">Not Verified</Badge>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{tenantCount > 0 ? tenantCount : '—'}</td>
