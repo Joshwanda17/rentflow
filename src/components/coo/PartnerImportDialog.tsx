@@ -357,7 +357,8 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
       const normalizedResult = normalizeImportResult(data);
       setImportResult(normalizedResult);
       setStep('results');
-      toast.success(`Import complete! ${normalizedResult.partnersCreated} partners, ${normalizedResult.portfoliosCreated} portfolios created.`);
+      const totalPartners = normalizedResult.partnersCreated + normalizedResult.partnersMatched;
+      toast.success(`Import complete! ${totalPartners} partners (${normalizedResult.partnersCreated} new, ${normalizedResult.partnersMatched} existing), ${normalizedResult.portfoliosCreated} portfolios.`);
       onSuccess?.();
     } catch (e: any) {
       toast.error(e.message || 'Import failed');
