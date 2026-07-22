@@ -122,6 +122,7 @@ import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard'
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
 import { MERCHANT_RESTRICTION_MESSAGE, useIsMerchantAgent } from '@/hooks/useIsMerchantAgent';
+import { MerchantDashboardHome } from '@/components/agent/MerchantDashboardHome';
 import { AgentTenantInlineList } from '@/components/agent/AgentTenantInlineList';
 import { AgentCapacityShareInline } from '@/components/agent/AgentCapacityShareInline';
 import { AgentDailyCardEmailPrompt } from '@/components/agent/AgentDailyCardEmailPrompt';
@@ -854,7 +855,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Wallet Hero Card — always visible */}
-        {wallet ? (
+        {isMerchant ? null : wallet ? (
           <UnifiedWalletHeroCard
           balance={walletFloatBalance + realWithdrawableBalance}
           role="agent"
@@ -958,7 +959,24 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Swipe surface — left/right gestures navigate adjacent hub tabs */}
         <div {...swipeHandlers} className="touch-pan-y">
         {/* === HOME TAB === Most-used actions, at-a-glance */}
-        {activeTab === 'home' && (
+        {activeTab === 'home' && isMerchant && isCashoutAgent && (
+          <div className={cn("space-y-4", tabAnimClass)}>
+            <MerchantDashboardHome
+              agentId={user.id}
+              withdrawableBalance={realWithdrawableBalance}
+              floatBalance={walletFloatBalance}
+              pendingCount={pendingEarnings?.count ?? 0}
+              pendingCommission={pendingEarnings?.totalCommission ?? 0}
+              handlesCash={!!isCashoutAgent.handles_cash}
+              onOpenCashPayouts={() => setCashPayoutsOpen(true)}
+              onDeposit={() => setShowQuickDeposit(true)}
+              onWithdraw={() => setShowQuickWithdraw(true)}
+              onTransfer={() => setShowQuickTransfer(true)}
+              onViewWallet={() => setShowWallet(true)}
+            />
+          </div>
+        )}
+        {activeTab === 'home' && !isMerchant && (
           <div className={cn("space-y-4", tabAnimClass)}>
             {/* Weekly Listing Mission — recruit sub-agents, list verified houses, earn */}
             {!isMerchant && (
