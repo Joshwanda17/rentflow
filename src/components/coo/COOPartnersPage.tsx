@@ -2574,6 +2574,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   ? Math.max(0, Math.ceil((pendingRenewalDate.getTime() - Date.now()) / 86400000))
                                   : 0;
                                 const isPendingRedemption = !!pendingRedemptions[p.id];
+                                const lastRenewalAt = recentRenewals[p.id] ? new Date(recentRenewals[p.id]) : null;
+                                const renewedRecently = !!lastRenewalAt && (Date.now() - lastRenewalAt.getTime()) < 30 * 86400000;
+                                const renewedDaysAgo = lastRenewalAt ? Math.floor((Date.now() - lastRenewalAt.getTime()) / 86400000) : 0;
                                 return (
                               <Card
                                 key={p.id}
@@ -2633,6 +2636,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                           {daysToRenewal > 0
                                             ? `Renews in ${daysToRenewal} day${daysToRenewal === 1 ? '' : 's'}`
                                             : 'Renews today'}
+                                        </span>
+                                      )}
+                                      {renewedRecently && !isPendingRenewal && (
+                                        <span
+                                          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap shrink-0 inline-flex items-center gap-1"
+                                          title={`Renewed on ${lastRenewalAt!.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                                        >
+                                          <RefreshCw className="h-2.5 w-2.5" />
+                                          {renewedDaysAgo === 0 ? 'Renewed today' : `Renewed ${renewedDaysAgo}d ago`}
                                         </span>
                                       )}
                                     </div>
