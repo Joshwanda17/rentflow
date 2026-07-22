@@ -424,6 +424,8 @@ export function WalletStatement() {
     if (directionFilter !== 'all' && entry.type !== directionFilter) return false;
     if (categoryFilter !== 'all' && entry.category !== categoryFilter) return false;
     if (rangeFrom && new Date(entry.date) < rangeFrom) return false;
+    // Ledger-posted entries are always Completed; there is no pending source yet.
+    if (statusFilter === 'pending') return false;
     return true;
   });
 
