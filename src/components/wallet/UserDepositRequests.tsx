@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  ArrowDownLeft,
   Clock,
   CheckCircle2,
   XCircle,
@@ -450,11 +449,6 @@ export function UserDepositRequests() {
           />
         </Suspense>
       )}
-
-      {/* keep icon import used */}
-      <span className="hidden">
-        <ArrowDownLeft />
-      </span>
     </>
   );
 }
