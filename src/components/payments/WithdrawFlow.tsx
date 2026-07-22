@@ -194,6 +194,11 @@ export default function WithdrawFlow({
     paid_today: number;
     today_pct: number;
   } | null>(null);
+  // Global temporary bypass — CFO/ops can flip
+  // `system_config.agent_perf_gate_disabled_until` to disable the 20% gate
+  // for a window. Mirrors the server-side short-circuit in
+  // `enforce_agent_perf_withdrawal`.
+  const [perfGateBypassed, setPerfGateBypassed] = useState(false);
   // Ledger-true `available` from get_user_available_balance — the
   // ONLY figure we trust to gate the withdraw button. Cached
   // wallets.balance can drift above this; we always take the lesser.
@@ -235,6 +240,7 @@ export default function WithdrawFlow({
   const perfPct = perfToday?.today_pct != null ? perfToday.today_pct * 100 : null;
   const isPerfLocked =
     isAgent &&
+    !perfGateBypassed &&
     !!perfToday &&
     perfToday.expected_daily > 0 &&
     perfToday.active_count > 0 &&
@@ -284,6 +290,10 @@ export default function WithdrawFlow({
           .maybeSingle(),
       ]);
       if (cancelled) return;
+      // Fire-and-forget bypass check; failure defaults to gate ON.
+      supabase.rpc('is_agent_perf_gate_disabled' as any).then(({ data }) => {
+        if (!cancelled) setPerfGateBypassed(Boolean(data));
+      });
       setFloatBalance(Number(walletRes.data?.float_balance ?? 0));
       setAdvanceBalance(Number(walletRes.data?.advance_balance ?? 0));
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
