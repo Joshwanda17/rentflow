@@ -59,6 +59,19 @@ export default function MerchantAgentReferralGate() {
         if (!error) {
           try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
         }
+
+        // Auto-activate as a Merchant Agent so they land on the Merchant
+        // Agent dashboard immediately (not the standard Agent dashboard).
+        // The RPC verifies the referrer is a real active merchant agent,
+        // creates an active cashout_agents row, grants the 'agent' role,
+        // and clears pending_merchant_agent. Idempotent.
+        try {
+          await supabase.rpc('auto_activate_merchant_referral', {
+            p_referrer: mref,
+          });
+        } catch (rpcErr) {
+          console.warn('[MerchantAgentReferralGate] auto-activate failed', rpcErr);
+        }
       }
 
       const { data } = await supabase
