@@ -1466,6 +1466,10 @@ export function LandlordOpsDashboard() {
         if (!Array.isArray(old)) return old;
         return old.map(l => l.id === listing.id ? { ...l, verified: true, listing_bonus_paid: true } : l);
       });
+      queryClient.setQueryData<any[]>(['exec-house-listings-pending'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter(l => l.id !== listing.id);
+      });
       setOptimisticallyVerifiedIds(prev => {
         const next = new Set(prev);
         next.delete(listing.id);
@@ -1515,6 +1519,10 @@ export function LandlordOpsDashboard() {
       queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
         if (!Array.isArray(old)) return old;
         return old.map(l => l.id === listing.id ? { ...l, status: 'rejected' } : l);
+      });
+      queryClient.setQueryData<any[]>(['exec-house-listings-pending'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter(l => l.id !== listing.id);
       });
       toast({ title: 'Listing rejected', description: `${listing.title} has been rejected.` });
       // Web-push only (no SMS) — the RPC already wrote the in-app notification.
