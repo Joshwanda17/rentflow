@@ -25693,6 +25693,7 @@ export type Database = {
       }
       is_active_cashout_agent: { Args: { _user_id: string }; Returns: boolean }
       is_agent_frozen: { Args: { p_agent_id: string }; Returns: boolean }
+      is_agent_perf_gate_disabled: { Args: never; Returns: boolean }
       is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
