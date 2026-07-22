@@ -15,6 +15,7 @@ import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhon
 import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
+import { useListingDaytimeGuard } from '@/hooks/useListingDaytimeGuard';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import { EntityDetailSheet } from '@/components/executive/EntityDetailSheet';
 import {
@@ -745,6 +746,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Landlord profile peek from a picker result (does not select the house).
   const [landlordProfile, setLandlordProfile] = useState<AvailableHouse | null>(null);
   const [showListHouse, setShowListHouse] = useState(false);
+  const guardListingHours = useListingDaytimeGuard();
   // Live conflict check: true when the selected house has been reserved /
   // occupied / hidden by another agent since it was picked.
   const [houseConflict, setHouseConflict] = useState(false);
@@ -3636,7 +3638,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                                type="button"
                                size="sm"
                                className="h-8 w-full text-xs"
-                               onClick={() => setShowListHouse(true)}
+                                onClick={() => {
+                                  if (!guardListingHours()) return;
+                                  setShowListHouse(true);
+                                }}
                              >
                                <Home className="h-3.5 w-3.5 mr-1" />
                                List the house to register them
@@ -3729,7 +3734,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         size="sm"
                         variant="outline"
                         className="h-8 text-xs"
-                        onClick={() => setShowListHouse(true)}
+                        onClick={() => {
+                          if (!guardListingHours()) return;
+                          setShowListHouse(true);
+                        }}
                       >
                         <Home className="h-3.5 w-3.5 mr-1" />
                         List a house
@@ -4252,7 +4260,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         size="sm"
                         variant="outline"
                         className="h-8 text-xs flex-shrink-0"
-                        onClick={() => setShowListHouse(true)}
+                        onClick={() => {
+                          if (!guardListingHours()) return;
+                          setShowListHouse(true);
+                        }}
                       >
                         <Home className="h-3.5 w-3.5 mr-1" /> List a house
                       </Button>
