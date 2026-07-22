@@ -27239,6 +27239,7 @@ export type Database = {
         | "agent.allocation_return.rejected"
         | "agent_advances_daily_report"
         | "sms_verification_failure_alert_raised"
+        | "merchant_cashout_daily_report"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -27509,6 +27510,7 @@ export const Constants = {
         "agent.allocation_return.rejected",
         "agent_advances_daily_report",
         "sms_verification_failure_alert_raised",
+        "merchant_cashout_daily_report",
       ],
     },
   },
