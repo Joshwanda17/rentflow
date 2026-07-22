@@ -383,27 +383,6 @@ function buildReceivablesSection(r: Report): string {
 function buildHtml(r: Report, prettyDate: string): string {
   const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
 
-  // Dashboard-mirror derived values
-  const trackingShare = r.monthly.total_agents > 0
-    ? (r.monthly.adv_agents_current / r.monthly.total_agents) * 100
-    : 0;
-  const repayRate = r.monthly.principal_total > 0
-    ? ((r.monthly.principal_total - r.monthly.outstanding_total) / r.monthly.principal_total) * 100
-    : 0;
-  const funnelAgentsPct = r.funnel.total_users > 0
-    ? (r.funnel.total_agents / r.funnel.total_users) * 100
-    : 0;
-  const funnelActivePct = r.funnel.total_agents > 0
-    ? (r.funnel.active_agents / r.funnel.total_agents) * 100
-    : 0;
-  const growth = (curr: number, prev: number) =>
-    prev <= 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
-  const volumeGrowth = growth(r.monthly.volume_month, r.monthly.volume_prev);
-  const newAgentsGrowth = growth(r.monthly.new_adv_agents_month, r.monthly.new_adv_agents_prev);
-  const deliveryGrowth = growth(r.monthly.deliveries_month, r.monthly.deliveries_prev);
-  const trendArrow = (g: number) => g >= 0 ? "▲" : "▼";
-  const trendColor = (g: number) => g >= 0 ? GREEN : RED;
-
   // Chart 1 — hourly collections (count + volume dual axis).
   const hourlyChart = chartUrl({
     type: "bar",
