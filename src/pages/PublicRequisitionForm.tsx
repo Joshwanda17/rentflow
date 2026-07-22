@@ -207,10 +207,6 @@ export default function PublicRequisitionForm() {
               <Input value={form.employee_name} onChange={e => setForm(f => ({ ...f, employee_name: e.target.value }))} />
             </div>
             <div>
-              <Label>Employee ID</Label>
-              <Input value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))} />
-            </div>
-            <div>
               <Label>Department</Label>
               <Input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} />
             </div>
