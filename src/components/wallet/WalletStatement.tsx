@@ -689,7 +689,37 @@ export function WalletStatement() {
   const hasActiveFilters = directionFilter !== 'all' || categoryFilter !== 'all' || rangePreset !== 'all';
 
   // Group by date
-  const groupedEntries = filteredEntries.reduce((groups, entry) => {
+  // Reset the visible window whenever the filtered result set changes so
+  // switching filters/date range doesn't leave the user scrolled past new data.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [directionFilter, statusFilter, categoryFilter, rangePreset, entries.length]);
+
+  const visibleEntries = filteredEntries.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredEntries.length;
+
+  // IntersectionObserver — scoped to the ScrollArea's inner viewport so
+  // "in view" is measured against the sheet, not the browser window.
+  useEffect(() => {
+    if (!open || loading || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const viewport = scrollRootRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]'
+    ) as HTMLElement | null;
+    const observer = new IntersectionObserver(
+      (obsEntries) => {
+        if (obsEntries[0]?.isIntersecting) {
+          setVisibleCount((c) => Math.min(c + PAGE_SIZE, filteredEntries.length));
+        }
+      },
+      { root: viewport ?? null, rootMargin: '240px 0px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, loading, hasMore, filteredEntries.length]);
+
+  const groupedEntries = visibleEntries.reduce((groups, entry) => {
     const key = format(new Date(entry.date), 'yyyy-MM-dd');
     if (!groups[key]) groups[key] = [];
     groups[key].push(entry);
