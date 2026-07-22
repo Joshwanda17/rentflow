@@ -25041,6 +25041,13 @@ export type Database = {
           verified: number
         }[]
       }
+      get_landlord_verification_status: {
+        Args: { p_id: string }
+        Returns: {
+          exists_flag: boolean
+          verified: boolean
+        }[]
+      }
       get_ledger_balance: { Args: { p_user_id: string }; Returns: number }
       get_ledger_integrity_checks: { Args: never; Returns: Json }
       get_ledger_summary: {

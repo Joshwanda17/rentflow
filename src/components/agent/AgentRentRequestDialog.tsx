@@ -1234,19 +1234,24 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLandlordCheck('checking');
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from('landlords_directory')
-          .select('id, verified')
-          .eq('id', landlordId)
-          .maybeSingle();
+        // Use a SECURITY DEFINER RPC so we don't get blocked by the
+        // `landlords` RLS "agent must already be linked" rule — a brand-new
+        // link (this very rent request) is exactly what we're about to create.
+        const { data, error } = await (supabase.rpc as any)(
+          'get_landlord_verification_status',
+          { p_id: landlordId },
+        );
         if (cancelled) return;
         if (error) {
-          // Transient/lookup failure — don't hard-block here; the submit-time
-          // check will re-verify against a fresh read.
           setLandlordCheck('idle');
           return;
         }
-        setLandlordCheck(!data ? 'missing' : data.verified ? 'registered' : 'unverified');
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row || row.exists_flag === false) {
+          setLandlordCheck('missing');
+        } else {
+          setLandlordCheck(row.verified ? 'registered' : 'unverified');
+        }
       } catch {
         if (!cancelled) setLandlordCheck('idle');
       }
@@ -2591,13 +2596,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       // than trusting the in-memory selection. This mirrors the server-side
       // trigger and gives the agent a clear, immediate error.
       try {
-        const { data: landlordRow, error: landlordLookupError } = await supabase
-          .from('landlords_directory')
-          .select('id, verified')
-          .eq('id', landlordId)
-          .maybeSingle();
+        const { data: verRows, error: landlordLookupError } = await (supabase.rpc as any)(
+          'get_landlord_verification_status',
+          { p_id: landlordId },
+        );
         if (landlordLookupError) throw landlordLookupError;
-        if (!landlordRow) {
+        const landlordRow = Array.isArray(verRows) ? verRows[0] : verRows;
+        if (!landlordRow || landlordRow.exists_flag === false) {
           const msg = 'This landlord is not registered in the system. Go back to the Property step and pick a registered landlord (search existing or tap "Add new" to register them) before posting.';
           setSubmissionError(msg);
           toast.error('Landlord not registered', { description: msg });
