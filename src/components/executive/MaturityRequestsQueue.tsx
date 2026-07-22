@@ -10,7 +10,7 @@ import {
   Search, User, Mail, Calendar, RefreshCw, Wallet, Clock, CheckCircle2,
   XCircle, Loader2, Hash, MessageSquare, Inbox, ChevronDown, ChevronUp, CalendarClock,
 } from 'lucide-react';
-import { format, differenceInCalendarDays } from 'date-fns';
+import { format, differenceInCalendarDays, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 type Req = {
@@ -28,6 +28,13 @@ type Req = {
   message: string | null;
   currency: string;
   created_at: string;
+  portfolio?: {
+    duration_months: number | null;
+    payout_day: number | null;
+    maturity_date: string | null;
+    next_roi_date: string | null;
+    roi_percentage: number | null;
+  } | null;
 };
 
 type ScheduledRenewal = {
@@ -61,7 +68,11 @@ export function MaturityRequestsQueue() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('portfolio_action_requests')
-        .select('*')
+        .select(
+          `*, portfolio:investor_portfolios!portfolio_action_requests_portfolio_id_fkey(
+            duration_months, payout_day, maturity_date, next_roi_date, roi_percentage
+          )`,
+        )
         .order('created_at', { ascending: false })
         .limit(300);
       if (error) throw error;
