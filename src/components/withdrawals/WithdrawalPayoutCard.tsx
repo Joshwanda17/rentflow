@@ -18,7 +18,7 @@ import { format } from 'date-fns';
 import {
   Banknote, CheckCircle2, Loader2, Building2, Clock, Smartphone,
   UserCheck, ArrowRight, Phone, CreditCard, ChevronDown, XCircle,
-  Copy, AlertTriangle, ClipboardPaste, Upload, X as XIcon, FileText,
+  Copy, AlertTriangle, ClipboardPaste, Upload, X as XIcon, FileText, Lock,
 } from 'lucide-react';
 import { parsePayoutConfirmationSms } from '@/utils/smsParser';
 
@@ -178,6 +178,38 @@ export function WithdrawalPayoutCard({
 
   const momoNumber = withdrawal.mobile_money_number || recipientPhone;
   const momoRegisteredName = withdrawal.mobile_money_name || '';
+
+  // ── Pre-claim privacy gate ────────────────────────────────────────────────
+  // Merchant agents MUST NOT see the recipient's phone number, MoMo number,
+  // registered name, bank account, or full name BEFORE claiming — otherwise
+  // they can pay the customer off-platform (via their personal MTN/Airtel SIM)
+  // and never claim the request in-app, leaving the ledger un-settled. All
+  // sensitive fields are masked until the withdrawal is claimed (or the card
+  // is opened in a read-only reviewer view like the CFO viewer).
+  const revealed = isClaimed || readOnly;
+  const maskPhone = (p?: string | null) => {
+    const digits = (p || '').replace(/\D/g, '');
+    if (!digits) return '•••••••';
+    return `••• ••• ••${digits.slice(-3)}`;
+  };
+  const maskName = (n?: string | null) => {
+    const s = (n || '').trim();
+    if (!s) return 'Hidden';
+    const parts = s.split(/\s+/);
+    const initials = parts.slice(0, 2).map((p) => (p[0] || '').toUpperCase()).join('');
+    return `${initials || '••'} •••`;
+  };
+  const maskAccount = (a?: string | null) => {
+    const digits = (a || '').replace(/\s+/g, '');
+    if (!digits) return '•••••••';
+    return `•••• ${digits.slice(-3)}`;
+  };
+  const displayRecipientName = revealed ? recipientName : maskName(recipientName);
+  const displayRecipientPhone = revealed ? recipientPhone : maskPhone(recipientPhone);
+  const displayMomoNumber = revealed ? momoNumber : maskPhone(momoNumber);
+  const displayMomoName = revealed ? momoRegisteredName : (momoRegisteredName ? maskName(momoRegisteredName) : '');
+  const displayBankAccount = revealed ? (withdrawal.bank_account_number || '—') : maskAccount(withdrawal.bank_account_number);
+  const displayBankName = revealed ? (withdrawal.bank_account_name || '—') : (withdrawal.bank_account_name ? maskName(withdrawal.bank_account_name) : 'Hidden');
 
   // Normalize names for a forgiving comparison (case-insensitive, collapse
   // whitespace, ignore punctuation) so only meaningful differences flag.
@@ -408,12 +440,17 @@ export function WithdrawalPayoutCard({
             className="w-full text-left p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-muted/40 transition-colors rounded-t-2xl"
           >
             <div className="min-w-0 flex-1 w-full">
-              <p className="font-bold text-lg truncate leading-tight">{recipientName}</p>
+              <p className="font-bold text-lg truncate leading-tight">{displayRecipientName}</p>
               {/* Payout target at a glance — visible before claiming/expanding */}
-              {isMoMo && (
+              {isMoMo && revealed && (
                 <p className="text-sm font-mono font-semibold text-foreground/80 truncate mt-0.5">
                   {momoNumber}
                   {momoRegisteredName ? <span className="font-sans font-medium"> · {momoRegisteredName}</span> : ''}
+                </p>
+              )}
+              {isMoMo && !revealed && (
+                <p className="text-xs font-medium text-muted-foreground truncate mt-0.5 inline-flex items-center gap-1">
+                  <Lock className="h-3 w-3" /> Number hidden — claim to reveal
                 </p>
               )}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -474,7 +511,7 @@ export function WithdrawalPayoutCard({
             <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground flex-wrap">
               <span className="inline-flex items-center gap-1">
                 <Phone className="h-4 w-4" />
-                {recipientPhone}
+                {displayRecipientPhone}
               </span>
               <span className="inline-flex items-center gap-1">
                 <Clock className="h-4 w-4" />
@@ -482,8 +519,22 @@ export function WithdrawalPayoutCard({
               </span>
             </div>
 
-            {/* Recipient Payout Details — kept prominent so the merchant agent can
-                verify exactly WHO and WHERE to pay BEFORE claiming. */}
+            {/* Recipient Payout Details — hidden until CLAIMED so the merchant
+                agent cannot pay the recipient off-platform (from their personal
+                SIM) without booking the payout through the system. */}
+            {!revealed ? (
+              <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-sm space-y-2">
+                <p className="font-bold text-xs uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" /> Payout details locked
+                </p>
+                <p className="text-sm text-foreground/80 leading-snug">
+                  The Mobile Money number, registered name and account holder are hidden until you <strong>Claim</strong> this withdrawal.
+                </p>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  This protects the platform from off-book payouts. Only claim if you are ready to send the money in-app right now.
+                </p>
+              </div>
+            ) : (
             <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-3 text-sm">
               <p className="font-bold text-xs uppercase tracking-wider text-primary flex items-center gap-1">
                 <CreditCard className="h-3.5 w-3.5" />
@@ -587,6 +638,7 @@ export function WithdrawalPayoutCard({
                 <span className="font-semibold truncate text-right">{recipientName}</span>
               </div>
             </div>
+            )}
 
             {/* Status pill */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -982,77 +1034,39 @@ export function WithdrawalPayoutCard({
             )}
             {isMoMo ? (
               <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pay out to (Mobile Money number)</p>
-                  <p className="mt-0.5 font-mono font-extrabold text-2xl leading-none tracking-wide tabular-nums break-all">{momoNumber}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Registered name on this number</p>
-                  {momoRegisteredName ? (
-                    <p className="mt-0.5 font-extrabold text-lg leading-tight break-words">{momoRegisteredName}</p>
-                  ) : (
-                    <p className="mt-0.5 font-semibold text-sm text-warning flex items-start gap-1">
-                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      Not provided — verify the name on your screen with the recipient by phone.
+                <div className="rounded-lg border border-primary/30 bg-background/60 p-3 flex items-start gap-2">
+                  <Lock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="text-xs leading-snug">
+                    <p className="font-bold text-foreground">Mobile Money number and registered name are hidden until you claim.</p>
+                    <p className="text-muted-foreground mt-1">
+                      Once you claim, the number and registered name unlock in the card. Send the money in-app only — off-book payouts cannot be settled by the system.
                     </p>
-                  )}
+                  </div>
                 </div>
-
-                {momoRegisteredName && (
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Name shown on your MTN/Airtel screen</p>
-                    <Input
-                      value={enteredPayoutName}
-                      onChange={(e) => setEnteredPayoutName(e.target.value)}
-                      placeholder="Type the name exactly as it appears"
-                      className={`mt-1 h-11 text-base ${nameMismatch ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                    />
-                    {hasEnteredName && !nameMismatch && (
-                      <p className="mt-1 text-[11px] font-semibold text-primary flex items-center gap-1">
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                        Matches the registered name.
-                      </p>
-                    )}
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Method</p>
+                    <p className="mt-0.5 font-semibold">{withdrawal.mobile_money_provider || methodLabel}</p>
                   </div>
-                )}
-
-                {nameMismatch && (
-                  <div className="rounded-lg border-2 border-destructive/50 bg-destructive/10 p-3 space-y-2">
-                    <p className="text-sm font-bold text-destructive flex items-start gap-1.5">
-                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                      Name mismatch
-                    </p>
-                    <p className="text-xs text-destructive/90 leading-snug">
-                      The name on your screen (<strong>{enteredNameTrimmed}</strong>) does not match the
-                      registered name (<strong>{momoRegisteredName}</strong>). Paying the wrong person is
-                      irreversible — confirm with the recipient by phone before continuing.
-                    </p>
-                    <label className="flex items-start gap-2.5 cursor-pointer">
-                      <Checkbox
-                        checked={mismatchAcknowledged}
-                        onCheckedChange={(v) => setMismatchAcknowledged(v === true)}
-                        className="mt-0.5"
-                      />
-                      <span className="text-xs font-semibold text-destructive leading-snug">
-                        I understand the names differ and take responsibility for paying the correct person.
-                      </span>
-                    </label>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Amount</p>
+                    <p className="mt-0.5 font-extrabold tabular-nums">{formatUGX(withdrawal.amount)}</p>
                   </div>
-                )}
+                </div>
               </div>
             ) : (
               <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-2 text-sm">
                 <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Method</span><span className="font-semibold truncate text-right">{methodLabel}</span></div>
-                {isBank && (
-                  <>
-                    <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Account number</span><span className="font-mono font-semibold truncate text-right">{withdrawal.bank_account_number || '—'}</span></div>
-                    <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Account name</span><span className="font-semibold truncate text-right">{withdrawal.bank_account_name || '—'}</span></div>
-                  </>
-                )}
-                {isCash && (
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Recipient contact</span><span className="font-mono font-semibold truncate text-right">{recipientPhone}</span></div>
-                )}
-                <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Account holder</span><span className="font-semibold truncate text-right">{recipientName}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Amount</span><span className="font-extrabold tabular-nums text-right">{formatUGX(withdrawal.amount)}</span></div>
+                <div className="rounded-lg border border-primary/30 bg-background/60 p-3 flex items-start gap-2">
+                  <Lock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="text-xs leading-snug">
+                    <p className="font-bold text-foreground">{isBank ? 'Bank account details' : 'Recipient contact'} hidden until claim.</p>
+                    <p className="text-muted-foreground mt-1">
+                      Claim to unlock the {isBank ? 'account number and account name' : 'recipient phone'} in the card, then send the payment.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1063,9 +1077,7 @@ export function WithdrawalPayoutCard({
                 className="mt-0.5"
               />
               <span className="text-sm font-medium leading-snug">
-                {isMoMo
-                  ? 'I confirm the Mobile Money number and the registered MTN/Airtel name above match what I will pay out.'
-                  : 'I confirm the payout details above match what I will pay out.'}
+                I understand payout details are hidden until I claim, and I will send this payment in-app immediately after claiming.
               </span>
             </label>
           </div>
@@ -1075,19 +1087,19 @@ export function WithdrawalPayoutCard({
             <Button
               disabled={
                 !claimDetailsConfirmed ||
-                (nameMismatch && !mismatchAcknowledged) ||
                 claimingId === withdrawal.id
               }
               onClick={() => {
                 setConfirmClaimOpen(false);
                 // Persist the exact confirmed payout target for later review.
                 void recordClaimConfirmation();
-                // Pass the agent-confirmed MoMo number and the name they typed
-                // from their MTN/Airtel screen so the server can enforce an exact
-                // match against the withdrawal's stored payout details.
+                // The stored MoMo number and registered name are passed
+                // programmatically so the server-side exact-match guard
+                // (claim_withdrawal_verified) still runs — the merchant just
+                // does not SEE them on-screen until the claim is granted.
                 onClaim?.({
                   momoNumber: isMoMo ? momoNumber : null,
-                  momoName: isMoMo ? (enteredNameTrimmed || momoRegisteredName) : null,
+                  momoName: isMoMo ? momoRegisteredName : null,
                 });
               }}
             >
