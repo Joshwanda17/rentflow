@@ -820,23 +820,17 @@ export function CashoutAgentManager() {
   // has since been consumed. Used to contextualise "Volume Total" as
   // "used out of disbursed" rather than a bare number.
   const { data: disbursedFloatTotal = 0 } = useQuery({
-    queryKey: ['cashout-agent-disbursed-float', selectedAgent?.agent_id, txnDateFilter],
+    queryKey: ['cashout-agent-disbursed-float', selectedAgent?.agent_id],
     enabled: !!selectedAgent?.agent_id,
     staleTime: 60_000,
     queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from('general_ledger')
-        .select('amount, created_at')
+        .select('amount')
         .eq('user_id', selectedAgent!.agent_id)
         .eq('ledger_scope', 'wallet')
         .eq('direction', 'cash_in')
         .in('category', ['agent_float_deposit', 'agent_float_assignment', 'agent_float_funding', 'operational_float_credit', 'float_topup']);
-      if (txnDateFilter) {
-        const from = new Date(`${txnDateFilter}T00:00:00`).toISOString();
-        const to = new Date(`${txnDateFilter}T23:59:59.999`).toISOString();
-        q = q.gte('created_at', from).lte('created_at', to);
-      }
-      const { data, error } = await q;
       if (error) throw error;
       return (data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
     },
@@ -1055,17 +1049,11 @@ export function CashoutAgentManager() {
           <KpiTile
             icon={<TrendingUp className="h-4 w-4" />}
             label="Volume Total"
-            value={
-              txnDateFilter
-                ? `${formatUGX(visibleVolume)} / ${formatUGX(disbursedFloatTotal)}`
-                : `${formatUGX(selectedAgentStats?.volume || 0)} / ${formatUGX(disbursedFloatTotal)}`
-            }
+            value={`${formatUGX(selectedAgentStats?.volume || 0)} / ${formatUGX(disbursedFloatTotal)}`}
             tone="primary"
             sub={
               txnDateFilter
-                ? disbursedFloatTotal > 0
-                  ? `${Math.min(100, Math.round((visibleVolume / disbursedFloatTotal) * 100))}% of float disbursed on date used`
-                  : 'No float disbursed on selected date'
+                ? `${formatUGX(visibleVolume)} used on selected date`
                 : disbursedFloatTotal > 0
                   ? `${Math.min(100, Math.round(((selectedAgentStats?.volume || 0) / disbursedFloatTotal) * 100))}% of disbursed float used`
                   : 'No float disbursed yet'
