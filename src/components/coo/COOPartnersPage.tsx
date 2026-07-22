@@ -2566,6 +2566,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 const daysToRenewal = pendingRenewalDate
                                   ? Math.max(0, Math.ceil((pendingRenewalDate.getTime() - Date.now()) / 86400000))
                                   : 0;
+                                const isPendingRedemption = !!pendingRedemptions[p.id];
                                 return (
                               <Card
                                 key={p.id}
@@ -2573,8 +2574,18 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   'overflow-hidden transition-all',
                                   isEditing && 'ring-2 ring-primary/30',
                                   isPendingRenewal && 'ring-2 ring-purple-400/40 bg-purple-50/30 dark:bg-purple-950/20 opacity-95',
+                                  isPendingRedemption && 'ring-2 ring-amber-400/50 bg-amber-50/40 dark:bg-amber-950/20',
                                 )}
                               >
+                                {isPendingRedemption && (
+                                  <div className="flex items-center gap-2 px-3.5 py-2 border-b border-amber-200 bg-amber-100/70 dark:bg-amber-900/30 dark:border-amber-800/60 text-[11px] font-semibold text-amber-900 dark:text-amber-200">
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                    <span>Partner requested payout at maturity — portfolio locked from edits until redemption is processed.</span>
+                                    <span className="ml-auto uppercase tracking-wide text-[9px] bg-amber-200/70 dark:bg-amber-800/60 px-1.5 py-0.5 rounded">
+                                      Locked
+                                    </span>
+                                  </div>
+                                )}
                                 {isPendingRenewal && (
                                   <div className="flex items-center gap-2 px-3.5 py-2 border-b border-purple-200 bg-purple-100/70 dark:bg-purple-900/30 dark:border-purple-800/60 text-[11px] font-semibold text-purple-800 dark:text-purple-200">
                                     <RefreshCw className="h-3.5 w-3.5" />
