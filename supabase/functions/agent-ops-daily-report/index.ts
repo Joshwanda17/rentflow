@@ -153,6 +153,20 @@ interface Report {
     deliveries_month: number;
     deliveries_prev: number;
   };
+  // Advance repayment receivables — projected inflows from currently active
+  // agent_advances over the next N days (starting tomorrow EAT).
+  receivables: {
+    horizons: {
+      label: string;
+      days: number;
+      contributingAdvances: number;
+      principalDue: number;
+      interestDue: number;
+      totalDue: number;
+    }[];
+    activeAdvances: number;
+    totalOutstanding: number;
+  };
 }
 
 function nameOf(p: any): string {
@@ -287,6 +301,67 @@ async function buildReport(
       deposited: Math.round(v.deposited),
     }));
 
+  // ---- Advance repayment projections (starting tomorrow EAT) ----
+  const { data: activeAdvances } = await admin
+    .from("agent_advances")
+    .select("id, principal, outstanding_balance, daily_installment, monthly_rate, expires_at, status, prepaid_installments_remaining")
+    .in("status", ["active", "repaying", "approved", "disbursed"])
+    .gt("outstanding_balance", 0);
+
+  const tomorrowStart = new Date(new Date(endISO).getTime()); // endISO of the report day == start of next EAT day
+  const HORIZONS = [
+    { label: "Tomorrow", days: 1 },
+    { label: "Next 7 days", days: 7 },
+    { label: "Next 30 days", days: 30 },
+    { label: "Next 60 days", days: 60 },
+    { label: "Next 90 days", days: 90 },
+  ];
+  const horizonResults = HORIZONS.map((h) => ({
+    label: h.label,
+    days: h.days,
+    contributingAdvances: 0,
+    principalDue: 0,
+    interestDue: 0,
+    totalDue: 0,
+  }));
+  let totalOutstanding = 0;
+  for (const adv of (activeAdvances ?? []) as any[]) {
+    const principal = Number(adv.principal ?? 0);
+    const outstanding = Number(adv.outstanding_balance ?? 0);
+    const dailyInstallment = Number(adv.daily_installment ?? 0);
+    const monthlyRate = Number(adv.monthly_rate ?? 0);
+    const prepaid = Number(adv.prepaid_installments_remaining ?? 0);
+    totalOutstanding += outstanding;
+    if (dailyInstallment <= 0 || outstanding <= 0) continue;
+
+    // Days remaining based on expires_at (cap so we don't count past-due)
+    const expiresMs = adv.expires_at ? new Date(adv.expires_at).getTime() : tomorrowStart.getTime() + 90 * 86400000;
+    const daysLeftByExpiry = Math.max(0, Math.ceil((expiresMs - tomorrowStart.getTime()) / 86400000));
+    // Days remaining based on outstanding balance
+    const daysLeftByBalance = Math.max(0, Math.ceil(outstanding / dailyInstallment));
+    const daysRemaining = Math.min(daysLeftByExpiry, daysLeftByBalance);
+    if (daysRemaining <= 0) continue;
+
+    // Interest per day proxy: principal × (monthly_rate / 30). If monthly_rate
+    // is missing, back-solve from the daily installment vs. principal.
+    let interestPerDay = principal * (monthlyRate / 30);
+    if (interestPerDay <= 0 && daysLeftByBalance > 0) {
+      const totalInterestExpected = Math.max(0, dailyInstallment * daysLeftByBalance - outstanding);
+      interestPerDay = totalInterestExpected / Math.max(1, daysLeftByBalance);
+    }
+    const principalPerDay = Math.max(0, dailyInstallment - interestPerDay);
+
+    for (const h of horizonResults) {
+      // Prepaid installments produce no cash inflow — they're already paid.
+      const billableDays = Math.max(0, Math.min(h.days, daysRemaining) - Math.min(prepaid, h.days));
+      if (billableDays <= 0) continue;
+      h.contributingAdvances += 1;
+      h.principalDue += principalPerDay * billableDays;
+      h.interestDue += interestPerDay * billableDays;
+      h.totalDue += dailyInstallment * billableDays;
+    }
+  }
+
   return {
     date: dateStr,
     collectionsCount: collections.length,
@@ -330,6 +405,16 @@ async function buildReport(
       outstanding_total: Number(monthlyData?.outstanding_total ?? 0),
       deliveries_month: Number(monthlyData?.deliveries_month ?? 0),
       deliveries_prev: Number(monthlyData?.deliveries_prev ?? 0),
+    },
+    receivables: {
+      horizons: horizonResults.map((h) => ({
+        ...h,
+        principalDue: Math.round(h.principalDue),
+        interestDue: Math.round(h.interestDue),
+        totalDue: Math.round(h.totalDue),
+      })),
+      activeAdvances: (activeAdvances ?? []).length,
+      totalOutstanding: Math.round(totalOutstanding),
     },
   };
 }
