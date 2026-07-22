@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, subDays, isToday, isYesterday } from 'date-fns';
+import { cn } from '@/lib/utils';
 // jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
@@ -1033,7 +1034,11 @@ export function WalletStatement() {
             {/* ── Filters (calm default, advanced behind toggle) ── */}
             <div className="mb-5 space-y-2.5" role="region" aria-label="Statement filters">
               {/* Quick filters (fintech pill row) */}
-              <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div
+                className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+                aria-label="Filter transactions"
+              >
                 <div className="flex gap-2">
                   {([
                     { key: 'all',       label: 'All',        active: directionFilter === 'all' && statusFilter === 'all', apply: () => { setDirectionFilter('all'); setStatusFilter('all'); } },
@@ -1045,13 +1050,15 @@ export function WalletStatement() {
                     <button
                       key={chip.key}
                       type="button"
+                      role="tab"
+                      aria-selected={chip.active}
                       onClick={chip.apply}
-                      aria-pressed={chip.active}
-                      className={`whitespace-nowrap rounded-full px-5 py-2 text-xs font-semibold transition-colors ${
+                      className={cn(
+                        'whitespace-nowrap rounded-full border px-5 py-2 text-xs font-semibold transition-colors',
                         chip.active
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'bg-card border border-border text-muted-foreground hover:bg-muted/40'
-                      }`}
+                          ? 'border-foreground bg-foreground text-background shadow-sm'
+                          : 'border-border bg-card text-muted-foreground hover:bg-muted/40',
+                      )}
                     >
                       {chip.label}
                     </button>
