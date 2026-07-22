@@ -389,16 +389,12 @@ function buildHtml(r: Report, prettyDate: string): string {
     data: {
       labels: hourLabels,
       datasets: [
-        { label: "Collections", data: r.hourly, backgroundColor: PURPLE, yAxisID: "y" },
-        { label: "Volume (UGX)", type: "line", data: r.hourlyVolume, borderColor: GREEN, backgroundColor: GREEN, fill: false, yAxisID: "y1" },
+        { label: "Collections", data: r.hourly, backgroundColor: PURPLE },
       ],
     },
     options: {
-      plugins: { title: { display: true, text: "Collections by hour (EAT)" }, legend: { position: "bottom" } },
-      scales: {
-        y: { position: "left", title: { display: true, text: "Count" }, beginAtZero: true },
-        y1: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "UGX" }, beginAtZero: true },
-      },
+      plugins: { title: { display: true, text: "Collections by hour (EAT)" }, legend: { display: false } },
+      scales: { y: { title: { display: true, text: "Count" }, beginAtZero: true } },
     },
   }, 700, 320);
 
@@ -415,12 +411,12 @@ function buildHtml(r: Report, prettyDate: string): string {
   // Chart 3 — top agents by collected volume.
   const topChart = r.topAgents.length
     ? chartUrl({
-        type: "horizontalBar",
+        type: "bar",
         data: {
           labels: r.topAgents.map((a) => a.name.slice(0, 18)),
           datasets: [{ label: "Collected (UGX)", data: r.topAgents.map((a) => a.total), backgroundColor: PURPLE_DK }],
         },
-        options: { plugins: { title: { display: true, text: "Top agents by volume" }, legend: { display: false } }, scales: { x: { beginAtZero: true } } },
+        options: { indexAxis: "y", plugins: { title: { display: true, text: "Top agents by volume" }, legend: { display: false } }, scales: { x: { beginAtZero: true } } },
       }, 340, 300)
     : "";
 
