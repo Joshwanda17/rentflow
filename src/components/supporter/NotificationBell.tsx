@@ -11,6 +11,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { NotificationsModal } from './NotificationsModal';
+import { useNotificationPulse } from '@/hooks/useNotificationPulse';
 
 interface Notification {
   id: string;
@@ -36,6 +37,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const navigate = useNavigate();
+  const { isPulsing, stopPulse } = useNotificationPulse(userId);
 
   const fetchNotifications = useCallback(async () => {
     const { data } = await supabase
@@ -89,16 +91,29 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   return (
     <>
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <Popover
+        open={popoverOpen}
+        onOpenChange={(o) => {
+          setPopoverOpen(o);
+          if (o) stopPulse();
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 min-w-[44px] min-h-[44px] text-white/90 hover:text-white hover:bg-white/10 rounded-xl touch-manipulation relative"
+            className={cn(
+              "h-10 w-10 min-w-[44px] min-h-[44px] text-white/90 hover:text-white hover:bg-white/10 rounded-xl touch-manipulation relative",
+              isPulsing && "animate-bell-glow",
+            )}
+            aria-label="Notifications"
           >
-            <Bell className="h-5 w-5" />
+            <Bell className={cn("h-5 w-5", isPulsing && "animate-bell-ring origin-top")} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-destructive text-destructive-foreground rounded-full px-1">
+              <span className={cn(
+                "absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-destructive text-destructive-foreground rounded-full px-1",
+                isPulsing && "animate-pulse",
+              )}>
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -132,7 +147,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                     onClick={() => handleClick(n)}
                     className={cn(
                       "w-full text-left px-3 py-2.5 rounded-xl transition-colors touch-manipulation",
-                      n.is_read ? "opacity-60" : "bg-accent/40"
+                      n.is_read ? "opacity-60" : "bg-accent/40 animate-notif-fade-in"
                     )}
                   >
                     <div className="flex gap-2.5">
@@ -142,7 +157,12 @@ export function NotificationBell({ userId }: { userId: string }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                         <p className="text-xs font-semibold leading-tight line-clamp-1 text-muted-foreground">{n.title}</p>
-                          {!n.is_read && <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />}
+                          {!n.is_read && (
+                            <span className="inline-flex items-center gap-1 shrink-0 mt-0.5">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary/10 rounded px-1 py-px">New</span>
+                              <span className="w-2 h-2 rounded-full bg-primary" />
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-foreground mt-0.5 line-clamp-2">{n.message}</p>
                         {n.created_at && (

@@ -136,13 +136,43 @@ export default {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0" },
         },
-
+        "bell-ring": {
+          "0%, 100%": { transform: "rotate(0)" },
+          "15%": { transform: "rotate(-12deg)" },
+          "30%": { transform: "rotate(10deg)" },
+          "45%": { transform: "rotate(-8deg)" },
+          "60%": { transform: "rotate(6deg)" },
+          "75%": { transform: "rotate(-3deg)" },
+        },
+        "bell-glow": {
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(var(--destructive) / 0)" },
+          "50%": { boxShadow: "0 0 0 6px hsl(var(--destructive) / 0.25)" },
+        },
+        "wallet-flash-credit": {
+          "0%": { backgroundColor: "hsl(var(--success) / 0)" },
+          "20%": { backgroundColor: "hsl(var(--success) / 0.28)" },
+          "100%": { backgroundColor: "hsl(var(--success) / 0)" },
+        },
+        "wallet-flash-debit": {
+          "0%": { backgroundColor: "hsl(var(--warning) / 0)" },
+          "20%": { backgroundColor: "hsl(var(--warning) / 0.30)" },
+          "100%": { backgroundColor: "hsl(var(--warning) / 0)" },
+        },
+        "notif-fade-in": {
+          "0%": { opacity: "0", transform: "translateY(-6px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "shake": "shake 0.5s ease-in-out",
         "blink": "blink 1s step-end infinite",
+        "bell-ring": "bell-ring 1.2s ease-in-out",
+        "bell-glow": "bell-glow 1.6s ease-in-out infinite",
+        "wallet-flash-credit": "wallet-flash-credit 1.4s ease-out",
+        "wallet-flash-debit": "wallet-flash-debit 1.4s ease-out",
+        "notif-fade-in": "notif-fade-in 0.35s ease-out",
       },
       transitionDuration: {
         DEFAULT: '150ms',
