@@ -32,7 +32,7 @@ export function PortfolioRenewalApology({
   return (
     <Html>
       <Head><style>{clientOverrides}</style></Head>
-      <Preview>An important correction regarding your partnership portfolio</Preview>
+      <Preview>A quick apology about your portfolio</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
@@ -47,7 +47,7 @@ export function PortfolioRenewalApology({
                           <Img src={logo_url} alt={`${company_name} Technologies Limited`} width="130" style={logoImg} />
                         </td>
                         <td align="right" valign="middle" className="hide-mobile" style={secureLabel}>
-                          Important Notice
+                          A Note From Welile
                         </td>
                       </tr></tbody>
                     </table>
@@ -55,20 +55,20 @@ export function PortfolioRenewalApology({
                 </tr>
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '40px 40px 20px 40px' }}>
-                    <Heading style={heroH1}>A sincere apology regarding your portfolio</Heading>
+                    <Heading style={heroH1}>We're sorry for the mix-up</Heading>
                   </td>
                 </tr>
                 <tr>
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
                     <Text style={greetingText}>Dear {partner_name},</Text>
                     <Text style={introText}>
-                      Earlier today, an internal automated sweep incorrectly renewed a small batch of partnership portfolios that had already reached, or were near, their maturity date. Your portfolio {portfolio_name}{displayId && <span> (#{displayId})</span>} was one of them.
+                      Earlier today your portfolio {portfolio_name}{displayId && <span> (#{displayId})</span>} was renewed by mistake on our side.
                     </Text>
                     <Text style={introText}>
-                      We have <strong>reversed the accidental renewal</strong> and restored your portfolio to its correct state. Your original maturity date of <strong>{original_maturity_date || '—'}</strong> stands, and your maturity choice (renew, top-up, or withdraw) remains fully yours to make.
+                      We have put everything back the way it was. Your maturity date of <strong>{original_maturity_date || '—'}</strong> still stands, and the choice to renew, top up, or withdraw when the time comes is still fully yours.
                     </Text>
                     <Text style={introText}>
-                      No funds were moved, no returns were affected, and no action is required from you. If your portfolio was matured before this sweep, it remains matured and eligible for payout on request.
+                      Your money is safe, your returns are unchanged, and there is nothing you need to do.
                     </Text>
                   </td>
                 </tr>
@@ -76,9 +76,9 @@ export function PortfolioRenewalApology({
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={insightCard}>
                       <tbody><tr><td style={{ padding: '15px 20px' }}>
-                        <Text style={insightTitle}>What happened</Text>
+                        <Text style={insightTitle}>In short</Text>
                         <Text style={insightBody}>
-                          An operational cron ran a bulk auto-renew that should have been limited to a single portfolio. We caught it immediately, reversed the affected renewals, and have added a safeguard so it cannot recur.
+                          Your portfolio was renewed by mistake. We noticed right away and put it back. Nothing on your side has changed.
                         </Text>
                       </td></tr></tbody>
                     </table>
@@ -87,7 +87,7 @@ export function PortfolioRenewalApology({
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
                     <Text style={outroText}>
-                      We take the trust you place in Welile very seriously, and we are sorry for the confusion this may have caused. If you have any questions, please reply directly to this email or reach out to <Link href="mailto:partnership@welile.com">partnership@welile.com</Link>{displayId && <span> and quote portfolio (#{displayId})</span>}.
+                      Thank you for trusting Welile. We're sorry for any confusion. If you have any questions, just reply to this email or write to <Link href="mailto:partnership@welile.com">partnership@welile.com</Link>.
                     </Text>
                     <Text style={signatureText}>
                       With sincere apologies,<br />
