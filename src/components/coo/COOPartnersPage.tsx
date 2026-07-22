@@ -463,6 +463,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [renewOpen, setRenewOpen] = useState(false);
   const [renewalCounts, setRenewalCounts] = useState<Record<string, number>>({});
   const [pendingRedemptions, setPendingRedemptions] = useState<Record<string, boolean>>({});
+  const [recentRenewals, setRecentRenewals] = useState<Record<string, string>>({});
 
   // Bulk activate
   const [activatingAll, setActivatingAll] = useState(false);
@@ -1135,7 +1136,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const [renewalsRes, pendingRes, redemptionsRes] = await Promise.all([
           supabase
             .from('portfolio_renewals')
-            .select('portfolio_id')
+            .select('portfolio_id, created_at')
             .in('portfolio_id', portfolioIds),
           supabase
             .from('pending_wallet_operations')
@@ -1152,8 +1153,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .in('status', ['pending', 'processing']),
         ]);
         const counts: Record<string, number> = {};
-        (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
+        const latestRenewal: Record<string, string> = {};
+        (renewalsRes.data || []).forEach((r: any) => {
+          counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1;
+          const prev = latestRenewal[r.portfolio_id];
+          if (!prev || new Date(r.created_at) > new Date(prev)) latestRenewal[r.portfolio_id] = r.created_at;
+        });
         setRenewalCounts(counts);
+        setRecentRenewals(latestRenewal);
         const redemptionMap: Record<string, boolean> = {};
         (redemptionsRes.data || []).forEach((r: any) => { redemptionMap[r.portfolio_id] = true; });
         setPendingRedemptions(redemptionMap);
@@ -2567,6 +2574,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   ? Math.max(0, Math.ceil((pendingRenewalDate.getTime() - Date.now()) / 86400000))
                                   : 0;
                                 const isPendingRedemption = !!pendingRedemptions[p.id];
+                                const lastRenewalAt = recentRenewals[p.id] ? new Date(recentRenewals[p.id]) : null;
+                                const renewedRecently = !!lastRenewalAt && (Date.now() - lastRenewalAt.getTime()) < 30 * 86400000;
+                                const renewedDaysAgo = lastRenewalAt ? Math.floor((Date.now() - lastRenewalAt.getTime()) / 86400000) : 0;
                                 return (
                               <Card
                                 key={p.id}
@@ -2626,6 +2636,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                           {daysToRenewal > 0
                                             ? `Renews in ${daysToRenewal} day${daysToRenewal === 1 ? '' : 's'}`
                                             : 'Renews today'}
+                                        </span>
+                                      )}
+                                      {renewedRecently && !isPendingRenewal && (
+                                        <span
+                                          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap shrink-0 inline-flex items-center gap-1"
+                                          title={`Renewed on ${lastRenewalAt!.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                                        >
+                                          <RefreshCw className="h-2.5 w-2.5" />
+                                          {renewedDaysAgo === 0 ? 'Renewed today' : `Renewed ${renewedDaysAgo}d ago`}
                                         </span>
                                       )}
                                     </div>
