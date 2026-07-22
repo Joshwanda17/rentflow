@@ -2809,7 +2809,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               </div>
 
                               {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
-                              <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5 mt-2.5 pt-2.5 border-t border-border/50">
+                              <fieldset
+                                disabled={isPendingRenewal}
+                                className={cn(
+                                  'mt-2.5 pt-2.5 border-t border-border/50',
+                                  isPendingRenewal && 'opacity-60 cursor-not-allowed',
+                                )}
+                                title={isPendingRenewal ? 'Portfolio is locked — a scheduled renewal is pending.' : undefined}
+                              >
+                              <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5">
                                 {(p.status === 'pending_approval' || p.status === 'pending') && (
                                   <Button
                                     variant="ghost"
@@ -2949,6 +2957,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   </Button>
                                 )}
                               </div>
+                              </fieldset>
 
                             </div>
                           </Card>
