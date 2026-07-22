@@ -252,6 +252,14 @@ function buildText(report: any, prettyDate: string): string {
   lines.push(`Float consumed:  ${fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0)))}`);
   lines.push(`Total commission: ${fmtUGX(report.total_commission || 0)}`);
   lines.push("");
+  const roi = report.roi || { total_paid: 0, total_reinvested: 0, payout_count: 0, recipient_count: 0, recipients: [] };
+  lines.push(`ROI payouts: ${roi.payout_count || 0} to ${roi.recipient_count || 0} recipients`);
+  lines.push(`ROI paid:      ${fmtUGX(roi.total_paid || 0)}`);
+  lines.push(`ROI reinvested: ${fmtUGX(roi.total_reinvested || 0)}`);
+  for (const r of (roi.recipients || []) as Array<{ recipient_name: string; recipient_phone: string | null; payouts: number; total_paid: number }>) {
+    lines.push(`- ${r.recipient_name} (${r.recipient_phone || "—"}): ${r.payouts} payouts, ${fmtUGX(r.total_paid)}`);
+  }
+  lines.push("");
   lines.push("Per merchant agent:");
   for (const r of (report.summary || []) as SummaryRow[]) {
     lines.push(
