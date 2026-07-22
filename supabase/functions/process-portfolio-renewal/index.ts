@@ -32,6 +32,7 @@ async function sendPartnerRenewalEmail(opts: {
   durationMonths: number;
   effectiveDate: Date;
   maturityDate: Date;
+  daysRemaining: number;
   idempotencyKey: string;
 }) {
   const templateData = {
@@ -54,6 +55,13 @@ async function sendPartnerRenewalEmail(opts: {
     // consumed only by the scheduled variant (template gracefully ignores extras)
     scheduled: opts.variant === "scheduled",
     scheduled_date: fmtDate(opts.effectiveDate),
+    // Countdown context — shown in both variants so the partner sees whether
+    // the renewal is immediate ("today") or scheduled ("in N days").
+    days_remaining: opts.daysRemaining,
+    days_remaining_label:
+      opts.daysRemaining <= 0
+        ? "Applied today"
+        : `Auto-applies in ${opts.daysRemaining} day${opts.daysRemaining === 1 ? "" : "s"}`,
   };
 
   const subjectOverride =
@@ -179,6 +187,7 @@ Deno.serve(async (req) => {
           durationMonths: Number(nm?.duration_months ?? portfolio.duration_months ?? 12),
           effectiveDate: new Date(nm?.new_start || Date.now()),
           maturityDate: new Date(`${nm?.new_maturity_date}T00:00:00Z`),
+          daysRemaining: 0,
           idempotencyKey: `portfolio-renewed-${portfolio.id}-${request_id}`,
         });
       }
@@ -225,6 +234,7 @@ Deno.serve(async (req) => {
         durationMonths: portfolio.duration_months || 12,
         effectiveDate,
         maturityDate: projectedMaturity,
+        daysRemaining,
         idempotencyKey: `portfolio-renewal-scheduled-${portfolio.id}-${request_id}`,
       });
     }

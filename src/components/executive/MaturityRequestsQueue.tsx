@@ -528,11 +528,49 @@ export function MaturityRequestsQueue() {
                           <Loader2 className="h-3.5 w-3.5" /> Start processing
                         </Button>
                       )}
-                      <Button size="sm" className="h-8 text-xs gap-1.5" disabled={busy}
-                        onClick={() => updateStatus(req, 'completed', 'completed')}>
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        {isRenewal ? 'Approve renewal' : 'Mark completed'}
-                      </Button>
+                      {(() => {
+                        const preview = isRenewal ? computeRenewalPreview(req) : null;
+                        const daysLabel = preview
+                          ? preview.mode === 'renew_now'
+                            ? 'applies today'
+                            : `applies in ${preview.daysRemaining} day${preview.daysRemaining === 1 ? '' : 's'}`
+                          : '';
+                        const handleApprove = () => {
+                          if (preview) {
+                            const msg =
+                              preview.mode === 'renew_now'
+                                ? `Approve renewal now for ${req.portfolio_code}?\n\n` +
+                                  `• New maturity: ${format(preview.newMaturityDate, 'd MMM yyyy')}\n` +
+                                  `• Next returns: ${format(preview.newNextRoiDate, 'd MMM yyyy')}\n` +
+                                  `• Term: ${preview.durationMonths} months\n\n` +
+                                  `Partner will be notified immediately.`
+                                : `Schedule renewal for ${req.portfolio_code}?\n\n` +
+                                  `• Auto-applies in ${preview.daysRemaining} day${preview.daysRemaining === 1 ? '' : 's'} ` +
+                                  `(${format(preview.effectiveDate, 'd MMM yyyy')})\n` +
+                                  `• New maturity: ${format(preview.newMaturityDate, 'd MMM yyyy')}\n` +
+                                  `• Next returns: ${format(preview.newNextRoiDate, 'd MMM yyyy')}\n` +
+                                  `• Term: ${preview.durationMonths} months\n\n` +
+                                  `Partner will receive a "Renewal Scheduled" email now and a "Renewed" email on the effective date.`;
+                            if (!window.confirm(msg)) return;
+                          }
+                          updateStatus(req, 'completed', 'completed');
+                        };
+                        return (
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs gap-1.5"
+                            disabled={busy}
+                            onClick={handleApprove}
+                            title={preview ? daysLabel : undefined}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {isRenewal ? 'Approve renewal' : 'Mark completed'}
+                            {preview && (
+                              <span className="ml-1 text-[10px] opacity-90">· {daysLabel}</span>
+                            )}
+                          </Button>
+                        );
+                      })()}
                       <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive" disabled={busy}
                         onClick={() => updateStatus(req, 'cancelled', 'declined')}>
                         <XCircle className="h-3.5 w-3.5" /> Decline
