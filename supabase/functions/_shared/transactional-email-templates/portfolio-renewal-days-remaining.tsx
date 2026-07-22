@@ -17,6 +17,7 @@ interface PortfolioRenewalDaysRemainingProps {
   days_remaining_label?: string
   effective_date?: string
   company_name?: string
+  portfolio_name?: string
 }
 
 const resolveDays = (value: number | string | undefined) => {
@@ -27,8 +28,9 @@ const resolveDays = (value: number | string | undefined) => {
 
 const labelFor = (days: number, custom?: string) => {
   if (custom?.trim()) return custom.trim()
-  if (days <= 0) return 'Applied today'
-  return `${days} day${days === 1 ? '' : 's'} remaining`
+  if (days <= 0) return 'Renews today'
+  if (days === 1) return 'Renews tomorrow'
+  return `Renews in ${days} days`
 }
 
 export function PortfolioRenewalDaysRemaining({
@@ -37,10 +39,13 @@ export function PortfolioRenewalDaysRemaining({
   days_remaining_label,
   effective_date,
   company_name = 'Welile',
+  portfolio_name,
 }: PortfolioRenewalDaysRemainingProps) {
   const days = resolveDays(days_remaining)
   const label = labelFor(days, days_remaining_label)
-  const preview = `Portfolio renewal: ${label}`
+  const preview = effective_date
+    ? `Your partnership portfolio renews on ${effective_date}.`
+    : `Your partnership portfolio ${label.toLowerCase()}.`
 
   return (
     <Html>
@@ -48,17 +53,41 @@ export function PortfolioRenewalDaysRemaining({
       <Preview>{preview}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Text style={brand}>{company_name}</Text>
-          <Heading style={heading}>Portfolio Renewal Countdown</Heading>
+          <Text style={brand}>{company_name} · Partnership Team</Text>
+          <Heading style={heading}>Upcoming portfolio renewal</Heading>
           <Text style={greeting}>Dear {partner_name},</Text>
-          <Section style={countdownBox}>
-            <Text style={countdownNumber}>{days}</Text>
-            <Text style={countdownLabel}>{label}</Text>
+          <Text style={body}>
+            This is a courtesy notice that your partnership portfolio
+            {portfolio_name ? <> — <strong>{portfolio_name}</strong> — </> : ' '}
+            is scheduled for automatic renewal.
+          </Text>
+          <Section style={detailCard}>
+            <Text style={detailRow}>
+              <span style={detailLabel}>Status</span>
+              <span style={detailValue}>{label}</span>
+            </Text>
+            {effective_date && (
+              <Text style={detailRow}>
+                <span style={detailLabel}>Effective date</span>
+                <span style={detailValue}>{effective_date}</span>
+              </Text>
+            )}
           </Section>
-          {effective_date && (
-            <Text style={detailText}>Renewal applies on {effective_date}.</Text>
-          )}
-          <Text style={footer}>Partnership Team · {company_name}</Text>
+          <Text style={body}>
+            No action is required on your part. Your principal and accrued
+            returns will be carried forward under the same terms once the
+            renewal takes effect. Should you wish to withdraw instead, please
+            reply to this email before the effective date.
+          </Text>
+          <Text style={signOff}>
+            Kind regards,<br />
+            Partnership Team<br />
+            {company_name}
+          </Text>
+          <Text style={footer}>
+            This is an automated notification. For assistance, contact Welile
+            Support on 0748747134.
+          </Text>
         </Container>
       </Body>
     </Html>
@@ -82,78 +111,92 @@ const container: React.CSSProperties = {
 
 const brand: React.CSSProperties = {
   margin: '0 0 14px',
-  color: '#7b19d4',
+  color: '#5a129e',
   fontSize: '13px',
-  fontWeight: 800,
+  fontWeight: 700,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
 }
 
 const heading: React.CSSProperties = {
-  margin: '0 0 18px',
+  margin: '0 0 20px',
   color: '#111827',
-  fontSize: '24px',
-  fontWeight: 800,
+  fontSize: '22px',
+  fontWeight: 700,
+  letterSpacing: '-0.01em',
 }
 
 const greeting: React.CSSProperties = {
-  margin: '0 0 22px',
+  margin: '0 0 16px',
   color: '#334155',
-  fontSize: '16px',
-  lineHeight: '24px',
-}
-
-const countdownBox: React.CSSProperties = {
-  margin: '0 0 22px',
-  padding: '28px 18px',
-  backgroundColor: '#f3e8ff',
-  border: '1px solid #d8b4fe',
-  borderRadius: '14px',
-  textAlign: 'center',
-}
-
-const countdownNumber: React.CSSProperties = {
-  margin: '0 0 6px',
-  color: '#5a129e',
-  fontSize: '56px',
-  lineHeight: '62px',
-  fontWeight: 900,
-}
-
-const countdownLabel: React.CSSProperties = {
-  margin: 0,
-  color: '#5a129e',
-  fontSize: '18px',
-  fontWeight: 800,
-}
-
-const detailText: React.CSSProperties = {
-  margin: '0 0 22px',
-  color: '#475569',
   fontSize: '15px',
   lineHeight: '24px',
-  textAlign: 'center',
+}
+
+const body: React.CSSProperties = {
+  margin: '0 0 18px',
+  color: '#334155',
+  fontSize: '15px',
+  lineHeight: '24px',
+}
+
+const detailCard: React.CSSProperties = {
+  margin: '0 0 22px',
+  padding: '18px 20px',
+  backgroundColor: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: '10px',
+}
+
+const detailRow: React.CSSProperties = {
+  margin: '0 0 8px',
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '16px',
+  fontSize: '14px',
+  lineHeight: '22px',
+}
+
+const detailLabel: React.CSSProperties = {
+  color: '#64748b',
+  fontWeight: 500,
+}
+
+const detailValue: React.CSSProperties = {
+  color: '#0f172a',
+  fontWeight: 600,
+}
+
+const signOff: React.CSSProperties = {
+  margin: '24px 0 0',
+  color: '#334155',
+  fontSize: '15px',
+  lineHeight: '22px',
 }
 
 const footer: React.CSSProperties = {
   margin: '28px 0 0',
+  paddingTop: '18px',
+  borderTop: '1px solid #e2e8f0',
   color: '#94a3b8',
   fontSize: '12px',
-  textAlign: 'center',
+  lineHeight: '18px',
 }
 
 export const template = {
   component: PortfolioRenewalDaysRemaining,
   subject: (data: Record<string, any>) => {
     const days = resolveDays(data?.days_remaining)
-    return `Portfolio Renewal Countdown — ${labelFor(days, data?.days_remaining_label)}`
+    const label = labelFor(days, data?.days_remaining_label)
+    return `Portfolio renewal notice — ${label}`
   },
-  displayName: 'Portfolio Renewal Countdown',
+  displayName: 'Portfolio Renewal Notice',
   previewData: {
     partner_name: 'SSENKAALI PIUS',
     days_remaining: 7,
-    days_remaining_label: '7 days remaining',
+    days_remaining_label: 'Renews in 7 days',
     effective_date: '29 July 2026',
     company_name: 'Welile',
+    portfolio_name: 'Test Growth Portfolio',
   },
 } satisfies TemplateEntry
