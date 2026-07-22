@@ -1078,6 +1078,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       showFormMessage('error', msg);
     };
 
+    // ─── Daytime-only listing gate ───
+    // House listing is restricted to 6:00 AM – 6:00 PM (EAT) so agents
+    // capture photos and GPS in daylight. Server trigger enforces the same
+    // rule; this is the friendly client-side message.
+    if (!isListingDaytime()) {
+      failWith(LISTING_NIGHT_MESSAGE);
+      return;
+    }
+
     // ─── Preflight jump ───
     // If ANY gate is missing, jump the agent to the step that owns the first
     // missing field and surface a toast. This prevents the silent "stuck on
