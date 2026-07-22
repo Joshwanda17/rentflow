@@ -159,16 +159,14 @@ export default function PhoneCollectionGate() {
           ? [meta.provider]
           : [];
       const isOAuthSignup = providers.some((p) => p && p !== "email" && p !== "phone");
-      // Every account must have a verified, unique phone. Existing users who
-      // never added one are forced to complete verification on next login
-      // (no snooze, no dismiss), matching the OAuth mandatory flow.
-      const forceMandatory = true;
-
-      // Only respect the "Not now" snooze for classic (email) sign-ups.
-      // OAuth sign-ups without a phone must complete the flow before proceeding.
-      if (!isOAuthSignup && !forceMandatory) {
-        const snoozed = Number(localStorage.getItem(SNOOZE_KEY) || 0);
-        if (snoozed && Date.now() < snoozed) return;
+      // Profile completion is a NON-BLOCKING onboarding prompt. It never
+      // prevents access to the dashboard. Phone verification is enforced
+      // downstream, only on sensitive actions (withdrawals, payouts,
+      // wallet transfers, etc.). Respect the snooze for everyone.
+      const snoozed = Number(localStorage.getItem(SNOOZE_KEY) || 0);
+      if (snoozed && Date.now() < snoozed) {
+        setChecked(true);
+        return;
       }
       const { data, error } = await supabase
         .from("profiles")
@@ -183,18 +181,18 @@ export default function PhoneCollectionGate() {
       // SMS OTP verification before they can use the app.
       const needsPrompt = !priorPhone || (isOAuthSignup && !priorVerified);
       if (needsPrompt) {
-        const mustVerify = isOAuthSignup || forceMandatory;
         setMomoName(data?.mobile_money_name || data?.full_name || "");
         setHadPriorPhone(Boolean(priorPhone));
         if (priorPhone) setPhone(priorPhone);
-        setMandatory(mustVerify);
+        // Never mandatory — users must always be able to dismiss and use the app.
+        setMandatory(false);
         setOpen(true);
         void logPromptEvent(user.id, "shown", {
           had_prior_phone: Boolean(priorPhone),
           meta: {
             email: user.email ?? null,
             providers,
-            mandatory: mustVerify,
+            mandatory: false,
             reason: !priorPhone ? "no_phone" : "oauth_phone_unverified",
           },
         });
