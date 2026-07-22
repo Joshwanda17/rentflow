@@ -820,23 +820,17 @@ export function CashoutAgentManager() {
   // has since been consumed. Used to contextualise "Volume Total" as
   // "used out of disbursed" rather than a bare number.
   const { data: disbursedFloatTotal = 0 } = useQuery({
-    queryKey: ['cashout-agent-disbursed-float', selectedAgent?.agent_id, txnDateFilter],
+    queryKey: ['cashout-agent-disbursed-float', selectedAgent?.agent_id],
     enabled: !!selectedAgent?.agent_id,
     staleTime: 60_000,
     queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from('general_ledger')
-        .select('amount, created_at')
+        .select('amount')
         .eq('user_id', selectedAgent!.agent_id)
         .eq('ledger_scope', 'wallet')
         .eq('direction', 'cash_in')
         .in('category', ['agent_float_deposit', 'agent_float_assignment', 'agent_float_funding', 'operational_float_credit', 'float_topup']);
-      if (txnDateFilter) {
-        const from = new Date(`${txnDateFilter}T00:00:00`).toISOString();
-        const to = new Date(`${txnDateFilter}T23:59:59.999`).toISOString();
-        q = q.gte('created_at', from).lte('created_at', to);
-      }
-      const { data, error } = await q;
       if (error) throw error;
       return (data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
     },
