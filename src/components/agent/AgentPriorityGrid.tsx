@@ -80,17 +80,7 @@ export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenF
 
   return (
     <div className="grid grid-cols-2 gap-2.5">
-      {/* 1. Wallet — money I can withdraw */}
-      <PriorityTile
-        onClick={() => { hapticTap(); onOpenWallet(); }}
-        icon={<Wallet className="h-6 w-6" strokeWidth={2.2} />}
-        iconBg="bg-primary text-primary-foreground"
-        label="Wallet"
-        valueLabel={formatUGX(withdrawable)}
-        sub="My money · tap to open"
-      />
-
-      {/* 2. Collect Rent — biggest daily action (hidden for Merchant Agents) */}
+      {/* 1. Collect Rent — biggest daily action (hidden for Merchant Agents) */}
       {!restricted && (
       <PriorityTile
         onClick={() => { hapticTap(); onOpenFieldCollect(); }}
