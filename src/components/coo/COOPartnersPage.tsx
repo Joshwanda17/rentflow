@@ -2575,7 +2575,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                         : ' — awaiting cron'}
                                     </span>
                                     <span className="ml-auto uppercase tracking-wide text-[9px] bg-purple-200/70 dark:bg-purple-800/60 px-1.5 py-0.5 rounded">
-                                      Locked
+                                      Scheduled
                                     </span>
                                   </div>
                                 )}
