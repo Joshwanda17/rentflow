@@ -144,6 +144,13 @@ export default function InviteMerchantAgent() {
               phone: intake.phone,
             })
             .eq('id', user.id);
+          // Auto-activate as an active Merchant Agent so the dashboard
+          // treats them as merchant, not standard agent.
+          try {
+            await supabase.rpc('auto_activate_merchant_referral', { p_referrer: ref });
+          } catch (rpcErr) {
+            console.warn('[InviteMerchantAgent] auto-activate failed', rpcErr);
+          }
         } else {
           await supabase
             .from('profiles')
