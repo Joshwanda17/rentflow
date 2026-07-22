@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Manual CORS headers (project standard — do not import corsHeaders).

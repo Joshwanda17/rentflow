@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 // Agent daily collection report.
 //
 // Runs once daily (20:00 EAT / 17:00 UTC) via pg_cron. For every active

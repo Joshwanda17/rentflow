@@ -7,6 +7,7 @@ import {
   finalizeSmsDelivery,
   type SmsAttemptRecord,
 } from "./smsDeliveryLog.ts";
+import { appendSupportFooter } from "./smsFooter.ts";
 
 export function formatPhoneInternational(phone: string): string {
   const digits = (phone || "").replace(/[^0-9]/g, "");
@@ -127,6 +128,9 @@ async function resolveProfilePhoneGate(
 
 // Returns true when delivered (or an identical SMS was already delivered before).
 export async function sendSMS(phone: string, message: string, logCtx?: SmsLogCtx): Promise<boolean> {
+  // Central support footer — applied once, before idempotency reservation, so
+  // the reserved/logged body matches what providers actually transmit.
+  message = appendSupportFooter(message);
   // ── Phone-collection gate ────────────────────────────────────────────────
   // If the caller identifies a recipient user, require a valid profile phone
   // BEFORE reserving idempotency or contacting any provider. Blocked sends

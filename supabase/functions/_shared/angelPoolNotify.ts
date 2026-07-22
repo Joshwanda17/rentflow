@@ -1,3 +1,4 @@
+import "./smsFooterInterceptor.ts";
 import { attemptYoolaPrimary } from "./yoolaPrimary.ts";
 // Shared helpers for Angel Pool onboarding notifications.
 //

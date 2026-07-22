@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 // Sends a sign-up invite SMS to a tenant and/or landlord when an agent posts a
 // rent request. For each recipient we:
 //   1. Check if they are already a Welile user (by phone). If so, skip — no SMS.

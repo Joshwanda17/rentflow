@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { runShadowAudit } from "../_shared/shadowLogger.ts";

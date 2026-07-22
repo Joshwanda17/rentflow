@@ -1,3 +1,4 @@
+import "./smsFooterInterceptor.ts";
 import { attemptYoolaPrimary } from "./yoolaPrimary.ts";
 // Shared notifier for the two-stage house listing reward.
 // Sends an in-app notification (notifications table, realtime) AND an

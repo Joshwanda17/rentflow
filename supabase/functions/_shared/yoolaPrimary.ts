@@ -12,6 +12,7 @@
 // blocks the send. Returns true ONLY when Yoola accepted the message.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { appendSupportFooter } from "./smsFooter.ts";
 
 export function formatPhoneInternational(phone: string): string {
   const digits = (phone || "").replace(/[^0-9]/g, "");
@@ -79,6 +80,10 @@ export async function attemptYoolaPrimary(
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) return false; // Yoola unconfigured -> let caller fall back
   if (!isUgandanPhone(phone)) return false; // let caller's own validation log it
+
+  // Central support footer — applied here so every Yoola-primary caller sends
+  // the standardized message body without having to compose it themselves.
+  message = appendSupportFooter(message);
 
   try {
     const res = await fetch("https://yoolasms.com/api/v1/send", {

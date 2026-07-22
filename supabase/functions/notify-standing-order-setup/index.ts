@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
