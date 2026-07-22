@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useEasyReadMode } from '@/hooks/useEasyReadMode';
@@ -305,6 +305,11 @@ export function WalletStatement() {
   // Progressive disclosure for a calmer default view
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
+  // Infinite scroll: progressively reveal cards from the filtered list.
+  const PAGE_SIZE = 25;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const scrollRootRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   // Accessibility: shared easy-read mode (applies globally to wallet + receipt UI)
   const { enabled: a11yMode, toggle: toggleA11y, size: a11ySize, setSize: setA11ySize } = useEasyReadMode();
 
@@ -684,7 +689,37 @@ export function WalletStatement() {
   const hasActiveFilters = directionFilter !== 'all' || categoryFilter !== 'all' || rangePreset !== 'all';
 
   // Group by date
-  const groupedEntries = filteredEntries.reduce((groups, entry) => {
+  // Reset the visible window whenever the filtered result set changes so
+  // switching filters/date range doesn't leave the user scrolled past new data.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [directionFilter, statusFilter, categoryFilter, rangePreset, entries.length]);
+
+  const visibleEntries = filteredEntries.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredEntries.length;
+
+  // IntersectionObserver — scoped to the ScrollArea's inner viewport so
+  // "in view" is measured against the sheet, not the browser window.
+  useEffect(() => {
+    if (!open || loading || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const viewport = scrollRootRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]'
+    ) as HTMLElement | null;
+    const observer = new IntersectionObserver(
+      (obsEntries) => {
+        if (obsEntries[0]?.isIntersecting) {
+          setVisibleCount((c) => Math.min(c + PAGE_SIZE, filteredEntries.length));
+        }
+      },
+      { root: viewport ?? null, rootMargin: '240px 0px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, loading, hasMore, filteredEntries.length]);
+
+  const groupedEntries = visibleEntries.reduce((groups, entry) => {
     const key = format(new Date(entry.date), 'yyyy-MM-dd');
     if (!groups[key]) groups[key] = [];
     groups[key].push(entry);
@@ -826,7 +861,7 @@ export function WalletStatement() {
             <Skeleton className="h-16 w-full rounded-xl" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 px-4 py-4" aria-label="Wallet statement content">
+          <ScrollArea ref={scrollRootRef} className="flex-1 px-4 py-4" aria-label="Wallet statement content">
 
             {/* ── Hero: Net Balance ── */}
             <section aria-labelledby="ws-net-balance" className="mb-4 rounded-2xl border bg-card p-5">
@@ -1275,6 +1310,30 @@ export function WalletStatement() {
                     </div>
                   );
                 })}
+                {/* Infinite scroll sentinel + end-of-results state */}
+                {hasMore ? (
+                  <div
+                    ref={sentinelRef}
+                    className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span>Loading more transactions…</span>
+                  </div>
+                ) : (
+                  filteredEntries.length > PAGE_SIZE && (
+                    <div
+                      className="flex flex-col items-center gap-1 py-6 text-[11px] text-muted-foreground"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                      <span className="font-semibold">You've reached the end</span>
+                      <span>All {filteredEntries.length} transactions loaded</span>
+                    </div>
+                  )
+                )}
               </section>
             ) : (
               <div className="text-center py-12" role="status">
