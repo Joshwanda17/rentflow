@@ -1132,7 +1132,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       // Fetch renewal counts and pending top-ups for these portfolios
       const portfolioIds = portfolios.map(p => p.id);
       if (portfolioIds.length > 0) {
-        const [renewalsRes, pendingRes] = await Promise.all([
+        const [renewalsRes, pendingRes, redemptionsRes] = await Promise.all([
           supabase
             .from('portfolio_renewals')
             .select('portfolio_id')
@@ -1144,10 +1144,19 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
             .in('status', ['pending', 'awaiting_verification', 'approved', 'completed']),
+          supabase
+            .from('portfolio_action_requests')
+            .select('portfolio_id')
+            .in('portfolio_id', portfolioIds)
+            .eq('request_type', 'REDEMPTION_REQUEST')
+            .in('status', ['pending', 'processing']),
         ]);
         const counts: Record<string, number> = {};
         (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
         setRenewalCounts(counts);
+        const redemptionMap: Record<string, boolean> = {};
+        (redemptionsRes.data || []).forEach((r: any) => { redemptionMap[r.portfolio_id] = true; });
+        setPendingRedemptions(redemptionMap);
 
         const pending: Record<string, { count: number; total: number }> = {};
         const awaiting: Record<string, { count: number; total: number }> = {};
