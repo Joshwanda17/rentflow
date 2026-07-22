@@ -861,7 +861,7 @@ export function WalletStatement() {
             <Skeleton className="h-16 w-full rounded-xl" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 px-4 py-4" aria-label="Wallet statement content">
+          <ScrollArea ref={scrollRootRef} className="flex-1 px-4 py-4" aria-label="Wallet statement content">
 
             {/* ── Hero: Net Balance ── */}
             <section aria-labelledby="ws-net-balance" className="mb-4 rounded-2xl border bg-card p-5">
@@ -1310,6 +1310,30 @@ export function WalletStatement() {
                     </div>
                   );
                 })}
+                {/* Infinite scroll sentinel + end-of-results state */}
+                {hasMore ? (
+                  <div
+                    ref={sentinelRef}
+                    className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span>Loading more transactions…</span>
+                  </div>
+                ) : (
+                  filteredEntries.length > PAGE_SIZE && (
+                    <div
+                      className="flex flex-col items-center gap-1 py-6 text-[11px] text-muted-foreground"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                      <span className="font-semibold">You've reached the end</span>
+                      <span>All {filteredEntries.length} transactions loaded</span>
+                    </div>
+                  )
+                )}
               </section>
             ) : (
               <div className="text-center py-12" role="status">
