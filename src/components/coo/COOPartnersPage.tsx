@@ -1136,7 +1136,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const [renewalsRes, pendingRes, redemptionsRes] = await Promise.all([
           supabase
             .from('portfolio_renewals')
-            .select('portfolio_id')
+            .select('portfolio_id, created_at')
             .in('portfolio_id', portfolioIds),
           supabase
             .from('pending_wallet_operations')
@@ -1153,8 +1153,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .in('status', ['pending', 'processing']),
         ]);
         const counts: Record<string, number> = {};
-        (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
+        const latestRenewal: Record<string, string> = {};
+        (renewalsRes.data || []).forEach((r: any) => {
+          counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1;
+          const prev = latestRenewal[r.portfolio_id];
+          if (!prev || new Date(r.created_at) > new Date(prev)) latestRenewal[r.portfolio_id] = r.created_at;
+        });
         setRenewalCounts(counts);
+        setRecentRenewals(latestRenewal);
         const redemptionMap: Record<string, boolean> = {};
         (redemptionsRes.data || []).forEach((r: any) => { redemptionMap[r.portfolio_id] = true; });
         setPendingRedemptions(redemptionMap);
