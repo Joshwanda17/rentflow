@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 // Cash deposit — Step 2: the depositor enters the receipt code that the
 // verifier (weliletenants@gmail.com) read back to them after receiving the
 // cash. We hash the entered code, compare it to the stored hash, enforce

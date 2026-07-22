@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";

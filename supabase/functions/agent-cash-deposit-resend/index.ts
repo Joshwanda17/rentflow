@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 // Cash-with-agent deposit — Resend OTP.
 // The depositor can request a fresh confirmation code for an existing
 // pending session. We generate a new PIN, refresh the expiry, and re-send

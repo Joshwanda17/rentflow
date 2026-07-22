@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 // Sends a short SMS to a tenant pointing at their branded Welile
 // "Rent Money You Can Get" card. SMS cannot carry the image inline,
 // so we deliver a short link to the public limit page which renders

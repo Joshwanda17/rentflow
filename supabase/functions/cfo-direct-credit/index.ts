@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { runShadowAudit } from "../_shared/shadowLogger.ts";
 import { shadowValidateCfoAdjustment } from "../_shared/shadowValidation.ts";

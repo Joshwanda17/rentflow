@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { formatPhoneInternational, isUgandanPhone } from "./phone.ts";
 import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";

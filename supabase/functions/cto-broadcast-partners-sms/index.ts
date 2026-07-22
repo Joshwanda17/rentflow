@@ -1,3 +1,4 @@
+import "../_shared/smsFooterInterceptor.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { isPhoneBlocked } from '../_shared/smsExceptions.ts';
 
