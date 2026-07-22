@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, subDays, isToday, isYesterday } from 'date-fns';
+import { cn } from '@/lib/utils';
 // jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
