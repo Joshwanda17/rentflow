@@ -176,40 +176,6 @@ async function buildReport(
   const advances = advancesRes.data ?? [];
   const deposits = depositsRes.data ?? [];
 
-  // ---- Live dashboard mirror data ----
-  const [newAgentsRes, rentReqRes, commissionRes, funnelRes, monthlyRes] = await Promise.all([
-    admin
-      .from("user_roles")
-      .select("user_id", { count: "exact", head: true })
-      .eq("role", "agent")
-      .gte("created_at", startISO)
-      .lt("created_at", endISO),
-    admin
-      .from("rent_requests")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", startISO)
-      .lt("created_at", endISO),
-    admin
-      .from("general_ledger")
-      .select("amount")
-      .eq("ledger_scope", "wallet")
-      .in("category", COMMISSION_LEDGER_CATEGORIES)
-      .in("direction", COMMISSION_CREDIT_DIRECTIONS)
-      .gte("created_at", startISO)
-      .lt("created_at", endISO),
-    (admin.rpc as any)("get_agent_ops_agent_stats", { p_days: 1 }),
-    (admin.rpc as any)("get_agent_ops_monthly_kpis", { _month: `${dateStr.slice(0, 7)}-01` }),
-  ]);
-
-  const newAgentsToday = newAgentsRes.count ?? 0;
-  const rentRequestsToday = rentReqRes.count ?? 0;
-  const commissionToday = ((commissionRes.data ?? []) as any[]).reduce(
-    (s, r) => s + Number(r.amount ?? 0),
-    0,
-  );
-  const funnelData = (funnelRes.data ?? {}) as any;
-  const monthlyData = (monthlyRes.data ?? {}) as any;
-
   const ids = Array.from(
     new Set(
       [
