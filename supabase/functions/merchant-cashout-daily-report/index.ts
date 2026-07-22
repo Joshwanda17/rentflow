@@ -460,7 +460,10 @@ Deno.serve(async (req) => {
 
     // Enqueue one email per recipient into the existing Lovable email queue.
     const results: Record<string, string> = {};
-    for (const to of REPORT_RECIPIENTS) {
+    const recipientList = recipientsOverride && recipientsOverride.length > 0
+      ? recipientsOverride
+      : REPORT_RECIPIENTS;
+    for (const to of recipientList) {
       const messageId = crypto.randomUUID();
       const unsubscribeToken = await ensureUnsubscribeToken(admin, to);
       const payload = {
