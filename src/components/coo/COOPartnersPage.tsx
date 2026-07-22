@@ -2575,7 +2575,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                         : ' — awaiting cron'}
                                     </span>
                                     <span className="ml-auto uppercase tracking-wide text-[9px] bg-purple-200/70 dark:bg-purple-800/60 px-1.5 py-0.5 rounded">
-                                      Locked
+                                      Scheduled
                                     </span>
                                   </div>
                                 )}
@@ -2821,12 +2821,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
                               {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
                               <fieldset
-                                disabled={isPendingRenewal}
-                                className={cn(
-                                  'mt-2.5 pt-2.5 border-t border-border/50',
-                                  isPendingRenewal && 'opacity-60 cursor-not-allowed',
-                                )}
-                                title={isPendingRenewal ? 'Portfolio is locked — a scheduled renewal is pending.' : undefined}
+                                className="mt-2.5 pt-2.5 border-t border-border/50"
                               >
                               <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5">
                                 {(p.status === 'pending_approval' || p.status === 'pending') && (
