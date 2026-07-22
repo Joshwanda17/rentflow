@@ -149,6 +149,45 @@ Deno.serve(async (req) => {
   // routed to partnership@welile.com.
   const isPartnerFunder = PARTNER_FUNDER_TEMPLATES.has(templateName)
 
+  // Hard exclusion: weliletenants@gmail.com is a shared operational inbox and
+  // must never receive partner/funder (partnership renewal, maturity, agreement,
+  // ROI, etc.) emails — even as a BCC. Block the send here so no code path
+  // (auto-renew cron, submit-portfolio-action-request confirmation, etc.) can
+  // deliver a partnership email to that mailbox.
+  const EXCLUDED_PARTNER_RECIPIENTS = new Set<string>([
+    'weliletenants@gmail.com',
+  ])
+  if (
+    isPartnerFunder &&
+    EXCLUDED_PARTNER_RECIPIENTS.has(effectiveRecipient.toLowerCase())
+  ) {
+    console.log('Partnership email blocked for excluded recipient', {
+      effectiveRecipient,
+      templateName,
+    })
+    await supabase.from('email_send_log').insert({
+      message_id: messageId,
+      template_name: templateName,
+      recipient_email: effectiveRecipient,
+      status: 'suppressed',
+      metadata: {
+        subject:
+          typeof template.subject === 'function'
+            ? template.subject(templateData)
+            : template.subject,
+        suppressed: true,
+        suppressed_reason: 'partner_recipient_excluded',
+      },
+    })
+    return new Response(
+      JSON.stringify({ success: false, reason: 'partner_recipient_excluded' }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    )
+  }
+
   // Resolve subject — supports static string or dynamic function
   const resolvedSubject =
     typeof template.subject === 'function'
