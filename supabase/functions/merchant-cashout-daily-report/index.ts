@@ -108,6 +108,16 @@ interface DetailRow {
 function buildHtml(report: any, prettyDate: string): string {
   const summary: SummaryRow[] = report.summary || [];
   const detail: DetailRow[] = report.detail || [];
+  const byCategory: Array<{
+    category_id: string;
+    category_label: string;
+    merchant_count: number;
+    payouts: number;
+    total_paid: number;
+    total_commission: number;
+    total_telecom: number;
+    total_float_consumed: number;
+  }> = report.by_category || [];
   const roi = report.roi || { total_paid: 0, total_reinvested: 0, payout_count: 0, recipient_count: 0, recipients: [] };
   const roiRecipients: Array<{ recipient_name: string; recipient_phone: string | null; payouts: number; total_paid: number }> =
     roi.recipients || [];
@@ -137,6 +147,24 @@ function buildHtml(report: any, prettyDate: string): string {
         )
         .join("")
     : `<div style="padding:16px;text-align:center;color:#888;background:#faf7ff;border-radius:10px;">No merchant cash-out payouts recorded for this day.</div>`;
+
+  const categoryCards = byCategory.length
+    ? byCategory
+        .map(
+          (c) => `
+      <div style="border:1px solid #e7e0f5;border-radius:12px;padding:14px;margin:0 0 12px;background:#faf7ff;">
+        <div style="font-size:15px;font-weight:700;color:#6c21c4;line-height:1.3;">${esc(c.category_label)}</div>
+        <div style="font-size:12px;color:#666;margin-top:2px;">${c.merchant_count} merchant agent${c.merchant_count === 1 ? "" : "s"} · ${c.payouts} transaction${c.payouts === 1 ? "" : "s"}</div>
+        <table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;">
+          <tr><td style="padding:4px 0;color:#666;">Customer payouts</td><td style="padding:4px 0;text-align:right;font-weight:600;">${fmtUGX(c.total_paid)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666;">Telecom charges</td><td style="padding:4px 0;text-align:right;color:#b45309;">${fmtUGX(c.total_telecom || 0)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666;">Commission</td><td style="padding:4px 0;text-align:right;color:#6c21c4;font-weight:700;">${fmtUGX(c.total_commission)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666;">Float consumed</td><td style="padding:4px 0;text-align:right;font-weight:600;">${fmtUGX(c.total_float_consumed || 0)}</td></tr>
+        </table>
+      </div>`,
+        )
+        .join("")
+    : "";
 
   const detailCards = detail
     .map(
@@ -222,6 +250,13 @@ function buildHtml(report: any, prettyDate: string): string {
 
       <h2 style="font-size:15px;margin:0 0 10px;color:#1a1a2e;">Per Merchant Agent</h2>
       ${summaryCards}
+
+      ${
+        byCategory.length
+          ? `<h2 style="font-size:15px;margin:22px 0 10px;color:#1a1a2e;">Breakdown by Cash-Out Category</h2>
+      ${categoryCards}`
+          : ""
+      }
 
       ${
         detail.length
