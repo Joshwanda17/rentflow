@@ -1,25 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  ArrowDownToLine, 
-  Clock, 
-  CheckCircle, 
-  XCircle,
+import {
+  ArrowDownToLine,
+  ArrowUpRight,
+  CheckCircle,
   RefreshCw,
   Loader2,
   Smartphone,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { format, formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
-import { hapticSuccess } from '@/lib/haptics';
-import { WithdrawalStepTracker } from './WithdrawalStepTracker';
+import { format, formatDistanceToNow, parseISO, isToday, isYesterday } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface WithdrawalRequest {
   id: string;
@@ -38,6 +35,13 @@ interface WithdrawalRequest {
   payout_method: string | null;
 }
 
+function dayLabel(iso: string): string {
+  const d = parseISO(iso);
+  if (isToday(d)) return 'TODAY';
+  if (isYesterday(d)) return 'YESTERDAY';
+  return format(d, 'EEE, d MMM yyyy').toUpperCase();
+}
+
 export function UserWithdrawalRequests() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
@@ -45,20 +49,17 @@ export function UserWithdrawalRequests() {
   const [expanded, setExpanded] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-UG', {
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-UG', {
       style: 'currency',
       currency: 'UGX',
       minimumFractionDigits: 0,
     }).format(value);
-  };
 
   const fetchRequests = useCallback(async () => {
     if (!user) return;
-
     try {
       const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-      
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*, manager_approved_at, cfo_approved_at, coo_approved_at')
@@ -66,7 +67,6 @@ export function UserWithdrawalRequests() {
         .or(`status.neq.pending,created_at.gte.${twelveHoursAgo}`)
         .order('created_at', { ascending: false })
         .limit(10);
-
       if (error) throw error;
       setRequests((data as any[]) || []);
     } catch (error) {
@@ -78,92 +78,73 @@ export function UserWithdrawalRequests() {
 
   useEffect(() => {
     fetchRequests();
-    // No polling — manual refresh only (cost optimization)
   }, [user, fetchRequests]);
 
-  const getStatusConfig = (status: string) => {
+  const visualFor = (status: string) => {
     switch (status) {
+      case 'approved':
+      case 'completed':
+        return {
+          accent: 'border-l-success',
+          iconWrap: 'bg-success/10 text-success',
+          pill: 'bg-success/10 text-success',
+          label: status === 'approved' ? 'Approved' : 'Completed',
+          pulse: false,
+        };
       case 'pending':
         return {
-          icon: Clock,
-          color: 'text-amber-500',
-          bgColor: 'bg-amber-500/10',
-          borderColor: 'border-amber-500/30',
+          accent: 'border-l-warning',
+          iconWrap: 'bg-warning/15 text-warning',
+          pill: 'bg-warning/15 text-warning',
           label: 'Pending',
           pulse: true,
         };
-      case 'approved':
-        return {
-          icon: CheckCircle,
-          color: 'text-emerald-500',
-          bgColor: 'bg-emerald-500/10',
-          borderColor: 'border-emerald-500/30',
-          label: 'Approved',
-          pulse: false,
-        };
-      case 'completed':
-        return {
-          icon: CheckCircle,
-          color: 'text-emerald-500',
-          bgColor: 'bg-emerald-500/10',
-          borderColor: 'border-emerald-500/30',
-          label: 'Completed',
-          pulse: false,
-        };
       case 'rejected':
+      case 'failed':
         return {
-          icon: XCircle,
-          color: 'text-destructive',
-          bgColor: 'bg-destructive/10',
-          borderColor: 'border-destructive/30',
-          label: 'Rejected',
+          accent: 'border-l-destructive',
+          iconWrap: 'bg-destructive/10 text-destructive',
+          pill: 'bg-destructive/10 text-destructive',
+          label: status === 'failed' ? 'Failed' : 'Rejected',
           pulse: false,
         };
       case 'cancelled':
-        return {
-          icon: XCircle,
-          color: 'text-muted-foreground',
-          bgColor: 'bg-muted',
-          borderColor: 'border-border',
-          label: 'Cancelled',
-          pulse: false,
-        };
       case 'expired':
         return {
-          icon: XCircle,
-          color: 'text-muted-foreground',
-          bgColor: 'bg-muted',
-          borderColor: 'border-border',
-          label: 'Expired',
-          pulse: false,
-        };
-      case 'failed':
-        return {
-          icon: XCircle,
-          color: 'text-destructive',
-          bgColor: 'bg-destructive/10',
-          borderColor: 'border-destructive/30',
-          label: 'Failed',
+          accent: 'border-l-transparent',
+          iconWrap: 'bg-muted text-muted-foreground',
+          pill: 'bg-muted text-muted-foreground',
+          label: status === 'expired' ? 'Expired' : 'Cancelled',
           pulse: false,
         };
       default:
         return {
-          icon: Clock,
-          color: 'text-muted-foreground',
-          bgColor: 'bg-muted',
-          borderColor: 'border-border',
+          accent: 'border-l-transparent',
+          iconWrap: 'bg-muted text-muted-foreground',
+          pill: 'bg-muted text-muted-foreground',
           label: status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' '),
           pulse: false,
         };
     }
   };
 
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const pendingCount = requests.filter((r) => r.status === 'pending').length;
   const displayedRequests = expanded ? requests : requests.slice(0, 3);
+
+  const dayGroups = useMemo(() => {
+    const groups: { key: string; label: string; rows: WithdrawalRequest[] }[] = [];
+    for (const r of displayedRequests) {
+      const key = format(parseISO(r.created_at), 'yyyy-MM-dd');
+      const last = groups[groups.length - 1];
+      if (last && last.key === key) last.rows.push(r);
+      else groups.push({ key, label: dayLabel(r.created_at), rows: [r] });
+    }
+    return groups;
+  }, [displayedRequests]);
 
   if (loading) {
     return (
-      <Card className="mt-4">
+      <Card className="mt-4 rounded-2xl">
         <CardContent className="p-6 text-center">
           <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
         </CardContent>
@@ -171,161 +152,176 @@ export function UserWithdrawalRequests() {
     );
   }
 
-  if (requests.length === 0) {
-    return null;
-  }
+  if (requests.length === 0) return null;
 
   return (
-    <Card className="mt-4">
-      <CardHeader className="pb-2">
+    <Card className="mt-4 border-border/50 rounded-2xl">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm flex items-center gap-2">
+          <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
             <ArrowDownToLine className="h-4 w-4 text-primary" />
             My Withdrawals
             {pendingCount > 0 && (
-              <Badge variant="secondary" className="text-xs animate-pulse">
+              <Badge variant="secondary" className="text-xs animate-pulse normal-case tracking-normal">
                 {pendingCount} in progress
               </Badge>
             )}
           </CardTitle>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={fetchRequests}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchRequests}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-6">
         <AnimatePresence mode="popLayout">
-          {displayedRequests.map((request, index) => {
-            const statusConfig = getStatusConfig(request.status);
-            const StatusIcon = statusConfig.icon;
-            const isCardExpanded = expandedCardId === request.id;
-            const showTracker = request.status === 'pending' || request.status === 'approved';
-            const isSettled = request.status === 'approved' || request.status === 'completed';
-
-            return (
-              <motion.div
-                key={request.id}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className={`rounded-xl border ${statusConfig.borderColor} ${
-                  request.status === 'pending'
-                    ? 'bg-amber-500/5' 
-                    : 'bg-muted/30'
-                } cursor-pointer active:scale-[0.99] transition-transform`}
-                onClick={() => showTracker && setExpandedCardId(isCardExpanded ? null : request.id)}
+          {dayGroups.map((group) => (
+            <section key={group.key} aria-labelledby={`wd-${group.key}`}>
+              <h4
+                id={`wd-${group.key}`}
+                className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"
               >
-                <div className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <div className={`p-2 rounded-lg ${statusConfig.bgColor}`}>
-                        <StatusIcon className={`h-4 w-4 ${statusConfig.color}`} />
-                      </div>
-                      <div className="space-y-1 min-w-0">
-                        <p className="font-bold text-base whitespace-nowrap">
-                          {formatCurrency(request.amount)}
-                        </p>
-                        {request.mobile_money_number && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
-                            <Smartphone className="h-3 w-3 shrink-0" />
-                            <span className={`uppercase font-medium shrink-0 ${
-                              request.mobile_money_provider === 'mtn' 
-                                ? 'text-yellow-600' 
-                                : 'text-red-500'
-                            }`}>
-                              {request.mobile_money_provider || 'MoMo'}
-                            </span>
-                            <span className="shrink-0">•</span>
-                            <span className="truncate">{request.mobile_money_number}</span>
-                          </div>
-                        )}
-                        <p className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Badge 
-                        variant="outline"
-                        className={`text-xs gap-1 whitespace-nowrap ${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor} ${
-                          statusConfig.pulse ? 'animate-pulse' : ''
-                        }`}
-                      >
-                        <StatusIcon className="h-3 w-3" />
-                        {statusConfig.label}
-                      </Badge>
-                      {showTracker && (
-                        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isCardExpanded ? 'rotate-180' : ''}`} />
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                {request.status === 'rejected' && request.rejection_reason && (
-                  <div className="mx-3 mb-3 p-2 bg-destructive/10 rounded-lg">
-                    <p className="text-xs text-destructive">
-                      <strong>Reason:</strong> {request.rejection_reason}
-                    </p>
-                  </div>
-                )}
-                
-                {isSettled && request.processed_at && !isCardExpanded && (
-                  <div className="mx-3 mb-3 p-2 bg-emerald-500/10 rounded-lg space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-600">
-                      <CheckCircle className="h-3 w-3" />
-                      <span>
-                        Sent {format(new Date(request.processed_at), 'MMM d • h:mm a')}
-                      </span>
-                    </div>
-                    {request.transaction_id && (
-                      <p className="text-xs text-muted-foreground font-mono break-all">
-                        Txn ID: {request.transaction_id}
-                      </p>
-                    )}
-                  </div>
-                )}
+                {group.label}
+              </h4>
+              <ul className="space-y-2.5 list-none p-0 m-0">
+                {group.rows.map((request, index) => {
+                  const v = visualFor(request.status);
+                  const isCardExpanded = expandedCardId === request.id;
+                  const showTracker = request.status === 'pending' || request.status === 'approved';
+                  const isSettled = request.status === 'approved' || request.status === 'completed';
 
-                {/* Expandable Step Tracker */}
-                <AnimatePresence>
-                  {isCardExpanded && showTracker && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
+                  return (
+                    <motion.li
+                      key={request.id}
+                      layout
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ delay: index * 0.03 }}
                     >
-                      <div className="px-3 pb-3 pt-1 border-t border-border/50">
-                        <p className="text-sm text-muted-foreground text-center py-2">
-                          ⏳ Awaiting approval — you'll be notified once it's processed.
-                        </p>
-                        {/* Show payout code whenever one has been issued */}
-                        {request.payout_code && (
-                          <div className="mt-3 p-3 rounded-lg bg-primary/5 border-2 border-primary/20 text-center space-y-2">
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                              Your Withdrawal Code
-                            </p>
-                            <p className="text-2xl font-mono font-bold text-primary tracking-widest">
-                              {request.payout_code}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              Show this code to any Welile agent to receive your cash. Expires in 72 hours.
-                            </p>
-                          </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          showTracker && setExpandedCardId(isCardExpanded ? null : request.id)
+                        }
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-2xl border border-border/60 border-l-4 bg-card p-3.5 text-left shadow-sm transition-transform hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                          v.accent,
                         )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
+                      >
+                        <div
+                          className={cn(
+                            'h-11 w-11 shrink-0 rounded-full flex items-center justify-center',
+                            v.iconWrap,
+                          )}
+                          aria-hidden="true"
+                        >
+                          <ArrowUpRight className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-foreground">
+                            {formatCurrency(request.amount)}
+                          </p>
+                          {request.mobile_money_number && (
+                            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+                              <Smartphone className="h-3 w-3 shrink-0" />
+                              <span
+                                className={cn(
+                                  'uppercase font-semibold shrink-0',
+                                  request.mobile_money_provider === 'mtn'
+                                    ? 'text-yellow-600'
+                                    : 'text-red-500',
+                                )}
+                              >
+                                {request.mobile_money_provider || 'MoMo'}
+                              </span>
+                              <span className="shrink-0">•</span>
+                              <span className="truncate">{request.mobile_money_number}</span>
+                            </div>
+                          )}
+                          <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                            {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span
+                            className={cn(
+                              'inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+                              v.pill,
+                              v.pulse && 'animate-pulse',
+                            )}
+                          >
+                            {v.label}
+                          </span>
+                          {showTracker && (
+                            <ChevronDown
+                              className={cn(
+                                'mt-1 ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform',
+                                isCardExpanded && 'rotate-180',
+                              )}
+                            />
+                          )}
+                        </div>
+                      </button>
+
+                      {request.status === 'rejected' && request.rejection_reason && (
+                        <div className="mt-2 mx-1 p-2 bg-destructive/10 rounded-lg">
+                          <p className="text-xs text-destructive">
+                            <strong>Reason:</strong> {request.rejection_reason}
+                          </p>
+                        </div>
+                      )}
+
+                      {isSettled && request.processed_at && !isCardExpanded && (
+                        <div className="mt-2 mx-1 p-2 bg-success/10 rounded-lg space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs text-success">
+                            <CheckCircle className="h-3 w-3" />
+                            <span>Sent {format(new Date(request.processed_at), 'MMM d • h:mm a')}</span>
+                          </div>
+                          {request.transaction_id && (
+                            <p className="text-xs text-muted-foreground font-mono break-all">
+                              Txn ID: {request.transaction_id}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <AnimatePresence>
+                        {isCardExpanded && showTracker && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-2 mx-1 px-3 pb-3 pt-2 rounded-xl border border-border/50 bg-muted/20">
+                              <p className="text-sm text-muted-foreground text-center py-2">
+                                Awaiting approval — you'll be notified once it's processed.
+                              </p>
+                              {request.payout_code && (
+                                <div className="mt-3 p-3 rounded-lg bg-primary/5 border-2 border-primary/20 text-center space-y-2">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Your Withdrawal Code
+                                  </p>
+                                  <p className="text-2xl font-mono font-bold text-primary tracking-widest">
+                                    {request.payout_code}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    Show this code to any Welile agent to receive your cash. Expires
+                                    in 72 hours.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
         </AnimatePresence>
 
         {requests.length > 3 && (

@@ -1,10 +1,20 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp, Target, Pencil, BadgeCheck } from 'lucide-react';
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Wallet,
+  ChevronDown,
+  ChevronUp,
+  Target,
+  Pencil,
+  BadgeCheck,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { isAutoCancelledDuplicate } from '@/lib/depositDuplicateDetection';
@@ -13,9 +23,9 @@ import {
   type DepositAutoMatchAuditPayload,
 } from '@/components/wallet/DepositAutoMatchAudit';
 import DepositStatusTracker, { type DepositStage } from '@/components/payments/DepositStatusTracker';
+import { format, parseISO, isToday, isYesterday } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-// Lazy — DepositFlow pulls a heavy form tree we don't want on first paint
-// of every wallet view; the edit button only opens it on demand.
 const DepositFlow = lazy(() => import('@/components/payments/DepositFlow'));
 
 interface DepositRequest {
@@ -35,7 +45,7 @@ interface DepositRequest {
 }
 
 interface CashVerification {
-  status: string; // awaiting_code | verified | expired
+  status: string;
   verified_at: string | null;
 }
 
@@ -62,27 +72,30 @@ const purposeBadgeClass = (p: string | null | undefined) => {
   }
 };
 
+function dayLabel(iso: string): string {
+  const d = parseISO(iso);
+  if (isToday(d)) return 'TODAY';
+  if (isYesterday(d)) return 'YESTERDAY';
+  return format(d, 'EEE, d MMM yyyy').toUpperCase();
+}
+
 export function UserDepositRequests() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<DepositRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  // Maps deposit_request_id → its code-verification state, used to render
-  // the pending → code verified → auto-approved tracker for cash deposits.
   const [verifications, setVerifications] = useState<Record<string, CashVerification>>({});
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-UG', {
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-UG', {
       style: 'currency',
       currency: 'UGX',
       minimumFractionDigits: 0,
     }).format(value);
-  };
 
   const fetchRequests = async () => {
     if (!user) return;
-
     try {
       const { data, error } = await supabase
         .from('deposit_requests')
@@ -90,17 +103,15 @@ export function UserDepositRequests() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
-
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const agentIds = [...new Set(data.map(d => d.agent_id))];
+        const agentIds = [...new Set(data.map((d) => d.agent_id))];
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name')
           .in('id', agentIds);
-
-        const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+        const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
 
         const enrichedRequests = data.map((d: any) => ({
           ...d,
@@ -109,8 +120,6 @@ export function UserDepositRequests() {
 
         setRequests(enrichedRequests);
 
-        // Pull verification state for code-verified cash deposits so we can
-        // show the full lifecycle (pending → code verified → auto-approved).
         const cashIds = enrichedRequests
           .filter((r) => r.provider === 'cash_deposit')
           .map((r) => r.id);
@@ -140,11 +149,9 @@ export function UserDepositRequests() {
 
   useEffect(() => {
     fetchRequests();
-    // Realtime removed — deposit_requests not in realtime whitelist
+     
   }, [user]);
 
-  // After an edit closes, refresh the list so the agent sees the new
-  // amount / allocation summary immediately.
   const handleEditClose = (open: boolean) => {
     if (!open) {
       setEditingId(null);
@@ -152,19 +159,44 @@ export function UserDepositRequests() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
+  const visualFor = (req: DepositRequest) => {
+    if (isAutoCancelledDuplicate(req)) {
+      return {
+        Icon: BadgeCheck,
+        accent: 'border-l-success',
+        iconWrap: 'bg-success/10 text-success',
+        pill: 'bg-success/10 text-success',
+        label: 'Already credited',
+      };
+    }
+    switch (req.status) {
       case 'approved':
-        return <CheckCircle2 className="h-4 w-4 text-success" />;
+        return {
+          Icon: CheckCircle2,
+          accent: 'border-l-success',
+          iconWrap: 'bg-success/10 text-success',
+          pill: 'bg-success/10 text-success',
+          label: 'Approved',
+        };
       case 'rejected':
-        return <XCircle className="h-4 w-4 text-destructive" />;
+        return {
+          Icon: XCircle,
+          accent: 'border-l-destructive',
+          iconWrap: 'bg-destructive/10 text-destructive',
+          pill: 'bg-destructive/10 text-destructive',
+          label: 'Rejected',
+        };
       default:
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+        return {
+          Icon: Clock,
+          accent: 'border-l-warning',
+          iconWrap: 'bg-warning/15 text-warning',
+          pill: 'bg-warning/15 text-warning',
+          label: 'Pending',
+        };
     }
   };
 
-  // Derive the 3-stage cash-deposit lifecycle from the request + its
-  // verification row. Only meaningful for provider === 'cash_deposit'.
   const computeStage = (req: DepositRequest): DepositStage => {
     if (req.status === 'rejected') return 'rejected';
     if (req.status === 'approved') return 'approved';
@@ -174,29 +206,16 @@ export function UserDepositRequests() {
     return 'pending';
   };
 
-  const getStatusBadge = (req: DepositRequest) => {
-    if (isAutoCancelledDuplicate(req)) {
-      return (
-        <span>
-          <Badge
-            variant="outline"
-            className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
-          >
-            <BadgeCheck className="h-3 w-3 mr-1" />
-            Already credited
-          </Badge>
-        </span>
-      );
+  const dayGroups = useMemo(() => {
+    const groups: { key: string; label: string; rows: DepositRequest[] }[] = [];
+    for (const r of requests) {
+      const key = format(parseISO(r.created_at), 'yyyy-MM-dd');
+      const last = groups[groups.length - 1];
+      if (last && last.key === key) last.rows.push(r);
+      else groups.push({ key, label: dayLabel(r.created_at), rows: [r] });
     }
-    switch (req.status) {
-      case 'approved':
-        return <span><Badge variant="default" className="bg-success/10 text-success border-success/20">Approved</Badge></span>;
-      case 'rejected':
-        return <span><Badge variant="destructive">Rejected</Badge></span>;
-      default:
-        return <span><Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge></span>;
-    }
-  };
+    return groups;
+  }, [requests]);
 
   if (loading) {
     return (
@@ -214,175 +233,222 @@ export function UserDepositRequests() {
     );
   }
 
-  if (requests.length === 0) {
-    return null;
-  }
+  if (requests.length === 0) return null;
 
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
-  // True rejections only — auto-cancelled duplicates are NOT failures; they
-  // mean the depositor was already credited from their mobile-money
-  // receipt, so they don't warrant the red "rejected" highlight.
+  const pendingCount = requests.filter((r) => r.status === 'pending').length;
   const rejectedCount = requests.filter(
     (r) => r.status === 'rejected' && !isAutoCancelledDuplicate(r),
   ).length;
 
   return (
     <>
-    <Collapsible
-      open={isOpen || rejectedCount > 0}
-      onOpenChange={setIsOpen}
-    >
-      <CollapsibleTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`w-full justify-between hover:bg-muted/50 ${rejectedCount > 0 ? 'bg-destructive/5' : ''}`}
-        >
-          <span className="flex items-center gap-2">
-            <Wallet className={`h-4 w-4 ${rejectedCount > 0 ? 'text-destructive' : 'text-primary'}`} />
-            <span className="text-sm font-medium">Deposit Requests</span>
-            {rejectedCount > 0 && (
-              <Badge variant="destructive" className="text-xs">
-                {rejectedCount} rejected
-              </Badge>
+      <Collapsible open={isOpen || rejectedCount > 0} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`w-full justify-between hover:bg-muted/50 ${
+              rejectedCount > 0 ? 'bg-destructive/5' : ''
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Wallet
+                className={`h-4 w-4 ${rejectedCount > 0 ? 'text-destructive' : 'text-primary'}`}
+              />
+              <span className="text-sm font-medium">Deposit Requests</span>
+              {rejectedCount > 0 && (
+                <Badge variant="destructive" className="text-xs">
+                  {rejectedCount} rejected
+                </Badge>
+              )}
+              {pendingCount > 0 && (
+                <Badge variant="secondary" className="bg-warning/15 text-warning text-xs">
+                  {pendingCount} pending
+                </Badge>
+              )}
+            </span>
+            {isOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
-            {pendingCount > 0 && (
-              <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 text-xs">
-                {pendingCount} pending
-              </Badge>
-            )}
-          </span>
-          {isOpen ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          )}
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <Card className="mt-2">
-          <CardContent className="p-3 space-y-2">
-            <AnimatePresence mode="popLayout">
-              {requests.map((request) => (
-                <motion.div
-                  key={request.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  className="p-3 rounded-lg border bg-card/50"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {isAutoCancelledDuplicate(request) ? (
-                        <BadgeCheck className="h-4 w-4 text-emerald-600" />
-                      ) : (
-                        getStatusIcon(request.status)
-                      )}
-                      <div>
-                        <p className="font-medium text-sm">
-                          {formatCurrency(request.amount)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          via {request.agent_name}
-                        </p>
-                        {(() => {
-                          const p = request.purpose_audit?.chosen_purpose ?? request.deposit_purpose ?? null;
-                          if (!p) return null;
-                          return (
-                            <Badge
-                              variant="outline"
-                              className={`mt-1 text-[10px] px-1.5 py-0 h-4 ${purposeBadgeClass(p)}`}
-                            >
-                              <Target className="h-2.5 w-2.5 mr-0.5" />
-                              {PURPOSE_LABELS[p] ?? p}
-                            </Badge>
-                          );
-                        })()}
-                        {request.notes && (
-                          <p className="text-xs text-muted-foreground italic">
-                            "{request.notes}"
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      {getStatusBadge(request)}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(request.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  {isAutoCancelledDuplicate(request) ? (
-                    <div className="mt-2 p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800">
-                      <p className="font-medium flex items-center gap-1">
-                        <BadgeCheck className="h-3.5 w-3.5" />
-                        No duplicate created
-                      </p>
-                      <p className="mt-0.5 text-emerald-700/90">
-                        {request.rejection_reason}
-                      </p>
-                    </div>
-                  ) : request.status === 'rejected' && request.rejection_reason && (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-xs text-destructive bg-destructive/10 p-2 rounded">
-                        Reason: {request.rejection_reason}
-                      </p>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setEditingId(request.id)}
-                      >
-                        <Pencil className="h-3 w-3 mr-1" />
-                        Fix details & resubmit
-                      </Button>
-                    </div>
-                  )}
-                      {request.status === 'pending' &&
-                        (request.deposit_purpose === 'operational_float' ||
-                          request.purpose_audit?.chosen_purpose === 'operational_float') && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-2 h-7 text-xs"
-                            onClick={() => setEditingId(request.id)}
-                          >
-                            <Pencil className="h-3 w-3 mr-1" />
-                            Edit allocations
-                          </Button>
-                        )}
-                  {request.provider === 'cash_deposit' && !isAutoCancelledDuplicate(request) && (
-                    <div className="mt-3 pt-3 border-t border-border/60">
-                      <DepositStatusTracker
-                        stage={computeStage(request)}
-                        compact
-                        timestamps={{
-                          pendingAt: request.created_at,
-                          verifiedAt: verifications[request.id]?.verified_at ?? null,
-                          approvedAt: request.status === 'approved' ? request.approved_at ?? null : null,
-                        }}
-                      />
-                    </div>
-                  )}
-                  <DepositAutoMatchAudit audit={request.auto_match_audit} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </CardContent>
-        </Card>
-      </CollapsibleContent>
-        </Collapsible>
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <Card className="mt-2 border-border/50 rounded-2xl">
+            <CardContent className="p-4 space-y-6">
+              <AnimatePresence mode="popLayout">
+                {dayGroups.map((group) => (
+                  <section key={group.key} aria-labelledby={`dep-${group.key}`}>
+                    <h4
+                      id={`dep-${group.key}`}
+                      className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"
+                    >
+                      {group.label}
+                    </h4>
+                    <ul className="space-y-2.5 list-none p-0 m-0">
+                      {group.rows.map((request) => {
+                        const v = visualFor(request);
+                        const Icon = v.Icon;
+                        const purpose =
+                          request.purpose_audit?.chosen_purpose ?? request.deposit_purpose ?? null;
+                        const purposeLabel = purpose ? PURPOSE_LABELS[purpose] ?? purpose : null;
+                        const isCashTracker =
+                          request.provider === 'cash_deposit' && !isAutoCancelledDuplicate(request);
 
-        {editingId && (
-          <Suspense fallback={null}>
-            <DepositFlow
-              open={!!editingId}
-              onOpenChange={handleEditClose}
-              editRequestId={editingId}
-            />
-          </Suspense>
-        )}
-      </>
+                        return (
+                          <motion.li
+                            key={request.id}
+                            layout
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, x: -30 }}
+                          >
+                            <div
+                              className={cn(
+                                'rounded-2xl border border-border/60 border-l-4 bg-card p-3.5 shadow-sm',
+                                v.accent,
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={cn(
+                                    'h-11 w-11 shrink-0 rounded-full flex items-center justify-center',
+                                    v.iconWrap,
+                                  )}
+                                  aria-hidden="true"
+                                >
+                                  <Icon className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-bold text-foreground">
+                                    {formatCurrency(request.amount)}
+                                  </p>
+                                  <p className="mt-0.5 text-[11px] text-muted-foreground truncate">
+                                    via {request.agent_name}
+                                    {purposeLabel && (
+                                      <>
+                                        <span className="mx-1.5 text-muted-foreground/60">|</span>
+                                        {purposeLabel}
+                                      </>
+                                    )}
+                                  </p>
+                                  {request.notes && (
+                                    <p className="mt-0.5 text-[11px] text-muted-foreground/80 italic truncate">
+                                      "{request.notes}"
+                                    </p>
+                                  )}
+                                  {purpose && (
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        'mt-1 text-[10px] px-1.5 py-0 h-4',
+                                        purposeBadgeClass(purpose),
+                                      )}
+                                    >
+                                      <Target className="h-2.5 w-2.5 mr-0.5" />
+                                      {purposeLabel}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <span
+                                    className={cn(
+                                      'inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+                                      v.pill,
+                                    )}
+                                  >
+                                    {v.label}
+                                  </span>
+                                  <p className="mt-1 text-[10px] text-muted-foreground/80">
+                                    {new Date(request.created_at).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {isAutoCancelledDuplicate(request) ? (
+                                <div className="mt-3 p-2 rounded-lg bg-success/10 border border-success/20 text-xs text-success-foreground">
+                                  <p className="font-medium flex items-center gap-1 text-success">
+                                    <BadgeCheck className="h-3.5 w-3.5" />
+                                    No duplicate created
+                                  </p>
+                                  <p className="mt-0.5 text-success/90">
+                                    {request.rejection_reason}
+                                  </p>
+                                </div>
+                              ) : (
+                                request.status === 'rejected' &&
+                                request.rejection_reason && (
+                                  <div className="mt-3 space-y-2">
+                                    <p className="text-xs text-destructive bg-destructive/10 p-2 rounded-lg">
+                                      Reason: {request.rejection_reason}
+                                    </p>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={() => setEditingId(request.id)}
+                                    >
+                                      <Pencil className="h-3 w-3 mr-1" />
+                                      Fix details & resubmit
+                                    </Button>
+                                  </div>
+                                )
+                              )}
+
+                              {request.status === 'pending' &&
+                                (request.deposit_purpose === 'operational_float' ||
+                                  request.purpose_audit?.chosen_purpose === 'operational_float') && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-3 h-7 text-xs"
+                                    onClick={() => setEditingId(request.id)}
+                                  >
+                                    <Pencil className="h-3 w-3 mr-1" />
+                                    Edit allocations
+                                  </Button>
+                                )}
+
+                              {isCashTracker && (
+                                <div className="mt-3 pt-3 border-t border-border/60">
+                                  <DepositStatusTracker
+                                    stage={computeStage(request)}
+                                    compact
+                                    timestamps={{
+                                      pendingAt: request.created_at,
+                                      verifiedAt: verifications[request.id]?.verified_at ?? null,
+                                      approvedAt:
+                                        request.status === 'approved'
+                                          ? request.approved_at ?? null
+                                          : null,
+                                    }}
+                                  />
+                                </div>
+                              )}
+                              <DepositAutoMatchAudit audit={request.auto_match_audit} />
+                            </div>
+                          </motion.li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </AnimatePresence>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {editingId && (
+        <Suspense fallback={null}>
+          <DepositFlow
+            open={!!editingId}
+            onOpenChange={handleEditClose}
+            editRequestId={editingId}
+          />
+        </Suspense>
+      )}
+    </>
   );
 }
