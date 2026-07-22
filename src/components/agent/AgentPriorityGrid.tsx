@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ArrowRight, CloudUpload, WifiOff, UserPlus, Wallet, HandCoins, Home as HomeIcon, Sparkles } from 'lucide-react';
+import { ArrowRight, CloudUpload, WifiOff, UserPlus, HandCoins, Home as HomeIcon, Sparkles } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
@@ -7,13 +7,12 @@ import { cn } from '@/lib/utils';
 import { getEntries, getQueuedEntries } from '@/lib/fieldCollectStore';
 
 /**
- * Agent dashboard priority grid — 4 large, finger-friendly tiles.
+ * Agent dashboard priority grid — 3 large, finger-friendly tiles.
  *
- * The four priorities an ordinary agent should reach instantly, in plain words:
- *   1. Wallet        — money I can withdraw (opens full wallet)
- *   2. Collect Rent  — record cash collected today (live total)
- *   3. Add Tenant    — start a rent request
- *   4. List House    — register an empty house and earn a bonus
+ * The three priorities an ordinary agent should reach instantly, in plain words:
+ *   1. Collect Rent  — record cash collected today (live total)
+ *   2. Add Tenant    — start a rent request
+ *   3. List House    — register an empty house and earn a bonus
  *
  * Designed for low-end Android browsers: 1.5x icon size, ≥80px tap target,
  * minimal text, plain language. Collect Rent uses local IndexedDB so it works offline.
@@ -21,20 +20,16 @@ import { getEntries, getQueuedEntries } from '@/lib/fieldCollectStore';
 
 interface Props {
   agentId: string;
-  /** Withdrawable balance (UGX) shown on the Wallet tile. */
-  withdrawable: number;
-  onOpenWallet: () => void;
   onOpenFieldCollect: () => void;
   onOpenNewTenant: () => void;
   onOpenListHouse: () => void;
   /**
-   * Merchant Agents are payout-only: hide Collect Rent / Add Tenant / List House
-   * and keep just the Wallet tile.
+   * Merchant Agents are payout-only: hide Collect Rent / Add Tenant / List House.
    */
   restricted?: boolean;
 }
 
-export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenFieldCollect, onOpenNewTenant, onOpenListHouse, restricted = false }: Props) {
+export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant, onOpenListHouse, restricted = false }: Props) {
   useProfile(); // keep hook to preserve profile prefetch behaviour
 
   // Field Collect live state (mirrors FieldCollectCard logic)
