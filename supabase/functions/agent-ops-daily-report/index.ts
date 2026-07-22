@@ -128,31 +128,6 @@ interface Report {
   hourlyVolume: number[]; // collected volume per EAT hour (24)
   topAgents: { name: string; total: number; count: number }[];
   perAgent: { name: string; phone: string; collections: number; collected: number; deposits: number; deposited: number }[];
-  // Live dashboard mirror
-  newAgentsToday: number;
-  rentRequestsToday: number;
-  commissionToday: number;
-  funnel: {
-    total_users: number;
-    total_agents: number;
-    active_agents: number;
-    window_days: number;
-    criteria: { house_listings: number; promissory_notes: number; behalf_rent_requests: number; subagents: number };
-  };
-  monthly: {
-    month: string;
-    total_agents: number;
-    adv_agents_current: number;
-    adv_agents_current_prev: number;
-    new_adv_agents_month: number;
-    new_adv_agents_prev: number;
-    volume_month: number;
-    volume_prev: number;
-    principal_total: number;
-    outstanding_total: number;
-    deliveries_month: number;
-    deliveries_prev: number;
-  };
   // Advance repayment receivables — projected inflows from currently active
   // agent_advances over the next N days (starting tomorrow EAT).
   receivables: {
