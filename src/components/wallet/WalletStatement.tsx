@@ -299,6 +299,7 @@ export function WalletStatement() {
   const [subAgentEarnings, setSubAgentEarnings] = useState<SubAgentEarningRow[]>([]);
   // Filters
   const [directionFilter, setDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [rangePreset, setRangePreset] = useState<'all' | '7d' | '30d' | '90d'>('all');
   // Progressive disclosure for a calmer default view
