@@ -74,6 +74,7 @@ import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/co
 
 
 import { hapticTap } from '@/lib/haptics';
+import { useListingDaytimeGuard } from '@/hooks/useListingDaytimeGuard';
 import AgentFrozenGate from '@/components/agent/AgentFrozenGate';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
@@ -414,6 +415,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [rentalFinderOpen, setRentalFinderOpen] = useState(false);
   const [listHouseOpen, setListHouseOpen] = useState(false);
   const [listHouseFromPromo, setListHouseFromPromo] = useState(false);
+  const guardListingHours = useListingDaytimeGuard();
   const [myListingsOpen, setMyListingsOpen] = useState(false);
   const [myListingsVacantOnly, setMyListingsVacantOnly] = useState(false);
 
@@ -1070,7 +1072,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               restricted={isMerchant}
               onOpenFieldCollect={() => { if (guardMerchant()) return; setFieldCollectOpen(true); }}
               onOpenNewTenant={() => { if (guardMerchant()) return; setRentRequestOpen(true); }}
-              onOpenListHouse={() => { if (guardMerchant()) return; hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
+              onOpenListHouse={() => {
+                if (guardMerchant()) return;
+                if (!guardListingHours()) return;
+                hapticTap();
+                setListHouseFromPromo(false);
+                setListHouseOpen(true);
+              }}
             />
 
 
@@ -1599,7 +1607,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onIssueReceipt={() => { setMenuOpen(false); setReceiptOpen(true); }}
         onViewLandlordMap={() => { setMenuOpen(false); setLandlordMapOpen(true); }}
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
-        onListEmptyHouse={() => { setMenuOpen(false); setListHouseFromPromo(false); setListHouseOpen(true); }}
+        onListEmptyHouse={() => {
+          setMenuOpen(false);
+          if (!guardListingHours()) return;
+          setListHouseFromPromo(false);
+          setListHouseOpen(true);
+        }}
         onViewMyListings={() => { setMenuOpen(false); setMyListingsVacantOnly(false); setMyListingsOpen(true); }}
         onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
         onViewLandlords={() => { setMenuOpen(false); setLandlordsSheetOpen(true); }}
@@ -1903,7 +1916,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           if (!open) setMyListingsVacantOnly(false);
         }}
         vacantOnly={myListingsVacantOnly}
-        onListHouse={() => { setListHouseFromPromo(false); setListHouseOpen(true); }}
+        onListHouse={() => {
+          if (!guardListingHours()) return;
+          setListHouseFromPromo(false);
+          setListHouseOpen(true);
+        }}
       />
       </LazyModal>
 

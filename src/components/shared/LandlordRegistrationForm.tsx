@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { hapticTap, hapticWarning } from '@/lib/haptics';
+import { useListingDaytimeGuard } from '@/hooks/useListingDaytimeGuard';
 import FormStepHeader from '@/components/shared/FormStepHeader';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
@@ -89,6 +90,7 @@ export default function LandlordRegistrationForm({
   // Inline error state when the submission itself fails (network, DB, etc.)
   const [submitError, setSubmitError] = useState('');
   const [showListHouse, setShowListHouse] = useState(false);
+  const guardListingHours = useListingDaytimeGuard();
   const [activationLink, setActivationLink] = useState('');
   // Id of the landlord just created, used to deep-link to its record.
   const [registeredLandlordId, setRegisteredLandlordId] = useState<string | null>(null);
@@ -1118,7 +1120,11 @@ export default function LandlordRegistrationForm({
                 type="button"
                 variant="outline"
                 className="w-full h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
-                onClick={() => { hapticTap(); setShowListHouse(true); }}
+                onClick={() => {
+                  if (!guardListingHours()) return;
+                  hapticTap();
+                  setShowListHouse(true);
+                }}
               >
                 <Home className="h-4 w-4" />
                 List a house for this landlord
