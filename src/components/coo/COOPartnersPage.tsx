@@ -1113,7 +1113,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason, funder_verified_at, signup_source').eq('id', partnerId).single(),
         supabase.from('wallets').select('balance, withdrawable_balance, float_balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number, pending_renewal_effective_date, pending_renewal_duration_months')
           .or(`investor_id.eq.${partnerId},agent_id.eq.${partnerId}`)
           .order('created_at', { ascending: false }),
         supabase.from('general_ledger')
