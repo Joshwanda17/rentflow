@@ -456,6 +456,70 @@ export function MaturityRequestsQueue() {
                     </button>
                   )}
 
+                  {/* Renewal preview panel — shows Ops the exact dates the
+                      approval will produce BEFORE they click. Only renders
+                      for pending / processing renewal requests. */}
+                  {isRenewal &&
+                    (req.status === 'pending' || req.status === 'processing') &&
+                    !sched && (() => {
+                      const preview = computeRenewalPreview(req);
+                      if (!preview) return null;
+                      const isNow = preview.mode === 'renew_now';
+                      return (
+                        <div
+                          className={cn(
+                            'rounded-md border p-2.5 space-y-2',
+                            isNow
+                              ? 'bg-emerald-50/60 border-emerald-200'
+                              : 'bg-purple-50/60 border-purple-200',
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide">
+                            {isNow ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                <span className="text-emerald-700">Renewal preview — will apply immediately</span>
+                              </>
+                            ) : (
+                              <>
+                                <CalendarClock className="h-3.5 w-3.5 text-purple-600" />
+                                <span className="text-purple-700">
+                                  Renewal preview — auto-applies in {preview.daysRemaining} day
+                                  {preview.daysRemaining === 1 ? '' : 's'}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                            <div>
+                              <p className="text-muted-foreground">Effective from</p>
+                              <p className="font-semibold">{format(preview.effectiveDate, 'd MMM yyyy')}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">New term</p>
+                              <p className="font-semibold">{preview.durationMonths} months</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">New maturity date</p>
+                              <p className="font-semibold">{format(preview.newMaturityDate, 'd MMM yyyy')}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Next returns payout</p>
+                              <p className="font-semibold">{format(preview.newNextRoiDate, 'd MMM yyyy')}</p>
+                            </div>
+                          </div>
+                          {!isNow && (
+                            <p className="text-[10px] text-purple-700/80 leading-snug">
+                              Portfolio stays on its current cycle until{' '}
+                              {format(preview.effectiveDate, 'd MMM yyyy')}. Partner receives a
+                              "Renewal Scheduled" email now, and a "Renewed" email once the cron runs at
+                              midnight EAT on that date.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                   {req.status !== 'completed' && req.status !== 'cancelled' && (
                     <div className="flex flex-wrap gap-2 pt-0.5">
                       {req.status === 'pending' && (
