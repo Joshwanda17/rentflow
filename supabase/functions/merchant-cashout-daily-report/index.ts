@@ -108,6 +108,9 @@ interface DetailRow {
 function buildHtml(report: any, prettyDate: string): string {
   const summary: SummaryRow[] = report.summary || [];
   const detail: DetailRow[] = report.detail || [];
+  const roi = report.roi || { total_paid: 0, total_reinvested: 0, payout_count: 0, recipient_count: 0, recipients: [] };
+  const roiRecipients: Array<{ recipient_name: string; recipient_phone: string | null; payouts: number; total_paid: number }> =
+    roi.recipients || [];
 
   // Summary metric tile — half-width on mobile via inline-block, still stacks
   // gracefully in email clients that ignore media queries.
@@ -151,6 +154,31 @@ function buildHtml(report: any, prettyDate: string): string {
       </div>`,
     )
     .join("");
+
+  const roiSection = `
+      <h2 style="font-size:15px;margin:22px 0 10px;color:#1a1a2e;">ROI Payouts — ${esc(prettyDate)}</h2>
+      <div style="font-size:0;margin-bottom:14px;">
+        ${metric("ROI Payouts", String(roi.payout_count || 0))}
+        ${metric("Recipients", String(roi.recipient_count || 0))}
+        ${metric("ROI Paid", fmtUGX(roi.total_paid || 0), "#0f766e", "#ecfdf5")}
+        ${metric("ROI Reinvested", fmtUGX(roi.total_reinvested || 0), "#6c21c4")}
+      </div>
+      ${
+        roiRecipients.length
+          ? roiRecipients
+              .map(
+                (r) => `
+        <div style="border:1px solid #d1fae5;border-radius:10px;padding:10px 12px;margin:0 0 8px;background:#f8fefb;">
+          <div style="font-size:14px;font-weight:600;color:#1a1a2e;line-height:1.3;">${esc(r.recipient_name || "—")}</div>
+          <div style="font-size:12px;color:#666;margin-top:2px;">${esc(r.recipient_phone || "—")} · ${r.payouts} payout${r.payouts === 1 ? "" : "s"}</div>
+          <table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;">
+            <tr><td style="padding:2px 0;color:#666;">ROI paid</td><td style="padding:2px 0;text-align:right;font-weight:700;color:#0f766e;">${fmtUGX(r.total_paid)}</td></tr>
+          </table>
+        </div>`,
+              )
+              .join("")
+          : `<div style="padding:16px;text-align:center;color:#888;background:#f0fdf4;border-radius:10px;">No ROI payouts recorded for this day.</div>`
+      }`;
 
   return `<!doctype html><html><head>
   <meta charset="utf-8" />
@@ -202,6 +230,8 @@ function buildHtml(report: any, prettyDate: string): string {
           : ""
       }
 
+      ${roiSection}
+
       <p style="margin:22px 0 0;font-size:11px;line-height:1.5;color:#999;">
         Generated automatically from the Welile financial ledger. Figures reflect merchant cash-out
         settlements posted for the reporting day (Africa/Kampala). This is an internal operations report.
@@ -221,6 +251,14 @@ function buildText(report: any, prettyDate: string): string {
   lines.push(`Telecom charges: ${fmtUGX(report.total_telecom || 0)}`);
   lines.push(`Float consumed:  ${fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0)))}`);
   lines.push(`Total commission: ${fmtUGX(report.total_commission || 0)}`);
+  lines.push("");
+  const roi = report.roi || { total_paid: 0, total_reinvested: 0, payout_count: 0, recipient_count: 0, recipients: [] };
+  lines.push(`ROI payouts: ${roi.payout_count || 0} to ${roi.recipient_count || 0} recipients`);
+  lines.push(`ROI paid:      ${fmtUGX(roi.total_paid || 0)}`);
+  lines.push(`ROI reinvested: ${fmtUGX(roi.total_reinvested || 0)}`);
+  for (const r of (roi.recipients || []) as Array<{ recipient_name: string; recipient_phone: string | null; payouts: number; total_paid: number }>) {
+    lines.push(`- ${r.recipient_name} (${r.recipient_phone || "—"}): ${r.payouts} payouts, ${fmtUGX(r.total_paid)}`);
+  }
   lines.push("");
   lines.push("Per merchant agent:");
   for (const r of (report.summary || []) as SummaryRow[]) {
@@ -288,6 +326,73 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---- ROI Payouts (from immutable ledger) ----
+    // EAT day boundaries: EAT = UTC+3, so day [D 00:00 EAT, D+1 00:00 EAT) is
+    // [D 21:00 UTC prev, D 21:00 UTC].
+    const startUtc = new Date(`${targetDate}T00:00:00+03:00`).toISOString();
+    const endUtc = new Date(new Date(`${targetDate}T00:00:00+03:00`).getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: roiCredits } = await admin
+      .from("general_ledger")
+      .select("user_id, amount")
+      .eq("category", "roi_wallet_credit")
+      .eq("direction", "cash_in")
+      .gte("created_at", startUtc)
+      .lt("created_at", endUtc);
+
+    const { data: roiReinv } = await admin
+      .from("general_ledger")
+      .select("amount")
+      .eq("category", "roi_reinvestment")
+      .eq("direction", "cash_in")
+      .gte("created_at", startUtc)
+      .lt("created_at", endUtc);
+
+    const byRecipient = new Map<string, { total: number; count: number }>();
+    let roiTotalPaid = 0;
+    for (const row of (roiCredits || []) as Array<{ user_id: string | null; amount: number }>) {
+      const amt = Number(row.amount) || 0;
+      roiTotalPaid += amt;
+      const key = row.user_id || "unknown";
+      const cur = byRecipient.get(key) || { total: 0, count: 0 };
+      cur.total += amt;
+      cur.count += 1;
+      byRecipient.set(key, cur);
+    }
+    const roiTotalReinvested = ((roiReinv || []) as Array<{ amount: number }>).reduce(
+      (s, r) => s + (Number(r.amount) || 0),
+      0,
+    );
+
+    // Resolve recipient names/phones.
+    const recipientIds = Array.from(byRecipient.keys()).filter((k) => k !== "unknown");
+    const nameMap = new Map<string, { name: string; phone: string | null }>();
+    if (recipientIds.length) {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("id, full_name, phone")
+        .in("id", recipientIds);
+      for (const p of (profs || []) as Array<{ id: string; full_name: string | null; phone: string | null }>) {
+        nameMap.set(p.id, { name: p.full_name || "Unknown", phone: p.phone });
+      }
+    }
+    const roiRecipients = Array.from(byRecipient.entries())
+      .map(([id, v]) => ({
+        recipient_name: nameMap.get(id)?.name || (id === "unknown" ? "Unknown" : id.slice(0, 8)),
+        recipient_phone: nameMap.get(id)?.phone || null,
+        payouts: v.count,
+        total_paid: v.total,
+      }))
+      .sort((a, b) => b.total_paid - a.total_paid);
+
+    (report as any).roi = {
+      total_paid: roiTotalPaid,
+      total_reinvested: roiTotalReinvested,
+      payout_count: (roiCredits || []).length,
+      recipient_count: roiRecipients.length,
+      recipients: roiRecipients,
+    };
+
     const prettyDate = new Date(`${targetDate}T00:00:00Z`).toLocaleDateString("en-GB", {
       weekday: "long",
       day: "numeric",
@@ -300,7 +405,7 @@ Deno.serve(async (req) => {
     const text = buildText(report, prettyDate);
     const subject = `Merchant Cash-Out Payouts — ${prettyDate}: ${fmtUGX(
       report?.total_paid || 0,
-    )} paid + ${fmtUGX(report?.total_telecom || 0)} telecom across ${report?.total_payouts || 0} payouts`;
+    )} paid + ${fmtUGX(report?.total_telecom || 0)} telecom across ${report?.total_payouts || 0} payouts · ROI ${fmtUGX((report as any)?.roi?.total_paid || 0)} (${(report as any)?.roi?.payout_count || 0})`;
 
     // Enqueue one email per recipient into the existing Lovable email queue.
     const results: Record<string, string> = {};
@@ -350,6 +455,10 @@ Deno.serve(async (req) => {
         total_commission: report?.total_commission ?? 0,
         total_telecom: report?.total_telecom ?? 0,
         total_float_consumed: report?.total_float_consumed ?? 0,
+        roi_total_paid: (report as any)?.roi?.total_paid ?? 0,
+        roi_total_reinvested: (report as any)?.roi?.total_reinvested ?? 0,
+        roi_payout_count: (report as any)?.roi?.payout_count ?? 0,
+        roi_recipient_count: (report as any)?.roi?.recipient_count ?? 0,
         results,
       },
     });
