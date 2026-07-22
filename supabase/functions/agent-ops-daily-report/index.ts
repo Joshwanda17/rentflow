@@ -426,6 +426,48 @@ function kpiCell(label: string, value: string, color = "#1a1a2e"): string {
   </td>`;
 }
 
+function buildReceivablesSection(r: Report): string {
+  const cards = r.receivables.horizons.map((h) => {
+    const interestPct = h.totalDue > 0 ? (h.interestDue / h.totalDue) * 100 : 0;
+    return `
+      <td style="width:20%;padding:6px;vertical-align:top;">
+        <div style="background:linear-gradient(160deg, ${PURPLE} 0%, ${PURPLE_DK} 100%);color:#fff;border-radius:14px;padding:16px 14px;box-shadow:0 6px 18px rgba(76,22,150,.18);">
+          <div style="font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.6px;">${esc(h.label)}</div>
+          <div style="font-size:22px;font-weight:800;margin-top:6px;line-height:1.1;">${esc(fmtUGX(h.totalDue))}</div>
+          <div style="height:1px;background:rgba(255,255,255,.25);margin:10px 0;"></div>
+          <div style="font-size:11px;opacity:.9;">Interest generated</div>
+          <div style="font-size:16px;font-weight:700;color:#ffe89a;margin-top:2px;">${esc(fmtUGX(h.interestDue))}</div>
+          <div style="font-size:10px;opacity:.75;margin-top:2px;">${interestPct.toFixed(1)}% of collections</div>
+          <div style="height:1px;background:rgba(255,255,255,.25);margin:10px 0;"></div>
+          <div style="font-size:10px;opacity:.85;">Principal ${esc(fmtUGX(h.principalDue))}</div>
+          <div style="font-size:10px;opacity:.85;margin-top:2px;">${h.contributingAdvances.toLocaleString()} active advances</div>
+        </div>
+      </td>`;
+  }).join("");
+
+  const totalInterestNext90 = r.receivables.horizons.find((h) => h.days === 90)?.interestDue ?? 0;
+  const totalNext90 = r.receivables.horizons.find((h) => h.days === 90)?.totalDue ?? 0;
+
+  return `
+    <div style="background:#fef7ec;border:1px solid #f5d38a;border-radius:14px;padding:14px 16px;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <h2 style="margin:0;font-size:17px;color:${PURPLE_DK};">Advance Repayments Receivable</h2>
+          <p style="margin:4px 0 0;font-size:11px;color:#7a5a1a;">Projected inflows from ${r.receivables.activeAdvances.toLocaleString()} active agent advances · Total outstanding ${esc(fmtUGX(r.receivables.totalOutstanding))}</p>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:#7a5a1a;text-transform:uppercase;letter-spacing:.4px;">Projected interest (90d)</div>
+          <div style="font-size:20px;font-weight:800;color:${GREEN};">${esc(fmtUGX(totalInterestNext90))}</div>
+          <div style="font-size:10px;color:#7a5a1a;">of ${esc(fmtUGX(totalNext90))} total collections</div>
+        </div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:separate;border-spacing:0;margin-bottom:22px;">
+      <tr>${cards}</tr>
+    </table>
+  `;
+}
+
 function buildHtml(r: Report, prettyDate: string): string {
   const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
 
