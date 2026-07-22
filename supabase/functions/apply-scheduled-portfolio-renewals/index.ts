@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
     // Batch-fetch every portfolio whose scheduled effective date has arrived,
     // joining the investor profile so we resolve name + email in one round-trip.
-    const { data: due, error: dueErr } = await admin
+    const { data: scheduledDue, error: dueErr } = await admin
       .from("investor_portfolios")
       .select(
         `id, portfolio_code, account_name, investor_id, investment_amount,
@@ -42,6 +42,31 @@ Deno.serve(async (req) => {
       .limit(1000);
 
     if (dueErr) throw dueErr;
+
+    // Also auto-renew any ACTIVE portfolio that has silently passed its
+    // maturity date without a scheduled renewal — otherwise expired portfolios
+    // sit un-rolled and payouts run against a matured principal.
+    const { data: expiredNoSchedule, error: expErr } = await admin
+      .from("investor_portfolios")
+      .select(
+        `id, portfolio_code, account_name, investor_id, investment_amount,
+         roi_percentage, duration_months, maturity_date, pending_renewal_effective_date,
+         pending_renewal_request_id,
+         investor:profiles!investor_portfolios_investor_id_fkey(email, full_name)`,
+      )
+      .eq("status", "active")
+      .not("maturity_date", "is", null)
+      .lte("maturity_date", todayStr)
+      .is("pending_renewal_effective_date", null)
+      .limit(1000);
+    if (expErr) throw expErr;
+
+    const seen = new Set<string>();
+    const due = [...(scheduledDue || []), ...(expiredNoSchedule || [])].filter((r: any) => {
+      if (seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    });
 
     // Resolve a system actor once (cron has no auth.uid())
     let systemActor: string | null = null;

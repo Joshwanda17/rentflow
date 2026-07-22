@@ -64,20 +64,28 @@ function PortfolioRow({ p, onTap }: { p: PortfolioRecord; onTap: () => void }) {
   const roi = (Number(p.investment_amount) * Number(p.roi_percentage)) / 100;
   const cfg = statusConfig[p.status] || { label: p.status, variant: 'outline' as const, dot: 'bg-muted-foreground/40' };
   const name = p.account_name || p.portfolio_code || 'Investment Account';
+  const matDate = p.maturity_date ? new Date(p.maturity_date) : null;
+  const isExpired = !!matDate && differenceInCalendarDays(matDate, new Date()) < 0 && p.status === 'active';
 
   return (
     <button
       onClick={() => { hapticTap(); onTap(); }}
       className="w-full text-left active:scale-[0.98] transition-transform"
     >
-      <Card className="p-3.5 flex items-center gap-3 border-border/60 hover:bg-accent/30 transition-colors">
+      <Card className={`p-3.5 flex items-center gap-3 hover:bg-accent/30 transition-colors ${isExpired ? 'border-2 border-destructive/60 ring-1 ring-destructive/20' : 'border-border/60'}`}>
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
           <PiggyBank className="h-4.5 w-4.5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-bold truncate">{name}</span>
-            <Badge variant={cfg.variant} size="sm" className="shrink-0">{cfg.label}</Badge>
+            {isExpired ? (
+              <Badge variant="destructive" size="sm" className="shrink-0 gap-1">
+                <AlertTriangle className="h-2.5 w-2.5" /> Expired
+              </Badge>
+            ) : (
+              <Badge variant={cfg.variant} size="sm" className="shrink-0">{cfg.label}</Badge>
+            )}
           </div>
           {p.portfolio_code && (
             <p className="text-[10px] text-muted-foreground/60 font-mono mt-0.5 flex items-center gap-1">
