@@ -327,6 +327,8 @@ const signatureSub: React.CSSProperties = { fontWeight: 700, color: BODY }
 const taglineCell: React.CSSProperties = { padding: '20px 40px', textAlign: 'center', borderTop: `1px solid #e5e7eb` }
 const taglineText: React.CSSProperties = { margin: 0, color: MUTED, fontSize: '12px', lineHeight: '18px', fontWeight: 500 }
 
+const countdownPill: React.CSSProperties = { display: 'inline-block', margin: '10px 0 0 0', padding: '6px 14px', backgroundColor: '#f3e8ff', color: BRAND_DEEP, fontSize: '13px', fontWeight: 700, borderRadius: '999px', letterSpacing: '0.2px' }
+
 const socialIcon: React.CSSProperties = { display: 'block', opacity: 0.8 }
 const footerCompanyName: React.CSSProperties = { margin: '0 0 12px 0', color: MUTED, fontSize: '14px', fontWeight: 700, textAlign: 'center' as const }
 const footerDisclaimer: React.CSSProperties = { margin: '0 0 20px 0', color: MUTED, fontSize: '12px', lineHeight: '18px', textAlign: 'center' as const }
