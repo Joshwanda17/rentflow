@@ -1046,12 +1046,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             )}
 
 
-            {/* 1) Priorities first — Wallet · Collect Rent · Add Tenant · List House */}
+            {/* 1) Priorities first — Collect Rent · Add Tenant · List House */}
             <AgentPriorityGrid
               agentId={user.id}
-              withdrawable={realWithdrawableBalance}
               restricted={isMerchant}
-              onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
               onOpenFieldCollect={() => { if (guardMerchant()) return; setFieldCollectOpen(true); }}
               onOpenNewTenant={() => { if (guardMerchant()) return; setRentRequestOpen(true); }}
               onOpenListHouse={() => { if (guardMerchant()) return; hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
