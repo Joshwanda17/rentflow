@@ -271,10 +271,11 @@ export function UnifiedWalletHeroCard({
           </div>
           <button
             onClick={handleOpenWallet}
-            className="flex items-center gap-0.5 text-primary-foreground/40 active:text-primary-foreground/60 transition-colors"
+            className="relative flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 active:scale-95 text-primary-foreground font-semibold text-sm shadow-lg ring-2 ring-primary-foreground/40 animate-bell-glow transition-all overflow-hidden group"
           >
-            <span className="text-[9px] font-medium">View Wallet</span>
-            <ChevronRight className="h-3 w-3" />
+            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent transition-transform duration-1000 ease-out" />
+            <span className="relative">View Wallet</span>
+            <ChevronRight className="relative h-4 w-4 animate-pulse" />
           </button>
         </div>
       </div>
