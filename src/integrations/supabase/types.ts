@@ -27161,6 +27161,12 @@ export type Database = {
         | "hr"
         | "senior_agent"
         | "sub_agent"
+        | "admin"
+        | "tenant_ops"
+        | "landlord_ops"
+        | "agent_ops"
+        | "financial_ops"
+        | "partner_ops"
       automation_action_type:
         | "send_notification"
         | "send_push"
@@ -27427,6 +27433,12 @@ export const Constants = {
         "hr",
         "senior_agent",
         "sub_agent",
+        "admin",
+        "tenant_ops",
+        "landlord_ops",
+        "agent_ops",
+        "financial_ops",
+        "partner_ops",
       ],
       automation_action_type: [
         "send_notification",
