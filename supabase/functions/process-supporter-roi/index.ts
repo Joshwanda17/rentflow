@@ -101,6 +101,40 @@ Deno.serve(async (req) => {
 
     console.log(`[process-supporter-roi] Found ${fundedRequests?.length || 0} funded requests to check`);
 
+    // ═══ AUTO-RENEW EXPIRED PORTFOLIOS BEFORE PAYING OUT ═══
+    // If a partner's portfolio has reached or passed its maturity date but
+    // wasn't renewed (e.g. no scheduled renewal, no user action), roll it
+    // forward automatically so the payout cycle continues cleanly.
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { data: expired } = await supabase
+        .from('investor_portfolios')
+        .select('id, investor_id, portfolio_code, maturity_date')
+        .eq('status', 'active')
+        .not('maturity_date', 'is', null)
+        .lte('maturity_date', todayStr)
+        .is('pending_renewal_effective_date', null)
+        .limit(500);
+      const systemActor =
+        (await supabase.from('user_roles').select('user_id').eq('role', 'cfo').limit(1).maybeSingle()).data?.user_id
+        || (await supabase.from('user_roles').select('user_id').eq('role', 'manager').limit(1).maybeSingle()).data?.user_id;
+      for (const p of expired || []) {
+        try {
+          if (!systemActor) break;
+          await supabase.rpc('apply_portfolio_renewal', {
+            p_portfolio_id: p.id,
+            p_renewed_by: systemActor,
+            p_reason: 'Auto-renewed at payout — portfolio matured without scheduled renewal',
+          });
+          console.log(`[process-supporter-roi] Auto-renewed expired portfolio ${p.portfolio_code}`);
+        } catch (e) {
+          console.warn(`[process-supporter-roi] Auto-renew failed for ${p.portfolio_code}:`, e);
+        }
+      }
+    } catch (e) {
+      console.warn('[process-supporter-roi] Expired portfolio sweep failed (non-blocking):', e);
+    }
+
     for (const rr of fundedRequests || []) {
       try {
         if (pausedSupporterIds.has(rr.supporter_id)) {
