@@ -9467,6 +9467,9 @@ export type Database = {
           next_roi_date: string | null
           payment_method: string | null
           payout_day: number | null
+          pending_renewal_duration_months: number | null
+          pending_renewal_effective_date: string | null
+          pending_renewal_request_id: string | null
           portfolio_code: string
           portfolio_pin: string
           receipt_file_url: string | null
@@ -9503,6 +9506,9 @@ export type Database = {
           next_roi_date?: string | null
           payment_method?: string | null
           payout_day?: number | null
+          pending_renewal_duration_months?: number | null
+          pending_renewal_effective_date?: string | null
+          pending_renewal_request_id?: string | null
           portfolio_code: string
           portfolio_pin: string
           receipt_file_url?: string | null
@@ -9539,6 +9545,9 @@ export type Database = {
           next_roi_date?: string | null
           payment_method?: string | null
           payout_day?: number | null
+          pending_renewal_duration_months?: number | null
+          pending_renewal_effective_date?: string | null
+          pending_renewal_request_id?: string | null
           portfolio_code?: string
           portfolio_pin?: string
           receipt_file_url?: string | null
@@ -23417,6 +23426,14 @@ export type Database = {
       }
       apply_layer_a_writedown: {
         Args: { p_dry_run?: boolean; p_user_id: string }
+        Returns: Json
+      }
+      apply_portfolio_renewal: {
+        Args: {
+          p_portfolio_id: string
+          p_reason?: string
+          p_renewed_by: string
+        }
         Returns: Json
       }
       apply_tier_capabilities: {
