@@ -519,23 +519,6 @@ function buildText(r: Report, prettyDate: string): string {
     lines.push(`- ${h.label}: ${fmtUGX(h.totalDue)} (interest ${fmtUGX(h.interestDue)}, principal ${fmtUGX(h.principalDue)})`);
   }
   lines.push("");
-  lines.push("== Funnel (24h) ==");
-  lines.push(`Total users: ${r.funnel.total_users.toLocaleString()}`);
-  lines.push(`Agents: ${r.funnel.total_agents.toLocaleString()}`);
-  lines.push(`Active agents: ${r.funnel.active_agents.toLocaleString()}`);
-  lines.push("");
-  lines.push("== Today's brief ==");
-  lines.push(`New agents onboarded: ${r.newAgentsToday}`);
-  lines.push(`Rent requests: ${r.rentRequestsToday}`);
-  lines.push(`Commission earned: ${fmtUGX(r.commissionToday)}`);
-  lines.push("");
-  lines.push(`== Monthly KPIs (${r.monthly.month}) ==`);
-  lines.push(`Advance volume: ${fmtUGX(r.monthly.volume_month)} (prev ${fmtUGX(r.monthly.volume_prev)})`);
-  lines.push(`New advance agents: ${r.monthly.new_adv_agents_month} (prev ${r.monthly.new_adv_agents_prev})`);
-  lines.push(`Principal issued MTD: ${fmtUGX(r.monthly.principal_total)}`);
-  lines.push(`Outstanding MTD: ${fmtUGX(r.monthly.outstanding_total)}`);
-  lines.push(`Deliveries confirmed: ${r.monthly.deliveries_month}`);
-  lines.push("");
   lines.push("== Field activity ==");
   lines.push(`Active agents: ${r.uniqueAgents}`);
   lines.push(`Rent collections: ${r.collectionsCount} (${fmtUGX(r.collectionsTotal)})`);
