@@ -21,6 +21,9 @@ interface PortfolioRenewalProps {
   unsubscribe_url?: string
   terms_url?: string
   privacy_url?: string
+  scheduled?: boolean
+  days_remaining?: number | string
+  days_remaining_label?: string
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
@@ -52,19 +55,34 @@ export function PortfolioRenewal({
   unsubscribe_url = 'https://welile.com/unsubscribe',
   terms_url = 'https://welileapp.com/partners-terms',
   privacy_url = 'https://welileapp.com/privacy',
+  scheduled = false,
+  days_remaining,
+  days_remaining_label,
 }: PortfolioRenewalProps) {
   const year = new Date().getFullYear()
   const resolvedNew = new_principal ?? amount
   const formattedAmount = formatAmount(resolvedNew, currency)
   const formattedRate = formatRate(return_rate)
   const displayId = portfolio_id || ''
+  const daysNum = days_remaining === undefined || days_remaining === null || days_remaining === ''
+    ? undefined
+    : Number(days_remaining)
+  const resolvedLabel = days_remaining_label
+    || (daysNum === undefined || Number.isNaN(daysNum)
+      ? undefined
+      : daysNum <= 0 ? 'Applied today' : `Auto-applies in ${daysNum} day${daysNum === 1 ? '' : 's'}`)
+  const isScheduled = scheduled === true || scheduled === 'true' as any || (daysNum !== undefined && !Number.isNaN(daysNum) && daysNum > 0)
+  const headline = isScheduled ? 'Portfolio Renewal Scheduled' : 'Portfolio Successfully Renewed'
+  const intro = isScheduled
+    ? `This is to confirm that your partnership portfolio renewal has been scheduled${resolvedLabel ? ` and will ${resolvedLabel.toLowerCase().startsWith('applied') ? 'be applied today' : resolvedLabel.toLowerCase().replace('auto-applies', 'auto-apply')}` : ''}. Below are the details of the upcoming renewal cycle.`
+    : 'This is to confirm that your partnership portfolio has been successfully renewed. Your portfolio has rolled over into a new return cycle. Below are the key renewal details.'
 
   return (
     <Html>
       <Head>
         <style>{clientOverrides}</style>
       </Head>
-      <Preview>Portfolio Renewal Confirmation — {formattedAmount}</Preview>
+      <Preview>{isScheduled ? 'Portfolio Renewal Scheduled' : 'Portfolio Renewal Confirmation'} — {formattedAmount}{resolvedLabel ? ` • ${resolvedLabel}` : ''}</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
@@ -81,7 +99,7 @@ export function PortfolioRenewal({
                           <Img src={logo_url} alt={`${company_name} Technologies Limited`} width="130" style={logoImg} />
                         </td>
                         <td align="right" valign="middle" className="hide-mobile" style={secureLabel}>
-                          Portfolio Renewed
+                          {isScheduled ? 'Renewal Scheduled' : 'Portfolio Renewed'}
                         </td>
                       </tr></tbody>
                     </table>
@@ -90,16 +108,17 @@ export function PortfolioRenewal({
 
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '40px 40px 20px 40px' }}>
-                    <Heading style={heroH1}>Portfolio Successfully Renewed</Heading>
+                    <Heading style={heroH1}>{headline}</Heading>
+                    {resolvedLabel && (
+                      <Text style={countdownPill}>{resolvedLabel}</Text>
+                    )}
                   </td>
                 </tr>
 
                 <tr>
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
                     <Text style={greetingText}>Dear {partner_name},</Text>
-                    <Text style={{ ...introText, margin: 0 }}>
-                      This is to confirm that your partnership portfolio has been successfully renewed. Your portfolio has rolled over into a new return cycle. Below are the key renewal details.
-                    </Text>
+                    <Text style={{ ...introText, margin: 0 }}>{intro}</Text>
                   </td>
                 </tr>
 
