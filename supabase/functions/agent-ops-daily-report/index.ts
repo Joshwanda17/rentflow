@@ -672,6 +672,12 @@ function buildText(r: Report, prettyDate: string): string {
   const lines: string[] = [];
   lines.push(`Agent Ops Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
+  lines.push("== Advance Repayments Receivable ==");
+  lines.push(`Active advances: ${r.receivables.activeAdvances.toLocaleString()} · Outstanding: ${fmtUGX(r.receivables.totalOutstanding)}`);
+  for (const h of r.receivables.horizons) {
+    lines.push(`- ${h.label}: ${fmtUGX(h.totalDue)} (interest ${fmtUGX(h.interestDue)}, principal ${fmtUGX(h.principalDue)})`);
+  }
+  lines.push("");
   lines.push("== Funnel (24h) ==");
   lines.push(`Total users: ${r.funnel.total_users.toLocaleString()}`);
   lines.push(`Agents: ${r.funnel.total_agents.toLocaleString()}`);
