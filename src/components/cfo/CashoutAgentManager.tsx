@@ -1028,16 +1028,6 @@ export function CashoutAgentManager() {
         </CardContent>
       </Card>
 
-      {/* Work evaluation — same rich advance-potential analysis shown across ops */}
-        {selectedAgent.agent_id && (
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Work evaluation</p>
-              <AgentEvaluationSection agentId={selectedAgent.agent_id} />
-            </CardContent>
-          </Card>
-        )}
-
         <div className="grid grid-cols-2 gap-2">
           <KpiTile
             icon={<CheckCircle2 className="h-4 w-4" />}
