@@ -2952,6 +2952,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
                             </div>
                           </Card>
+                                );
+                              })()
                         );
                       })}
                     </div>
