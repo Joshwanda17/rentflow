@@ -997,6 +997,33 @@ export function WalletStatement() {
 
             {/* ── Filters (calm default, advanced behind toggle) ── */}
             <div className="mb-5 space-y-2.5" role="region" aria-label="Statement filters">
+              {/* Quick filters (fintech pill row) */}
+              <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex gap-2">
+                  {([
+                    { key: 'all',       label: 'All',        active: directionFilter === 'all' && statusFilter === 'all', apply: () => { setDirectionFilter('all'); setStatusFilter('all'); } },
+                    { key: 'in',        label: 'Money In',   active: directionFilter === 'credit', apply: () => { setDirectionFilter('credit'); setStatusFilter('all'); } },
+                    { key: 'out',       label: 'Money Out',  active: directionFilter === 'debit',  apply: () => { setDirectionFilter('debit');  setStatusFilter('all'); } },
+                    { key: 'pending',   label: 'Pending',    active: statusFilter === 'pending',   apply: () => { setStatusFilter('pending');   setDirectionFilter('all'); } },
+                    { key: 'completed', label: 'Completed',  active: statusFilter === 'completed', apply: () => { setStatusFilter('completed'); setDirectionFilter('all'); } },
+                  ] as const).map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={chip.apply}
+                      aria-pressed={chip.active}
+                      className={`whitespace-nowrap rounded-full px-5 py-2 text-xs font-semibold transition-colors ${
+                        chip.active
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-card border border-border text-muted-foreground hover:bg-muted/40'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Date range presets */}
               <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Date range">
                 {[
