@@ -1628,6 +1628,21 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </DialogDescription>
         </DialogHeader>
 
+        {/* Daytime-only listing notice */}
+        {!isListingDaytime() && (
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-800 leading-tight">
+                Listing is closed for the night
+              </p>
+              <p className="text-xs text-amber-700/90 leading-snug mt-0.5">
+                House listing is only open {LISTING_HOURS_LABEL}. Please come back during the day so photos and the exact location can be captured clearly.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Promotional campaign badge when opened from the agent dashboard banner */}
         {fromPromoBanner && (
           <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
