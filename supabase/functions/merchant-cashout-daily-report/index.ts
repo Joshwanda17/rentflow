@@ -108,6 +108,9 @@ interface DetailRow {
 function buildHtml(report: any, prettyDate: string): string {
   const summary: SummaryRow[] = report.summary || [];
   const detail: DetailRow[] = report.detail || [];
+  const roi = report.roi || { total_paid: 0, total_reinvested: 0, payout_count: 0, recipient_count: 0, recipients: [] };
+  const roiRecipients: Array<{ recipient_name: string; recipient_phone: string | null; payouts: number; total_paid: number }> =
+    roi.recipients || [];
 
   // Summary metric tile — half-width on mobile via inline-block, still stacks
   // gracefully in email clients that ignore media queries.
@@ -151,6 +154,31 @@ function buildHtml(report: any, prettyDate: string): string {
       </div>`,
     )
     .join("");
+
+  const roiSection = `
+      <h2 style="font-size:15px;margin:22px 0 10px;color:#1a1a2e;">ROI Payouts — ${esc(prettyDate)}</h2>
+      <div style="font-size:0;margin-bottom:14px;">
+        ${metric("ROI Payouts", String(roi.payout_count || 0))}
+        ${metric("Recipients", String(roi.recipient_count || 0))}
+        ${metric("ROI Paid", fmtUGX(roi.total_paid || 0), "#0f766e", "#ecfdf5")}
+        ${metric("ROI Reinvested", fmtUGX(roi.total_reinvested || 0), "#6c21c4")}
+      </div>
+      ${
+        roiRecipients.length
+          ? roiRecipients
+              .map(
+                (r) => `
+        <div style="border:1px solid #d1fae5;border-radius:10px;padding:10px 12px;margin:0 0 8px;background:#f8fefb;">
+          <div style="font-size:14px;font-weight:600;color:#1a1a2e;line-height:1.3;">${esc(r.recipient_name || "—")}</div>
+          <div style="font-size:12px;color:#666;margin-top:2px;">${esc(r.recipient_phone || "—")} · ${r.payouts} payout${r.payouts === 1 ? "" : "s"}</div>
+          <table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;">
+            <tr><td style="padding:2px 0;color:#666;">ROI paid</td><td style="padding:2px 0;text-align:right;font-weight:700;color:#0f766e;">${fmtUGX(r.total_paid)}</td></tr>
+          </table>
+        </div>`,
+              )
+              .join("")
+          : `<div style="padding:16px;text-align:center;color:#888;background:#f0fdf4;border-radius:10px;">No ROI payouts recorded for this day.</div>`
+      }`;
 
   return `<!doctype html><html><head>
   <meta charset="utf-8" />
@@ -201,6 +229,8 @@ function buildHtml(report: any, prettyDate: string): string {
       ${detailCards}`
           : ""
       }
+
+      ${roiSection}
 
       <p style="margin:22px 0 0;font-size:11px;line-height:1.5;color:#999;">
         Generated automatically from the Welile financial ledger. Figures reflect merchant cash-out
