@@ -1049,8 +1049,19 @@ export function CashoutAgentManager() {
           <KpiTile
             icon={<TrendingUp className="h-4 w-4" />}
             label="Volume Total"
-            value={formatUGX(txnDateFilter ? visibleVolume : (selectedAgentStats?.volume || 0))}
+            value={
+              txnDateFilter
+                ? formatUGX(visibleVolume)
+                : `${formatUGX(selectedAgentStats?.volume || 0)} / ${formatUGX(disbursedFloatTotal)}`
+            }
             tone="primary"
+            sub={
+              txnDateFilter
+                ? undefined
+                : disbursedFloatTotal > 0
+                  ? `${Math.min(100, Math.round(((selectedAgentStats?.volume || 0) / disbursedFloatTotal) * 100))}% of disbursed float used`
+                  : 'No float disbursed yet'
+            }
             hint={txnDateFilter ? 'volume on selected date' : 'Tap to view daily volume'}
             onClick={txnDateFilter ? undefined : () => setBreakdownOpen(true)}
           />
