@@ -518,6 +518,9 @@ function buildHtml(r: Report, prettyDate: string): string {
     </div>
     <div style="background:#fff;padding:22px 26px;border:1px solid #e7e0f5;border-top:0;border-radius:0 0 12px 12px;">
 
+      <!-- HEADLINE: Advance repayment receivables (top-of-report) -->
+      ${buildReceivablesSection(r)}
+
       <!-- SECTION 1: Who is an Agent? (funnel) -->
       <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Who is an Agent? — live funnel</h2>
       <p style="font-size:11px;color:#666;margin:0 0 10px;">Users become agents by acting — not by role. Snapshot from the past 24h.</p>
