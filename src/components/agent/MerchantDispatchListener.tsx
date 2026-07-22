@@ -22,6 +22,7 @@ interface DispatchCard {
   latitude: number | null;
   longitude: number | null;
   claimed: boolean;
+  kind: 'standard' | 'partner_returns';
 }
 
 
@@ -103,6 +104,7 @@ export function MerchantDispatchListener() {
       latitude: ctx.latitude != null ? Number(ctx.latitude) : null,
       longitude: ctx.longitude != null ? Number(ctx.longitude) : null,
       claimed: false,
+      kind: (ctx.dispatch_kind as string) === 'partner_returns' ? 'partner_returns' : 'standard',
     };
     setQueue((q) => (q.some((c) => c.withdrawalId === withdrawalId) ? q : [...q, card]));
   }, []);
