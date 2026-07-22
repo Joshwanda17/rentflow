@@ -23469,6 +23469,13 @@ export type Database = {
         Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
       }
+      auto_activate_merchant_referral: {
+        Args: { p_referrer: string }
+        Returns: {
+          activated: boolean
+          cashout_agent_id: string
+        }[]
+      }
       auto_apply_pending_topups: { Args: never; Returns: Json }
       auto_close_fully_repaid_rents: {
         Args: never
