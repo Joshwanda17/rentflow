@@ -836,6 +836,26 @@ export function CashoutAgentManager() {
     },
   });
 
+  // Live float balance for the selected agent. Used so "Volume Total" reads as
+  // (disbursed − float left right now), which INCLUDES telecom charges and any
+  // other float-consuming legs — the payout-amount `volume` alone leaves a gap
+  // and the tile stops tallying with the Float Left card.
+  const { data: currentFloatBalance = 0 } = useQuery({
+    queryKey: ['cashout-agent-current-float', selectedAgent?.agent_id],
+    enabled: !!selectedAgent?.agent_id,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('float_balance')
+        .eq('user_id', selectedAgent!.agent_id)
+        .maybeSingle();
+      if (error) throw error;
+      return Number(data?.float_balance ?? 0);
+    },
+  });
+  const floatConsumedTotal = Math.max(0, disbursedFloatTotal - currentFloatBalance);
+
   // Volume + count scoped to the picked date. When a date filter is active the
   // "Volume Total" and "Completed Payouts" tiles must reflect ONLY that day so
   // volume, commission and telecom charges all describe the same set of payouts.
