@@ -166,6 +166,11 @@ interface PortfolioRow {
   bank_name?: string | null;
   bank_account_name?: string | null;
   account_number?: string | null;
+  // Scheduled auto-renewal fields — when set, the portfolio is locked from
+  // manual edits/top-ups/renews until the pending renewal takes effect and
+  // the cron clears these fields.
+  pending_renewal_effective_date?: string | null;
+  pending_renewal_duration_months?: number | null;
 }
 
 interface PartnerDetail {
