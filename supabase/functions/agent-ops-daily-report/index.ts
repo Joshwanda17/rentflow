@@ -153,6 +153,20 @@ interface Report {
     deliveries_month: number;
     deliveries_prev: number;
   };
+  // Advance repayment receivables — projected inflows from currently active
+  // agent_advances over the next N days (starting tomorrow EAT).
+  receivables: {
+    horizons: {
+      label: string;
+      days: number;
+      contributingAdvances: number;
+      principalDue: number;
+      interestDue: number;
+      totalDue: number;
+    }[];
+    activeAdvances: number;
+    totalOutstanding: number;
+  };
 }
 
 function nameOf(p: any): string {
@@ -287,6 +301,67 @@ async function buildReport(
       deposited: Math.round(v.deposited),
     }));
 
+  // ---- Advance repayment projections (starting tomorrow EAT) ----
+  const { data: activeAdvances } = await admin
+    .from("agent_advances")
+    .select("id, principal, outstanding_balance, daily_installment, monthly_rate, expires_at, status, prepaid_installments_remaining")
+    .in("status", ["active", "repaying", "approved", "disbursed"])
+    .gt("outstanding_balance", 0);
+
+  const tomorrowStart = new Date(new Date(endISO).getTime()); // endISO of the report day == start of next EAT day
+  const HORIZONS = [
+    { label: "Tomorrow", days: 1 },
+    { label: "Next 7 days", days: 7 },
+    { label: "Next 30 days", days: 30 },
+    { label: "Next 60 days", days: 60 },
+    { label: "Next 90 days", days: 90 },
+  ];
+  const horizonResults = HORIZONS.map((h) => ({
+    label: h.label,
+    days: h.days,
+    contributingAdvances: 0,
+    principalDue: 0,
+    interestDue: 0,
+    totalDue: 0,
+  }));
+  let totalOutstanding = 0;
+  for (const adv of (activeAdvances ?? []) as any[]) {
+    const principal = Number(adv.principal ?? 0);
+    const outstanding = Number(adv.outstanding_balance ?? 0);
+    const dailyInstallment = Number(adv.daily_installment ?? 0);
+    const monthlyRate = Number(adv.monthly_rate ?? 0);
+    const prepaid = Number(adv.prepaid_installments_remaining ?? 0);
+    totalOutstanding += outstanding;
+    if (dailyInstallment <= 0 || outstanding <= 0) continue;
+
+    // Days remaining based on expires_at (cap so we don't count past-due)
+    const expiresMs = adv.expires_at ? new Date(adv.expires_at).getTime() : tomorrowStart.getTime() + 90 * 86400000;
+    const daysLeftByExpiry = Math.max(0, Math.ceil((expiresMs - tomorrowStart.getTime()) / 86400000));
+    // Days remaining based on outstanding balance
+    const daysLeftByBalance = Math.max(0, Math.ceil(outstanding / dailyInstallment));
+    const daysRemaining = Math.min(daysLeftByExpiry, daysLeftByBalance);
+    if (daysRemaining <= 0) continue;
+
+    // Interest per day proxy: principal × (monthly_rate / 30). If monthly_rate
+    // is missing, back-solve from the daily installment vs. principal.
+    let interestPerDay = principal * (monthlyRate / 30);
+    if (interestPerDay <= 0 && daysLeftByBalance > 0) {
+      const totalInterestExpected = Math.max(0, dailyInstallment * daysLeftByBalance - outstanding);
+      interestPerDay = totalInterestExpected / Math.max(1, daysLeftByBalance);
+    }
+    const principalPerDay = Math.max(0, dailyInstallment - interestPerDay);
+
+    for (const h of horizonResults) {
+      // Prepaid installments produce no cash inflow — they're already paid.
+      const billableDays = Math.max(0, Math.min(h.days, daysRemaining) - Math.min(prepaid, h.days));
+      if (billableDays <= 0) continue;
+      h.contributingAdvances += 1;
+      h.principalDue += principalPerDay * billableDays;
+      h.interestDue += interestPerDay * billableDays;
+      h.totalDue += dailyInstallment * billableDays;
+    }
+  }
+
   return {
     date: dateStr,
     collectionsCount: collections.length,
@@ -331,6 +406,16 @@ async function buildReport(
       deliveries_month: Number(monthlyData?.deliveries_month ?? 0),
       deliveries_prev: Number(monthlyData?.deliveries_prev ?? 0),
     },
+    receivables: {
+      horizons: horizonResults.map((h) => ({
+        ...h,
+        principalDue: Math.round(h.principalDue),
+        interestDue: Math.round(h.interestDue),
+        totalDue: Math.round(h.totalDue),
+      })),
+      activeAdvances: (activeAdvances ?? []).length,
+      totalOutstanding: Math.round(totalOutstanding),
+    },
   };
 }
 
@@ -339,6 +424,48 @@ function kpiCell(label: string, value: string, color = "#1a1a2e"): string {
     <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.4px;">${esc(label)}</div>
     <div style="font-size:19px;font-weight:700;color:${color};margin-top:4px;">${esc(value)}</div>
   </td>`;
+}
+
+function buildReceivablesSection(r: Report): string {
+  const cards = r.receivables.horizons.map((h) => {
+    const interestPct = h.totalDue > 0 ? (h.interestDue / h.totalDue) * 100 : 0;
+    return `
+      <td style="width:20%;padding:6px;vertical-align:top;">
+        <div style="background:linear-gradient(160deg, ${PURPLE} 0%, ${PURPLE_DK} 100%);color:#fff;border-radius:14px;padding:16px 14px;box-shadow:0 6px 18px rgba(76,22,150,.18);">
+          <div style="font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.6px;">${esc(h.label)}</div>
+          <div style="font-size:22px;font-weight:800;margin-top:6px;line-height:1.1;">${esc(fmtUGX(h.totalDue))}</div>
+          <div style="height:1px;background:rgba(255,255,255,.25);margin:10px 0;"></div>
+          <div style="font-size:11px;opacity:.9;">Interest generated</div>
+          <div style="font-size:16px;font-weight:700;color:#ffe89a;margin-top:2px;">${esc(fmtUGX(h.interestDue))}</div>
+          <div style="font-size:10px;opacity:.75;margin-top:2px;">${interestPct.toFixed(1)}% of collections</div>
+          <div style="height:1px;background:rgba(255,255,255,.25);margin:10px 0;"></div>
+          <div style="font-size:10px;opacity:.85;">Principal ${esc(fmtUGX(h.principalDue))}</div>
+          <div style="font-size:10px;opacity:.85;margin-top:2px;">${h.contributingAdvances.toLocaleString()} active advances</div>
+        </div>
+      </td>`;
+  }).join("");
+
+  const totalInterestNext90 = r.receivables.horizons.find((h) => h.days === 90)?.interestDue ?? 0;
+  const totalNext90 = r.receivables.horizons.find((h) => h.days === 90)?.totalDue ?? 0;
+
+  return `
+    <div style="background:#fef7ec;border:1px solid #f5d38a;border-radius:14px;padding:14px 16px;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <h2 style="margin:0;font-size:17px;color:${PURPLE_DK};">Advance Repayments Receivable</h2>
+          <p style="margin:4px 0 0;font-size:11px;color:#7a5a1a;">Projected inflows from ${r.receivables.activeAdvances.toLocaleString()} active agent advances · Total outstanding ${esc(fmtUGX(r.receivables.totalOutstanding))}</p>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:#7a5a1a;text-transform:uppercase;letter-spacing:.4px;">Projected interest (90d)</div>
+          <div style="font-size:20px;font-weight:800;color:${GREEN};">${esc(fmtUGX(totalInterestNext90))}</div>
+          <div style="font-size:10px;color:#7a5a1a;">of ${esc(fmtUGX(totalNext90))} total collections</div>
+        </div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:separate;border-spacing:0;margin-bottom:22px;">
+      <tr>${cards}</tr>
+    </table>
+  `;
 }
 
 function buildHtml(r: Report, prettyDate: string): string {
@@ -432,6 +559,9 @@ function buildHtml(r: Report, prettyDate: string): string {
       <p style="margin:6px 0 0;font-size:11px;opacity:.75;">Live mirror of the Agent Ops dashboard</p>
     </div>
     <div style="background:#fff;padding:22px 26px;border:1px solid #e7e0f5;border-top:0;border-radius:0 0 12px 12px;">
+
+      <!-- HEADLINE: Advance repayment receivables (top-of-report) -->
+      ${buildReceivablesSection(r)}
 
       <!-- SECTION 1: Who is an Agent? (funnel) -->
       <h2 style="font-size:15px;margin:0 0 8px;color:${PURPLE_DK};">Who is an Agent? — live funnel</h2>
@@ -541,6 +671,12 @@ function buildHtml(r: Report, prettyDate: string): string {
 function buildText(r: Report, prettyDate: string): string {
   const lines: string[] = [];
   lines.push(`Agent Ops Daily Report — ${prettyDate} (EAT)`);
+  lines.push("");
+  lines.push("== Advance Repayments Receivable ==");
+  lines.push(`Active advances: ${r.receivables.activeAdvances.toLocaleString()} · Outstanding: ${fmtUGX(r.receivables.totalOutstanding)}`);
+  for (const h of r.receivables.horizons) {
+    lines.push(`- ${h.label}: ${fmtUGX(h.totalDue)} (interest ${fmtUGX(h.interestDue)}, principal ${fmtUGX(h.principalDue)})`);
+  }
   lines.push("");
   lines.push("== Funnel (24h) ==");
   lines.push(`Total users: ${r.funnel.total_users.toLocaleString()}`);
