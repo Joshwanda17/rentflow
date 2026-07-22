@@ -815,6 +815,27 @@ export function CashoutAgentManager() {
 
   const selectedAgentStats = selectedAgent ? agentStats.get(selectedAgent.id) || { count: 0, volume: 0, bank: 0, momo: 0, cash: 0, bankCount: 0, momoCount: 0, cashCount: 0, lastAt: null, todayCount: 0 } : null;
 
+  // Total float ever disbursed TO this merchant agent (all-time). Read straight
+  // from the ledger so the CFO sees the true issued figure regardless of what
+  // has since been consumed. Used to contextualise "Volume Total" as
+  // "used out of disbursed" rather than a bare number.
+  const { data: disbursedFloatTotal = 0 } = useQuery({
+    queryKey: ['cashout-agent-disbursed-float', selectedAgent?.agent_id],
+    enabled: !!selectedAgent?.agent_id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount')
+        .eq('user_id', selectedAgent!.agent_id)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_in')
+        .in('category', ['agent_float_deposit', 'agent_float_assignment', 'agent_float_funding', 'operational_float_credit', 'float_topup']);
+      if (error) throw error;
+      return (data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+    },
+  });
+
   // Volume + count scoped to the picked date. When a date filter is active the
   // "Volume Total" and "Completed Payouts" tiles must reflect ONLY that day so
   // volume, commission and telecom charges all describe the same set of payouts.
@@ -1028,8 +1049,19 @@ export function CashoutAgentManager() {
           <KpiTile
             icon={<TrendingUp className="h-4 w-4" />}
             label="Volume Total"
-            value={formatUGX(txnDateFilter ? visibleVolume : (selectedAgentStats?.volume || 0))}
+            value={
+              txnDateFilter
+                ? formatUGX(visibleVolume)
+                : `${formatUGX(selectedAgentStats?.volume || 0)} / ${formatUGX(disbursedFloatTotal)}`
+            }
             tone="primary"
+            sub={
+              txnDateFilter
+                ? undefined
+                : disbursedFloatTotal > 0
+                  ? `${Math.min(100, Math.round(((selectedAgentStats?.volume || 0) / disbursedFloatTotal) * 100))}% of disbursed float used`
+                  : 'No float disbursed yet'
+            }
             hint={txnDateFilter ? 'volume on selected date' : 'Tap to view daily volume'}
             onClick={txnDateFilter ? undefined : () => setBreakdownOpen(true)}
           />
