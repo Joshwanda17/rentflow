@@ -331,6 +331,7 @@ Deno.serve(async (req) => {
     // Resolve target date (default: today in EAT). Allow override + force.
     let targetDate = eatToday();
     let force = false;
+    let recipientsOverride: string[] | null = null;
     if (req.method === "POST") {
       try {
         const body = await req.json();
@@ -338,6 +339,9 @@ Deno.serve(async (req) => {
           targetDate = body.date;
         }
         force = body?.force === true;
+        if (Array.isArray(body?.recipients) && body.recipients.every((r: unknown) => typeof r === "string")) {
+          recipientsOverride = body.recipients as string[];
+        }
       } catch (_) {
         // no/invalid body — use defaults
       }
@@ -456,7 +460,10 @@ Deno.serve(async (req) => {
 
     // Enqueue one email per recipient into the existing Lovable email queue.
     const results: Record<string, string> = {};
-    for (const to of REPORT_RECIPIENTS) {
+    const recipientList = recipientsOverride && recipientsOverride.length > 0
+      ? recipientsOverride
+      : REPORT_RECIPIENTS;
+    for (const to of recipientList) {
       const messageId = crypto.randomUUID();
       const unsubscribeToken = await ensureUnsubscribeToken(admin, to);
       const payload = {
