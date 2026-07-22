@@ -37,7 +37,7 @@ import {
   Eye
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, subDays } from 'date-fns';
+import { format, subDays, isToday, isYesterday } from 'date-fns';
 // jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
@@ -299,6 +299,7 @@ export function WalletStatement() {
   const [subAgentEarnings, setSubAgentEarnings] = useState<SubAgentEarningRow[]>([]);
   // Filters
   const [directionFilter, setDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [rangePreset, setRangePreset] = useState<'all' | '7d' | '30d' | '90d'>('all');
   // Progressive disclosure for a calmer default view
@@ -423,6 +424,8 @@ export function WalletStatement() {
     if (directionFilter !== 'all' && entry.type !== directionFilter) return false;
     if (categoryFilter !== 'all' && entry.category !== categoryFilter) return false;
     if (rangeFrom && new Date(entry.date) < rangeFrom) return false;
+    // Ledger-posted entries are always Completed; there is no pending source yet.
+    if (statusFilter === 'pending') return false;
     return true;
   });
 
@@ -994,6 +997,33 @@ export function WalletStatement() {
 
             {/* ── Filters (calm default, advanced behind toggle) ── */}
             <div className="mb-5 space-y-2.5" role="region" aria-label="Statement filters">
+              {/* Quick filters (fintech pill row) */}
+              <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex gap-2">
+                  {([
+                    { key: 'all',       label: 'All',        active: directionFilter === 'all' && statusFilter === 'all', apply: () => { setDirectionFilter('all'); setStatusFilter('all'); } },
+                    { key: 'in',        label: 'Money In',   active: directionFilter === 'credit', apply: () => { setDirectionFilter('credit'); setStatusFilter('all'); } },
+                    { key: 'out',       label: 'Money Out',  active: directionFilter === 'debit',  apply: () => { setDirectionFilter('debit');  setStatusFilter('all'); } },
+                    { key: 'pending',   label: 'Pending',    active: statusFilter === 'pending',   apply: () => { setStatusFilter('pending');   setDirectionFilter('all'); } },
+                    { key: 'completed', label: 'Completed',  active: statusFilter === 'completed', apply: () => { setStatusFilter('completed'); setDirectionFilter('all'); } },
+                  ] as const).map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={chip.apply}
+                      aria-pressed={chip.active}
+                      className={`whitespace-nowrap rounded-full px-5 py-2 text-xs font-semibold transition-colors ${
+                        chip.active
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-card border border-border text-muted-foreground hover:bg-muted/40'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Date range presets */}
               <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Date range">
                 {[
@@ -1118,101 +1148,145 @@ export function WalletStatement() {
                   <h3 id="ws-tx-history" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</h3>
                   <span className="text-[10px] text-muted-foreground">{filteredEntries.length} entries</span>
                 </div>
-                {Object.entries(groupedEntries).map(([dateKey, dayEntries]) => (
-                  <div key={dateKey} role="group" aria-labelledby={`ws-day-${dateKey}`}>
-                    {/* Sticky day header */}
-                    <div className="sticky top-0 z-10 -mx-4 mb-2 flex items-center justify-between bg-background/95 px-4 py-2 backdrop-blur">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                        <h4 id={`ws-day-${dateKey}`} className="text-xs font-semibold text-muted-foreground">
-                          {format(new Date(dateKey), 'EEE, MMM d, yyyy')}
+                {Object.entries(groupedEntries).map(([dateKey, dayEntries]) => {
+                  const dayDate = new Date(dateKey);
+                  const dayLabel = isToday(dayDate)
+                    ? 'Today'
+                    : isYesterday(dayDate)
+                    ? 'Yesterday'
+                    : format(dayDate, 'EEE, MMM d, yyyy');
+                  return (
+                    <div key={dateKey} role="group" aria-labelledby={`ws-day-${dateKey}`}>
+                      {/* Day header — Today / Yesterday / date */}
+                      <div className="mb-3 flex items-center justify-between px-1">
+                        <h4
+                          id={`ws-day-${dateKey}`}
+                          className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground"
+                        >
+                          {dayLabel}
                         </h4>
+                        <div className="flex gap-2 text-[10px] font-medium tabular-nums">
+                          {dayEntries.some(e => e.type === 'credit') && (
+                            <span className="text-success">+{formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}</span>
+                          )}
+                          {dayEntries.some(e => e.type === 'debit') && (
+                            <span className="text-destructive">-{formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2 text-[10px] font-medium tabular-nums">
-                        {dayEntries.some(e => e.type === 'credit') && (
-                          <span className="text-success" aria-label={`Money in for the day ${formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}`}>+{formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}</span>
-                        )}
-                        {dayEntries.some(e => e.type === 'debit') && (
-                          <span className="text-destructive" aria-label={`Money out for the day ${formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}`}>-{formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}</span>
-                        )}
-                      </div>
+
+                      {/* Transaction cards */}
+                      <ul className="space-y-3 list-none p-0 m-0">
+                        {dayEntries.map((entry) => {
+                          const meta = getCategoryMeta(entry.category, entry.type === 'credit' ? 'cash_in' : 'cash_out');
+                          const { label, Icon, colorClass, plainExplanation } = meta;
+                          const isCredit = entry.type === 'credit';
+                          const status: 'completed' | 'pending' | 'failed' = 'completed';
+                          const showDescription = entry.description && entry.description !== label;
+                          const partyLabel = isCredit ? 'From' : 'To';
+                          const partyValue =
+                            entry.subAgentName ? entry.subAgentName :
+                            entry.linked_party && entry.linked_party !== 'platform' ? entry.linked_party :
+                            'Welile Platform';
+                          const accentBorder = isCredit
+                            ? 'border-l-success'
+                            : 'border-l-primary';
+                          const amountColor = isCredit ? 'text-success' : 'text-foreground';
+                          const statusPill = status === 'completed'
+                            ? 'bg-success/10 text-success'
+                            : status === 'pending'
+                            ? 'bg-warning/15 text-warning'
+                            : 'bg-destructive/10 text-destructive';
+                          const summaryAria = `${label}, ${isCredit ? 'money in' : 'money out'} ${formatUGX(entry.amount)}, ${format(new Date(entry.date), 'h:mm a')}. Balance after ${formatUGX(entry.balance_after || 0)}. Tap to open receipt.`;
+
+                          return (
+                            <li key={entry.id} className="list-none">
+                              <details className="group">
+                                <summary
+                                  className={`flex cursor-pointer list-none items-start gap-3 rounded-2xl border border-border/60 border-l-4 ${accentBorder} bg-card p-4 shadow-sm transition-transform hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60`}
+                                  aria-label={summaryAria}
+                                >
+                                  <div className={`h-11 w-11 shrink-0 rounded-full flex items-center justify-center ${colorClass}`} aria-hidden="true">
+                                    <Icon className="h-5 w-5" aria-hidden="true" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[13px] font-bold text-foreground">
+                                      {format(new Date(entry.date), 'dd MMM yyyy')}
+                                      <span className="mx-1.5 text-muted-foreground/60">|</span>
+                                      {format(new Date(entry.date), 'h:mm a')}
+                                    </p>
+                                    <p className="mt-1 truncate text-sm font-semibold text-foreground">{label}</p>
+                                    <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusPill}`}>
+                                      {status}
+                                    </span>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <p className={`text-base font-extrabold tabular-nums ${amountColor}`}>
+                                      {isCredit ? '+ ' : '- '}{formatUGX(entry.amount)}
+                                    </p>
+                                    <p className="mt-1 text-[10px] text-muted-foreground tabular-nums">
+                                      <span aria-hidden="true">Bal </span>
+                                      <span className="sr-only">Balance after </span>
+                                      {formatUGX(entry.balance_after || 0)}
+                                    </p>
+                                  </div>
+                                </summary>
+                                <div className="mt-1 rounded-2xl border border-border/60 bg-card px-4 py-4 text-[12px] leading-relaxed">
+                                  <div className="mb-3 h-px w-full bg-border/60" />
+                                  <dl className="grid grid-cols-3 gap-y-2.5 text-[12px]">
+                                    <dt className="col-span-1 text-muted-foreground">Txn ID</dt>
+                                    <dd className="col-span-2 font-mono text-foreground break-all">
+                                      {entry.reference_id || `WLT-${format(new Date(entry.date), 'yyyyMMdd')}-${entry.id.slice(0, 6).toUpperCase()}`}
+                                    </dd>
+
+                                    <dt className="col-span-1 text-muted-foreground">Type</dt>
+                                    <dd className="col-span-2 font-semibold text-foreground">{label}</dd>
+
+                                    <dt className="col-span-1 text-muted-foreground">{partyLabel}</dt>
+                                    <dd className="col-span-2 font-semibold text-foreground truncate">{partyValue}</dd>
+
+                                    <dt className="col-span-1 text-muted-foreground">Balance</dt>
+                                    <dd className="col-span-2 font-bold text-foreground tabular-nums">{formatUGX(entry.balance_after || 0)}</dd>
+
+                                    <dt className="col-span-1 text-muted-foreground">Status</dt>
+                                    <dd className="col-span-2">
+                                      <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusPill}`}>{status}</span>
+                                    </dd>
+                                  </dl>
+                                  <div className="mt-3 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                                    {entry.subAgentName ? (
+                                      <p className="text-foreground/80">
+                                        <span className="font-semibold text-foreground">{entry.subAgentName}</span>
+                                        {entry.subAgentAction ? ` — ${entry.subAgentAction}` : ''}
+                                      </p>
+                                    ) : (
+                                      <p>{plainExplanation}</p>
+                                    )}
+                                    {showDescription && (
+                                      <p className="mt-1.5 italic text-foreground/70">"{entry.description}"</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </details>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
-
-                    {/* Entries — clean rows */}
-                    <ul className="overflow-hidden rounded-xl border bg-card divide-y divide-border/60 list-none p-0 m-0">
-                      {dayEntries.map((entry) => {
-                        const meta = getCategoryMeta(entry.category, entry.type === 'credit' ? 'cash_in' : 'cash_out');
-                        const { label, Icon, colorClass, plainExplanation } = meta;
-                        const isCredit = entry.type === 'credit';
-                        const showDescription = entry.description && entry.description !== label;
-                        const partyNote =
-                          entry.subAgentName ? `Sub-agent: ${entry.subAgentName}` :
-                          entry.linked_party && entry.category === 'tenant_default_charge' ? `Tenant: ${entry.linked_party}` :
-                          entry.linked_party && entry.linked_party !== 'platform' && entry.category === 'agent_commission' ? `From: ${entry.linked_party}` :
-                          entry.linked_party && entry.linked_party !== 'platform' ? `→ ${entry.linked_party}` :
-                          null;
-                        const summaryAria = `${label}, ${isCredit ? 'money in' : 'money out'} ${formatUGX(entry.amount)}, ${format(new Date(entry.date), 'h:mm a')}${partyNote ? `, ${partyNote.replace('→', 'to')}` : ''}. Balance after ${formatUGX(entry.balance_after || 0)}. Activate to expand details.`;
-
-                        return (
-                          <li key={entry.id} className="list-none">
-                          <details className="group">
-                            <summary
-                              className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                              aria-label={summaryAria}
-                            >
-                              <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${colorClass}`} aria-hidden="true">
-                                <Icon className="h-4 w-4" aria-hidden="true" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                                  {format(new Date(entry.date), 'h:mm a')}
-                                  {partyNote ? ` · ${partyNote}` : ''}
-                                </p>
-                              </div>
-                              <div className="shrink-0 text-right">
-                                <p className={`text-sm font-bold tabular-nums ${isCredit ? 'text-success' : 'text-destructive'}`}>
-                                  {isCredit ? '+' : '-'}{formatUGX(entry.amount)}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground tabular-nums">
-                                  <span aria-hidden="true">Bal </span>
-                                  <span className="sr-only">Balance after </span>
-                                  {formatUGX(entry.balance_after || 0)}
-                                </p>
-                              </div>
-                            </summary>
-                            <div className="border-t bg-muted/20 px-3 py-3 text-[11px] leading-relaxed text-muted-foreground">
-                              {entry.subAgentName ? (
-                                <p className="text-foreground/80">
-                                  <span className="font-semibold text-foreground">{entry.subAgentName}</span>
-                                  {entry.subAgentAction ? ` — ${entry.subAgentAction}` : ''}
-                                </p>
-                              ) : (
-                                <p>{plainExplanation}</p>
-                              )}
-                              {showDescription && (
-                                <p className="mt-1.5 italic text-foreground/70">"{entry.description}"</p>
-                              )}
-                              {entry.reference_id && (
-                                <p className="mt-1.5 font-mono text-[10px] text-muted-foreground/80">
-                                  <span className="sr-only">Reference number </span>
-                                  <span aria-hidden="true">Ref: </span>{entry.reference_id}
-                                </p>
-                              )}
-                            </div>
-                          </details>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))}
+                  );
+                })}
               </section>
             ) : (
               <div className="text-center py-12" role="status">
                 <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" aria-hidden="true" />
-                <p className="font-semibold text-muted-foreground">No transactions yet</p>
-                <p className="text-sm text-muted-foreground/70">Your wallet activity will appear here</p>
+                <p className="font-semibold text-muted-foreground">
+                  {statusFilter === 'pending' ? 'No pending transactions' : 'No transactions yet'}
+                </p>
+                <p className="text-sm text-muted-foreground/70">
+                  {statusFilter === 'pending'
+                    ? 'All your wallet transactions are completed.'
+                    : 'Your wallet activity will appear here'}
+                </p>
               </div>
             )}
           </ScrollArea>
