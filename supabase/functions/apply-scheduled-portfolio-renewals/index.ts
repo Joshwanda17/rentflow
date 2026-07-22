@@ -121,6 +121,8 @@ Deno.serve(async (req) => {
                   unsubscribe_url: "https://welile.com/unsubscribe",
                   terms_url: "https://welileapp.com/partners-terms",
                   privacy_url: "https://welileapp.com/privacy",
+                  days_remaining: 0,
+                  days_remaining_label: "Applied today",
                 },
               }),
             },
