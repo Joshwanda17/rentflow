@@ -462,6 +462,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
   const [renewOpen, setRenewOpen] = useState(false);
   const [renewalCounts, setRenewalCounts] = useState<Record<string, number>>({});
+  const [pendingRedemptions, setPendingRedemptions] = useState<Record<string, boolean>>({});
 
   // Bulk activate
   const [activatingAll, setActivatingAll] = useState(false);
@@ -1131,7 +1132,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       // Fetch renewal counts and pending top-ups for these portfolios
       const portfolioIds = portfolios.map(p => p.id);
       if (portfolioIds.length > 0) {
-        const [renewalsRes, pendingRes] = await Promise.all([
+        const [renewalsRes, pendingRes, redemptionsRes] = await Promise.all([
           supabase
             .from('portfolio_renewals')
             .select('portfolio_id')
@@ -1143,10 +1144,19 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
             .in('status', ['pending', 'awaiting_verification', 'approved', 'completed']),
+          supabase
+            .from('portfolio_action_requests')
+            .select('portfolio_id')
+            .in('portfolio_id', portfolioIds)
+            .eq('request_type', 'REDEMPTION_REQUEST')
+            .in('status', ['pending', 'processing']),
         ]);
         const counts: Record<string, number> = {};
         (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
         setRenewalCounts(counts);
+        const redemptionMap: Record<string, boolean> = {};
+        (redemptionsRes.data || []).forEach((r: any) => { redemptionMap[r.portfolio_id] = true; });
+        setPendingRedemptions(redemptionMap);
 
         const pending: Record<string, { count: number; total: number }> = {};
         const awaiting: Record<string, { count: number; total: number }> = {};
@@ -2556,6 +2566,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 const daysToRenewal = pendingRenewalDate
                                   ? Math.max(0, Math.ceil((pendingRenewalDate.getTime() - Date.now()) / 86400000))
                                   : 0;
+                                const isPendingRedemption = !!pendingRedemptions[p.id];
                                 return (
                               <Card
                                 key={p.id}
@@ -2563,8 +2574,18 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   'overflow-hidden transition-all',
                                   isEditing && 'ring-2 ring-primary/30',
                                   isPendingRenewal && 'ring-2 ring-purple-400/40 bg-purple-50/30 dark:bg-purple-950/20 opacity-95',
+                                  isPendingRedemption && 'ring-2 ring-amber-400/50 bg-amber-50/40 dark:bg-amber-950/20',
                                 )}
                               >
+                                {isPendingRedemption && (
+                                  <div className="flex items-center gap-2 px-3.5 py-2 border-b border-amber-200 bg-amber-100/70 dark:bg-amber-900/30 dark:border-amber-800/60 text-[11px] font-semibold text-amber-900 dark:text-amber-200">
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                    <span>Partner requested payout at maturity — portfolio locked from edits until redemption is processed.</span>
+                                    <span className="ml-auto uppercase tracking-wide text-[9px] bg-amber-200/70 dark:bg-amber-800/60 px-1.5 py-0.5 rounded">
+                                      Locked
+                                    </span>
+                                  </div>
+                                )}
                                 {isPendingRenewal && (
                                   <div className="flex items-center gap-2 px-3.5 py-2 border-b border-purple-200 bg-purple-100/70 dark:bg-purple-900/30 dark:border-purple-800/60 text-[11px] font-semibold text-purple-800 dark:text-purple-200">
                                     <RefreshCw className="h-3.5 w-3.5" />
@@ -2821,7 +2842,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
                               {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
                               <fieldset
-                                className="mt-2.5 pt-2.5 border-t border-border/50"
+                                disabled={isPendingRedemption}
+                                className={cn(
+                                  'mt-2.5 pt-2.5 border-t border-border/50',
+                                  isPendingRedemption && 'opacity-60 cursor-not-allowed',
+                                )}
+                                title={isPendingRedemption ? 'Portfolio is locked — partner requested payout at maturity.' : undefined}
                               >
                               <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5">
                                 {(p.status === 'pending_approval' || p.status === 'pending') && (
