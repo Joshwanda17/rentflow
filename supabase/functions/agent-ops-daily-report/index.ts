@@ -637,6 +637,7 @@ Deno.serve(async (req) => {
     }
 
     const force = body?.force === true;
+    const preview = body?.preview === true;
     let dates: string[];
     if (Array.isArray(body?.dates) && body.dates.length) {
       dates = body.dates.map((d: string) => String(d).slice(0, 10));
@@ -644,6 +645,18 @@ Deno.serve(async (req) => {
       dates = [body.date.slice(0, 10)];
     } else {
       dates = [eatToday()];
+    }
+
+    if (preview) {
+      const dateStr = dates[0];
+      const report = await buildReport(admin, dateStr);
+      const prettyDate = new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("en-GB", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+      });
+      const html = buildHtml(report, prettyDate);
+      return new Response(html, {
+        headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      });
     }
 
     const out: Record<string, unknown>[] = [];
