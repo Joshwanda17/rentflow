@@ -10,7 +10,7 @@ import {
   Search, User, Mail, Calendar, RefreshCw, Wallet, Clock, CheckCircle2,
   XCircle, Loader2, Hash, MessageSquare, Inbox, ChevronDown, ChevronUp, CalendarClock,
 } from 'lucide-react';
-import { format, differenceInCalendarDays } from 'date-fns';
+import { format, differenceInCalendarDays, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 type Req = {
@@ -28,6 +28,13 @@ type Req = {
   message: string | null;
   currency: string;
   created_at: string;
+  portfolio?: {
+    duration_months: number | null;
+    payout_day: number | null;
+    maturity_date: string | null;
+    next_roi_date: string | null;
+    roi_percentage: number | null;
+  } | null;
 };
 
 type ScheduledRenewal = {
@@ -46,6 +53,52 @@ const STATUS_CONFIG: Record<string, { icon: any; color: string; label: string }>
   cancelled: { icon: XCircle, color: 'bg-muted text-muted-foreground border-border', label: 'Declined' },
 };
 
+/**
+ * Compute the preview of what a renewal approval will produce, mirroring the
+ * `apply_portfolio_renewal` SQL function so Ops sees the SAME dates the RPC
+ * would write. Two branches:
+ *  - "renew_now"  when maturity_date is today or past → new_start = today
+ *  - "schedule"   when maturity_date is in the future → new_start = maturity
+ */
+function computeRenewalPreview(req: Req): {
+  mode: 'renew_now' | 'schedule';
+  effectiveDate: Date;
+  newMaturityDate: Date;
+  newNextRoiDate: Date;
+  durationMonths: number;
+  daysRemaining: number;
+} | null {
+  const p = req.portfolio;
+  if (!p) return null;
+  const maturityStr = p.maturity_date || req.maturity_date;
+  if (!maturityStr) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const matDate = new Date(`${maturityStr}T00:00:00`);
+  const daysRemaining = differenceInCalendarDays(matDate, today);
+  const durationMonths = p.duration_months ?? 12;
+
+  const effectiveDate = daysRemaining <= 0 ? today : matDate;
+  const newMaturityDate = addMonths(effectiveDate, durationMonths);
+
+  // next_roi_date = 1 month after new_start, snapped to payout_day when set.
+  let newNextRoiDate = addMonths(effectiveDate, 1);
+  if (p.payout_day) {
+    const d = new Date(newNextRoiDate.getFullYear(), newNextRoiDate.getMonth(), p.payout_day);
+    newNextRoiDate = d;
+  }
+
+  return {
+    mode: daysRemaining <= 0 ? 'renew_now' : 'schedule',
+    effectiveDate,
+    newMaturityDate,
+    newNextRoiDate,
+    durationMonths,
+    daysRemaining,
+  };
+}
+
 export function MaturityRequestsQueue() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -61,7 +114,11 @@ export function MaturityRequestsQueue() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('portfolio_action_requests')
-        .select('*')
+        .select(
+          `*, portfolio:investor_portfolios!portfolio_action_requests_portfolio_id_fkey(
+            duration_months, payout_day, maturity_date, next_roi_date, roi_percentage
+          )`,
+        )
         .order('created_at', { ascending: false })
         .limit(300);
       if (error) throw error;
@@ -398,6 +455,70 @@ export function MaturityRequestsQueue() {
                       </span>
                     </button>
                   )}
+
+                  {/* Renewal preview panel — shows Ops the exact dates the
+                      approval will produce BEFORE they click. Only renders
+                      for pending / processing renewal requests. */}
+                  {isRenewal &&
+                    (req.status === 'pending' || req.status === 'processing') &&
+                    !sched && (() => {
+                      const preview = computeRenewalPreview(req);
+                      if (!preview) return null;
+                      const isNow = preview.mode === 'renew_now';
+                      return (
+                        <div
+                          className={cn(
+                            'rounded-md border p-2.5 space-y-2',
+                            isNow
+                              ? 'bg-emerald-50/60 border-emerald-200'
+                              : 'bg-purple-50/60 border-purple-200',
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide">
+                            {isNow ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                <span className="text-emerald-700">Renewal preview — will apply immediately</span>
+                              </>
+                            ) : (
+                              <>
+                                <CalendarClock className="h-3.5 w-3.5 text-purple-600" />
+                                <span className="text-purple-700">
+                                  Renewal preview — auto-applies in {preview.daysRemaining} day
+                                  {preview.daysRemaining === 1 ? '' : 's'}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                            <div>
+                              <p className="text-muted-foreground">Effective from</p>
+                              <p className="font-semibold">{format(preview.effectiveDate, 'd MMM yyyy')}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">New term</p>
+                              <p className="font-semibold">{preview.durationMonths} months</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">New maturity date</p>
+                              <p className="font-semibold">{format(preview.newMaturityDate, 'd MMM yyyy')}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Next returns payout</p>
+                              <p className="font-semibold">{format(preview.newNextRoiDate, 'd MMM yyyy')}</p>
+                            </div>
+                          </div>
+                          {!isNow && (
+                            <p className="text-[10px] text-purple-700/80 leading-snug">
+                              Portfolio stays on its current cycle until{' '}
+                              {format(preview.effectiveDate, 'd MMM yyyy')}. Partner receives a
+                              "Renewal Scheduled" email now, and a "Renewed" email once the cron runs at
+                              midnight EAT on that date.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                   {req.status !== 'completed' && req.status !== 'cancelled' && (
                     <div className="flex flex-wrap gap-2 pt-0.5">

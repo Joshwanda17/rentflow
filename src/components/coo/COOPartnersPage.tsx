@@ -166,6 +166,11 @@ interface PortfolioRow {
   bank_name?: string | null;
   bank_account_name?: string | null;
   account_number?: string | null;
+  // Scheduled auto-renewal fields — when set, the portfolio is locked from
+  // manual edits/top-ups/renews until the pending renewal takes effect and
+  // the cron clears these fields.
+  pending_renewal_effective_date?: string | null;
+  pending_renewal_duration_months?: number | null;
 }
 
 interface PartnerDetail {
@@ -1108,7 +1113,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason, funder_verified_at, signup_source').eq('id', partnerId).single(),
         supabase.from('wallets').select('balance, withdrawable_balance, float_balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number, pending_renewal_effective_date, pending_renewal_duration_months')
           .or(`investor_id.eq.${partnerId},agent_id.eq.${partnerId}`)
           .order('created_at', { ascending: false }),
         supabase.from('general_ledger')
@@ -2540,7 +2545,40 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                         const statusColor = p.status === 'active' ? 'bg-primary/10 text-primary' : p.status === 'matured' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground';
 
                         return (
-                              <Card key={p.id} className={cn('overflow-hidden transition-all', isEditing && 'ring-2 ring-primary/30')}>
+                              (() => {
+                                // Portfolio is LOCKED for edits when a renewal is
+                                // scheduled (Partner Ops already approved an early
+                                // renewal, cron will apply it at maturity midnight).
+                                const pendingRenewalDate = p.pending_renewal_effective_date
+                                  ? new Date(`${p.pending_renewal_effective_date}T00:00:00`)
+                                  : null;
+                                const isPendingRenewal = !!pendingRenewalDate;
+                                const daysToRenewal = pendingRenewalDate
+                                  ? Math.max(0, Math.ceil((pendingRenewalDate.getTime() - Date.now()) / 86400000))
+                                  : 0;
+                                return (
+                              <Card
+                                key={p.id}
+                                className={cn(
+                                  'overflow-hidden transition-all',
+                                  isEditing && 'ring-2 ring-primary/30',
+                                  isPendingRenewal && 'ring-2 ring-purple-400/40 bg-purple-50/30 dark:bg-purple-950/20 opacity-95',
+                                )}
+                              >
+                                {isPendingRenewal && (
+                                  <div className="flex items-center gap-2 px-3.5 py-2 border-b border-purple-200 bg-purple-100/70 dark:bg-purple-900/30 dark:border-purple-800/60 text-[11px] font-semibold text-purple-800 dark:text-purple-200">
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                    <span>
+                                      Auto-renews on {pendingRenewalDate!.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                      {daysToRenewal > 0
+                                        ? ` — in ${daysToRenewal} day${daysToRenewal === 1 ? '' : 's'}`
+                                        : ' — awaiting cron'}
+                                    </span>
+                                    <span className="ml-auto uppercase tracking-wide text-[9px] bg-purple-200/70 dark:bg-purple-800/60 px-1.5 py-0.5 rounded">
+                                      Locked
+                                    </span>
+                                  </div>
+                                )}
                             <div className="p-3.5">
                               {/* Portfolio header row */}
                               <div className="flex items-start gap-2 mb-2.5">
@@ -2771,7 +2809,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               </div>
 
                               {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
-                              <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5 mt-2.5 pt-2.5 border-t border-border/50">
+                              <fieldset
+                                disabled={isPendingRenewal}
+                                className={cn(
+                                  'mt-2.5 pt-2.5 border-t border-border/50',
+                                  isPendingRenewal && 'opacity-60 cursor-not-allowed',
+                                )}
+                                title={isPendingRenewal ? 'Portfolio is locked — a scheduled renewal is pending.' : undefined}
+                              >
+                              <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5">
                                 {(p.status === 'pending_approval' || p.status === 'pending') && (
                                   <Button
                                     variant="ghost"
@@ -2911,9 +2957,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   </Button>
                                 )}
                               </div>
+                              </fieldset>
 
                             </div>
                           </Card>
+                                );
+                              })()
                         );
                       })}
                     </div>
