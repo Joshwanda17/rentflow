@@ -2596,6 +2596,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                       <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase whitespace-nowrap shrink-0', statusColor)}>
                                         {p.status}
                                       </span>
+                                      {isPendingRenewal && (
+                                        <span
+                                          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30 whitespace-nowrap shrink-0 inline-flex items-center gap-1"
+                                          title={`Auto-renews on ${pendingRenewalDate!.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                                        >
+                                          <RefreshCw className="h-2.5 w-2.5" />
+                                          {daysToRenewal > 0
+                                            ? `Renews in ${daysToRenewal} day${daysToRenewal === 1 ? '' : 's'}`
+                                            : 'Renews today'}
+                                        </span>
+                                      )}
                                     </div>
                                     {approvedTopUps[p.id]?.total > 0 && (
                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap shrink-0">
