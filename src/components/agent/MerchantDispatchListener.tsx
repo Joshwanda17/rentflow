@@ -22,6 +22,7 @@ interface DispatchCard {
   latitude: number | null;
   longitude: number | null;
   claimed: boolean;
+  kind: 'standard' | 'partner_returns';
 }
 
 
@@ -103,6 +104,7 @@ export function MerchantDispatchListener() {
       latitude: ctx.latitude != null ? Number(ctx.latitude) : null,
       longitude: ctx.longitude != null ? Number(ctx.longitude) : null,
       claimed: false,
+      kind: (ctx.dispatch_kind as string) === 'partner_returns' ? 'partner_returns' : 'standard',
     };
     setQueue((q) => (q.some((c) => c.withdrawalId === withdrawalId) ? q : [...q, card]));
   }, []);
@@ -220,28 +222,41 @@ export function MerchantDispatchListener() {
   return (
     <div className="fixed inset-x-0 top-0 z-[120] flex justify-center px-3 pt-3 pointer-events-none">
       <div className="pointer-events-auto w-full max-w-sm animate-in slide-in-from-top-4 fade-in duration-300">
-        <div className="overflow-hidden rounded-3xl border border-primary/30 bg-card shadow-2xl">
+        <div className={cn(
+          "overflow-hidden rounded-3xl border bg-card shadow-2xl",
+          card.kind === 'partner_returns' ? "border-violet-500/40" : "border-primary/30",
+        )}>
           {/* Header + countdown */}
-          <div className="relative bg-primary px-4 py-3 text-primary-foreground">
+          <div className={cn(
+            "relative px-4 py-3 text-white",
+            card.kind === 'partner_returns' ? "bg-violet-600" : "bg-primary",
+          )}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-foreground/70" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary-foreground" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
                 </span>
                 <span className="text-sm font-bold uppercase tracking-wide">
-                  New Withdrawal Request
+                  {card.kind === 'partner_returns'
+                    ? 'New Partner Returns Payout'
+                    : 'New Withdrawal Request'}
                 </span>
               </div>
               {secondsLeft != null && !card.claimed && (
-                <div className="flex items-center gap-1 rounded-full bg-primary-foreground/15 px-2.5 py-1 text-xs font-bold tabular-nums">
+                <div className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-bold tabular-nums">
                   <Clock className="h-3.5 w-3.5" />
                   {secondsLeft}s
                 </div>
               )}
             </div>
+            {card.kind === 'partner_returns' && (
+              <p className="mt-1 text-[11px] font-medium text-white/90">
+                Proxy-initiated · ROI / Partner Returns delivery
+              </p>
+            )}
             {queue.length > 1 && (
-              <p className="mt-0.5 text-[11px] text-primary-foreground/80">
+              <p className="mt-0.5 text-[11px] text-white/80">
                 +{queue.length - 1} more waiting
               </p>
             )}
@@ -264,6 +279,7 @@ export function MerchantDispatchListener() {
                 </div>
                 <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground">
                   {(card.payoutMethod || 'cash').replace(/_/g, ' ')} payout
+                  {card.kind === 'partner_returns' ? ' · Partner Returns' : ''}
                 </p>
 
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm">

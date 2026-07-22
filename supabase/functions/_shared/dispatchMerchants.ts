@@ -44,7 +44,7 @@ export async function dispatchWithdrawal(
   const { data: w } = await admin
     .from("withdrawal_requests")
     .select(
-      "id, user_id, amount, payout_method, reason, status, created_at, dispatch_claimed_by",
+      "id, user_id, amount, payout_method, reason, status, created_at, dispatch_claimed_by, metadata",
     )
     .eq("id", withdrawalId)
     .maybeSingle();
@@ -60,15 +60,51 @@ export async function dispatchWithdrawal(
   const isLandlordFloat =
     typeof w.reason === "string" && w.reason.startsWith("Landlord float payout");
 
+  // Detect proxy-initiated partner returns / ROI payouts. The proxy-agent
+  // flow stamps metadata.initiated_by = "proxy" or "proxy_agent", and the
+  // reason typically contains "proxy", "roi", or "return". These payouts
+  // are handled by merchant agents assigned to the
+  // `proxy_partner_withdrawal` category and deserve a DISTINCT push so
+  // the agent knows this is a Partner Returns payout, not a regular
+  // customer wallet withdrawal.
+  const reasonLc = typeof w.reason === "string" ? w.reason.toLowerCase() : "";
+  const meta = (w.metadata ?? {}) as Record<string, unknown>;
+  const initiator = typeof meta.initiated_by === "string"
+    ? (meta.initiated_by as string).toLowerCase()
+    : "";
+  const isPartnerReturns =
+    initiator.includes("proxy") ||
+    reasonLc.includes("proxy") ||
+    reasonLc.includes("roi") ||
+    reasonLc.includes("return") ||
+    reasonLc.includes("partner");
+
   // 2. Active + online merchant agents.
   const { data: agents } = await admin
     .from("cashout_agents")
-    .select("agent_id")
+    .select("agent_id, config")
     .eq("is_active", true)
     .eq("is_online", true);
+  const allOnline = (agents || []).filter((a: any) => a.agent_id);
   let agentIds: string[] = Array.from(
-    new Set((agents || []).map((a: any) => a.agent_id).filter(Boolean)),
+    new Set(allOnline.map((a: any) => a.agent_id)),
   );
+
+  // For Partner Returns / ROI proxy payouts, prefer agents who have the
+  // `proxy_partner_withdrawal` category explicitly enabled. If none of
+  // those are online, fall back to the full online pool so the payout
+  // is not stranded.
+  if (isPartnerReturns) {
+    const categoryEnabled = allOnline
+      .filter((a: any) => {
+        const cats = (a.config?.categories ?? {}) as Record<string, unknown>;
+        return cats.proxy_partner_withdrawal === true;
+      })
+      .map((a: any) => a.agent_id as string);
+    if (categoryEnabled.length > 0) {
+      agentIds = Array.from(new Set(categoryEnabled));
+    }
+  }
   if (agentIds.length === 0) return { ok: true, round, eligible: 0, skipped: "no_online_agents" };
 
   // 3. Float sufficiency (skip for landlord-float payouts).
@@ -117,6 +153,13 @@ export async function dispatchWithdrawal(
   const amountLabel = `UGX ${amount.toLocaleString()}`;
   const serviceArea = loc?.city || loc?.address || "Service area";
 
+  const pushTitle = isPartnerReturns
+    ? "New Partner Returns payout to deliver"
+    : "New withdrawal to claim";
+  const pushBody = isPartnerReturns
+    ? `${amountLabel} · Partner ROI · ${serviceArea}. Proxy agent initiated — tap to process.`
+    : `${amountLabel} · ${serviceArea}. Tap to claim before it expires.`;
+
   // 6. Expire the previous round's still-pending log rows.
   if (round > 1) {
     await admin
@@ -136,10 +179,10 @@ export async function dispatchWithdrawal(
     body: JSON.stringify({
       userIds: agentIds,
       payload: {
-        title: "New withdrawal to claim",
-        body: `${amountLabel} · ${serviceArea}. Tap to claim before it expires.`,
+        title: pushTitle,
+        body: pushBody,
         url: "/agent/cash-payouts",
-        type: "dispatch",
+        type: isPartnerReturns ? "dispatch_partner_returns" : "dispatch",
       },
     }),
   }).catch(() => {});
