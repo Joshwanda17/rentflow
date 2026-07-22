@@ -2842,7 +2842,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
                               {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
                               <fieldset
-                                className="mt-2.5 pt-2.5 border-t border-border/50"
+                                disabled={isPendingRedemption}
+                                className={cn(
+                                  'mt-2.5 pt-2.5 border-t border-border/50',
+                                  isPendingRedemption && 'opacity-60 cursor-not-allowed',
+                                )}
+                                title={isPendingRedemption ? 'Portfolio is locked — partner requested payout at maturity.' : undefined}
                               >
                               <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5">
                                 {(p.status === 'pending_approval' || p.status === 'pending') && (
