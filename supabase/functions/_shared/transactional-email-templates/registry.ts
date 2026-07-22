@@ -8,6 +8,7 @@ import { template as partnershipSplitAllocationTemplate } from './partnership-sp
 import { template as partnerCompoundTemplate } from './partner-compound.tsx'
 import { template as partnerPortfolioCompoundedTemplate } from './partner-portfolio-compounded.tsx'
 import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
+import { template as portfolioRenewalDaysRemainingTemplate } from './portfolio-renewal-days-remaining.tsx'
 import { template as portfolioMaturityTemplate } from './portfolio-maturity.tsx'
 import { template as partnershipMaturityNoticeTemplate } from './partnership-maturity-notice.tsx'
 import { template as partnerAccountCreatedTemplate } from './partner-account-created.tsx'
@@ -51,6 +52,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'partner-compound': partnerCompoundTemplate,
   'partner-portfolio-compounded': partnerPortfolioCompoundedTemplate,
   'portfolio-renewal': portfolioRenewalTemplate,
+  'portfolio-renewal-days-remaining': portfolioRenewalDaysRemainingTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
   'partnership-maturity-notice': partnershipMaturityNoticeTemplate,
   'partner-account-created': partnerAccountCreatedTemplate,
