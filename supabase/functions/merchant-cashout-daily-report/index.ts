@@ -326,6 +326,73 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---- ROI Payouts (from immutable ledger) ----
+    // EAT day boundaries: EAT = UTC+3, so day [D 00:00 EAT, D+1 00:00 EAT) is
+    // [D 21:00 UTC prev, D 21:00 UTC].
+    const startUtc = new Date(`${targetDate}T00:00:00+03:00`).toISOString();
+    const endUtc = new Date(new Date(`${targetDate}T00:00:00+03:00`).getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: roiCredits } = await admin
+      .from("general_ledger")
+      .select("user_id, amount")
+      .eq("category", "roi_wallet_credit")
+      .eq("direction", "cash_in")
+      .gte("created_at", startUtc)
+      .lt("created_at", endUtc);
+
+    const { data: roiReinv } = await admin
+      .from("general_ledger")
+      .select("amount")
+      .eq("category", "roi_reinvestment")
+      .eq("direction", "cash_in")
+      .gte("created_at", startUtc)
+      .lt("created_at", endUtc);
+
+    const byRecipient = new Map<string, { total: number; count: number }>();
+    let roiTotalPaid = 0;
+    for (const row of (roiCredits || []) as Array<{ user_id: string | null; amount: number }>) {
+      const amt = Number(row.amount) || 0;
+      roiTotalPaid += amt;
+      const key = row.user_id || "unknown";
+      const cur = byRecipient.get(key) || { total: 0, count: 0 };
+      cur.total += amt;
+      cur.count += 1;
+      byRecipient.set(key, cur);
+    }
+    const roiTotalReinvested = ((roiReinv || []) as Array<{ amount: number }>).reduce(
+      (s, r) => s + (Number(r.amount) || 0),
+      0,
+    );
+
+    // Resolve recipient names/phones.
+    const recipientIds = Array.from(byRecipient.keys()).filter((k) => k !== "unknown");
+    const nameMap = new Map<string, { name: string; phone: string | null }>();
+    if (recipientIds.length) {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("id, full_name, phone")
+        .in("id", recipientIds);
+      for (const p of (profs || []) as Array<{ id: string; full_name: string | null; phone: string | null }>) {
+        nameMap.set(p.id, { name: p.full_name || "Unknown", phone: p.phone });
+      }
+    }
+    const roiRecipients = Array.from(byRecipient.entries())
+      .map(([id, v]) => ({
+        recipient_name: nameMap.get(id)?.name || (id === "unknown" ? "Unknown" : id.slice(0, 8)),
+        recipient_phone: nameMap.get(id)?.phone || null,
+        payouts: v.count,
+        total_paid: v.total,
+      }))
+      .sort((a, b) => b.total_paid - a.total_paid);
+
+    (report as any).roi = {
+      total_paid: roiTotalPaid,
+      total_reinvested: roiTotalReinvested,
+      payout_count: (roiCredits || []).length,
+      recipient_count: roiRecipients.length,
+      recipients: roiRecipients,
+    };
+
     const prettyDate = new Date(`${targetDate}T00:00:00Z`).toLocaleDateString("en-GB", {
       weekday: "long",
       day: "numeric",
