@@ -287,6 +287,18 @@ function buildText(report: any, prettyDate: string): string {
   lines.push(`Float consumed:  ${fmtUGX(report.total_float_consumed || ((report.total_paid || 0) + (report.total_telecom || 0)))}`);
   lines.push(`Total commission: ${fmtUGX(report.total_commission || 0)}`);
   lines.push("");
+  const byCategory: Array<any> = report.by_category || [];
+  if (byCategory.length) {
+    lines.push("Breakdown by cash-out category:");
+    for (const c of byCategory) {
+      lines.push(
+        `- ${c.category_label}: ${c.merchant_count} agents, ${c.payouts} txns, ` +
+          `${fmtUGX(c.total_paid)} paid + ${fmtUGX(c.total_telecom || 0)} telecom = ` +
+          `${fmtUGX(c.total_float_consumed || 0)} float, ${fmtUGX(c.total_commission)} commission`,
+      );
+    }
+    lines.push("");
+  }
   const roi = report.roi || { total_paid: 0, total_reinvested: 0, payout_count: 0, recipient_count: 0, recipients: [] };
   lines.push(`ROI payouts: ${roi.payout_count || 0} to ${roi.recipient_count || 0} recipients`);
   lines.push(`ROI paid:      ${fmtUGX(roi.total_paid || 0)}`);
