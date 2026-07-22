@@ -2545,7 +2545,40 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                         const statusColor = p.status === 'active' ? 'bg-primary/10 text-primary' : p.status === 'matured' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground';
 
                         return (
-                              <Card key={p.id} className={cn('overflow-hidden transition-all', isEditing && 'ring-2 ring-primary/30')}>
+                              (() => {
+                                // Portfolio is LOCKED for edits when a renewal is
+                                // scheduled (Partner Ops already approved an early
+                                // renewal, cron will apply it at maturity midnight).
+                                const pendingRenewalDate = p.pending_renewal_effective_date
+                                  ? new Date(`${p.pending_renewal_effective_date}T00:00:00`)
+                                  : null;
+                                const isPendingRenewal = !!pendingRenewalDate;
+                                const daysToRenewal = pendingRenewalDate
+                                  ? Math.max(0, Math.ceil((pendingRenewalDate.getTime() - Date.now()) / 86400000))
+                                  : 0;
+                                return (
+                              <Card
+                                key={p.id}
+                                className={cn(
+                                  'overflow-hidden transition-all',
+                                  isEditing && 'ring-2 ring-primary/30',
+                                  isPendingRenewal && 'ring-2 ring-purple-400/40 bg-purple-50/30 dark:bg-purple-950/20 opacity-95',
+                                )}
+                              >
+                                {isPendingRenewal && (
+                                  <div className="flex items-center gap-2 px-3.5 py-2 border-b border-purple-200 bg-purple-100/70 dark:bg-purple-900/30 dark:border-purple-800/60 text-[11px] font-semibold text-purple-800 dark:text-purple-200">
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                    <span>
+                                      Auto-renews on {pendingRenewalDate!.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                      {daysToRenewal > 0
+                                        ? ` — in ${daysToRenewal} day${daysToRenewal === 1 ? '' : 's'}`
+                                        : ' — awaiting cron'}
+                                    </span>
+                                    <span className="ml-auto uppercase tracking-wide text-[9px] bg-purple-200/70 dark:bg-purple-800/60 px-1.5 py-0.5 rounded">
+                                      Locked
+                                    </span>
+                                  </div>
+                                )}
                             <div className="p-3.5">
                               {/* Portfolio header row */}
                               <div className="flex items-start gap-2 mb-2.5">
