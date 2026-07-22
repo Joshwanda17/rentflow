@@ -1209,7 +1209,19 @@ export function LandlordOpsDashboard() {
     staleTime: 60000,
   });
 
-  const rows = listings || [];
+  // Merge the dedicated pending-listings fetch into the primary rows so the
+  // Verification Queue sees the full unverified backlog, not just the slice
+  // that happens to fall inside the 500 most-recent house_listings.
+  const rows = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: ListingWithLandlord[] = [];
+    for (const l of [...(listings || []), ...(pendingListings || [])]) {
+      if (seen.has(l.id)) continue;
+      seen.add(l.id);
+      merged.push(l);
+    }
+    return merged;
+  }, [listings, pendingListings]);
   const landlordsList = allLandlords || [];
   const noLandlordList = noLandlordTenants || [];
   // Server-derived counts (constant-time, no full-table pull). Used by home KPIs
