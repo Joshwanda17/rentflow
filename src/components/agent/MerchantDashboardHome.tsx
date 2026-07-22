@@ -94,7 +94,7 @@ export function MerchantDashboardHome({
   return (
     <div className="space-y-5">
       {/* Quick actions */}
-      <section className="grid grid-cols-3 gap-3">
+      <section className="grid grid-cols-4 gap-3">
         <QuickAction
           icon={<ArrowDownToLine className="h-5 w-5" />}
           label="Deposit"
@@ -109,6 +109,11 @@ export function MerchantDashboardHome({
           icon={<ArrowLeftRight className="h-5 w-5" />}
           label="Transfer"
           onClick={onTransfer}
+        />
+        <QuickAction
+          icon={<Landmark className="h-5 w-5" />}
+          label="Statement"
+          onClick={onViewWallet}
         />
       </section>
 
