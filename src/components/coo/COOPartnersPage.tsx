@@ -463,6 +463,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [renewOpen, setRenewOpen] = useState(false);
   const [renewalCounts, setRenewalCounts] = useState<Record<string, number>>({});
   const [pendingRedemptions, setPendingRedemptions] = useState<Record<string, boolean>>({});
+  const [recentRenewals, setRecentRenewals] = useState<Record<string, string>>({});
 
   // Bulk activate
   const [activatingAll, setActivatingAll] = useState(false);
