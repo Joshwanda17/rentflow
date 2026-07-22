@@ -53,6 +53,52 @@ const STATUS_CONFIG: Record<string, { icon: any; color: string; label: string }>
   cancelled: { icon: XCircle, color: 'bg-muted text-muted-foreground border-border', label: 'Declined' },
 };
 
+/**
+ * Compute the preview of what a renewal approval will produce, mirroring the
+ * `apply_portfolio_renewal` SQL function so Ops sees the SAME dates the RPC
+ * would write. Two branches:
+ *  - "renew_now"  when maturity_date is today or past → new_start = today
+ *  - "schedule"   when maturity_date is in the future → new_start = maturity
+ */
+function computeRenewalPreview(req: Req): {
+  mode: 'renew_now' | 'schedule';
+  effectiveDate: Date;
+  newMaturityDate: Date;
+  newNextRoiDate: Date;
+  durationMonths: number;
+  daysRemaining: number;
+} | null {
+  const p = req.portfolio;
+  if (!p) return null;
+  const maturityStr = p.maturity_date || req.maturity_date;
+  if (!maturityStr) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const matDate = new Date(`${maturityStr}T00:00:00`);
+  const daysRemaining = differenceInCalendarDays(matDate, today);
+  const durationMonths = p.duration_months ?? 12;
+
+  const effectiveDate = daysRemaining <= 0 ? today : matDate;
+  const newMaturityDate = addMonths(effectiveDate, durationMonths);
+
+  // next_roi_date = 1 month after new_start, snapped to payout_day when set.
+  let newNextRoiDate = addMonths(effectiveDate, 1);
+  if (p.payout_day) {
+    const d = new Date(newNextRoiDate.getFullYear(), newNextRoiDate.getMonth(), p.payout_day);
+    newNextRoiDate = d;
+  }
+
+  return {
+    mode: daysRemaining <= 0 ? 'renew_now' : 'schedule',
+    effectiveDate,
+    newMaturityDate,
+    newNextRoiDate,
+    durationMonths,
+    daysRemaining,
+  };
+}
+
 export function MaturityRequestsQueue() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
