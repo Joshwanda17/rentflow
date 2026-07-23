@@ -25,6 +25,14 @@ interface CreateInvestmentAccountDialogProps {
   onError?: (message: string, details?: EdgeFunctionErrorDetails & { partnerId?: string }) => void;
   prefillInvestorId?: string | null;
   prefillInvestorName?: string;
+  /**
+   * 'invite' (default): sends the completion-link email; portfolio lands in
+   *   Invited Portfolios awaiting partner details + Ops approval.
+   * 'direct_confirmation': for partners with ZERO existing portfolios only.
+   *   Skips the invite email, activates the portfolio immediately, and sends
+   *   the standard Tenant Partnership Confirmation email.
+   */
+  mode?: 'invite' | 'direct_confirmation';
 }
 
 interface UserResult {
@@ -33,7 +41,7 @@ interface UserResult {
   phone: string;
 }
 
-export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, onError, prefillInvestorId, prefillInvestorName }: CreateInvestmentAccountDialogProps) {
+export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, onError, prefillInvestorId, prefillInvestorName, mode = 'invite' }: CreateInvestmentAccountDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -250,6 +258,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           roi_percentage: parseFloat(form.roi_percentage),
           roi_mode: form.roi_mode,
           nickname: form.account_name || null,
+          direct_confirmation: mode === 'direct_confirmation',
         },
       });
 
@@ -262,10 +271,17 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       const data = response.data;
 
       const code = data?.portfolio_code || '';
-      toast({
-        title: `Invite sent — portfolio ${code}`,
-        description: `${selectedUser.full_name} will get an email to review and sign. It’s now in the Invited Portfolios tab.`,
-      });
+      if (mode === 'direct_confirmation') {
+        toast({
+          title: `Portfolio ${code} created`,
+          description: `${selectedUser.full_name} has been emailed the Tenant Partnership Confirmation.`,
+        });
+      } else {
+        toast({
+          title: `Invite sent — portfolio ${code}`,
+          description: `${selectedUser.full_name} will get an email to review and sign. It’s now in the Invited Portfolios tab.`,
+        });
+      }
       qc.invalidateQueries({ queryKey: ['invited-portfolios'] });
       qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
       onSuccess();

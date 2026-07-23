@@ -3457,7 +3457,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       }} />
 
       {/* Top-level Create Portfolio Dialog */}
-      <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { refreshInBackground(); fetchPendingCount(); }} />
+      <CreateInvestmentAccountDialog
+        open={createPortfolioOpen}
+        onOpenChange={setCreatePortfolioOpen}
+        mode="direct_confirmation"
+        onSuccess={() => { refreshInBackground(); fetchPendingCount(); }}
+      />
 
       {/* ─── Bulk Activate Confirmation ─── */}
       <AlertDialog open={showActivateConfirm} onOpenChange={setShowActivateConfirm}>

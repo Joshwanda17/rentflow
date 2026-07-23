@@ -7,6 +7,7 @@
 // flips it to 'active' and dispatches the existing partnership-agreement email.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,6 +59,10 @@ Deno.serve(async (req) => {
     const roiPercentage = Number(body?.roi_percentage);
     const roiMode = String(body?.roi_mode || "monthly_payout");
     const nickname = body?.nickname ? String(body.nickname).slice(0, 120) : null;
+    // When true → skip the invite link email and instead immediately approve
+    // the portfolio + send the standard Tenant Partnership Confirmation.
+    // Only allowed for partners that currently have NO portfolios.
+    const directConfirmation = body?.direct_confirmation === true;
 
     if (!UUID.test(partnerId)) return json({ error: "Invalid partner ID" }, 400);
     if (!Number.isFinite(amount) || amount < 20000) return json({ error: "Amount must be at least UGX 20,000" }, 400);
@@ -104,6 +109,13 @@ Deno.serve(async (req) => {
       return json({ error: "Selected user is not a registered partner" }, 400);
     }
 
+    // Direct-confirmation rule: partner must have ZERO existing portfolios.
+    if (directConfirmation && existingPortfolio) {
+      return json({
+        error: "This partner already has a portfolio. Direct confirmation only applies to first-time partners — use the invite flow instead.",
+      }, 409);
+    }
+
     const rawToken = generateToken();
 
     // RPC creates the pending portfolio + hashed token in one transactional step.
@@ -141,6 +153,66 @@ Deno.serve(async (req) => {
     const completionUrl =
       `${origin}/partners/${partnerId}/portfolios/${portfolioId}/complete?token=${encodeURIComponent(rawToken)}`;
 
+    // ── Direct confirmation branch ────────────────────────────────────────
+    // Approve the freshly-created portfolio right away and send the standard
+    // Tenant Partnership Confirmation email. No invite link is sent.
+    if (directConfirmation) {
+      const { error: approveErr } = await userClient.rpc("approve_pending_portfolio", {
+        p_portfolio_id: portfolioId,
+      });
+      if (approveErr) {
+        const msg = approveErr.message || "";
+        if (msg.includes("NOT_AUTHORIZED")) {
+          return json({ error: "You do not have permission to approve portfolios." }, 403);
+        }
+        return json({ error: `Could not activate portfolio: ${msg}` }, 500);
+      }
+
+      const { data: portfolio } = await admin
+        .from("investor_portfolios")
+        .select("id, investor_id, investment_amount, roi_percentage, roi_mode, duration_months, payout_day, portfolio_code, next_roi_date, created_at")
+        .eq("id", portfolioId).maybeSingle();
+
+      let emailDispatched = false;
+      let emailError: string | null = null;
+      if (portfolio && partner.email) {
+        const monthlyReward = Math.round(Number(portfolio.investment_amount) * (Number(portfolio.roi_percentage) / 100));
+        try {
+          await dispatchTransactionalEmail(
+            supabaseUrl,
+            serviceKey,
+            buildPartnershipAgreementRequest({
+              recipientEmail: partner.email,
+              partnerName: partner.full_name,
+              partnerId: portfolio.investor_id,
+              portfolioId: portfolio.id,
+              amount: Number(portfolio.investment_amount),
+              monthlyReward,
+              contributionDateIso: portfolio.created_at,
+              firstPayoutDateIso: portfolio.next_roi_date || portfolio.created_at,
+              payoutDay: portfolio.payout_day || 15,
+              roiPercentage: Number(portfolio.roi_percentage),
+            }),
+          );
+          emailDispatched = true;
+        } catch (e) {
+          emailError = (e as Error)?.message || "unknown";
+          console.warn("[create-portfolio-invite] Confirmation email failed:", emailError);
+        }
+      }
+
+      return json({
+        success: true,
+        mode: "direct_confirmation",
+        portfolio_id: portfolioId,
+        portfolio_code: portfolioCode,
+        partner_email: partner.email,
+        email_dispatched: emailDispatched,
+        email_error: emailError,
+      }, 200);
+    }
+
+    // ── Default invite branch ─────────────────────────────────────────────
     // Send the invite email via existing send-transactional-email pipeline.
     // We reuse the plain 'transactional' template with inline HTML — no new
     // Mailgun template needed for MVP.
