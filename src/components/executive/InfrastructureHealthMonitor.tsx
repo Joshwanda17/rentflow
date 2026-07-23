@@ -185,13 +185,21 @@ export function InfrastructureHealthMonitor() {
     },
   ];
 
-  // Upgrade recommendation logic
-  const shouldUpgrade = 
-    currentSize !== 'large' && (
+  // Upgrade / overload recommendation logic. A "large" instance can still be
+  // overloaded, so do not show the green "sufficient" message just because
+  // there is no larger option in this manual selector.
+  const hasCriticalPressure =
+    concurrent > currentInstance.concurrentUsers ||
+    (latency || 0) > 1000 ||
+    (peakUsers || 0) > currentInstance.concurrentUsers;
+
+  const hasWarningPressure =
     concurrent > currentInstance.concurrentUsers * 0.7 ||
     (latency || 0) > 800 ||
-    (peakUsers || 0) > currentInstance.concurrentUsers
-    );
+    (peakUsers || 0) > currentInstance.concurrentUsers;
+
+  const shouldUpgrade = currentSize !== 'large' && hasWarningPressure;
+  const isMaxInstanceOverloaded = currentSize === 'large' && hasWarningPressure;
 
   const nextSize: InstanceSize | null = (() => {
     const idx = INSTANCE_ORDER.indexOf(currentSize);
@@ -199,8 +207,10 @@ export function InfrastructureHealthMonitor() {
   })();
 
   const upgradeReasons: string[] = [];
-  if (concurrent > currentInstance.concurrentUsers * 0.7) {
-    upgradeReasons.push(`Concurrent users (${concurrent}) approaching limit (${currentInstance.concurrentUsers})`);
+  if (concurrent > currentInstance.concurrentUsers) {
+    upgradeReasons.push(`Concurrent users (${concurrent}) exceeded the safe limit (${currentInstance.concurrentUsers})`);
+  } else if (concurrent > currentInstance.concurrentUsers * 0.7) {
+    upgradeReasons.push(`Concurrent users (${concurrent}) are approaching the safe limit (${currentInstance.concurrentUsers})`);
   }
   if ((latency || 0) > 800) {
     upgradeReasons.push(`DB latency (${latency}ms) is high — queries may be queuing`);
@@ -298,19 +308,30 @@ export function InfrastructureHealthMonitor() {
       </div>
 
       {/* Upgrade Recommendation */}
-      {shouldUpgrade ? (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+      {hasWarningPressure ? (
+        <div className={cn(
+          'rounded-xl border p-3 space-y-2',
+          hasCriticalPressure ? 'border-destructive/30 bg-destructive/5' : 'border-amber-500/30 bg-amber-500/5'
+        )}>
           <div className="flex items-center gap-2">
-            <ArrowUp className="h-4 w-4 text-amber-600" />
-            <p className="text-sm font-semibold text-amber-700">
-              Upgrade Recommended{nextSize ? ` → ${INSTANCE_LIMITS[nextSize].label} Instance` : ''}
+            {isMaxInstanceOverloaded ? (
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            ) : (
+              <ArrowUp className="h-4 w-4 text-amber-600" />
+            )}
+            <p className={cn('text-sm font-semibold', hasCriticalPressure ? 'text-destructive' : 'text-amber-700')}>
+              {isMaxInstanceOverloaded
+                ? `${currentInstance.label} Instance — Overloaded`
+                : `Upgrade Recommended${nextSize ? ` → ${INSTANCE_LIMITS[nextSize].label} Instance` : ''}`}
             </p>
           </div>
-          <ul className="text-xs text-amber-700/80 space-y-1 list-disc list-inside">
+          <ul className={cn('text-xs space-y-1 list-disc list-inside', hasCriticalPressure ? 'text-destructive/80' : 'text-amber-700/80')}>
             {upgradeReasons.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
           <p className="text-[10px] text-muted-foreground">
-            Go to Cloud → Advanced settings to change instance size, then update the dropdown above so this widget reads the right limits.
+            {isMaxInstanceOverloaded
+              ? 'This is not healthy. Keep migrating heavy screens to shared RPCs, reduce direct wallet/profile reads, and consider a larger Cloud compute tier if available.'
+              : 'Go to Cloud → Advanced settings to change instance size, then update the dropdown above so this widget reads the right limits.'}
           </p>
         </div>
       ) : (
