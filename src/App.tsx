@@ -122,6 +122,7 @@ const MerchandiseStore = lazy(() => import('./pages/MerchandiseStore'));
 const Join = lazy(() => import('./pages/Join'));
 const SubAgentInvite = lazy(() => import('./pages/SubAgentInvite'));
 const InviteMerchantAgent = lazy(() => import('./pages/InviteMerchantAgent'));
+const MerchantRegister = lazy(() => import('./pages/MerchantRegister'));
 const MerchantAgentOnboarding = lazy(() => import('./pages/MerchantAgentOnboarding'));
 const MerchantAgentReferrals = lazy(() => import('./pages/MerchantAgentReferrals'));
 const AgentLeaderboard = lazy(() => import('./pages/agent/Leaderboard'));
