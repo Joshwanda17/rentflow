@@ -355,7 +355,7 @@ function ReviewSubmissionDialog({
           .select('full_name, phone, email, national_id, mobile_money_name')
           .eq('id', row!.investor_id).maybeSingle(),
         (supabase.from('partner_agreements') as any)
-          .select('partner_signature_data_url, signed_at')
+          .select('*')
           .eq('user_id', row!.investor_id)
           .order('signed_at', { ascending: false })
           .limit(1)
