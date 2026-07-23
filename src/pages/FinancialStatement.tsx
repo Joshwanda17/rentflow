@@ -10,6 +10,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -86,7 +87,8 @@ export default function FinancialStatement() {
       const [
         walletRes, profileRes, txRes, depositsRes, earningsRes
       ] = await Promise.all([
-        supabase.from('wallets').select('balance').eq('user_id', user.id).maybeSingle(),
+        // Authoritative wallet RPC — avoids the heavy `wallets` view.
+        fetchOpsWallet(user.id).then((w) => ({ data: w, error: null })).catch((error) => ({ data: null, error })),
         supabase.from('profiles').select('full_name, phone').eq('id', user.id).maybeSingle(),
         supabase.from('wallet_transactions').select('*')
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
@@ -104,7 +106,7 @@ export default function FinancialStatement() {
       const withdrawalsRes = { data: [] as any[] };
       const repaymentsRes = { data: [] as any[] };
 
-      setWalletBalance(walletRes.data?.balance || 0);
+      setWalletBalance(walletRes.data ? (walletRes.data.withdrawable + walletRes.data.float + walletRes.data.advance) : 0);
       setUserName(profileRes.data?.full_name || '');
       setUserPhone(profileRes.data?.phone || '');
 
