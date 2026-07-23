@@ -106,7 +106,11 @@ export default function PartnerAgreementSignOff({
   const previewData: AgreementPreviewData | null = useMemo(() => {
     if (!agreement) return null;
     return {
-      partnerName: agreement.full_name || partner?.full_name || '',
+      // Prefer the profile's full legal name over the agreement snapshot.
+      // Some legacy `partner_agreements` rows were captured with initials
+      // (e.g. "RP RP") from an early onboarding form; the profile is the
+      // authoritative source and matches what appears elsewhere in the app.
+      partnerName: (partner?.full_name?.trim() || agreement.full_name?.trim() || ''),
       partnerId: agreement.national_id || '',
       partnerAddress: agreement.address || '',
       partnerPhone: agreement.phone || partner?.phone || '',
