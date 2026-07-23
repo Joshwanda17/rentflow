@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown, ChevronDown, ChevronUp, User as UserIcon, Calendar, Wallet, ArrowDownRight, ArrowUpRight, Info } from 'lucide-react';
+import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown, ChevronDown, ChevronUp, User as UserIcon, Calendar, Wallet, ArrowDownRight, ArrowUpRight, Info, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -47,6 +47,28 @@ interface AllocationRow {
   agent?: { id: string; full_name: string | null; phone: string | null } | null;
 }
 
+interface SettlementRow {
+  id: string;
+  amount: number;
+  category: string;
+  method: string;
+  recipient: string | null;
+  at: string;
+  balanceAfter: number;
+}
+
+function settlementMatches(s: SettlementRow, query: string): boolean {
+  if (!query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  const amountStr = String(Math.abs(s.amount));
+  return (
+    (s.recipient || '').toLowerCase().includes(q) ||
+    s.category.toLowerCase().includes(q) ||
+    s.method.toLowerCase().includes(q) ||
+    amountStr.includes(q)
+  );
+}
+
 /**
  * CFO queue of merchant-agent float requisitions. Fulfilling a request routes
  * funds via the "Agent Float Allocation" category (recipient_type =
@@ -68,6 +90,7 @@ export function MerchantFloatRequestsPanel() {
   const [allocSort, setAllocSort] = useState<'newest' | 'oldest'>('newest');
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
   const [agentSearch, setAgentSearch] = useState('');
+  const [activitySearch, setActivitySearch] = useState('');
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['cfo-float-requests'],
@@ -730,7 +753,7 @@ export function MerchantFloatRequestsPanel() {
                     <div key={b.agent_id} className="rounded-lg border border-border/60 bg-card">
                       <button
                         type="button"
-                        onClick={() => setExpandedAgent(isOpen ? null : b.agent_id)}
+                        onClick={() => { setActivitySearch(''); setExpandedAgent(isOpen ? null : b.agent_id); }}
                         className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition hover:bg-muted/40"
                         aria-expanded={isOpen}
                       >
@@ -775,9 +798,18 @@ export function MerchantFloatRequestsPanel() {
                                     Timeline reconciling · {formatUGX(Math.abs(agentTimeline.drift))} pending
                                   </span>
                                 )}
-                              </div>
-                            )}
-                          </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                value={activitySearch}
+                                onChange={(e) => setActivitySearch(e.target.value)}
+                                placeholder="Search recent activity by name, method, category or amount…"
+                                className="h-8 pl-8 text-xs"
+                              />
+                            </div>
                           {timelineLoading ? (
                             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading top-up timeline…
@@ -850,19 +882,23 @@ export function MerchantFloatRequestsPanel() {
                                     <div className="mt-3">
                                       <div className="mb-2 flex items-center justify-between px-1">
                                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                          Recent activity ({batch.settlements.length})
+                                          Recent activity ({batch.settlements.filter((s) => settlementMatches(s, activitySearch)).length}{activitySearch.trim() ? ` of ${batch.settlements.length}` : ''})
                                         </span>
                                         <span className="text-[11px] font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                                          − {formatUGX(totalUsed)} Total
+                                          − {formatUGX(batch.settlements.filter((s) => settlementMatches(s, activitySearch)).reduce((s, x) => s + Math.abs(x.amount), 0))} Total
                                         </span>
                                       </div>
                                       {batch.settlements.length === 0 ? (
                                         <p className="rounded-lg bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
                                           No cash-outs settled from this batch{!isVirtual ? ' yet' : ''}.
                                         </p>
+                                      ) : batch.settlements.filter((s) => settlementMatches(s, activitySearch)).length === 0 ? (
+                                        <p className="rounded-lg bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                          No activity matches “{activitySearch.trim()}”.
+                                        </p>
                                       ) : (
                                         <div className="space-y-2">
-                                          {batch.settlements.map((s) => {
+                                          {batch.settlements.filter((s) => settlementMatches(s, activitySearch)).map((s) => {
                                             const absAmt = Math.abs(s.amount);
                                             const isCredit = s.amount > 0; // float returned to the agent
                                             const isFee = !isCredit && (/\bfee\b/i.test(s.recipient || '') || absAmt <= 500);
