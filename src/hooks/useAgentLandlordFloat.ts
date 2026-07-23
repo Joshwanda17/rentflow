@@ -6,14 +6,12 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 /**
- * Returns the agent's landlord-payout float using the EXACT formula the
- * `agent_allocate_tenant_payment` RPC uses to gate allocations
- * (`get_agent_float_balance` RPC = wallet ledger total − locked commission).
+ * Returns the agent's landlord-payout float from `agent_landlord_float.balance`.
  *
- * Previously this hook read `agent_landlord_float.balance` directly, which
- * silently disagreed with the RPC's stricter ledger view — so the Confirm
- * button on the Pay-for-Tenant dialog appeared "broken" whenever the cached
- * row was higher than the ledger truth.
+ * This is the CFO-allocated pool the agent uses to pay landlords — it is
+ * intentionally separate from the wallet ledger float bucket. Reads go
+ * straight to the `agent_landlord_float` row so the CFO's disbursement is
+ * what the agent sees and spends against.
  */
 export function useAgentLandlordFloat(agentId?: string) {
   const { user } = useAuth();
@@ -56,11 +54,13 @@ export function useAgentLandlordFloat(agentId?: string) {
     queryKey: ['agent-landlord-float', effectiveId],
     queryFn: async (): Promise<number> => {
       if (!effectiveId) return 0;
-      const { data, error } = await supabase.rpc('get_agent_float_balance', {
-        p_agent_id: effectiveId,
-      });
+      const { data, error } = await supabase
+        .from('agent_landlord_float')
+        .select('balance')
+        .eq('agent_id', effectiveId)
+        .maybeSingle();
       if (error) throw error;
-      const n = Number(data ?? 0);
+      const n = Number(data?.balance ?? 0);
       return Number.isFinite(n) ? n : 0;
     },
     enabled: !!effectiveId,
