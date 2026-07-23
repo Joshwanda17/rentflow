@@ -34,6 +34,8 @@ interface TopAgentRow {
   agent_phone: string | null;
   verified_count: number;
   invited_count: number;
+  sub_agents_count?: number;
+  houses_listed_count?: number;
 }
 
 interface Overview {
@@ -352,7 +354,7 @@ export function AgentListingCampaignPanel() {
                           )}
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">
-                          {verified} verified · {a.invited_count ?? 0} invited
+                          {verified} verified · {a.sub_agents_count ?? a.invited_count ?? 0} sub-agents · {a.houses_listed_count ?? 0} houses listed
                           {a.agent_phone ? ` · ${a.agent_phone}` : ''}
                         </div>
                       </div>
