@@ -38,6 +38,8 @@ import {
   getWithdrawalQueueCategory,
   type CashoutAgentConfig,
 } from '@/lib/cashoutAgentConfig';
+import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
+import { AlertTriangle } from 'lucide-react';
 
 // Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
 const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
@@ -260,6 +262,7 @@ async function attachProfiles(rows: any[]) {
 export function AgentCashPayoutsTab() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { paused: withdrawalsPaused } = useWithdrawalsPaused();
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
@@ -371,6 +374,10 @@ export function AgentCashPayoutsTab() {
   type ClaimConfirmation = { momoNumber?: string | null; momoName?: string | null };
   const handleClaim = (id: string, confirm?: ClaimConfirmation) => {
     if (claimLockRef.current.has(id)) return; // already submitting this request
+    if (withdrawalsPaused) {
+      toast.error('Withdrawals are paused platform-wide. Merchant processing is temporarily disabled.');
+      return;
+    }
     // Category permission gate: a merchant agent may only claim payouts in the
     // categories the CFO mapped to them in the permission matrix.
     const row =
@@ -1137,6 +1144,21 @@ export function AgentCashPayoutsTab() {
   return (
     <MerchantAgreementGate>
     <div className="space-y-5">
+      {withdrawalsPaused && (
+        <div className="rounded-2xl border-2 border-amber-500/60 bg-amber-500/10 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+              Withdrawal processing is paused
+            </p>
+            <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+              The CFO has temporarily paused withdrawals platform-wide. You cannot claim or process
+              new payouts until this is lifted. Any request you've already claimed can still be
+              completed with proof of payment.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Online/Offline availability — only Online agents receive real-time
           withdrawal dispatches. */}
       <MerchantOnlineToggle />

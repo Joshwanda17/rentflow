@@ -13,6 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CashAgentSelector, type SelectedCashAgent } from './CashAgentSelector';
+import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
+import { AlertTriangle } from 'lucide-react';
 
 interface WithdrawRequestDialogProps {
   open: boolean;
@@ -173,6 +175,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { paused: withdrawalsPaused } = useWithdrawalsPaused();
   const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
   const [pendingAmount, setPendingAmount] = useState(0);
   const isSubmittingRef = useRef(false);
@@ -618,7 +621,26 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
 
         {/* Content area */}
         <div className="bg-background rounded-b-xl px-5 pb-6 pt-5 space-y-5">
-          {success ? (
+          {withdrawalsPaused ? (
+            <div className="py-6 space-y-4 animate-fade-in">
+              <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-amber-500" />
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-lg font-bold text-foreground">Withdrawals Temporarily Paused</h3>
+                <p className="text-sm text-muted-foreground">
+                  Wallet withdrawals are currently disabled while our team completes a scheduled review.
+                  Your balance is safe and rent collection, deposits, and transfers continue as normal.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Please try again shortly — we'll reopen withdrawals as soon as the review is complete.
+                </p>
+              </div>
+              <Button className="w-full" variant="outline" onClick={handleClose}>
+                Close
+              </Button>
+            </div>
+          ) : success ? (
             <div className="space-y-5 py-2 animate-scale-in">
               <div className="text-center space-y-3">
                 <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center animate-scale-in">
