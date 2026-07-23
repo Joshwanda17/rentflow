@@ -330,7 +330,17 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
             </div>
           )}
 
-          {selectedUser && !approvalLoading && !isApproved && (
+          {selectedUser && partnerFrozen && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5 flex items-start gap-2">
+              <Shield className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <p className="font-semibold text-destructive">Partner account suspended</p>
+                <p className="text-muted-foreground">Portfolios cannot be created for a suspended account. Unfreeze the account first.</p>
+              </div>
+            </div>
+          )}
+
+          {selectedUser && !partnerFrozen && !approvalLoading && !isApproved && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-2.5 flex items-start gap-2">
               <Shield className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="text-xs">
