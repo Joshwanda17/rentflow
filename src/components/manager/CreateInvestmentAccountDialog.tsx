@@ -56,6 +56,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
 
   const [partnerBalance, setPartnerBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [partnerFrozen, setPartnerFrozen] = useState<boolean>(false);
   // When the selected partner is managed by a proxy agent, the dialog shows
   // the proxy agent's wallet balance instead — funding is debited from that
   // wallet server-side (enforced in create-investor-portfolio edge fn).
@@ -114,12 +115,23 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
     let cancelled = false;
     if (!selectedUser) {
       setPartnerBalance(null);
+      setPartnerFrozen(false);
       return;
     }
     setBalanceLoading(true);
     setPartnerBalance(null);
     setManagedProxy(null);
+    setPartnerFrozen(false);
     (async () => {
+      // Suspended (frozen) partners cannot receive new portfolios.
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('frozen_at')
+        .eq('id', selectedUser.id)
+        .maybeSingle();
+      if (!cancelled && (prof as any)?.frozen_at) {
+        setPartnerFrozen(true);
+      }
       // Managed-proxy check: if the partner has an active+approved
       // is_managed_account=true proxy assignment, funding MUST come from
       // the proxy agent's wallet. Mirror that here so the displayed
