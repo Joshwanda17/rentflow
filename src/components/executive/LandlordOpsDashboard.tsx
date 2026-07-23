@@ -937,7 +937,8 @@ export function LandlordOpsDashboard() {
       const [agentProfiles, landlordMatches] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, email')
           .or(`full_name.ilike.${like},phone.ilike.${like}`).limit(200),
-        supabase.from('landlords').select('id').or(`name.ilike.${like},phone.ilike.${like}`).limit(200),
+        // Trigram-indexed RPC — replaces the raw OR-ILIKE that was the #1 DB CPU offender.
+        supabase.rpc('search_landlords_fuzzy', { p_query: q, p_limit: 200, p_threshold: 0.15 }),
       ]);
       const agentIds = (agentProfiles.data || []).map(p => p.id);
       const landlordIds = (landlordMatches.data || []).map(l => l.id);
