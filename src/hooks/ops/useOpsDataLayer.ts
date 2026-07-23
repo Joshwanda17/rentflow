@@ -10,7 +10,8 @@
  *
  * See: migration "Phase 1: Shared Operations Data Layer".
  */
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 // ---------------------------------------------------------------------------
@@ -95,6 +96,106 @@ export const OPS_QUERY_DEFAULTS = {
   refetchOnWindowFocus: false,
   retry: 1,
 } as const;
+
+// ---------------------------------------------------------------------------
+// 0. Canonical single-user wallet hook — the ONE hook every screen should use
+//    when it needs a single wallet's authoritative balances.
+//
+//    Backed by `get_authoritative_wallet(user_id)` (v_user_wallet_strict).
+//    Shared query key + shared stale time → React Query deduplicates every
+//    caller into a single network round-trip per user per 8s window.
+// ---------------------------------------------------------------------------
+
+export type OpsWallet = {
+  userId: string;
+  withdrawable: number;
+  float: number;
+  advance: number;
+  pendingHolds: number;
+  cache: { withdrawable: number; float: number; advance: number };
+  drift: { withdrawable: number; float: number; advance: number };
+};
+
+export const opsWalletKey = (userId: string | null | undefined) =>
+  ["ops", "wallet", userId ?? ""] as const;
+
+export async function fetchOpsWallet(userId: string): Promise<OpsWallet | null> {
+  if (!userId) return null;
+  const { data, error } = await supabase.rpc("get_authoritative_wallet", { p_user_id: userId });
+  if (error) throw error;
+  const d: any = data ?? {};
+  return {
+    userId,
+    withdrawable: Number(d.withdrawable) || 0,
+    float: Number(d.float) || 0,
+    advance: Number(d.advance) || 0,
+    pendingHolds: Number(d.pending_holds) || 0,
+    cache: {
+      withdrawable: Number(d.cache?.withdrawable) || 0,
+      float: Number(d.cache?.float) || 0,
+      advance: Number(d.cache?.advance) || 0,
+    },
+    drift: {
+      withdrawable: Number(d.drift?.withdrawable) || 0,
+      float: Number(d.drift?.float) || 0,
+      advance: Number(d.drift?.advance) || 0,
+    },
+  };
+}
+
+/**
+ * `useOpsWallet(userId)` — canonical single-user wallet hook.
+ *
+ * • Shared query key `['ops','wallet', userId]` so all subscribers dedupe.
+ * • 8s stale time (within the 5–10s target for ops screens).
+ * • Optional realtime refetch on new ledger rows for this user.
+ * • Call `invalidateOpsWallet(qc, userId)` after any financial mutation.
+ */
+export function useOpsWallet(
+  userId: string | null | undefined,
+  opts: { realtime?: boolean } = { realtime: true },
+) {
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: opsWalletKey(userId),
+    enabled: !!userId,
+    staleTime: 8_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    queryFn: () => fetchOpsWallet(userId as string),
+  });
+
+  useEffect(() => {
+    if (!userId || !opts.realtime) return;
+    const channel = supabase
+      .channel(`ops-wallet-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "general_ledger", filter: `user_id=eq.${userId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: opsWalletKey(userId) });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, opts.realtime, qc]);
+
+  return query;
+}
+
+/**
+ * Invalidate a user's authoritative wallet cache after a successful financial
+ * mutation (deposit, withdrawal approval, ledger post, transfer, top-up).
+ * Call this from every mutation's onSuccess.
+ */
+export function invalidateOpsWallet(qc: QueryClient, userId: string | null | undefined) {
+  if (!userId) return;
+  qc.invalidateQueries({ queryKey: opsWalletKey(userId) });
+  // Also nudge the batch-buckets hook so lists re-hydrate.
+  qc.invalidateQueries({ queryKey: ["ops", "wallet-buckets"] });
+}
 
 // ---------------------------------------------------------------------------
 // 1. Batch profile lookup — replaces `profiles where id = ANY(...)` N+1
