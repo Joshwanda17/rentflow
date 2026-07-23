@@ -424,10 +424,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                 }}
                 ownerName={profile?.full_name || undefined}
                 ownerPhone={profile?.phone || undefined}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                categoryFilter={categoryFilter}
-                onCategoryChange={setCategoryFilter}
               />
 
               {/* Agent Rent Requests — verify inline */}
