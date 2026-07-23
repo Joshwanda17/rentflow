@@ -258,6 +258,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           roi_percentage: parseFloat(form.roi_percentage),
           roi_mode: form.roi_mode,
           nickname: form.account_name || null,
+          direct_confirmation: mode === 'direct_confirmation',
         },
       });
 
@@ -270,10 +271,17 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       const data = response.data;
 
       const code = data?.portfolio_code || '';
-      toast({
-        title: `Invite sent — portfolio ${code}`,
-        description: `${selectedUser.full_name} will get an email to review and sign. It’s now in the Invited Portfolios tab.`,
-      });
+      if (mode === 'direct_confirmation') {
+        toast({
+          title: `Portfolio ${code} created`,
+          description: `${selectedUser.full_name} has been emailed the Tenant Partnership Confirmation.`,
+        });
+      } else {
+        toast({
+          title: `Invite sent — portfolio ${code}`,
+          description: `${selectedUser.full_name} will get an email to review and sign. It’s now in the Invited Portfolios tab.`,
+        });
+      }
       qc.invalidateQueries({ queryKey: ['invited-portfolios'] });
       qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
       onSuccess();
