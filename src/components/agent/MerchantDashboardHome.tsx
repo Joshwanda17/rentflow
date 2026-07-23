@@ -14,11 +14,13 @@ import {
   TrendingUp,
   CheckCircle2,
   Timer,
+  History,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface Props {
   agentId: string;
@@ -58,6 +60,7 @@ export function MerchantDashboardHome({
   onViewStatement,
 }: Props) {
   const total = withdrawableBalance + floatBalance;
+  const navigate = useNavigate();
 
   // 7-day merchant activity — read-only, cached 60s.
   const { data: insights } = useQuery({
@@ -205,6 +208,31 @@ export function MerchantDashboardHome({
           />
         </div>
       </section>
+
+      {/* Transaction history CTA */}
+      <motion.button
+        type="button"
+        onClick={() => {
+          hapticTap();
+          navigate('/agent/transaction-history');
+        }}
+        whileTap={{ scale: 0.97 }}
+        className="flex w-full items-center justify-between gap-4 rounded-3xl border border-border/60 bg-card p-4 text-left transition-all hover:border-primary/40"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <History className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-foreground">Transaction History</p>
+            <p className="truncate text-xs text-muted-foreground">
+              Name, phone, amount, date &amp; TID
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+      </motion.button>
     </div>
   );
 }
