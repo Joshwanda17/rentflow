@@ -61,6 +61,7 @@ export function UnifiedWalletHeroCard({
   withdrawableBalance,
   otherBalance,
   onOpenWallet,
+  onViewStatement,
   onHousesTap,
   onReturnTap,
   onDeployedTap,
@@ -86,6 +87,11 @@ export function UnifiedWalletHeroCard({
   const handleOpenWallet = () => {
     hapticTap();
     onOpenWallet?.();
+  };
+
+  const handleViewStatement = () => {
+    hapticTap();
+    (onViewStatement ?? onOpenWallet)?.();
   };
 
   return (
@@ -272,7 +278,7 @@ export function UnifiedWalletHeroCard({
             <span className="text-[9px] text-primary-foreground/30 font-medium">{ROLE_TRUST[role]}</span>
           </div>
           <button
-            onClick={handleOpenWallet}
+            onClick={handleViewStatement}
             className="relative flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 active:scale-95 text-primary-foreground font-semibold text-sm shadow-lg ring-2 ring-primary-foreground/40 animate-bell-glow transition-all overflow-hidden group"
           >
             <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent transition-transform duration-1000 ease-out" />
