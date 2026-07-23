@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWalletBuckets } from '@/hooks/ops/useOpsDataLayer';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -514,9 +515,9 @@ function AllAgentsBreakdownTab() {
       const ids = roles.map(r => r.user_id);
 
       // 2. Fetch profiles, wallets, and ledger commission data in parallel
-      const [{ data: profiles }, { data: wallets }, { data: ledger }] = await Promise.all([
+      const [{ data: profiles }, walletBuckets, { data: ledger }] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone').in('id', ids),
-        supabase.from('wallets').select('user_id, balance').in('user_id', ids),
+        fetchOpsWalletBuckets(ids),
         supabase
           .from('general_ledger')
           .select('user_id, amount, direction, category')
@@ -528,6 +529,7 @@ function AllAgentsBreakdownTab() {
             'agent_commission_withdrawal', 'agent_commission_used_for_rent',
           ]),
       ]);
+      const wallets = walletBuckets.map(w => ({ user_id: w.user_id, balance: w.balance }));
 
       const EARN_CATS = ['agent_commission_earned', 'agent_commission', 'agent_bonus', 'referral_bonus', 'proxy_investment_commission'];
       const SPEND_CATS = ['agent_commission_withdrawal', 'agent_commission_used_for_rent'];

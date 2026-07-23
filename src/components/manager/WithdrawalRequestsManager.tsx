@@ -40,6 +40,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { fetchOpsWalletBuckets, trackOpsQuery } from '@/hooks/ops/useOpsDataLayer';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format, formatDistanceToNow } from 'date-fns';
 import { exportToCSV } from '@/lib/exportUtils';
@@ -509,10 +510,11 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
       if (requestsData && requestsData.length > 0) {
         const userIds = [...new Set(requestsData.map(r => r.user_id))];
 
-        // Fetch user profiles, wallet balances, and fund sources in parallel
-        const [profilesRes, walletsRes, ledgerRes] = await Promise.all([
+        // Fetch user profiles, wallet balances (via shared ops layer → single
+        // batched RPC, request-deduped across the app), and fund sources.
+        const [profilesRes, walletBuckets, ledgerRes] = await Promise.all([
           supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', userIds),
-          supabase.from('wallets').select('user_id, balance').in('user_id', userIds),
+          trackOpsQuery('withdrawal-requests', 'wallet-buckets', () => fetchOpsWalletBuckets(userIds)),
           supabase.from('general_ledger')
             .select('user_id, category, amount, direction')
             .in('user_id', userIds)
@@ -520,7 +522,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
         ]);
 
         const profileMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
-        const walletMap = new Map(walletsRes.data?.map(w => [w.user_id, w.balance]) || []);
+        const walletMap = new Map(walletBuckets.map(w => [w.user_id, w.balance]));
 
         // Build fund sources per user from ledger
         const fundSourcesMap = new Map<string, FundSource[]>();
@@ -542,7 +544,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
           fund_sources: (fundSourcesMap.get(r.user_id) || []).sort((a, b) => b.total - a.total),
         }));
 
-        setRequests(enrichedRequests);
+        setRequests(enrichedRequests as unknown as WithdrawalRequest[]);
       } else {
         setRequests([]);
       }

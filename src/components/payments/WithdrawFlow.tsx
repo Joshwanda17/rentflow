@@ -13,6 +13,8 @@ import { formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote, BadgeCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { computeLedgerAvailable } from '@/lib/computeLedgerAvailable';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -87,6 +89,7 @@ export default function WithdrawFlow({
   defaultWithdrawalReason = WITHDRAWAL_REASON_OPTIONS[0].value,
 }: WithdrawFlowProps) {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const { language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
@@ -804,6 +807,10 @@ export default function WithdrawFlow({
       toast.success(
         'Withdrawal request submitted. Funds will be released once Financial Ops approves.',
       );
+      // Pending withdrawals reduce spendable balance immediately (pending_holds
+      // in the strict view). Nudge the shared ops-wallet cache so every hero
+      // card / withdrawal gate on this session sees the reduced figure.
+      if (user?.id) invalidateOpsWallet(qc, user.id);
       onSuccess?.();
 
       // Confirmation SMS to the requester (server-side, idempotent). Fire-and-
