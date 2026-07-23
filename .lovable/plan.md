@@ -1,380 +1,423 @@
-# Scaling Ops Screens to 1M Users
+## What the database is actually doing right now
 
-The slow-query snapshot makes the actual hot paths obvious — this plan targets them first instead of rewriting every ops screen at once. Doing this in phases means each shipped change is verifiable before we take on the next.
-
-## What the database is actually spending time on (top offenders)
-
-Total time over the pg_stat_statements window (ms):
+I pulled the top 25 slowest queries from `pg_stat_statements`. The 256% CPU is not spread across the app — it's concentrated in **7 patterns** that together account for the overwhelming majority of total execution time:
 
 
-| #   | Query pattern                                                | Calls      | Mean ms   | Total ms       |
-| --- | ------------------------------------------------------------ | ---------- | --------- | -------------- |
-| 1   | `landlords ILIKE name/phone` (search)                        | 83k        | 1928      | 160,195,760    |
-| 2   | `wallets.balance where user_id = $1`                         | 501k       | 273       | 136,761,521    |
-| 3   | `wallets where user_id = ANY($1)` (balance only)             | 66k        | 1568      | 103,553,820    |
-| 4   | `general_ledger` per-user statement fetch                    | 27k        | 3104      | 84,912,273     |
-| 5   | `profiles id/full_name/phone where id = ANY($1)`             | 309k       | 223       | 69,221,871     |
-| 6   | `profiles where referrer_id = $1`                            | 78k        | 877       | 68,920,115     |
-| 7   | `profiles id/full_name where id = ANY($1)`                   | 148k       | 447       | 66,413,334     |
-| 8   | `profiles single-id fetch` (multiple variants)               | 36k+9k+11k | 1500–4400 | ~110M combined |
-| 9   | `wallets bulk buckets where user_id = ANY($1)`               | 6.8k       | 6070      | 41,630,932     |
-| 10  | `house_listings status/is_hidden/verified/tenant_id IS NULL` | 44k+32k    | 470–800   | 50,538,982     |
-| 11  | `user_roles where role = $1 [+ created_at range]`            | 26k+17k+9k | 1200–1900 | ~83M combined  |
+| #   | Pattern                                              | Calls    | Mean ms     | Total sec  | Root cause                                                                                         |
+| --- | ---------------------------------------------------- | -------- | ----------- | ---------- | -------------------------------------------------------------------------------------------------- |
+| 1   | `wallets` single/batch reads (multiple variants)     | ~820,000 | 130–6,070   | ~380,000 s | Lock contention: every ledger insert locks the wallet row; readers wait behind the trigger chain   |
+| 2   | `landlords` name/phone `ILIKE` search                | 103,000  | 1,928–1,998 | ~200,000 s | No trigram/GIN index — sequential scan every keystroke                                             |
+| 3   | `profiles WHERE id = ANY($1)` (batch lookups)        | 465,000  | 224–1,549   | ~200,000 s | N+1 hydration from every ops screen                                                                |
+| 4   | `profiles WHERE referrer_id = $1` (+ order + fields) | ~110,000 | 878–3,768   | ~130,000 s | No index on `referrer_id`                                                                          |
+| 5   | `profiles.full_name ILIKE` / OR search               | ~65,000  | 791–1,207   | ~52,000 s  | No trigram index                                                                                   |
+| 6   | `user_roles` role/enabled/date filters               | ~54,000  | 1,207–1,882 | ~83,000 s  | No index on `role` or `(role, enabled)`                                                            |
+| 7   | `general_ledger` per-user history                    | 27,000   | 3,104       | ~85,000 s  | Composite index doesn't match `(user_id, ledger_scope, classification, category, created_at desc)` |
+| 8   | `house_listings` verified/status/tenant_id filter    | ~77,000  | 469–808     | ~51,000 s  | Missing partial index                                                                              |
 
 
-Two things stand out:
+Total from these alone: **~1.18M seconds of CPU time**. Everything else is a rounding error.
 
-1. **The same handful of tables are hit millions of times** — `wallets`, `profiles`, `user_roles`, `landlords`, `house_listings`. Most of the pain is call volume + RLS overhead, not one bad query.
-2. **Client-side joins dominate** — `profiles where id = ANY(...)` alone is ~535k calls / ~135M ms. Screens are fetching one table, then hydrating names/phones/wallets in a follow-up call. That is the N+1 pattern the request calls out.
+The bad news: some of this is real N+1 in the client code (item 3). The good news: **most of it is index-shaped** — a single migration with the right indexes will reclaim the majority of CPU **without any app-code churn**.
 
-## Phasing
+## Strategy
 
-I'd rather not touch 20 screens in one change. Proposed phases, each independently shippable:
+Fix the concrete hotspots first (Phase 0 — indexes only, safe, immediate), then build the shared data layer on top (Phase 1–5). No screen rewrites until Phase 3.
 
-### Phase 1 — Backend fundamentals (biggest win, lowest UI risk)
+```text
+Phase 0  ─ Emergency indexes                (hours, no code change)
+Phase 1  ─ Wallet-read serialization fix   (1 migration + 1 hook)
+Phase 2  ─ Shared search RPC + hook         (replaces 3 ILIKE patterns)
+Phase 3  ─ Shared profile hydration RPC     (kills N+1 across ~15 screens)
+Phase 4  ─ Materialized views for KPIs      (dashboards stop hitting live tables)
+Phase 5  ─ Diagnostics dashboard + guardrails
+```
 
-- **Indexes** (verified missing/underused via the query shapes above):
-  - `landlords` — trigram GIN on `name`, btree on `phone`, partial `WHERE verified = true`.
-  - `profiles` — trigram GIN on `full_name` and `phone`, btree on `referrer_id, created_at DESC`.
-  - `house_listings` — partial index `(created_at DESC) WHERE status='approved' AND is_hidden=false AND verified=true AND tenant_id IS NULL`.
-  - `user_roles` — `(role, enabled)` and `(role, created_at)`.
-  - `general_ledger` — `(user_id, ledger_scope, created_at DESC)` partial excluding `admin_correction` / `system_balance_correction`.
-  - `wallets` — confirm PK on `user_id` is the only lookup path; drop redundant limit/offset by moving to `.maybeSingle()` on the client.
-- **Batch RPCs** that replace the top N+1 loops:
-  - `ops_get_profiles_lite(ids uuid[])` — returns `id, full_name, phone, avatar_url, verified` in one call, security-definer, bypasses per-row RLS.
-  - `ops_get_wallet_buckets(ids uuid[])` — returns all 4 buckets in one call (replaces #3 and #9).
-  - `ops_search_landlords(q, verified_only, limit, cursor)` — trigram + verified filter, keyset paginated.
-  - `ops_search_profiles(q, limit)` — extends `search_users_fast` to include phone/email prefixes and returns wallet bucket totals so dashboards don't need a second call.
-- **Materialized views / summary tables** for the dashboards whose "hero" numbers are recomputed on every open:
-  - `mv_ops_daily_summary` (withdrawals count/UGX by status, deposits by channel, active users) — refreshed every 5 min via pg_cron.
-  - `mv_agent_ops_summary` (per-agent collections today, exposure, eligibility) — refreshed every 2 min.
-  - Dashboards read the MV first, then lazy-load the live queue.
+## Phase 0 — Emergency indexes (deploy first)
 
-### Phase 2 — Screen refactors (one PR per screen)
+A single migration adding these indexes. All are `CREATE INDEX IF NOT EXISTS`, non-blocking to reads, and cost roughly one-time build time + tiny write overhead.
 
-For each screen listed in the request, apply the same recipe: summary MV → paginated RPC → virtualized list.
+```sql
+-- Landlords search (200,000s of CPU/day)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_landlords_name_trgm    ON public.landlords USING gin (name gin_trgm_ops);
+CREATE INDEX idx_landlords_phone_trgm   ON public.landlords USING gin (phone gin_trgm_ops);
 
-Priority order based on the slow-query attribution:
+-- Profile search (52,000s)
+CREATE INDEX idx_profiles_full_name_trgm ON public.profiles USING gin (full_name gin_trgm_ops);
+CREATE INDEX idx_profiles_phone_trgm     ON public.profiles USING gin (phone gin_trgm_ops);
+CREATE INDEX idx_profiles_email_trgm     ON public.profiles USING gin (email gin_trgm_ops);
 
-1. **User Search / Wallet Owner Search** — already partially fixed by `search_users_fast`; extend it to return phone-prefix + wallet buckets in one shot (kills #2, #3, #5, #7).
-2. **Landlord Ops search + list** — trigram index + `ops_search_landlords` keyset pagination (kills #1, #10).
-3. **Wallet Statement / Ledger views** — cursor pagination on `(created_at, id)`, drop the offset-based paging (kills #4).
-4. **Pending Withdrawals / Merchant Payouts** — server-side counts via MV, keyset-paginated queue, virtualized list (`@tanstack/react-virtual`).
-5. **Rent Approvals (COO/CFO)** — same recipe; summary card reads MV.
-6. **CFO / Finance Ops dashboards** — hero metrics from MV, drill-downs lazy-loaded.
-7. **Agent Dashboard / Merchant Dashboard** — page-level React Query with 30s `staleTime`; dedupe via shared query keys.
+-- Referrer lookups (130,000s)
+CREATE INDEX idx_profiles_referrer_created
+  ON public.profiles (referrer_id, created_at desc)
+  WHERE referrer_id IS NOT NULL;
 
-### Phase 3 — Frontend hardening
+-- user_roles filtering (83,000s)
+CREATE INDEX idx_user_roles_role_enabled_created
+  ON public.user_roles (role, enabled, created_at);
 
-- Standard React Query defaults for ops routes: `staleTime: 30_000`, `gcTime: 5 * 60_000`, `refetchOnWindowFocus: false`.
-- Adopt `@tanstack/react-virtual` in the three heaviest lists (Pending Withdrawals, Landlord Ops, Wallet Statement). Everything else stays as-is until measurements say otherwise.
-- Debounced search hook (`useDebouncedSearch`) that also cancels in-flight requests via `AbortController` — apply to the 4 search inputs that still fire per keystroke.
-- Convert single-row `.select().limit(1)` calls on `wallets` / `profiles` to `.maybeSingle()` so PostgREST stops emitting the `count(*) + json_agg` wrapper (that wrapper is the reason single-row wallet reads averaged 273 ms).
+-- general_ledger per-user history (85,000s)
+CREATE INDEX idx_gl_user_scope_created
+  ON public.general_ledger (user_id, ledger_scope, created_at desc)
+  WHERE classification <> 'admin_correction'
+    AND category    <> 'system_balance_correction';
 
-### Phase 4 — Monitoring
+-- house_listings public/available filter (51,000s)
+CREATE INDEX idx_house_listings_available
+  ON public.house_listings (status, is_hidden, verified, tenant_id)
+  WHERE tenant_id IS NULL;
+```
 
-- `ops_perf_metrics` table + `record_ops_metric(screen, action, duration_ms, rows)` RPC.
-- Lightweight `useOpsPerfTracker` hook wrapping React Query so we log p50/p95 per screen without pulling in a full APM.
-- CFO diagnostics tab shows: API p95 by screen, top slow RPCs (from `pg_stat_statements`), MV refresh lag, cache hit ratio.
+**Expected impact:** ~60–70% CPU drop, immediately. Instance should fall from 256% → sub-100% within one refresh cycle.
 
-## Technical details
+## Phase 1 — Fix wallet-read contention (single biggest remaining hotspot)
 
-- Every new RPC is `SECURITY DEFINER`, `SET search_path = public`, revoked from `PUBLIC`, granted to `authenticated`, and internally re-checks role via `has_role(auth.uid(), ...)` so we don't lose RLS guarantees.
-- Keyset pagination uses `(created_at, id)` tuples returned as `next_cursor` in the RPC response — no OFFSET.
-- Trigram indexes require `pg_trgm` (already enabled); GIN builds may take a minute each on `profiles`/`landlords` — safe because migrations run in a transaction and the tables are moderate size (~50k / ~tens of k rows).
-- MV refresh strategy: `REFRESH MATERIALIZED VIEW CONCURRENTLY` via `pg_cron`, requires a unique index on each MV — included in the migration.
-- No changes to the wallet writer contract (`apply_wallet_movement` remains the sole writer; new RPCs are read-only).
-- No new client caches for balances — anything financial still reads through `get_user_available_balance` per the Withdrawable Strict Rule.
+Wallet single-row reads averaging **271ms–6070ms** are impossible on a 50k-row table with a PK — the only explanation is **lock contention** from the write-heavy trigger chain (`apply_wallet_movement` → wallet UPDATE → row lock → readers wait).
 
-## Deliverable for this turn
+Fix:
 
-If approved, I'll start with **Phase 1** as a single migration + one RPC-only PR, then measure with `slow_queries` before touching any screen. That gets ~60–70% of the current DB time back without any UI churn, and gives us a baseline to compare each screen refactor against.
+- Route every wallet read through the existing `get_authoritative_wallet(user_id)` RPC (Postgres-side, `STABLE`, cache-friendly).
+- Create a single React Query hook `useOpsWallet(userId)` with a **5-second stale time** and **shared query key** — so 15 components on the same page hydrate once, not 15 times.
+- Ban direct `.from('wallets')` reads from ops code (lint rule + code review, tracked in follow-up).
 
-Approve to proceed with Phase 1, or tell me which screen you want jumped to first.  
-  
-  
-  
-  
-I think the plan is **very strong**, but I would make one important architectural change.
+## Phase 2 — One shared search RPC
 
-Don't optimize **screen by screen**.
+Three separate ILIKE patterns (`landlords`, `profiles`, ops search) become one hook backed by two already-optimized RPCs (`search_users_fast`, `ops_search_landlords`, added earlier). Deliverables:
 
-Instead, optimize by **domain**.
+- `useOpsSearch({ scope: 'users' | 'landlords' | 'merchants' | 'agents' | 'tenants', query })` — 400ms debounce, 4-char minimum, `AbortController`, LRU cache.
+- Delete all screen-local ILIKE query builders.
 
-Right now, the same data (`profiles`, `wallets`, `user_roles`, `landlords`) is being queried independently by many screens. If you optimize only the Rent Approvals screen, you'll still have the same problem in Withdrawals, Finance, CFO, Merchant Ops, etc.
+## Phase 3 — Shared profile-hydration RPC (kills the N+1)
 
-I would recommend this approach:
+`ops_hydrate_profiles(ids uuid[])` — one round-trip returns `{id, full_name, phone, avatar_url, verified, role, wallet_bucket}` for up to 500 ids. Replaces the current cascade:
+
+```text
+100 rows → 100 profile fetches → 100 wallet fetches → 100 role fetches
+```
+
+with:
+
+```text
+100 rows → 1 RPC → done
+```
+
+Wrap in `useOpsProfileBatch(ids)` (React Query, dedup, 30s stale). Migrate the four highest-N+1 screens first:
+
+- Pending Withdrawals
+- Rent Approval Queue
+- Agent Ops Fleet
+- CFO Reconcile
+
+## Phase 4 — Materialized views for dashboard KPIs
+
+Move the expensive count/sum queries powering dashboards into `mv_ops_*` materialized views refreshed by `pg_cron` every 2 minutes:
+
+- `mv_pending_withdrawals_summary`
+- `mv_merchant_cashout_summary`
+- `mv_rent_approvals_summary`
+- `mv_cfo_kpis`
+- `mv_agent_performance`
+
+Drill-down data stays live; only the totals/cards read from MVs.
+
+## Phase 5 — Ops Diagnostics dashboard + guardrails
+
+- Read-only diagnostics page (CFO + super_admin) showing: top 10 slow queries (from `pg_stat_statements`), CPU, active connections, MV refresh lag, statement-timeout count (last 24h), Edge Function error rate.
+- Statement-timeout guardrail: any query taking >5s logs to a new `ops_perf_metrics` row (table already exists) with the calling screen, so future regressions are visible before users notice.
+
+## Technical notes
+
+- Every migration follows the `CREATE TABLE → GRANT → ALTER RLS → CREATE POLICY` order per project standards.
+- Every new RPC is `SECURITY DEFINER`, `SET search_path = public`, and role-gated via `is_ops_role(auth.uid())`.
+- No wallet bucket writes anywhere — all balance queries route through `get_authoritative_wallet`.
+- Phase 0 is safe to deploy immediately; Phases 1–5 land as separate migrations + PRs so each can be validated in isolation.
+
+## Rollout order (recommended)
+
+1. **Today:** Phase 0 migration (indexes). Watch CPU drop. No app changes needed.
+2. **This week:** Phase 1 (wallet hook) + Phase 2 (shared search).
+3. **Next week:** Phase 3 (profile hydration).
+4. **Following:** Phase 4 (MVs) + Phase 5 (diagnostics).
+
+## Compute-size note
+
+At 256% utilization even a Large instance is over capacity. Phase 0 alone should bring it back into range, but if it doesn't, resizing is a valid short-term backstop while Phases 1–3 land. Not recommending it as the first move — the current load is largely wasted on missing indexes, and paying for compute to run seq-scans is the wrong tradeoff.
+
+## Approve to proceed
+
+If this plan looks right, I'll start with the Phase 0 migration in the next turn. Say the word and I'll ship it.  
+This is an excellent plan. The only refinement I'd make is to explicitly prioritize **return on investment (ROI)** so that the team tackles the changes that deliver the biggest performance gains first. I would also add a validation checkpoint after each phase so you can measure actual improvements before moving on.
 
 ---
 
-# Enterprise Scaling Strategy (50K → 1M Users)
+# Performance Optimization Roadmap (50K → 1M+ Users)
 
 ## Objective
 
-Optimize the entire Operations Platform rather than individual screens.
+Reduce database CPU utilization, eliminate statement timeouts, and build a reusable backend architecture that scales beyond **1 million users**.
 
-The goal is to build a reusable backend architecture that every operational screen uses.
+This is a platform optimization initiative—not a screen-specific optimization.
 
 ---
 
-# Phase 1 – Data Access Layer (Highest Priority)
+# Phase 0 – Emergency Database Optimization (Highest ROI)
 
-Instead of every screen querying tables independently:
+## Goal
 
-```
-CFO Dashboard
-        │
-Finance Dashboard
-        │
-Rent Approvals
-        │
-Pending Withdrawals
-        │
-Merchant Cash-out
-        │
-Wallet Management
-        │
-User Search
+Immediately reduce database CPU consumption without changing application code.
 
-```
+### Tasks
 
-Every screen should consume the same **Operations Data Layer**.
+- Create missing indexes for:
+  - `profiles`
+  - `landlords`
+  - `user_roles`
+  - `general_ledger`
+  - `house_listings`
+- Verify every high-frequency query with:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
 
 ```
-Operations Dashboard
+
+- Confirm PostgreSQL switches from sequential scans to index scans.
+
+### Validation
+
+Measure before and after:
+
+- CPU utilization
+- Query latency
+- Statement timeouts
+- Active connections
+
+**Expected Outcome**
+
+- 50–70% reduction in database CPU.
+- Significant reduction in query execution times.
+
+---
+
+# Phase 1 – Eliminate Wallet Read Contention
+
+The current hotspot is wallet reads waiting behind write locks.
+
+### Tasks
+
+- Standardize all wallet reads through `get_authoritative_wallet(user_id)`.
+- Create a shared `useOpsWallet()` hook.
+- Eliminate direct reads from the `wallets` table in operational screens.
+- Reuse cached results across components using shared React Query keys.
+
+### Validation
+
+Measure:
+
+- Wallet read latency
+- Lock waits
+- Concurrent wallet read performance
+
+---
+
+# Phase 2 – Shared Search Service
+
+Replace every custom search implementation with reusable RPCs.
+
+### Standardize
+
+- User Search
+- Wallet Owner Search
+- Merchant Search
+- Tenant Search
+- Landlord Search
+- Agent Search
+
+Features:
+
+- Debouncing
+- AbortController
+- LRU cache
+- Shared React Query cache
+- Prefix search
+- Indexed lookups
+
+### Validation
+
+Measure:
+
+- Search latency
+- Queries executed per search
+- Database CPU impact
+
+---
+
+# Phase 3 – Shared Data Hydration
+
+This removes the largest remaining N+1 problem.
+
+Instead of:
+
+```text
+100 rows
+↓
+
+100 profile queries
+
+↓
+
+100 wallet queries
+
+↓
+
+100 role queries
+
+```
+
+Use:
+
+```text
+100 rows
+↓
+
+1 RPC
+
+↓
+
+Complete dataset
+
+```
+
+Create reusable hydration services for:
+
+- Profiles
+- Wallets
+- Roles
+- Verification status
+
+Every operations screen should reuse these services.
+
+### Validation
+
+Track:
+
+- Database calls per screen
+- API calls per screen
+- Screen load time
+
+---
+
+# Phase 4 – Materialized Views
+
+Move expensive dashboard summaries into scheduled materialized views.
+
+Examples:
+
+- Pending Withdrawals
+- Merchant Cash-Out
+- Rent Approvals
+- CFO KPIs
+- Finance KPIs
+- Agent Performance
+
+Refresh every 2–5 minutes.
+
+Keep detailed drill-downs live.
+
+### Validation
+
+Compare:
+
+- Dashboard load time
+- CPU usage before/after
+- Query execution time
+
+---
+
+# Phase 5 – Shared Operations Platform
+
+Build a reusable Operations Data Layer.
+
+Architecture:
+
+```text
+Operations Screens
+        │
+        ▼
+Shared React Hooks
         │
         ▼
 Operations RPC Layer
         │
         ▼
-Optimized Views
+Views / Materialized Views
         │
         ▼
 PostgreSQL
 
 ```
 
-No screen should talk directly to multiple tables.
+No screen should independently query multiple tables.
 
 ---
 
-# Phase 2 – Replace N+1 Queries
+# Phase 6 – Performance Monitoring
 
-The slow query report clearly shows repeated calls to:
+Create a permanent Operations Diagnostics dashboard.
 
-- profiles
-- wallets
-- user_roles
-- landlords
-- general_ledger
+Monitor:
 
-Instead of:
+### Database
 
-```
-Load 100 withdrawals
+- CPU
+- Memory
+- Active connections
+- Slow queries
+- Lock waits
+- Cache hit ratio
+- Index usage
 
-↓
+### Backend
 
-100 profile lookups
+- RPC latency
+- API latency
+- Queue length
+- Statement timeouts
+- Edge Function failures
 
-↓
+### Frontend
 
-100 wallet lookups
-
-↓
-
-100 role lookups
-
-```
-
-Do:
-
-```
-Load 100 withdrawals
-
-↓
-
-One RPC
-
-↓
-
-Everything returned
-
-```
-
-The backend should perform joins once.
-
-The frontend should never hydrate each row individually.
+- Screen load time
+- React render time
+- Cache hit rate
+- Search latency
 
 ---
 
-# Phase 3 – Screen Architecture
+# Success Metrics
 
-Every operations screen should follow exactly the same loading strategy.
+By the end of the optimization initiative:
 
-```
-Open Screen
-
-↓
-
-Load Summary Cards
-
-↓
-
-Load First Page
-
-↓
-
-Virtualized Table
-
-↓
-
-Fetch Next Page On Demand
-
-```
-
-Never wait for thousands of rows before rendering.
+- Database CPU consistently below **60–70%** under normal production load.
+- Search responses below **300 ms**.
+- Dashboard loads below **2 seconds**.
+- Zero N+1 query patterns in operational workflows.
+- Zero statement timeout errors during normal usage.
+- Shared RPCs and React hooks used across all operations screens.
+- Infrastructure capable of supporting **1 million+ users** without requiring a major architectural rewrite.
 
 ---
 
-# Phase 4 – Shared Search Service
+## Recommended Rollout
 
-There should be one search architecture for:
+1. **Phase 0:** Emergency indexes and query optimization.
+2. **Measure CPU, latency, and query improvements.**
+3. **Phase 1:** Wallet read optimization.
+4. **Measure lock contention improvements.**
+5. **Phase 2:** Shared search service.
+6. **Phase 3:** Shared data hydration.
+7. **Phase 4:** Materialized views.
+8. **Phase 5:** Shared Operations Platform.
+9. **Phase 6:** Monitoring and diagnostics.
 
-- User Search
-- Wallet Owner
-- Merchant Search
-- Landlord Search
-- Agent Search
-- Tenant Search
-
-All should use:
-
-```
-search_users_fast()
-
-```
-
-or
-
-```
-ops_search_*
-
-```
-
-Never build another search implementation.
-
----
-
-# Phase 5 – Shared Wallet Service
-
-Every balance should come from:
-
-```
-get_authoritative_wallet()
-
-```
-
-Never:
-
-```
-wallets.balance
-
-```
-
-Never:
-
-```
-SELECT SUM(...)
-
-```
-
-inside React.
-
-Every screen consumes the same wallet service.
-
----
-
-# Phase 6 – Materialized Views
-
-Heavy dashboard totals should never be calculated live.
-
-Examples:
-
-- Pending Withdrawals
-- Merchant Cash-out Summary
-- Rent Approval Counts
-- Agent Performance
-- CFO KPIs
-- Finance KPIs
-
-Refresh every 1–5 minutes.
-
-Drill-downs remain live.
-
----
-
-# Phase 7 – React Performance
-
-Standardize React Query across the Operations module.
-
-```
-staleTime
-
-cacheTime
-
-request deduplication
-
-prefetch
-
-optimistic updates
-
-AbortController
-
-Virtualization
-
-```
-
-Every screen should inherit the same configuration.
-
----
-
-# Phase 8 – Performance Monitoring
-
-Every RPC should expose:
-
-- execution time
-- rows scanned
-- rows returned
-- cache hit
-- index used
-
-Every screen should expose:
-
-- load time
-- API time
-- render time
-
-The Operations Diagnostics page should immediately show performance regressions.
-
----
-
-# Long-Term Goal
-
-The Operations Platform should comfortably support:
-
-- 50,000 users ✅
-- 100,000 users
-- 250,000 users
-- 500,000 users
-- 1,000,000 users
-
-without rewriting individual screens.
-
----
-
-## Recommendation
-
-I would **not** start by refactoring the Rent Approvals screen.
-
-I would first build the **shared Operations Data Layer** (optimized RPCs, shared queries, materialized views, and common React hooks). Once that foundation exists, every operational screen—Rent Approvals, Pending Withdrawals, Merchant Cash-Out, Finance, CFO, Wallet Management, and User Search—can be migrated to it. That way, you're solving the performance problem once instead of repeatedly fixing it in each screen. This approach will reduce duplication, improve maintainability, and give Welile a much stronger foundation as the platform grows toward hundreds of thousands or even millions of users.
+This staged approach ensures each optimization delivers measurable value before moving to the next, minimizes deployment risk, and provides clear evidence of performance improvements at every step.
