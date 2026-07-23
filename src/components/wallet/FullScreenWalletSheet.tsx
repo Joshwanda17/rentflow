@@ -38,7 +38,7 @@ import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingC
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { WalletTransactionTimeline, type TabValue, getCategoryLabel } from './WalletTransactionTimeline';
+import { WalletTransactionTimeline } from './WalletTransactionTimeline';
 import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
@@ -54,129 +54,6 @@ interface FullScreenWalletSheetProps {
   scrollTarget?: 'statement' | null;
 }
 
-const WALLET_FILTER_STORAGE_KEY = 'welile-wallet-filters';
-
-function readStoredFilters(): { activeTab: TabValue; categoryFilter: 'all' | string } | null {
-  try {
-    const raw = localStorage.getItem(WALLET_FILTER_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    const activeTab = ['all', 'in', 'out'].includes(parsed?.activeTab)
-      ? (parsed.activeTab as TabValue)
-      : 'all';
-    const categoryFilter = typeof parsed?.categoryFilter === 'string'
-      ? parsed.categoryFilter
-      : 'all';
-    return { activeTab, categoryFilter };
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredFilters(filters: { activeTab: TabValue; categoryFilter: 'all' | string }) {
-  try {
-    localStorage.setItem(WALLET_FILTER_STORAGE_KEY, JSON.stringify(filters));
-  } catch {
-    // Ignore storage errors (e.g. private mode).
-  }
-}
-
-interface CategoryFilterChipsProps {
-  categories: string[];
-  selected: 'all' | string;
-  onSelect: (value: 'all' | string) => void;
-}
-
-function CategoryFilterChips({ categories, selected, onSelect }: CategoryFilterChipsProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const focusButtonAt = useCallback((index: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="button"]'));
-    const target = buttons[index];
-    target?.focus();
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const container = containerRef.current;
-      if (!container) return;
-      const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="button"]'));
-      const activeEl = document.activeElement as HTMLElement | null;
-      const currentIndex = activeEl ? buttons.indexOf(activeEl as HTMLButtonElement) : -1;
-
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        const nextIndex = currentIndex < buttons.length - 1 ? currentIndex + 1 : 0;
-        focusButtonAt(nextIndex);
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        const prevIndex = currentIndex > 0 ? currentIndex - 1 : buttons.length - 1;
-        focusButtonAt(prevIndex);
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        focusButtonAt(0);
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        focusButtonAt(buttons.length - 1);
-      }
-    },
-    [focusButtonAt]
-  );
-
-  const allActive = selected === 'all';
-
-  return (
-    <div
-      ref={containerRef}
-      role="group"
-      aria-label="Filter transactions by category"
-      className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2 scrollbar-hide"
-      onKeyDown={handleKeyDown}
-    >
-      <button
-        type="button"
-        role="button"
-        aria-pressed={allActive}
-        onClick={() => {
-          hapticTap();
-          onSelect('all');
-        }}
-        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-          allActive
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-        }`}
-      >
-        All
-      </button>
-      {categories.map((category) => {
-        const active = selected === category;
-        return (
-          <button
-            key={category}
-            type="button"
-            role="button"
-            aria-pressed={active}
-            onClick={() => {
-              hapticTap();
-              onSelect(active ? 'all' : category);
-            }}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 min-h-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              active
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            {category}
-            {active && <X className="h-3 w-3" aria-hidden="true" />}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: FullScreenWalletSheetProps) {
   const navigate = useNavigate();
