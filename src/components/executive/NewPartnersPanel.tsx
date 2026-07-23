@@ -2885,6 +2885,10 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
           roi_percentage: parseFloat(form.roi_percentage),
           roi_mode: form.roi_mode,
           nickname: form.account_name || null,
+          // First-time partners in NewPartnersPanel go straight to active
+          // portfolios and receive the Partnership Agreement email — not
+          // the generic invite link.
+          direct_confirmation: true,
         },
       });
       if (response.error || response.data?.error) {
