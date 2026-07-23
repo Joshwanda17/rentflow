@@ -430,6 +430,7 @@ export function MerchantFloatRequestsPanel() {
     depositId: string;
     depositAmount: number;
     depositAt: string;
+    depositCategory: string;
     balanceBefore: number;
     balanceAfterTopUp: number;
     balanceAfterBatch: number;
@@ -439,29 +440,30 @@ export function MerchantFloatRequestsPanel() {
       amount: number;
       recipient: string | null;
       method: string;
+      category: string;
       balanceAfter: number;
     }>;
   };
   const { data: agentTimeline, isLoading: timelineLoading } = useQuery({
     queryKey: ['cfo-agent-float-timeline', expandedAgent],
     enabled: !!expandedAgent,
-    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number }> => {
+    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; drift: number }> => {
       const agentId = expandedAgent!;
       const [walletRes, ledgerRes] = await Promise.all([
         supabase.from('wallets').select('float_balance').eq('user_id', agentId).maybeSingle(),
         supabase
           .from('general_ledger')
-          .select('id, category, amount, transaction_date, source_id')
+          .select('id, category, amount, direction, transaction_date, source_id')
           .eq('user_id', agentId)
           .eq('ledger_scope', 'wallet')
           .eq('wallet_bucket', 'float')
-          .in('category', ['agent_float_deposit', 'agent_float_settlement'])
           .order('transaction_date', { ascending: true })
+          .order('id', { ascending: true })
           .limit(2000),
       ]);
       const rows = (ledgerRes.data ?? []) as any[];
       const settlementSourceIds = Array.from(
-        new Set(rows.filter((r) => r.category === 'agent_float_settlement' && r.source_id).map((r) => String(r.source_id)))
+        new Set(rows.filter((r) => r.direction === 'cash_out' && r.source_id).map((r) => String(r.source_id)))
       );
       const wrMap: Record<string, any> = {};
       if (settlementSourceIds.length) {
@@ -472,35 +474,51 @@ export function MerchantFloatRequestsPanel() {
         for (const w of (wrs ?? []) as any[]) wrMap[String(w.id)] = w;
       }
 
+      // A "top-up" that opens a new batch = any cash_in on the float bucket
+      // (agent_float_deposit is the main one, but funding/topup/assignment/
+      // corrections also credit float and MUST be reflected for audit accuracy).
+      const TOPUP_CATEGORIES = new Set([
+        'agent_float_deposit',
+        'agent_float_funding',
+        'agent_float_topup',
+        'agent_float_assignment',
+      ]);
       const batches: TopUpBatch[] = [];
       let running = 0;
       let current: TopUpBatch | null = null;
       for (const r of rows) {
         const amt = Number(r.amount) || 0;
-        if (r.category === 'agent_float_deposit') {
+        const isCashIn = r.direction === 'cash_in';
+        // Signed delta: cash_in adds, cash_out subtracts. Use direction as the
+        // sole source of truth so reversals/corrections don't skew running.
+        const delta = isCashIn ? amt : -amt;
+        const opensBatch = isCashIn && TOPUP_CATEGORIES.has(r.category);
+        if (opensBatch) {
           if (current) {
             current.balanceAfterBatch = running;
             batches.push(current);
           }
           const before = running;
-          running = before + amt;
+          running = before + delta;
           current = {
             depositId: String(r.id),
             depositAmount: amt,
             depositAt: r.transaction_date,
+            depositCategory: r.category,
             balanceBefore: before,
             balanceAfterTopUp: running,
             balanceAfterBatch: running,
             settlements: [],
           };
         } else {
-          running = running - amt;
+          running = running + delta;
           if (!current) {
             // Settlement predating any tracked deposit — synthesise a virtual batch.
             current = {
               depositId: `pre-${r.id}`,
               depositAmount: 0,
               depositAt: r.transaction_date,
+              depositCategory: 'opening_balance',
               balanceBefore: 0,
               balanceAfterTopUp: 0,
               balanceAfterBatch: running,
@@ -511,16 +529,24 @@ export function MerchantFloatRequestsPanel() {
           current.settlements.push({
             id: String(r.id),
             at: r.transaction_date,
-            amount: amt,
+            amount: delta, // signed: negative = consumed float, positive = credited back
             recipient: wr.mobile_money_name || null,
             method: wr.mobile_money_provider || wr.payout_method || 'Customer cash-out',
+            category: r.category,
             balanceAfter: running,
           });
           current.balanceAfterBatch = running;
         }
       }
       if (current) batches.push(current);
-      return { batches, currentBalance: Number(walletRes.data?.float_balance) || running };
+      const ledgerBalance = running;
+      const cachedBalance = Number(walletRes.data?.float_balance) || 0;
+      return {
+        batches,
+        currentBalance: cachedBalance,
+        ledgerBalance,
+        drift: cachedBalance - ledgerBalance,
+      };
     },
   });
 
@@ -702,9 +728,19 @@ export function MerchantFloatRequestsPanel() {
                               Float top-ups & usage for {b.agent}
                             </p>
                             {agentTimeline && (
-                              <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-                                <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.currentBalance)} float left now
-                              </span>
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                                  <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.currentBalance)} float left (wallet cache)
+                                </span>
+                                <span className="text-[10px] tabular-nums text-muted-foreground">
+                                  Ledger sum: <span className="font-semibold text-foreground">{formatUGX(agentTimeline.ledgerBalance)}</span>
+                                </span>
+                                {Math.abs(agentTimeline.drift) >= 1 && (
+                                  <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-rose-700 dark:text-rose-400">
+                                    ⚠ Drift: {formatUGX(Math.abs(agentTimeline.drift))} {agentTimeline.drift > 0 ? '(cache > ledger)' : '(cache < ledger)'}
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
                           {timelineLoading ? (
@@ -720,7 +756,10 @@ export function MerchantFloatRequestsPanel() {
                                 : agentTimeline.batches.map((batch, i) => ({ batch, num: i + 1 }))
                               ).map(({ batch, num }) => {
                                 const isVirtual = batch.depositId.startsWith('pre-');
-                                const totalUsed = batch.settlements.reduce((s, x) => s + x.amount, 0);
+                                // Settlements carry signed deltas: negative = float consumed,
+                                // positive = float credited back (reversal/correction).
+                                const totalDelta = batch.settlements.reduce((s, x) => s + x.amount, 0);
+                                const totalUsed = Math.abs(totalDelta);
                                 return (
                                   <div key={batch.depositId} className="rounded-md border border-border/60 bg-card p-2.5 text-xs">
                                     {/* Top-up header */}
@@ -789,34 +828,46 @@ export function MerchantFloatRequestsPanel() {
                                       ) : (
                                         <div className="space-y-2">
                                           {batch.settlements.map((s) => {
-                                            const isFee = /\bfee\b/i.test(s.recipient || '') || s.amount <= 500;
+                                            const absAmt = Math.abs(s.amount);
+                                            const isCredit = s.amount > 0; // float returned to the agent
+                                            const isFee = !isCredit && (/\bfee\b/i.test(s.recipient || '') || absAmt <= 500);
                                             return (
                                               <div
                                                 key={s.id}
                                                 className={cn(
                                                   'relative flex items-center gap-3 overflow-hidden rounded-xl border border-border/60 bg-card px-3 py-2.5 shadow-sm',
-                                                  !isFee && 'before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-r-full before:bg-rose-500'
+                                                  !isFee && !isCredit && 'before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-r-full before:bg-rose-500',
+                                                  isCredit && 'before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-r-full before:bg-emerald-500'
                                                 )}
                                               >
                                                 <div
                                                   className={cn(
                                                     'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-                                                    isFee ? 'bg-muted text-muted-foreground' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400'
+                                                    isCredit
+                                                      ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400'
+                                                      : isFee
+                                                        ? 'bg-muted text-muted-foreground'
+                                                        : 'bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400'
                                                   )}
                                                 >
-                                                  {isFee ? <Info className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                                                  {isCredit ? <ArrowDownRight className="h-4 w-4" /> : isFee ? <Info className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
                                                   <p className="truncate text-[13px] font-semibold text-foreground">
-                                                    {s.recipient || 'Customer cash-out'}{isFee && !/\(fee\)/i.test(s.recipient || '') ? ' (Fee)' : ''}
+                                                    {s.recipient || (isCredit ? 'Float credit / correction' : 'Customer cash-out')}
+                                                    {isFee && !/\(fee\)/i.test(s.recipient || '') ? ' (Fee)' : ''}
+                                                    <span className="ml-1 text-[10px] font-normal text-muted-foreground">· {s.category}</span>
                                                   </p>
                                                   <p className="truncate text-[11px] tabular-nums text-muted-foreground">
                                                     {new Date(s.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} · {s.method}
                                                   </p>
                                                 </div>
                                                 <div className="shrink-0 text-right">
-                                                  <p className="text-[13px] font-bold tabular-nums text-rose-600 dark:text-rose-400">
-                                                    − {formatUGX(s.amount)}
+                                                  <p className={cn(
+                                                    'text-[13px] font-bold tabular-nums',
+                                                    isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                                                  )}>
+                                                    {isCredit ? '+' : '−'} {formatUGX(absAmt)}
                                                   </p>
                                                   <p className="text-[10px] tabular-nums text-muted-foreground">
                                                     left: {formatUGX(s.balanceAfter)}
