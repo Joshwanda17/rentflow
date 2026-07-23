@@ -375,7 +375,16 @@ function ReviewSubmissionDialog({
 }: {
   row: Row | null;
   onClose: () => void;
-  onApprove: (row: Row) => void;
+  onApprove: (
+    row: Row,
+    countersign?: {
+      repName: string;
+      repPosition: string;
+      repContact: string;
+      sigDataUrl?: string;
+      previewData: AgreementPreviewData;
+    },
+  ) => void;
   approving: boolean;
 }) {
   const open = !!row;
@@ -383,7 +392,7 @@ function ReviewSubmissionDialog({
     queryKey: ['invited-portfolio-submission', row?.id, row?.investor_id],
     enabled: open && !!row?.investor_id,
     queryFn: async () => {
-      const [{ data: profile }, { data: agreement }, { data: token }] = await Promise.all([
+      const [{ data: profile }, { data: agreement }, { data: token }, { data: defaults }] = await Promise.all([
         (supabase.from('profiles') as any)
           .select('full_name, phone, email, national_id, mobile_money_name')
           .eq('id', row!.investor_id).maybeSingle(),
@@ -397,8 +406,19 @@ function ReviewSubmissionDialog({
           .select('consumed_at')
           .eq('portfolio_id', row!.id)
           .maybeSingle(),
+        (supabase.from('partner_agreement_company_defaults') as any)
+          .select('*')
+          .limit(1)
+          .maybeSingle(),
       ]);
-      return { profile, agreement, token };
+      let defaultSigUrl: string | undefined;
+      if (defaults?.signature_path) {
+        const { data: sig } = await supabase.storage
+          .from('partner-agreements')
+          .createSignedUrl(defaults.signature_path, 60 * 60);
+        defaultSigUrl = sig?.signedUrl || undefined;
+      }
+      return { profile, agreement, token, defaults, defaultSigUrl };
     },
     staleTime: 15000,
   });
@@ -408,6 +428,39 @@ function ReviewSubmissionDialog({
   const agreement: any = submission?.agreement || {};
   const signature = agreement.partner_signature_data_url as string | undefined;
   const submittedAt = submission?.token?.consumed_at as string | undefined;
+  const defaults: any = submission?.defaults || {};
+  const defaultSigUrl: string | undefined = submission?.defaultSigUrl;
+
+  // Welile counter-signature fields — filled by Partner Ops before approval.
+  // Prefilled from `partner_agreement_company_defaults` so common admin details
+  // (Director name, position, contact, stored signature) don't need re-typing.
+  const [repName, setRepName] = useState('');
+  const [repPosition, setRepPosition] = useState('');
+  const [repContact, setRepContact] = useState('');
+  const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
+
+  // Rehydrate the rep fields whenever a new review row or defaults arrive.
+  const defaultsKey = defaults?.rep_name || '';
+  const seedKey = `${row.id}::${defaultsKey}`;
+  const seededRef = (globalThis as any).__welileRepSeed || ((globalThis as any).__welileRepSeed = { current: '' });
+  if (open && seededRef.current !== seedKey && (defaults?.rep_name || defaults?.rep_position || defaults?.rep_contact)) {
+    seededRef.current = seedKey;
+    setRepName(defaults.rep_name || '');
+    setRepPosition(defaults.rep_position || '');
+    setRepContact(defaults.rep_contact || '');
+    setSigDataUrl(undefined);
+  }
+
+  const onSignatureFile = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Use an image file', { description: 'Upload a PNG or JPG of the signature.' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setSigDataUrl(typeof reader.result === 'string' ? reader.result : undefined);
+    reader.readAsDataURL(file);
+  };
 
   const hasAgreement = !!(agreement && (
     agreement.address || agreement.national_id || agreement.kin_name ||
@@ -432,7 +485,11 @@ function ReviewSubmissionDialog({
     kinContact: agreement.kin_contact || '',
     agreementDate: agreement.agreement_date ? new Date(agreement.agreement_date) : new Date(),
     partnerSignatureDataUrl: signature,
-    includeStamp: false,
+    welileRepName: repName,
+    welileRepPosition: repPosition,
+    welileRepContact: repContact,
+    welileSignatureDataUrl: sigDataUrl || defaultSigUrl,
+    includeStamp: true,
   } : null;
 
   const partnerName = profile.full_name || row.partner_name;
