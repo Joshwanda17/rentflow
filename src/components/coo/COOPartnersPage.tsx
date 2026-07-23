@@ -3187,7 +3187,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               onClick={handleAddPortfolio}
               disabled={addingPortfolio || !addPortfolioAmount || Number(addPortfolioAmount) < 20000 || Number(addPortfolioAmount) > MAX_INVEST}
             >
-              {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending...</> : <><Mail className="h-4 w-4 mr-2" /> Send invite</>}
+              {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Mail className="h-4 w-4 mr-2" /> Create Portfolio</>}
             </Button>
           </DialogFooter>
         </DialogContent>
