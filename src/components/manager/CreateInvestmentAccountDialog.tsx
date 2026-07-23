@@ -214,6 +214,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
 
   const handleCreate = async () => {
     if (!selectedUser || !form.investment_amount) return;
+    if (partnerFrozen) {
+      toast({
+        title: 'Partner suspended',
+        description: 'This partner account is suspended. Unfreeze the account before creating a portfolio.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!isApproved) {
       toast({
         title: 'Partner not approved',
