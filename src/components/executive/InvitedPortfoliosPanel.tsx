@@ -18,8 +18,9 @@ import { toast } from '@/components/ui/sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox } from 'lucide-react';
+import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, IdCard, Phone, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 type InviteStatus = 'awaiting_partner_details' | 'pending_ops_approval';
 
@@ -46,6 +47,7 @@ export function InvitedPortfoliosPanel() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [reviewRow, setReviewRow] = useState<Row | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading, refetch, isFetching } = useQuery<Row[]>({
@@ -139,6 +141,7 @@ export function InvitedPortfoliosPanel() {
       });
       await queryClient.invalidateQueries({ queryKey: ['invited-portfolios'] });
       await queryClient.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
+      setReviewRow(null);
     } catch (err: any) {
       toast.error('Approval failed', { description: extractFromErrorObject(err) || err.message });
     } finally {
@@ -285,7 +288,15 @@ export function InvitedPortfoliosPanel() {
 
                   {/* Approve action */}
                   {row.status === 'pending_ops_approval' && (
-                    <div className="flex justify-end pt-1 border-t border-border/40">
+                    <div className="flex justify-end gap-2 pt-1 border-t border-border/40">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs"
+                        onClick={() => setReviewRow(row)}
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Review submission
+                      </Button>
                       <Button
                         size="sm"
                         className="gap-1.5 text-xs"
@@ -304,6 +315,152 @@ export function InvitedPortfoliosPanel() {
           })}
         </div>
       )}
+
+      <ReviewSubmissionDialog
+        row={reviewRow}
+        onClose={() => setReviewRow(null)}
+        onApprove={handleApprove}
+        approving={approvingId === reviewRow?.id}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Review dialog: pulls what the partner submitted (NIN, mobile-money name,
+// signature) + portfolio terms so Ops can verify BEFORE approving — the
+// same "see everything then approve/reject" flow as funder-onboarding.
+// ─────────────────────────────────────────────────────────────────────────
+function ReviewSubmissionDialog({
+  row,
+  onClose,
+  onApprove,
+  approving,
+}: {
+  row: Row | null;
+  onClose: () => void;
+  onApprove: (row: Row) => void;
+  approving: boolean;
+}) {
+  const open = !!row;
+  const { data: submission, isLoading } = useQuery({
+    queryKey: ['invited-portfolio-submission', row?.id, row?.investor_id],
+    enabled: open && !!row?.investor_id,
+    queryFn: async () => {
+      const [{ data: profile }, { data: agreement }, { data: token }] = await Promise.all([
+        (supabase.from('profiles') as any)
+          .select('full_name, phone, email, national_id, mobile_money_name')
+          .eq('id', row!.investor_id).maybeSingle(),
+        (supabase.from('partner_agreements') as any)
+          .select('partner_signature_data_url, signed_at')
+          .eq('user_id', row!.investor_id)
+          .order('signed_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        (supabase.from('portfolio_completion_tokens') as any)
+          .select('consumed_at')
+          .eq('portfolio_id', row!.id)
+          .maybeSingle(),
+      ]);
+      return { profile, agreement, token };
+    },
+    staleTime: 15000,
+  });
+
+  if (!row) return null;
+  const profile: any = submission?.profile || {};
+  const signature = submission?.agreement?.partner_signature_data_url as string | undefined;
+  const submittedAt = submission?.token?.consumed_at as string | undefined;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            Review partner submission
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Confirm the details {profile.full_name || row.partner_name} entered before activating this portfolio.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="space-y-2 py-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : (
+          <div className="space-y-4 text-sm">
+            {/* Partner identity */}
+            <section className="rounded-lg border p-3 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Partner</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                <Row2 icon={<User className="h-3.5 w-3.5" />} label="Full name" value={profile.full_name} />
+                <Row2 icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={profile.phone} />
+                <Row2 icon={<Mail className="h-3.5 w-3.5" />} label="Email" value={profile.email} />
+                <Row2 icon={<IdCard className="h-3.5 w-3.5" />} label="National ID" value={profile.national_id} />
+                <Row2 icon={<User className="h-3.5 w-3.5" />} label="MoMo name" value={profile.mobile_money_name} />
+              </div>
+            </section>
+
+            {/* Portfolio terms */}
+            <section className="rounded-lg border p-3 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Portfolio terms</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div><p className="text-muted-foreground">Code</p><p className="font-mono font-semibold">{row.portfolio_code}</p></div>
+                <div><p className="text-muted-foreground">Amount</p><p className="font-bold">{formatUGX(row.investment_amount)}</p></div>
+                <div><p className="text-muted-foreground">ROI</p><p className="font-semibold">{row.roi_percentage}%{row.roi_mode ? ` · ${row.roi_mode.replace(/_/g, ' ')}` : ''}</p></div>
+                <div><p className="text-muted-foreground">Tenor</p><p className="font-semibold">{row.duration_months ?? '—'} mo</p></div>
+              </div>
+              {submittedAt && (
+                <p className="text-[11px] text-muted-foreground pt-1 border-t">
+                  Submitted {format(new Date(submittedAt), 'PPpp')} · {formatDistanceToNow(new Date(submittedAt), { addSuffix: true })}
+                </p>
+              )}
+            </section>
+
+            {/* Signature */}
+            <section className="rounded-lg border p-3 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Signature</p>
+              {signature ? (
+                <div className="bg-white rounded border p-2 flex items-center justify-center">
+                  <img src={signature} alt="Partner signature" className="max-h-32 object-contain" />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No signature captured — partner may have typed their name only.</p>
+              )}
+            </section>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2 flex-col sm:flex-row">
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+          <Button
+            size="sm"
+            className="gap-1.5"
+            disabled={approving}
+            onClick={() => onApprove(row)}
+          >
+            {approving
+              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Approving…</>
+              : <><ShieldCheck className="h-3.5 w-3.5" /> Approve & send final agreement</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Row2({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string | null }) {
+  return (
+    <div className="flex items-start gap-2 min-w-0">
+      <span className="text-muted-foreground shrink-0 mt-0.5">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="font-medium truncate">{value || <span className="text-muted-foreground italic">Not provided</span>}</p>
+      </div>
     </div>
   );
 }
