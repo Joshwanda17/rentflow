@@ -724,6 +724,8 @@ export default function FunderOnboarding() {
           </Button>
         </div>
       )}
+      </>
+      )}
 
       {/* Detail Modal */}
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
