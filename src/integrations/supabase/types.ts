@@ -24617,6 +24617,7 @@ export type Database = {
             }[]
           }
       get_approximate_user_count: { Args: never; Returns: number }
+      get_authoritative_wallet: { Args: { p_user_id: string }; Returns: Json }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
       get_business_advance_audit_log: {
@@ -26390,6 +26391,11 @@ export type Database = {
       reopen_rent_request: {
         Args: { p_reason: string; p_request_id: string }
         Returns: string
+      }
+      repair_wallet_cache_drift: { Args: { p_limit?: number }; Returns: Json }
+      repair_wallet_cache_for_user: {
+        Args: { p_user_id: string }
+        Returns: Json
       }
       replace_tenant_at_property: {
         Args: {
