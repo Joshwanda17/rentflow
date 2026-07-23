@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWalletBuckets } from '@/hooks/ops/useOpsDataLayer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -105,12 +106,15 @@ export function ManagerBankingLedger() {
       if (!profiles?.length) { setUsers([]); return; }
 
       const ids = profiles.map(p => p.id);
-      const [walletsRes, ledgerRes] = await Promise.all([
-        supabase.from('wallets').select('user_id, id, balance').in('user_id', ids),
+      const [walletBuckets, ledgerRes] = await Promise.all([
+        fetchOpsWalletBuckets(ids),
         supabase.from('general_ledger').select('user_id, direction, amount').in('user_id', ids),
       ]);
 
-      const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, { id: w.id, balance: w.balance }]));
+      // NOTE: shared ops layer doesn't expose the wallet row id (it batches via
+      // v_user_wallet_strict). Callers that only need balances read that here;
+      // downstream code that needs a wallet row id must fetch it separately.
+      const walletMap = new Map(walletBuckets.map(w => [w.user_id, { id: null as string | null, balance: w.balance }]));
       const aggMap    = new Map<string, { totalIn: number; totalOut: number; count: number }>();
       for (const row of ledgerRes.data || []) {
         const a = aggMap.get(row.user_id) || { totalIn: 0, totalOut: 0, count: 0 };
