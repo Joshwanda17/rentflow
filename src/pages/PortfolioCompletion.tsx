@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatUGX } from '@/lib/formatUGX';
+import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import { Loader2, ShieldCheck, ShieldAlert, CheckCircle2, PenLine, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -77,18 +77,19 @@ export default function PortfolioCompletion() {
         return;
       }
 
-      // Batched read — single round-trip.
-      const [portfolioRes, profileRes, agreementRes, tokenRes] = await Promise.all([
-        supabase.from('investor_portfolios')
+      // Batched read — single round-trip. Cast to any to keep TS's deep union
+      // inference from blowing up on the 4-way Promise.all with generated types.
+      const [portfolioRes, profileRes, agreementRes, tokenRes]: any[] = await Promise.all([
+        (supabase.from('investor_portfolios') as any)
           .select('portfolio_code, investment_amount, roi_percentage, duration_months, roi_mode, status, investor_id')
           .eq('id', portfolioId).maybeSingle(),
-        supabase.from('profiles')
+        (supabase.from('profiles') as any)
           .select('full_name, email, phone, national_id, mobile_money_name')
           .eq('id', user.id).maybeSingle(),
-        supabase.from('partner_agreements')
+        (supabase.from('partner_agreements') as any)
           .select('partner_signature_data_url')
           .eq('user_id', user.id).limit(1).maybeSingle(),
-        supabase.from('portfolio_completion_tokens')
+        (supabase.from('portfolio_completion_tokens') as any)
           .select('portfolio_id, consumed_at, expires_at, email_snapshot, phone_snapshot')
           .eq('portfolio_id', portfolioId).maybeSingle(),
       ]);

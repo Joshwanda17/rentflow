@@ -235,6 +235,7 @@ const Careers = lazy(() => import('./pages/Careers'));
 const HolisticProfile = lazy(() => import('./pages/HolisticProfile'));
 // Public funder signup (multi-step) — lives in pages/Onboarding.tsx and is exported as FunderOnboarding.
 const FunderOnboarding = lazy(() => import('./pages/Onboarding'));
+const PortfolioCompletion = lazy(() => import('./pages/PortfolioCompletion'));
 // Admin queue used by COO / Partner Ops to approve self-registered funders.
 const PartnerOnboarding = lazy(() => import('./pages/PartnerOnboarding'));
 
