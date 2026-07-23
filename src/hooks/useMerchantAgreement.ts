@@ -101,30 +101,35 @@ export function useMerchantAgreement() {
         }
       } catch { /* ignore */ }
 
-      const { data, error } = await (supabase
+      const insertPayload: Record<string, unknown> = {
+        agent_id: user.id,
+        merchant_name: intakeName ?? profile?.full_name ?? null,
+        merchant_phone: intakePhone ?? profile?.phone ?? null,
+        agreement_version: MERCHANT_AGREEMENT_VERSION,
+        ip_address: ipAddress,
+        device_info: intakeSignature
+          ? `${deviceInfo} | signature_captured`
+          : deviceInfo,
+        status: 'accepted',
+      };
+      if (intakeSignature) insertPayload.signature_data_url = intakeSignature;
+
+      const { error } = await (supabase
         .from('merchant_agreement_acceptance' as any)
-        .insert({
-          agent_id: user.id,
-          merchant_name: intakeName ?? profile?.full_name ?? null,
-          merchant_phone: intakePhone ?? profile?.phone ?? null,
-          agreement_version: MERCHANT_AGREEMENT_VERSION,
-          ip_address: ipAddress,
-          device_info: intakeSignature
-            ? `${deviceInfo} | signature_captured`
-            : deviceInfo,
-          signature_data_url: intakeSignature,
-          status: 'accepted',
-        })
-        .select()
-        .single() as any);
+        .insert(insertPayload) as any);
 
       if (error) {
         console.error('[useMerchantAgreement] accept error:', error);
+        try {
+          const { toast } = await import('sonner');
+          toast.error(`Acceptance failed: ${error.message || 'Unknown error'}`);
+        } catch { /* ignore */ }
         return false;
       }
       try { localStorage.removeItem('merchant_agent_intake'); } catch { /* ignore */ }
       setIsAccepted(true);
-      setAcceptance(data as MerchantAgreementAcceptance);
+      // Refresh acceptance record in the background (best effort).
+      checkAcceptance();
       return true;
     } catch (e) {
       console.error('[useMerchantAgreement] accept exception:', e);
