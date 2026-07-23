@@ -737,15 +737,15 @@ export function MerchantFloatRequestsPanel() {
                             </p>
                             {agentTimeline && (
                               <div className="flex flex-col items-end gap-0.5">
-                                <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-                                  <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.ledgerBalance)} float left now (ledger)
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                  <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.ledgerBalance)} float balance
                                 </span>
-                                <span className="text-[10px] tabular-nums text-muted-foreground">
-                                  Wallet cache: <span className="font-semibold text-foreground">{formatUGX(agentTimeline.currentBalance)}</span>
+                                <span className="text-[9px] uppercase tracking-wide text-muted-foreground">
+                                  Single source of truth · ledger-backed
                                 </span>
                                 {Math.abs(agentTimeline.drift) >= 1 && (
-                                  <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-rose-700 dark:text-rose-400">
-                                    ⚠ Drift: {formatUGX(Math.abs(agentTimeline.drift))} {agentTimeline.drift > 0 ? '(cache > ledger)' : '(cache < ledger)'}
+                                  <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                                    Timeline reconciling · {formatUGX(Math.abs(agentTimeline.drift))} pending
                                   </span>
                                 )}
                               </div>
