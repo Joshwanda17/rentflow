@@ -13,16 +13,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, Phone } from 'lucide-react';
+import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, Phone, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import AgreementHtmlPreview, { type AgreementPreviewData } from '@/components/partner/AgreementHtmlPreview';
+import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
+import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
 import { buildPartnerReference } from '@/lib/partnerReference';
 
 type InviteStatus = 'awaiting_partner_details' | 'pending_ops_approval';
@@ -131,7 +134,16 @@ export function InvitedPortfoliosPanel() {
     };
   }, [data]);
 
-  const handleApprove = async (row: Row) => {
+  const handleApprove = async (
+    row: Row,
+    countersign?: {
+      repName: string;
+      repPosition: string;
+      repContact: string;
+      sigDataUrl?: string;
+      previewData: AgreementPreviewData;
+    },
+  ) => {
     setApprovingId(row.id);
     try {
       const { data: res, error } = await supabase.functions.invoke('approve-pending-portfolio', {
@@ -139,6 +151,38 @@ export function InvitedPortfoliosPanel() {
       });
       if (error) throw error;
       if ((res as any)?.error) throw new Error((res as any).error);
+
+      // If Partner Ops filled in the Welile counter-signature fields, render
+      // the executed PDF from the exact same HTML shown in the preview and
+      // store/email it via `generate-partner-agreement`. This mirrors the
+      // Sign-off dialog flow so the counter-signed contract is produced in
+      // the same request.
+      if (countersign && countersign.repName.trim()) {
+        try {
+          const pdfBase64 = await renderAgreementPdfBase64(
+            buildAgreementHtml(countersign.previewData),
+          );
+          await supabase.functions.invoke('generate-partner-agreement', {
+            body: {
+              partnerId: row.investor_id,
+              countersign: true,
+              pdfBase64,
+              rep: {
+                name: countersign.repName.trim(),
+                position: countersign.repPosition.trim(),
+                contact: countersign.repContact.trim(),
+                signatureBase64: countersign.sigDataUrl || undefined,
+              },
+            },
+          });
+        } catch (e: any) {
+          console.warn('[approve] counter-signature dispatch failed:', e?.message);
+          toast.warning('Portfolio approved, but counter-signed PDF failed to generate.', {
+            description: e?.message || 'Retry from the Sign-off dialog.',
+          });
+        }
+      }
+
       toast.success('Portfolio approved', {
         description: `${row.portfolio_code} is now active. Final agreement sent to ${row.partner_name}.`,
       });
