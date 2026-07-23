@@ -16645,6 +16645,365 @@ export type Database = {
         }
         Relationships: []
       }
+      recruitment_campaign_agents: {
+        Row: {
+          agent_id: string
+          campaign_id: string
+          id: string
+          joined_at: string
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          campaign_id: string
+          id?: string
+          joined_at?: string
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          campaign_id?: string
+          id?: string
+          joined_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_campaign_agents_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruitment_campaign_clicks: {
+        Row: {
+          agent_id: string
+          approximate_location: Json | null
+          browser: string | null
+          campaign_id: string
+          campaign_link_id: string
+          converted_to_registration: boolean
+          created_at: string
+          device_category: string | null
+          id: string
+          ip_hash: string | null
+          operating_system: string | null
+          referrer: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          approximate_location?: Json | null
+          browser?: string | null
+          campaign_id: string
+          campaign_link_id: string
+          converted_to_registration?: boolean
+          created_at?: string
+          device_category?: string | null
+          id?: string
+          ip_hash?: string | null
+          operating_system?: string | null
+          referrer?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          approximate_location?: Json | null
+          browser?: string | null
+          campaign_id?: string
+          campaign_link_id?: string
+          converted_to_registration?: boolean
+          created_at?: string
+          device_category?: string | null
+          id?: string
+          ip_hash?: string | null
+          operating_system?: string | null
+          referrer?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_campaign_clicks_campaign_link_id_fkey"
+            columns: ["campaign_link_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_campaign_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruitment_campaign_link_audit_logs: {
+        Row: {
+          action: string
+          campaign_link_id: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          campaign_link_id: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          campaign_link_id?: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_campaign_link_audit_logs_campaign_link_id_fkey"
+            columns: ["campaign_link_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_campaign_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruitment_campaign_links: {
+        Row: {
+          agent_id: string
+          campaign_id: string
+          created_at: string
+          expires_at: string | null
+          first_click_at: string | null
+          id: string
+          link_type: Database["public"]["Enums"]["recruitment_link_type"]
+          location_id: string
+          location_slug: string
+          placement_name: string | null
+          qualified_sub_agents: number
+          selected_source: Database["public"]["Enums"]["recruitment_source"]
+          short_code: string
+          status: Database["public"]["Enums"]["recruitment_link_status"]
+          total_clicks: number
+          total_registrations: number
+          total_sub_agent_registrations: number
+          unique_clicks: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          campaign_id: string
+          created_at?: string
+          expires_at?: string | null
+          first_click_at?: string | null
+          id?: string
+          link_type?: Database["public"]["Enums"]["recruitment_link_type"]
+          location_id: string
+          location_slug: string
+          placement_name?: string | null
+          qualified_sub_agents?: number
+          selected_source: Database["public"]["Enums"]["recruitment_source"]
+          short_code: string
+          status?: Database["public"]["Enums"]["recruitment_link_status"]
+          total_clicks?: number
+          total_registrations?: number
+          total_sub_agent_registrations?: number
+          unique_clicks?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          campaign_id?: string
+          created_at?: string
+          expires_at?: string | null
+          first_click_at?: string | null
+          id?: string
+          link_type?: Database["public"]["Enums"]["recruitment_link_type"]
+          location_id?: string
+          location_slug?: string
+          placement_name?: string | null
+          qualified_sub_agents?: number
+          selected_source?: Database["public"]["Enums"]["recruitment_source"]
+          short_code?: string
+          status?: Database["public"]["Enums"]["recruitment_link_status"]
+          total_clicks?: number
+          total_registrations?: number
+          total_sub_agent_registrations?: number
+          unique_clicks?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_campaign_links_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruitment_campaign_links_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruitment_campaign_registrations: {
+        Row: {
+          agent_id: string
+          campaign_id: string
+          campaign_link_id: string
+          first_verified_house_at: string | null
+          id: string
+          is_sub_agent: boolean
+          location_id: string | null
+          qualification_status: Database["public"]["Enums"]["recruitment_registration_status"]
+          registered_at: string
+          registered_user_id: string
+          reward_paid_at: string | null
+          reward_qualified_at: string | null
+          second_verified_house_at: string | null
+          selected_source:
+            | Database["public"]["Enums"]["recruitment_source"]
+            | null
+          third_verified_house_at: string | null
+          verified_houses_count: number
+        }
+        Insert: {
+          agent_id: string
+          campaign_id: string
+          campaign_link_id: string
+          first_verified_house_at?: string | null
+          id?: string
+          is_sub_agent?: boolean
+          location_id?: string | null
+          qualification_status?: Database["public"]["Enums"]["recruitment_registration_status"]
+          registered_at?: string
+          registered_user_id: string
+          reward_paid_at?: string | null
+          reward_qualified_at?: string | null
+          second_verified_house_at?: string | null
+          selected_source?:
+            | Database["public"]["Enums"]["recruitment_source"]
+            | null
+          third_verified_house_at?: string | null
+          verified_houses_count?: number
+        }
+        Update: {
+          agent_id?: string
+          campaign_id?: string
+          campaign_link_id?: string
+          first_verified_house_at?: string | null
+          id?: string
+          is_sub_agent?: boolean
+          location_id?: string | null
+          qualification_status?: Database["public"]["Enums"]["recruitment_registration_status"]
+          registered_at?: string
+          registered_user_id?: string
+          reward_paid_at?: string | null
+          reward_qualified_at?: string | null
+          second_verified_house_at?: string | null
+          selected_source?:
+            | Database["public"]["Enums"]["recruitment_source"]
+            | null
+          third_verified_house_at?: string | null
+          verified_houses_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_campaign_registrations_campaign_link_id_fkey"
+            columns: ["campaign_link_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_campaign_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruitment_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          objective: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["recruitment_campaign_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          objective?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["recruitment_campaign_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          objective?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["recruitment_campaign_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recruitment_locations: {
+        Row: {
+          city: string | null
+          country: string
+          created_at: string
+          display_name: string
+          district: string
+          division: string | null
+          id: string
+          is_active: boolean
+          region: string | null
+          slug: string
+        }
+        Insert: {
+          city?: string | null
+          country?: string
+          created_at?: string
+          display_name: string
+          district: string
+          division?: string | null
+          id?: string
+          is_active?: boolean
+          region?: string | null
+          slug: string
+        }
+        Update: {
+          city?: string | null
+          country?: string
+          created_at?: string
+          display_name?: string
+          district?: string
+          division?: string | null
+          id?: string
+          is_active?: boolean
+          region?: string | null
+          slug?: string
+        }
+        Relationships: []
+      }
       redirect_monitor: {
         Row: {
           alert_emails: string[]
@@ -23461,6 +23820,10 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: undefined
       }
+      advance_campaign_house_progress: {
+        Args: { p_sub_agent_id: string }
+        Returns: undefined
+      }
       agent_allocate_tenant_payment: {
         Args: {
           p_agent_id: string
@@ -23722,6 +24085,10 @@ export type Database = {
       assert_routing_compatible: {
         Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
+      }
+      attach_campaign_registration: {
+        Args: { p_short_code: string; p_visitor_id?: string }
+        Returns: Json
       }
       auto_activate_merchant_referral: {
         Args: { p_referrer: string }
@@ -24023,6 +24390,42 @@ export type Database = {
         Returns: number
       }
       country_to_continent: { Args: { p_country: string }; Returns: string }
+      create_campaign_link: {
+        Args: {
+          p_campaign_id: string
+          p_link_type?: Database["public"]["Enums"]["recruitment_link_type"]
+          p_location_id: string
+          p_placement_name?: string
+          p_selected_source: Database["public"]["Enums"]["recruitment_source"]
+        }
+        Returns: {
+          agent_id: string
+          campaign_id: string
+          created_at: string
+          expires_at: string | null
+          first_click_at: string | null
+          id: string
+          link_type: Database["public"]["Enums"]["recruitment_link_type"]
+          location_id: string
+          location_slug: string
+          placement_name: string | null
+          qualified_sub_agents: number
+          selected_source: Database["public"]["Enums"]["recruitment_source"]
+          short_code: string
+          status: Database["public"]["Enums"]["recruitment_link_status"]
+          total_clicks: number
+          total_registrations: number
+          total_sub_agent_registrations: number
+          unique_clicks: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "recruitment_campaign_links"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_direct_conversation: {
         Args: { other_user_id: string }
         Returns: string
@@ -24252,6 +24655,10 @@ export type Database = {
           withdrawal_id: string
         }[]
       }
+      disable_campaign_link: {
+        Args: { p_link_id: string; p_reason?: string }
+        Returns: undefined
+      }
       drain_withdrawable_buckets: {
         Args: { p_amount: number; p_user_id: string }
         Returns: {
@@ -24424,6 +24831,7 @@ export type Database = {
         Args: { p_type: string; p_value: string }
         Returns: string
       }
+      generate_campaign_short_code: { Args: never; Returns: string }
       generate_daily_merchant_commission_report: {
         Args: { p_date?: string }
         Returns: {
@@ -24445,6 +24853,10 @@ export type Database = {
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_admin_campaign_analytics: {
+        Args: { p_campaign_id?: string; p_from?: string; p_to?: string }
+        Returns: Json
+      }
       get_agent_advance_limits: {
         Args: { _limit?: number; _offset?: number; _search?: string }
         Returns: {
@@ -24568,6 +24980,7 @@ export type Database = {
           withdrawable: number
         }[]
       }
+      get_agent_campaign_dashboard: { Args: never; Returns: Json }
       get_agent_daily_activity_report: {
         Args: { p_date?: string }
         Returns: Json
@@ -26732,6 +27145,19 @@ export type Database = {
         Args: { p_limit?: number; p_threshold?: number }
         Returns: Json
       }
+      record_campaign_click: {
+        Args: {
+          p_approx_location?: Json
+          p_browser?: string
+          p_device?: string
+          p_ip_hash?: string
+          p_os?: string
+          p_referrer?: string
+          p_short_code: string
+          p_visitor_id: string
+        }
+        Returns: Json
+      }
       record_double_entry: {
         Args: {
           p_amount: number
@@ -26885,6 +27311,10 @@ export type Database = {
         Returns: boolean
       }
       resolve_ai_id_to_user: { Args: { p_ai_id: string }; Returns: string }
+      resolve_campaign_short_code: {
+        Args: { p_short_code: string }
+        Returns: Json
+      }
       resolve_short_link: {
         Args: { p_code: string }
         Returns: {
@@ -27669,6 +28099,31 @@ export type Database = {
         | "general"
       flag_severity: "low" | "medium" | "high" | "critical"
       leave_type: "annual" | "sick" | "personal" | "maternity" | "paternity"
+      recruitment_campaign_status: "draft" | "active" | "paused" | "completed"
+      recruitment_link_status: "active" | "disabled" | "expired"
+      recruitment_link_type:
+        | "general_campaign_link"
+        | "qr_sticker"
+        | "printed_poster"
+        | "assisted_registration"
+        | "social_share"
+      recruitment_registration_status:
+        | "registered"
+        | "active"
+        | "one_verified_house"
+        | "two_verified_houses"
+        | "reward_qualified"
+        | "reward_paid"
+      recruitment_source:
+        | "whatsapp"
+        | "facebook"
+        | "tiktok"
+        | "sms"
+        | "qr_sticker"
+        | "printed_poster"
+        | "direct_link"
+        | "agent_assisted"
+        | "other"
       solvency_bypass_reason:
         | "legacy_offline_paid"
         | "write_off"
@@ -27947,6 +28402,34 @@ export const Constants = {
       ],
       flag_severity: ["low", "medium", "high", "critical"],
       leave_type: ["annual", "sick", "personal", "maternity", "paternity"],
+      recruitment_campaign_status: ["draft", "active", "paused", "completed"],
+      recruitment_link_status: ["active", "disabled", "expired"],
+      recruitment_link_type: [
+        "general_campaign_link",
+        "qr_sticker",
+        "printed_poster",
+        "assisted_registration",
+        "social_share",
+      ],
+      recruitment_registration_status: [
+        "registered",
+        "active",
+        "one_verified_house",
+        "two_verified_houses",
+        "reward_qualified",
+        "reward_paid",
+      ],
+      recruitment_source: [
+        "whatsapp",
+        "facebook",
+        "tiktok",
+        "sms",
+        "qr_sticker",
+        "printed_poster",
+        "direct_link",
+        "agent_assisted",
+        "other",
+      ],
       solvency_bypass_reason: [
         "legacy_offline_paid",
         "write_off",
