@@ -47,6 +47,28 @@ interface AllocationRow {
   agent?: { id: string; full_name: string | null; phone: string | null } | null;
 }
 
+interface SettlementRow {
+  id: string;
+  amount: number;
+  category: string;
+  method: string;
+  recipient: string | null;
+  at: string;
+  balanceAfter: number;
+}
+
+function settlementMatches(s: SettlementRow, query: string): boolean {
+  if (!query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  const amountStr = String(Math.abs(s.amount));
+  return (
+    (s.recipient || '').toLowerCase().includes(q) ||
+    s.category.toLowerCase().includes(q) ||
+    s.method.toLowerCase().includes(q) ||
+    amountStr.includes(q)
+  );
+}
+
 /**
  * CFO queue of merchant-agent float requisitions. Fulfilling a request routes
  * funds via the "Agent Float Allocation" category (recipient_type =
