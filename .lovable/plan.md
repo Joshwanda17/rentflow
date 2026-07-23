@@ -1,99 +1,118 @@
-# Wallet Balances Projection — Ledger-Driven, No Cache
+# Field Recruitment Campaign Tracking — Phase One
 
-Adopts your recommendation in full. The ledger stays authoritative; reads move to a deterministic projection updated inside the same transaction as every ledger insert; withdrawals still revalidate against the ledger at commit time.
+Build a campaign + short-link tracking system that plugs into the existing sub-agent referral + UGX 10,000 (three verified houses) reward. No new reward logic, no GPS.
 
-## Goals
+## What ships
 
-- One indexed row-lookup per wallet read (no aggregation on the read path).
-- Projection can be dropped and rebuilt from `general_ledger` at any time.
-- Withdrawals do a final ledger-authoritative check before committing.
-- No Redis, no client cache of balances, no nightly-only sync.
+### 1. Database (single migration)
 
----
+New tables in `public`:
 
-## 1. New table: `wallet_balances_projection`
+- `recruitment_campaigns` — id, name, description, objective, start_date, end_date (nullable), status (`draft|active|paused|completed`), created_by, timestamps.
+- `recruitment_campaign_agents` — campaign_id, agent_id, status, joined_at (unique campaign+agent).
+- `recruitment_locations` — id, country, region, district (required), city, division, slug (unique), display_name. Seeded with a small starter set (Kampala, Mbale, Jinja, Mbarara, Gulu, Lira, Masaka, Fort Portal, Arua, Soroti, Hoima); admins can add more.
+- `recruitment_campaign_links` — id, short_code (unique, 6–8 chars, secure random), campaign_id, agent_id, location_id, location_slug (denormalized), selected_source (enum), link_type (enum), placement_name, status (`active|disabled|expired`), first_click_at (for lock rule), expires_at, timestamps, plus cached counters: total_clicks, unique_clicks, total_registrations, total_sub_agent_registrations, qualified_sub_agents.
+- `recruitment_campaign_clicks` — link_id, campaign_id, agent_id, visitor_id (first-party cookie/uuid), timestamp, referrer, browser, os, device_category, ip_hash, approximate_location (jsonb), converted_to_registration.
+- `recruitment_campaign_registrations` — link_id, campaign_id, agent_id, registered_user_id (unique), location_id, selected_source, registered_at, qualification_status (`registered|active|one_verified_house|two_verified_houses|reward_qualified|reward_paid`), verified_houses_count, first/second/third_verified_at, reward_qualified_at.
+- `recruitment_campaign_link_audit_logs` — link_id, action, old_value, new_value, changed_by, changed_at, reason.
 
-```text
-user_id (PK) │ withdrawable │ float │ advance │ locked │ restricted_held │ pending_holds │ total_visible │ ledger_version │ updated_at
-```
+Enums: `recruitment_source` (whatsapp, facebook, tiktok, sms, qr_sticker, printed_poster, direct_link, agent_assisted, other), `recruitment_link_type` (general_campaign_link, qr_sticker, printed_poster, assisted_registration, social_share).
 
-- `ledger_version` = monotonically increasing counter incremented on every ledger insert affecting the user (used to detect drift).
-- `pending_holds` = sum of un-posted `withdrawal_requests` in flight (kept accurate by the same trigger set that today feeds `v_user_wallet_strict`).
-- Indexed by `user_id`; `GRANT SELECT` to `authenticated`, full to `service_role`; RLS: user reads own row, ops roles read all.
+Indexes: `short_code` unique, `(campaign_id)`, `(agent_id)`, `(location_id)`, `(created_at)`, `clicks(link_id, timestamp)`, `registrations(agent_id)`, `(campaign_id, agent_id)` on links.
 
-## 2. Populate atomically from the ledger write path
+GRANTs + RLS:
 
-- `AFTER INSERT` trigger on `general_ledger` (row-level, same transaction):
-  - For each `wallet_bucket` leg with a `user_id`, apply the signed delta to the matching projection column.
-  - Increment `ledger_version`; stamp `updated_at`.
-- `AFTER INSERT/UPDATE/DELETE` trigger on `withdrawal_requests` recomputes `pending_holds` for that user (cheap: filter by user_id + status set).
-- `AFTER UPDATE` on `general_ledger.maturity_expired` moves amounts out of `restricted_held` into `withdrawable`.
-- All triggers run in the same transaction as the ledger write — ledger and projection commit together or roll back together.
+- Agents: read their own links / clicks / registrations; join campaigns; insert their own links (RPC); disable their own links.
+- Admins (manager, cto, coo): full read; write on campaigns and locations; disable any link.
+- Public (anon): only via edge function — no direct table access to short_code → attribution.
 
-## 3. Rebuild + reconciliation
+Triggers / RPCs:
 
-- `rebuild_wallet_projection(p_user_id uuid default null)` — deterministic full recompute from `general_ledger` + `withdrawal_requests`. Truncate + reinsert when called without a user id.
-- `pg_cron` every 15 min: sample 500 users, compare projection to a fresh ledger recompute, write divergences to a new `wallet_projection_drift_alerts` table, and self-heal that row.
-- CFO Reconcile tab gets a `Projection drift` panel (extends the existing anchored/strict drift panels).
+- `generate_campaign_short_code()` — cryptographically random, collision-retry.
+- `create_campaign_link(campaign_id, location_id, source, link_type, placement)` — validates agent participation + active campaign, inserts row, returns short_code.
+- `disable_campaign_link(link_id)` — agent-owner or admin, writes audit row.
+- `edit_campaign_link(...)` — allowed only while `first_click_at IS NULL` (agent) or admin at any time; writes audit row.
+- `on_house_verified` trigger on `house_listings` (or existing verification path): when a listed house belonging to a sub-agent transitions to verified, if that sub-agent has a `recruitment_campaign_registrations` row, increment `verified_houses_count`, stamp dates, roll qualification_status forward, and on reaching 3 call the existing UGX 10,000 credit path exactly once (idempotent guard via `reward_qualified_at IS NULL`). Reuses existing `credit_recruiter_override`/listing verification bonus channel — no new reward.
+- `refresh_link_counters(link_id)` — small counter update called from click + registration paths (single row UPDATE, no aggregation scan).
 
-## 4. Read path
+### 2. Edge function `campaign-redirect`
 
-- Replace the `public.wallets` view with `SELECT ... FROM wallet_balances_projection`.
-- `get_user_available_balance(uuid)` becomes a single-row lookup returning `LEAST(withdrawable, ledger_backed)` — still clamped, still strict, but O(1).
-- New `get_wallets_batch(uuid[])` for dashboards to replace N+1 patterns (`useOpsWallet`, priority lists, agent capacity map, etc.).
+Public (no JWT). `GET /c/:slug/:shortCode`:
 
-## 5. Withdrawal-time authoritative check (unchanged in spirit)
+1. Look up short_code (single indexed query, joins campaign + location + agent in one round trip).
+2. If not found or link/campaign not active → render friendly disabled/expired HTML page.
+3. If slug mismatches canonical → 302 to canonical `/c/{location_slug}/{shortCode}`.
+4. Read/set `wr_visitor` first-party cookie (uuid, httpOnly=false, 90 days). Set signed `wr_ref` cookie carrying `{link_id, campaign_id, agent_id, source}` for registration attribution.
+5. Insert a `recruitment_campaign_clicks` row + one UPDATE incrementing `total_clicks` and (if new visitor for link) `unique_clicks`. Both writes in one transaction via RPC `record_campaign_click`.
+6. 302 to `/register?ref=campaign` (registration page reads the signed cookie).
 
-- `approve-withdrawal` edge fn keeps calling `create_ledger_transaction` with `skip_balance_check: false`.
-- The existing `enforce_no_negative_wallet_ledger` trigger — which recomputes from `v_user_wallet_strict` at posting time — stays as the final gate. Fast UI, correct commit.
+Uses UA parsing inline; hashes IP with per-project pepper. No GPS. No fingerprinting.
 
-## 6. Retire the aggregating view
+### 3. Registration attribution
 
-- `get_user_wallet_view(uuid)` becomes a thin wrapper over the projection (kept for backward compatibility, then deprecated).
-- Delete the CPU-hot ledger-scanning path from the view definition and remove `wallets`' dependency on it.
+- New route `/c/:slug/:shortCode` in the SPA calls the edge function via `<meta http-equiv="refresh">`? No — actually the client hits the edge function directly (link points at the function URL rewritten by a small Vite route that immediately calls the function). Cleanest: edge function is the public URL — links are `https://welilereceipts.com/c/{slug}/{code}` served by a supabase edge function mounted at that path via existing hosting. In practice we route `/c/*` inside the SPA to a tiny `CampaignRedirect` page that calls the `campaign-redirect` function and follows its redirect; the function issues the cookie + records the click.
+- On the existing Sub-Agent registration screen: read the `wr_ref` cookie, verify signature via `resolve-campaign-ref` edge function, prefill hidden `referrer_agent_id` + link_id. Show a small banner: “Join Welile as a Sub-Agent — {Campaign name} — {District}”. No sensitive IDs shown.
+- On successful registration, call `attach_campaign_registration(user_id)` RPC which:
+  - Validates campaign + link still active.
+  - Ensures user is a new sub-agent (checks `user_roles` + not already attributed).
+  - Sets `profiles.referrer_id` if empty (respects existing referral rules).
+  - Inserts `recruitment_campaign_registrations` and bumps link counters.
+  - Marks the click row `converted_to_registration=true` for that visitor.
 
-## 7. Investigate the 526k read volume
+### 4. Agent dashboard — `Campaign Tracking`
 
-Symptom, not disease — separate follow-up work after the projection lands:
-- Consolidate the three balance hooks (`useAvailableBalance`, `useOpsWallet`, `useAgentBalances`) onto one shared query key.
-- Batch dashboard reads via `get_wallets_batch`.
-- Extend React Query `staleTime` on wallet reads to 30s (projection updates are pushed via realtime on `wallet_balances_projection`).
+New route `/agent/campaigns`. Uses one composite RPC `get_agent_campaign_dashboard(agent_id)` returning `{ campaigns[], links[], totals }` in a single round trip.
 
----
+- Active campaigns as cards (name, status, my links, clicks, unique, registrations, sub-agents, qualified, rewards qualified).
+- “Generate link” dialog: campaign, district (required), city, area, selected source, link type, placement name → submits `create_campaign_link` RPC → shows short link, QR (client-side `qrcode` lib), Copy/Share/Download QR/View analytics.
+- Links table (paginated, mobile-friendly card view <768px): short link, campaign, location, source, type, placement, clicks, unique, registrations, sub-agents, qualified, status, created, actions (Copy, Share, QR, Download QR, Analytics, Disable).
+- Per-link analytics drawer: funnel + click timeline + registration list (attributed tenants/sub-agents) via `get_link_analytics(link_id)`.
 
-## Technical section
+### 5. Admin dashboard add a page in the CMO dashboard
 
-**Migrations (schema only)**
-1. Create `wallet_balances_projection` + indexes + GRANTs + RLS.
-2. Create `wallet_projection_drift_alerts` + GRANTs + RLS.
-3. Functions: `rebuild_wallet_projection`, `apply_ledger_delta_to_projection`, `recompute_pending_holds`, `get_wallets_batch`, updated `get_user_available_balance`.
-4. Triggers on `general_ledger` and `withdrawal_requests`.
-5. Replace `public.wallets` view definition with a straight select from the projection.
+New route `/admin/recruitment-campaigns`  in CMO dashboard(visible to manager/cto/coo).
 
-**Data step (via insert tool, not migration)**
-- `SELECT rebuild_wallet_projection(NULL);` — full backfill.
-- Immediately follow with a drift check; log & repair any deltas before wiring the read path over.
+- Campaign CRUD (draft → active → paused → completed).
+- Locations manager (add district/slug).
+- Summary cards + filters (campaign, agent, district, source, link type, status, date range).
+- Tables: Performance by Location, Performance by Source, Performance by Agent — all fed by 3 dedicated aggregate RPCs so the UI never does N+1.
+- Campaign funnel: link generated → clicked → registered → sub-agent → 1st/2nd/3rd verified house → reward qualified → reward paid, via `get_campaign_funnel(campaign_id)`.
+- Participating agents view; audit log viewer for link edits.
 
-**Edge functions**
-- `approve-withdrawal`: no change to safety semantics, but drop the redundant pre-check `SELECT` against `wallets` (the DB trigger is authoritative).
-- `cfo-direct-credit`, `wallet-transfer`, `apply-payroll-growth`, etc.: unchanged — they already write through `create_ledger_transaction`; projection updates via the new trigger.
+### 6. Reward hook
 
-**Frontend**
-- `useAvailableBalance`, `useOpsWallet`, `useAgentBalances`, `fetchOpsWalletBuckets` → point at projection / `get_wallets_batch`.
-- Add realtime subscription on `wallet_balances_projection` filtered by `user_id` for the wallet hero card.
-- Remove the last direct `general_ledger` sums used for display (dashboards, statements keep raw ledger reads — those aren't balance decisions).
+- Piggyback on existing house-verification trigger (`on_house_verified` or equivalent listing-verification path already crediting recruiter override). Extend it to also update `recruitment_campaign_registrations` and, on the 3rd verified house, flip `qualification_status='reward_qualified'` and record `reward_qualified_at`. The actual UGX 10,000 credit stays in the existing reward system, invoked exactly once per referred sub-agent (idempotent by `reward_qualified_at IS NULL AND reward_paid_at IS NULL`).
 
-**Rollout order (single day, safe)**
-1. Ship schema + triggers + rebuild function (dark — nothing reads it yet).
-2. Backfill via `rebuild_wallet_projection(NULL)`.
-3. Run drift check; must be zero for 100% of users before flipping.
-4. Swap `wallets` view + hooks to the projection.
-5. Enable 15-min drift cron.
-6. Follow-up ticket: read-volume consolidation (item 7 above).
+### 7. Performance & DRY
 
-**Explicitly out of scope**
-- Redis, client-persisted balances, nightly-only refresh.
-- Any change to the double-entry `general_ledger` integrity trigger.
-- Terminology or product changes.
+- All list endpoints go through a small set of RPCs that pre-join and pre-aggregate — no client-side aggregation, no N+1.
+- Counters cached on `recruitment_campaign_links` and updated in the same transaction as clicks/registrations.
+- Indexes listed above; pagination + range keyset on `(agent_id, created_at desc)` for the agent links table.
+- Shared React Query keys + a single `useAgentCampaignDashboard` / `useAdminCampaignAnalytics` hook so components don’t refetch overlapping data.
+- Reused components: existing `Card`, `Table`, `Sheet`, `PaginationBar`, `SearchInput`, `EmptyState`, `ErrorState`, `LoadingSkeleton`, `FormattedUGX`.
 
-Approve and I'll ship steps 1–5 in order, with drift verification between each.
+## Out of scope for Phase One
+
+- Any new reward money flow (reuse existing UGX 10,000).
+- GPS / device location prompts.
+- Deep fingerprinting or bot-mitigation beyond visitor cookie + ip_hash.
+- Exportable CSV/PDF reports (can be added Phase Two).
+- Multi-language / translations for the redirect landing page.
+
+## Rollout order
+
+1. Migration (tables, enums, RPCs, triggers, seeds, GRANTs, RLS).
+2. `campaign-redirect` + `resolve-campaign-ref` + `attach_campaign_registration` edge/RPCs.
+3. Agent dashboard (Campaign Tracking route + generate-link dialog + links table + per-link analytics).
+4. Admin dashboard (campaign CRUD + analytics + funnel).
+5. Hook registration form + house-verification trigger.
+6. Smoke test end-to-end on `/c/mbale/{code}` with a seeded campaign and location.
+
+## Technical notes
+
+- Short codes: 8 chars, `[A-Za-z0-9]` from `gen_random_bytes`, uniqueness enforced by unique index with retry loop in `create_campaign_link`.
+- Cookies: `wr_visitor` (uuid) + `wr_ref` (HMAC-signed compact JSON) — signed with existing `APP_JWT_SECRET`.
+- All new tables get `service_role` + `authenticated` GRANTs per policy set; no `anon` grants; anon flow is edge-function-only.
+- Every write path uses a `SECURITY DEFINER` RPC with `SET search_path = public` and validates `auth.uid()` against the acting agent.
+
+Ready to build on approval.
