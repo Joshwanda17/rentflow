@@ -266,6 +266,8 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
         title: `Invite sent — portfolio ${code}`,
         description: `${selectedUser.full_name} will get an email to review and sign. It’s now in the Invited Portfolios tab.`,
       });
+      qc.invalidateQueries({ queryKey: ['invited-portfolios'] });
+      qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
       onSuccess();
       onOpenChange(false);
     } catch (e: any) {

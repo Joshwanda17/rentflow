@@ -90,6 +90,15 @@ Deno.serve(async (req) => {
       : null;
     const instantDeduct = creatorIsBackOffice && !!investorId;
 
+    if (creatorIsBackOffice && investorId && !inviteId) {
+      return new Response(JSON.stringify({
+        error: "Direct back-office portfolio creation is retired. Send a portfolio invite so the partner reviews, completes details and signs before Ops approval.",
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Explicit "fund from any user" mode ──
     // Back-office creators may deploy capital from ANY user's wallet (e.g. a
     // partner pooling on behalf of someone), choosing the bucket to draw from.
