@@ -421,6 +421,108 @@ export function MerchantFloatRequestsPanel() {
     onError: (e: any) => toast.error(e.message || 'Failed to reject'),
   });
 
+  // Full float timeline for the currently expanded agent — every top-up and
+  // every settlement in chronological order, so the CFO can see:
+  //   • the float the agent already had before each top-up,
+  //   • how each batch of float was spent between top-ups.
+  type TopUpBatch = {
+    depositId: string;
+    depositAmount: number;
+    depositAt: string;
+    balanceBefore: number;
+    balanceAfterTopUp: number;
+    balanceAfterBatch: number;
+    settlements: Array<{
+      id: string;
+      at: string;
+      amount: number;
+      recipient: string | null;
+      method: string;
+      balanceAfter: number;
+    }>;
+  };
+  const { data: agentTimeline, isLoading: timelineLoading } = useQuery({
+    queryKey: ['cfo-agent-float-timeline', expandedAgent],
+    enabled: !!expandedAgent,
+    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number }> => {
+      const agentId = expandedAgent!;
+      const [walletRes, ledgerRes] = await Promise.all([
+        supabase.from('wallets').select('float_balance').eq('user_id', agentId).maybeSingle(),
+        supabase
+          .from('general_ledger')
+          .select('id, category, amount, transaction_date, source_id')
+          .eq('user_id', agentId)
+          .eq('ledger_scope', 'wallet')
+          .eq('wallet_bucket', 'float')
+          .in('category', ['agent_float_deposit', 'agent_float_settlement'])
+          .order('transaction_date', { ascending: true })
+          .limit(2000),
+      ]);
+      const rows = (ledgerRes.data ?? []) as any[];
+      const settlementSourceIds = Array.from(
+        new Set(rows.filter((r) => r.category === 'agent_float_settlement' && r.source_id).map((r) => String(r.source_id)))
+      );
+      const wrMap: Record<string, any> = {};
+      if (settlementSourceIds.length) {
+        const { data: wrs } = await supabase
+          .from('withdrawal_requests')
+          .select('id, mobile_money_name, mobile_money_provider, payout_method')
+          .in('id', settlementSourceIds);
+        for (const w of (wrs ?? []) as any[]) wrMap[String(w.id)] = w;
+      }
+
+      const batches: TopUpBatch[] = [];
+      let running = 0;
+      let current: TopUpBatch | null = null;
+      for (const r of rows) {
+        const amt = Number(r.amount) || 0;
+        if (r.category === 'agent_float_deposit') {
+          if (current) {
+            current.balanceAfterBatch = running;
+            batches.push(current);
+          }
+          const before = running;
+          running = before + amt;
+          current = {
+            depositId: String(r.id),
+            depositAmount: amt,
+            depositAt: r.transaction_date,
+            balanceBefore: before,
+            balanceAfterTopUp: running,
+            balanceAfterBatch: running,
+            settlements: [],
+          };
+        } else {
+          running = running - amt;
+          if (!current) {
+            // Settlement predating any tracked deposit — synthesise a virtual batch.
+            current = {
+              depositId: `pre-${r.id}`,
+              depositAmount: 0,
+              depositAt: r.transaction_date,
+              balanceBefore: 0,
+              balanceAfterTopUp: 0,
+              balanceAfterBatch: running,
+              settlements: [],
+            };
+          }
+          const wr = wrMap[String(r.source_id)] || {};
+          current.settlements.push({
+            id: String(r.id),
+            at: r.transaction_date,
+            amount: amt,
+            recipient: wr.mobile_money_name || null,
+            method: wr.mobile_money_provider || wr.payout_method || 'Customer cash-out',
+            balanceAfter: running,
+          });
+          current.balanceAfterBatch = running;
+        }
+      }
+      if (current) batches.push(current);
+      return { batches, currentBalance: Number(walletRes.data?.float_balance) || running };
+    },
+  });
+
   return (
     <Card className="rounded-xl border-2 border-sky-500/30 bg-sky-500/5">
       <CardHeader className="pb-3">
