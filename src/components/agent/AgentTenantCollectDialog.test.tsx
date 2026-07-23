@@ -35,8 +35,8 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'agent-1' } }),
 }));
 
-vi.mock('@/hooks/useAgentLandlordFloat', () => ({
-  useAgentLandlordFloat: () => ({ floatBalance: 500000, refetch: vi.fn() }),
+vi.mock('@/hooks/useAgentBalances', () => ({
+  useAgentBalances: () => ({ floatBalance: 500000, refetch: vi.fn() }),
 }));
 
 vi.mock('@/hooks/useCreditAccessLimit', () => ({
