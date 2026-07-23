@@ -46,11 +46,22 @@ export default function WalletOpsMaintenanceCard() {
     if (error) {
       toast({ title: 'Failed', description: error.message, variant: 'destructive' });
     } else {
+      // Wallet ops maintenance is a scoped freeze — wallet transfers and
+      // withdrawals only. It must NEVER coexist with the platform-wide
+      // maintenance lock, which would block agents from collecting rent or
+      // posting rent requests. Turning wallet ops maintenance ON forces the
+      // platform lock OFF so users keep full access to everything else.
+      if (next) {
+        await supabase
+          .from('treasury_controls')
+          .update({ enabled: false, updated_at: new Date().toISOString() })
+          .eq('control_key', 'maintenance_mode');
+      }
       await load();
       toast({
         title: next ? 'Wallet ops FROZEN' : 'Wallet ops resumed',
         description: next
-          ? 'Wallet transfers and withdrawals are blocked platform-wide. Rent collections and rent-request posting remain live.'
+          ? 'Wallet transfers and withdrawals are blocked platform-wide. Platform maintenance banner turned OFF so agents keep collecting rent and posting rent requests.'
           : 'Wallet transfers and withdrawals are live again.',
       });
     }
