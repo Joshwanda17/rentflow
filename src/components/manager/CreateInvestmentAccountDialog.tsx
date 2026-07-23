@@ -65,6 +65,11 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
   const [partnerBalance, setPartnerBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [partnerFrozen, setPartnerFrozen] = useState<boolean>(false);
+  // Existing-portfolio guard: in `direct_confirmation` mode we ONLY create
+  // a portfolio when the partner has ZERO existing portfolios. If any exist,
+  // we block the action and prompt the operator to use the invite flow.
+  const [existingPortfolioCount, setExistingPortfolioCount] = useState<number | null>(null);
+  const [portfolioCheckLoading, setPortfolioCheckLoading] = useState(false);
   // When the selected partner is managed by a proxy agent, the dialog shows
   // the proxy agent's wallet balance instead — funding is debited from that
   // wallet server-side (enforced in create-investor-portfolio edge fn).
@@ -124,12 +129,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
     if (!selectedUser) {
       setPartnerBalance(null);
       setPartnerFrozen(false);
+      setExistingPortfolioCount(null);
       return;
     }
     setBalanceLoading(true);
     setPartnerBalance(null);
     setManagedProxy(null);
     setPartnerFrozen(false);
+    setExistingPortfolioCount(null);
     (async () => {
       // Suspended (frozen) partners cannot receive new portfolios.
       const { data: prof } = await supabase
@@ -139,6 +146,16 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
         .maybeSingle();
       if (!cancelled && (prof as any)?.frozen_at) {
         setPartnerFrozen(true);
+      }
+      // Existing-portfolio count — used to gate direct_confirmation mode.
+      setPortfolioCheckLoading(true);
+      const { count: pfCount } = await supabase
+        .from('investor_portfolios')
+        .select('id', { count: 'exact', head: true })
+        .eq('investor_id', selectedUser.id);
+      if (!cancelled) {
+        setExistingPortfolioCount(pfCount ?? 0);
+        setPortfolioCheckLoading(false);
       }
       // Managed-proxy check: if the partner has an active+approved
       // is_managed_account=true proxy assignment, funding MUST come from
