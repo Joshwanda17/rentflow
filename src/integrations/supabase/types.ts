@@ -21269,6 +21269,42 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_balances_projection: {
+        Row: {
+          advance_balance: number
+          float_balance: number
+          ledger_version: number
+          pending_holds: number
+          restricted_held: number
+          total_visible: number
+          updated_at: string
+          user_id: string
+          withdrawable: number
+        }
+        Insert: {
+          advance_balance?: number
+          float_balance?: number
+          ledger_version?: number
+          pending_holds?: number
+          restricted_held?: number
+          total_visible?: number
+          updated_at?: string
+          user_id: string
+          withdrawable?: number
+        }
+        Update: {
+          advance_balance?: number
+          float_balance?: number
+          ledger_version?: number
+          pending_holds?: number
+          restricted_held?: number
+          total_visible?: number
+          updated_at?: string
+          user_id?: string
+          withdrawable?: number
+        }
+        Relationships: []
+      }
       wallet_debit_bucket_attempts: {
         Row: {
           amount: number
@@ -21581,6 +21617,48 @@ export type Database = {
           user_id?: string
           withdrawable_after?: number | null
           withdrawable_before?: number | null
+        }
+        Relationships: []
+      }
+      wallet_projection_drift_alerts: {
+        Row: {
+          auto_healed: boolean
+          delta_withdrawable: number | null
+          detected_at: string
+          id: string
+          ledger_advance: number
+          ledger_float: number
+          ledger_withdrawable: number
+          projection_advance: number
+          projection_float: number
+          projection_withdrawable: number
+          user_id: string
+        }
+        Insert: {
+          auto_healed?: boolean
+          delta_withdrawable?: number | null
+          detected_at?: string
+          id?: string
+          ledger_advance: number
+          ledger_float: number
+          ledger_withdrawable: number
+          projection_advance: number
+          projection_float: number
+          projection_withdrawable: number
+          user_id: string
+        }
+        Update: {
+          auto_healed?: boolean
+          delta_withdrawable?: number | null
+          detected_at?: string
+          id?: string
+          ledger_advance?: number
+          ledger_float?: number
+          ledger_withdrawable?: number
+          projection_advance?: number
+          projection_float?: number
+          projection_withdrawable?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -24145,6 +24223,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      detect_wallet_projection_drift: {
+        Args: { p_sample_size?: number }
+        Returns: {
+          auto_healed: number
+          users_checked: number
+          users_drifted: number
+        }[]
+      }
       diagnose_pending_proxy_withdrawals: {
         Args: never
         Returns: {
@@ -25836,6 +25922,19 @@ export type Database = {
       }
       get_wallet_totals: { Args: never; Returns: Json }
       get_wallet_totals_strict: { Args: never; Returns: Json }
+      get_wallets_batch: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          advance_balance: number
+          float_balance: number
+          pending_holds: number
+          restricted_held: number
+          total_visible: number
+          updated_at: string
+          user_id: string
+          withdrawable: number
+        }[]
+      }
       get_withdrawable_total: { Args: { p_user_id: string }; Returns: number }
       get_withdrawal_history: {
         Args: { p_limit?: number; p_offset?: number; p_search?: string }
@@ -26562,6 +26661,10 @@ export type Database = {
         Args: { _new_parent_id: string; _reason: string; _record_id: string }
         Returns: Json
       }
+      rebuild_wallet_projection: {
+        Args: { p_user_id?: string }
+        Returns: number
+      }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
       recompute_agent_earned_vouch:
         | { Args: { p_agent_id: string }; Returns: number }
@@ -26674,6 +26777,10 @@ export type Database = {
       refresh_financial_summaries: { Args: never; Returns: undefined }
       refresh_house_location_rollup: { Args: never; Returns: undefined }
       refresh_mv_ops_daily_summary: { Args: never; Returns: undefined }
+      refresh_wallet_projection_for: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       refresh_wallet_totals_cache: { Args: never; Returns: undefined }
       refund_agent_float_for_payout: {
         Args: { p_payout_id: string; p_reason: string }

@@ -1,73 +1,99 @@
-# Withdrawal Eligibility Policy — Restricted Bonus Funds (v2)
+# Wallet Balances Projection — Ledger-Driven, No Cache
 
-## Core rule
+Adopts your recommendation in full. The ledger stays authoritative; reads move to a deterministic projection updated inside the same transaction as every ledger insert; withdrawals still revalidate against the ledger at commit time.
 
-A **referrer's bonus becomes withdrawable only after their invitee is proven productive**. The maximum "waiting" period is **3 days** from the credit date — but the money stays locked beyond 3 days if the invitee has not met at least one productivity condition.
+## Goals
 
-## Category classification
+- One indexed row-lookup per wallet read (no aggregation on the read path).
+- Projection can be dropped and rebuilt from `general_ledger` at any time.
+- Withdrawals do a final ledger-authoritative check before committing.
+- No Redis, no client cache of balances, no nightly-only sync.
 
+---
 
-| Category                                                                                       | Source                     | Withdrawal Policy                |
-| ---------------------------------------------------------------------------------------------- | -------------------------- | -------------------------------- |
-| `agent_commission_earned`, `partner_commission`                                                | Rent-collection commission | **Immediately withdrawable**     |
-| `roi_wallet_credit`, `roi_expense`                                                             | Supporter ROI              | **Immediately withdrawable**     |
-| `deposit`, `wallet_topup`, `tenant_refund`, `listing_rejection_offset`                         | User's own money / offsets | **Immediately withdrawable**     |
-| `referral_bonus`                                                                               | Signup referral            | **Restricted** — see rules below |
-| `agent_bonus`, `agent_listing_bonus`, `agent_listing_campaign_bonus`, `tenant_placement_bonus` | House listing rewards      | **Restricted**                   |
-| `landlord_verification_bonus`, `landlord_referral_bonus`                                       | Landlord registration      | **Restricted**                   |
-| `lc1_verification_bonus`, `lc1_referral_bonus`                                                 | LC1 registration           | **Restricted**                   |
-| `recruiter_override`                                                                           | Sub-agent recruiting       | **Restricted**                   |
+## 1. New table: `wallet_balances_projection`
 
+```text
+user_id (PK) │ withdrawable │ float │ advance │ locked │ restricted_held │ pending_holds │ total_visible │ ledger_version │ updated_at
+```
 
-## Restriction rules
+- `ledger_version` = monotonically increasing counter incremented on every ledger insert affecting the user (used to detect drift).
+- `pending_holds` = sum of un-posted `withdrawal_requests` in flight (kept accurate by the same trigger set that today feeds `v_user_wallet_strict`).
+- Indexed by `user_id`; `GRANT SELECT` to `authenticated`, full to `service_role`; RLS: user reads own row, ops roles read all.
 
-For every restricted credit, we store:
+## 2. Populate atomically from the ledger write path
 
-- `withdrawable_after` = `created_at + 3 days` (hard cap on the waiting window)
-- `maturity_condition` — the condition the invitee/subject must satisfy
-- `maturity_met` — flips to `true` when the condition is proven
+- `AFTER INSERT` trigger on `general_ledger` (row-level, same transaction):
+  - For each `wallet_bucket` leg with a `user_id`, apply the signed delta to the matching projection column.
+  - Increment `ledger_version`; stamp `updated_at`.
+- `AFTER INSERT/UPDATE/DELETE` trigger on `withdrawal_requests` recomputes `pending_holds` for that user (cheap: filter by user_id + status set).
+- `AFTER UPDATE` on `general_ledger.maturity_expired` moves amounts out of `restricted_held` into `withdrawable`.
+- All triggers run in the same transaction as the ledger write — ledger and projection commit together or roll back together.
 
-**A restricted credit becomes withdrawable ONLY when `maturity_met = true`.** The 3-day timer is the *maximum* the user is asked to wait; if the invitee never performs, the money stays locked (returned to platform via CFO reversal after a longer window — proposed 30 days, configurable).
+## 3. Rebuild + reconciliation
 
-### Condition per source
+- `rebuild_wallet_projection(p_user_id uuid default null)` — deterministic full recompute from `general_ledger` + `withdrawal_requests`. Truncate + reinsert when called without a user id.
+- `pg_cron` every 15 min: sample 500 users, compare projection to a fresh ledger recompute, write divergences to a new `wallet_projection_drift_alerts` table, and self-heal that row.
+- CFO Reconcile tab gets a `Projection drift` panel (extends the existing anchored/strict drift panels).
 
+## 4. Read path
 
-| Restricted credit                                         | `maturity_condition` — invitee must…                                                                                          |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `referral_bonus` (invitee is a **tenant**)                | Post at least one rent request that reaches `submitted` or later                                                              |
-| `referral_bonus` (invitee is an **agent**)                | List a house that gets verified, OR register a landlord that gets verified, OR register an LC1 chairperson that gets verified |
-| `agent_listing_bonus` / campaign / placement              | Underlying `house_listings` row is `verified=true` AND has a `tenant_id`                                                      |
-| `landlord_verification_bonus` / `landlord_referral_bonus` | Underlying `landlords` row is `verified=true`                                                                                 |
-| `lc1_verification_bonus` / `lc1_referral_bonus`           | Underlying `lc1_chairpersons` row is `verified=true`                                                                          |
-| `recruiter_override`                                      | Sub-agent has at least one verified listing OR verified landlord OR verified LC1                                              |
+- Replace the `public.wallets` view with `SELECT ... FROM wallet_balances_projection`.
+- `get_user_available_balance(uuid)` becomes a single-row lookup returning `LEAST(withdrawable, ledger_backed)` — still clamped, still strict, but O(1).
+- New `get_wallets_batch(uuid[])` for dashboards to replace N+1 patterns (`useOpsWallet`, priority lists, agent capacity map, etc.).
 
+## 5. Withdrawal-time authoritative check (unchanged in spirit)
 
-## Technical implementation
+- `approve-withdrawal` edge fn keeps calling `create_ledger_transaction` with `skip_balance_check: false`.
+- The existing `enforce_no_negative_wallet_ledger` trigger — which recomputes from `v_user_wallet_strict` at posting time — stays as the final gate. Fast UI, correct commit.
 
-1. **Migration**
-  - Add columns to `general_ledger`: `withdrawable_after TIMESTAMPTZ`, `maturity_condition TEXT`, `maturity_met BOOLEAN DEFAULT true`, `maturity_subject_id UUID` (points at the invitee / listing / landlord / lc1 record so we can flip the flag later).
-  - `BEFORE INSERT` trigger `trg_apply_bonus_restriction`: on wallet-scope cash_in in the restricted category list, stamp `withdrawable_after = now() + 3 days`, set `maturity_met=false`, set `maturity_condition` + `maturity_subject_id` from the entry `metadata`.
-  - `AFTER UPDATE` triggers on `house_listings` (verified/tenant_id), `landlords` (verified), `lc1_chairpersons` (verified), `rent_requests` (status → submitted), `profiles` (referred user first productive act): each flips matching ledger rows' `maturity_met = true`.
-  - Rewrite `v_user_wallet_strict.withdrawable` = ledger cash_in **minus** rows where `maturity_met = false` OR `withdrawable_after > now()`, minus cash_out, minus pending holds. Since `get_user_available_balance` and `get_user_wallet_view` already delegate to this view, wallet card / withdraw dialog / `approve-withdrawal` all update automatically.
-  - Add `pending_restricted NUMERIC` and `restricted_breakdown JSONB` to `get_user_wallet_view` output.
-  - New RPC `get_user_wallet_holds(p_user_id)` → list of held rows (amount, category, condition, subject reference, release-eligible date).
-2. **Backfill**
-  - Existing `referral_bonus` and `agent_bonus` rows (~47.6k):
-    - If credit is > 3 days old **and** the invitee has performed any productive act → auto-mark `maturity_met=true`.
-    - If credit is > 30 days old and still no productive act → mark `maturity_met=false` **and** `expired=true` (no auto-release ever; CFO reversal path).
-    - Otherwise → mark `maturity_met=false`, waiting for the condition trigger.
-3. **UI**
-  - Wallet card ("Held" chip): shows total restricted + tap-through list from `get_user_wallet_holds`. Each row displays: amount, why it's held ("Waiting for your invitee John D. to post a rent request"), release-eligible date.
-  - `WithdrawRequestDialog`: inline warning when the user tries to withdraw more than the unrestricted amount, explaining the specific holds.
-  - `WalletLedgerStatement`: lock icon on restricted rows, tooltip with condition + status.
-4. **No changes** to commission, ROI, deposit, or merchant/agent-ops flows.
+## 6. Retire the aggregating view
 
-## Rollout
+- `get_user_wallet_view(uuid)` becomes a thin wrapper over the projection (kept for backward compatibility, then deprecated).
+- Delete the CPU-hot ledger-scanning path from the view definition and remove `wallets`' dependency on it.
 
-Single migration → view rewrite → backfill. Frontend chip + dialog copy ship in the same change. CFO/FinOps dashboards unchanged (they still see the full cache + ledger).
+## 7. Investigate the 526k read volume
 
-## Open decision (please confirm before I build)
+Symptom, not disease — separate follow-up work after the projection lands:
+- Consolidate the three balance hooks (`useAvailableBalance`, `useOpsWallet`, `useAgentBalances`) onto one shared query key.
+- Batch dashboard reads via `get_wallets_batch`.
+- Extend React Query `staleTime` on wallet reads to 30s (projection updates are pushed via realtime on `wallet_balances_projection`).
 
-- **Expiry window:** if the invitee never performs, do restricted bonuses expire (reverse to platform) at **30 days**, or should we hold them indefinitely until CFO manual review? Default in the plan is 30 days, configurable in `system_config`.
-- THE BONUSES EXPIRE IN 3 DAYS. 
-- &nbsp;
+---
+
+## Technical section
+
+**Migrations (schema only)**
+1. Create `wallet_balances_projection` + indexes + GRANTs + RLS.
+2. Create `wallet_projection_drift_alerts` + GRANTs + RLS.
+3. Functions: `rebuild_wallet_projection`, `apply_ledger_delta_to_projection`, `recompute_pending_holds`, `get_wallets_batch`, updated `get_user_available_balance`.
+4. Triggers on `general_ledger` and `withdrawal_requests`.
+5. Replace `public.wallets` view definition with a straight select from the projection.
+
+**Data step (via insert tool, not migration)**
+- `SELECT rebuild_wallet_projection(NULL);` — full backfill.
+- Immediately follow with a drift check; log & repair any deltas before wiring the read path over.
+
+**Edge functions**
+- `approve-withdrawal`: no change to safety semantics, but drop the redundant pre-check `SELECT` against `wallets` (the DB trigger is authoritative).
+- `cfo-direct-credit`, `wallet-transfer`, `apply-payroll-growth`, etc.: unchanged — they already write through `create_ledger_transaction`; projection updates via the new trigger.
+
+**Frontend**
+- `useAvailableBalance`, `useOpsWallet`, `useAgentBalances`, `fetchOpsWalletBuckets` → point at projection / `get_wallets_batch`.
+- Add realtime subscription on `wallet_balances_projection` filtered by `user_id` for the wallet hero card.
+- Remove the last direct `general_ledger` sums used for display (dashboards, statements keep raw ledger reads — those aren't balance decisions).
+
+**Rollout order (single day, safe)**
+1. Ship schema + triggers + rebuild function (dark — nothing reads it yet).
+2. Backfill via `rebuild_wallet_projection(NULL)`.
+3. Run drift check; must be zero for 100% of users before flipping.
+4. Swap `wallets` view + hooks to the projection.
+5. Enable 15-min drift cron.
+6. Follow-up ticket: read-volume consolidation (item 7 above).
+
+**Explicitly out of scope**
+- Redis, client-persisted balances, nightly-only refresh.
+- Any change to the double-entry `general_ledger` integrity trigger.
+- Terminology or product changes.
+
+Approve and I'll ship steps 1–5 in order, with drift verification between each.
