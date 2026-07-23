@@ -2205,7 +2205,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         </div>
         <div className="flex items-center gap-2 self-start">
           <Button size="sm" className="gap-1.5" onClick={() => setCreatePortfolioOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Create Portfolio
+            <Mail className="h-3.5 w-3.5" /> Send Portfolio Invite
           </Button>
           <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
@@ -3176,6 +3176,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 setInvitePartnerPortfolio({
                   id: detailPartner.profile.id,
                   full_name: detailPartner.profile.full_name,
+                  email: detailPartner.profile.email,
                 });
               }}
             >
