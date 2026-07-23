@@ -131,12 +131,18 @@ function LandlordSearch({
     queryKey: ['connector-landlord-search', search],
     queryFn: async () => {
       if (search.length < 3) return [];
-      const { data } = await supabase
-        .from('landlords')
-        .select('id, name, phone, property_address')
-        .or(`name.ilike.%${search}%,phone.ilike.%${search}%`)
-        .limit(6);
-      return (data || []) as LandlordResult[];
+      // Trigram-indexed RPC — the raw OR-ILIKE fallback used to burn the DB CPU.
+      const { data } = await supabase.rpc('search_landlords_fuzzy', {
+        p_query: search,
+        p_limit: 6,
+        p_threshold: 0.15,
+      });
+      return ((data || []) as any[]).map((d) => ({
+        id: d.id,
+        name: d.name,
+        phone: d.phone,
+        property_address: d.property_address,
+      })) as LandlordResult[];
     },
     enabled: search.length >= 3 && !selected,
     staleTime: 30000,

@@ -57,11 +57,31 @@ export function AssignPersonDialog({ open, onClose, listingId, listingTitle, per
     setSearching(true);
     try {
       if (personType === 'landlord') {
-        const { data } = await supabase.from('landlords')
-          .select('id, name, phone, has_smartphone')
-          .or(`name.ilike.%${query.trim()}%,phone.ilike.%${query.trim()}%`)
-          .limit(10);
-        setResults((data || []).map(d => ({ id: d.id, name: d.name, phone: d.phone, has_smartphone: d.has_smartphone })));
+        // Route through the trigram-indexed RPC — plain OR-ILIKE forces a
+        // seq scan on landlords and was the #1 DB CPU offender.
+        const { data } = await supabase.rpc('search_landlords_fuzzy', {
+          p_query: query.trim(),
+          p_limit: 10,
+          p_threshold: 0.15,
+        });
+        // has_smartphone isn't returned by the RPC; hydrate it in one small lookup only for the matched IDs.
+        const ids = (data || []).map((d: any) => d.id);
+        let smartMap = new Map<string, boolean | null>();
+        if (ids.length) {
+          const { data: extras } = await supabase
+            .from('landlords')
+            .select('id, has_smartphone')
+            .in('id', ids);
+          smartMap = new Map((extras || []).map((e: any) => [e.id, e.has_smartphone]));
+        }
+        setResults(
+          (data || []).map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            phone: d.phone,
+            has_smartphone: smartMap.get(d.id) ?? null,
+          })),
+        );
       } else {
         const { data } = await supabase.from('profiles')
           .select('id, full_name, phone')

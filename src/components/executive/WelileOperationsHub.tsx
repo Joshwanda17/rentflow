@@ -74,13 +74,14 @@ function useLandlordSearch(term: string) {
     queryKey: ['welile-ops-landlord-search', q],
     staleTime: 30_000,
     queryFn: async (): Promise<PersonRow[]> => {
-      const cleaned = q.replace(/\D/g, '');
-      const isPhone = cleaned.length >= 3;
-      let lq = supabase.from('landlords').select('id, name, phone').limit(60);
-      lq = isPhone ? lq.ilike('phone', `%${cleaned.slice(-9)}%`) : lq.ilike('name', `%${q}%`);
-      const { data, error } = await lq;
+      // Trigram-indexed RPC — plain ILIKE forces a seq scan under load.
+      const { data, error } = await supabase.rpc('search_landlords_fuzzy', {
+        p_query: q,
+        p_limit: 60,
+        p_threshold: 0.15,
+      });
       if (error) throw error;
-      return (data ?? []).map((l) => ({
+      return ((data ?? []) as any[]).map((l) => ({
         id: l.id,
         name: l.name || 'Unnamed landlord',
         phone: l.phone,
