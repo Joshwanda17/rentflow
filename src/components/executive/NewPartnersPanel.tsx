@@ -2860,28 +2860,12 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
 
   async function handleCreate() {
     const amt = parseFloat(form.investment_amount);
-    if (!form.investment_amount || isNaN(amt) || amt < 1000) {
-      toast({ title: 'Investment must be at least UGX 1,000', variant: 'destructive' });
+    if (!form.investment_amount || isNaN(amt) || amt < 20000) {
+      toast({ title: 'Portfolio invite must be at least UGX 20,000', variant: 'destructive' });
       return;
     }
     if (amt > MAX_INVEST) {
       toast({ title: `Investment must not exceed UGX ${MAX_INVEST.toLocaleString('en-US')}`, variant: 'destructive' });
-      return;
-    }
-    if (balance === null) {
-      toast({ title: 'Partner wallet balance not loaded yet', variant: 'destructive' });
-      return;
-    }
-    if (amt > balance) {
-      toast({
-        title: 'Insufficient partner wallet balance',
-        description: `${partner.full_name} has UGX ${balance.toLocaleString()} available. Top up first.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (!/^\d{4}$/.test(form.portfolio_pin)) {
-      toast({ title: 'Portfolio PIN must be exactly 4 digits', variant: 'destructive' });
       return;
     }
     if (form.account_name.length > 100) {
@@ -2889,60 +2873,34 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
       return;
     }
 
-    // Validate + normalize payout/mobile/bank fields before sending to the
-    // edge function (which writes to investor_portfolios).
-    let validated;
-    try {
-      validated = validatePortfolioPayoutFields({
-        payment_method: form.payment_method,
-        payout_day: form.payout_day,
-        mobile_money_number: form.mobile_money_number,
-        mobile_network: form.mobile_network,
-        bank_name: form.bank_name,
-        bank_account_name: form.bank_account_name,
-        account_number: form.account_number,
-      });
-    } catch (e: any) {
-      toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
-      return;
-    }
-
     setSaving(true);
     try {
-      const response = await supabase.functions.invoke('create-investor-portfolio', {
+      const response = await supabase.functions.invoke('create-portfolio-invite', {
         body: {
-          investor_id: partner.id,
-          investment_amount: amt,
+          partner_id: partner.id,
+          amount: amt,
           duration_months: parseInt(form.duration_months),
           roi_percentage: parseFloat(form.roi_percentage),
           roi_mode: form.roi_mode,
-          portfolio_pin: form.portfolio_pin,
-          payout_day: validated.payout_day ?? parseInt(form.payout_day),
-          contribution_date: form.contribution_date || null,
-          payment_method: form.payment_method || null,
-          mobile_network: validated.mobile_network,
-          mobile_money_number: validated.mobile_money_number,
-          bank_name: validated.bank_name,
-          account_name: validated.bank_account_name || form.account_name || null,
-          account_number: validated.account_number,
+          nickname: form.account_name || null,
         },
       });
       if (response.error || response.data?.error) {
-        const msg = await extractEdgeFunctionError(response, 'Failed to create portfolio');
+        const msg = await extractEdgeFunctionError(response, 'Failed to send portfolio invite');
         throw new Error(msg);
       }
-      const code = response.data?.portfolio?.portfolio_code || '';
+      const code = response.data?.portfolio_code || '';
       await supabase.from('audit_logs').insert({
         user_id: actingUserId,
-        action_type: 'create_portfolio_inline',
+        action_type: 'send_portfolio_invite_inline',
         table_name: 'investor_portfolios',
-        record_id: response.data?.portfolio?.id || partner.id,
+        record_id: response.data?.portfolio_id || partner.id,
         metadata: { source: 'PartnerOps NewPartnersPanel inline', partner: partner.full_name, amount: amt, code },
       });
-      toast({ title: `✅ Portfolio ${code} created — pending approval` });
+      toast({ title: `✅ Invite sent — portfolio ${code}`, description: 'It now appears in Invited Portfolios for tracking.' });
       onCreated();
     } catch (e: any) {
-      toast({ title: 'Creation failed', description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: 'Invite failed', description: e?.message || 'Try again', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -2955,7 +2913,7 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
           <PlusCircle className="h-3.5 w-3.5 text-primary" /> New portfolio for {partner.full_name}
         </p>
         <span className="text-[10px] text-muted-foreground">
-          {balanceLoading ? 'Loading wallet…' : `Wallet: UGX ${(balance ?? 0).toLocaleString()}`}
+          {balanceLoading ? 'Loading wallet…' : `Wallet: UGX ${(balance ?? 0).toLocaleString()} · not debited now`}
         </span>
       </div>
 
@@ -2965,18 +2923,17 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
           <Input value={form.account_name} onChange={e => set('account_name', e.target.value)} placeholder="e.g. Premium Fund" className="h-8 text-xs" maxLength={100} />
         </div>
         <div className="space-y-1">
-          <Label className="text-[10px]">From Wallet (UGX) *</Label>
+          <Label className="text-[10px]">Portfolio Amount (UGX) *</Label>
           <Input
             type="number"
-            min={1000}
-            max={balance ?? undefined}
+            min={20000}
             value={form.investment_amount}
             onChange={e => set('investment_amount', e.target.value)}
             disabled={balanceLoading}
             className="h-8 text-xs"
           />
           <p className="text-[10px] text-muted-foreground">
-            {investHelperRange(balance ?? undefined)}
+            Minimum UGX 20,000. The partner signs first; no wallet is debited now.
           </p>
         </div>
         <div className="space-y-1">
@@ -3089,9 +3046,9 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
         <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={onCancel} disabled={saving}>
           <X className="h-3 w-3" /> Cancel
         </Button>
-        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || balanceLoading || !form.investment_amount || !isInvestAmountValid(Number(form.investment_amount), balance ?? undefined)}>
+        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || !form.investment_amount || Number(form.investment_amount) < 20000 || Number(form.investment_amount) > MAX_INVEST}>
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-          Create Portfolio
+          Send invite
         </Button>
       </div>
     </div>
