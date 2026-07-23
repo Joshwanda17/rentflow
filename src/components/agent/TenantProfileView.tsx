@@ -265,7 +265,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .from('rent_requests')
           .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, phone)')
           .eq('tenant_id', tenantId)
-          .or('status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance')
           .order('created_at', { ascending: false }),
         supabase
           .from('repayments')
