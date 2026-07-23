@@ -92,6 +92,7 @@ function isPortfolioDueToday(p: { next_roi_date: string | null; created_at: stri
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
+import { InvitePartnerPortfolioDialog } from '@/components/partner/InvitePartnerPortfolioDialog';
 
 /* ─── Types ─── */
 interface PartnerRow {
@@ -512,6 +513,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
   // Top-level create portfolio dialog
   const [createPortfolioOpen, setCreatePortfolioOpen] = useState(false);
+  // Invite existing partner to add another portfolio via secure email link
+  const [invitePartnerPortfolio, setInvitePartnerPortfolio] = useState<{ id: string; full_name?: string | null; email?: string | null } | null>(null);
   
   const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
   const [addPortfolioRoi, setAddPortfolioRoi] = useState('20');
@@ -3195,6 +3198,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Invite existing partner to add a new portfolio (Ops sends secure email link) */}
+      <InvitePartnerPortfolioDialog
+        open={!!invitePartnerPortfolio}
+        onOpenChange={(o) => { if (!o) setInvitePartnerPortfolio(null); }}
+        partner={invitePartnerPortfolio}
+        onSent={() => { refreshInBackground(); fetchPendingCount(); }}
+      />
 
       {/* ─── Invest Dialog ─── */}
       <Dialog open={!!investPartner} onOpenChange={open => { if (!open) { setInvestPartner(null); setInvestAmount(''); } }}>
