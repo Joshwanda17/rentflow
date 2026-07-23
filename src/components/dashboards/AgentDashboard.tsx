@@ -974,7 +974,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onDeposit={() => setShowQuickDeposit(true)}
               onWithdraw={() => setShowQuickWithdraw(true)}
               onTransfer={() => setShowQuickTransfer(true)}
-              onViewWallet={() => setShowWallet(true)}
+              onViewWallet={() => { setWalletScrollTarget(null); setShowWallet(true); }}
+              onViewStatement={() => { setWalletScrollTarget('statement'); setShowWallet(true); }}
             />
           </div>
         )}
