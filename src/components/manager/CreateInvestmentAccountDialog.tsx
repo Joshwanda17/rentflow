@@ -631,7 +631,9 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                 !selectedUser ||
                 !form.investment_amount ||
                 !isApproved ||
-                partnerFrozen
+                partnerFrozen ||
+                portfolioCheckLoading ||
+                (mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0)
               }
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
@@ -640,8 +642,13 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 shrink-0" />
                   Checking approval…
                 </>
+              ) : portfolioCheckLoading && selectedUser ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 shrink-0" />
+                  Checking portfolios…
+                </>
               ) : (
-                'Send invite'
+                mode === 'direct_confirmation' ? 'Create Portfolio' : 'Send invite'
               )}
             </Button>
           )}
