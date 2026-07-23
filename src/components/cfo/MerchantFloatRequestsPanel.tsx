@@ -730,10 +730,10 @@ export function MerchantFloatRequestsPanel() {
                             {agentTimeline && (
                               <div className="flex flex-col items-end gap-0.5">
                                 <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-                                  <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.currentBalance)} float left (wallet cache)
+                                  <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.ledgerBalance)} float left now (ledger)
                                 </span>
                                 <span className="text-[10px] tabular-nums text-muted-foreground">
-                                  Ledger sum: <span className="font-semibold text-foreground">{formatUGX(agentTimeline.ledgerBalance)}</span>
+                                  Wallet cache: <span className="font-semibold text-foreground">{formatUGX(agentTimeline.currentBalance)}</span>
                                 </span>
                                 {Math.abs(agentTimeline.drift) >= 1 && (
                                   <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-rose-700 dark:text-rose-400">
