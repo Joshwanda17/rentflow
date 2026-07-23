@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LandlordPayoutProgress } from './LandlordPayoutProgress';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 import type { LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
+import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 
 interface AgentFloatPayoutWizardProps {
   open: boolean;
