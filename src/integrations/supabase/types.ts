@@ -11547,6 +11547,63 @@ export type Database = {
           },
         ]
       }
+      ledger_group_imbalance_alerts: {
+        Row: {
+          categories: string[] | null
+          detected_at: string
+          first_leg_at: string | null
+          id: string
+          leg_count: number
+          net_imbalance: number
+          notes: string | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          transaction_group_id: string
+        }
+        Insert: {
+          categories?: string[] | null
+          detected_at?: string
+          first_leg_at?: string | null
+          id?: string
+          leg_count: number
+          net_imbalance: number
+          notes?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          transaction_group_id: string
+        }
+        Update: {
+          categories?: string[] | null
+          detected_at?: string
+          first_leg_at?: string | null
+          id?: string
+          leg_count?: number
+          net_imbalance?: number
+          notes?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          transaction_group_id?: string
+        }
+        Relationships: []
+      }
+      ledger_integrity_config: {
+        Row: {
+          enforce_from: string
+          id: boolean
+        }
+        Insert: {
+          enforce_from?: string
+          id?: boolean
+        }
+        Update: {
+          enforce_from?: string
+          id?: boolean
+        }
+        Relationships: []
+      }
       ledger_maintenance_state: {
         Row: {
           closed_at: string | null
@@ -24073,6 +24130,10 @@ export type Database = {
           threshold: number
           window_minutes: number
         }[]
+      }
+      detect_ledger_group_imbalances: {
+        Args: { p_since_hours?: number }
+        Returns: number
       }
       detect_sms_failure_alerts: { Args: never; Returns: Json }
       detect_sms_verification_failures: { Args: never; Returns: Json }
