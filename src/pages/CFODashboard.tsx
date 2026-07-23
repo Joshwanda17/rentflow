@@ -29,6 +29,7 @@ import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
+import GenerateMerchantCashoutReportButton from '@/components/cfo/GenerateMerchantCashoutReportButton';
 import { ServiceCentrePayoutApproval } from '@/components/cfo/ServiceCentrePayoutApproval';
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
@@ -158,6 +159,7 @@ export default function CFODashboard() {
 
           {/* Merchant Float Requisitions Tab */}
           <TabsContent value="merchant-float" className="space-y-6">
+            <GenerateMerchantCashoutReportButton />
             <MerchantFloatRequestsPanel />
           </TabsContent>
 
