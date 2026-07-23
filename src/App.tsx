@@ -385,6 +385,7 @@ function AppRoutes() {
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/funder-onboarding" element={<FunderOnboarding />} />
           <Route path="/partner-onboarding" element={<PartnerOnboarding />} />
+          <Route path="/partners/:partnerId/portfolios/:portfolioId/complete" element={<PortfolioCompletion />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/stop-sms" element={<StopSms />} />
           <Route path="/requisition/new" element={<PublicRequisitionForm />} />
