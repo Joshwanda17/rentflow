@@ -14966,6 +14966,53 @@ export type Database = {
           },
         ]
       }
+      portfolio_completion_tokens: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          created_by: string | null
+          email_snapshot: string | null
+          expires_at: string
+          id: string
+          partner_id: string
+          phone_snapshot: string | null
+          portfolio_id: string
+          token_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_snapshot?: string | null
+          expires_at?: string
+          id?: string
+          partner_id: string
+          phone_snapshot?: string | null
+          portfolio_id: string
+          token_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_snapshot?: string | null
+          expires_at?: string
+          id?: string
+          partner_id?: string
+          phone_snapshot?: string | null
+          portfolio_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_completion_tokens_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: true
+            referencedRelation: "investor_portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolio_renewals: {
         Row: {
           created_at: string
@@ -23466,6 +23513,10 @@ export type Database = {
             Returns: undefined
           }
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
+      approve_pending_portfolio: {
+        Args: { p_portfolio_id: string }
+        Returns: string
+      }
       approve_promissory_note: {
         Args: { p_note_id: string; p_reason: string }
         Returns: Json
@@ -23724,6 +23775,10 @@ export type Database = {
         Args: { _affected: number; _batch_id: number; _error?: string }
         Returns: Json
       }
+      complete_partner_portfolio: {
+        Args: { p_portfolio_id: string; p_raw_token: string }
+        Returns: string
+      }
       compute_agent_performance: {
         Args: { p_agent_id: string }
         Returns: {
@@ -23808,6 +23863,21 @@ export type Database = {
       create_ledger_transaction_accrual_only: {
         Args: { entries: Json }
         Returns: Json
+      }
+      create_pending_portfolio: {
+        Args: {
+          p_amount: number
+          p_duration_months: number
+          p_nickname: string
+          p_partner_id: string
+          p_raw_token: string
+          p_roi_mode: string
+          p_roi_percentage: number
+        }
+        Returns: {
+          portfolio_code: string
+          portfolio_id: string
+        }[]
       }
       credit_agent_event_bonus:
         | {
@@ -25714,6 +25784,7 @@ export type Database = {
       is_merchant_agent: { Args: { p_user_id: string }; Returns: boolean }
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
+      is_partner_ops: { Args: { _uid: string }; Returns: boolean }
       is_phone_available: { Args: { p_phone: string }; Returns: boolean }
       is_platform_user_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_proxy_agent_for_partner: {

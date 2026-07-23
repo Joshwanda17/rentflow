@@ -235,6 +235,7 @@ const Careers = lazy(() => import('./pages/Careers'));
 const HolisticProfile = lazy(() => import('./pages/HolisticProfile'));
 // Public funder signup (multi-step) — lives in pages/Onboarding.tsx and is exported as FunderOnboarding.
 const FunderOnboarding = lazy(() => import('./pages/Onboarding'));
+const PortfolioCompletion = lazy(() => import('./pages/PortfolioCompletion'));
 // Admin queue used by COO / Partner Ops to approve self-registered funders.
 const PartnerOnboarding = lazy(() => import('./pages/PartnerOnboarding'));
 
@@ -385,6 +386,7 @@ function AppRoutes() {
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/funder-onboarding" element={<FunderOnboarding />} />
           <Route path="/partner-onboarding" element={<PartnerOnboarding />} />
+          <Route path="/partners/:partnerId/portfolios/:portfolioId/complete" element={<PortfolioCompletion />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/stop-sms" element={<StopSms />} />
           <Route path="/requisition/new" element={<PublicRequisitionForm />} />
