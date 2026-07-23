@@ -25769,6 +25769,15 @@ export type Database = {
           withdrawal_id: string
         }[]
       }
+      get_withdrawal_recipients: {
+        Args: { p_ids: string[] }
+        Returns: {
+          id: string
+          mobile_money_name: string
+          mobile_money_provider: string
+          payout_method: string
+        }[]
+      }
       has_agent_capability: {
         Args: { _agent_id: string; _capability: string }
         Returns: boolean
