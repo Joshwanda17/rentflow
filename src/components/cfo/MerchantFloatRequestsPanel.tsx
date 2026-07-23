@@ -880,21 +880,30 @@ export function MerchantFloatRequestsPanel() {
                                     {/* Settlements between this top-up and the next */}
                                     {/* Settlements between this top-up and the next */}
                                     <div className="mt-3">
-                                      <div className="mb-2 flex items-center justify-between px-1">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                          Recent activity ({batch.settlements.length})
-                                        </span>
-                                        <span className="text-[11px] font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                                          − {formatUGX(totalUsed)} Total
-                                        </span>
-                                      </div>
-                                      {batch.settlements.length === 0 ? (
-                                        <p className="rounded-lg bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
-                                          No cash-outs settled from this batch{!isVirtual ? ' yet' : ''}.
-                                        </p>
-                                      ) : (
-                                        <div className="space-y-2">
-                                          {batch.settlements.map((s) => {
+                                      {(() => {
+                                        const filteredSettlements = batch.settlements.filter((s) => settlementMatches(s, activitySearch));
+                                        const filteredTotal = filteredSettlements.reduce((s, x) => s + Math.abs(x.amount), 0);
+                                        return (
+                                          <>
+                                            <div className="mb-2 flex items-center justify-between px-1">
+                                              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                                Recent activity ({filteredSettlements.length}{activitySearch.trim() ? ` of ${batch.settlements.length}` : ''})
+                                              </span>
+                                              <span className="text-[11px] font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                                                − {formatUGX(filteredTotal)} Total
+                                              </span>
+                                            </div>
+                                            {batch.settlements.length === 0 ? (
+                                              <p className="rounded-lg bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                                No cash-outs settled from this batch{!isVirtual ? ' yet' : ''}.
+                                              </p>
+                                            ) : filteredSettlements.length === 0 ? (
+                                              <p className="rounded-lg bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                                No activity matches “{activitySearch.trim()}”.
+                                              </p>
+                                            ) : (
+                                              <div className="space-y-2">
+                                                {filteredSettlements.map((s) => {
                                             const absAmt = Math.abs(s.amount);
                                             const isCredit = s.amount > 0; // float returned to the agent
                                             const isFee = !isCredit && (/\bfee\b/i.test(s.recipient || '') || absAmt <= 500);
