@@ -1768,6 +1768,20 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
         {/* ── Rent Payment Behavior ── */}
         <SectionCard icon={TrendingUp} title="Rent Payment Behavior">
+          {(() => {
+            const latestFunded = requests.find(r =>
+              ['approved', 'funded', 'disbursed', 'repaying', 'completed'].includes(r.status || ''),
+            );
+            const monthlyRent = Number(profile?.monthly_rent) || Number(latestFunded?.rent_amount) || 0;
+            const dailyRent = Number(summary.activeRequest?.daily_repayment) || Number(latestFunded?.daily_repayment) || 0;
+            if (monthlyRent <= 0 && dailyRent <= 0) return null;
+            return (
+              <div className="grid grid-cols-2 gap-2.5 mb-2.5">
+                <Stat label="Monthly Rent" value={monthlyRent > 0 ? `${formatUGX(monthlyRent)}/mo` : '—'} tone="primary" />
+                <Stat label="Daily Repayment" value={dailyRent > 0 ? `${formatUGX(dailyRent)}/day` : '—'} tone="primary" />
+              </div>
+            );
+          })()}
           <div className="grid grid-cols-2 gap-2.5">
             <Stat label="Rent Plans" value={summary.totalRequests} />
             <Stat
