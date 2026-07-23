@@ -13512,6 +13512,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_perf_metrics: {
+        Row: {
+          action: string
+          created_at: string
+          duration_ms: number
+          id: string
+          rows_returned: number | null
+          screen: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          duration_ms: number
+          id?: string
+          rows_returned?: number | null
+          screen: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          duration_ms?: number
+          id?: string
+          rows_returned?: number | null
+          screen?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ops_saved_segments: {
         Row: {
           created_at: string
@@ -22980,6 +23010,23 @@ export type Database = {
           },
         ]
       }
+      mv_ops_daily_summary: {
+        Row: {
+          active_24h: number | null
+          deposits_today_count: number | null
+          deposits_today_ugx: number | null
+          landlords_verified: number | null
+          listings_available: number | null
+          refreshed_at: string | null
+          total_users: number | null
+          users_today: number | null
+          withdrawals_pending_count: number | null
+          withdrawals_pending_ugx: number | null
+          withdrawals_today_count: number | null
+          withdrawals_today_ugx: number | null
+        }
+        Relationships: []
+      }
       platform_stats: {
         Row: {
           active_disbursements: number | null
@@ -25974,6 +26021,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_caller_is_ops: { Args: never; Returns: boolean }
       ops_edit_landlord_funding: {
         Args: {
           p_new_amount: number
@@ -25990,6 +26038,70 @@ export type Database = {
           p_rent_request_id: string
         }
         Returns: Json
+      }
+      ops_get_daily_summary: {
+        Args: never
+        Returns: {
+          active_24h: number | null
+          deposits_today_count: number | null
+          deposits_today_ugx: number | null
+          landlords_verified: number | null
+          listings_available: number | null
+          refreshed_at: string | null
+          total_users: number | null
+          users_today: number | null
+          withdrawals_pending_count: number | null
+          withdrawals_pending_ugx: number | null
+          withdrawals_today_count: number | null
+          withdrawals_today_ugx: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mv_ops_daily_summary"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      ops_get_ledger_page: {
+        Args: {
+          p_cursor_created_at?: string
+          p_cursor_id?: string
+          p_limit?: number
+          p_user_id: string
+        }
+        Returns: {
+          amount: number
+          category: string
+          created_at: string
+          description: string
+          direction: string
+          id: string
+          wallet_bucket: string
+        }[]
+      }
+      ops_get_profiles_lite: {
+        Args: { p_ids: string[] }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          tenant_status: string
+          verified: boolean
+        }[]
+      }
+      ops_get_wallet_buckets: {
+        Args: { p_ids: string[] }
+        Returns: {
+          advance_balance: number
+          balance: number
+          float_balance: number
+          locked_balance: number
+          user_id: string
+          withdrawable_balance: number
+        }[]
       }
       ops_global_verification_overview: { Args: never; Returns: Json }
       ops_link_agent_landlord: {
@@ -26092,6 +26204,45 @@ export type Database = {
           p_resolution: string
         }
         Returns: Json
+      }
+      ops_search_landlords: {
+        Args: {
+          p_cursor_id?: string
+          p_cursor_name?: string
+          p_limit?: number
+          p_query?: string
+          p_verified_only?: boolean
+        }
+        Returns: {
+          agent_id: string
+          created_at: string
+          district: string
+          house_category: string
+          id: string
+          monthly_rent: number
+          name: string
+          phone: string
+          tenant_id: string
+          town_council: string
+          verified: boolean
+        }[]
+      }
+      ops_search_profiles_enriched: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          advance_balance: number
+          avatar_url: string
+          balance: number
+          email: string
+          float_balance: number
+          full_name: string
+          id: string
+          phone: string
+          primary_role: string
+          tenant_status: string
+          verified: boolean
+          withdrawable_balance: number
+        }[]
       }
       ops_search_tenant_rents: {
         Args: { p_search: string }
@@ -26415,6 +26566,7 @@ export type Database = {
       redeem_staff_access_code: { Args: { p_code: string }; Returns: Json }
       refresh_financial_summaries: { Args: never; Returns: undefined }
       refresh_house_location_rollup: { Args: never; Returns: undefined }
+      refresh_mv_ops_daily_summary: { Args: never; Returns: undefined }
       refresh_wallet_totals_cache: { Args: never; Returns: undefined }
       refund_agent_float_for_payout: {
         Args: { p_payout_id: string; p_reason: string }
