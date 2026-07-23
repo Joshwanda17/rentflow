@@ -60,7 +60,7 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
 
   // Debounce typing
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(value.trim()), 250);
+    const t = setTimeout(() => setDebounced(value.trim()), 400);
     return () => clearTimeout(t);
   }, [value]);
 
@@ -68,7 +68,9 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
   useEffect(() => {
     if (!focused) return;
     const term = debounced;
-    if (term.length < 2) {
+    // Require at least 3 characters — shorter terms fan out to millions of
+    // ILIKE matches and pin the database CPU at 100%.
+    if (term.length < 3) {
       setResults([]);
       setLoading(false);
       return;
@@ -77,17 +79,14 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
     (async () => {
       setLoading(true);
       try {
-        const digits = term.replace(/\D/g, '');
-        const orParts = [`name.ilike.%${term}%`, `phone.ilike.%${term}%`];
-        if (digits.length >= 3 && digits !== term) {
-          orParts.push(`phone.ilike.%${digits}%`);
-        }
-        const { data, error } = await supabase
-          .from('landlords_directory')
-          .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
-          .or(orParts.join(','))
-          .order('name', { ascending: true })
-          .limit(8);
+        // Route through the trigram-indexed fuzzy RPC (same fast path used by
+        // LandlordSearchSelect). This eliminates the multi-second
+        // ORDER BY name ILIKE OR ILIKE scans that were pinning DB CPU.
+        const { data, error } = await (supabase.rpc as any)('search_landlords_fuzzy', {
+          p_query: term,
+          p_limit: 8,
+          p_threshold: 0.2,
+        });
         if (error) throw error;
         if (myId === reqIdRef.current) {
           const rows = (data ?? []) as LandlordOption[];
@@ -106,7 +105,7 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
     })();
   }, [debounced, focused]);
 
-  const showDropdown = focused && debounced.length >= 2;
+  const showDropdown = focused && debounced.length >= 3;
 
   return (
     <div className="relative">
