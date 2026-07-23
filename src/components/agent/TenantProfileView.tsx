@@ -1776,9 +1776,19 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             const dailyRent = Number(summary.activeRequest?.daily_repayment) || Number(latestFunded?.daily_repayment) || 0;
             if (monthlyRent <= 0 && dailyRent <= 0) return null;
             return (
-              <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-                <Stat label="Monthly Rent" value={monthlyRent > 0 ? `${formatUGX(monthlyRent)}/mo` : '—'} tone="primary" />
-                <Stat label="Daily Repayment" value={dailyRent > 0 ? `${formatUGX(dailyRent)}/day` : '—'} tone="primary" />
+              <div className="mb-2.5 space-y-2.5">
+                <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">Monthly Rent</p>
+                    <p className="text-2xl sm:text-3xl font-extrabold text-primary tabular-nums">
+                      {monthlyRent > 0 ? `${formatUGX(monthlyRent)}/mo` : '—'}
+                    </p>
+                  </div>
+                  <Home className="h-8 w-8 text-primary/60 shrink-0" />
+                </div>
+                {dailyRent > 0 && (
+                  <Stat label="Daily Repayment" value={`${formatUGX(dailyRent)}/day`} tone="primary" />
+                )}
               </div>
             );
           })()}
