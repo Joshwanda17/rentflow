@@ -198,7 +198,6 @@ export function InfrastructureHealthMonitor() {
     (latency || 0) > 800 ||
     (peakUsers || 0) > currentInstance.concurrentUsers;
 
-  const shouldUpgrade = currentSize !== 'large' && hasWarningPressure;
   const isMaxInstanceOverloaded = currentSize === 'large' && hasWarningPressure;
 
   const nextSize: InstanceSize | null = (() => {
