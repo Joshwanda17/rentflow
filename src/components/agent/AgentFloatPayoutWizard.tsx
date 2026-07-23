@@ -104,7 +104,11 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
 
   // AUTHORITATIVE landlord-payout float — this is a separate CFO-funded pool
   // used only by Pay Landlord. Tenant rent collections use wallet float instead.
-  const { floatBalance: authoritativeFloat, refetch: refetchLandlordPayoutFloat } = useAgentLandlordFloat(user?.id);
+  const {
+    floatBalance: authoritativeFloat,
+    isLoading: landlordPayoutFloatLoading,
+    refetch: refetchLandlordPayoutFloat,
+  } = useAgentLandlordFloat(user?.id);
   const rawFloatBalance = Number(authoritativeFloat ?? 0);
   const floatBalance = Number.isFinite(rawFloatBalance) ? rawFloatBalance : 0;
 
@@ -454,7 +458,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
         description: 'Once approved, the money returns to the CFO and the landlord goes back to Landlord Ops.',
       });
       qc.invalidateQueries({ queryKey: ['landlord-float-allocations'] });
-      qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-payout-float-balance'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float-row'] });
       qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
       handleClose();
     } catch (e: any) {
@@ -688,7 +693,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     },
     onSuccess: () => {
       setStep('done');
-      qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-payout-float-balance'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float-row'] });
       qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
       qc.invalidateQueries({ queryKey: ['agent-float-pending-count'] });
       qc.invalidateQueries({ queryKey: ['landlord-float-allocations'] });
@@ -708,7 +714,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
             Pay Landlord
           </DialogTitle>
           <Badge variant="outline" className="text-xs font-mono w-fit mt-1">
-            Landlord Payout Float: {formatUGX(availablePayoutFloat)}
+            Landlord Payout Float: {landlordPayoutFloatLoading ? 'Loading…' : formatUGX(availablePayoutFloat)}
           </Badge>
         </DialogHeader>
 
@@ -731,7 +737,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                 </div>
               ) : (
                 assignedRequests.map((r: any) => {
-                  const canAfford = r.rent_amount <= floatBalance;
+                  const canAfford = !landlordPayoutFloatLoading && r.rent_amount <= floatBalance;
                   return (
                     <Card
                       key={r.id}
@@ -1110,7 +1116,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                 landlordName={req.landlord?.name || 'Landlord'}
                 onDone={(status) => {
                   if (['completed', 'pending_finops_disbursement', 'awaiting_agent_receipt'].includes(status)) {
-                    qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
+                    qc.invalidateQueries({ queryKey: ['agent-landlord-payout-float-balance'] });
+                    qc.invalidateQueries({ queryKey: ['agent-landlord-float-row'] });
                     qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
                     // Landlord is now paid out → drop it from the ready-to-pay allocations list.
                     qc.invalidateQueries({ queryKey: ['landlord-float-allocations'] });

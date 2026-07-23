@@ -92,7 +92,8 @@ export function LandlordPayoutReceiptUpload({ open, onOpenChange, payout, onSucc
 
       toast.success('Receipt filed — payout completed');
       qc.invalidateQueries({ queryKey: ['agent-pending-receipts'] });
-      qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-payout-float-balance'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float-row'] });
       qc.invalidateQueries({ queryKey: ['landlord-float-allocations'] });
       onSuccess?.();
       reset();

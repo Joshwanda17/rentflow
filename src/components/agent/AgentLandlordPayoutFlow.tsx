@@ -243,7 +243,8 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
       setStep('done');
       qc.invalidateQueries({ queryKey: ['agent-landlord-payout-requests'] });
       qc.invalidateQueries({ queryKey: ['agent-landlord-float-balance'] });
-      qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-payout-float-balance'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float-row'] });
       if (result?.gpsMatch) {
         toast.success('Payout submitted & auto-approved! Landlord Payout Float deducted. GPS matched.');
       } else {
