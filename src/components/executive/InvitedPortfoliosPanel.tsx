@@ -381,6 +381,7 @@ function ReviewSubmissionDialog({
   onClose,
   onApprove,
   approving,
+  approvalError,
 }: {
   row: Row | null;
   onClose: () => void;
@@ -395,6 +396,7 @@ function ReviewSubmissionDialog({
     },
   ) => void;
   approving: boolean;
+  approvalError: string | null;
 }) {
   const open = !!row;
   // Guard against Radix body pointer-events lock leaking after nested
@@ -666,6 +668,17 @@ function ReviewSubmissionDialog({
                 <Separator />
 
                 <div className="flex flex-col gap-2 pb-2">
+                  {approvalError && (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+                      <div className="flex items-start gap-2">
+                        <MailWarning className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold">Approval failed</p>
+                          <p className="text-[11px] leading-relaxed">{approvalError}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {approvalBlocked && (
                     <div
                       id="portfolio-approval-blockers"
