@@ -101,25 +101,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     return () => setCriticalFlowActive('agent-float-payout', false);
   }, [open]);
 
-  const { data: floatBalance = 0 } = useQuery({
-    queryKey: ['agent-landlord-float', user?.id],
-    queryFn: async () => {
-      if (!user) return 0;
-      const { data } = await supabase
-        .from('agent_landlord_float')
-        .select('balance')
-        .eq('agent_id', user.id)
-        .maybeSingle();
-      const n = Number(data?.balance ?? 0);
-      return Number.isFinite(n) ? n : 0;
-    },
-    enabled: !!user && open,
-    // High-stakes mutation gate — never trust the cache; the trigger reads
-    // the live row and will reject if we render a stale figure.
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  });
+  // AUTHORITATIVE landlord-payout float — must match the exact figure the
+  // `agent_allocate_tenant_payment` / withdrawal triggers gate against. The
+  // cached `agent_landlord_float.balance` column drifts (a stale row was
+  // showing UGX 3 while the ledger held the real float), so we always go
+  // through the `get_agent_float_balance` RPC via `useAgentLandlordFloat`.
+  const { floatBalance: authoritativeFloat } = useAgentLandlordFloat(user?.id);
+  const floatBalance = Number(authoritativeFloat ?? 0);
 
   const { data: assignedRequests = [], isLoading } = useQuery({
     queryKey: ['agent-float-payout-requests', user?.id],
