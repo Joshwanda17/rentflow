@@ -15,6 +15,8 @@ import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CashAgentSelector, type SelectedCashAgent } from './CashAgentSelector';
 import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
 import { AlertTriangle } from 'lucide-react';
+import { useAvailableBalance } from '@/hooks/useAvailableBalance';
+import { Lock } from 'lucide-react';
 
 interface WithdrawRequestDialogProps {
   open: boolean;
@@ -176,6 +178,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const { paused: withdrawalsPaused } = useWithdrawalsPaused();
+  const { restrictedHeld } = useAvailableBalance(user?.id);
   const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
   const [pendingAmount, setPendingAmount] = useState(0);
   const isSubmittingRef = useRef(false);
@@ -686,6 +689,20 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                   <div>
                     <p className="text-sm font-bold text-foreground">Insufficient available balance</p>
                     <p className="text-xs text-muted-foreground">You need at least <strong>UGX 500</strong> available to withdraw</p>
+                  </div>
+                </div>
+              )}
+
+              {restrictedHeld > 0 && (
+                <div className="flex items-start gap-3 p-4 rounded-2xl bg-warning/10 border border-warning/30">
+                  <Lock className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-foreground">
+                      {formatCurrency(restrictedHeld)} held from bonus earnings
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Referral, listing and registration bonuses unlock only after your invitee posts a rent request, or has a house / landlord / LC1 verified — within 3 days of the bonus. Un-matured amounts expire after 3 days.
+                    </p>
                   </div>
                 </div>
               )}

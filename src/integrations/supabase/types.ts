@@ -8534,6 +8534,11 @@ export type Database = {
           idempotency_key: string | null
           ledger_scope: string
           linked_party: string | null
+          matured_at: string | null
+          maturity_condition: string | null
+          maturity_expired: boolean
+          maturity_met: boolean
+          maturity_subject_id: string | null
           recipient_type: string | null
           reference_id: string | null
           routing_source: string | null
@@ -8549,6 +8554,7 @@ export type Database = {
           user_id: string | null
           wallet_bucket: string | null
           wallet_id: string | null
+          withdrawable_after: string | null
         }
         Insert: {
           account?: string | null
@@ -8563,6 +8569,11 @@ export type Database = {
           idempotency_key?: string | null
           ledger_scope?: string
           linked_party?: string | null
+          matured_at?: string | null
+          maturity_condition?: string | null
+          maturity_expired?: boolean
+          maturity_met?: boolean
+          maturity_subject_id?: string | null
           recipient_type?: string | null
           reference_id?: string | null
           routing_source?: string | null
@@ -8578,6 +8589,7 @@ export type Database = {
           user_id?: string | null
           wallet_bucket?: string | null
           wallet_id?: string | null
+          withdrawable_after?: string | null
         }
         Update: {
           account?: string | null
@@ -8592,6 +8604,11 @@ export type Database = {
           idempotency_key?: string | null
           ledger_scope?: string
           linked_party?: string | null
+          matured_at?: string | null
+          maturity_condition?: string | null
+          maturity_expired?: boolean
+          maturity_met?: boolean
+          maturity_subject_id?: string | null
           recipient_type?: string | null
           reference_id?: string | null
           routing_source?: string | null
@@ -8607,6 +8624,7 @@ export type Database = {
           user_id?: string | null
           wallet_bucket?: string | null
           wallet_id?: string | null
+          withdrawable_after?: string | null
         }
         Relationships: []
       }
@@ -23136,21 +23154,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_pivot_drift: {
-        Row: {
-          advance_delta: number | null
-          float_delta: number | null
-          pivot_advance: number | null
-          pivot_float: number | null
-          pivot_withdrawable: number | null
-          strict_advance: number | null
-          strict_float: number | null
-          strict_withdrawable_pre_holds: number | null
-          user_id: string | null
-          withdrawable_delta: number | null
-        }
-        Relationships: []
-      }
       v_suspicious_duplicate_accounts: {
         Row: {
           accounts: number | null
@@ -23206,6 +23209,7 @@ export type Database = {
           advance_balance: number | null
           float_balance: number | null
           pending_holds: number | null
+          restricted_held: number | null
           total_visible: number | null
           user_id: string | null
           withdrawable: number | null
@@ -23666,6 +23670,14 @@ export type Database = {
           p_scope?: string
         }
         Returns: Json
+      }
+      bonus_restriction_config: {
+        Args: { p_category: string }
+        Returns: {
+          condition: string
+          hold_days: number
+          restricted: boolean
+        }[]
       }
       build_funder_reference: {
         Args: { p_created_at: string; p_user_id: string }
@@ -24158,6 +24170,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      expire_stale_bonus_restrictions: { Args: never; Returns: number }
       expire_stale_cash_deposit_codes: { Args: never; Returns: number }
       export_users_with_password_hashes: { Args: never; Returns: string }
       extract_operational_float_allocations: {
@@ -25727,11 +25740,27 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_restricted_held: { Args: { p_user_id: string }; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_user_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
+      get_user_wallet_holds: {
+        Args: { p_user_id: string }
+        Returns: {
+          amount: number
+          category: string
+          condition: string
+          created_at: string
+          expired: boolean
+          id: string
+          matured: boolean
+          releases_at: string
+          status: string
+          subject_id: string
+        }[]
+      }
       get_user_wallet_view: { Args: { p_user_id: string }; Returns: Json }
       get_wallet_ops_stats: { Args: { p_period?: string }; Returns: Json }
       get_wallet_reconciliation: {
@@ -25962,6 +25991,14 @@ export type Database = {
           has_pin: boolean
           vendor_id: string
         }[]
+      }
+      mature_bonus_by_subject: {
+        Args: { p_condition: string; p_subject_id: string }
+        Returns: number
+      }
+      mature_referral_bonuses_for_invitee: {
+        Args: { p_invitee_id: string }
+        Returns: number
       }
       merchant_set_online: { Args: { p_online: boolean }; Returns: boolean }
       merge_lc1_duplicates: {
