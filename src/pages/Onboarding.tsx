@@ -1315,14 +1315,15 @@ export default function FunderOnboarding() {
         const partnerReference = buildPartnerReference(newUserId, new Date());
         // Persist every contract field the partner typed into the single
         // source-of-truth `partner_agreements` row, then ask the server-side
-        // renderer to generate the draft PDF + email a download link. The admin
-        // never re-enters any of this. Fully non-blocking so the success modal
-        // isn't held up by PDF/email work.
+        // renderer to generate the draft PDF + email a download link. The row
+        // upsert AND the edge-function invocation are AWAITED — earlier this
+        // ran as a fire-and-forget IIFE, and any failure (client PDF render,
+        // slow session hydrate, tab navigation) silently dropped the contract
+        // email. See josephrp06@gmail.com incident 2026-07-23.
         const supportAmountNum = Number(form.supportAmount.replace(/,/g, '')) || 0;
         if (newUserId) {
-          (async () => {
-            try {
-              const { error: agErr } = await supabase
+          try {
+            const { error: agErr } = await supabase
                 .from('partner_agreements')
                 .upsert({
                   partner_id: newUserId,
@@ -1349,14 +1350,15 @@ export default function FunderOnboarding() {
                   // renders the real signature instead of the italic typed name.
                   partner_signature_data_url: form.signatureDataUrl || null,
                 }, { onConflict: 'partner_id' });
-              if (agErr) {
-                console.warn('partner agreement save failed (non-blocking):', agErr);
-                return;
-              }
-              // Single HTML -> PDF pipeline: render the draft from the SAME
-              // contract template the admin previews, then hand the bytes to the
-              // server to store + email.
-              const pdfBase64 = await renderAgreementPdfBase64(
+            if (agErr) {
+              console.warn('partner agreement save failed:', agErr);
+            }
+            // Try to render the PDF client-side; if it fails, we STILL invoke
+            // the edge function so the confirmation email always fires. The
+            // partner can download the stored PDF from their dashboard later.
+            let pdfBase64: string | null = null;
+            try {
+              pdfBase64 = await renderAgreementPdfBase64(
                 buildAgreementHtml({
                   partnerName: `${cleanFirst} ${cleanLast}`.trim(),
                   partnerId: cleanNationalId,
@@ -1378,13 +1380,19 @@ export default function FunderOnboarding() {
                   partnerSignatureDataUrl: form.signatureDataUrl || undefined,
                 }),
               );
+            } catch (e) {
+              console.warn('partnership PDF render failed — email will still be sent:', e);
+            }
+            try {
               await supabase.functions.invoke('generate-partner-agreement', {
-                body: { partnerId: newUserId, countersign: false, pdfBase64 },
+                body: { partnerId: newUserId, countersign: false, pdfBase64: pdfBase64 || null },
               });
             } catch (e) {
-              console.warn('partnership agreement render failed (non-blocking):', e);
+              console.warn('generate-partner-agreement invoke failed:', e);
             }
-          })();
+          } catch (e) {
+            console.warn('partnership agreement pipeline failed:', e);
+          }
         }
 
         // Flip into the success modal and auto-redirect after 3 seconds.
