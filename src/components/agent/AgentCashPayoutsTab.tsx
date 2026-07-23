@@ -1144,6 +1144,21 @@ export function AgentCashPayoutsTab() {
   return (
     <MerchantAgreementGate>
     <div className="space-y-5">
+      {withdrawalsPaused && (
+        <div className="rounded-2xl border-2 border-amber-500/60 bg-amber-500/10 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+              Withdrawal processing is paused
+            </p>
+            <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+              The CFO has temporarily paused withdrawals platform-wide. You cannot claim or process
+              new payouts until this is lifted. Any request you've already claimed can still be
+              completed with proof of payment.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Online/Offline availability — only Online agents receive real-time
           withdrawal dispatches. */}
       <MerchantOnlineToggle />
