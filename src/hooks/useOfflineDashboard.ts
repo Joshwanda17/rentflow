@@ -101,16 +101,13 @@ export function useOfflineDashboard(): UseOfflineDashboardReturn {
           .eq('tenant_id', user.id)
           .order('created_at', { ascending: false })
           .limit(20),
-        supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', user.id)
-          .maybeSingle(),
+        // Authoritative wallet RPC — avoids the heavy `wallets` view.
+        fetchOpsWallet(user.id).then((w) => ({ data: w, error: null })).catch((error) => ({ data: null, error })),
       ]);
 
       const requests = rentData.data || [];
       const notifs: any[] = [];
-      const walletBalance = walletData.data?.balance || 0;
+      const walletBalance = walletData.data ? walletData.data.withdrawable + walletData.data.float + walletData.data.advance : 0;
 
       // Calculate stats
       const newStats: DashboardStats = {

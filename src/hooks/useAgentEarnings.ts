@@ -223,11 +223,8 @@ export function useAgentEarnings() {
         .select('amount, status')
         .eq('agent_id', user.id)
         .in('status', ['pending', 'approved']),
-      supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', user.id)
-        .maybeSingle(),
+      // Authoritative wallet RPC — avoids the heavy `wallets` view (517k calls/day at 264ms avg).
+      fetchOpsWallet(user.id).then((w) => ({ data: w, error: null })).catch((error) => ({ data: null, error })),
       supabase
         .from('commission_accrual_ledger')
         .select('id, agent_id, tenant_id, source_type, event_type, commission_role, percentage, repayment_amount, amount, description, status, earned_at, rent_request_id')
@@ -254,7 +251,7 @@ export function useAgentEarnings() {
       rent_request_id: null,
     }));
     const paidOut = (payoutsRes.data || []).reduce((sum, p) => sum + Number(p.amount), 0);
-    const walletBalance = walletRes.data?.balance ? Number(walletRes.data.balance) : 0;
+    const walletBalance = walletRes.data ? Number(walletRes.data.withdrawable + walletRes.data.float + walletRes.data.advance) : 0;
     const ledgerData = ledgerRes.data || [];
 
     // Resolve tenant names and source names in batch

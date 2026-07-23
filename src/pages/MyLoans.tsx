@@ -79,17 +79,16 @@ export default function MyLoans() {
     if (!user) return;
     setLoading(true);
 
-    // Only fetch wallet balance (core), stub loans/repayments to reduce DB calls
-    const walletRes = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    // Authoritative wallet RPC — avoids the heavy `wallets` view.
+    try {
+      const w = await fetchOpsWallet(user.id);
+      setWalletBalance(w ? w.withdrawable + w.float + w.advance : 0);
+    } catch {
+      setWalletBalance(0);
+    }
     setLoans([]);
     setRepayments([]);
     setLateFees([]);
-    setWalletBalance(walletRes.data?.balance || 0);
     setLoading(false);
   };
 

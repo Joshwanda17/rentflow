@@ -242,13 +242,13 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
   // Fetch wallet balance
   const fetchWalletBalance = async () => {
     setLoadingWallet(true);
-    const { data } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    setWalletBalance(data?.balance ?? 0);
+    // Authoritative wallet RPC — avoids the heavy `wallets` view.
+    try {
+      const w = await fetchOpsWallet(userId);
+      setWalletBalance(w ? w.withdrawable + w.float + w.advance : 0);
+    } catch {
+      setWalletBalance(0);
+    }
     setLoadingWallet(false);
   };
 
