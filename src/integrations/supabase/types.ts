@@ -5089,6 +5089,159 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_attribution_audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_type: string | null
+          attribution_id: string
+          created_at: string
+          id: string
+          new_agent_id: string | null
+          new_campaign_link_id: string | null
+          previous_agent_id: string | null
+          previous_campaign_link_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_type?: string | null
+          attribution_id: string
+          created_at?: string
+          id?: string
+          new_agent_id?: string | null
+          new_campaign_link_id?: string | null
+          previous_agent_id?: string | null
+          previous_campaign_link_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_type?: string | null
+          attribution_id?: string
+          created_at?: string
+          id?: string
+          new_agent_id?: string | null
+          new_campaign_link_id?: string | null
+          previous_agent_id?: string | null
+          previous_campaign_link_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_attribution_audit_logs_attribution_id_fkey"
+            columns: ["attribution_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_attributions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_attributions: {
+        Row: {
+          anonymous_visitor_id: string | null
+          attribution_token: string
+          campaign_id: string
+          campaign_link_id: string
+          campaign_location_id: string | null
+          created_at: string
+          expires_at: string
+          first_seen_at: string
+          id: string
+          initial_click_id: string | null
+          last_seen_at: string
+          latest_click_id: string | null
+          link_type: Database["public"]["Enums"]["recruitment_link_type"] | null
+          locked_at: string | null
+          placement_name: string | null
+          referring_agent_id: string
+          registered_sub_agent_id: string | null
+          registered_user_id: string | null
+          registration_completed_at: string | null
+          registration_started_at: string | null
+          selected_source:
+            | Database["public"]["Enums"]["recruitment_source"]
+            | null
+          status: Database["public"]["Enums"]["campaign_attribution_status"]
+          updated_at: string
+        }
+        Insert: {
+          anonymous_visitor_id?: string | null
+          attribution_token: string
+          campaign_id: string
+          campaign_link_id: string
+          campaign_location_id?: string | null
+          created_at?: string
+          expires_at?: string
+          first_seen_at?: string
+          id?: string
+          initial_click_id?: string | null
+          last_seen_at?: string
+          latest_click_id?: string | null
+          link_type?:
+            | Database["public"]["Enums"]["recruitment_link_type"]
+            | null
+          locked_at?: string | null
+          placement_name?: string | null
+          referring_agent_id: string
+          registered_sub_agent_id?: string | null
+          registered_user_id?: string | null
+          registration_completed_at?: string | null
+          registration_started_at?: string | null
+          selected_source?:
+            | Database["public"]["Enums"]["recruitment_source"]
+            | null
+          status?: Database["public"]["Enums"]["campaign_attribution_status"]
+          updated_at?: string
+        }
+        Update: {
+          anonymous_visitor_id?: string | null
+          attribution_token?: string
+          campaign_id?: string
+          campaign_link_id?: string
+          campaign_location_id?: string | null
+          created_at?: string
+          expires_at?: string
+          first_seen_at?: string
+          id?: string
+          initial_click_id?: string | null
+          last_seen_at?: string
+          latest_click_id?: string | null
+          link_type?:
+            | Database["public"]["Enums"]["recruitment_link_type"]
+            | null
+          locked_at?: string | null
+          placement_name?: string | null
+          referring_agent_id?: string
+          registered_sub_agent_id?: string | null
+          registered_user_id?: string | null
+          registration_completed_at?: string | null
+          registration_started_at?: string | null
+          selected_source?:
+            | Database["public"]["Enums"]["recruitment_source"]
+            | null
+          status?: Database["public"]["Enums"]["campaign_attribution_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_attributions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_attributions_campaign_link_id_fkey"
+            columns: ["campaign_link_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_campaign_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       career_link_clicks: {
         Row: {
           created_at: string
@@ -16928,6 +17081,7 @@ export type Database = {
       }
       recruitment_campaigns: {
         Row: {
+          attribution_window_days: number
           created_at: string
           created_by: string | null
           description: string | null
@@ -16940,6 +17094,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attribution_window_days?: number
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -16952,6 +17107,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attribution_window_days?: number
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -19471,6 +19627,56 @@ export type Database = {
             columns: ["scheduled_payout_id"]
             isOneToOne: false
             referencedRelation: "scheduled_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_agent_registration_drafts: {
+        Row: {
+          anonymous_visitor_id: string | null
+          attribution_id: string
+          created_at: string
+          current_step: string | null
+          expires_at: string
+          form_data: Json
+          id: string
+          phone_number: string | null
+          status: Database["public"]["Enums"]["sub_agent_draft_status"]
+          updated_at: string
+          verification_status: string | null
+        }
+        Insert: {
+          anonymous_visitor_id?: string | null
+          attribution_id: string
+          created_at?: string
+          current_step?: string | null
+          expires_at?: string
+          form_data?: Json
+          id?: string
+          phone_number?: string | null
+          status?: Database["public"]["Enums"]["sub_agent_draft_status"]
+          updated_at?: string
+          verification_status?: string | null
+        }
+        Update: {
+          anonymous_visitor_id?: string | null
+          attribution_id?: string
+          created_at?: string
+          current_step?: string | null
+          expires_at?: string
+          form_data?: Json
+          id?: string
+          phone_number?: string | null
+          status?: Database["public"]["Enums"]["sub_agent_draft_status"]
+          updated_at?: string
+          verification_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_agent_registration_drafts_attribution_id_fkey"
+            columns: ["attribution_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_attributions"
             referencedColumns: ["id"]
           },
         ]
@@ -24336,6 +24542,10 @@ export type Database = {
         Args: { _affected: number; _batch_id: number; _error?: string }
         Returns: Json
       }
+      complete_campaign_attribution: {
+        Args: { p_token: string }
+        Returns: Json
+      }
       complete_partner_portfolio: {
         Args: { p_portfolio_id: string; p_raw_token: string }
         Returns: string
@@ -24459,6 +24669,15 @@ export type Database = {
           }
       create_ledger_transaction_accrual_only: {
         Args: { entries: Json }
+        Returns: Json
+      }
+      create_or_refresh_campaign_attribution: {
+        Args: {
+          p_click_id?: string
+          p_prior_token?: string
+          p_short_code: string
+          p_visitor_id?: string
+        }
         Returns: Json
       }
       create_pending_portfolio: {
@@ -26498,6 +26717,7 @@ export type Database = {
         }
         Returns: Json
       }
+      lock_campaign_attribution: { Args: { p_token: string }; Returns: Json }
       log_archived_login_attempt: {
         Args: {
           p_archived_at?: string
@@ -27333,6 +27553,7 @@ export type Database = {
         }[]
       }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
+      restore_campaign_attribution: { Args: { p_token: string }; Returns: Json }
       resubmit_rejected_deposit: {
         Args: { p_id: string; p_payload: Json }
         Returns: string
@@ -27648,6 +27869,17 @@ export type Database = {
       update_user_risk_score: {
         Args: { p_reason?: string; p_score_change: number; p_user_id: string }
         Returns: number
+      }
+      upsert_sub_agent_registration_draft: {
+        Args: {
+          p_current_step: string
+          p_form_data?: Json
+          p_phone_number?: string
+          p_status?: Database["public"]["Enums"]["sub_agent_draft_status"]
+          p_token: string
+          p_verification_status?: string
+        }
+        Returns: Json
       }
       user_can_access_landlord: {
         Args: { _landlord_id: string; _user_id: string }
@@ -28076,6 +28308,14 @@ export type Database = {
         | "completed"
         | "rejected"
         | "defaulted"
+      campaign_attribution_status:
+        | "active"
+        | "registration_started"
+        | "registration_completed"
+        | "expired"
+        | "invalidated"
+        | "duplicate"
+        | "existing_user"
       collection_payment_method: "mobile_money" | "cash" | "in_app_wallet"
       deposit_purpose:
         | "operational_float"
@@ -28133,6 +28373,13 @@ export type Database = {
         | "regulatory_adjustment"
         | "duplicate_reversal"
         | "other_with_note"
+      sub_agent_draft_status:
+        | "started"
+        | "awaiting_otp"
+        | "verified"
+        | "completed"
+        | "expired"
+        | "abandoned"
       system_event_type:
         | "payment_missed"
         | "payment_made"
@@ -28376,6 +28623,15 @@ export const Constants = {
         "rejected",
         "defaulted",
       ],
+      campaign_attribution_status: [
+        "active",
+        "registration_started",
+        "registration_completed",
+        "expired",
+        "invalidated",
+        "duplicate",
+        "existing_user",
+      ],
       collection_payment_method: ["mobile_money", "cash", "in_app_wallet"],
       deposit_purpose: [
         "operational_float",
@@ -28439,6 +28695,14 @@ export const Constants = {
         "regulatory_adjustment",
         "duplicate_reversal",
         "other_with_note",
+      ],
+      sub_agent_draft_status: [
+        "started",
+        "awaiting_otp",
+        "verified",
+        "completed",
+        "expired",
+        "abandoned",
       ],
       system_event_type: [
         "payment_missed",

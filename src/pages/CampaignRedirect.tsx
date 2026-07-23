@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   getVisitorId,
   storeCampaignRef,
+  createOrRefreshCampaignAttribution,
   type CampaignRef,
 } from "@/lib/campaignAttribution";
 
@@ -25,9 +26,9 @@ export default function CampaignRedirect() {
         setState({ status: "invalid", message: "Missing campaign code." });
         return;
       }
-      // Fire click record (best-effort) + resolve link metadata in parallel.
+      // Fire click record (best-effort) + create/refresh server-side attribution.
       const visitorId = getVisitorId();
-      const [clickRes, resolveRes] = await Promise.all([
+      const [clickRes, attrRes, resolveRes] = await Promise.all([
         supabase.functions.invoke("campaign-click", {
           body: {
             short_code: code,
@@ -36,6 +37,7 @@ export default function CampaignRedirect() {
               typeof document !== "undefined" ? document.referrer : null,
           },
         }),
+        createOrRefreshCampaignAttribution(code),
         supabase.rpc("resolve_campaign_short_code", { p_short_code: code }),
       ]);
       if (cancelled) return;
@@ -80,6 +82,9 @@ export default function CampaignRedirect() {
         district: meta.district,
         selected_source: meta.selected_source,
         captured_at: Date.now(),
+        attribution_token:
+          (attrRes as { attribution_token?: string } | null)?.attribution_token,
+        locked: (attrRes as { locked?: boolean } | null)?.locked,
       };
       storeCampaignRef(ref);
 
