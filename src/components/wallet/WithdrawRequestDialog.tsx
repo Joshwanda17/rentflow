@@ -15,6 +15,8 @@ import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CashAgentSelector, type SelectedCashAgent } from './CashAgentSelector';
 import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
 import { AlertTriangle } from 'lucide-react';
+import { useAvailableBalance } from '@/hooks/useAvailableBalance';
+import { Lock } from 'lucide-react';
 
 interface WithdrawRequestDialogProps {
   open: boolean;
