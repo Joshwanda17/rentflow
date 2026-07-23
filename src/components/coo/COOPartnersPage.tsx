@@ -1512,7 +1512,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     }
   }
 
-  /* ─── Add New Portfolio (deducts from selected wallet) ─── */
+  /* ─── Add New Portfolio Invite (no wallet debit, no active portfolio yet) ─── */
   async function handleAddPortfolio() {
     console.log('[handleAddPortfolio] click', {
       hasDetailPartner: !!detailPartner,
@@ -1527,53 +1527,31 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const roi = Number(addPortfolioRoi);
     const duration = Number(addPortfolioDuration);
 
-    if (isNaN(amt) || amt < MIN_INVEST) { toast.error(`Minimum investment: ${formatUGX(MIN_INVEST)}`); return; }
+    if (isNaN(amt) || amt < 20000) { toast.error('Minimum portfolio invite amount: UGX 20,000'); return; }
     if (amt > MAX_INVEST) { toast.error(`Maximum investment: ${formatUGX(MAX_INVEST)}`); return; }
     if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be between 1 and 100'); return; }
     if (isNaN(duration) || duration < 1 || duration > 60) { toast.error('Duration must be 1-60 months'); return; }
-
-    // Funding-source validation
     const partnerId = detailPartner.profile.id;
-    const sourceBalance = addPortfolioFundingSource === 'wallet'
-      ? detailPartner.walletBalance
-      : proxyAgentInfo?.walletBalance ?? 0;
-    const sourceUserId = addPortfolioFundingSource === 'wallet'
-      ? partnerId
-      : proxyAgentInfo?.agentId;
-
-    if (addPortfolioFundingSource === 'proxy_agent' && !proxyAgentInfo) {
-      toast.error('No proxy agent assigned to this partner');
-      return;
-    }
-    if (!sourceUserId) { toast.error('Funding source unavailable'); return; }
-    if (amt > sourceBalance) {
-      toast.error(`Insufficient funds. Available: ${formatUGX(sourceBalance)} in ${addPortfolioFundingSource === 'wallet' ? 'partner wallet' : `${proxyAgentInfo?.agentName}'s wallet`}`);
-      return;
-    }
+    if (detailPartner.profile.frozen_at) { toast.error('Partner account is suspended. Unfreeze before sending an invite.'); return; }
+    if (!detailPartner.profile.email) { toast.error('Partner has no email on file. Add an email before sending an invite.'); return; }
 
 
     setAddingPortfolio(true);
     try {
-      const { data: result, error } = await supabase.functions.invoke('coo-create-portfolio', {
+      const { data: result, error } = await supabase.functions.invoke('create-portfolio-invite', {
         body: {
           partner_id: partnerId,
           amount: amt,
           roi_percentage: roi,
           roi_mode: addPortfolioRoiMode,
           duration_months: duration,
-          contribution_date: addPortfolioDate || null,
-          payment_method: addPortfolioFundingSource,
-          source_wallet_user_id: sourceUserId,
         },
       });
-      if (error) throw new Error(await extractFromErrorObject(error, 'Portfolio creation failed.'));
+      if (error) throw new Error(await extractFromErrorObject(error, 'Portfolio invite failed.'));
       if (result?.error) throw new Error(result.error);
 
-      const sourceLabel = addPortfolioFundingSource === 'wallet'
-        ? 'partner wallet'
-        : `${proxyAgentInfo?.agentName}'s proxy-agent wallet`;
-      toast.success(`Portfolio ${result.portfolio_code} created`, {
-        description: `${formatUGX(amt)} debited from ${sourceLabel} · ${roi}% ROI · ${duration}mo`,
+      toast.success(`Invite sent — portfolio ${result.portfolio_code}`, {
+        description: `${detailPartner.profile.full_name} will review, complete details and sign by email. It now appears in Invited Portfolios.`,
       });
 
       setAddPortfolioOpen(false);
@@ -1588,8 +1566,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       await openPartnerDetail(partnerId);
       refreshInBackground();
     } catch (e: any) {
-      console.error('Add portfolio error:', e);
-      toast.error(e.message || 'Failed to create portfolio');
+      console.error('Portfolio invite error:', e);
+      toast.error(e.message || 'Failed to send portfolio invite');
     } finally {
       setAddingPortfolio(false);
     }
@@ -3179,8 +3157,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
             )}
-            {addPortfolioAmount && Number(addPortfolioAmount) < MIN_INVEST && (
-              <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
+            {addPortfolioAmount && Number(addPortfolioAmount) < 20000 && (
+              <p className="text-xs text-destructive">Amount must be at least UGX 20,000</p>
             )}
             {addPortfolioAmount && Number(addPortfolioAmount) > MAX_INVEST && (
               <p className="text-xs text-destructive">Amount must not exceed {formatUGX(MAX_INVEST)}</p>
@@ -3206,9 +3184,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <Button
               type="button"
               onClick={handleAddPortfolio}
-              disabled={addingPortfolio || !addPortfolioAmount || !isInvestAmountValid(Number(addPortfolioAmount))}
+              disabled={addingPortfolio || !addPortfolioAmount || Number(addPortfolioAmount) < 20000 || Number(addPortfolioAmount) > MAX_INVEST}
             >
-              {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
+              {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending...</> : <><Mail className="h-4 w-4 mr-2" /> Send invite</>}
             </Button>
           </DialogFooter>
         </DialogContent>
