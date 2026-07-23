@@ -165,15 +165,40 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
     return () => { cancelled = true; };
   }, [selectedUser?.id]);
 
-  const searchUsers = async (q: string) => {
-    setSearchTerm(q);
-    if (q.length < 3) { setUsers([]); return; }
+  // Debounced lazy search: min 4 chars, waits 400ms after last keystroke,
+  // returns only the 5 closest matches. Uses the fast RPC that bypasses
+  // RLS overhead on the 47k+ profiles table.
+  useEffect(() => {
+    const q = searchTerm.trim();
+    if (q.length < 4) { setUsers([]); setSearching(false); return; }
     setSearching(true);
-    const { data } = await supabase.from('profiles').select('id, full_name, phone')
-      .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`).limit(10);
-    setUsers(data || []);
-    setSearching(false);
-  };
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.rpc('search_users_fast', {
+          p_query: q,
+          p_limit: 5,
+        }).abortSignal(ctrl.signal);
+        if (ctrl.signal.aborted) return;
+        if (error) {
+          // Fallback if the RPC is unavailable in this environment.
+          const { data: fb } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .or(`full_name.ilike.${q}%,phone.ilike.%${q}%`)
+            .limit(5);
+          setUsers((fb || []) as UserResult[]);
+        } else {
+          setUsers(((data as any[]) || []).slice(0, 5).map((r) => ({
+            id: r.id, full_name: r.full_name ?? '', phone: r.phone ?? '',
+          })));
+        }
+      } finally {
+        if (!ctrl.signal.aborted) setSearching(false);
+      }
+    }, 400);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [searchTerm]);
 
   const handleCreate = async () => {
     if (!selectedUser || !form.investment_amount) return;
@@ -280,8 +305,11 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
               <Label className="text-xs">Select Partner</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input value={searchTerm} onChange={e => searchUsers(e.target.value)} placeholder="Search by name or phone..." className="pl-9 h-9" autoFocus />
+                <Input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Type at least 4 characters (name or phone)..." className="pl-9 h-9" autoFocus />
               </div>
+              {searchTerm.length > 0 && searchTerm.length < 4 && (
+                <p className="text-[11px] text-muted-foreground pl-1">Keep typing — {4 - searchTerm.length} more character{4 - searchTerm.length === 1 ? '' : 's'} to search.</p>
+              )}
               {searching && <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin" /></div>}
               {users.length > 0 && (
                 <ScrollArea className="max-h-40 border rounded-lg">
