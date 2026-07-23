@@ -90,11 +90,19 @@ Deno.serve(async (req) => {
       return json({ error: "Partner has no email on file — add one before sending an invite." }, 400);
     }
 
-    // Verify partner is actually a supporter (matches coo-create-portfolio).
-    const { data: role } = await admin
-      .from("user_roles").select("id")
-      .eq("user_id", partnerId).eq("role", "supporter").maybeSingle();
-    if (!role) return json({ error: "Selected user is not a registered partner" }, 400);
+    // Verify the user is a partner: either explicitly tagged as supporter or
+    // already holding an investor portfolio from the legacy onboarding flow.
+    const [{ data: role }, { data: existingPortfolio }] = await Promise.all([
+      admin
+        .from("user_roles").select("id")
+        .eq("user_id", partnerId).eq("role", "supporter").maybeSingle(),
+      admin
+        .from("investor_portfolios").select("id")
+        .eq("investor_id", partnerId).limit(1).maybeSingle(),
+    ]);
+    if (!role && !existingPortfolio) {
+      return json({ error: "Selected user is not a registered partner" }, 400);
+    }
 
     const rawToken = generateToken();
 
