@@ -34,6 +34,8 @@ interface TopAgentRow {
   agent_phone: string | null;
   verified_count: number;
   invited_count: number;
+  sub_agents_count?: number;
+  houses_listed_count?: number;
 }
 
 interface Overview {
@@ -195,8 +197,9 @@ export function AgentListingCampaignPanel() {
                 <tr>
                   <th className="text-left px-4 py-2 font-semibold w-12">#</th>
                   <th className="text-left px-4 py-2 font-semibold">Agent</th>
-                  <th className="text-right px-4 py-2 font-semibold">Sub-Agents Invited</th>
-                  <th className="text-right px-4 py-2 font-semibold">Verified Houses</th>
+                  <th className="text-right px-4 py-2 font-semibold">Sub-Agents</th>
+                  <th className="text-right px-4 py-2 font-semibold">Houses Listed</th>
+                  <th className="text-right px-4 py-2 font-semibold">Verified (Week)</th>
                   <th className="text-right px-4 py-2 font-semibold">House Commission (UGX)</th>
                 </tr>
               </thead>
@@ -352,7 +355,7 @@ export function AgentListingCampaignPanel() {
                           )}
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">
-                          {verified} verified · {a.invited_count ?? 0} invited
+                          {verified} verified · {a.sub_agents_count ?? a.invited_count ?? 0} sub-agents · {a.houses_listed_count ?? 0} houses listed
                           {a.agent_phone ? ` · ${a.agent_phone}` : ''}
                         </div>
                       </div>
@@ -438,7 +441,8 @@ function AgentLeaderboardRow({
             <div className="text-xs text-muted-foreground">{row.agent_phone}</div>
           )}
         </td>
-        <td className="px-4 py-2 text-right tabular-nums">{row.invited_count ?? 0}</td>
+        <td className="px-4 py-2 text-right tabular-nums">{row.sub_agents_count ?? row.invited_count ?? 0}</td>
+        <td className="px-4 py-2 text-right tabular-nums">{row.houses_listed_count ?? 0}</td>
         <td className="px-4 py-2 text-right tabular-nums font-semibold">
           {row.verified_count ?? 0}
         </td>
@@ -448,7 +452,7 @@ function AgentLeaderboardRow({
       </tr>
       {expanded && (
         <tr className="bg-muted/20 border-t border-border">
-          <td colSpan={5} className="px-4 py-3">
+          <td colSpan={6} className="px-4 py-3">
             {isLoading ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading sub-agents…
