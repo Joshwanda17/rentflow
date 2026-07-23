@@ -224,6 +224,28 @@ export default function FunderOnboarding() {
     staleTime: 60_000,
   });
 
+  // Invited-portfolio pipeline KPIs (portfolios sent via Ops invite flow
+  // that are either waiting on the partner to complete or waiting on
+  // Ops to approve the partner's submission). Independent of the
+  // funder-onboarding profile counts above so we can group them
+  // separately in the KPI header.
+  const { data: invitedKpis } = useQuery({
+    queryKey: ['invited-portfolios-kpis'],
+    enabled: !!user && roles.includes('manager'),
+    queryFn: async () => {
+      const [{ count: awaiting }, { count: pendingApproval }] = await Promise.all([
+        supabase.from('investor_portfolios').select('id', { count: 'exact', head: true }).eq('status', 'awaiting_partner_details'),
+        supabase.from('investor_portfolios').select('id', { count: 'exact', head: true }).eq('status', 'pending_ops_approval'),
+      ]);
+      return {
+        awaiting: awaiting || 0,
+        pending_approval: pendingApproval || 0,
+        total: (awaiting || 0) + (pendingApproval || 0),
+      };
+    },
+    staleTime: 60_000,
+  });
+
   const rows = data?.rows || [];
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
