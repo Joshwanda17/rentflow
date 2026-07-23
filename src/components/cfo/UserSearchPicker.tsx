@@ -132,99 +132,54 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
         setPermissionDenied(false);
 
         try {
-          const cleaned = trimmed.replace(/\D/g, '');
-          const isPhone = cleaned.length >= 3;
+          // Dedicated indexed search RPC — bypasses per-row RLS overhead.
+          const { data, error } = await (supabase.rpc as any)('search_users_fast', {
+            p_query: trimmed,
+            p_limit: 50,
+          }).abortSignal(abort.signal);
+          if (abort.signal.aborted) return;
 
-          if (roleFilter) {
-            let q = supabase.from('profiles').select('id, full_name, phone').limit(50).abortSignal(abort.signal);
-            if (isPhone) {
-              q = q.ilike('phone', `%${cleaned.slice(-9)}%`);
+          if (error) {
+            console.error('[UserSearchPicker] search failed:', error);
+            setResults([]);
+            if ((error as any).code === '42501' || /not authorized/i.test(error.message || '')) {
+              setPermissionDenied(true);
+              setSearchError(null);
             } else {
-              q = q.ilike('full_name', `%${trimmed}%`);
+              setPermissionDenied(false);
+              setSearchError(error.message || 'Search failed. Please try again.');
             }
-
-            const { data: profiles, error: profilesError } = await q;
-            if (abort.signal.aborted) return;
-            if (profilesError) {
-              console.error('[UserSearchPicker] profile search failed:', profilesError);
-              setResults([]);
-              if ((profilesError as any).code === '42501') {
-                setPermissionDenied(true);
-                setSearchError(null);
-              } else {
-                setPermissionDenied(false);
-                setSearchError(profilesError.message || 'Search failed. Please try again.');
-              }
-              setLoading(false);
-              return;
-            }
-
-            if (!profiles || profiles.length === 0) {
-              setResults([]);
-              setLoading(false);
-              return;
-            }
-
-            const profileIds = profiles.map(p => p.id);
-            const batchSize = 50;
-            const validIds = new Set<string>();
-
-            for (let i = 0; i < profileIds.length; i += batchSize) {
-              const batch = profileIds.slice(i, i + batchSize);
-              const { data: roleData, error: roleError } = await supabase
-                .from('user_roles')
-                .select('user_id')
-                .eq('role', roleFilter as any)
-                .eq('enabled', true)
-                .in('user_id', batch)
-                .abortSignal(abort.signal);
-
-              if (abort.signal.aborted) return;
-              if (roleError) {
-                console.error('[UserSearchPicker] role filter failed:', roleError);
-                setResults([]);
-                if ((roleError as any).code === '42501') {
-                  setPermissionDenied(true);
-                  setSearchError(null);
-                } else {
-                  setPermissionDenied(false);
-                  setSearchError(roleError.message || 'Search failed. Please try again.');
-                }
-                setLoading(false);
-                return;
-              }
-
-              if (roleData) roleData.forEach(r => validIds.add(r.user_id));
-            }
-
-            setResults(profiles.filter(p => validIds.has(p.id)).slice(0, 10));
-            if (!abort.signal.aborted) cacheSet(key, profiles.filter(p => validIds.has(p.id)).slice(0, 10));
-          } else {
-            let q = supabase.from('profiles').select('id, full_name, phone').limit(10).abortSignal(abort.signal);
-            if (isPhone) {
-              q = q.ilike('phone', `%${cleaned.slice(-9)}%`);
-            } else {
-              q = q.ilike('full_name', `%${trimmed}%`);
-            }
-
-            const { data, error } = await q;
-            if (abort.signal.aborted) return;
-
-            if (error) {
-              console.error('[UserSearchPicker] search failed:', error);
-              setResults([]);
-              if ((error as any).code === '42501') {
-                setPermissionDenied(true);
-                setSearchError(null);
-              } else {
-                setPermissionDenied(false);
-                setSearchError(error.message || 'Search failed. Please try again.');
-              }
-            } else {
-              setResults(data || []);
-              if (!abort.signal.aborted) cacheSet(key, data || []);
-            }
+            setLoading(false);
+            return;
           }
+
+          let list: UserResult[] = (data || []).map((r: any) => ({
+            id: r.id, full_name: r.full_name, phone: r.phone,
+          }));
+
+          // Optional role narrowing — small batch (≤50), single indexed lookup.
+          if (roleFilter && list.length > 0) {
+            const { data: roleData, error: roleError } = await supabase
+              .from('user_roles')
+              .select('user_id')
+              .eq('role', roleFilter as any)
+              .eq('enabled', true)
+              .in('user_id', list.map(u => u.id))
+              .abortSignal(abort.signal);
+            if (abort.signal.aborted) return;
+            if (roleError) {
+              setResults([]);
+              setSearchError(roleError.message || 'Search failed. Please try again.');
+              setLoading(false);
+              return;
+            }
+            const ok = new Set((roleData || []).map(r => r.user_id));
+            list = list.filter(u => ok.has(u.id));
+          }
+
+          const trimmed10 = list.slice(0, 10);
+          setResults(trimmed10);
+          cacheSet(key, trimmed10);
         } catch (error) {
           if (abort.signal.aborted) return;
           console.error('[UserSearchPicker] unexpected search failure:', error);
