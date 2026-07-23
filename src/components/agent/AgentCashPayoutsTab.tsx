@@ -262,6 +262,7 @@ async function attachProfiles(rows: any[]) {
 export function AgentCashPayoutsTab() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { paused: withdrawalsPaused } = useWithdrawalsPaused();
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
