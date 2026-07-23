@@ -47,8 +47,6 @@ import { format } from 'date-fns';
 import { EmptyHousePlacementBonusBanner } from '@/components/agent/EmptyHousePlacementBonusBanner';
 import { FloatBreakdownCard } from './FloatBreakdownCard';
 import { AgentMoneyMapCard } from './AgentMoneyMapCard';
-import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
-import { useIsMerchantAgent } from '@/hooks/useIsMerchantAgent';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -65,9 +63,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const isAgent = role === 'agent';
   const { commissionBalance, withdrawableBalance } = useAgentBalances();
   const { floatBalance: walletFloatBalance, advanceBalance, pendingHolds } = useAgentBalances();
-  const { floatBalance: landlordPayoutFloat } = useAgentLandlordFloat();
-  const { isMerchantAgent } = useIsMerchantAgent();
-  const visibleAgentFloatBalance = isAgent && !isMerchantAgent ? landlordPayoutFloat : walletFloatBalance;
+  const visibleAgentFloatBalance = walletFloatBalance;
   // STRICT: total visible balance is float + ledger-backed withdrawable.
   // We never use the raw cached `wallets.balance` because it can drift
   // above the user's true ledger-backed position.
@@ -465,9 +461,8 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
       <WithdrawRequestDialog 
         open={withdrawOpen} 
         onOpenChange={setWithdrawOpen} 
-        // For agents: total = withdrawable + float (float is reserved for proxy
-        // partner payouts but should still be visible so the agent knows their
-        // real wallet position). The backend enforces proxy-only float spending.
+        // For agents: total = withdrawable + wallet/rent-collection float.
+        // Landlord Payout Float is a separate Pay Landlord pool and is not withdrawable.
         walletBalance={isAgent ? (realWithdrawableBalance + visibleAgentFloatBalance) : (wallet?.balance || 0)}
         onSuccess={refreshWallet}
       />
