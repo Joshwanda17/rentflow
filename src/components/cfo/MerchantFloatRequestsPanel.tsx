@@ -731,7 +731,7 @@ export function MerchantFloatRequestsPanel() {
                     <div key={b.agent_id} className="rounded-lg border border-border/60 bg-card">
                       <button
                         type="button"
-                        onClick={() => setExpandedAgent(isOpen ? null : b.agent_id)}
+                        onClick={() => { setActivitySearch(''); setExpandedAgent(isOpen ? null : b.agent_id); }}
                         className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition hover:bg-muted/40"
                         aria-expanded={isOpen}
                       >
