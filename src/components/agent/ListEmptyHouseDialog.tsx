@@ -1295,14 +1295,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         /* non-critical */
       }
 
-      // Instant UGX 1,000 listing reward → agent withdrawable wallet (best-effort,
-      // never blocks listing). The remaining UGX 4,000 is auto-paid when Landlord
-      // Ops verifies the house.
-      if (listing?.id) {
-        supabase.functions
-          .invoke('credit-house-listed-bonus', { body: { listing_id: listing.id } })
-          .catch((e) => console.warn('[ListEmptyHouseDialog] instant listing bonus failed:', e));
-      }
+      // Milestone-only policy (2026-07-23): no instant reward on listing.
+      // The full UGX 5,000 listing bonus is credited by `credit-listing-bonus`
+      // once Landlord Ops verifies the house.
 
       // ─── LC1 chairperson persistence ───
       // Existing LC1 (picked from search) → nothing to insert, no bonus.

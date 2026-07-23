@@ -6,7 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LISTING_BONUS = 4000;
+// Milestone-only policy (2026-07-23): the instant UGX 1,000 listed-reward was
+// retired; the full UGX 5,000 listing bonus is now paid in a single payment
+// here, when Landlord Ops verifies the house.
+const LISTING_BONUS = 5000;
 
 // Idempotently marks a listing (and its landlord) verified. Safe to call when
 // the bonus was already paid but the listing's `verified` flag was never set —
