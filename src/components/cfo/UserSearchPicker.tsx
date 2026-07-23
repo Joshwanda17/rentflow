@@ -39,6 +39,34 @@ interface UserSearchPickerProps {
 
 const MIN_QUERY_LENGTH = 5;
 const DEBOUNCE_MS = 400;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_MAX_ENTRIES = 200;
+
+type CacheEntry = { at: number; results: UserResult[] };
+const searchCache = new Map<string, CacheEntry>();
+
+function cacheKey(trimmed: string, roleFilter?: string) {
+  return `${roleFilter ?? '_'}::${trimmed.toLowerCase()}`;
+}
+function cacheGet(key: string): UserResult[] | null {
+  const hit = searchCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) {
+    searchCache.delete(key);
+    return null;
+  }
+  // refresh LRU order
+  searchCache.delete(key);
+  searchCache.set(key, hit);
+  return hit.results;
+}
+function cacheSet(key: string, results: UserResult[]) {
+  searchCache.set(key, { at: Date.now(), results });
+  if (searchCache.size > CACHE_MAX_ENTRIES) {
+    const oldest = searchCache.keys().next().value;
+    if (oldest) searchCache.delete(oldest);
+  }
+}
 
 export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps>(
   function UserSearchPicker({ label, placeholder = 'Search by name or phone...', selectedUser, onSelect, roleFilter }, ref) {
@@ -83,6 +111,17 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
         setSearchError(null);
         setPermissionDenied(false);
         setLoading(false);
+        return;
+      }
+
+      // Instant cache hit — no DB request.
+      const key = cacheKey(trimmed, roleFilter);
+      const cached = cacheGet(key);
+      if (cached) {
+        setResults(cached);
+        setLoading(false);
+        setSearchError(null);
+        setPermissionDenied(false);
         return;
       }
 
@@ -159,6 +198,7 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             }
 
             setResults(profiles.filter(p => validIds.has(p.id)).slice(0, 10));
+            if (!abort.signal.aborted) cacheSet(key, profiles.filter(p => validIds.has(p.id)).slice(0, 10));
           } else {
             let q = supabase.from('profiles').select('id, full_name, phone').limit(10).abortSignal(abort.signal);
             if (isPhone) {
@@ -182,6 +222,7 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
               }
             } else {
               setResults(data || []);
+              if (!abort.signal.aborted) cacheSet(key, data || []);
             }
           }
         } catch (error) {
