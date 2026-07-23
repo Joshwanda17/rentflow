@@ -28,6 +28,7 @@ import { buildPartnerReference } from '@/lib/partnerReference';
 import { useToast } from '@/hooks/use-toast';
 import PartnerAgreementSignOff, { type SignOffPartner } from '@/components/partner/PartnerAgreementSignOff';
 import PartnerCompanyDefaultsDialog from '@/components/partner/PartnerCompanyDefaultsDialog';
+import InvitedPortfoliosPanel from '@/components/executive/InvitedPortfoliosPanel';
 
 interface FunderProfileRow {
   id: string;
@@ -46,6 +47,7 @@ interface FunderProfileRow {
 const PAGE_SIZE = 50;
 
 type SourceFilter = 'all' | 'referred' | 'direct';
+type ViewTab = 'funders' | 'invited';
 
 export default function FunderOnboarding() {
   const { user, roles, loading, role } = useAuth();
@@ -71,6 +73,7 @@ export default function FunderOnboarding() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [viewTab, setViewTab] = useState<ViewTab>('funders');
   const [selected, setSelected] = useState<FunderProfileRow | null>(null);
   const [signOffPartner, setSignOffPartner] = useState<SignOffPartner | null>(null);
   const [companyDefaultsOpen, setCompanyDefaultsOpen] = useState(false);
@@ -460,6 +463,31 @@ export default function FunderOnboarding() {
         </Button>
       </div>
 
+      {/* Primary view tabs */}
+      <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1 text-xs">
+        {([
+          { key: 'funders' as ViewTab, label: 'Self-registered funders' },
+          { key: 'invited' as ViewTab, label: `Invited portfolios${invitedKpis?.total ? ` (${invitedKpis.total})` : ''}` },
+        ]).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setViewTab(t.key)}
+            className={cn(
+              'px-3 py-1.5 rounded-md font-semibold transition-colors',
+              viewTab === t.key
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {viewTab === 'invited' ? (
+        <InvitedPortfoliosPanel />
+      ) : (
+      <>
       {/* Source filter tabs */}
       <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1 text-xs">
         {(['all', 'referred', 'direct'] as SourceFilter[]).map((f) => (
