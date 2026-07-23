@@ -90,7 +90,11 @@ export async function checkTreasuryGuard(
   const withdrawalsPaused = !!map.get("withdrawals_paused")?.enabled;
   const creditsPaused = !!map.get("credits_paused")?.enabled;
 
-  if ((op === "debit" || op === "any") && withdrawalsPaused) {
+  // Wallet Ops Maintenance = withdrawals ONLY. Credits, rent collections,
+  // deposits, transfers-in etc. must keep flowing. So we scope this gate to
+  // explicit debit operations — callers using op="any" (which covers a lot
+  // of mixed-flow edge functions like rent allocation) are NOT blocked here.
+  if (op === "debit" && withdrawalsPaused) {
     return new Response(
       JSON.stringify({
         error: "WITHDRAWALS_PAUSED",
