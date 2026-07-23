@@ -24,6 +24,8 @@ interface UnifiedWalletHeroCardProps {
   otherBalance?: number;
   /** Callback when user taps balance area or "View Wallet" */
   onOpenWallet?: () => void;
+  /** Callback when user taps the footer "View Wallet" button — should deep-link to wallet statement. Falls back to onOpenWallet. */
+  onViewStatement?: () => void;
   /** Supporter metric card taps */
   onHousesTap?: () => void;
   onReturnTap?: () => void;
