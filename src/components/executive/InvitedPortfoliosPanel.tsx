@@ -18,7 +18,7 @@ import { toast } from '@/components/ui/sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, IdCard, Phone, User } from 'lucide-react';
+import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
