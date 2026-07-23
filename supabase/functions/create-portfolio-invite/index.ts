@@ -145,37 +145,40 @@ Deno.serve(async (req) => {
     // We reuse the plain 'transactional' template with inline HTML — no new
     // Mailgun template needed for MVP.
     const partnerName = partner.full_name || "Partner";
-    const amountFmt = amount.toLocaleString("en-US");
-    const emailHtml = `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;">
-        <img src="https://welileapp.com/welile-logo.png" alt="Welile" height="36" style="margin-bottom:24px;" />
-        <h1 style="font-size:22px;margin:0 0 12px 0;">Complete your new portfolio</h1>
-        <p style="line-height:1.55;margin:0 0 12px 0;">Hi ${partnerName},</p>
-        <p style="line-height:1.55;margin:0 0 16px 0;">Welile Partner Operations has drafted a new portfolio of <strong>UGX ${amountFmt}</strong> for you (reference <strong>${portfolioCode}</strong>). To activate it, please review the details, confirm your identity and sign the addendum.</p>
-        <p style="margin:24px 0;">
-          <a href="${completionUrl}"
-             style="display:inline-block;background:#0f172a;color:#fff;padding:14px 22px;border-radius:10px;text-decoration:none;font-weight:600;">
-            Review &amp; sign portfolio
-          </a>
-        </p>
-        <p style="line-height:1.55;margin:0 0 6px 0;font-size:13px;color:#64748b;">This secure link is valid for 7 days and can only be used once. If you didn't expect this email, please contact Welile Partner Operations.</p>
-      </div>`;
-
+    let emailDispatched = false;
+    let emailError: string | null = null;
     try {
-      await admin.functions.invoke("send-transactional-email", {
-        body: {
-          templateName: "generic-transactional",
-          recipientEmail: partner.email,
-          idempotencyKey: `portfolio-invite-${portfolioId}`,
-          templateData: {
-            subject: `Complete your new Welile portfolio ${portfolioCode}`,
-            html: emailHtml,
-            partner_name: partnerName,
+      const { data: emailData, error: emailErr } = await admin.functions.invoke(
+        "send-transactional-email",
+        {
+          body: {
+            templateName: "partner-portfolio-invite",
+            recipientEmail: partner.email,
+            idempotencyKey: `portfolio-invite-${portfolioId}`,
+            templateData: {
+              partner_name: partnerName,
+              portfolio_code: portfolioCode,
+              amount,
+              duration_months: durationMonths,
+              roi_percentage: roiPercentage,
+              roi_mode: roiMode,
+              completion_url: completionUrl,
+              currency: "UGX",
+              company_name: "Welile",
+            },
           },
         },
-      });
+      );
+      if (emailErr) {
+        emailError = emailErr.message || String(emailErr);
+        console.error("[create-portfolio-invite] Email dispatch error:", emailError, emailData);
+      } else {
+        emailDispatched = true;
+        console.log("[create-portfolio-invite] Invite email enqueued", { portfolioId, to: partner.email });
+      }
     } catch (e) {
-      console.warn("[create-portfolio-invite] Email dispatch failed (non-blocking):", (e as Error)?.message);
+      emailError = (e as Error)?.message || "unknown";
+      console.error("[create-portfolio-invite] Email dispatch threw:", emailError);
     }
 
     return json({
@@ -184,6 +187,8 @@ Deno.serve(async (req) => {
       portfolio_code: portfolioCode,
       completion_url: completionUrl,
       partner_email: partner.email,
+      email_dispatched: emailDispatched,
+      email_error: emailError,
     }, 200);
   } catch (e) {
     console.error("[create-portfolio-invite] Fatal:", (e as Error)?.message, (e as Error)?.stack);
