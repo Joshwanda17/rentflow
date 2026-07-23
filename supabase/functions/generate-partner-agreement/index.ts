@@ -15,6 +15,11 @@ const corsHeaders = {
 };
 
 const PARTNERSHIP_EMAIL = 'partnership@welile.com';
+// When the client-side PDF render fails or is skipped, we still MUST send the
+// contract email — the partner has an account and expects a confirmation. In
+// that case we fall back to a portal link they can sign into to view/download
+// the generated contract from their dashboard.
+const PARTNER_PORTAL_URL = 'https://welileapp.com/dashboard/funder';
 
 // ─── numberToWords (for the email summary) ───────────────────────────────────
 const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -74,8 +79,11 @@ Deno.serve(async (req) => {
     const partnerId = String(body?.partnerId || '').trim();
     const countersign = body?.countersign === true;
     const pdfBase64 = typeof body?.pdfBase64 === 'string' ? body.pdfBase64 : '';
+    // Countersigning still requires the freshly-signed bytes; the initial
+    // partner-onboarding call now runs even when the client render is missing
+    // so the confirmation email is guaranteed to go out.
     if (!partnerId) return json({ error: 'partnerId is required' }, 400);
-    if (!pdfBase64) return json({ error: 'pdfBase64 is required' }, 400);
+    if (countersign && !pdfBase64) return json({ error: 'pdfBase64 is required to countersign' }, 400);
 
     // Permission: partner can store own draft; ops/manager can store & countersign.
     const [{ data: isOps }, { data: isManager }] = await Promise.all([
@@ -101,27 +109,34 @@ Deno.serve(async (req) => {
       if (!row) return json({ error: 'No agreement data found for this partner.' }, 404);
     }
 
-    // ── Decode + store the client-rendered PDF privately ──
-    const pdfBytes = decodeBase64(pdfBase64);
+    // ── Decode + store the client-rendered PDF privately (only when supplied) ──
     const reference = row.reference || `PA-${partnerId.slice(0, 8).toUpperCase()}`;
-    const objectPath = `${partnerId}/partnership-agreement${countersign ? '-signed' : ''}-${reference}.pdf`;
-    const { error: upErr } = await admin.storage
-      .from('partner-agreements')
-      .upload(objectPath, pdfBytes, { contentType: 'application/pdf', upsert: true });
-    if (upErr) throw upErr;
-
-    const { data: signed } = await admin.storage
-      .from('partner-agreements')
-      .createSignedUrl(objectPath, 60 * 60 * 24 * 365);
+    let objectPath: string | null = null;
+    let signedUrl: string | null = null;
+    if (pdfBase64) {
+      const pdfBytes = decodeBase64(pdfBase64);
+      objectPath = `${partnerId}/partnership-agreement${countersign ? '-signed' : ''}-${reference}.pdf`;
+      const { error: upErr } = await admin.storage
+        .from('partner-agreements')
+        .upload(objectPath, pdfBytes, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw upErr;
+      const { data: signed } = await admin.storage
+        .from('partner-agreements')
+        .createSignedUrl(objectPath, 60 * 60 * 24 * 365);
+      signedUrl = signed?.signedUrl || null;
+    }
 
     // ── Update the row state ──
-    const patch: Record<string, unknown> = { generated_pdf_path: objectPath };
+    const patch: Record<string, unknown> = {};
+    if (objectPath) patch.generated_pdf_path = objectPath;
     if (countersign) {
       patch.status = 'countersigned';
       patch.countersigned_by = callerId;
       patch.countersigned_at = new Date().toISOString();
     }
-    await admin.from('partner_agreements').update(patch).eq('id', row.id);
+    if (Object.keys(patch).length > 0) {
+      await admin.from('partner_agreements').update(patch).eq('id', row.id);
+    }
 
     // ── Email the partner a download link ──
     if (row.email) {
@@ -138,7 +153,8 @@ Deno.serve(async (req) => {
         partnership_amount_words: row.partnership_amount_words || numberToWords(amountNum),
         monthly_return: '15%',
         payout_summary: payoutSummary,
-        agreement_download_url: signed?.signedUrl || 'https://welileapp.com',
+        agreement_download_url: signedUrl || PARTNER_PORTAL_URL,
+        agreement_download_available: signedUrl ? 'yes' : 'no',
         company_name: 'WELILE TECHNOLOGIES LTD',
       };
       try {
@@ -172,7 +188,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, signedUrl: signed?.signedUrl || null, status: countersign ? 'countersigned' : 'pending' });
+    return json({
+      ok: true,
+      signedUrl,
+      hasPdf: !!objectPath,
+      status: countersign ? 'countersigned' : 'pending',
+    });
   } catch (e) {
     console.error('generate-partner-agreement error:', e);
     return json({ error: (e as Error)?.message || 'Internal error' }, 500);
