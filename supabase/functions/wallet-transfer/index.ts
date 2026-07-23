@@ -120,7 +120,9 @@ Deno.serve(async (req) => {
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
   // Treasury guard: block any money movement when paused
-  const guardBlock = await checkTreasuryGuard(adminClient, "any", req.headers.get("Authorization"));
+  // Wallet-to-wallet transfer is a debit from the sender — gate under the
+  // same "debit" scope as withdrawals so Wallet Ops Maintenance freezes it.
+  const guardBlock = await checkTreasuryGuard(adminClient, "debit", req.headers.get("Authorization"));
   if (guardBlock) return guardBlock;
 
   const shadowConfig = await fetchShadowConfig(adminClient);
