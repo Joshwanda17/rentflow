@@ -449,14 +449,17 @@ export function MerchantFloatRequestsPanel() {
     enabled: !!expandedAgent,
     queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; drift: number }> => {
       const agentId = expandedAgent!;
-      const [walletRes, ledgerRes] = await Promise.all([
-        supabase.from('wallets').select('float_balance').eq('user_id', agentId).maybeSingle(),
+      const [authRes, ledgerRes] = await Promise.all([
+        // Single source of truth — ledger-backed strict balance (matches every other screen).
+        supabase.rpc('get_authoritative_wallet', { p_user_id: agentId }),
         supabase
           .from('general_ledger')
           .select('id, category, amount, direction, transaction_date, source_id')
           .eq('user_id', agentId)
           .eq('ledger_scope', 'wallet')
           .eq('wallet_bucket', 'float')
+          // Match v_user_wallet_strict: only production rows (plus balance-correction debits).
+          .or('classification.is.null,classification.eq.production,and(classification.eq.admin_correction,category.eq.system_balance_correction,direction.in.(debit,cash_out))')
           .order('transaction_date', { ascending: true })
           .order('id', { ascending: true })
           .limit(2000),
@@ -539,13 +542,18 @@ export function MerchantFloatRequestsPanel() {
         }
       }
       if (current) batches.push(current);
-      const ledgerBalance = running;
-      const cachedBalance = Number(walletRes.data?.float_balance) || 0;
+      const auth = (authRes.data ?? {}) as any;
+      const authoritative = Number(auth?.float) || 0;
+      const cache = Number(auth?.cache?.float) || 0;
+      // Reconcile the timeline's final running to the authoritative figure. Any residual
+      // gap is surfaced as `drift` so the CFO knows repair is needed.
+      const drift = running - authoritative;
       return {
         batches,
-        currentBalance: cachedBalance,
-        ledgerBalance,
-        drift: cachedBalance - ledgerBalance,
+        currentBalance: authoritative, // the ONE authoritative number for this agent's float
+        ledgerBalance: authoritative,
+        cacheBalance: cache,
+        drift,
       };
     },
   });
