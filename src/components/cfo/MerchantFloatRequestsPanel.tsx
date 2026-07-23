@@ -471,11 +471,18 @@ export function MerchantFloatRequestsPanel() {
       );
       const wrMap: Record<string, any> = {};
       if (settlementSourceIds.length) {
-        const { data: wrs } = await supabase
-          .from('withdrawal_requests')
-          .select('id, mobile_money_name, mobile_money_provider, payout_method')
-          .in('id', settlementSourceIds);
-        for (const w of (wrs ?? []) as any[]) wrMap[String(w.id)] = w;
+        // Chunked fetch — PostgREST URL length caps `.in()` at ~8KB, so 200+ UUIDs
+        // would silently truncate and every settlement would fall back to
+        // "Customer cash-out". Chunk to keep each request well under the limit.
+        const CHUNK = 80;
+        for (let i = 0; i < settlementSourceIds.length; i += CHUNK) {
+          const slice = settlementSourceIds.slice(i, i + CHUNK);
+          const { data: wrs } = await supabase
+            .from('withdrawal_requests')
+            .select('id, mobile_money_name, mobile_money_provider, payout_method')
+            .in('id', slice);
+          for (const w of (wrs ?? []) as any[]) wrMap[String(w.id)] = w;
+        }
       }
 
       // A "top-up" that opens a new batch = any cash_in on the float bucket
