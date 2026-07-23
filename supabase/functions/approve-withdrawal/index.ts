@@ -1926,15 +1926,10 @@ Deno.serve(async (req) => {
         },
       ],
       idempotency_key: idempotencyKey,
-      // We've already gated the withdrawal on the strict ledger figure above
-      // (`get_user_available_balance` for normal payouts; partner-linked
-      // ledger for proxy delivery). The generic guard inside
-      // `create_ledger_transaction` re-applies a `MIN(cached, ledger)` cap
-      // that errors out when the cached `wallets.withdrawable_balance` lags
-      // the ledger — which is now the common case because `wallets` is a
-      // ledger-derived VIEW rather than an authoritative cache. Skip that
-      // duplicate check; the strict gate above is the source of truth.
-      skip_balance_check: true,
+      // Post-maintenance hard rule: payout debits must pass the ledger-backed
+      // solvency guard in the database too. The trigger adds back only this
+      // withdrawal's pending hold while keeping all other holds reserved.
+      skip_balance_check: false,
     });
     txnGroupId = _txnGroupId;
 
