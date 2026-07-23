@@ -76,11 +76,16 @@ Deno.serve(async (req) => {
     // Look up partner contact info up-front so we can email them.
     const { data: partner, error: partnerErr } = await admin
       .from("profiles")
-      .select("id, full_name, email, phone")
+      .select("id, full_name, email, phone, frozen_at")
       .eq("id", partnerId)
       .maybeSingle();
     if (partnerErr) return json({ error: `Partner lookup failed: ${partnerErr.message}` }, 500);
     if (!partner) return json({ error: "Partner not found" }, 404);
+    if ((partner as any).frozen_at) {
+      return json({
+        error: "This partner's account is suspended. Unfreeze the account before creating a new portfolio.",
+      }, 403);
+    }
     if (!partner.email) {
       return json({ error: "Partner has no email on file — add one before sending an invite." }, 400);
     }
