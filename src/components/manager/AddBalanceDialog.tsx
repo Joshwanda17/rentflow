@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { invalidateOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +39,7 @@ export default function AddBalanceDialog({
   onSuccess
 }: AddBalanceDialogProps) {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
@@ -127,6 +130,10 @@ export default function AddBalanceDialog({
       });
 
       toast.success(`Balance adjustment queued for approval (${formatUGX(amountNum)} ${type})`);
+      // Ensure every consumer of the shared wallet cache refreshes once the
+      // adjustment is approved and applied. Also invalidate now so pending-op
+      // banners re-hydrate immediately.
+      invalidateOpsWallet(qc, userId);
       setAmount('');
       setReason('');
       setType('credit');
