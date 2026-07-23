@@ -696,40 +696,112 @@ export function MerchantFloatRequestsPanel() {
                       </button>
                       {isOpen && (
                         <div className="border-t border-border/50 bg-muted/20 px-3 py-2.5">
-                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Every float allocation to {b.agent}
-                          </p>
-                          {agentAllocs.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">No allocation records found.</p>
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Float top-ups & usage for {b.agent}
+                            </p>
+                            {agentTimeline && (
+                              <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                                <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.currentBalance)} float left now
+                              </span>
+                            )}
+                          </div>
+                          {timelineLoading ? (
+                            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading top-up timeline…
+                            </p>
+                          ) : !agentTimeline || agentTimeline.batches.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No float ledger activity found.</p>
                           ) : (
-                            <div className="space-y-1.5">
-                              {agentAllocs.map((a, idx) => {
-                                const when = new Date(a.approved_at || a.created_at);
+                            <div className="space-y-2">
+                              {(allocSort === 'newest'
+                                ? [...agentTimeline.batches].reverse().map((batch, i) => ({ batch, num: agentTimeline.batches.length - i }))
+                                : agentTimeline.batches.map((batch, i) => ({ batch, num: i + 1 }))
+                              ).map(({ batch, num }) => {
+                                const isVirtual = batch.depositId.startsWith('pre-');
+                                const totalUsed = batch.settlements.reduce((s, x) => s + x.amount, 0);
                                 return (
-                                  <div key={a.id} className="rounded-md border border-border/60 bg-card px-2.5 py-2 text-xs">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="font-semibold text-muted-foreground">#{agentAllocs.length - idx}</span>
-                                      <span className="text-sm font-bold tabular-nums text-sky-700 dark:text-sky-400">
-                                        {formatUGX(Number(a.requested_amount))}
-                                      </span>
-                                    </div>
-                                    <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
-                                      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                        <Calendar className="h-3 w-3" />
-                                        <span className="tabular-nums">
-                                          {when.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  <div key={batch.depositId} className="rounded-md border border-border/60 bg-card p-2.5 text-xs">
+                                    {/* Top-up header */}
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                                          {isVirtual ? (
+                                            <>
+                                              <ArrowDownRight className="h-3 w-3 text-slate-500" />
+                                              Activity before first tracked top-up
+                                            </>
+                                          ) : (
+                                            <>
+                                              <ArrowDownRight className="h-3 w-3 text-emerald-600" />
+                                              Top-up #{num}
+                                            </>
+                                          )}
+                                        </p>
+                                        <p className="flex items-center gap-1.5 pt-0.5 text-[11px] text-muted-foreground">
+                                          <Calendar className="h-3 w-3" />
+                                          <span className="tabular-nums">
+                                            {new Date(batch.depositAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                        </p>
+                                      </div>
+                                      {!isVirtual && (
+                                        <span className="shrink-0 text-sm font-bold tabular-nums text-sky-700 dark:text-sky-400">
+                                          + {formatUGX(batch.depositAmount)}
                                         </span>
-                                      </p>
-                                      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                        <UserIcon className="h-3 w-3" />
-                                        <span className="truncate">
-                                          Allocated by <span className="font-semibold text-foreground">{a.approver?.full_name || 'CFO'}</span>
-                                        </span>
-                                      </p>
+                                      )}
                                     </div>
-                                    {a.reason && (
-                                      <p className="mt-1 truncate text-[11px] italic text-muted-foreground">"{a.reason}"</p>
+
+                                    {/* Balance context around this top-up */}
+                                    {!isVirtual && (
+                                      <div className="mt-2 grid grid-cols-3 gap-1.5">
+                                        <div className="rounded-sm border border-border/60 bg-muted/30 p-1.5 text-center">
+                                          <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Float before</p>
+                                          <p className="text-[11px] font-bold tabular-nums text-amber-700 dark:text-amber-400">{formatUGX(batch.balanceBefore)}</p>
+                                        </div>
+                                        <div className="rounded-sm border border-border/60 bg-muted/30 p-1.5 text-center">
+                                          <p className="text-[9px] uppercase tracking-wide text-muted-foreground">After top-up</p>
+                                          <p className="text-[11px] font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(batch.balanceAfterTopUp)}</p>
+                                        </div>
+                                        <div className="rounded-sm border border-border/60 bg-muted/30 p-1.5 text-center">
+                                          <p className="text-[9px] uppercase tracking-wide text-muted-foreground">After usage</p>
+                                          <p className="text-[11px] font-bold tabular-nums">{formatUGX(batch.balanceAfterBatch)}</p>
+                                        </div>
+                                      </div>
                                     )}
+
+                                    {/* Settlements between this top-up and the next */}
+                                    <div className="mt-2">
+                                      <p className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                        <span>Used after this top-up ({batch.settlements.length})</span>
+                                        <span className="tabular-nums normal-case text-rose-600 dark:text-rose-400">− {formatUGX(totalUsed)}</span>
+                                      </p>
+                                      {batch.settlements.length === 0 ? (
+                                        <p className="rounded-sm bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
+                                          No cash-outs settled from this batch{!isVirtual ? ' yet' : ''}.
+                                        </p>
+                                      ) : (
+                                        <div className="space-y-1">
+                                          {batch.settlements.map((s) => (
+                                            <div key={s.id} className="flex items-center justify-between gap-2 rounded-sm border border-border/40 bg-background px-2 py-1">
+                                              <div className="min-w-0">
+                                                <p className="flex items-center gap-1 truncate text-[11px]">
+                                                  <ArrowUpRight className="h-3 w-3 shrink-0 text-rose-600" />
+                                                  <span className="truncate font-medium">{s.recipient || 'Customer cash-out'}</span>
+                                                </p>
+                                                <p className="pl-4 text-[10px] tabular-nums text-muted-foreground">
+                                                  {new Date(s.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} · {s.method}
+                                                </p>
+                                              </div>
+                                              <div className="shrink-0 text-right">
+                                                <p className="text-[11px] font-bold tabular-nums text-rose-600 dark:text-rose-400">− {formatUGX(s.amount)}</p>
+                                                <p className="text-[9px] tabular-nums text-muted-foreground">left: {formatUGX(s.balanceAfter)}</p>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}
