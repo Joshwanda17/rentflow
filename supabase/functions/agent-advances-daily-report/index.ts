@@ -1,16 +1,18 @@
-// Agent Advances daily report.
+// Agent Advances daily report (v2 — structured Agent Ops Manager brief).
 //
-// Scheduled at 18:00 EAT (15:00 UTC) via pg_cron. Focuses exclusively on the
-// agent credit-advance programme: how many agents exist, how many hold
-// advances, today's request/approval/rejection flow vs. system totals,
-// rejection-reason breakdown, month-to-date request trend, and the repayment
-// health of the outstanding book (paying-back, repayment rate, overdue).
+// Scheduled at 18:00 EAT (15:00 UTC) via pg_cron. Sections, in order:
+//   1. Receivables projection — next 1/7/30/60/90 days, split principal vs
+//      interest, from every active/overdue `agent_advances` row projected
+//      forward using its daily_installment and monthly_rate.
+//   2. Programme summary — adoption, agent-base breakdown by the "who is an
+//      agent" criteria, sub-agent tier distribution (drives advance limit),
+//      request flow today vs MTD, top rejection reasons.
+//   3. Repayment trend — today vs same weekday last month, MTD vs previous
+//      month same-window, daily series chart.
+//   4. Arrears roster + top reasons agents request advances.
 //
-// Charts are rendered as images via QuickChart. Emails go through the existing
-// Lovable email queue (enqueue_email -> process-email-queue -> sendLovableEmail).
-//
-// Idempotent per EAT day via an `agent_advances_daily_report` system_event
-// (bypass with { force: true }). Supports backfill via { date } or { dates }.
+// Emails go through the existing Lovable email queue. Idempotent per EAT day
+// via a `agent_advances_daily_report` system_event (bypass: { force: true }).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -25,7 +27,7 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Fixed recipients for the operational report. Adjust here to change who
 // receives the daily advances report.
-const REPORT_RECIPIENTS = ["benjaminmuhanguzi29@gmail.com", "joshwanda17@gmail.com"];
+const REPORT_RECIPIENTS = ["benjamin@welile.com", "paphra.me@gmail.com"];
 
 const FROM = "Welile Reports <info@welile.com>";
 const SENDER_DOMAIN = "notify.welile.com";
