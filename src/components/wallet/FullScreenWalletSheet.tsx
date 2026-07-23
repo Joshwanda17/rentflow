@@ -501,7 +501,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
               </div>
 
               {/* Wallet Statement section */}
-              <div>
+              <div ref={statementSectionRef} id="wallet-statement-section" className="scroll-mt-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="text-base font-bold text-foreground">Wallet Statement</h3>
