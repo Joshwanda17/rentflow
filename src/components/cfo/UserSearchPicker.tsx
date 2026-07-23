@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from 'react';
+import { useState, useEffect, useRef, forwardRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,9 @@ interface UserSearchPickerProps {
   roleFilter?: string;
 }
 
+const MIN_QUERY_LENGTH = 5;
+const DEBOUNCE_MS = 400;
+
 export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps>(
   function UserSearchPicker({ label, placeholder = 'Search by name or phone...', selectedUser, onSelect, roleFilter }, ref) {
     const [query, setQuery] = useState('');
@@ -74,31 +77,35 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
     }, []);
 
     useEffect(() => {
-      if (query.length < 2) {
+      const trimmed = query.trim();
+      if (trimmed.length < MIN_QUERY_LENGTH) {
         setResults([]);
         setSearchError(null);
         setPermissionDenied(false);
+        setLoading(false);
         return;
       }
 
+      const abort = new AbortController();
       const timer = setTimeout(async () => {
         setLoading(true);
         setSearchError(null);
         setPermissionDenied(false);
 
         try {
-          const cleaned = query.replace(/\D/g, '');
+          const cleaned = trimmed.replace(/\D/g, '');
           const isPhone = cleaned.length >= 3;
 
           if (roleFilter) {
-            let q = supabase.from('profiles').select('id, full_name, phone').limit(50);
+            let q = supabase.from('profiles').select('id, full_name, phone').limit(50).abortSignal(abort.signal);
             if (isPhone) {
               q = q.ilike('phone', `%${cleaned.slice(-9)}%`);
             } else {
-              q = q.ilike('full_name', `%${query}%`);
+              q = q.ilike('full_name', `%${trimmed}%`);
             }
 
             const { data: profiles, error: profilesError } = await q;
+            if (abort.signal.aborted) return;
             if (profilesError) {
               console.error('[UserSearchPicker] profile search failed:', profilesError);
               setResults([]);
@@ -130,8 +137,10 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
                 .select('user_id')
                 .eq('role', roleFilter as any)
                 .eq('enabled', true)
-                .in('user_id', batch);
+                .in('user_id', batch)
+                .abortSignal(abort.signal);
 
+              if (abort.signal.aborted) return;
               if (roleError) {
                 console.error('[UserSearchPicker] role filter failed:', roleError);
                 setResults([]);
@@ -151,15 +160,15 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
 
             setResults(profiles.filter(p => validIds.has(p.id)).slice(0, 10));
           } else {
-            let q = supabase.from('profiles').select('id, full_name, phone').limit(10);
+            let q = supabase.from('profiles').select('id, full_name, phone').limit(10).abortSignal(abort.signal);
             if (isPhone) {
               q = q.ilike('phone', `%${cleaned.slice(-9)}%`);
             } else {
-              q = q.ilike('full_name', `%${query}%`);
+              q = q.ilike('full_name', `%${trimmed}%`);
             }
 
             const { data, error } = await q;
-            console.log('[UserSearchPicker] query:', query, 'isPhone:', isPhone, 'results:', data?.length, 'error:', error);
+            if (abort.signal.aborted) return;
 
             if (error) {
               console.error('[UserSearchPicker] search failed:', error);
@@ -176,16 +185,20 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             }
           }
         } catch (error) {
+          if (abort.signal.aborted) return;
           console.error('[UserSearchPicker] unexpected search failure:', error);
           setResults([]);
           setPermissionDenied(false);
           setSearchError('Search failed. Please try again.');
         }
 
-        setLoading(false);
-      }, 300);
+        if (!abort.signal.aborted) setLoading(false);
+      }, DEBOUNCE_MS);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        abort.abort();
+      };
     }, [query, roleFilter]);
 
     if (selectedUser) {
@@ -238,7 +251,7 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             ))}
           </div>
         )}
-        {showResults && query.length >= 2 && !loading && permissionDenied && (
+        {showResults && query.trim().length >= MIN_QUERY_LENGTH && !loading && permissionDenied && (
           <div className="absolute z-50 w-full mt-1 bg-popover border border-destructive/30 rounded-lg shadow-lg p-3 text-left">
             <div className="flex items-start gap-2">
               <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
@@ -304,15 +317,20 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             </div>
           </div>
         )}
-        {showResults && query.length >= 2 && !loading && !permissionDenied && searchError && (
+        {showResults && query.trim().length >= MIN_QUERY_LENGTH && !loading && !permissionDenied && searchError && (
           <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg p-3 text-center text-xs text-destructive flex items-center justify-center gap-2">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             <span>{searchError}</span>
           </div>
         )}
-        {showResults && query.length >= 2 && !loading && !permissionDenied && !searchError && results.length === 0 && (
+        {showResults && query.trim().length >= MIN_QUERY_LENGTH && !loading && !permissionDenied && !searchError && results.length === 0 && (
           <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg p-3 text-center text-xs text-muted-foreground">
             No users found
+          </div>
+        )}
+        {showResults && query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH && (
+          <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg p-2 text-center text-[11px] text-muted-foreground">
+            Type at least {MIN_QUERY_LENGTH} characters to search
           </div>
         )}
       </div>
