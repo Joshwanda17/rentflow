@@ -693,6 +693,20 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                 </div>
               )}
 
+              {restrictedHeld > 0 && (
+                <div className="flex items-start gap-3 p-4 rounded-2xl bg-warning/10 border border-warning/30">
+                  <Lock className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-foreground">
+                      {formatCurrency(restrictedHeld)} held from bonus earnings
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Referral, listing and registration bonuses unlock only after your invitee posts a rent request, or has a house / landlord / LC1 verified — within 3 days of the bonus. Un-matured amounts expire after 3 days.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* ── PAYOUT METHOD ── */}
               <div
                 ref={payoutSectionRef}
