@@ -776,9 +776,18 @@ export function MerchantFloatRequestsPanel() {
                                     Timeline reconciling · {formatUGX(Math.abs(agentTimeline.drift))} pending
                                   </span>
                                 )}
-                              </div>
-                            )}
-                          </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                value={activitySearch}
+                                onChange={(e) => setActivitySearch(e.target.value)}
+                                placeholder="Search recent activity by name, method, category or amount…"
+                                className="h-8 pl-8 text-xs"
+                              />
+                            </div>
                           {timelineLoading ? (
                             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading top-up timeline…
