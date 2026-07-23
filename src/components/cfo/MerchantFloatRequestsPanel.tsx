@@ -451,6 +451,9 @@ export function MerchantFloatRequestsPanel() {
   const { data: agentTimeline, isLoading: timelineLoading } = useQuery({
     queryKey: ['cfo-agent-float-timeline', expandedAgent],
     enabled: !!expandedAgent,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
     queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; cacheBalance: number; drift: number }> => {
       const agentId = expandedAgent!;
       const [authRes, ledgerRes] = await Promise.all([
@@ -466,7 +469,7 @@ export function MerchantFloatRequestsPanel() {
           .or('classification.is.null,classification.eq.production,and(classification.eq.admin_correction,category.eq.system_balance_correction,direction.in.(debit,cash_out))')
           .order('transaction_date', { ascending: true })
           .order('id', { ascending: true })
-          .limit(2000),
+          .limit(5000),
       ]);
       const rows = (ledgerRes.data ?? []) as any[];
       const settlementSourceIds = Array.from(
