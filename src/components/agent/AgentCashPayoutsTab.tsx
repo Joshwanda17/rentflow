@@ -29,6 +29,7 @@ import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatReques
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
 import { MerchantOnlineToggle } from '@/components/agent/MerchantOnlineToggle';
 import { MerchantDispatchHistory } from '@/components/agent/MerchantDispatchHistory';
+import { MerchantPayoutsAuditDialog } from '@/components/agent/MerchantPayoutsAuditDialog';
 import {
   normalizeCashoutAgentConfig,
   buildQueueCategoryOrClause,
@@ -263,6 +264,7 @@ export function AgentCashPayoutsTab() {
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
 
   // Date range filter for the commission breakdown. Defaults to "today" so the
   // card shows the volume processed and payout count for the current day.
@@ -1519,11 +1521,24 @@ export function AgentCashPayoutsTab() {
 
       {/* Live status banner */}
       {totalPending > 0 && (
-        <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
-          <Bell className="h-5 w-5 animate-pulse shrink-0" />
-          <span className="text-sm font-semibold">{totalPending} pending withdrawal{totalPending !== 1 ? 's' : ''} · live</span>
+        <div className="flex items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Bell className="h-5 w-5 animate-pulse shrink-0" />
+            <span className="text-sm font-semibold truncate">
+              {totalPending} pending withdrawal{totalPending !== 1 ? 's' : ''} · live
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAuditOpen(true)}
+            className="shrink-0 rounded-lg border border-orange-500/30 bg-white/70 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-orange-700 hover:bg-white dark:bg-orange-500/10 dark:text-orange-300"
+          >
+            View audit
+          </button>
         </div>
       )}
+
+      <MerchantPayoutsAuditDialog open={auditOpen} onOpenChange={setAuditOpen} />
 
       {/* Withdrawal Requests by channel — UNCLAIMED only */}
       <section className="space-y-3">
