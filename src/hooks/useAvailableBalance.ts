@@ -19,6 +19,7 @@ export interface AvailableBalance {
   walletCached: number;
   ledgerNet: number;
   hasDrift: boolean;
+  restrictedHeld: number;
 }
 
 export function useAvailableBalance(userId?: string) {
@@ -38,13 +39,15 @@ export function useAvailableBalance(userId?: string) {
       const r = (row ?? {}) as Record<string, unknown>;
       const available = Number((r.withdrawable as number | string | undefined) ?? 0);
       const pendingHolds = Number((r.pending_holds as number | string | undefined) ?? 0);
-      const walletCached = available + pendingHolds; // pre-hold strict figure
+      const restrictedHeld = Number((r.restricted_held as number | string | undefined) ?? 0);
+      const walletCached = available + pendingHolds + restrictedHeld; // pre-hold strict figure
       const ledgerNet = walletCached;
       setData({
         available,
         walletCached,
         ledgerNet,
         hasDrift: pendingHolds > 0,
+        restrictedHeld,
       });
     } catch {
       // Soft-fail: leave previous value in place. We never want this hook
@@ -84,5 +87,5 @@ export function useAvailableBalance(userId?: string) {
     return () => { void supabase.removeChannel(channel); };
   }, [targetId, refresh]);
 
-  return { ...(data ?? { available: 0, walletCached: 0, ledgerNet: 0, hasDrift: false }), loading, refresh };
+  return { ...(data ?? { available: 0, walletCached: 0, ledgerNet: 0, hasDrift: false, restrictedHeld: 0 }), loading, refresh };
 }
