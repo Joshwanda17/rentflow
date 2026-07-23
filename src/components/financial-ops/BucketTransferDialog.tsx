@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { invalidateOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -31,6 +32,7 @@ interface BucketTransferDialogProps {
  * ledger. The toggle switches the direction on demand.
  */
 export default function BucketTransferDialog({ open, onOpenChange }: BucketTransferDialogProps) {
+  const qc = useQueryClient();
   const [user, setUser] = useState<{ id: string; full_name: string } | null>(null);
   const [direction, setDirection] = useState<Direction>('withdrawable_to_float');
   const [amount, setAmount] = useState('');
@@ -114,6 +116,7 @@ export default function BucketTransferDialog({ open, onOpenChange }: BucketTrans
     toast.success('Funds moved', {
       description: `${formatUGX(numericAmount)} moved from ${fromLabel} to ${toLabel} for ${user.full_name}.`,
     });
+    invalidateOpsWallet(qc, user.id);
     await refetch();
     onOpenChange(false);
   };
