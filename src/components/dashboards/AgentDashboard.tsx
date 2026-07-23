@@ -320,6 +320,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, [isMerchantAgentEarly]);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [walletScrollTarget, setWalletScrollTarget] = useState<'statement' | null>(null);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [managedPropertyOpen, setManagedPropertyOpen] = useState(false);
