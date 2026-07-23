@@ -680,6 +680,29 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     </div>
                   )}
                 </motion.div>
+                {transferLocked && (
+                  <motion.div
+                    variants={itemVariants}
+                    className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          Sending to other users is locked
+                        </p>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          To protect the community from fraud, user-to-user transfers unlock
+                          after <span className="font-semibold text-foreground">{MIN_APPROVED_DEPOSITS} approved deposits</span>.
+                          You have <span className="font-semibold text-foreground">{depositsCompleted}/{MIN_APPROVED_DEPOSITS}</span>
+                          {depositsRemaining > 0 && (
+                            <> — {depositsRemaining} more to go</>
+                          )}. You can still deposit, withdraw, pay rent and pay merchants normally.
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
                 {savedRecipients.length > 0 && (
                   <motion.div variants={itemVariants} className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
