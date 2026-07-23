@@ -388,6 +388,14 @@ function ReviewSubmissionDialog({
   approving: boolean;
 }) {
   const open = !!row;
+  // Welile counter-signature fields — filled by Partner Ops before approval.
+  // Prefilled from `partner_agreement_company_defaults` so common admin
+  // details don't need re-typing. Hooks stay above any early return.
+  const [repName, setRepName] = useState('');
+  const [repPosition, setRepPosition] = useState('');
+  const [repContact, setRepContact] = useState('');
+  const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
+
   const { data: submission, isLoading } = useQuery({
     queryKey: ['invited-portfolio-submission', row?.id, row?.investor_id],
     enabled: open && !!row?.investor_id,
@@ -423,7 +431,6 @@ function ReviewSubmissionDialog({
     staleTime: 15000,
   });
 
-  if (!row) return null;
   const profile: any = submission?.profile || {};
   const agreement: any = submission?.agreement || {};
   const signature = agreement.partner_signature_data_url as string | undefined;
@@ -431,25 +438,15 @@ function ReviewSubmissionDialog({
   const defaults: any = submission?.defaults || {};
   const defaultSigUrl: string | undefined = submission?.defaultSigUrl;
 
-  // Welile counter-signature fields — filled by Partner Ops before approval.
-  // Prefilled from `partner_agreement_company_defaults` so common admin details
-  // (Director name, position, contact, stored signature) don't need re-typing.
-  const [repName, setRepName] = useState('');
-  const [repPosition, setRepPosition] = useState('');
-  const [repContact, setRepContact] = useState('');
-  const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
-
-  // Rehydrate the rep fields whenever a new review row or defaults arrive.
-  const defaultsKey = defaults?.rep_name || '';
-  const seedKey = `${row.id}::${defaultsKey}`;
-  const seededRef = (globalThis as any).__welileRepSeed || ((globalThis as any).__welileRepSeed = { current: '' });
-  if (open && seededRef.current !== seedKey && (defaults?.rep_name || defaults?.rep_position || defaults?.rep_contact)) {
-    seededRef.current = seedKey;
-    setRepName(defaults.rep_name || '');
-    setRepPosition(defaults.rep_position || '');
-    setRepContact(defaults.rep_contact || '');
+  // Seed rep fields from stored company defaults when a new row opens.
+  useEffect(() => {
+    if (!row) return;
+    setRepName(defaults?.rep_name || '');
+    setRepPosition(defaults?.rep_position || '');
+    setRepContact(defaults?.rep_contact || '');
     setSigDataUrl(undefined);
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.id, defaults?.rep_name, defaults?.rep_position, defaults?.rep_contact]);
 
   const onSignatureFile = (file?: File) => {
     if (!file) return;
@@ -461,6 +458,8 @@ function ReviewSubmissionDialog({
     reader.onload = () => setSigDataUrl(typeof reader.result === 'string' ? reader.result : undefined);
     reader.readAsDataURL(file);
   };
+
+  if (!row) return null;
 
   const hasAgreement = !!(agreement && (
     agreement.address || agreement.national_id || agreement.kin_name ||
