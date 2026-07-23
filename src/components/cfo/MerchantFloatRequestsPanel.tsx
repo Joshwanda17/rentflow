@@ -716,8 +716,8 @@ export function MerchantFloatRequestsPanel() {
                   .filter((b) => {
                     const q = agentSearch.trim().toLowerCase();
                     if (!q) return true;
-                    const name = (b.agent_name || '').toLowerCase();
-                    const phone = (b.agent_phone || '').toLowerCase();
+                    const name = (b.agent || '').toLowerCase();
+                    const phone = (b.phone || '').toLowerCase();
                     return name.includes(q) || phone.includes(q);
                   })
                   .map((b) => {
