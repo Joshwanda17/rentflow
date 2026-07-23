@@ -172,6 +172,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .then((m) => m.completePendingOAuthFunnel(session.user.id))
                 .catch(() => {});
             }, 0);
+            // If this browser has a pending campaign attribution, attach it
+            // to the new session. Fire-and-forget, idempotent server-side.
+            setTimeout(() => {
+              import('@/lib/campaignAttribution')
+                .then((m) => m.attachCampaignIfPresent())
+                .catch(() => {});
+            }, 500);
             // Defer non-critical profile update — don't block login
             setTimeout(() => {
               supabase
