@@ -576,8 +576,71 @@ function ReviewSubmissionDialog({
 
                 <Separator />
 
+                {/* Welile counter-signature (admin-entered) — the contract
+                    template has empty NAME / POSITION / CONTACT / DATE /
+                    SIGNATURE fields on the "Signed for and on behalf of
+                    Welile Technologies Limited" block; Partner Ops fills
+                    them here before approving. Values render live in the
+                    preview and are baked into the executed PDF. */}
+                <section className="space-y-2.5">
+                  <p className="text-xs font-semibold text-primary">Welile counter-signature</p>
+                  <p className="text-[10px] text-muted-foreground -mt-1">
+                    Fill in the admin details below before approving — they render live in the preview and are baked into the executed PDF.
+                  </p>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Representative name</Label>
+                    <Input value={repName} onChange={(e) => setRepName(e.target.value)} placeholder="e.g. Jane Doe" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Position</Label>
+                    <Input value={repPosition} onChange={(e) => setRepPosition(e.target.value)} placeholder="e.g. Director" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Contact</Label>
+                    <Input value={repContact} onChange={(e) => setRepContact(e.target.value)} placeholder="Phone or email" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Signature image</Label>
+                    <div className="flex items-center gap-2">
+                      <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                        <label className="cursor-pointer">
+                          <Upload className="h-3.5 w-3.5" /> Upload
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => onSignatureFile(e.target.files?.[0])} />
+                        </label>
+                      </Button>
+                      {(sigDataUrl || defaultSigUrl) ? (
+                        <img src={sigDataUrl || defaultSigUrl} alt="Signature" className="h-8 max-w-[120px] object-contain border rounded bg-white" />
+                      ) : (
+                        <span className="text-[10px] text-amber-600">No signature yet</span>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                <Separator />
+
                 <div className="flex flex-col gap-2 pb-2">
-                  <Button onClick={() => onApprove(row)} disabled={approving} className="gap-1.5">
+                  <Button
+                    onClick={() => {
+                      if (!repName.trim()) {
+                        toast.error('Enter the representative name before approving.');
+                        return;
+                      }
+                      if (!previewData) {
+                        toast.error('Agreement not loaded yet.');
+                        return;
+                      }
+                      onApprove(row, {
+                        repName,
+                        repPosition,
+                        repContact,
+                        sigDataUrl: sigDataUrl || defaultSigUrl,
+                        previewData,
+                      });
+                    }}
+                    disabled={approving || !repName.trim() || !(sigDataUrl || defaultSigUrl)}
+                    className="gap-1.5"
+                  >
                     {approving
                       ? <><Loader2 className="h-4 w-4 animate-spin" /> Approving…</>
                       : <><ShieldCheck className="h-4 w-4" /> Approve &amp; send final agreement</>}
