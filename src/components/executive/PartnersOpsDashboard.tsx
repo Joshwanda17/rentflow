@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText, UserPlus, UserCog } from 'lucide-react';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText, UserPlus, UserCog, Inbox } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 
 import { ROIPaymentHistory } from './ROIPaymentHistory';
@@ -31,8 +31,9 @@ import { NewPartnersPanel } from './NewPartnersPanel';
 import { PendingPartnerRequests } from './PendingPartnerRequests';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
 import { MaturityRequestsQueue } from './MaturityRequestsQueue';
+import { InvitedPortfoliosPanel } from './InvitedPortfoliosPanel';
 
-type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'withdrawals' | 'proxy-agents';
+type Tab = 'portfolios' | 'invited' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'withdrawals' | 'proxy-agents';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
@@ -89,6 +90,19 @@ export function PartnersOpsDashboard() {
   const rows = portfolios || [];
   const totalInvested = rows.reduce((s, p) => s + (p.investment_amount || 0), 0);
   const activePortfolios = rows.filter(p => p.status === 'active').length;
+
+  // ═══ INVITED PORTFOLIOS pending count (badge on tab) ═══
+  const { data: invitedCount = 0 } = useQuery({
+    queryKey: ['invited-portfolios-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('investor_portfolios')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['awaiting_partner_details', 'pending_ops_approval']);
+      return count || 0;
+    },
+    staleTime: 15000,
+  });
 
   // Count portfolios nearing payout (within 7 days based on next_roi_date)
   const nearingPayoutsList = rows.filter(p => {
@@ -159,6 +173,7 @@ export function PartnersOpsDashboard() {
   // ═══ TABS CONFIG ═══
   const tabs: { key: Tab; label: string; icon: any; badge?: number }[] = [
     { key: 'portfolios', label: 'Portfolios', icon: Wallet },
+    { key: 'invited', label: 'Invited Portfolios', icon: Inbox, badge: invitedCount },
     { key: 'capital', label: 'Capital Flow', icon: DollarSign },
     { key: 'roi', label: 'Returns Payouts', icon: TrendingUp },
     { key: 'topups', label: 'Top-ups', icon: PlusCircle },
@@ -172,6 +187,7 @@ export function PartnersOpsDashboard() {
   const renderTabContent = () => {
     switch (tab) {
       case 'portfolios': return <COOPartnersPage />;
+      case 'invited': return <InvitedPortfoliosPanel />;
       case 'capital': return <PartnerCapitalFlow />;
       case 'roi': return (
         <div className="space-y-3">
