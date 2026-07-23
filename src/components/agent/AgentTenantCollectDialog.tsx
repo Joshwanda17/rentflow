@@ -10,7 +10,7 @@ import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiO
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
+import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { invalidateCreditAccessLimit, useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
@@ -44,13 +44,13 @@ function humanizeAllocationError(
     const available = Math.max(0, Math.min(strict, cached));
     const shortBy = Math.max(0, requested - available);
     const parts = [
-      `Insufficient float to allocate ${formatUGX(requested)}.`,
-      `Available float: ${formatUGX(available)}${shortBy > 0 ? ` (short by ${formatUGX(shortBy)})` : ''}.`,
+      `Insufficient wallet float to allocate ${formatUGX(requested)}.`,
+      `Available wallet float: ${formatUGX(available)}${shortBy > 0 ? ` (short by ${formatUGX(shortBy)})` : ''}.`,
     ];
     if (Number.isFinite(strict) && strict !== cached) {
       parts.push(`Verified ledger float: ${formatUGX(strict)} · Cached: ${formatUGX(cached)}.`);
     }
-    parts.push('Top up your float wallet, then retry.');
+    parts.push('Top up Agent Float Allocation, then retry.');
     return parts.join(' ');
   }
   const m = (message || '').toLowerCase();
@@ -81,7 +81,7 @@ export function AgentTenantCollectDialog({
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
   const locGate = useRequireContactLocation(tenant?.id ?? null, 'tenant', tenant?.full_name);
-  const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
+  const { floatBalance, refetch: refetchBalances } = useAgentBalances(user?.id);
   const { limit: creditLimit } = useCreditAccessLimit(user?.id);
   const queryClient = useQueryClient();
   const { isOnline } = useOffline();
@@ -278,7 +278,7 @@ export function AgentTenantCollectDialog({
       }
 
       toast.success('Payment allocated!', {
-        description: `${formatUGX(amount)} moved from float for ${tenant.full_name}`,
+        description: `${formatUGX(amount)} moved from wallet float for ${tenant.full_name}`,
       });
 
       // Fire-and-forget: email the agent a friendly receipt + today's report
@@ -831,7 +831,7 @@ export function AgentTenantCollectDialog({
                       {formatUGX(result.commission?.credited_commission || Math.round(result.amount * 0.10))}
                     </span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">10% instantly credited to your commission wallet</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">10% instantly credited to your Agent Wallet</p>
                 </div>
               )}
               {result.commission_balance !== undefined && (
@@ -915,7 +915,7 @@ export function AgentTenantCollectDialog({
             <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 flex items-center gap-3">
               <Wallet className="h-5 w-5 text-primary shrink-0" />
               <div className="flex-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Operations Float</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Wallet Float</p>
                 <p className="text-lg font-bold font-mono text-primary">{formatUGX(floatBalance)}</p>
               </div>
             </div>
@@ -929,7 +929,7 @@ export function AgentTenantCollectDialog({
             {!canAllocate && floatBalance < 100 && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
                 <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                <p className="text-xs text-destructive">Your operations float is empty. Top it up before paying tenant rent.</p>
+                <p className="text-xs text-destructive">Your wallet float is empty. Top up Agent Float Allocation before paying tenant rent.</p>
               </div>
             )}
 
@@ -964,7 +964,7 @@ export function AgentTenantCollectDialog({
               {amount > floatBalance && amount <= outstandingBalance && (
                 <div className="flex items-center gap-1.5 mt-1">
                   <AlertCircle className="h-3 w-3 text-destructive" />
-                  <p className="text-[10px] text-destructive">Exceeds your float balance</p>
+                  <p className="text-[10px] text-destructive">Exceeds your wallet float balance</p>
                 </div>
               )}
               {amount > 0 && amount <= maxAllowable && (

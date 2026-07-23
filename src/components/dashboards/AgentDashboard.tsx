@@ -244,8 +244,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { wallet, refreshWallet, loading: walletLoading } = useWallet();
   const { commissionBalance, withdrawableBalance, otherBalance, refetch: refreshBalances, isLoading: balancesLoading } = useAgentBalances();
   const { floatBalance: walletFloatBalance } = useAgentBalances();
-  // CFO-allocated pool used by Pay Landlord. For normal agents this is the
-  // float users must see on wallet cards because payout validation uses it.
+  // CFO-allocated pool used only by Pay Landlord. Wallet cards must keep
+  // showing wallet/rent-collection float, not this separate payout pool.
   const { floatBalance: landlordPayoutFloat, isLoading: floatLoading } = useAgentLandlordFloat();
   const { isOnline } = useOffline();
 
@@ -585,7 +585,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // empty houses. `isMerchant` hides those surfaces; `guardMerchant()` blocks
   // any action that still gets triggered and shows a friendly explanation.
   const isMerchant = !!isCashoutAgent;
-  const visibleAgentFloatBalance = isMerchant ? walletFloatBalance : landlordPayoutFloat;
+  const visibleAgentFloatBalance = walletFloatBalance;
   const guardMerchant = () => {
     if (!isMerchant) return false;
     import('sonner').then(({ toast }) => toast.error(MERCHANT_RESTRICTION_MESSAGE));
@@ -1324,7 +1324,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             <AgentWalletDetailsCard
               agentId={user.id}
-              landlordFloatBalance={visibleAgentFloatBalance}
               onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
             />
             <AgentCompanyDebtCard onViewBreakdown={() => { hapticTap(); setTenantsSheetOpen(true); }} />

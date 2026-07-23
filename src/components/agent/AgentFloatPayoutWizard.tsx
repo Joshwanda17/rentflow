@@ -102,11 +102,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     return () => setCriticalFlowActive('agent-float-payout', false);
   }, [open]);
 
-  // AUTHORITATIVE landlord-payout float — must match the exact figure the
-  // `agent_allocate_tenant_payment` / withdrawal triggers gate against. The
-  // cached `agent_landlord_float.balance` column drifts (a stale row was
-  // showing UGX 3 while the ledger held the real float), so we always go
-  // through the `get_agent_float_balance` RPC via `useAgentLandlordFloat`.
+  // AUTHORITATIVE landlord-payout float — this is a separate CFO-funded pool
+  // used only by Pay Landlord. Tenant rent collections use wallet float instead.
   const { floatBalance: authoritativeFloat } = useAgentLandlordFloat(user?.id);
   const floatBalance = Number(authoritativeFloat ?? 0);
 
@@ -206,7 +203,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
           ? 'Enter an amount greater than 0'
           : !withinRent
             ? `Amount cannot exceed rent due (${formatUGX(rentDue)})`
-            : `Amount exceeds your landlord float (${formatUGX(Number(floatBalance ?? 0))}). Reduce the amount or top up float first.`,
+            : `Amount exceeds your Landlord Payout Float (${formatUGX(Number(floatBalance ?? 0))}). Reduce the amount or request Landlord Payout Float first.`,
       );
       return;
     }
@@ -571,7 +568,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       const req = selectedRequest;
       if (effectiveAmount <= 0) throw new Error('Enter an amount greater than 0');
       if (effectiveAmount > Number(req.rent_amount)) throw new Error('Amount exceeds rent due');
-      if (effectiveAmount > floatBalance) throw new Error('Insufficient landlord float balance');
+      if (effectiveAmount > floatBalance) throw new Error('Insufficient Landlord Payout Float');
       if (!phoneValid) throw new Error('Enter a valid landlord phone number');
 
       // Capture GPS — MANDATORY
@@ -595,7 +592,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
         gpsMatch = gpsDistanceMeters <= 500;
       }
 
-      // Deduct from float
+      // Deduct from Landlord Payout Float only. Wallet/rent-collection float is untouched.
       const { data: floatData } = await supabase
         .from('agent_landlord_float')
         .select('balance, total_paid_out')
@@ -603,7 +600,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
         .single();
 
       if (!floatData || floatData.balance < effectiveAmount) {
-        throw new Error('Insufficient float balance');
+        throw new Error('Insufficient Landlord Payout Float');
       }
 
       const { error: floatErr } = await supabase
@@ -615,7 +612,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
         } as any)
         .eq('agent_id', user.id);
 
-      if (floatErr) throw new Error('Failed to deduct from float');
+      if (floatErr) throw new Error('Failed to deduct from Landlord Payout Float');
 
       // Upload receipt photos
       const photoUrls: string[] = [];
@@ -703,7 +700,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
             Pay Landlord
           </DialogTitle>
           <Badge variant="outline" className="text-xs font-mono w-fit mt-1">
-            Float: {formatUGX(floatBalance)}
+            Landlord Payout Float: {formatUGX(floatBalance)}
           </Badge>
         </DialogHeader>
 
@@ -748,7 +745,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                           <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{format(new Date(r.created_at), 'dd MMM')}</span>
                         </div>
                         <div className="text-xs text-muted-foreground">Tenant: {r.tenant?.full_name || 'Unknown'}</div>
-                        {!canAfford && <p className="text-[10px] text-destructive">Insufficient float balance</p>}
+                        {!canAfford && <p className="text-[10px] text-destructive">Insufficient Landlord Payout Float</p>}
                         {canAfford && <div className="flex items-center justify-end"><ArrowRight className="h-4 w-4 text-chart-4" /></div>}
                       </CardContent>
                     </Card>
@@ -795,7 +792,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                     )}
                     {effectiveAmount > 0 && withinRent && !withinFloat && (
                       <p className="text-[11px] text-destructive">
-                        Amount exceeds your landlord float ({formatUGX(Number(floatBalance ?? 0))}). Reduce the amount or top up float first.
+                        Amount exceeds your Landlord Payout Float ({formatUGX(Number(floatBalance ?? 0))}). Reduce the amount or request Landlord Payout Float first.
                       </p>
                     )}
                   </div>

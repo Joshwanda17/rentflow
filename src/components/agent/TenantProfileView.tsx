@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { formatUGX, calculateRequestFee } from '@/lib/rentCalculations';
 import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
-import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
+import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -163,7 +163,7 @@ function Stat({
 export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentLandlordFloat(user?.id);
+  const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentBalances(user?.id);
   // Agent Field Mandate — tenant location capture banner + gate.
   const tenantLoc = useRequireContactLocation(tenantId, 'tenant');
   const [profile, setProfile] = useState<TenantProfile | null>(null);
@@ -1375,7 +1375,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
               <div className="flex items-center gap-2 bg-warning/10 border border-warning/30 rounded-xl p-3">
                 <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm text-warning font-semibold">Couldn't load your Operations Float.</p>
+                  <p className="text-sm text-warning font-semibold">Couldn't load your Wallet Float.</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => refetchFloat()} className="shrink-0 text-xs h-9">
                   Retry
@@ -1386,7 +1386,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             {!floatLoading && !floatError && agentFloatBalance < 500 && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl p-3">
                 <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-                <p className="text-sm text-destructive font-semibold">Insufficient float. Top up your operations float to collect.</p>
+                <p className="text-sm text-destructive font-semibold">Insufficient wallet float. Top up Agent Float Allocation to collect.</p>
               </div>
             )}
 
@@ -1395,9 +1395,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
               <div className="flex items-start gap-2.5">
                 <Wallet className="h-5 w-5 text-success mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-base font-bold text-success">Pay from Your Float</p>
+                  <p className="text-base font-bold text-success">Pay from Wallet Float</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Deducts from <strong>your operations float</strong>. You earn <strong className="text-success">10% commission</strong> instantly.
+                    Deducts from <strong>your wallet float</strong>. You earn <strong className="text-success">10% commission</strong> instantly.
                   </p>
                 </div>
               </div>
@@ -1414,19 +1414,19 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   });
                   if (floatLoading) {
                     sonnerToast.info("Loading your float…", {
-                      description: "Hold on a moment while we fetch your operations float balance.",
+                      description: "Hold on a moment while we fetch your wallet float balance.",
                     });
                     return;
                   }
                   if (floatError) {
-                    sonnerToast.error("Couldn't load your Operations Float", {
+                    sonnerToast.error("Couldn't load your Wallet Float", {
                       description: "Tap Retry above, or check your connection and try again.",
                     });
                     return;
                   }
                   if (agentFloatBalance < 500) {
-                    sonnerToast.error("Insufficient operations float", {
-                      description: `You have ${formatUGX(agentFloatBalance)} in float. Top up your operations float before paying tenant rent.`,
+                    sonnerToast.error("Insufficient wallet float", {
+                      description: `You have ${formatUGX(agentFloatBalance)} in wallet float. Top up Agent Float Allocation before paying tenant rent.`,
                     });
                     return;
                   }

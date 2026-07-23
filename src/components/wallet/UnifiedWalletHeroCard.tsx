@@ -129,7 +129,7 @@ export function UnifiedWalletHeroCard({
               <div className="bg-primary-foreground/15 rounded-xl p-3 min-w-0">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <PiggyBank className="h-3 w-3 text-primary-foreground/50" />
-                  <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Float</p>
+                  <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Wallet Float</p>
                 </div>
                 <p className="text-lg font-black tracking-tight leading-none text-primary-foreground whitespace-nowrap">
                   {formatAmount(floatBalance ?? 0)}

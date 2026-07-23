@@ -121,7 +121,7 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
     const amt = parseFloat(amount);
     if (!Number.isFinite(amt) || amt <= 0) return 'Enter a valid amount';
     if (floatBalance !== null && amt > floatBalance) {
-      return `Amount exceeds your float balance (${formatUGX(floatBalance)})`;
+      return `Amount exceeds your Landlord Payout Float (${formatUGX(floatBalance)})`;
     }
     if (!provider) return 'Select mobile money provider';
     return null;
@@ -226,7 +226,7 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
             {step === 'progress' && 'Disbursement in Progress'}
           </DialogTitle>
           <DialogDescription>
-            {step === 'form' && `Send rent from your float to ${property.name}`}
+            {step === 'form' && `Send rent from your Landlord Payout Float to ${property.name}`}
             {step === 'otp' && 'Ask the landlord for the 6-digit code we just SMS-ed them'}
             {step === 'progress' && 'Tracking the live mobile money transfer'}
           </DialogDescription>
@@ -238,7 +238,7 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
               {/* Float */}
               <div className="flex items-center justify-between p-3 rounded-xl border-2 border-primary/20 bg-primary/5">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Wallet className="h-4 w-4" /> Available float
+                  <Wallet className="h-4 w-4" /> Landlord Payout Float
                 </div>
                 <span className="font-mono font-bold text-primary">
                   {floatBalance === null ? '…' : formatUGX(floatBalance)}
@@ -292,7 +292,7 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
                 Send OTP to Landlord
               </Button>
               <p className="text-[11px] text-muted-foreground text-center">
-                Funds remain in your float until the landlord shares the OTP with you.
+                Funds remain in your Landlord Payout Float until the landlord shares the OTP with you.
               </p>
             </motion.div>
           )}

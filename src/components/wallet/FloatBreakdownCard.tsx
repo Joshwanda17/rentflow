@@ -229,7 +229,7 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-              Float balance
+              Wallet float balance
             </p>
             <p className="text-xl font-semibold text-foreground tabular-nums">
               {formatUGX(floatBalance)}

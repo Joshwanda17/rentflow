@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 
 interface AgentWalletDetailsCardProps {
   agentId?: string;
-  landlordFloatBalance?: number;
   onOpenWallet?: () => void;
 }
 
@@ -32,7 +31,7 @@ function formatAmount(amount: number): string {
   return `UGX ${amount.toLocaleString()}`;
 }
 
-export function AgentWalletDetailsCard({ agentId, landlordFloatBalance, onOpenWallet }: AgentWalletDetailsCardProps) {
+export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDetailsCardProps) {
   const {
     withdrawableBalance,
     floatBalance,
@@ -45,7 +44,7 @@ export function AgentWalletDetailsCard({ agentId, landlordFloatBalance, onOpenWa
   const [exporting, setExporting] = useState<'pdf' | null>(null);
 
   const isLoading = balancesLoading || countsLoading;
-  const visibleFloatBalance = landlordFloatBalance ?? floatBalance;
+  const visibleFloatBalance = floatBalance;
 
   const fetchLast25Entries = useCallback(async (): Promise<{ entries: LedgerEntry[]; userName: string } | null> => {
     if (!agentId) return null;
@@ -344,7 +343,7 @@ export function AgentWalletDetailsCard({ agentId, landlordFloatBalance, onOpenWa
             <div className="flex items-center justify-between gap-2 py-1.5 border-b border-border/30 last:border-0">
               <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <ArrowDownLeft className="h-3 w-3 text-amber-500" />
-                Landlord Payout Float
+                Wallet Float
               </span>
               <span className="text-xs font-medium text-foreground tabular-nums">{formatUGX(visibleFloatBalance)}</span>
             </div>
