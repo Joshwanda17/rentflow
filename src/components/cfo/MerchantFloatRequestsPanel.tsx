@@ -954,9 +954,11 @@ export function MerchantFloatRequestsPanel() {
                                           })}
                                         </div>
                                       )}
-                                    </div>
-                                  </div>
-                                );
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            );
                               })}
                             </div>
                           )}
