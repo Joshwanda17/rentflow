@@ -102,8 +102,13 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             if (profilesError) {
               console.error('[UserSearchPicker] profile search failed:', profilesError);
               setResults([]);
-              setPermissionDenied(true);
-              setSearchError(null);
+              if ((profilesError as any).code === '42501') {
+                setPermissionDenied(true);
+                setSearchError(null);
+              } else {
+                setPermissionDenied(false);
+                setSearchError(profilesError.message || 'Search failed. Please try again.');
+              }
               setLoading(false);
               return;
             }
@@ -130,8 +135,13 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
               if (roleError) {
                 console.error('[UserSearchPicker] role filter failed:', roleError);
                 setResults([]);
-                setPermissionDenied(true);
-                setSearchError(null);
+                if ((roleError as any).code === '42501') {
+                  setPermissionDenied(true);
+                  setSearchError(null);
+                } else {
+                  setPermissionDenied(false);
+                  setSearchError(roleError.message || 'Search failed. Please try again.');
+                }
                 setLoading(false);
                 return;
               }
@@ -154,8 +164,13 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             if (error) {
               console.error('[UserSearchPicker] search failed:', error);
               setResults([]);
-              setPermissionDenied(true);
-              setSearchError(null);
+              if ((error as any).code === '42501') {
+                setPermissionDenied(true);
+                setSearchError(null);
+              } else {
+                setPermissionDenied(false);
+                setSearchError(error.message || 'Search failed. Please try again.');
+              }
             } else {
               setResults(data || []);
             }
