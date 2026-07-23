@@ -55,6 +55,11 @@ const SubAgentInviteGate = optionalLazyWithRetry(() => import("@/components/agen
 const MerchantAgentReferralGate = optionalLazyWithRetry(() => import("@/components/merchant/MerchantAgentReferralGate"), "MerchantAgentReferralGate");
 const ForceResetPasswordGate = optionalLazyWithRetry(() => import("@/components/auth/ForceResetPasswordGate"), "ForceResetPasswordGate");
 
+// Field recruitment campaign pages
+const CampaignRedirect = lazyWithRetry(() => import("@/pages/CampaignRedirect"));
+const AgentCampaignsPage = lazyWithRetry(() => import("@/pages/AgentCampaignsPage"));
+const AdminRecruitmentCampaignsPage = lazyWithRetry(() => import("@/pages/AdminRecruitmentCampaignsPage"));
+
 // Deferred providers - loaded after first paint
 const CartProvider = lazyWithRetry(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
 const ComparisonProvider = lazyWithRetry(() => import("@/hooks/useProductComparison").then(m => ({ default: m.ComparisonProvider })));
