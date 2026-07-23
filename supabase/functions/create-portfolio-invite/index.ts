@@ -193,6 +193,7 @@ Deno.serve(async (req) => {
         "direct_confirmation_portfolio_funding",
         portfolioId,
         () => admin.rpc("create_ledger_transaction", {
+          idempotency_key: idempotencyKey,
           entries: [
             {
               user_id: partnerId,
@@ -219,7 +220,6 @@ Deno.serve(async (req) => {
               linked_party: partnerId,
             },
           ],
-          idempotency_key: idempotencyKey,
         }),
       );
 
