@@ -159,12 +159,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
     { sent: 0, received: 0 }
   );
 
-  const availableCategories = useMemo(() => {
-    if (!user?.id) return [];
-    const labels = new Set<string>();
-    transactions.forEach((tx) => labels.add(getCategoryLabel(tx, user.id)));
-    return Array.from(labels).sort();
-  }, [transactions, user?.id]);
 
   const netAmount = recentStats.received - recentStats.sent;
   const currentMonth = format(new Date(), 'MMMM yyyy');
