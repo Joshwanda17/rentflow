@@ -479,22 +479,36 @@ export function MerchantFloatRequestsPanel() {
     staleTime: 0,
     queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; cacheBalance: number; drift: number }> => {
       const agentId = expandedAgent!;
-      const [authRes, ledgerRes] = await Promise.all([
-        // Single source of truth — ledger-backed strict balance (matches every other screen).
-        supabase.rpc('get_authoritative_wallet', { p_user_id: agentId }),
-        supabase
-          .from('general_ledger')
-          .select('id, category, amount, direction, transaction_date, source_id')
-          .eq('user_id', agentId)
-          .eq('ledger_scope', 'wallet')
-          .eq('wallet_bucket', 'float')
-          // Match v_user_wallet_strict: only production rows (plus balance-correction debits).
-          .or('classification.is.null,classification.eq.production,and(classification.eq.admin_correction,category.eq.system_balance_correction,direction.in.(debit,cash_out))')
-          .order('transaction_date', { ascending: true })
-          .order('id', { ascending: true })
-          .limit(5000),
+      const [walletData, ledgerRows] = await Promise.all([
+        fetchOpsWallet(agentId).catch(() => null),
+        (async () => {
+          const pageSize = 1000;
+          const maxRows = 20_000;
+          const allRows: any[] = [];
+
+          for (let from = 0; from < maxRows; from += pageSize) {
+            const { data, error } = await supabase
+              .from('general_ledger')
+              .select('id, category, amount, direction, transaction_date, source_id')
+              .eq('user_id', agentId)
+              .eq('ledger_scope', 'wallet')
+              .eq('wallet_bucket', 'float')
+              // Match v_user_wallet_strict: only production rows (plus balance-correction debits).
+              .or('classification.is.null,classification.eq.production,and(classification.eq.admin_correction,category.eq.system_balance_correction,direction.in.(debit,cash_out))')
+              .order('transaction_date', { ascending: true })
+              .order('id', { ascending: true })
+              .range(from, from + pageSize - 1);
+
+            if (error) throw error;
+            const page = (data ?? []) as any[];
+            allRows.push(...page);
+            if (page.length < pageSize) break;
+          }
+
+          return allRows;
+        })(),
       ]);
-      const rows = (ledgerRes.data ?? []) as any[];
+      const rows = ledgerRows;
       const settlementSourceIds = Array.from(
         new Set(rows.filter((r) => r.direction === 'cash_out' && r.source_id).map((r) => String(r.source_id)))
       );
@@ -578,16 +592,14 @@ export function MerchantFloatRequestsPanel() {
         }
       }
       if (current) batches.push(current);
-      const auth = (authRes.data ?? {}) as any;
-      const authoritative = Number(auth?.float) || 0;
-      const cache = Number(auth?.cache?.float) || 0;
-      // Reconcile the timeline's final running to the authoritative figure. Any residual
-      // gap is surfaced as `drift` so the CFO knows repair is needed.
-      const drift = running - authoritative;
+      const cache = Number(walletData?.float) || 0;
+      // The timeline itself is computed from every visible float-bucket ledger row;
+      // the wallet cache is shown only as a drift comparator so it cannot hide newer activity.
+      const drift = cache - running;
       return {
         batches,
-        currentBalance: authoritative, // the ONE authoritative number for this agent's float
-        ledgerBalance: authoritative,
+        currentBalance: running,
+        ledgerBalance: running,
         cacheBalance: cache,
         drift,
       };
