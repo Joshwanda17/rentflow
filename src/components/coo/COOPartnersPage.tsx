@@ -3190,6 +3190,21 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <Button variant="outline" onClick={() => setAddPortfolioOpen(false)} disabled={addingPortfolio}>Cancel</Button>
             <Button
               type="button"
+              variant="secondary"
+              disabled={addingPortfolio || !detailPartner}
+              onClick={() => {
+                if (!detailPartner?.profile) return;
+                setAddPortfolioOpen(false);
+                setInvitePartnerPortfolio({
+                  id: detailPartner.profile.id,
+                  full_name: detailPartner.profile.full_name,
+                });
+              }}
+            >
+              <Mail className="h-4 w-4 mr-2" /> Invite via email
+            </Button>
+            <Button
+              type="button"
               onClick={handleAddPortfolio}
               disabled={addingPortfolio || !addPortfolioAmount || !isInvestAmountValid(Number(addPortfolioAmount))}
             >
