@@ -243,7 +243,7 @@ export function PartnersOpsDashboard() {
             <UserPlus className="h-3.5 w-3.5" /> Onboarding
           </Button>
           <Button size="sm" className="gap-1.5 text-xs" onClick={() => { setCreateForUser(null); setCreateOpen(true); }}>
-            <PlusCircle className="h-3.5 w-3.5" /> Create
+            <PlusCircle className="h-3.5 w-3.5" /> Send Portfolio Invite
           </Button>
         </div>
       </div>
