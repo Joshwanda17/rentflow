@@ -199,6 +199,7 @@ const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const AgentCashPayoutsPage = lazy(() => import('./pages/agent/CashPayouts'));
 const PayoutReceiptHistory = lazy(() => import('./pages/agent/PayoutReceiptHistory'));
+const MerchantTransactionHistory = lazy(() => import('./pages/agent/MerchantTransactionHistory'));
 const AgentFloatBreakdownPage = lazy(() => import('./pages/agent/FloatBreakdown'));
 const RentDisbursementProcessPage = lazy(() => import('./pages/RentDisbursementProcess'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
