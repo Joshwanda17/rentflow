@@ -203,6 +203,7 @@ export function AgentMenuDrawer({
         { icon: Heart, label: 'Invite Funder', description: 'Share signup for funders', onClick: onInviteFunder, accent: 'primary', badge: '💜' },
         { icon: Briefcase, label: 'Invite Investor', description: 'Angel Pool signup link', onClick: onInviteAngelInvestor, accent: 'purple-500', badge: '🦄' },
         { icon: Share2, label: 'Recruit Sub-Agent', description: 'WhatsApp / Copy link', onClick: onShareSubAgentLink, accent: 'green-500', badge: '🔗' },
+        { icon: Share2, label: 'Campaign Links', description: 'Field recruitment & QR codes', path: '/agent/campaigns', accent: 'orange-500', badge: '📣' },
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
