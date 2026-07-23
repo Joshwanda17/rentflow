@@ -28,7 +28,7 @@ import { buildPartnerReference } from '@/lib/partnerReference';
 import { useToast } from '@/hooks/use-toast';
 import PartnerAgreementSignOff, { type SignOffPartner } from '@/components/partner/PartnerAgreementSignOff';
 import PartnerCompanyDefaultsDialog from '@/components/partner/PartnerCompanyDefaultsDialog';
-import InvitedPortfoliosPanel from '@/components/executive/InvitedPortfoliosPanel';
+import { InvitedPortfoliosPanel } from '@/components/executive/InvitedPortfoliosPanel';
 
 interface FunderProfileRow {
   id: string;
