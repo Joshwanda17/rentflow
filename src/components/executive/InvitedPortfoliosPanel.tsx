@@ -502,6 +502,38 @@ function ReviewSubmissionDialog({
     ? [agreement.momo_provider, agreement.momo_number].filter(Boolean).join(' ') || 'Mobile money'
     : [agreement.bank_name, agreement.bank_account_number].filter(Boolean).join(' ') || '—';
 
+  const missingPartnerAgreementFields: string[] = [];
+  if (hasAgreement) {
+    if (!(agreement.national_id || profile.national_id)) missingPartnerAgreementFields.push('partner National ID');
+    if (!agreement.address) missingPartnerAgreementFields.push('residential address');
+    if (!agreement.kin_name) missingPartnerAgreementFields.push('next of kin name');
+    if (!agreement.kin_contact) missingPartnerAgreementFields.push('next of kin contact');
+    if (!agreement.payout_mode) {
+      missingPartnerAgreementFields.push('payout method');
+    } else if (agreement.payout_mode === 'momo') {
+      if (!agreement.momo_provider) missingPartnerAgreementFields.push('mobile money provider');
+      if (!agreement.momo_number) missingPartnerAgreementFields.push('mobile money number');
+      if (!(agreement.momo_name || profile.mobile_money_name)) missingPartnerAgreementFields.push('mobile money name');
+    } else {
+      if (!agreement.bank_name) missingPartnerAgreementFields.push('bank name');
+      if (!agreement.bank_account_name) missingPartnerAgreementFields.push('bank account name');
+      if (!agreement.bank_account_number) missingPartnerAgreementFields.push('bank account number');
+    }
+    if (!signature) missingPartnerAgreementFields.push('partner signature');
+  }
+
+  const approvalBlockers = [
+    ...(isLoading ? ['Partner agreement details are still loading.'] : []),
+    ...(!isLoading && !hasAgreement ? ['Missing partner agreement submission. The partner must complete the agreement before approval.'] : []),
+    ...(!isLoading && hasAgreement ? missingPartnerAgreementFields.map(field => `Missing ${field} in the partner agreement.`) : []),
+    ...(!repName.trim() ? ['Missing Welile representative name.'] : []),
+    ...(!repPosition.trim() ? ['Missing Welile representative position.'] : []),
+    ...(!repContact.trim() ? ['Missing Welile representative contact.'] : []),
+    ...(!(sigDataUrl || defaultSigUrl) ? ['Missing Welile representative signature.'] : []),
+  ];
+  const approvalBlocked = approvalBlockers.length > 0;
+  const approvalBlockedText = approvalBlockers.join(' ');
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-6xl w-[97vw] h-[94vh] p-0 gap-0 overflow-hidden flex flex-col">
@@ -626,82 +658,55 @@ function ReviewSubmissionDialog({
                 <Separator />
 
                 <div className="flex flex-col gap-2 pb-2">
+                  {approvalBlocked && (
+                    <div
+                      id="portfolio-approval-blockers"
+                      className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-300"
+                    >
+                      <div className="flex items-start gap-2">
+                        <MailWarning className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold">Approval blocked</p>
+                          <ul className="list-disc space-y-0.5 pl-4 text-[11px] leading-relaxed">
+                            {approvalBlockers.map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <Button
                     type="button"
                     onClick={() => {
-                      if (!repName.trim()) {
-                        toast.error('Enter the representative name before approving.');
+                      if (approvalBlocked) {
+                        toast.error('Approval blocked', { description: approvalBlockers[0] });
                         return;
                       }
-                      if (!repPosition.trim()) {
-                        toast.error('Enter the representative position before approving.');
-                        return;
-                      }
-                      if (!repContact.trim()) {
-                        toast.error('Enter a contact (phone or email) before approving.');
-                        return;
-                      }
-                      if (!(sigDataUrl || defaultSigUrl)) {
-                        toast.error('Upload the Welile representative signature before approving.');
-                        return;
-                      }
-                      // Fall back to a minimal preview payload built from the
-                      // partner profile + portfolio row when the partner has
-                      // not submitted a full agreement yet. This unblocks
-                      // approval for direct-confirmation portfolios where no
-                      // `partner_agreements` row exists.
-                      const finalPreview: AgreementPreviewData = previewData ?? {
-                        partnerName: profile.full_name || row.partner_name || '',
-                        partnerId: profile.national_id || '',
-                        partnerAddress: '',
-                        partnerPhone: profile.phone || row.partner_phone || '',
-                        partnerEmail: profile.email || row.partner_email || '',
-                        partnershipAmount: Number(row.investment_amount) || 0,
-                        payoutMode: 'momo',
-                        bankName: '',
-                        bankAccountName: '',
-                        bankAccountNumber: '',
-                        momoProvider: '',
-                        momoNumber: profile.phone || row.partner_phone || '',
-                        momoName: profile.mobile_money_name || profile.full_name || '',
-                        kinName: '',
-                        kinContact: '',
-                        agreementDate: new Date(),
-                        partnerSignatureDataUrl: undefined,
-                        welileRepName: repName,
-                        welileRepPosition: repPosition,
-                        welileRepContact: repContact,
-                        welileSignatureDataUrl: sigDataUrl || defaultSigUrl,
-                        includeStamp: true,
-                      };
+                      if (!previewData) return;
                       onApprove(row, {
                         repName,
                         repPosition,
                         repContact,
                         sigDataUrl: sigDataUrl || defaultSigUrl,
-                        previewData: finalPreview,
+                        previewData,
                       });
                     }}
-                    disabled={approving}
+                    disabled={approving || approvalBlocked}
+                    aria-describedby={approvalBlocked ? 'portfolio-approval-blockers' : undefined}
+                    title={approvalBlocked ? approvalBlockedText : 'Approve portfolio and send final agreement'}
                     className="gap-1.5"
                   >
                     {approving
                       ? <><Loader2 className="h-4 w-4 animate-spin" /> Approving…</>
-                      : <><ShieldCheck className="h-4 w-4" /> Approve &amp; send final agreement</>}
+                      : approvalBlocked
+                        ? <><ShieldCheck className="h-4 w-4" /> Cannot approve yet</>
+                        : <><ShieldCheck className="h-4 w-4" /> Approve &amp; send final agreement</>}
                   </Button>
                   <Button variant="outline" size="sm" onClick={onClose} disabled={approving}>Close</Button>
                   <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
                     <Mail className="h-3 w-3" /> Flips the portfolio to <b className="mx-1">Active</b> and emails the executed agreement.
                   </p>
-                  {(!repName.trim() || !repPosition.trim() || !repContact.trim() || !(sigDataUrl || defaultSigUrl)) && (
-                    <p className="text-[10px] text-amber-600">
-                      Missing:
-                      {!repName.trim() && ' name'}
-                      {!repPosition.trim() && ' · position'}
-                      {!repContact.trim() && ' · contact'}
-                      {!(sigDataUrl || defaultSigUrl) && ' · signature'}
-                    </p>
-                  )}
                 </div>
               </>
             )}
