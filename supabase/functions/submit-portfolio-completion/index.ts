@@ -46,6 +46,17 @@ Deno.serve(async (req) => {
     const mobileMoneyName = body?.mobile_money_name ? String(body.mobile_money_name).trim().slice(0, 120) : null;
     const signatureDataUrl: string | null = typeof body?.signature_data_url === "string" ? body.signature_data_url : null;
 
+    const address = body?.address ? String(body.address).trim().slice(0, 240) : null;
+    const kinName = body?.kin_name ? String(body.kin_name).trim().slice(0, 120) : null;
+    const kinContact = body?.kin_contact ? String(body.kin_contact).trim().slice(0, 40) : null;
+    const payoutMode = body?.payout_mode === 'bank' ? 'bank' : (body?.payout_mode === 'momo' ? 'momo' : null);
+    const bankName = body?.bank_name ? String(body.bank_name).trim().slice(0, 120) : null;
+    const bankAccountName = body?.bank_account_name ? String(body.bank_account_name).trim().slice(0, 120) : null;
+    const bankAccountNumber = body?.bank_account_number ? String(body.bank_account_number).trim().slice(0, 40) : null;
+    const momoProvider = body?.momo_provider ? String(body.momo_provider).trim().slice(0, 60) : null;
+    const momoNumber = body?.momo_number ? String(body.momo_number).trim().slice(0, 40) : null;
+    const momoName = body?.momo_name ? String(body.momo_name).trim().slice(0, 120) : null;
+
     if (!UUID.test(portfolioId)) return json({ error: "This invite link is invalid." }, 400);
     if (!rawToken || rawToken.length < 32) return json({ error: "This invite link is invalid." }, 400);
     if (signatureDataUrl && !signatureDataUrl.startsWith("data:image/")) {
@@ -78,23 +89,84 @@ Deno.serve(async (req) => {
     const patch: Record<string, unknown> = {};
     if (nationalId) patch.national_id = nationalId;
     if (mobileMoneyName) patch.mobile_money_name = mobileMoneyName;
+    if (address) patch.landmark = address;
     if (Object.keys(patch).length > 0) {
       const { error: profErr } = await admin.from("profiles").update(patch).eq("id", caller.id);
       if (profErr) console.warn("[submit-portfolio-completion] Profile patch failed (non-blocking):", profErr.message);
     }
 
-    // Persist signature snapshot on partner_agreements if the column exists on
-    // this partner's master agreement — mirrors the memory
-    // (mem://features/partner/partner-signature-persistence).
-    if (signatureDataUrl) {
-      try {
-        await admin.from("partner_agreements")
-          .update({ partner_signature_data_url: signatureDataUrl })
-          .eq("user_id", caller.id)
-          .is("partner_signature_data_url", null);
-      } catch (e) {
-        console.warn("[submit-portfolio-completion] Signature persist failed (non-blocking):", (e as Error)?.message);
+    // Persist every contract field the partner filled in on their master
+    // partner_agreements row so the generated PDF prefills correctly.
+    try {
+      const agPatch: Record<string, unknown> = {};
+      if (nationalId) agPatch.national_id = nationalId;
+      if (address) agPatch.address = address;
+      if (kinName) agPatch.kin_name = kinName;
+      if (kinContact) agPatch.kin_contact = kinContact;
+      if (payoutMode) agPatch.payout_mode = payoutMode;
+      if (payoutMode === 'bank') {
+        if (bankName) agPatch.bank_name = bankName;
+        if (bankAccountName) agPatch.bank_account_name = bankAccountName;
+        if (bankAccountNumber) agPatch.bank_account_number = bankAccountNumber;
+      } else if (payoutMode === 'momo') {
+        if (momoProvider) agPatch.momo_provider = momoProvider;
+        if (momoNumber) agPatch.momo_number = momoNumber;
+        if (momoName) agPatch.momo_name = momoName;
       }
+      if (signatureDataUrl) agPatch.partner_signature_data_url = signatureDataUrl;
+
+      const { data: existingAg } = await admin
+        .from("partner_agreements")
+        .select("id")
+        .eq("partner_id", caller.id)
+        .maybeSingle();
+      if (existingAg?.id) {
+        if (Object.keys(agPatch).length > 0) {
+          await admin.from("partner_agreements").update(agPatch).eq("id", existingAg.id);
+        }
+      } else {
+        const { data: prof } = await admin.from("profiles")
+          .select("full_name, phone, email").eq("id", caller.id).maybeSingle();
+        await admin.from("partner_agreements").insert({
+          partner_id: caller.id,
+          full_name: prof?.full_name || null,
+          phone: prof?.phone || null,
+          email: prof?.email || null,
+          status: 'pending',
+          reference: `PA-${caller.id.slice(0, 8).toUpperCase()}`,
+          ...agPatch,
+        });
+      }
+    } catch (e) {
+      console.warn("[submit-portfolio-completion] Agreement persist failed (non-blocking):", (e as Error)?.message);
+    }
+
+    // Save/refresh the partner's default payout method so future ROI payouts
+    // route without an Ops fill-in.
+    if (payoutMode === 'bank' && bankName && bankAccountNumber) {
+      try {
+        await admin.from("saved_payout_methods").upsert({
+          user_id: caller.id,
+          payout_mode: 'bank',
+          nickname: bankName,
+          bank_name: bankName,
+          bank_account_name: bankAccountName,
+          bank_account_number: bankAccountNumber,
+          is_default: true,
+        }, { onConflict: 'user_id,payout_mode,bank_account_number' });
+      } catch (e) { console.warn("[submit-portfolio-completion] Bank payout save failed:", (e as Error)?.message); }
+    } else if (payoutMode === 'momo' && momoNumber) {
+      try {
+        await admin.from("saved_payout_methods").upsert({
+          user_id: caller.id,
+          payout_mode: 'momo',
+          nickname: `${momoProvider || 'Mobile Money'} ${momoNumber}`.trim(),
+          momo_provider: momoProvider,
+          momo_number: momoNumber,
+          momo_name: momoName,
+          is_default: true,
+        }, { onConflict: 'user_id,payout_mode,momo_number' });
+      } catch (e) { console.warn("[submit-portfolio-completion] MoMo payout save failed:", (e as Error)?.message); }
     }
 
     // Fetch portfolio + partner details for the confirmation emails.
