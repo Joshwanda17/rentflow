@@ -1,6 +1,7 @@
 // Offline-first dashboard data hook for instant loading on smartphones
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWallet } from './ops/useOpsDataLayer';
 import { useAuth } from './useAuth';
 import { 
   cacheDashboardData, 

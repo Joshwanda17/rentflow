@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { useAuth } from './useAuth';
 import { getCachedDashboardData, cacheDashboardData } from '@/lib/offlineDataStorage';
 

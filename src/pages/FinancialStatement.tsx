@@ -10,6 +10,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
