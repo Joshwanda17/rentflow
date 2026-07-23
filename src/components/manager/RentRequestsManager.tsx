@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWalletBuckets } from '@/hooks/ops/useOpsDataLayer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -210,10 +211,9 @@ export function RentRequestsManager() {
       // repayments table removed - stub
       (() => Promise.resolve({ data: [] }))(),
       tenantIds.length > 0
-        ? Promise.all(chunkArray(tenantIds, 50).map(chunk =>
-            supabase.from('wallets').select('user_id, balance').in('user_id', chunk)
-          )).then(results => ({ data: results.flatMap(r => r.data || []) }))
-        : Promise.resolve({ data: [] }),
+        ? fetchOpsWalletBuckets(tenantIds).then(rows =>
+            ({ data: rows.map(r => ({ user_id: r.user_id, balance: r.balance })) }))
+        : Promise.resolve({ data: [] as { user_id: string; balance: number }[] }),
     ]);
 
     const profiles = profileResults.flatMap(r => r.data || []);
