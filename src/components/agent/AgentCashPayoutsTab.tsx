@@ -38,6 +38,8 @@ import {
   getWithdrawalQueueCategory,
   type CashoutAgentConfig,
 } from '@/lib/cashoutAgentConfig';
+import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
+import { AlertTriangle } from 'lucide-react';
 
 // Aligned with FinOps dashboard (FinOpsWithdrawalVerification) so pending counts match across dashboards.
 const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
