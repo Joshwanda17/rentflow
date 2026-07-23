@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { format } from 'date-fns';
-import { Trophy, UsersRound, Home, Banknote, Crown, Medal, Sparkles, CheckCircle2, Clock } from 'lucide-react';
+import { Trophy, UsersRound, Home, Banknote, Crown, Medal, Sparkles, CheckCircle2, Clock, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -53,6 +54,7 @@ interface Overview {
  * RLS and always see full aggregate + leaderboard for the current week.
  */
 export function AgentListingCampaignPanel() {
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
   const { data, isLoading, error } = useQuery({
     queryKey: ['agent-listing-campaign-ops-overview'],
     staleTime: 60_000,
@@ -200,20 +202,15 @@ export function AgentListingCampaignPanel() {
               </thead>
               <tbody>
                 {(data?.top_agents ?? []).map((row, i) => (
-                  <tr key={row.agent_id} className="border-t border-border">
-                    <td className="px-4 py-2 tabular-nums text-muted-foreground">{i + 1}</td>
-                    <td className="px-4 py-2">
-                      <div className="font-medium">{row.agent_name || row.agent_id.slice(0, 8) + '…'}</div>
-                      {row.agent_phone && (
-                        <div className="text-xs text-muted-foreground">{row.agent_phone}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums">{row.invited_count ?? 0}</td>
-                    <td className="px-4 py-2 text-right tabular-nums font-semibold">{row.verified_count ?? 0}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {((row.verified_count ?? 0) * 3000).toLocaleString()}
-                    </td>
-                  </tr>
+                  <AgentLeaderboardRow
+                    key={row.agent_id}
+                    row={row}
+                    rank={i + 1}
+                    expanded={expandedAgent === row.agent_id}
+                    onToggle={() =>
+                      setExpandedAgent(expandedAgent === row.agent_id ? null : row.agent_id)
+                    }
+                  />
                 ))}
               </tbody>
             </table>
