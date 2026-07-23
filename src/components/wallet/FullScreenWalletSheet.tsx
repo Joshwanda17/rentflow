@@ -79,9 +79,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
-  const storedFilters = useMemo(() => readStoredFilters(), []);
-  const [activeTab, setActiveTab] = useState<TabValue>(storedFilters?.activeTab ?? 'all');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | string>(storedFilters?.categoryFilter ?? 'all');
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
