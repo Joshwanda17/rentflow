@@ -339,34 +339,12 @@ export function LandlordSearchSelect({
         }
       } catch (err) {
         if (isAborted()) return;
-        // Resilient fallback: plain ILIKE search if the fuzzy RPC fails.
-        try {
-          let q = supabase
-            .from('landlords_directory')
-            .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
-            .eq('verified', true)
-            .order('name', { ascending: true })
-            .limit(20);
-          if (debounced.length > 0) {
-            const digits = debounced.replace(/\D/g, '');
-            const orParts = [`name.ilike.%${debounced}%`, `phone.ilike.%${debounced}%`];
-            if (digits.length >= 3 && digits !== debounced) {
-              orParts.push(`phone.ilike.%${digits}%`);
-            }
-            q = q.or(orParts.join(','));
-          }
-          const { data, error } = await q.abortSignal(signal);
-          if (error) throw error;
-          if (!isAborted()) {
-            setResults(((data ?? []) as LandlordOption[]));
-            setCancelledInfo(null);
-          }
-        } catch (fallbackErr) {
-          if (!isAborted()) {
-            console.warn('[LandlordSearchSelect] fetch failed', err, fallbackErr);
-            setResults([]);
-          }
-        }
+        // No ILIKE fallback: the trigram RPC is the only search path.
+        // A cross-table ILIKE on `landlords` (or `landlords_directory`) with
+        // ORDER BY name + LIMIT bypasses the trigram index and pins the DB CPU
+        // at 100% under load, so we surface an empty result instead.
+        console.warn('[LandlordSearchSelect] search_landlords_fuzzy failed', err);
+        if (!isAborted()) setResults([]);
       } finally {
         reqState.settled = true;
         if (!isAborted()) setLoading(false);
