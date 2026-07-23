@@ -20,7 +20,10 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, IdCard, Phone, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import AgreementHtmlPreview, { type AgreementPreviewData } from '@/components/partner/AgreementHtmlPreview';
+import { buildPartnerReference } from '@/lib/partnerReference';
 
 type InviteStatus = 'awaiting_partner_details' | 'pending_ops_approval';
 
@@ -369,98 +372,154 @@ function ReviewSubmissionDialog({
 
   if (!row) return null;
   const profile: any = submission?.profile || {};
-  const signature = submission?.agreement?.partner_signature_data_url as string | undefined;
+  const agreement: any = submission?.agreement || {};
+  const signature = agreement.partner_signature_data_url as string | undefined;
   const submittedAt = submission?.token?.consumed_at as string | undefined;
+
+  const previewData: AgreementPreviewData | null = agreement && agreement.partnership_amount != null ? {
+    partnerName: profile.full_name || agreement.full_name || row.partner_name || '',
+    partnerId: agreement.national_id || profile.national_id || '',
+    partnerAddress: agreement.address || '',
+    partnerPhone: agreement.phone || profile.phone || row.partner_phone || '',
+    partnerEmail: agreement.email || profile.email || row.partner_email || '',
+    partnershipAmount: Number(agreement.partnership_amount) || Number(row.investment_amount) || 0,
+    payoutMode: agreement.payout_mode === 'momo' ? 'momo' : 'bank',
+    bankName: agreement.bank_name || '',
+    bankAccountName: agreement.bank_account_name || '',
+    bankAccountNumber: agreement.bank_account_number || '',
+    momoProvider: agreement.momo_provider || '',
+    momoNumber: agreement.momo_number || '',
+    momoName: agreement.momo_name || profile.mobile_money_name || '',
+    kinName: agreement.kin_name || '',
+    kinContact: agreement.kin_contact || '',
+    agreementDate: agreement.signed_at ? new Date(agreement.signed_at) : new Date(),
+    partnerSignatureDataUrl: signature,
+    includeStamp: false,
+  } : null;
+
+  const partnerName = profile.full_name || row.partner_name;
+  const payoutLabel = agreement.payout_mode === 'momo'
+    ? [agreement.momo_provider, agreement.momo_number].filter(Boolean).join(' ') || 'Mobile money'
+    : [agreement.bank_name, agreement.bank_account_number].filter(Boolean).join(' ') || '—';
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            Review partner submission
+      <DialogContent className="max-w-6xl w-[97vw] h-[94vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-4 py-3 border-b shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4 text-primary" /> Review partner submission
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Confirm the details {profile.full_name || row.partner_name} entered before activating this portfolio.
+            Review what {partnerName} submitted for portfolio {row.portfolio_code}, then approve to activate it and email the final agreement.
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
-          <div className="space-y-2 py-2">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-        ) : (
-          <div className="space-y-4 text-sm">
-            {/* Partner identity */}
-            <section className="rounded-lg border p-3 space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Partner</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                <Row2 icon={<User className="h-3.5 w-3.5" />} label="Full name" value={profile.full_name} />
-                <Row2 icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={profile.phone} />
-                <Row2 icon={<Mail className="h-3.5 w-3.5" />} label="Email" value={profile.email} />
-                <Row2 icon={<IdCard className="h-3.5 w-3.5" />} label="National ID" value={profile.national_id} />
-                <Row2 icon={<User className="h-3.5 w-3.5" />} label="MoMo name" value={profile.mobile_money_name} />
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[360px_1fr]">
+          {/* LEFT — partner + submission summary */}
+          <div className="border-r overflow-y-auto p-4 space-y-4 bg-muted/20">
+            <div className="rounded-xl bg-background border p-3 space-y-1">
+              <p className="text-sm font-bold">{partnerName || 'Unknown partner'}</p>
+              <p className="text-[11px] font-mono text-muted-foreground">
+                Ref: {buildPartnerReference(row.investor_id, row.created_at)}
+              </p>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{profile.phone || row.partner_phone || '—'}</span>
+                {(profile.email || row.partner_email) && (
+                  <span className="truncate inline-flex items-center gap-1"><Mail className="h-3 w-3" />{profile.email || row.partner_email}</span>
+                )}
               </div>
-            </section>
+            </div>
 
-            {/* Portfolio terms */}
-            <section className="rounded-lg border p-3 space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Portfolio terms</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                <div><p className="text-muted-foreground">Code</p><p className="font-mono font-semibold">{row.portfolio_code}</p></div>
-                <div><p className="text-muted-foreground">Amount</p><p className="font-bold">{formatUGX(row.investment_amount)}</p></div>
-                <div><p className="text-muted-foreground">ROI</p><p className="font-semibold">{row.roi_percentage}%{row.roi_mode ? ` · ${row.roi_mode.replace(/_/g, ' ')}` : ''}</p></div>
-                <div><p className="text-muted-foreground">Tenor</p><p className="font-semibold">{row.duration_months ?? '—'} mo</p></div>
+            {isLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-24 w-full" />
               </div>
-              {submittedAt && (
-                <p className="text-[11px] text-muted-foreground pt-1 border-t">
-                  Submitted {format(new Date(submittedAt), 'PPpp')} · {formatDistanceToNow(new Date(submittedAt), { addSuffix: true })}
-                </p>
-              )}
-            </section>
+            ) : (
+              <>
+                <section className="space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground">Partner submitted</p>
+                  <ReadRow label="National ID" value={agreement.national_id || profile.national_id || '—'} />
+                  <ReadRow label="Address" value={agreement.address || '—'} />
+                  <ReadRow label="Payout" value={payoutLabel} />
+                  <ReadRow
+                    label="Next of kin"
+                    value={[agreement.kin_name, agreement.kin_contact].filter(Boolean).join(' · ') || '—'}
+                  />
+                  <ReadRow label="MoMo name" value={profile.mobile_money_name || agreement.momo_name || '—'} />
+                </section>
 
-            {/* Signature */}
-            <section className="rounded-lg border p-3 space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Signature</p>
-              {signature ? (
-                <div className="bg-white rounded border p-2 flex items-center justify-center">
-                  <img src={signature} alt="Partner signature" className="max-h-32 object-contain" />
+                <Separator />
+
+                <section className="space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground">Portfolio terms</p>
+                  <ReadRow label="Code" value={row.portfolio_code} />
+                  <ReadRow label="Amount" value={formatUGX(row.investment_amount)} />
+                  <ReadRow
+                    label="ROI"
+                    value={`${row.roi_percentage}%${row.roi_mode ? ` · ${row.roi_mode.replace(/_/g, ' ')}` : ''}`}
+                  />
+                  <ReadRow label="Tenor" value={`${row.duration_months ?? '—'} mo`} />
+                  {submittedAt && (
+                    <p className="text-[10px] text-muted-foreground pt-1">
+                      Submitted {format(new Date(submittedAt), 'PPp')} · {formatDistanceToNow(new Date(submittedAt), { addSuffix: true })}
+                    </p>
+                  )}
+                </section>
+
+                <Separator />
+
+                <section className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground">Signature</p>
+                  {signature ? (
+                    <div className="bg-white rounded border p-2 flex items-center justify-center">
+                      <img src={signature} alt="Partner signature" className="max-h-24 object-contain" />
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-amber-600 italic">No signature captured — partner may have typed their name only.</p>
+                  )}
+                </section>
+
+                <Separator />
+
+                <div className="flex flex-col gap-2 pb-2">
+                  <Button onClick={() => onApprove(row)} disabled={approving} className="gap-1.5">
+                    {approving
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Approving…</>
+                      : <><ShieldCheck className="h-4 w-4" /> Approve &amp; send final agreement</>}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={onClose} disabled={approving}>Close</Button>
+                  <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> Activates the portfolio and emails the executed agreement.
+                  </p>
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">No signature captured — partner may have typed their name only.</p>
-              )}
-            </section>
+              </>
+            )}
           </div>
-        )}
 
-        <DialogFooter className="gap-2 flex-col sm:flex-row">
-          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
-          <Button
-            size="sm"
-            className="gap-1.5"
-            disabled={approving}
-            onClick={() => onApprove(row)}
-          >
-            {approving
-              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Approving…</>
-              : <><ShieldCheck className="h-3.5 w-3.5" /> Approve & send final agreement</>}
-          </Button>
-        </DialogFooter>
+          {/* RIGHT — live agreement preview */}
+          <div className="overflow-y-auto bg-slate-100 p-3 sm:p-6">
+            <div className="mx-auto max-w-[760px] bg-white shadow-lg rounded-sm">
+              {previewData ? (
+                <AgreementHtmlPreview data={previewData} />
+              ) : (
+                <div className="p-10 text-center text-sm text-muted-foreground">
+                  {isLoading ? 'Loading agreement…' : 'No agreement submitted yet.'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function Row2({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string | null }) {
+function ReadRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start gap-2 min-w-0">
-      <span className="text-muted-foreground shrink-0 mt-0.5">{icon}</span>
-      <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="font-medium truncate">{value || <span className="text-muted-foreground italic">Not provided</span>}</p>
-      </div>
+    <div className="flex items-baseline justify-between gap-3 text-xs">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-medium text-foreground text-right break-words">{value}</span>
     </div>
   );
 }
