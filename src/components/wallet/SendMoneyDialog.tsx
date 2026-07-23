@@ -77,6 +77,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
   const [draftNickname, setDraftNickname] = useState('');
   const [recipientSearch, setRecipientSearch] = useState('');
+  const [approvedDepositCount, setApprovedDepositCount] = useState<number | null>(null);
+  const MIN_APPROVED_DEPOSITS = 10;
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   type RecipientMatch = {
@@ -101,6 +103,34 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setSavedRecipients(sortRecipients(loadRecipients(user?.id)));
     }
   }, [open, user?.id]);
+
+  // Anti-fraud gate: user-to-user transfers require at least 10 approved deposits.
+  // We fetch the current count each time the dialog opens so the message and the
+  // disabled state reflect the freshest server truth.
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { count, error } = await supabase
+        .from('deposit_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('status', 'approved');
+      if (cancelled) return;
+      if (error) {
+        // On error we still allow the server-side gate to be the final word.
+        setApprovedDepositCount(null);
+        return;
+      }
+      setApprovedDepositCount(count ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [open, user?.id]);
+
+  const depositsCompleted = approvedDepositCount ?? 0;
+  const transferLocked =
+    approvedDepositCount !== null && depositsCompleted < MIN_APPROVED_DEPOSITS;
+  const depositsRemaining = Math.max(0, MIN_APPROVED_DEPOSITS - depositsCompleted);
 
   // Fill the input from a saved recipient chip — the debounced lookup re-resolves them.
   const selectSavedRecipient = (r: SavedRecipient) => {
@@ -348,6 +378,9 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   // Returned string is shown inline; null means the button is enabled.
   const getDisabledReason = (): string | null => {
     if (loading) return 'Sending… please wait.';
+    if (transferLocked) {
+      return `Sending to another user unlocks after ${MIN_APPROVED_DEPOSITS} approved deposits (${depositsCompleted}/${MIN_APPROVED_DEPOSITS}).`;
+    }
     const amountNum = parseFloat(amount);
     if (mode === 'phone' && !phone.trim()) return 'Enter the recipient phone number to continue.';
     if (mode === 'email' && !email.trim()) return 'Enter the recipient email to continue.';
