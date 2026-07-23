@@ -544,7 +544,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
           fund_sources: (fundSourcesMap.get(r.user_id) || []).sort((a, b) => b.total - a.total),
         }));
 
-        setRequests(enrichedRequests);
+        setRequests(enrichedRequests as unknown as WithdrawalRequest[]);
       } else {
         setRequests([]);
       }
