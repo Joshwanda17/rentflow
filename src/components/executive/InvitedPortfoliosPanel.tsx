@@ -289,29 +289,6 @@ export function InvitedPortfoliosPanel() {
                     </div>
                   </div>
 
-                  {/* Approve action */}
-                  {row.status === 'pending_ops_approval' && (
-                    <div className="flex justify-end gap-2 pt-1 border-t border-border/40">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-xs"
-                        onClick={() => setReviewRow(row)}
-                      >
-                        <Eye className="h-3.5 w-3.5" /> Review submission
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="gap-1.5 text-xs"
-                        disabled={approvingId === row.id}
-                        onClick={() => handleApprove(row)}
-                      >
-                        {approvingId === row.id
-                          ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Approving…</>
-                          : <><ShieldCheck className="h-3.5 w-3.5" /> Approve & send final agreement</>}
-                      </Button>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             );
