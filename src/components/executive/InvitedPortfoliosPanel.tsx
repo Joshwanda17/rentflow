@@ -6,23 +6,26 @@
 // goes to the `approve-pending-portfolio` edge function which flips the
 // portfolio to `active` and dispatches the final signed agreement.
 // ═══════════════════════════════════════════════════════════════════════════
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, Phone } from 'lucide-react';
+import { Loader2, Search, Mail, MailWarning, ShieldCheck, RefreshCw, Inbox, Eye, Phone, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import AgreementHtmlPreview, { type AgreementPreviewData } from '@/components/partner/AgreementHtmlPreview';
+import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
+import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
 import { buildPartnerReference } from '@/lib/partnerReference';
 
 type InviteStatus = 'awaiting_partner_details' | 'pending_ops_approval';
@@ -131,7 +134,16 @@ export function InvitedPortfoliosPanel() {
     };
   }, [data]);
 
-  const handleApprove = async (row: Row) => {
+  const handleApprove = async (
+    row: Row,
+    countersign?: {
+      repName: string;
+      repPosition: string;
+      repContact: string;
+      sigDataUrl?: string;
+      previewData: AgreementPreviewData;
+    },
+  ) => {
     setApprovingId(row.id);
     try {
       const { data: res, error } = await supabase.functions.invoke('approve-pending-portfolio', {
@@ -139,6 +151,38 @@ export function InvitedPortfoliosPanel() {
       });
       if (error) throw error;
       if ((res as any)?.error) throw new Error((res as any).error);
+
+      // If Partner Ops filled in the Welile counter-signature fields, render
+      // the executed PDF from the exact same HTML shown in the preview and
+      // store/email it via `generate-partner-agreement`. This mirrors the
+      // Sign-off dialog flow so the counter-signed contract is produced in
+      // the same request.
+      if (countersign && countersign.repName.trim()) {
+        try {
+          const pdfBase64 = await renderAgreementPdfBase64(
+            buildAgreementHtml(countersign.previewData),
+          );
+          await supabase.functions.invoke('generate-partner-agreement', {
+            body: {
+              partnerId: row.investor_id,
+              countersign: true,
+              pdfBase64,
+              rep: {
+                name: countersign.repName.trim(),
+                position: countersign.repPosition.trim(),
+                contact: countersign.repContact.trim(),
+                signatureBase64: countersign.sigDataUrl || undefined,
+              },
+            },
+          });
+        } catch (e: any) {
+          console.warn('[approve] counter-signature dispatch failed:', e?.message);
+          toast.warning('Portfolio approved, but counter-signed PDF failed to generate.', {
+            description: e?.message || 'Retry from the Sign-off dialog.',
+          });
+        }
+      }
+
       toast.success('Portfolio approved', {
         description: `${row.portfolio_code} is now active. Final agreement sent to ${row.partner_name}.`,
       });
@@ -331,15 +375,32 @@ function ReviewSubmissionDialog({
 }: {
   row: Row | null;
   onClose: () => void;
-  onApprove: (row: Row) => void;
+  onApprove: (
+    row: Row,
+    countersign?: {
+      repName: string;
+      repPosition: string;
+      repContact: string;
+      sigDataUrl?: string;
+      previewData: AgreementPreviewData;
+    },
+  ) => void;
   approving: boolean;
 }) {
   const open = !!row;
+  // Welile counter-signature fields — filled by Partner Ops before approval.
+  // Prefilled from `partner_agreement_company_defaults` so common admin
+  // details don't need re-typing. Hooks stay above any early return.
+  const [repName, setRepName] = useState('');
+  const [repPosition, setRepPosition] = useState('');
+  const [repContact, setRepContact] = useState('');
+  const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
+
   const { data: submission, isLoading } = useQuery({
     queryKey: ['invited-portfolio-submission', row?.id, row?.investor_id],
     enabled: open && !!row?.investor_id,
     queryFn: async () => {
-      const [{ data: profile }, { data: agreement }, { data: token }] = await Promise.all([
+      const [{ data: profile }, { data: agreement }, { data: token }, { data: defaults }] = await Promise.all([
         (supabase.from('profiles') as any)
           .select('full_name, phone, email, national_id, mobile_money_name')
           .eq('id', row!.investor_id).maybeSingle(),
@@ -353,17 +414,52 @@ function ReviewSubmissionDialog({
           .select('consumed_at')
           .eq('portfolio_id', row!.id)
           .maybeSingle(),
+        (supabase.from('partner_agreement_company_defaults') as any)
+          .select('*')
+          .limit(1)
+          .maybeSingle(),
       ]);
-      return { profile, agreement, token };
+      let defaultSigUrl: string | undefined;
+      if (defaults?.signature_path) {
+        const { data: sig } = await supabase.storage
+          .from('partner-agreements')
+          .createSignedUrl(defaults.signature_path, 60 * 60);
+        defaultSigUrl = sig?.signedUrl || undefined;
+      }
+      return { profile, agreement, token, defaults, defaultSigUrl };
     },
     staleTime: 15000,
   });
 
-  if (!row) return null;
   const profile: any = submission?.profile || {};
   const agreement: any = submission?.agreement || {};
   const signature = agreement.partner_signature_data_url as string | undefined;
   const submittedAt = submission?.token?.consumed_at as string | undefined;
+  const defaults: any = submission?.defaults || {};
+  const defaultSigUrl: string | undefined = submission?.defaultSigUrl;
+
+  // Seed rep fields from stored company defaults when a new row opens.
+  useEffect(() => {
+    if (!row) return;
+    setRepName(defaults?.rep_name || '');
+    setRepPosition(defaults?.rep_position || '');
+    setRepContact(defaults?.rep_contact || '');
+    setSigDataUrl(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.id, defaults?.rep_name, defaults?.rep_position, defaults?.rep_contact]);
+
+  const onSignatureFile = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Use an image file', { description: 'Upload a PNG or JPG of the signature.' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setSigDataUrl(typeof reader.result === 'string' ? reader.result : undefined);
+    reader.readAsDataURL(file);
+  };
+
+  if (!row) return null;
 
   const hasAgreement = !!(agreement && (
     agreement.address || agreement.national_id || agreement.kin_name ||
@@ -388,7 +484,11 @@ function ReviewSubmissionDialog({
     kinContact: agreement.kin_contact || '',
     agreementDate: agreement.agreement_date ? new Date(agreement.agreement_date) : new Date(),
     partnerSignatureDataUrl: signature,
-    includeStamp: false,
+    welileRepName: repName,
+    welileRepPosition: repPosition,
+    welileRepContact: repContact,
+    welileSignatureDataUrl: sigDataUrl || defaultSigUrl,
+    includeStamp: true,
   } : null;
 
   const partnerName = profile.full_name || row.partner_name;
@@ -476,8 +576,71 @@ function ReviewSubmissionDialog({
 
                 <Separator />
 
+                {/* Welile counter-signature (admin-entered) — the contract
+                    template has empty NAME / POSITION / CONTACT / DATE /
+                    SIGNATURE fields on the "Signed for and on behalf of
+                    Welile Technologies Limited" block; Partner Ops fills
+                    them here before approving. Values render live in the
+                    preview and are baked into the executed PDF. */}
+                <section className="space-y-2.5">
+                  <p className="text-xs font-semibold text-primary">Welile counter-signature</p>
+                  <p className="text-[10px] text-muted-foreground -mt-1">
+                    Fill in the admin details below before approving — they render live in the preview and are baked into the executed PDF.
+                  </p>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Representative name</Label>
+                    <Input value={repName} onChange={(e) => setRepName(e.target.value)} placeholder="e.g. Jane Doe" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Position</Label>
+                    <Input value={repPosition} onChange={(e) => setRepPosition(e.target.value)} placeholder="e.g. Director" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Contact</Label>
+                    <Input value={repContact} onChange={(e) => setRepContact(e.target.value)} placeholder="Phone or email" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Signature image</Label>
+                    <div className="flex items-center gap-2">
+                      <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                        <label className="cursor-pointer">
+                          <Upload className="h-3.5 w-3.5" /> Upload
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => onSignatureFile(e.target.files?.[0])} />
+                        </label>
+                      </Button>
+                      {(sigDataUrl || defaultSigUrl) ? (
+                        <img src={sigDataUrl || defaultSigUrl} alt="Signature" className="h-8 max-w-[120px] object-contain border rounded bg-white" />
+                      ) : (
+                        <span className="text-[10px] text-amber-600">No signature yet</span>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                <Separator />
+
                 <div className="flex flex-col gap-2 pb-2">
-                  <Button onClick={() => onApprove(row)} disabled={approving} className="gap-1.5">
+                  <Button
+                    onClick={() => {
+                      if (!repName.trim()) {
+                        toast.error('Enter the representative name before approving.');
+                        return;
+                      }
+                      if (!previewData) {
+                        toast.error('Agreement not loaded yet.');
+                        return;
+                      }
+                      onApprove(row, {
+                        repName,
+                        repPosition,
+                        repContact,
+                        sigDataUrl: sigDataUrl || defaultSigUrl,
+                        previewData,
+                      });
+                    }}
+                    disabled={approving || !repName.trim() || !(sigDataUrl || defaultSigUrl)}
+                    className="gap-1.5"
+                  >
                     {approving
                       ? <><Loader2 className="h-4 w-4 animate-spin" /> Approving…</>
                       : <><ShieldCheck className="h-4 w-4" /> Approve &amp; send final agreement</>}
