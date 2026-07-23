@@ -444,13 +444,25 @@ export function AgentCashPayoutsTab() {
   const categoryOrClause = useMemo(() => buildQueueCategoryOrClause(agentConfig), [agentConfig]);
   const authorizedCategoryLabels = useMemo(() => authorizedQueueCategoryLabels(agentConfig), [agentConfig]);
 
+  // Release ONLY this agent's own expired claims. Never touch another merchant's
+  // in-flight claim from the client — a browser-side race previously stripped
+  // active claims out from under the paying merchant, causing the same tenant's
+  // withdrawal to reappear in the queue and be paid twice. The server-side
+  // `release_stale_cashout_claims()` cron is the sole authority for releasing
+  // OTHER merchants' stale claims, and it now refuses to release rows that have
+  // any settlement progress (proof / code / transaction id / processing marker).
   const releaseExpiredClaims = async () => {
+    if (!isCashoutAgent?.id) return;
     const cutoff = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
     const { error } = await supabase
       .from('withdrawal_requests')
       .update({ assigned_cashout_agent_id: null, dispatched_at: null } as any)
-      .not('assigned_cashout_agent_id', 'is', null)
+      .eq('assigned_cashout_agent_id', isCashoutAgent.id)
       .lt('dispatched_at', cutoff)
+      .is('payout_proof', null)
+      .is('payout_code', null)
+      .is('transaction_id', null)
+      .is('processing_started_at', null)
       .in('status', CASHOUT_QUEUE_STATUSES);
 
     if (error) {
@@ -540,9 +552,10 @@ export function AgentCashPayoutsTab() {
   const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue, isError: queueError, refetch: refetchQueue } = useQuery({
     queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page, categoryOrClause, frozenUserIds],
     queryFn: async () => {
-      // Fire-and-forget: releasing other agents' expired claims must never block
-      // or fail this fetch. A slow/failed release previously blanked the queue.
-      releaseExpiredClaims().catch(() => {});
+      // NOTE: we intentionally do NOT release other agents' expired claims here.
+      // Cross-agent releases from the browser caused paid-out withdrawals to
+      // reappear in the queue. The server cron (`release_stale_cashout_claims`)
+      // handles pool-wide releases safely with progress guards.
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
       const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
       const opts: QueueFilterOpts = {
