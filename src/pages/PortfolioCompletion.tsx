@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import { Loader2, ShieldCheck, ShieldAlert, CheckCircle2, PenLine, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Status = 'loading' | 'auth_required' | 'wrong_account' | 'invalid' | 'ready' | 'submitting' | 'done';
 
@@ -28,6 +30,21 @@ interface ProfileSnapshot {
   phone: string | null;
   national_id: string | null;
   mobile_money_name: string | null;
+  landmark: string | null;
+}
+
+interface AgreementSnapshot {
+  address: string | null;
+  kin_name: string | null;
+  kin_contact: string | null;
+  payout_mode: string | null;
+  bank_name: string | null;
+  bank_account_name: string | null;
+  bank_account_number: string | null;
+  momo_provider: string | null;
+  momo_number: string | null;
+  momo_name: string | null;
+  partner_signature_data_url: string | null;
 }
 
 /**
@@ -57,6 +74,18 @@ export default function PortfolioCompletion() {
   const [sigDataUrl, setSigDataUrl] = useState<string | null>(null);
   const [useExistingSig, setUseExistingSig] = useState(true);
 
+  // Contract-required fields (mirrors the funder-onboarding contract prefill)
+  const [address, setAddress] = useState('');
+  const [kinName, setKinName] = useState('');
+  const [kinContact, setKinContact] = useState('');
+  const [payoutMode, setPayoutMode] = useState<'momo' | 'bank'>('momo');
+  const [momoProvider, setMomoProvider] = useState<string>('MTN Mobile Money');
+  const [momoNumber, setMomoNumber] = useState('');
+  const [momoName, setMomoName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+
   // ─── Load: gate access and hydrate snapshots ───
   useEffect(() => {
     if (authLoading) return;
@@ -84,11 +113,11 @@ export default function PortfolioCompletion() {
           .select('portfolio_code, investment_amount, roi_percentage, duration_months, roi_mode, status, investor_id')
           .eq('id', portfolioId).maybeSingle(),
         (supabase.from('profiles') as any)
-          .select('full_name, email, phone, national_id, mobile_money_name')
+          .select('full_name, email, phone, national_id, mobile_money_name, landmark')
           .eq('id', user.id).maybeSingle(),
         (supabase.from('partner_agreements') as any)
-          .select('partner_signature_data_url')
-          .eq('user_id', user.id).limit(1).maybeSingle(),
+          .select('partner_signature_data_url, address, kin_name, kin_contact, payout_mode, bank_name, bank_account_name, bank_account_number, momo_provider, momo_number, momo_name')
+          .eq('partner_id', user.id).limit(1).maybeSingle(),
         (supabase.from('portfolio_completion_tokens') as any)
           .select('portfolio_id, consumed_at, expires_at, email_snapshot, phone_snapshot')
           .eq('portfolio_id', portfolioId).maybeSingle(),
@@ -147,9 +176,21 @@ export default function PortfolioCompletion() {
         status: portfolioRes.data.status,
       });
       setProfile(profileRes.data as ProfileSnapshot);
-      setExistingSig(agreementRes.data?.partner_signature_data_url || null);
+      const ag = (agreementRes.data || {}) as AgreementSnapshot;
+      setExistingSig(ag.partner_signature_data_url || null);
       setNationalId(profileRes.data?.national_id || '');
-      setMobileMoneyName(profileRes.data?.mobile_money_name || '');
+      setMobileMoneyName(profileRes.data?.mobile_money_name || ag.momo_name || '');
+      setAddress(ag.address || profileRes.data?.landmark || '');
+      setKinName(ag.kin_name || '');
+      setKinContact(ag.kin_contact || '');
+      const mode: 'momo' | 'bank' = ag.payout_mode === 'bank' ? 'bank' : 'momo';
+      setPayoutMode(mode);
+      setMomoProvider(ag.momo_provider || 'MTN Mobile Money');
+      setMomoNumber(ag.momo_number || profileRes.data?.phone || '');
+      setMomoName(ag.momo_name || profileRes.data?.mobile_money_name || profileRes.data?.full_name || '');
+      setBankName(ag.bank_name || '');
+      setBankAccountName(ag.bank_account_name || profileRes.data?.full_name || '');
+      setBankAccountNumber(ag.bank_account_number || '');
       setStatus('ready');
     };
 
@@ -169,11 +210,44 @@ export default function PortfolioCompletion() {
       toast.error('Please enter your National ID number.');
       return;
     }
-    const mmName = mobileMoneyName.trim();
-    if (mmName.length < 3) {
-      toast.error('Please enter the name that shows on your mobile money.');
+    const addr = address.trim();
+    if (addr.length < 3) {
+      toast.error('Please enter your residential address.');
       return;
     }
+    const nokName = kinName.trim();
+    const nokContact = kinContact.trim();
+    if (nokName.length < 3 || nokContact.length < 7) {
+      toast.error('Please enter your next of kin name and phone number.');
+      return;
+    }
+    let payoutPayload: Record<string, string | null>;
+    if (payoutMode === 'bank') {
+      if (bankName.trim().length < 2 || bankAccountName.trim().length < 3 || bankAccountNumber.trim().length < 5) {
+        toast.error('Please complete your bank details.');
+        return;
+      }
+      payoutPayload = {
+        payout_mode: 'bank',
+        bank_name: bankName.trim(),
+        bank_account_name: bankAccountName.trim(),
+        bank_account_number: bankAccountNumber.trim(),
+        momo_provider: null, momo_number: null, momo_name: null,
+      };
+    } else {
+      if (momoNumber.trim().length < 7 || momoName.trim().length < 3) {
+        toast.error('Please complete your mobile money details.');
+        return;
+      }
+      payoutPayload = {
+        payout_mode: 'momo',
+        momo_provider: momoProvider.trim() || 'MTN Mobile Money',
+        momo_number: momoNumber.trim(),
+        momo_name: momoName.trim(),
+        bank_name: null, bank_account_name: null, bank_account_number: null,
+      };
+    }
+    const mmName = (payoutMode === 'momo' ? momoName : mobileMoneyName).trim();
     const signature = useExistingSig && existingSig ? existingSig : sigDataUrl;
     if (!signature) {
       toast.error('Please add your signature before submitting.');
@@ -189,6 +263,10 @@ export default function PortfolioCompletion() {
           national_id: nin,
           mobile_money_name: mmName,
           signature_data_url: signature,
+          address: addr,
+          kin_name: nokName,
+          kin_contact: nokContact,
+          ...payoutPayload,
         },
       });
       if (error) {
@@ -312,17 +390,112 @@ export default function PortfolioCompletion() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="mmn" className="text-xs">Mobile money name (as it appears when we send money)</Label>
-            <Input
-              id="mmn"
-              value={mobileMoneyName}
-              onChange={(e) => setMobileMoneyName(e.target.value)}
-              placeholder="e.g. Jane Namuli"
+            <Label htmlFor="addr" className="text-xs">Residential address</Label>
+            <Textarea
+              id="addr"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="District, division, village / street"
               disabled={status === 'submitting'}
-              maxLength={120}
-              autoComplete="off"
+              maxLength={240}
+              rows={2}
             />
           </div>
+        </div>
+
+        {/* Next of kin */}
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm font-bold">Next of kin</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Contact Welile will notify if we cannot reach you.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="nok-name" className="text-xs">Full name</Label>
+              <Input
+                id="nok-name"
+                value={kinName}
+                onChange={(e) => setKinName(e.target.value)}
+                placeholder="e.g. Sarah Nakato"
+                disabled={status === 'submitting'}
+                maxLength={120}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nok-contact" className="text-xs">Phone number</Label>
+              <Input
+                id="nok-contact"
+                value={kinContact}
+                onChange={(e) => setKinContact(e.target.value)}
+                placeholder="e.g. +256 7xx xxx xxx"
+                inputMode="tel"
+                disabled={status === 'submitting'}
+                maxLength={40}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Payout method */}
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm font-bold">Payout method</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Where Welile sends your monthly returns.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={payoutMode === 'momo' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPayoutMode('momo')}
+              className="h-10"
+            >Mobile money</Button>
+            <Button
+              type="button"
+              variant={payoutMode === 'bank' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPayoutMode('bank')}
+              className="h-10"
+            >Bank transfer</Button>
+          </div>
+
+          {payoutMode === 'momo' ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="momo-provider" className="text-xs">Provider</Label>
+                <Select value={momoProvider} onValueChange={setMomoProvider}>
+                  <SelectTrigger id="momo-provider"><SelectValue placeholder="Select network" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MTN Mobile Money">MTN Mobile Money</SelectItem>
+                    <SelectItem value="Airtel Money">Airtel Money</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="momo-number" className="text-xs">Mobile money number</Label>
+                <Input id="momo-number" value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)} placeholder="+256 7xx xxx xxx" inputMode="tel" maxLength={40} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="momo-name" className="text-xs">Name on mobile money (as it appears when we send)</Label>
+                <Input id="momo-name" value={momoName} onChange={(e) => setMomoName(e.target.value)} placeholder="e.g. Jane Namuli" maxLength={120} />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="bank-name" className="text-xs">Bank name</Label>
+                <Input id="bank-name" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. Stanbic Bank Uganda" maxLength={120} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bank-acc-name" className="text-xs">Account name</Label>
+                <Input id="bank-acc-name" value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} placeholder="Name on the bank account" maxLength={120} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bank-acc-number" className="text-xs">Account number</Label>
+                <Input id="bank-acc-number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} placeholder="e.g. 9030001234567" inputMode="numeric" maxLength={40} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Signature */}
