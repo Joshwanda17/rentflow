@@ -1,10 +1,14 @@
-// Partner Ops → creates an *inert* portfolio for an EXISTING partner and emails
-// the partner a secure one-tap link to complete missing details + sign.
+// Partner Ops → creates either:
+// 1) an inert invite portfolio for an EXISTING partner and emails a secure
+//    one-tap link to complete missing details + sign, OR
+// 2) a direct-confirmation first portfolio that immediately debits the
+//    partner wallet, activates the portfolio, and sends the final confirmation.
 //
-// No wallet is debited. No ledger row is written. The portfolio sits at
-// status='awaiting_partner_details' until the partner completes it, then flips
-// to 'pending_ops_approval'. Ops approves via approve-pending-portfolio, which
-// flips it to 'active' and dispatches the existing partnership-agreement email.
+// Invite mode: no wallet is debited. No ledger row is written. The portfolio
+// sits at status='awaiting_partner_details' until the partner completes it,
+// then flips to 'pending_ops_approval'. Ops approves via
+// approve-pending-portfolio, which flips it to 'active' and dispatches the
+// existing partnership-agreement email.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
@@ -25,6 +29,13 @@ function json(body: unknown, status = 200) {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function addMonthsIsoDate(iso: string, months: number): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
 
 // Cryptographically strong URL-safe token
 function generateToken(): string {
@@ -250,6 +261,25 @@ Deno.serve(async (req) => {
           return json({ error: "You do not have permission to approve portfolios." }, 403);
         }
         return json({ error: `Wallet was deducted but portfolio activation failed: ${msg}. Please contact operations.` }, 500);
+      }
+
+      const maturityDate = addMonthsIsoDate(
+        portfolio.created_at,
+        Number(portfolio.duration_months) || durationMonths,
+      );
+      const { error: verifyErr } = await admin
+        .from("investor_portfolios")
+        .update({
+          cfo_verified: true,
+          cfo_verified_at: new Date().toISOString(),
+          cfo_verified_by: caller.id,
+          cfo_rejection_reason: null,
+          maturity_date: maturityDate,
+        })
+        .eq("id", portfolioId);
+      if (verifyErr) {
+        console.error("[create-portfolio-invite] direct confirmation verification flag failed:", verifyErr);
+        return json({ error: "Portfolio activated, but verification flags failed. Please contact operations." }, 500);
       }
 
       await admin.from("audit_logs").insert({
