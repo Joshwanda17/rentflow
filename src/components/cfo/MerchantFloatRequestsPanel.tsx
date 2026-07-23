@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -314,8 +315,8 @@ export function MerchantFloatRequestsPanel() {
       // Source of truth = the double-entry ledger float bucket, NOT withdrawal_requests.
       // Merchant float is credited via `agent_float_deposit` (cash_in) and consumed via
       // `agent_float_settlement` (cash_out) when the agent settles a customer cash-out.
-      const [walletRes, ledgerRes] = await Promise.all([
-        supabase.from('wallets').select('float_balance').eq('user_id', agentId).maybeSingle(),
+      const [walletData, ledgerRes] = await Promise.all([
+        fetchOpsWallet(agentId),
         supabase
           .from('general_ledger')
           .select('id, category, amount, transaction_date, source_id, description')
@@ -329,7 +330,7 @@ export function MerchantFloatRequestsPanel() {
       const rows = (ledgerRes.data ?? []) as any[];
       const deposits = rows.filter((r) => r.category === 'agent_float_deposit');
       const settlements = rows.filter((r) => r.category === 'agent_float_settlement');
-      const floatBalance = Number(walletRes.data?.float_balance) || 0;
+      const floatBalance = Number(walletData?.float) || 0;
       const totalAllocated = deposits.reduce((s, r) => s + (Number(r.amount) || 0), 0);
       const totalUsed = settlements.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
