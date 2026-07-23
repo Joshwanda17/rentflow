@@ -636,7 +636,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                   Please try again shortly — we'll reopen withdrawals as soon as the review is complete.
                 </p>
               </div>
-              <Button className="w-full" variant="outline" onClick={() => handleClose(false)}>
+              <Button className="w-full" variant="outline" onClick={handleClose}>
                 Close
               </Button>
             </div>
