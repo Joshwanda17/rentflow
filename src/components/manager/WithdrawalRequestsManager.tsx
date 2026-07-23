@@ -40,6 +40,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { fetchOpsWalletBuckets, trackOpsQuery } from '@/hooks/ops/useOpsDataLayer';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format, formatDistanceToNow } from 'date-fns';
 import { exportToCSV } from '@/lib/exportUtils';
