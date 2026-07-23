@@ -273,6 +273,42 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Anti-fraud gate: person-to-person wallet transfers require the sender
+    // to have at least 10 approved deposits on record. Merchant flows that
+    // route through wallet-transfer (e.g. Welile Bread) are exempt.
+    const MIN_APPROVED_DEPOSITS = 10;
+    if (!isWelileBread) {
+      const { count: approvedDeposits, error: depositCountError } = await adminClient
+        .from('deposit_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', senderId)
+        .eq('status', 'approved');
+
+      if (depositCountError) {
+        console.error('deposit count lookup failed', depositCountError);
+        return new Response(
+          JSON.stringify({ error: 'Could not verify your deposit history. Please try again.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const depositsSoFar = approvedDeposits ?? 0;
+      if (depositsSoFar < MIN_APPROVED_DEPOSITS) {
+        return new Response(
+          JSON.stringify({
+            error:
+              `To help prevent fraud, sending money to another user is unlocked after ` +
+              `${MIN_APPROVED_DEPOSITS} approved deposits. You currently have ` +
+              `${depositsSoFar}/${MIN_APPROVED_DEPOSITS}. Make a few more deposits and try again.`,
+            code: 'insufficient_deposit_history',
+            deposits_completed: depositsSoFar,
+            deposits_required: MIN_APPROVED_DEPOSITS,
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Shadow audit on success path — sampled
     if (shouldSample(shadowConfig)) {
       runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
