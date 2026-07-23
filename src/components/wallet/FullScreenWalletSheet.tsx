@@ -47,6 +47,8 @@ import { format } from 'date-fns';
 import { EmptyHousePlacementBonusBanner } from '@/components/agent/EmptyHousePlacementBonusBanner';
 import { FloatBreakdownCard } from './FloatBreakdownCard';
 import { AgentMoneyMapCard } from './AgentMoneyMapCard';
+import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
+import { useIsMerchantAgent } from '@/hooks/useIsMerchantAgent';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -63,12 +65,15 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const isAgent = role === 'agent';
   const { commissionBalance, withdrawableBalance } = useAgentBalances();
   const { floatBalance: walletFloatBalance, advanceBalance, pendingHolds } = useAgentBalances();
+  const { floatBalance: landlordPayoutFloat } = useAgentLandlordFloat();
+  const { isMerchantAgent } = useIsMerchantAgent();
+  const visibleAgentFloatBalance = isAgent && !isMerchantAgent ? landlordPayoutFloat : walletFloatBalance;
   // STRICT: total visible balance is float + ledger-backed withdrawable.
   // We never use the raw cached `wallets.balance` because it can drift
   // above the user's true ledger-backed position.
   const realWithdrawableBalance = Math.max(0, withdrawableBalance);
   const displayBalance = isAgent
-    ? walletFloatBalance + realWithdrawableBalance
+    ? visibleAgentFloatBalance + realWithdrawableBalance
     : realWithdrawableBalance;
   const balanceLabel = 'Total Balance';
   const [sendOpen, setSendOpen] = useState(false);
@@ -229,7 +234,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
               {isAgent && (
                 <AgentMoneyMapCard
                   withdrawable={realWithdrawableBalance}
-                  float={walletFloatBalance}
+                  float={visibleAgentFloatBalance}
                   advance={advanceBalance}
                   pendingHolds={pendingHolds}
                 />
@@ -239,8 +244,8 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
               {isAgent && <EmptyHousePlacementBonusBanner />}
 
               {/* Float breakdown (agents only) */}
-              {isAgent && walletFloatBalance > 0 && (
-                <FloatBreakdownCard floatBalance={walletFloatBalance} />
+              {isAgent && visibleAgentFloatBalance > 0 && (
+                <FloatBreakdownCard floatBalance={visibleAgentFloatBalance} />
               )}
 
               {/* Deposit card */}
@@ -463,7 +468,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
         // For agents: total = withdrawable + float (float is reserved for proxy
         // partner payouts but should still be visible so the agent knows their
         // real wallet position). The backend enforces proxy-only float spending.
-        walletBalance={isAgent ? (realWithdrawableBalance + walletFloatBalance) : (wallet?.balance || 0)}
+        walletBalance={isAgent ? (realWithdrawableBalance + visibleAgentFloatBalance) : (wallet?.balance || 0)}
         onSuccess={refreshWallet}
       />
       <TransactionReceipt 

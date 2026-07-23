@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 interface AgentWalletDetailsCardProps {
   agentId?: string;
+  landlordFloatBalance?: number;
   onOpenWallet?: () => void;
 }
 
@@ -31,13 +32,12 @@ function formatAmount(amount: number): string {
   return `UGX ${amount.toLocaleString()}`;
 }
 
-export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDetailsCardProps) {
+export function AgentWalletDetailsCard({ agentId, landlordFloatBalance, onOpenWallet }: AgentWalletDetailsCardProps) {
   const {
     withdrawableBalance,
     floatBalance,
     advanceBalance,
     pendingHolds,
-    totalBalance,
     isLoading: balancesLoading,
   } = useAgentBalances(agentId);
 
@@ -45,6 +45,7 @@ export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDet
   const [exporting, setExporting] = useState<'pdf' | null>(null);
 
   const isLoading = balancesLoading || countsLoading;
+  const visibleFloatBalance = landlordFloatBalance ?? floatBalance;
 
   const fetchLast25Entries = useCallback(async (): Promise<{ entries: LedgerEntry[]; userName: string } | null> => {
     if (!agentId) return null;
@@ -275,7 +276,7 @@ export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDet
     );
   }
 
-  const netLedger = totalBalance;
+  const netLedger = withdrawableBalance + visibleFloatBalance;
 
   return (
     <Card className={cn(
@@ -339,13 +340,13 @@ export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDet
 
         {/* Secondary buckets */}
         <div className="space-y-2">
-          {floatBalance > 0 && (
+          {visibleFloatBalance > 0 && (
             <div className="flex items-center justify-between gap-2 py-1.5 border-b border-border/30 last:border-0">
               <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <ArrowDownLeft className="h-3 w-3 text-amber-500" />
-                Company Float
+                Landlord Payout Float
               </span>
-              <span className="text-xs font-medium text-foreground tabular-nums">{formatUGX(floatBalance)}</span>
+              <span className="text-xs font-medium text-foreground tabular-nums">{formatUGX(visibleFloatBalance)}</span>
             </div>
           )}
           {advanceBalance > 0 && (
