@@ -6,7 +6,7 @@
 // goes to the `approve-pending-portfolio` edge function which flips the
 // portfolio to `active` and dispatches the final signed agreement.
 // ═══════════════════════════════════════════════════════════════════════════
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
