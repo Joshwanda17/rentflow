@@ -51,6 +51,7 @@ import { AgentMoneyMapCard } from './AgentMoneyMapCard';
 interface FullScreenWalletSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  scrollTarget?: 'statement' | null;
 }
 
 const WALLET_FILTER_STORAGE_KEY = 'welile-wallet-filters';
