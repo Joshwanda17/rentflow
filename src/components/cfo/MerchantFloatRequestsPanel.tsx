@@ -67,6 +67,7 @@ export function MerchantFloatRequestsPanel() {
   const [stmtTo, setStmtTo] = useState('');
   const [allocSort, setAllocSort] = useState<'newest' | 'oldest'>('newest');
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+  const [agentSearch, setAgentSearch] = useState('');
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['cfo-float-requests'],
@@ -705,7 +706,21 @@ export function MerchantFloatRequestsPanel() {
               <>
                 <p className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocated per merchant agent</p>
                 <p className="-mt-1 text-[10px] text-muted-foreground">Select an agent to download their own float + transactions statement{(stmtFrom || stmtTo) ? ' for the chosen dates' : ''}.</p>
-                {agentTotals.map((b) => {
+                <Input
+                  value={agentSearch}
+                  onChange={(e) => setAgentSearch(e.target.value)}
+                  placeholder="Search merchant agent by name or phone…"
+                  className="h-9"
+                />
+                {agentTotals
+                  .filter((b) => {
+                    const q = agentSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    const name = (b.agent || '').toLowerCase();
+                    const phone = (b.phone || '').toLowerCase();
+                    return name.includes(q) || phone.includes(q);
+                  })
+                  .map((b) => {
                   const isOpen = expandedAgent === b.agent_id;
                   const agentAllocs = sortedAllocations.filter((a) => a.agent_id === b.agent_id);
                   return (
