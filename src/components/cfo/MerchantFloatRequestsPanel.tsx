@@ -430,6 +430,7 @@ export function MerchantFloatRequestsPanel() {
     depositId: string;
     depositAmount: number;
     depositAt: string;
+    depositCategory: string;
     balanceBefore: number;
     balanceAfterTopUp: number;
     balanceAfterBatch: number;
@@ -439,29 +440,30 @@ export function MerchantFloatRequestsPanel() {
       amount: number;
       recipient: string | null;
       method: string;
+      category: string;
       balanceAfter: number;
     }>;
   };
   const { data: agentTimeline, isLoading: timelineLoading } = useQuery({
     queryKey: ['cfo-agent-float-timeline', expandedAgent],
     enabled: !!expandedAgent,
-    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number }> => {
+    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; drift: number }> => {
       const agentId = expandedAgent!;
       const [walletRes, ledgerRes] = await Promise.all([
         supabase.from('wallets').select('float_balance').eq('user_id', agentId).maybeSingle(),
         supabase
           .from('general_ledger')
-          .select('id, category, amount, transaction_date, source_id')
+          .select('id, category, amount, direction, transaction_date, source_id')
           .eq('user_id', agentId)
           .eq('ledger_scope', 'wallet')
           .eq('wallet_bucket', 'float')
-          .in('category', ['agent_float_deposit', 'agent_float_settlement'])
           .order('transaction_date', { ascending: true })
+          .order('id', { ascending: true })
           .limit(2000),
       ]);
       const rows = (ledgerRes.data ?? []) as any[];
       const settlementSourceIds = Array.from(
-        new Set(rows.filter((r) => r.category === 'agent_float_settlement' && r.source_id).map((r) => String(r.source_id)))
+        new Set(rows.filter((r) => r.direction === 'cash_out' && r.source_id).map((r) => String(r.source_id)))
       );
       const wrMap: Record<string, any> = {};
       if (settlementSourceIds.length) {
@@ -472,35 +474,51 @@ export function MerchantFloatRequestsPanel() {
         for (const w of (wrs ?? []) as any[]) wrMap[String(w.id)] = w;
       }
 
+      // A "top-up" that opens a new batch = any cash_in on the float bucket
+      // (agent_float_deposit is the main one, but funding/topup/assignment/
+      // corrections also credit float and MUST be reflected for audit accuracy).
+      const TOPUP_CATEGORIES = new Set([
+        'agent_float_deposit',
+        'agent_float_funding',
+        'agent_float_topup',
+        'agent_float_assignment',
+      ]);
       const batches: TopUpBatch[] = [];
       let running = 0;
       let current: TopUpBatch | null = null;
       for (const r of rows) {
         const amt = Number(r.amount) || 0;
-        if (r.category === 'agent_float_deposit') {
+        const isCashIn = r.direction === 'cash_in';
+        // Signed delta: cash_in adds, cash_out subtracts. Use direction as the
+        // sole source of truth so reversals/corrections don't skew running.
+        const delta = isCashIn ? amt : -amt;
+        const opensBatch = isCashIn && TOPUP_CATEGORIES.has(r.category);
+        if (opensBatch) {
           if (current) {
             current.balanceAfterBatch = running;
             batches.push(current);
           }
           const before = running;
-          running = before + amt;
+          running = before + delta;
           current = {
             depositId: String(r.id),
             depositAmount: amt,
             depositAt: r.transaction_date,
+            depositCategory: r.category,
             balanceBefore: before,
             balanceAfterTopUp: running,
             balanceAfterBatch: running,
             settlements: [],
           };
         } else {
-          running = running - amt;
+          running = running + delta;
           if (!current) {
             // Settlement predating any tracked deposit — synthesise a virtual batch.
             current = {
               depositId: `pre-${r.id}`,
               depositAmount: 0,
               depositAt: r.transaction_date,
+              depositCategory: 'opening_balance',
               balanceBefore: 0,
               balanceAfterTopUp: 0,
               balanceAfterBatch: running,
@@ -511,16 +529,24 @@ export function MerchantFloatRequestsPanel() {
           current.settlements.push({
             id: String(r.id),
             at: r.transaction_date,
-            amount: amt,
+            amount: delta, // signed: negative = consumed float, positive = credited back
             recipient: wr.mobile_money_name || null,
             method: wr.mobile_money_provider || wr.payout_method || 'Customer cash-out',
+            category: r.category,
             balanceAfter: running,
           });
           current.balanceAfterBatch = running;
         }
       }
       if (current) batches.push(current);
-      return { batches, currentBalance: Number(walletRes.data?.float_balance) || running };
+      const ledgerBalance = running;
+      const cachedBalance = Number(walletRes.data?.float_balance) || 0;
+      return {
+        batches,
+        currentBalance: cachedBalance,
+        ledgerBalance,
+        drift: cachedBalance - ledgerBalance,
+      };
     },
   });
 
