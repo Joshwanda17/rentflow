@@ -65,6 +65,11 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
   const [partnerBalance, setPartnerBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [partnerFrozen, setPartnerFrozen] = useState<boolean>(false);
+  // Existing-portfolio guard: in `direct_confirmation` mode we ONLY create
+  // a portfolio when the partner has ZERO existing portfolios. If any exist,
+  // we block the action and prompt the operator to use the invite flow.
+  const [existingPortfolioCount, setExistingPortfolioCount] = useState<number | null>(null);
+  const [portfolioCheckLoading, setPortfolioCheckLoading] = useState(false);
   // When the selected partner is managed by a proxy agent, the dialog shows
   // the proxy agent's wallet balance instead — funding is debited from that
   // wallet server-side (enforced in create-investor-portfolio edge fn).
@@ -124,12 +129,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
     if (!selectedUser) {
       setPartnerBalance(null);
       setPartnerFrozen(false);
+      setExistingPortfolioCount(null);
       return;
     }
     setBalanceLoading(true);
     setPartnerBalance(null);
     setManagedProxy(null);
     setPartnerFrozen(false);
+    setExistingPortfolioCount(null);
     (async () => {
       // Suspended (frozen) partners cannot receive new portfolios.
       const { data: prof } = await supabase
@@ -139,6 +146,16 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
         .maybeSingle();
       if (!cancelled && (prof as any)?.frozen_at) {
         setPartnerFrozen(true);
+      }
+      // Existing-portfolio count — used to gate direct_confirmation mode.
+      setPortfolioCheckLoading(true);
+      const { count: pfCount } = await supabase
+        .from('investor_portfolios')
+        .select('id', { count: 'exact', head: true })
+        .eq('investor_id', selectedUser.id);
+      if (!cancelled) {
+        setExistingPortfolioCount(pfCount ?? 0);
+        setPortfolioCheckLoading(false);
       }
       // Managed-proxy check: if the partner has an active+approved
       // is_managed_account=true proxy assignment, funding MUST come from
@@ -234,6 +251,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       toast({
         title: 'Partner not approved',
         description: 'This funder must be approved in Partner Onboarding before a portfolio can be created.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0) {
+      toast({
+        title: 'Partner already has a portfolio',
+        description: 'Direct Create Portfolio is only for first-time partners. Use "Send invite" for additional portfolios.',
         variant: 'destructive',
       });
       return;
@@ -369,6 +394,19 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                   {approvalStatus === 'rejected'
                     ? 'This funder was rejected in Partner Onboarding. Re-approve them before creating a portfolio.'
                     : 'This funder is awaiting Partner Ops verification. Approve them in Partner Onboarding before creating a portfolio.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {selectedUser && !partnerFrozen && isApproved && mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5 flex items-start gap-2">
+              <Shield className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <p className="font-semibold text-destructive">Partner already has {existingPortfolioCount} portfolio{existingPortfolioCount === 1 ? '' : 's'}</p>
+                <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                  Direct Create Portfolio is only allowed for first-time partners.
+                  Use the standard <strong>Send invite</strong> flow to add another portfolio for this partner.
                 </p>
               </div>
             </div>
@@ -593,7 +631,9 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                 !selectedUser ||
                 !form.investment_amount ||
                 !isApproved ||
-                partnerFrozen
+                partnerFrozen ||
+                portfolioCheckLoading ||
+                (mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0)
               }
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
@@ -602,8 +642,13 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 shrink-0" />
                   Checking approval…
                 </>
+              ) : portfolioCheckLoading && selectedUser ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 shrink-0" />
+                  Checking portfolios…
+                </>
               ) : (
-                'Send invite'
+                mode === 'direct_confirmation' ? 'Create Portfolio' : 'Send invite'
               )}
             </Button>
           )}
