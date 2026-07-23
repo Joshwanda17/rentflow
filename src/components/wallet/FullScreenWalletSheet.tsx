@@ -38,7 +38,7 @@ import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingC
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { WalletTransactionTimeline, type TabValue, getCategoryLabel } from './WalletTransactionTimeline';
+import { WalletTransactionTimeline } from './WalletTransactionTimeline';
 import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
@@ -54,129 +54,6 @@ interface FullScreenWalletSheetProps {
   scrollTarget?: 'statement' | null;
 }
 
-const WALLET_FILTER_STORAGE_KEY = 'welile-wallet-filters';
-
-function readStoredFilters(): { activeTab: TabValue; categoryFilter: 'all' | string } | null {
-  try {
-    const raw = localStorage.getItem(WALLET_FILTER_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    const activeTab = ['all', 'in', 'out'].includes(parsed?.activeTab)
-      ? (parsed.activeTab as TabValue)
-      : 'all';
-    const categoryFilter = typeof parsed?.categoryFilter === 'string'
-      ? parsed.categoryFilter
-      : 'all';
-    return { activeTab, categoryFilter };
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredFilters(filters: { activeTab: TabValue; categoryFilter: 'all' | string }) {
-  try {
-    localStorage.setItem(WALLET_FILTER_STORAGE_KEY, JSON.stringify(filters));
-  } catch {
-    // Ignore storage errors (e.g. private mode).
-  }
-}
-
-interface CategoryFilterChipsProps {
-  categories: string[];
-  selected: 'all' | string;
-  onSelect: (value: 'all' | string) => void;
-}
-
-function CategoryFilterChips({ categories, selected, onSelect }: CategoryFilterChipsProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const focusButtonAt = useCallback((index: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="button"]'));
-    const target = buttons[index];
-    target?.focus();
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const container = containerRef.current;
-      if (!container) return;
-      const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="button"]'));
-      const activeEl = document.activeElement as HTMLElement | null;
-      const currentIndex = activeEl ? buttons.indexOf(activeEl as HTMLButtonElement) : -1;
-
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        const nextIndex = currentIndex < buttons.length - 1 ? currentIndex + 1 : 0;
-        focusButtonAt(nextIndex);
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        const prevIndex = currentIndex > 0 ? currentIndex - 1 : buttons.length - 1;
-        focusButtonAt(prevIndex);
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        focusButtonAt(0);
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        focusButtonAt(buttons.length - 1);
-      }
-    },
-    [focusButtonAt]
-  );
-
-  const allActive = selected === 'all';
-
-  return (
-    <div
-      ref={containerRef}
-      role="group"
-      aria-label="Filter transactions by category"
-      className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2 scrollbar-hide"
-      onKeyDown={handleKeyDown}
-    >
-      <button
-        type="button"
-        role="button"
-        aria-pressed={allActive}
-        onClick={() => {
-          hapticTap();
-          onSelect('all');
-        }}
-        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-          allActive
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-        }`}
-      >
-        All
-      </button>
-      {categories.map((category) => {
-        const active = selected === category;
-        return (
-          <button
-            key={category}
-            type="button"
-            role="button"
-            aria-pressed={active}
-            onClick={() => {
-              hapticTap();
-              onSelect(active ? 'all' : category);
-            }}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 min-h-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              active
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            {category}
-            {active && <X className="h-3 w-3" aria-hidden="true" />}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: FullScreenWalletSheetProps) {
   const navigate = useNavigate();
@@ -202,9 +79,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
-  const storedFilters = useMemo(() => readStoredFilters(), []);
-  const [activeTab, setActiveTab] = useState<TabValue>(storedFilters?.activeTab ?? 'all');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | string>(storedFilters?.categoryFilter ?? 'all');
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
@@ -258,11 +132,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
     }
   }, [open, fetchAllPendingCounts, refreshWallet, refreshTransactions]);
 
-  // Persist the user's chosen tab and category filter so reopening the wallet
-  // restores their last view.
-  useEffect(() => {
-    writeStoredFilters({ activeTab, categoryFilter });
-  }, [activeTab, categoryFilter]);
 
   const { formatAmount: formatCurrency } = useCurrency();
 
@@ -290,12 +159,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
     { sent: 0, received: 0 }
   );
 
-  const availableCategories = useMemo(() => {
-    if (!user?.id) return [];
-    const labels = new Set<string>();
-    transactions.forEach((tx) => labels.add(getCategoryLabel(tx, user.id)));
-    return Array.from(labels).sort();
-  }, [transactions, user?.id]);
 
   const netAmount = recentStats.received - recentStats.sent;
   const currentMonth = format(new Date(), 'MMMM yyyy');
@@ -361,55 +224,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                 </div>
               </Card>
 
-              {/* Sticky, high-visibility accessible transaction filter tabs */}
-              <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-muted/30 backdrop-blur-sm">
-                <Card className="border-border/60 shadow-sm">
-                  <CardContent className="p-2">
-                    <Tabs
-                      value={activeTab}
-                      onValueChange={(v) => setActiveTab(v as TabValue)}
-                      className="w-full"
-                    >
-                      <TabsList
-                        variant="pills"
-                        className="w-full h-auto min-h-[44px] p-1 bg-muted/50 rounded-xl"
-                        aria-label="Filter transactions by direction"
-                      >
-                        <TabsTrigger
-                          value="all"
-                          variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
-                        >
-                          All
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="in"
-                          variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
-                        >
-                          Cash In
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="out"
-                          variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
-                        >
-                          Cash Out
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                    <p className="text-center text-[10px] text-muted-foreground mt-1.5 font-medium">
-                      Tap to filter your transactions
-                    </p>
-
-                    {/* Live region announces filter changes to screen readers */}
-                    <p className="sr-only" aria-live="polite" aria-atomic="true">
-                      Showing {activeTab === 'all' ? 'all transactions' : activeTab === 'in' ? 'cash in transactions' : 'cash out transactions'}
-                      {categoryFilter !== 'all' ? ` filtered by ${categoryFilter}` : ''}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
 
               {/* Plain-language money breakdown (agents only) */}
               {isAgent && (
@@ -610,10 +424,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                 }}
                 ownerName={profile?.full_name || undefined}
                 ownerPhone={profile?.phone || undefined}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                categoryFilter={categoryFilter}
-                onCategoryChange={setCategoryFilter}
               />
 
               {/* Agent Rent Requests — verify inline */}
