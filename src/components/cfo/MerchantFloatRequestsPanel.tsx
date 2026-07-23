@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown } from 'lucide-react';
+import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown, ChevronDown, ChevronUp, User as UserIcon, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -64,6 +64,7 @@ export function MerchantFloatRequestsPanel() {
   const [stmtFrom, setStmtFrom] = useState('');
   const [stmtTo, setStmtTo] = useState('');
   const [allocSort, setAllocSort] = useState<'newest' | 'oldest'>('newest');
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['cfo-float-requests'],
@@ -558,28 +559,85 @@ export function MerchantFloatRequestsPanel() {
               <>
                 <p className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocated per merchant agent</p>
                 <p className="-mt-1 text-[10px] text-muted-foreground">Select an agent to download their own float + transactions statement{(stmtFrom || stmtTo) ? ' for the chosen dates' : ''}.</p>
-                {agentTotals.map((b) => (
-                  <div key={b.agent_id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-card px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">{b.agent}</p>
-                      {b.phone && <p className="flex items-center gap-1 text-[11px] text-muted-foreground"><Phone className="h-3 w-3" /> {b.phone}</p>}
-                      <p className="text-[10px] text-muted-foreground">{b.count} allocation{b.count === 1 ? '' : 's'}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="text-base font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(b.total)}</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1.5"
-                        onClick={() => downloadStatementPdf(b.agent_id)}
-                        disabled={downloadingAgent === b.agent_id}
+                {agentTotals.map((b) => {
+                  const isOpen = expandedAgent === b.agent_id;
+                  const agentAllocs = sortedAllocations.filter((a) => a.agent_id === b.agent_id);
+                  return (
+                    <div key={b.agent_id} className="rounded-lg border border-border/60 bg-card">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedAgent(isOpen ? null : b.agent_id)}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition hover:bg-muted/40"
+                        aria-expanded={isOpen}
                       >
-                        {downloadingAgent === b.agent_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                        <span className="hidden sm:inline">Download</span>
-                      </Button>
+                        <div className="flex min-w-0 items-center gap-2">
+                          {isOpen ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{b.agent}</p>
+                            {b.phone && <p className="flex items-center gap-1 text-[11px] text-muted-foreground"><Phone className="h-3 w-3" /> {b.phone}</p>}
+                            <p className="text-[10px] text-muted-foreground">{b.count} allocation{b.count === 1 ? '' : 's'} · tap to view breakdown</p>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-base font-bold tabular-nums text-sky-700 dark:text-sky-400">{formatUGX(b.total)}</span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); downloadStatementPdf(b.agent_id); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); downloadStatementPdf(b.agent_id); } }}
+                            className={`inline-flex h-8 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 text-xs font-medium transition hover:bg-muted ${downloadingAgent === b.agent_id ? 'pointer-events-none opacity-60' : ''}`}
+                          >
+                            {downloadingAgent === b.agent_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                            <span className="hidden sm:inline">Download</span>
+                          </span>
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div className="border-t border-border/50 bg-muted/20 px-3 py-2.5">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Every float allocation to {b.agent}
+                          </p>
+                          {agentAllocs.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No allocation records found.</p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {agentAllocs.map((a, idx) => {
+                                const when = new Date(a.approved_at || a.created_at);
+                                return (
+                                  <div key={a.id} className="rounded-md border border-border/60 bg-card px-2.5 py-2 text-xs">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-semibold text-muted-foreground">#{agentAllocs.length - idx}</span>
+                                      <span className="text-sm font-bold tabular-nums text-sky-700 dark:text-sky-400">
+                                        {formatUGX(Number(a.requested_amount))}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                                      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                        <Calendar className="h-3 w-3" />
+                                        <span className="tabular-nums">
+                                          {when.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                      </p>
+                                      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                        <UserIcon className="h-3 w-3" />
+                                        <span className="truncate">
+                                          Allocated by <span className="font-semibold text-foreground">{a.approver?.full_name || 'CFO'}</span>
+                                        </span>
+                                      </p>
+                                    </div>
+                                    {a.reason && (
+                                      <p className="mt-1 truncate text-[11px] italic text-muted-foreground">"{a.reason}"</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <div className="flex items-center justify-between gap-2 pt-2">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Allocation records</p>
