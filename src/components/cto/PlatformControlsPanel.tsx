@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import MaintenanceToggleCard from '@/components/cto/MaintenanceToggleCard';
+import WalletOpsMaintenanceCard from '@/components/cto/WalletOpsMaintenanceCard';
 
 /**
  * CTO Platform Controls
@@ -144,6 +145,7 @@ export function PlatformControlsPanel() {
         </Button>
       </div>
 
+      <WalletOpsMaintenanceCard />
       <MaintenanceToggleCard />
       {renderGroup('Automation engines', 'Turn scheduled money movements on or off.', AUTOMATION_CONTROLS)}
       {renderGroup('Emergency halts', 'Immediately stop credit or withdrawals during an incident.', HALT_CONTROLS)}
