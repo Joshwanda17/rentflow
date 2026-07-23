@@ -642,29 +642,10 @@ Deno.serve(async (req) => {
         throw new Error(`Ledger error: ${rpcErr.message}`);
       }
 
-      // Landlord-payout float fix: CFO "Agent Float Allocation" credits must
-      // also fund the ring-fenced landlord payout pool used by Pay Landlord.
-      // The wallet ledger alone updates wallet float, but payout validation
-      // reads agent_landlord_float.balance. Inserting the funding row is the
-      // single operational path because trg_credit_float_on_funding mirrors it
-      // into agent_landlord_float and keeps the audit trail visible to CFO.
-      if (recipient_type === 'operational_wallet' && walletCat === 'agent_float_deposit') {
-        const { error: fundingErr } = await adminClient
-          .from('agent_float_funding')
-          .insert({
-            agent_id: walletUserId,
-            amount,
-            funded_by: userId,
-            bank_reference: refId,
-            bank_name: 'cfo_direct_credit',
-            status: 'approved',
-            notes: `CFO Agent Float Allocation: ${reason}`,
-          });
-        if (fundingErr) {
-          console.error('[cfo-direct-credit] agent_float_funding mirror failed:', fundingErr.message);
-          throw new Error(`Landlord payout float mirror failed: ${fundingErr.message}`);
-        }
-      }
+      // NOTE: CFO "Agent Float Allocation" funds ONLY the agent's rent-collection
+      // float (wallet float bucket). It intentionally does NOT touch
+      // `agent_landlord_float` — that ring-fenced landlord-payout pool is funded
+      // exclusively via the dedicated "Landlord Payout Float" flow.
     } else {
       console.log("[cfo-direct-credit] Creating DEBIT ledger entries for", target_user_id, "amount:", amount);
       const nowIso = new Date().toISOString();
