@@ -54,6 +54,7 @@ export function InvitedPortfoliosPanel() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
   const [reviewRow, setReviewRow] = useState<Row | null>(null);
   const queryClient = useQueryClient();
 
@@ -145,6 +146,7 @@ export function InvitedPortfoliosPanel() {
       previewData: AgreementPreviewData;
     },
   ) => {
+    setApprovalError(null);
     setApprovingId(row.id);
     try {
       const { data: res, error } = await supabase.functions.invoke('approve-pending-portfolio', {
@@ -191,7 +193,12 @@ export function InvitedPortfoliosPanel() {
       await queryClient.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
       setReviewRow(null);
     } catch (err: any) {
-      toast.error('Approval failed', { description: extractFromErrorObject(err) || err.message });
+      const parsedMessage = await extractFromErrorObject(err, 'Approval failed. Please try again.');
+      const message = parsedMessage === 'Failed to fetch'
+        ? 'The approval request could not reach the backend. Please refresh once and try again; if it repeats, contact support with this portfolio code.'
+        : parsedMessage;
+      setApprovalError(message);
+      toast.error('Approval failed', { description: message });
     } finally {
       setApprovingId(null);
     }
@@ -358,6 +365,7 @@ export function InvitedPortfoliosPanel() {
         onClose={() => setReviewRow(null)}
         onApprove={handleApprove}
         approving={approvingId === reviewRow?.id}
+        approvalError={approvalError}
       />
     </div>
   );
@@ -373,6 +381,7 @@ function ReviewSubmissionDialog({
   onClose,
   onApprove,
   approving,
+  approvalError,
 }: {
   row: Row | null;
   onClose: () => void;
@@ -387,6 +396,7 @@ function ReviewSubmissionDialog({
     },
   ) => void;
   approving: boolean;
+  approvalError: string | null;
 }) {
   const open = !!row;
   // Guard against Radix body pointer-events lock leaking after nested
@@ -658,6 +668,17 @@ function ReviewSubmissionDialog({
                 <Separator />
 
                 <div className="flex flex-col gap-2 pb-2">
+                  {approvalError && (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+                      <div className="flex items-start gap-2">
+                        <MailWarning className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold">Approval failed</p>
+                          <p className="text-[11px] leading-relaxed">{approvalError}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {approvalBlocked && (
                     <div
                       id="portfolio-approval-blockers"
