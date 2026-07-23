@@ -289,6 +289,18 @@ export function InvitedPortfoliosPanel() {
                     </div>
                   </div>
 
+                  <div className="flex justify-end pt-1 border-t">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={() => setReviewRow(row)}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View details & contract
+                    </Button>
+                  </div>
+
                 </CardContent>
               </Card>
             );
