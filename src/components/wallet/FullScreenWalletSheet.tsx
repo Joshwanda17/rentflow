@@ -178,7 +178,7 @@ function CategoryFilterChips({ categories, selected, onSelect }: CategoryFilterC
   );
 }
 
-export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSheetProps) {
+export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: FullScreenWalletSheetProps) {
   const navigate = useNavigate();
   const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
   const { user, role } = useAuth();
@@ -211,6 +211,17 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [hasProxyPartners, setHasProxyPartners] = useState(false);
+  const statementSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // When opened with scrollTarget='statement', jump the Wallet Statement
+  // section into view so users don't have to scroll to find it.
+  useEffect(() => {
+    if (!open || scrollTarget !== 'statement') return;
+    const t = window.setTimeout(() => {
+      statementSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [open, scrollTarget]);
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
