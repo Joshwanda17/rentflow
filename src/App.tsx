@@ -199,6 +199,7 @@ const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const AgentCashPayoutsPage = lazy(() => import('./pages/agent/CashPayouts'));
 const PayoutReceiptHistory = lazy(() => import('./pages/agent/PayoutReceiptHistory'));
+const MerchantTransactionHistory = lazy(() => import('./pages/agent/MerchantTransactionHistory'));
 const AgentFloatBreakdownPage = lazy(() => import('./pages/agent/FloatBreakdown'));
 const RentDisbursementProcessPage = lazy(() => import('./pages/RentDisbursementProcess'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
@@ -586,6 +587,7 @@ function AppRoutes() {
            <Route path="/agent-advances/:id" element={<AgentAdvanceDetail />} />
            <Route path="/agent/cash-payouts" element={<AgentCashPayoutsPage />} />
           <Route path="/agent/payout-receipts" element={<PayoutReceiptHistory />} />
+          <Route path="/agent/transaction-history" element={<MerchantTransactionHistory />} />
            <Route path="/agent/float-breakdown" element={<AgentFloatBreakdownPage />} />
           <Route path="/coo/active-users" element={<ActiveUsersDetail />} />
           <Route path="/coo/earning-agents" element={<EarningAgentsDetail />} />
