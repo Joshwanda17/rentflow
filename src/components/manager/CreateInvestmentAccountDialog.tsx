@@ -176,8 +176,8 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
     const t = setTimeout(async () => {
       try {
         const { data, error } = await supabase.rpc('search_users_fast', {
-          query: q,
-          match_limit: 5,
+          p_query: q,
+          p_limit: 5,
         }).abortSignal(ctrl.signal);
         if (ctrl.signal.aborted) return;
         if (error) {
@@ -310,8 +310,6 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
               {searchTerm.length > 0 && searchTerm.length < 4 && (
                 <p className="text-[11px] text-muted-foreground pl-1">Keep typing — {4 - searchTerm.length} more character{4 - searchTerm.length === 1 ? '' : 's'} to search.</p>
               )}
-              <div className="hidden">
-              </div>
               {searching && <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin" /></div>}
               {users.length > 0 && (
                 <ScrollArea className="max-h-40 border rounded-lg">
