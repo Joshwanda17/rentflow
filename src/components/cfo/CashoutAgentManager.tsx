@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
@@ -148,16 +149,12 @@ function MerchantAgentFloatCard({ agentId }: { agentId: string | null | undefine
     refetchOnWindowFocus: false,
     staleTime: 30_000,
     queryFn: async () => {
-      const { data: w } = await supabase
-        .from('wallets')
-        .select('float_balance, withdrawable_balance, advance_balance, balance')
-        .eq('user_id', agentId!)
-        .maybeSingle();
+      const w = await fetchOpsWallet(agentId!);
       return {
-        float: Number(w?.float_balance ?? 0),
-        withdrawable: Number(w?.withdrawable_balance ?? 0),
-        advance: Number(w?.advance_balance ?? 0),
-        total: Number(w?.balance ?? 0),
+        float: Number(w?.float ?? 0),
+        withdrawable: Number(w?.withdrawable ?? 0),
+        advance: Number(w?.advance ?? 0),
+        total: Number((w?.withdrawable ?? 0) + (w?.float ?? 0) + (w?.advance ?? 0)),
       };
     },
   });
@@ -845,13 +842,8 @@ export function CashoutAgentManager() {
     enabled: !!selectedAgent?.agent_id,
     staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('float_balance')
-        .eq('user_id', selectedAgent!.agent_id)
-        .maybeSingle();
-      if (error) throw error;
-      return Number(data?.float_balance ?? 0);
+      const w = await fetchOpsWallet(selectedAgent!.agent_id);
+      return Number(w?.float ?? 0);
     },
   });
   const floatConsumedTotal = Math.max(0, disbursedFloatTotal - currentFloatBalance);
