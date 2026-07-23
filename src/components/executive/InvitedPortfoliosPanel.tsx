@@ -27,6 +27,7 @@ import AgreementHtmlPreview, { type AgreementPreviewData } from '@/components/pa
 import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
 import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
 import { buildPartnerReference } from '@/lib/partnerReference';
+import { useRestoreBodyPointerEvents } from '@/hooks/useRestoreBodyPointerEvents';
 
 type InviteStatus = 'awaiting_partner_details' | 'pending_ops_approval';
 
@@ -388,6 +389,11 @@ function ReviewSubmissionDialog({
   approving: boolean;
 }) {
   const open = !!row;
+  // Guard against Radix body pointer-events lock leaking after nested
+  // popovers/selects/toasts inside this dialog — the "Approve" button was
+  // reported as unclickable when `document.body` was stuck at
+  // `pointer-events: none`.
+  useRestoreBodyPointerEvents();
   // Welile counter-signature fields — filled by Partner Ops before approval.
   // Prefilled from `partner_agreement_company_defaults` so common admin
   // details don't need re-typing. Hooks stay above any early return.
@@ -621,6 +627,7 @@ function ReviewSubmissionDialog({
 
                 <div className="flex flex-col gap-2 pb-2">
                   <Button
+                    type="button"
                     onClick={() => {
                       if (!repName.trim()) {
                         toast.error('Enter the representative name before approving.');
@@ -638,16 +645,41 @@ function ReviewSubmissionDialog({
                         toast.error('Upload the Welile representative signature before approving.');
                         return;
                       }
-                      if (!previewData) {
-                        toast.error('Agreement not loaded yet.');
-                        return;
-                      }
+                      // Fall back to a minimal preview payload built from the
+                      // partner profile + portfolio row when the partner has
+                      // not submitted a full agreement yet. This unblocks
+                      // approval for direct-confirmation portfolios where no
+                      // `partner_agreements` row exists.
+                      const finalPreview: AgreementPreviewData = previewData ?? {
+                        partnerName: profile.full_name || row.partner_name || '',
+                        partnerId: profile.national_id || '',
+                        partnerAddress: '',
+                        partnerPhone: profile.phone || row.partner_phone || '',
+                        partnerEmail: profile.email || row.partner_email || '',
+                        partnershipAmount: Number(row.investment_amount) || 0,
+                        payoutMode: 'momo',
+                        bankName: '',
+                        bankAccountName: '',
+                        bankAccountNumber: '',
+                        momoProvider: '',
+                        momoNumber: profile.phone || row.partner_phone || '',
+                        momoName: profile.mobile_money_name || profile.full_name || '',
+                        kinName: '',
+                        kinContact: '',
+                        agreementDate: new Date(),
+                        partnerSignatureDataUrl: undefined,
+                        welileRepName: repName,
+                        welileRepPosition: repPosition,
+                        welileRepContact: repContact,
+                        welileSignatureDataUrl: sigDataUrl || defaultSigUrl,
+                        includeStamp: true,
+                      };
                       onApprove(row, {
                         repName,
                         repPosition,
                         repContact,
                         sigDataUrl: sigDataUrl || defaultSigUrl,
-                        previewData,
+                        previewData: finalPreview,
                       });
                     }}
                     disabled={approving}
