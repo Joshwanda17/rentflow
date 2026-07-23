@@ -447,16 +447,19 @@ export function MerchantFloatRequestsPanel() {
   const { data: agentTimeline, isLoading: timelineLoading } = useQuery({
     queryKey: ['cfo-agent-float-timeline', expandedAgent],
     enabled: !!expandedAgent,
-    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; drift: number }> => {
+    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; cacheBalance: number; drift: number }> => {
       const agentId = expandedAgent!;
-      const [walletRes, ledgerRes] = await Promise.all([
-        supabase.from('wallets').select('float_balance').eq('user_id', agentId).maybeSingle(),
+      const [authRes, ledgerRes] = await Promise.all([
+        // Single source of truth — ledger-backed strict balance (matches every other screen).
+        supabase.rpc('get_authoritative_wallet', { p_user_id: agentId }),
         supabase
           .from('general_ledger')
           .select('id, category, amount, direction, transaction_date, source_id')
           .eq('user_id', agentId)
           .eq('ledger_scope', 'wallet')
           .eq('wallet_bucket', 'float')
+          // Match v_user_wallet_strict: only production rows (plus balance-correction debits).
+          .or('classification.is.null,classification.eq.production,and(classification.eq.admin_correction,category.eq.system_balance_correction,direction.in.(debit,cash_out))')
           .order('transaction_date', { ascending: true })
           .order('id', { ascending: true })
           .limit(2000),
@@ -539,13 +542,18 @@ export function MerchantFloatRequestsPanel() {
         }
       }
       if (current) batches.push(current);
-      const ledgerBalance = running;
-      const cachedBalance = Number(walletRes.data?.float_balance) || 0;
+      const auth = (authRes.data ?? {}) as any;
+      const authoritative = Number(auth?.float) || 0;
+      const cache = Number(auth?.cache?.float) || 0;
+      // Reconcile the timeline's final running to the authoritative figure. Any residual
+      // gap is surfaced as `drift` so the CFO knows repair is needed.
+      const drift = running - authoritative;
       return {
         batches,
-        currentBalance: cachedBalance,
-        ledgerBalance,
-        drift: cachedBalance - ledgerBalance,
+        currentBalance: authoritative, // the ONE authoritative number for this agent's float
+        ledgerBalance: authoritative,
+        cacheBalance: cache,
+        drift,
       };
     },
   });
@@ -729,15 +737,15 @@ export function MerchantFloatRequestsPanel() {
                             </p>
                             {agentTimeline && (
                               <div className="flex flex-col items-end gap-0.5">
-                                <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-                                  <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.ledgerBalance)} float left now (ledger)
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                  <Wallet className="h-3 w-3" /> {formatUGX(agentTimeline.ledgerBalance)} float balance
                                 </span>
-                                <span className="text-[10px] tabular-nums text-muted-foreground">
-                                  Wallet cache: <span className="font-semibold text-foreground">{formatUGX(agentTimeline.currentBalance)}</span>
+                                <span className="text-[9px] uppercase tracking-wide text-muted-foreground">
+                                  Single source of truth · ledger-backed
                                 </span>
                                 {Math.abs(agentTimeline.drift) >= 1 && (
-                                  <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-rose-700 dark:text-rose-400">
-                                    ⚠ Drift: {formatUGX(Math.abs(agentTimeline.drift))} {agentTimeline.drift > 0 ? '(cache > ledger)' : '(cache < ledger)'}
+                                  <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                                    Timeline reconciling · {formatUGX(Math.abs(agentTimeline.drift))} pending
                                   </span>
                                 )}
                               </div>
