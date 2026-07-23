@@ -626,6 +626,18 @@ function ReviewSubmissionDialog({
                         toast.error('Enter the representative name before approving.');
                         return;
                       }
+                      if (!repPosition.trim()) {
+                        toast.error('Enter the representative position before approving.');
+                        return;
+                      }
+                      if (!repContact.trim()) {
+                        toast.error('Enter a contact (phone or email) before approving.');
+                        return;
+                      }
+                      if (!(sigDataUrl || defaultSigUrl)) {
+                        toast.error('Upload the Welile representative signature before approving.');
+                        return;
+                      }
                       if (!previewData) {
                         toast.error('Agreement not loaded yet.');
                         return;
@@ -638,7 +650,7 @@ function ReviewSubmissionDialog({
                         previewData,
                       });
                     }}
-                    disabled={approving || !repName.trim() || !(sigDataUrl || defaultSigUrl)}
+                    disabled={approving}
                     className="gap-1.5"
                   >
                     {approving
@@ -647,8 +659,17 @@ function ReviewSubmissionDialog({
                   </Button>
                   <Button variant="outline" size="sm" onClick={onClose} disabled={approving}>Close</Button>
                   <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                    <Mail className="h-3 w-3" /> Activates the portfolio and emails the executed agreement.
+                    <Mail className="h-3 w-3" /> Flips the portfolio to <b className="mx-1">Active</b> and emails the executed agreement.
                   </p>
+                  {(!repName.trim() || !repPosition.trim() || !repContact.trim() || !(sigDataUrl || defaultSigUrl)) && (
+                    <p className="text-[10px] text-amber-600">
+                      Missing:
+                      {!repName.trim() && ' name'}
+                      {!repPosition.trim() && ' · position'}
+                      {!repContact.trim() && ' · contact'}
+                      {!(sigDataUrl || defaultSigUrl) && ' · signature'}
+                    </p>
+                  )}
                 </div>
               </>
             )}
