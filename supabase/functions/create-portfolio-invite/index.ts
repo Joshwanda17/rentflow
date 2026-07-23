@@ -1,13 +1,19 @@
-// Partner Ops → creates an *inert* portfolio for an EXISTING partner and emails
-// the partner a secure one-tap link to complete missing details + sign.
+// Partner Ops → creates either:
+// 1) an inert invite portfolio for an EXISTING partner and emails a secure
+//    one-tap link to complete missing details + sign, OR
+// 2) a direct-confirmation first portfolio that immediately debits the
+//    partner wallet, activates the portfolio, and sends the final confirmation.
 //
-// No wallet is debited. No ledger row is written. The portfolio sits at
-// status='awaiting_partner_details' until the partner completes it, then flips
-// to 'pending_ops_approval'. Ops approves via approve-pending-portfolio, which
-// flips it to 'active' and dispatches the existing partnership-agreement email.
+// Invite mode: no wallet is debited. No ledger row is written. The portfolio
+// sits at status='awaiting_partner_details' until the partner completes it,
+// then flips to 'pending_ops_approval'. Ops approves via
+// approve-pending-portfolio, which flips it to 'active' and dispatches the
+// existing partnership-agreement email.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { withRetry } from "../_shared/rpcRetry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +29,13 @@ function json(body: unknown, status = 200) {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function addMonthsIsoDate(iso: string, months: number): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
 
 // Cryptographically strong URL-safe token
 function generateToken(): string {
@@ -78,6 +91,9 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
+    const guardBlock = await checkTreasuryGuard(admin, "any", authHeader);
+    if (guardBlock) return guardBlock;
+
     // Look up partner contact info up-front so we can email them.
     const { data: partner, error: partnerErr } = await admin
       .from("profiles")
@@ -114,6 +130,23 @@ Deno.serve(async (req) => {
       return json({
         error: "This partner already has a portfolio. Direct confirmation only applies to first-time partners — use the invite flow instead.",
       }, 409);
+    }
+
+    if (directConfirmation) {
+      const { data: strictAvailRaw, error: availErr } = await admin.rpc("get_user_available_balance", {
+        p_user_id: partnerId,
+      });
+      if (availErr) {
+        console.error("[create-portfolio-invite] strict balance lookup failed:", availErr);
+        return json({ error: "Could not verify partner wallet balance. Please retry." }, 500);
+      }
+
+      const strictAvail = Number(strictAvailRaw ?? 0);
+      if (strictAvail < amount) {
+        return json({
+          error: `Insufficient partner wallet balance. Need UGX ${amount.toLocaleString()}, but only UGX ${strictAvail.toLocaleString()} is available.`,
+        }, 400);
+      }
     }
 
     const rawToken = generateToken();
@@ -157,6 +190,68 @@ Deno.serve(async (req) => {
     // Approve the freshly-created portfolio right away and send the standard
     // Tenant Partnership Confirmation email. No invite link is sent.
     if (directConfirmation) {
+      const { data: portfolio } = await admin
+        .from("investor_portfolios")
+        .select("id, investor_id, investment_amount, roi_percentage, roi_mode, duration_months, payout_day, portfolio_code, next_roi_date, created_at")
+        .eq("id", portfolioId).maybeSingle();
+
+      if (!portfolio) {
+        return json({ error: "Portfolio was created but could not be loaded for funding." }, 500);
+      }
+
+      const idempotencyKey = `direct-confirmation-portfolio-funding-${portfolioId}`;
+      const ledgerRes = await withRetry<unknown>(
+        "direct_confirmation_portfolio_funding",
+        portfolioId,
+        () => admin.rpc("create_ledger_transaction", {
+          idempotency_key: idempotencyKey,
+          entries: [
+            {
+              user_id: partnerId,
+              amount,
+              direction: "cash_out",
+              category: "partner_funding",
+              ledger_scope: "wallet",
+              recipient_type: "user",
+              description: `Wallet deduction for first portfolio ${portfolioCode}`,
+              source_table: "investor_portfolios",
+              source_id: portfolioId,
+              reference_id: portfolioCode,
+              linked_party: "platform",
+            },
+            {
+              amount,
+              direction: "cash_in",
+              category: "partner_funding",
+              ledger_scope: "platform",
+              description: `Platform capital received for first portfolio ${portfolioCode}`,
+              source_table: "investor_portfolios",
+              source_id: portfolioId,
+              reference_id: portfolioCode,
+              linked_party: partnerId,
+            },
+          ],
+        }),
+      );
+
+      const ledgerErr = ledgerRes.error as { message?: string } | null;
+      if (ledgerErr) {
+        console.error("[create-portfolio-invite] direct confirmation ledger failed:", ledgerErr);
+        return json({ error: `Wallet deduction failed: ${ledgerErr.message || "unknown error"}. Portfolio was not activated.` }, 500);
+      }
+
+      const txGroupId = String(ledgerRes.data || "");
+
+      const { error: txErr } = await admin.from("wallet_transactions").insert({
+        sender_id: partnerId,
+        recipient_id: partnerId,
+        amount,
+        description: `Portfolio creation: ${portfolioCode}`,
+      });
+      if (txErr && (txErr as any).code !== "23505") {
+        console.warn("[create-portfolio-invite] wallet transaction insert failed:", txErr);
+      }
+
       const { error: approveErr } = await userClient.rpc("approve_pending_portfolio", {
         p_portfolio_id: portfolioId,
       });
@@ -165,13 +260,54 @@ Deno.serve(async (req) => {
         if (msg.includes("NOT_AUTHORIZED")) {
           return json({ error: "You do not have permission to approve portfolios." }, 403);
         }
-        return json({ error: `Could not activate portfolio: ${msg}` }, 500);
+        return json({ error: `Wallet was deducted but portfolio activation failed: ${msg}. Please contact operations.` }, 500);
       }
 
-      const { data: portfolio } = await admin
+      const maturityDate = addMonthsIsoDate(
+        portfolio.created_at,
+        Number(portfolio.duration_months) || durationMonths,
+      );
+      const { error: verifyErr } = await admin
         .from("investor_portfolios")
-        .select("id, investor_id, investment_amount, roi_percentage, roi_mode, duration_months, payout_day, portfolio_code, next_roi_date, created_at")
-        .eq("id", portfolioId).maybeSingle();
+        .update({
+          cfo_verified: true,
+          cfo_verified_at: new Date().toISOString(),
+          cfo_verified_by: caller.id,
+          cfo_rejection_reason: null,
+          maturity_date: maturityDate,
+        })
+        .eq("id", portfolioId);
+      if (verifyErr) {
+        console.error("[create-portfolio-invite] direct confirmation verification flag failed:", verifyErr);
+        return json({ error: "Portfolio activated, but verification flags failed. Please contact operations." }, 500);
+      }
+
+      await admin.from("audit_logs").insert({
+        user_id: caller.id,
+        action_type: "direct_confirmation_portfolio_funded",
+        table_name: "investor_portfolios",
+        record_id: portfolioId,
+        metadata: {
+          partner_id: partnerId,
+          amount,
+          portfolio_code: portfolioCode,
+          transaction_group_id: txGroupId,
+          reason: "first_time_partner_wallet_funded_active_portfolio",
+        },
+      });
+
+      await admin.from("system_events").insert({
+        event_type: "portfolio_topup",
+        user_id: partnerId,
+        related_entity_type: "investor_portfolios",
+        related_entity_id: portfolioId,
+        metadata: {
+          amount,
+          portfolio_code: portfolioCode,
+          transaction_group_id: txGroupId,
+          source: "direct_confirmation",
+        },
+      });
 
       let emailDispatched = false;
       let emailError: string | null = null;
