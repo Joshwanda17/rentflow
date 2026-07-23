@@ -396,6 +396,7 @@ function AppRoutes() {
           <Route path="/resume-sms" element={<ResumeSms />} />
           <Route path="/r/:code" element={<ResolveRLink />} />
           <Route path="/invite/merchant-agent" element={<InviteMerchantAgent />} />
+          <Route path="/merchant/register" element={<MerchantRegister />} />
           <Route path="/merchant-agent/onboarding" element={<MerchantAgentOnboarding />} />
           <Route path="/merchant-agent-referrals" element={<MerchantAgentReferrals />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
