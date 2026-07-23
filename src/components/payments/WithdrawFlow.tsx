@@ -13,6 +13,8 @@ import { formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote, BadgeCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { computeLedgerAvailable } from '@/lib/computeLedgerAvailable';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
