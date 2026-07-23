@@ -374,6 +374,10 @@ export function AgentCashPayoutsTab() {
   type ClaimConfirmation = { momoNumber?: string | null; momoName?: string | null };
   const handleClaim = (id: string, confirm?: ClaimConfirmation) => {
     if (claimLockRef.current.has(id)) return; // already submitting this request
+    if (withdrawalsPaused) {
+      toast.error('Withdrawals are paused platform-wide. Merchant processing is temporarily disabled.');
+      return;
+    }
     // Category permission gate: a merchant agent may only claim payouts in the
     // categories the CFO mapped to them in the permission matrix.
     const row =
