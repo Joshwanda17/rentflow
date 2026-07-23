@@ -211,69 +211,45 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       return;
     }
     const amt = parseFloat(form.investment_amount);
-    if (isNaN(amt) || amt < 1000) {
-      toast({ title: 'Investment must be at least UGX 1,000', variant: 'destructive' });
-      return;
-    }
-    if (partnerBalance === null) {
-      toast({ title: 'Partner wallet balance not loaded yet', variant: 'destructive' });
-      return;
-    }
-    if (amt > partnerBalance) {
-      toast({
-        title: managedProxy
-          ? 'Insufficient proxy agent wallet balance'
-          : 'Insufficient partner wallet balance',
-        description: managedProxy
-          ? `Proxy agent ${managedProxy.agentName} has UGX ${partnerBalance.toLocaleString()} available. Top up the proxy agent wallet first.`
-          : `${selectedUser.full_name} has UGX ${partnerBalance.toLocaleString()} available. Top up the partner wallet first.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (!/^\d{4}$/.test(form.portfolio_pin)) {
-      toast({ title: 'Portfolio PIN must be exactly 4 digits', variant: 'destructive' });
+    if (isNaN(amt) || amt < 20000) {
+      toast({ title: 'Investment must be at least UGX 20,000', variant: 'destructive' });
       return;
     }
 
     setSaving(true);
     try {
-      const response = await supabase.functions.invoke('create-investor-portfolio', {
+      // Route ALL Create Portfolio actions through the invite flow so that
+      // existing partners also receive a "complete + sign" email, land in
+      // the Invited Portfolios tab, and go through the Partner Ops review
+      // gate before the portfolio activates. No wallet is debited here.
+      const response = await supabase.functions.invoke('create-portfolio-invite', {
         body: {
-          investor_id: selectedUser.id,
-          investment_amount: amt,
+          partner_id: selectedUser.id,
+          amount: amt,
           duration_months: parseInt(form.duration_months),
           roi_percentage: parseFloat(form.roi_percentage),
           roi_mode: form.roi_mode,
-          portfolio_pin: form.portfolio_pin,
-          payout_day: parseInt(form.payout_day),
-          contribution_date: form.contribution_date || null,
-          payment_method: form.payment_method || null,
-          mobile_network: form.mobile_network || null,
-          mobile_money_number: form.mobile_money_number || null,
-          bank_name: form.bank_name || null,
-          account_name: form.bank_account_name || form.account_name || null,
-          account_number: form.account_number || null,
+          nickname: form.account_name || null,
         },
       });
 
       if (response.error || response.data?.error) {
-        // Surfaces the real backend message (e.g. "Insufficient ledger
-        // balance … Available: 0, Required: 60000") plus structured
-        // diagnostics (status, request_id, error_code) for client logging.
-        const details = await extractEdgeFunctionErrorDetails(response, 'Failed to create portfolio');
+        const details = await extractEdgeFunctionErrorDetails(response, 'Failed to send portfolio invite');
         const err: any = new Error(details.message);
         err.details = details;
         throw err;
       }
       const data = response.data;
 
-      const code = data?.portfolio?.portfolio_code || '';
-      toast({ title: `Portfolio ${code} created — pending approval` });
+      const code = data?.portfolio_code || '';
+      toast({
+        title: `Invite sent — portfolio ${code}`,
+        description: `${selectedUser.full_name} will get an email to review and sign. It’s now in the Invited Portfolios tab.`,
+      });
       onSuccess();
       onOpenChange(false);
     } catch (e: any) {
-      toast({ title: 'Creation failed', description: e.message, variant: 'destructive' });
+      toast({ title: 'Invite failed', description: e.message, variant: 'destructive' });
       const details: EdgeFunctionErrorDetails | undefined = e?.details;
       onError?.(e?.message || 'Failed to create portfolio', {
         ...(details || { message: e?.message || 'Failed to create portfolio' }),
@@ -568,11 +544,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                 saving ||
                 !selectedUser ||
                 !form.investment_amount ||
-                !/^\d{4}$/.test(form.portfolio_pin) ||
-                !isApproved ||
-                balanceLoading ||
-                partnerBalance === null ||
-                parseFloat(form.investment_amount) > partnerBalance
+                !isApproved
               }
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
@@ -582,7 +554,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                   Checking approval…
                 </>
               ) : (
-                'Create Portfolio'
+                'Send invite'
               )}
             </Button>
           )}
