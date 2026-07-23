@@ -867,6 +867,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           withdrawableBalance={realWithdrawableBalance}
           otherBalance={otherBalance}
           onOpenWallet={() => setShowWallet(true)}
+          onViewStatement={() => { setWalletScrollTarget('statement'); setShowWallet(true); }}
           quickActions={
             <div className="flex items-center gap-2.5">
               <button
