@@ -1558,7 +1558,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </div>
 
       <LazyModal when={showWallet}>
-      <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+      <FullScreenWalletSheet
+        open={showWallet}
+        onOpenChange={(o) => { setShowWallet(o); if (!o) setWalletScrollTarget(null); }}
+        scrollTarget={walletScrollTarget}
+      />
       </LazyModal>
       <LazyModal when={showQuickDeposit}>
       <DepositFlow
