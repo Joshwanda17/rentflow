@@ -2048,6 +2048,7 @@ export function NewPartnersPanel() {
 
       <CreateInvestmentAccountDialog
         open={createOpen}
+        mode="direct_confirmation"
         onOpenChange={(open) => {
           setCreateOpen(open);
           // The dialog itself only auto-closes on success (see
