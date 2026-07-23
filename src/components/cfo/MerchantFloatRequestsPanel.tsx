@@ -447,7 +447,7 @@ export function MerchantFloatRequestsPanel() {
   const { data: agentTimeline, isLoading: timelineLoading } = useQuery({
     queryKey: ['cfo-agent-float-timeline', expandedAgent],
     enabled: !!expandedAgent,
-    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; drift: number }> => {
+    queryFn: async (): Promise<{ batches: TopUpBatch[]; currentBalance: number; ledgerBalance: number; cacheBalance: number; drift: number }> => {
       const agentId = expandedAgent!;
       const [authRes, ledgerRes] = await Promise.all([
         // Single source of truth — ledger-backed strict balance (matches every other screen).
