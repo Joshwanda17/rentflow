@@ -377,3 +377,151 @@ export function AgentListingCampaignPanel() {
     </div>
   );
 }
+
+interface SubAgentRow {
+  sub_agent_id: string;
+  name: string | null;
+  phone: string | null;
+  status: string;
+  listed_week: number;
+  verified_week: number;
+  listed_total: number;
+  verified_total: number;
+}
+
+function AgentLeaderboardRow({
+  row,
+  rank,
+  expanded,
+  onToggle,
+}: {
+  row: TopAgentRow;
+  rank: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { data: breakdown, isLoading } = useQuery({
+    queryKey: ['agent-subagent-breakdown', row.agent_id],
+    enabled: expanded,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)(
+        'get_agent_subagent_listing_breakdown',
+        { p_parent_agent_id: row.agent_id },
+      );
+      if (error) throw error;
+      return data as { sub_agents: SubAgentRow[]; total_sub_agents: number };
+    },
+  });
+
+  const subs = breakdown?.sub_agents ?? [];
+
+  return (
+    <>
+      <tr
+        className="border-t border-border hover:bg-muted/30 cursor-pointer"
+        onClick={onToggle}
+      >
+        <td className="px-4 py-2 tabular-nums text-muted-foreground">
+          <div className="flex items-center gap-1">
+            {expanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+            {rank}
+          </div>
+        </td>
+        <td className="px-4 py-2">
+          <div className="font-medium">{row.agent_name || row.agent_id.slice(0, 8) + '…'}</div>
+          {row.agent_phone && (
+            <div className="text-xs text-muted-foreground">{row.agent_phone}</div>
+          )}
+        </td>
+        <td className="px-4 py-2 text-right tabular-nums">{row.invited_count ?? 0}</td>
+        <td className="px-4 py-2 text-right tabular-nums font-semibold">
+          {row.verified_count ?? 0}
+        </td>
+        <td className="px-4 py-2 text-right tabular-nums">
+          {((row.verified_count ?? 0) * 3000).toLocaleString()}
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="bg-muted/20 border-t border-border">
+          <td colSpan={5} className="px-4 py-3">
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading sub-agents…
+              </div>
+            ) : subs.length === 0 ? (
+              <div className="text-xs text-muted-foreground">
+                No invited sub-agents.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+                  Invited sub-agents ({subs.length})
+                </div>
+                <div className="overflow-x-auto rounded-lg border border-border bg-card">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground">
+                      <tr>
+                        <th className="text-left px-3 py-1.5 font-semibold">Sub-agent</th>
+                        <th className="text-left px-3 py-1.5 font-semibold">Status</th>
+                        <th className="text-right px-3 py-1.5 font-semibold">Listed (wk)</th>
+                        <th className="text-right px-3 py-1.5 font-semibold">Verified (wk)</th>
+                        <th className="text-right px-3 py-1.5 font-semibold">Listed (all)</th>
+                        <th className="text-right px-3 py-1.5 font-semibold">Verified (all)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subs.map((s) => {
+                        const qualifies = s.verified_week >= 3;
+                        return (
+                          <tr key={s.sub_agent_id} className="border-t border-border">
+                            <td className="px-3 py-1.5">
+                              <div className="font-medium">{s.name || s.sub_agent_id.slice(0, 8) + '…'}</div>
+                              {s.phone && (
+                                <div className="text-[10px] text-muted-foreground">{s.phone}</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5">
+                              <span
+                                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                  s.status === 'verified'
+                                    ? 'bg-emerald-500/15 text-emerald-600'
+                                    : 'bg-muted text-muted-foreground'
+                                }`}
+                              >
+                                {s.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-1.5 text-right tabular-nums">{s.listed_week}</td>
+                            <td
+                              className={`px-3 py-1.5 text-right tabular-nums font-semibold ${
+                                qualifies ? 'text-emerald-600' : ''
+                              }`}
+                            >
+                              {s.verified_week}
+                              {qualifies && ' ✓'}
+                            </td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                              {s.listed_total}
+                            </td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                              {s.verified_total}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
