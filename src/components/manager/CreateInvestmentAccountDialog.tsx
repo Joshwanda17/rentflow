@@ -25,6 +25,14 @@ interface CreateInvestmentAccountDialogProps {
   onError?: (message: string, details?: EdgeFunctionErrorDetails & { partnerId?: string }) => void;
   prefillInvestorId?: string | null;
   prefillInvestorName?: string;
+  /**
+   * 'invite' (default): sends the completion-link email; portfolio lands in
+   *   Invited Portfolios awaiting partner details + Ops approval.
+   * 'direct_confirmation': for partners with ZERO existing portfolios only.
+   *   Skips the invite email, activates the portfolio immediately, and sends
+   *   the standard Tenant Partnership Confirmation email.
+   */
+  mode?: 'invite' | 'direct_confirmation';
 }
 
 interface UserResult {
@@ -33,7 +41,7 @@ interface UserResult {
   phone: string;
 }
 
-export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, onError, prefillInvestorId, prefillInvestorName }: CreateInvestmentAccountDialogProps) {
+export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, onError, prefillInvestorId, prefillInvestorName, mode = 'invite' }: CreateInvestmentAccountDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const qc = useQueryClient();
