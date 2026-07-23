@@ -40,6 +40,7 @@ const PARTNER_FUNDER_TEMPLATES = new Set<string>([
   'portfolio-request-confirmation',
   'tenant-partnership-agreement',
   'portfolio-renewal-apology',
+  'partner-portfolio-invite',
 ])
 
 // Generate a cryptographically random 32-byte hex token
