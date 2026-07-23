@@ -51,6 +51,7 @@ import { AgentMoneyMapCard } from './AgentMoneyMapCard';
 interface FullScreenWalletSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  scrollTarget?: 'statement' | null;
 }
 
 const WALLET_FILTER_STORAGE_KEY = 'welile-wallet-filters';
@@ -177,7 +178,7 @@ function CategoryFilterChips({ categories, selected, onSelect }: CategoryFilterC
   );
 }
 
-export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSheetProps) {
+export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: FullScreenWalletSheetProps) {
   const navigate = useNavigate();
   const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
   const { user, role } = useAuth();
@@ -210,6 +211,17 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [hasProxyPartners, setHasProxyPartners] = useState(false);
+  const statementSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // When opened with scrollTarget='statement', jump the Wallet Statement
+  // section into view so users don't have to scroll to find it.
+  useEffect(() => {
+    if (!open || scrollTarget !== 'statement') return;
+    const t = window.setTimeout(() => {
+      statementSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [open, scrollTarget]);
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
@@ -489,7 +501,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               </div>
 
               {/* Wallet Statement section */}
-              <div>
+              <div ref={statementSectionRef} id="wallet-statement-section" className="scroll-mt-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="text-base font-bold text-foreground">Wallet Statement</h3>

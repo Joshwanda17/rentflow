@@ -320,6 +320,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, [isMerchantAgentEarly]);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [walletScrollTarget, setWalletScrollTarget] = useState<'statement' | null>(null);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [managedPropertyOpen, setManagedPropertyOpen] = useState(false);
@@ -974,7 +975,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onDeposit={() => setShowQuickDeposit(true)}
               onWithdraw={() => setShowQuickWithdraw(true)}
               onTransfer={() => setShowQuickTransfer(true)}
-              onViewWallet={() => setShowWallet(true)}
+              onViewWallet={() => { setWalletScrollTarget(null); setShowWallet(true); }}
+              onViewStatement={() => { setWalletScrollTarget('statement'); setShowWallet(true); }}
             />
           </div>
         )}
@@ -1556,7 +1558,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </div>
 
       <LazyModal when={showWallet}>
-      <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+      <FullScreenWalletSheet
+        open={showWallet}
+        onOpenChange={(o) => { setShowWallet(o); if (!o) setWalletScrollTarget(null); }}
+        scrollTarget={walletScrollTarget}
+      />
       </LazyModal>
       <LazyModal when={showQuickDeposit}>
       <DepositFlow

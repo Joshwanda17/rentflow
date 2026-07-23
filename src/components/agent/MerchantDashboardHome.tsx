@@ -32,6 +32,7 @@ interface Props {
   onWithdraw: () => void;
   onTransfer: () => void;
   onViewWallet: () => void;
+  onViewStatement?: () => void;
 }
 
 /**
@@ -54,6 +55,7 @@ export function MerchantDashboardHome({
   onWithdraw,
   onTransfer,
   onViewWallet,
+  onViewStatement,
 }: Props) {
   const total = withdrawableBalance + floatBalance;
 
@@ -113,7 +115,7 @@ export function MerchantDashboardHome({
         <QuickAction
           icon={<Landmark className="h-5 w-5" />}
           label="Statement"
-          onClick={onViewWallet}
+          onClick={onViewStatement ?? onViewWallet}
         />
       </section>
 
