@@ -224,6 +224,28 @@ export default function FunderOnboarding() {
     staleTime: 60_000,
   });
 
+  // Invited-portfolio pipeline KPIs (portfolios sent via Ops invite flow
+  // that are either waiting on the partner to complete or waiting on
+  // Ops to approve the partner's submission). Independent of the
+  // funder-onboarding profile counts above so we can group them
+  // separately in the KPI header.
+  const { data: invitedKpis } = useQuery({
+    queryKey: ['invited-portfolios-kpis'],
+    enabled: !!user && roles.includes('manager'),
+    queryFn: async () => {
+      const [{ count: awaiting }, { count: pendingApproval }] = await Promise.all([
+        supabase.from('investor_portfolios').select('id', { count: 'exact', head: true }).eq('status', 'awaiting_partner_details'),
+        supabase.from('investor_portfolios').select('id', { count: 'exact', head: true }).eq('status', 'pending_ops_approval'),
+      ]);
+      return {
+        awaiting: awaiting || 0,
+        pending_approval: pendingApproval || 0,
+        total: (awaiting || 0) + (pendingApproval || 0),
+      };
+    },
+    staleTime: 60_000,
+  });
+
   const rows = data?.rows || [];
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -387,14 +409,49 @@ export default function FunderOnboarding() {
       subtitle="Self-Registered Funders"
       status={headerStatus}
     >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <KPICard label="Total Funders" value={kpis?.total ?? '—'} status="green" sub="Via funder-onboarding" />
-        <KPICard label="Pending Review" value={kpis?.pending ?? '—'} status={(kpis?.pending || 0) > 0 ? 'yellow' : 'green'} />
-        <KPICard label="Verified" value={kpis?.verified ?? '—'} status="green" />
-        <KPICard label="Rejected" value={kpis?.rejected ?? '—'} status={(kpis?.rejected || 0) > 0 ? 'red' : 'green'} />
-        <KPICard label="Referred" value={kpis?.referred ?? '—'} status="green" sub="Via shared link" />
-        <KPICard label="Direct" value={kpis?.direct ?? '—'} status="green" sub="Typed URL" />
+      {/* KPIs — grouped: Funders (self-registered) vs Invited Portfolios */}
+      <div className="space-y-4">
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Funders</h3>
+            <span className="text-[10px] text-muted-foreground">Self-registered via funder-onboarding</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+            <KPICard label="Total Funders" value={kpis?.total ?? '—'} status="green" sub="Via funder-onboarding" />
+            <KPICard label="Pending Review" value={kpis?.pending ?? '—'} status={(kpis?.pending || 0) > 0 ? 'yellow' : 'green'} />
+            <KPICard label="Verified" value={kpis?.verified ?? '—'} status="green" />
+            <KPICard label="Rejected" value={kpis?.rejected ?? '—'} status={(kpis?.rejected || 0) > 0 ? 'red' : 'green'} />
+            <KPICard label="Referred" value={kpis?.referred ?? '—'} status="green" sub="Via shared link" />
+            <KPICard label="Direct" value={kpis?.direct ?? '—'} status="green" sub="Typed URL" />
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Invited Portfolios</h3>
+            <span className="text-[10px] text-muted-foreground">Ops-initiated portfolio invites</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+            <KPICard
+              label="New Portfolios"
+              value={invitedKpis?.total ?? '—'}
+              status={(invitedKpis?.total || 0) > 0 ? 'yellow' : 'green'}
+              sub="In invite pipeline"
+            />
+            <KPICard
+              label="Awaiting Partner"
+              value={invitedKpis?.awaiting ?? '—'}
+              status={(invitedKpis?.awaiting || 0) > 0 ? 'yellow' : 'green'}
+              sub="Partner to complete"
+            />
+            <KPICard
+              label="Pending Approval"
+              value={invitedKpis?.pending_approval ?? '—'}
+              status={(invitedKpis?.pending_approval || 0) > 0 ? 'yellow' : 'green'}
+              sub="Ops to review"
+            />
+          </div>
+        </section>
       </div>
 
       <div className="flex justify-end">
