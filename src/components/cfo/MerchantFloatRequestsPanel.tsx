@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown, ChevronDown, ChevronUp, User as UserIcon, Calendar, Wallet, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown, ChevronDown, ChevronUp, User as UserIcon, Calendar, Wallet, ArrowDownRight, ArrowUpRight, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -771,34 +772,59 @@ export function MerchantFloatRequestsPanel() {
                                     )}
 
                                     {/* Settlements between this top-up and the next */}
-                                    <div className="mt-2">
-                                      <p className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                        <span>Used after this top-up ({batch.settlements.length})</span>
-                                        <span className="tabular-nums normal-case text-rose-600 dark:text-rose-400">− {formatUGX(totalUsed)}</span>
-                                      </p>
+                                    {/* Settlements between this top-up and the next */}
+                                    <div className="mt-3">
+                                      <div className="mb-2 flex items-center justify-between px-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                          Recent activity ({batch.settlements.length})
+                                        </span>
+                                        <span className="text-[11px] font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                                          − {formatUGX(totalUsed)} Total
+                                        </span>
+                                      </div>
                                       {batch.settlements.length === 0 ? (
-                                        <p className="rounded-sm bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
+                                        <p className="rounded-lg bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
                                           No cash-outs settled from this batch{!isVirtual ? ' yet' : ''}.
                                         </p>
                                       ) : (
-                                        <div className="space-y-1">
-                                          {batch.settlements.map((s) => (
-                                            <div key={s.id} className="flex items-center justify-between gap-2 rounded-sm border border-border/40 bg-background px-2 py-1">
-                                              <div className="min-w-0">
-                                                <p className="flex items-center gap-1 truncate text-[11px]">
-                                                  <ArrowUpRight className="h-3 w-3 shrink-0 text-rose-600" />
-                                                  <span className="truncate font-medium">{s.recipient || 'Customer cash-out'}</span>
-                                                </p>
-                                                <p className="pl-4 text-[10px] tabular-nums text-muted-foreground">
-                                                  {new Date(s.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} · {s.method}
-                                                </p>
+                                        <div className="space-y-2">
+                                          {batch.settlements.map((s) => {
+                                            const isFee = /\bfee\b/i.test(s.recipient || '') || s.amount <= 500;
+                                            return (
+                                              <div
+                                                key={s.id}
+                                                className={cn(
+                                                  'relative flex items-center gap-3 overflow-hidden rounded-xl border border-border/60 bg-card px-3 py-2.5 shadow-sm',
+                                                  !isFee && 'before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-r-full before:bg-rose-500'
+                                                )}
+                                              >
+                                                <div
+                                                  className={cn(
+                                                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                                                    isFee ? 'bg-muted text-muted-foreground' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400'
+                                                  )}
+                                                >
+                                                  {isFee ? <Info className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                  <p className="truncate text-[13px] font-semibold text-foreground">
+                                                    {s.recipient || 'Customer cash-out'}{isFee && !/\(fee\)/i.test(s.recipient || '') ? ' (Fee)' : ''}
+                                                  </p>
+                                                  <p className="truncate text-[11px] tabular-nums text-muted-foreground">
+                                                    {new Date(s.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} · {s.method}
+                                                  </p>
+                                                </div>
+                                                <div className="shrink-0 text-right">
+                                                  <p className="text-[13px] font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                                                    − {formatUGX(s.amount)}
+                                                  </p>
+                                                  <p className="text-[10px] tabular-nums text-muted-foreground">
+                                                    left: {formatUGX(s.balanceAfter)}
+                                                  </p>
+                                                </div>
                                               </div>
-                                              <div className="shrink-0 text-right">
-                                                <p className="text-[11px] font-bold tabular-nums text-rose-600 dark:text-rose-400">− {formatUGX(s.amount)}</p>
-                                                <p className="text-[9px] tabular-nums text-muted-foreground">left: {formatUGX(s.balanceAfter)}</p>
-                                              </div>
-                                            </div>
-                                          ))}
+                                            );
+                                          })}
                                         </div>
                                       )}
                                     </div>
