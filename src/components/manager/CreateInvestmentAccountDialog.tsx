@@ -544,11 +544,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                 saving ||
                 !selectedUser ||
                 !form.investment_amount ||
-                !/^\d{4}$/.test(form.portfolio_pin) ||
-                !isApproved ||
-                balanceLoading ||
-                partnerBalance === null ||
-                parseFloat(form.investment_amount) > partnerBalance
+                !isApproved
               }
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
@@ -558,7 +554,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                   Checking approval…
                 </>
               ) : (
-                'Create Portfolio'
+                'Send invite'
               )}
             </Button>
           )}
