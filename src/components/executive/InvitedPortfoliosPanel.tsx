@@ -345,8 +345,8 @@ function ReviewSubmissionDialog({
           .eq('id', row!.investor_id).maybeSingle(),
         (supabase.from('partner_agreements') as any)
           .select('*')
-          .eq('user_id', row!.investor_id)
-          .order('signed_at', { ascending: false })
+          .eq('partner_id', row!.investor_id)
+          .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
         (supabase.from('portfolio_completion_tokens') as any)
@@ -365,7 +365,12 @@ function ReviewSubmissionDialog({
   const signature = agreement.partner_signature_data_url as string | undefined;
   const submittedAt = submission?.token?.consumed_at as string | undefined;
 
-  const previewData: AgreementPreviewData | null = agreement && agreement.partnership_amount != null ? {
+  const hasAgreement = !!(agreement && (
+    agreement.address || agreement.national_id || agreement.kin_name ||
+    agreement.bank_account_number || agreement.momo_number ||
+    agreement.partner_signature_data_url
+  ));
+  const previewData: AgreementPreviewData | null = hasAgreement ? {
     partnerName: profile.full_name || agreement.full_name || row.partner_name || '',
     partnerId: agreement.national_id || profile.national_id || '',
     partnerAddress: agreement.address || '',
@@ -381,7 +386,7 @@ function ReviewSubmissionDialog({
     momoName: agreement.momo_name || profile.mobile_money_name || '',
     kinName: agreement.kin_name || '',
     kinContact: agreement.kin_contact || '',
-    agreementDate: agreement.signed_at ? new Date(agreement.signed_at) : new Date(),
+    agreementDate: agreement.agreement_date ? new Date(agreement.agreement_date) : new Date(),
     partnerSignatureDataUrl: signature,
     includeStamp: false,
   } : null;
