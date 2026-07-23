@@ -36,6 +36,9 @@ interface TopAgentRow {
   invited_count: number;
   sub_agents_count?: number;
   houses_listed_count?: number;
+  sub_agents_week?: number;
+  activated_subs_week?: number;
+  verified_houses_week?: number;
 }
 
 interface Overview {
