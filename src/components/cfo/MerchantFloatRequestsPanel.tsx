@@ -339,10 +339,12 @@ export function MerchantFloatRequestsPanel() {
       const wrIds = Array.from(new Set(recentSettlements.map((r) => r.source_id).filter(Boolean)));
       const wrMap: Record<string, any> = {};
       if (wrIds.length) {
-        const { data: wrs } = await supabase
-          .from('withdrawal_requests')
-          .select('id, mobile_money_name, mobile_money_provider, payout_method')
-          .in('id', wrIds as string[]);
+        // RLS on withdrawal_requests hides rows this staff role can't own —
+        // use the ops-gated SECURITY DEFINER RPC so recipient names always
+        // resolve for CFO/FinOps/COO viewers.
+        const { data: wrs } = await supabase.rpc('get_withdrawal_recipients', {
+          p_ids: wrIds as string[],
+        });
         for (const w of (wrs ?? []) as any[]) wrMap[String(w.id)] = w;
       }
       return {
@@ -477,10 +479,9 @@ export function MerchantFloatRequestsPanel() {
         const CHUNK = 80;
         for (let i = 0; i < settlementSourceIds.length; i += CHUNK) {
           const slice = settlementSourceIds.slice(i, i + CHUNK);
-          const { data: wrs } = await supabase
-            .from('withdrawal_requests')
-            .select('id, mobile_money_name, mobile_money_provider, payout_method')
-            .in('id', slice);
+          const { data: wrs } = await supabase.rpc('get_withdrawal_recipients', {
+            p_ids: slice,
+          });
           for (const w of (wrs ?? []) as any[]) wrMap[String(w.id)] = w;
         }
       }
