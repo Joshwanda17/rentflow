@@ -13,6 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CashAgentSelector, type SelectedCashAgent } from './CashAgentSelector';
+import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
+import { AlertTriangle } from 'lucide-react';
 
 interface WithdrawRequestDialogProps {
   open: boolean;
