@@ -29,6 +29,7 @@ import { MerchantFloatRequestCard } from '@/components/agent/MerchantFloatReques
 import { MerchantAgreementGate } from '@/components/merchant/agreement/MerchantAgreementGate';
 import { MerchantOnlineToggle } from '@/components/agent/MerchantOnlineToggle';
 import { MerchantDispatchHistory } from '@/components/agent/MerchantDispatchHistory';
+import { MerchantPayoutsAuditDialog } from '@/components/agent/MerchantPayoutsAuditDialog';
 import {
   normalizeCashoutAgentConfig,
   buildQueueCategoryOrClause,
