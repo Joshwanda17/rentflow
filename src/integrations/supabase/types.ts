@@ -26582,6 +26582,17 @@ export type Database = {
           total_requests: number
         }[]
       }
+      search_users_fast: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          national_id: string
+          phone: string
+          verified: boolean
+        }[]
+      }
       search_users_paginated: {
         Args: {
           p_limit?: number
