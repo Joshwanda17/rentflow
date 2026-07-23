@@ -452,13 +452,13 @@ function AgentLeaderboardRow({
             <div className="text-xs text-muted-foreground">{row.agent_phone}</div>
           )}
         </td>
-        <td className="px-4 py-2 text-right tabular-nums">{row.sub_agents_count ?? row.invited_count ?? 0}</td>
+        <td className="px-4 py-2 text-right tabular-nums">{row.sub_agents_count ?? 0}</td>
         <td className="px-4 py-2 text-right tabular-nums">{row.houses_listed_count ?? 0}</td>
         <td className="px-4 py-2 text-right tabular-nums font-semibold">
-          {row.verified_count ?? 0}
+          {row.verified_houses_week ?? 0}
         </td>
         <td className="px-4 py-2 text-right tabular-nums">
-          {((row.verified_count ?? 0) * 3000).toLocaleString()}
+          {((row.verified_houses_week ?? 0) * 3000).toLocaleString()}
         </td>
       </tr>
       {expanded && (
