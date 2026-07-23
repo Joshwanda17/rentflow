@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown, ChevronDown, ChevronUp, User as UserIcon, Calendar, Wallet, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Landmark, Loader2, Send, X, Phone, FileDown, History, ArrowUpDown, ChevronDown, ChevronUp, User as UserIcon, Calendar, Wallet, ArrowDownRight, ArrowUpRight, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
