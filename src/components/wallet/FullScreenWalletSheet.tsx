@@ -224,55 +224,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                 </div>
               </Card>
 
-              {/* Sticky, high-visibility accessible transaction filter tabs */}
-              <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-muted/30 backdrop-blur-sm">
-                <Card className="border-border/60 shadow-sm">
-                  <CardContent className="p-2">
-                    <Tabs
-                      value={activeTab}
-                      onValueChange={(v) => setActiveTab(v as TabValue)}
-                      className="w-full"
-                    >
-                      <TabsList
-                        variant="pills"
-                        className="w-full h-auto min-h-[44px] p-1 bg-muted/50 rounded-xl"
-                        aria-label="Filter transactions by direction"
-                      >
-                        <TabsTrigger
-                          value="all"
-                          variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
-                        >
-                          All
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="in"
-                          variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
-                        >
-                          Cash In
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="out"
-                          variant="pills"
-                          className="flex-1 min-h-[40px] text-sm font-bold data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-primary/30 data-[state=active]:ring-offset-1 data-[state=active]:ring-offset-background"
-                        >
-                          Cash Out
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                    <p className="text-center text-[10px] text-muted-foreground mt-1.5 font-medium">
-                      Tap to filter your transactions
-                    </p>
-
-                    {/* Live region announces filter changes to screen readers */}
-                    <p className="sr-only" aria-live="polite" aria-atomic="true">
-                      Showing {activeTab === 'all' ? 'all transactions' : activeTab === 'in' ? 'cash in transactions' : 'cash out transactions'}
-                      {categoryFilter !== 'all' ? ` filtered by ${categoryFilter}` : ''}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
 
               {/* Plain-language money breakdown (agents only) */}
               {isAgent && (
