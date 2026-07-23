@@ -24512,6 +24512,10 @@ export type Database = {
           withdrawable_balance: number
         }[]
       }
+      get_agent_subagent_listing_breakdown: {
+        Args: { p_parent_agent_id: string }
+        Returns: Json
+      }
       get_agent_sweepable_withdrawable: {
         Args: { p_user_id: string }
         Returns: number
