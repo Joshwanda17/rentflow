@@ -264,6 +264,7 @@ export function AgentCashPayoutsTab() {
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
 
   // Date range filter for the commission breakdown. Defaults to "today" so the
   // card shows the volume processed and payout count for the current day.
