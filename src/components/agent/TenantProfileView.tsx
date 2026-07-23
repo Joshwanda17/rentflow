@@ -265,7 +265,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .from('rent_requests')
           .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, phone)')
           .eq('tenant_id', tenantId)
-          .or('status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance')
           .order('created_at', { ascending: false }),
         supabase
           .from('repayments')
@@ -377,9 +376,22 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   };
 
   const summary = useMemo(() => {
-    const totalFunded = requests.reduce((s, r) => s + (r.total_repayment || 0), 0);
-    const totalRepaid = requests.reduce((s, r) => s + (r.amount_repaid || 0), 0);
-    const completedCount = requests.filter(r => r.status === 'completed').length;
+    // Exclude soft-deleted requests from any KPI aggregations so the
+    // "Rent Payment Behavior" panel reflects real activity only.
+    const visible = requests.filter(r => (r.status || '') !== 'deleted_by_agent');
+    // Funded/repayable requests contribute to totals; rejected/pending ones
+    // that were never funded should not inflate "Total Funded".
+    const fundedStatuses = new Set(['approved', 'funded', 'disbursed', 'repaying', 'completed']);
+    const fundedRequests = visible.filter(r => fundedStatuses.has(r.status || ''));
+    const totalFunded = fundedRequests.reduce((s, r) => s + (r.total_repayment || 0), 0);
+    // Prefer the actual `repayments` ledger — it's the source of truth for
+    // money the tenant has paid back. Fall back to amount_repaid if there
+    // are no repayment rows fetched yet.
+    const repaymentsSum = (repayments || []).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    const amountRepaidSum = fundedRequests.reduce((s, r) => s + (r.amount_repaid || 0), 0);
+    const totalRepaid = repaymentsSum > 0 ? repaymentsSum : amountRepaidSum;
+    const completedCount = visible.filter(r => r.status === 'completed').length;
+    const completionBase = visible.filter(r => fundedStatuses.has(r.status || '')).length;
     // A cycle only counts as "active" (i.e. blocks renewal and shows an
     // outstanding balance) when it still owes money. A funded/repaying cycle
     // that has been fully repaid — or an empty/stub cycle with a zero total —
@@ -401,14 +413,14 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           stillOwes(r),
       );
     const outstanding = activeRequest ? (activeRequest.total_repayment - activeRequest.amount_repaid) : 0;
-    const latest = requests[0];
+    const latest = visible[0] || requests[0];
 
     return {
-      totalRequests: requests.length,
+      totalRequests: visible.length,
       totalFunded,
       totalRepaid,
       totalOwing: Math.max(0, totalFunded - totalRepaid),
-      completionRate: requests.length > 0 ? Math.round((completedCount / requests.length) * 100) : 0,
+      completionRate: completionBase > 0 ? Math.round((completedCount / completionBase) * 100) : 0,
       activeRequest,
       currentOutstanding: Math.max(0, outstanding),
       latestLandlord: latest?.landlord?.name || null,
@@ -417,7 +429,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       latestHouseType: latest?.landlord?.house_category || null,
       latestStatus: latest?.status || null,
     };
-  }, [requests]);
+  }, [requests, repayments]);
 
   const earningRating = useMemo(() => {
     if (summary.totalRequests === 0) return { stars: 0, label: 'New User' };
