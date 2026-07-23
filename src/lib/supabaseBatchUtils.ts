@@ -154,19 +154,31 @@ export async function fetchPaginatedSupporterIds(
     const q = raw.replace(/[%,]/g, ''); // sanitize PostgREST wildcards/separators
     if (!q) return { ids: [], totalCount: 0 };
 
-    // Single round-trip ilike across profiles (indexed in this project on
-    // lower(full_name)/lower(email)) — far cheaper than batched .in()+or().
-    const { data: matches } = await supabase
-      .from('profiles')
-      .select('id')
-      .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
-      .limit(2000);
+    // Use the indexed `search_users_fast` RPC (name-prefix + trigram, phone
+    // last-9, email prefix, national-id, UUID). Falls back to a broad ilike
+    // scan if the RPC returns nothing (e.g. very short/edge queries) so we
+    // never miss a matching partner.
+    let allMatched: string[] = [];
+    if (q.length >= 3) {
+      const { data: rpcMatches } = await supabase.rpc('search_users_fast', {
+        p_query: q,
+        p_limit: 50,
+      });
+      allMatched = (rpcMatches || []).map((p: any) => p.id as string);
+    }
+    if (allMatched.length === 0) {
+      const { data: matches } = await supabase
+        .from('profiles')
+        .select('id')
+        .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
+        .limit(2000);
+      allMatched = (matches || []).map((p: any) => p.id as string);
+    }
 
     // Surface BOTH existing partners and any other user who matches (e.g. a
     // verified depositor with wallet money but no portfolio yet). This lets
     // Partnership Ops find and invest/top-up from any user's wallet, not just
     // people who already own a portfolio. Existing partners are ordered first.
-    const allMatched = (matches || []).map((p: any) => p.id as string);
     const partnerMatches = allMatched.filter(id => partnerSet.has(id));
     const prospectMatches = allMatched.filter(id => !partnerSet.has(id));
     const matchedIds = [...partnerMatches, ...prospectMatches];
