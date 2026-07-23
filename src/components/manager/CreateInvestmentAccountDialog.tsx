@@ -255,6 +255,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       });
       return;
     }
+    if (mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0) {
+      toast({
+        title: 'Partner already has a portfolio',
+        description: 'Direct Create Portfolio is only for first-time partners. Use "Send invite" for additional portfolios.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const amt = parseFloat(form.investment_amount);
     if (isNaN(amt) || amt < 20000) {
       toast({ title: 'Investment must be at least UGX 20,000', variant: 'destructive' });
@@ -386,6 +394,19 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                   {approvalStatus === 'rejected'
                     ? 'This funder was rejected in Partner Onboarding. Re-approve them before creating a portfolio.'
                     : 'This funder is awaiting Partner Ops verification. Approve them in Partner Onboarding before creating a portfolio.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {selectedUser && !partnerFrozen && isApproved && mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5 flex items-start gap-2">
+              <Shield className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <p className="font-semibold text-destructive">Partner already has {existingPortfolioCount} portfolio{existingPortfolioCount === 1 ? '' : 's'}</p>
+                <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                  Direct Create Portfolio is only allowed for first-time partners.
+                  Use the standard <strong>Send invite</strong> flow to add another portfolio for this partner.
                 </p>
               </div>
             </div>
