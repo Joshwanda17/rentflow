@@ -17,7 +17,7 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
   const { user } = useAuth();
 
   const { data: floatData, isLoading } = useQuery({
-    queryKey: ['agent-landlord-float', user?.id],
+    queryKey: ['agent-landlord-float-row', user?.id],
     queryFn: async () => {
       if (!user) return null;
       const { data } = await supabase
@@ -28,6 +28,10 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
       return data;
     },
     enabled: !!user,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const { data: pendingCount = 0 } = useQuery({
