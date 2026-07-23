@@ -1961,6 +1961,7 @@ export function NewPartnersPanel() {
                       setInlineCreateOpen(false);
                       handleSelect(selected);
                       qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
+                      qc.invalidateQueries({ queryKey: ['invited-portfolios'] });
                       invalidateJoinedPartners();
                     }}
                     onCancel={() => setInlineCreateOpen(false)}

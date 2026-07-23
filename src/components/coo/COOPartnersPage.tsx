@@ -3089,10 +3089,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 min={MIN_INVEST}
                 value={addPortfolioAmount}
                 onChange={e => setAddPortfolioAmount(e.target.value)}
-                placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
+                placeholder="Min 20,000"
               />
               <p className="text-xs text-muted-foreground">
-                {investHelperRange()}
+                Minimum UGX 20,000. This sends a secure email link; no wallet is debited until partner completion and Ops approval.
               </p>
               <div className="flex gap-2 flex-wrap">
                 {[500000, 1000000, 2000000, 5000000, 10000000].map(a => (
@@ -3141,7 +3141,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               <p className="text-[10px] text-muted-foreground">Leave empty for today's date</p>
             </div>
 
-            {addPortfolioAmount && Number(addPortfolioAmount) >= MIN_INVEST && (
+            {addPortfolioAmount && Number(addPortfolioAmount) >= 20000 && (
               <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount:</span>

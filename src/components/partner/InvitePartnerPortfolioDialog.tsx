@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +25,7 @@ interface Props {
  */
 export function InvitePartnerPortfolioDialog({ open, onOpenChange, partner, onSent }: Props) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
   const [duration, setDuration] = useState('12');
   const [roi, setRoi] = useState('15');
@@ -65,6 +67,8 @@ export function InvitePartnerPortfolioDialog({ open, onOpenChange, partner, onSe
         title: 'Invite sent',
         description: `${partner.full_name || 'The partner'} will receive a secure link at ${data?.partner_email || 'their email'}.`,
       });
+      queryClient.invalidateQueries({ queryKey: ['invited-portfolios'] });
+      queryClient.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
       reset();
       onOpenChange(false);
       onSent?.();
