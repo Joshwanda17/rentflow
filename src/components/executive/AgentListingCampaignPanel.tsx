@@ -276,20 +276,26 @@ export function AgentListingCampaignPanel() {
       {(() => {
         const HOUSE_RATE = 3000;
         const COMPLETION_BONUS = 70000;
-        const QUALIFY_HOUSES = 3;
-        const TOP_N = 2;
+        const SUB_TARGET = 20;            // 20 sub-agents this week
+        const HOUSES_PER_SUB = 3;         // each with 3+ verified houses
+        const MIN_ACTIVATED_TO_SHOW = 1;  // show anyone with progress
 
         const paidAgentIds = new Set((data?.bonuses ?? []).map((b) => b.agent_id));
         const qualifiers = (data?.top_agents ?? [])
-          .filter((a) => (a.verified_count ?? 0) >= QUALIFY_HOUSES)
+          .filter((a) => (a.activated_subs_week ?? 0) >= MIN_ACTIVATED_TO_SHOW)
           .sort(
             (a, b) =>
-              (b.verified_count ?? 0) - (a.verified_count ?? 0) ||
-              (b.invited_count ?? 0) - (a.invited_count ?? 0),
+              (b.activated_subs_week ?? 0) - (a.activated_subs_week ?? 0) ||
+              (b.verified_houses_week ?? 0) - (a.verified_houses_week ?? 0) ||
+              (b.sub_agents_week ?? 0) - (a.sub_agents_week ?? 0),
           );
 
-        // Top 2 by verified houses win the pending 70K (unless already paid).
-        const winnerIds = new Set(qualifiers.slice(0, TOP_N).map((a) => a.agent_id));
+        // Only agents who actually hit the 20-activated-subs rule win the 70K.
+        const winnerIds = new Set(
+          qualifiers
+            .filter((a) => (a.activated_subs_week ?? 0) >= SUB_TARGET)
+            .map((a) => a.agent_id),
+        );
 
         return (
           <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-card to-card overflow-hidden">
@@ -299,7 +305,7 @@ export function AgentListingCampaignPanel() {
                 <h4 className="text-sm font-bold">Race for the UGX 70,000</h4>
               </div>
               <span className="text-[11px] text-muted-foreground">
-                Top {TOP_N} agents by verified houses win · min {QUALIFY_HOUSES} verified to qualify
+                Rule: invite {SUB_TARGET} sub-agents this week · each with {HOUSES_PER_SUB}+ verified houses
               </span>
             </div>
 
@@ -307,12 +313,14 @@ export function AgentListingCampaignPanel() {
               <div className="p-6 text-sm text-muted-foreground text-center">Loading…</div>
             ) : qualifiers.length === 0 ? (
               <div className="p-6 text-sm text-muted-foreground text-center">
-                No agent has {QUALIFY_HOUSES}+ verified houses yet this week. Be the first!
+                No sub-agent has hit {HOUSES_PER_SUB}+ verified houses yet this week. Be the first!
               </div>
             ) : (
               <div className="divide-y divide-border">
                 {qualifiers.map((a, i) => {
-                  const verified = a.verified_count ?? 0;
+                  const activated = a.activated_subs_week ?? 0;
+                  const verified = a.verified_houses_week ?? a.verified_count ?? 0;
+                  const subsWeek = a.sub_agents_week ?? 0;
                   const earned = verified * HOUSE_RATE;
                   const alreadyPaid = paidAgentIds.has(a.agent_id);
                   const isWinner = winnerIds.has(a.agent_id);
@@ -353,12 +361,12 @@ export function AgentListingCampaignPanel() {
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-muted text-muted-foreground border border-border">
-                              <Sparkles className="h-3 w-3" /> In the race
+                              <Sparkles className="h-3 w-3" /> {activated}/{SUB_TARGET} activated subs
                             </span>
                           )}
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">
-                          {verified} verified · {a.sub_agents_count ?? a.invited_count ?? 0} sub-agents · {a.houses_listed_count ?? 0} houses listed
+                          {activated} activated · {subsWeek} subs this week · {verified} verified houses (wk) · all-time {a.sub_agents_count ?? 0} subs
                           {a.agent_phone ? ` · ${a.agent_phone}` : ''}
                         </div>
                       </div>
