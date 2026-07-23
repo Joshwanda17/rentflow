@@ -22,12 +22,12 @@ export function InviteMerchantAgentCard() {
   const [copied, setCopied] = useState(false);
 
   const longUrl = useMemo(
-    () => (user?.id ? `${getPublicOrigin()}/invite/merchant-agent?ref=${user.id}` : ''),
+    () => (user?.id ? `${getPublicOrigin()}/merchant/register?ref=${user.id}` : ''),
     [user?.id],
   );
 
   const { shortUrl } = useShortLink({
-    targetPath: '/invite/merchant-agent',
+    targetPath: '/merchant/register',
     targetParams: { ref: user?.id ?? '' },
     enabled: !!user?.id && isMerchantAgent,
   });
