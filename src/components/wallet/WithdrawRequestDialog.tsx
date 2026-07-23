@@ -178,6 +178,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const { paused: withdrawalsPaused } = useWithdrawalsPaused();
+  const { restrictedHeld } = useAvailableBalance(user?.id);
   const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
   const [pendingAmount, setPendingAmount] = useState(0);
   const isSubmittingRef = useRef(false);
