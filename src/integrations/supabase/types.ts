@@ -20459,42 +20459,6 @@ export type Database = {
         }
         Relationships: []
       }
-      system_events: {
-        Row: {
-          created_at: string | null
-          event_type: Database["public"]["Enums"]["system_event_type"]
-          id: string
-          metadata: Json | null
-          processed: boolean | null
-          processed_at: string | null
-          related_entity_id: string | null
-          related_entity_type: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          event_type: Database["public"]["Enums"]["system_event_type"]
-          id?: string
-          metadata?: Json | null
-          processed?: boolean | null
-          processed_at?: string | null
-          related_entity_id?: string | null
-          related_entity_type?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          event_type?: Database["public"]["Enums"]["system_event_type"]
-          id?: string
-          metadata?: Json | null
-          processed?: boolean | null
-          processed_at?: string | null
-          related_entity_id?: string | null
-          related_entity_type?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       tenant_agreement_acceptance: {
         Row: {
           accepted_at: string
