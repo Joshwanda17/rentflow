@@ -8,10 +8,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HouseListing, calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, X, AlertTriangle, Video, Check, User, UserPlus } from 'lucide-react';
+import { Loader2, X, AlertTriangle, Check, User, UserPlus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
-import { parseHouseVideo, normalizeHouseVideoUrl } from '@/lib/houseVideoUrl';
+
 import { FieldError } from '@/components/shared/FormFeedback';
 import { LandlordSearchSelect, type LandlordOption } from './LandlordSearchSelect';
 import { toUgandaLocalDigits, normalizeUgandaPhone, isValidUgandanPhoneNumber } from '@/lib/phoneUtils';
@@ -33,7 +33,6 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const [region, setRegion] = useState('');
   const [monthlyRent, setMonthlyRent] = useState<number>(0);
   const [description, setDescription] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
   const [saving, setSaving] = useState(false);
   // Photos already stored on the listing (kept unless the agent removes them).
   const [existingUrls, setExistingUrls] = useState<string[]>([]);
@@ -56,7 +55,6 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
       setRegion(listing.region);
       setMonthlyRent(listing.monthly_rent);
       setDescription(listing.description ?? '');
-      setVideoUrl(listing.video_url ?? '');
       setExistingUrls(Array.isArray(listing.image_urls) ? listing.image_urls.filter(Boolean) : []);
       setNewImages([]);
       // Reset landlord state, then hydrate from the currently linked landlord.
@@ -84,10 +82,6 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   if (!listing) return null;
 
   const calc = monthlyRent > 0 ? calculateDailyRentalRate(monthlyRent) : null;
-  const trimmedVideo = videoUrl.trim();
-  const parsedVideo = parseHouseVideo(trimmedVideo);
-  const videoInvalid = trimmedVideo.length > 0 && !parsedVideo;
-  const videoTouched = videoUrl !== (listing?.video_url ?? '');
   const totalPhotos = existingUrls.length + newImages.length;
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
   const manualPhoneError = manualLandlord
@@ -96,15 +90,11 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const manualLandlordReady =
     manualLandlord && manualName.trim().length >= 2 && !manualPhoneError;
   const hasLandlord = !!selectedLandlord?.id || manualLandlordReady;
-  const canSave = !videoInvalid && hasLandlord;
+  const canSave = hasLandlord;
 
   const handleSave = async () => {
     if (!title.trim() || !address.trim() || !region.trim() || monthlyRent <= 0) {
       toast({ title: 'Missing info', description: 'Title, address, region and rent are required.', variant: 'destructive' });
-      return;
-    }
-    if (videoInvalid) {
-      toast({ title: 'Invalid video link', description: 'Paste a YouTube or Google Drive video link, or leave it empty.', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -175,7 +165,6 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
         description: description.trim() || null,
         monthly_rent: monthlyRent,
         image_urls: imageUrls,
-        video_url: normalizeHouseVideoUrl(trimmedVideo) || null,
         landlord_id: landlordId,
         landlord_name: landlordName,
         landlord_phone: landlordPhone ? normalizeUgandaPhone(landlordPhone) : null,
@@ -316,39 +305,6 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
                   <UserPlus className="h-3 w-3" /> Register new landlord
                 </button>
               </div>
-            )}
-          </div>
-
-          {/* Walkthrough video link (external — YouTube / Google Drive) */}
-          <div className="space-y-1">
-            <Label htmlFor="edit-video" className="flex items-center gap-1.5">
-              <Video className="h-3.5 w-3.5" /> Walkthrough video (optional)
-            </Label>
-            <Input
-              id="edit-video"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              onBlur={() => {
-                if (trimmedVideo.length > 0 && !parsedVideo) {
-                  toast({ title: 'Invalid video link', description: 'Only YouTube or Google Drive links are accepted.', variant: 'destructive' });
-                }
-              }}
-              placeholder="Paste a YouTube or Google Drive link"
-              inputMode="url"
-              autoCapitalize="none"
-              autoCorrect="off"
-              className={videoInvalid && videoTouched ? 'border-destructive focus-visible:ring-destructive' : ''}
-            />
-            {videoInvalid ? (
-              <FieldError message="Only YouTube or Google Drive links are accepted. Paste a valid share link or leave empty." />
-            ) : parsedVideo ? (
-              <p className="text-[11px] text-success flex items-center gap-1">
-                <Check className="h-3 w-3" /> {parsedVideo.provider === 'youtube' ? 'YouTube' : 'Google Drive'} video linked.
-              </p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground">
-                Record a short clip (≤30s), upload it to YouTube or Drive, then paste the share link here.
-              </p>
             )}
           </div>
 
