@@ -5,6 +5,7 @@ import DepositFlow from '@/components/payments/DepositFlow';
 import WithdrawFlow from '@/components/payments/WithdrawFlow';
 import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
 import { hapticTap } from '@/lib/haptics';
+import { usePayoutsUiEnabled } from '@/hooks/usePayoutsUiEnabled';
 
 /**
  * Funder-only wallet actions: Deposit, Withdraw, Transfer.
@@ -42,6 +43,7 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  const { enabled: payoutsUiEnabled } = usePayoutsUiEnabled();
 
   const handleClose = (setter: (v: boolean) => void) => (open: boolean) => {
     setter(open);
@@ -73,9 +75,9 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
         </Button>
         <Button
           variant={btnVariant}
-          className={btnClass + ' opacity-50 cursor-not-allowed'}
-          disabled
-          title="Withdrawals are temporarily disabled"
+          className={btnClass + (payoutsUiEnabled ? '' : ' opacity-50 cursor-not-allowed')}
+          disabled={!payoutsUiEnabled}
+          title={payoutsUiEnabled ? undefined : 'Withdrawals are temporarily disabled'}
           onClick={() => { hapticTap(); setShowWithdraw(true); }}
         >
           <ArrowUpRight className={`w-4 h-4 ${isHero ? 'text-rose-300' : 'text-rose-600'}`} />
