@@ -251,16 +251,35 @@ export function WelileMissionBoard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('investor_portfolios')
-        .select('investment_amount, roi_percentage, next_roi_date')
+        .select('id, investment_amount, roi_percentage, next_roi_date')
         .eq('status', 'active')
         .not('next_roi_date', 'is', null);
       if (error) throw error;
       return (data ?? [])
         .filter((p: any) => !!p.next_roi_date)
         .map((p: any) => ({
+          id: p.id as string,
           next_roi_date: p.next_roi_date as string,
           roi_amount: (Number(p.investment_amount) || 0) * (Number(p.roi_percentage) || 0) / 100,
         }));
+    },
+  });
+
+  // Latest schedule per portfolio (whose scheduled_date matches the current next_roi_date is "active").
+  const { data: roiScheduleMap } = useQuery({
+    queryKey: ['mission-roi-schedule-map'],
+    refetchInterval: intervalMs,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('roi_payout_schedules')
+        .select('portfolio_id, scheduled_date, scheduled_by, reason, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const map = new Map<string, { scheduled_date: string; scheduled_by: string; reason: string | null; created_at: string }>();
+      (data ?? []).forEach((r: any) => {
+        if (!map.has(r.portfolio_id)) map.set(r.portfolio_id, r);
+      });
+      return map;
     },
   });
 
