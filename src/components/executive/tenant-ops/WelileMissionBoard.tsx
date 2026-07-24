@@ -981,6 +981,8 @@ export function WelileMissionBoard() {
         open={roiPayableOpen}
         refetchIntervalMs={intervalMs}
         onClose={() => setRoiPayableOpen(false)}
+        cardPeriod={roiCardPeriod}
+        cardCustomRange={roiCustomRange}
       />
 
       <LandlordReceivablesDialog
