@@ -2756,6 +2756,12 @@ function ROIPayableDialog({
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
   const [searchQuery, setSearchQuery] = useState('');
+  const [funderFilter, setFunderFilter] = useState('');
+  const [portfolioFilter, setPortfolioFilter] = useState('');
+  const [payoutFrom, setPayoutFrom] = useState('');
+  const [payoutTo, setPayoutTo] = useState('');
+  const [amountMin, setAmountMin] = useState('');
+  const [amountMax, setAmountMax] = useState('');
   const [scheduleTarget, setScheduleTarget] = useState<ROIPayableLine | null>(null);
   const [detailTarget, setDetailTarget] = useState<ROIPayableLine | null>(null);
 
@@ -2861,12 +2867,37 @@ function ROIPayableDialog({
 
   const searched = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return sorted;
-    return sorted.filter((r) =>
-      (r.account_name?.toLowerCase().includes(q) ?? false) ||
-      (r.portfolio_code?.toLowerCase().includes(q) ?? false)
-    );
-  }, [sorted, searchQuery]);
+    const funder = funderFilter.trim().toLowerCase();
+    const portfolio = portfolioFilter.trim().toLowerCase();
+    const from = payoutFrom ? new Date(payoutFrom + 'T00:00:00') : null;
+    const to = payoutTo ? new Date(payoutTo + 'T23:59:59') : null;
+    const min = amountMin.trim() === '' ? null : Number(amountMin);
+    const max = amountMax.trim() === '' ? null : Number(amountMax);
+    return sorted.filter((r) => {
+      if (q && !(
+        (r.account_name?.toLowerCase().includes(q) ?? false) ||
+        (r.portfolio_code?.toLowerCase().includes(q) ?? false)
+      )) return false;
+      if (funder && !(r.account_name?.toLowerCase().includes(funder) ?? false)) return false;
+      if (portfolio && !(r.portfolio_code?.toLowerCase().includes(portfolio) ?? false)) return false;
+      if (from || to) {
+        const d = new Date(r.next_roi_date);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+      }
+      if (min !== null && !Number.isNaN(min) && r.roi_amount < min) return false;
+      if (max !== null && !Number.isNaN(max) && r.roi_amount > max) return false;
+      return true;
+    });
+  }, [sorted, searchQuery, funderFilter, portfolioFilter, payoutFrom, payoutTo, amountMin, amountMax]);
+
+  const hasActiveFilters = !!(funderFilter || portfolioFilter || payoutFrom || payoutTo || amountMin || amountMax);
+  const clearFilters = () => {
+    setFunderFilter(''); setPortfolioFilter('');
+    setPayoutFrom(''); setPayoutTo('');
+    setAmountMin(''); setAmountMax('');
+    setPage(1);
+  };
 
   const total = filtered.reduce((s, r) => s + r.roi_amount, 0);
   const totalPages = Math.max(1, Math.ceil(searched.length / pageSize));
@@ -2982,6 +3013,74 @@ function ROIPayableDialog({
           <div className="flex items-center gap-1.5 ml-auto text-[10px] text-muted-foreground font-medium">
             <Zap className="h-3 w-3 text-primary" />
             Virtualised · {searched.length.toLocaleString()} rows
+          </div>
+        </div>
+
+        {/* Quick filters: funder, portfolio, payout date range, amount range */}
+        <div className="px-4 pb-2">
+          <div className="rounded-lg border border-border bg-muted/20 p-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Quick filters</span>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-[10px] text-primary hover:underline font-medium"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+              <Input
+                value={funderFilter}
+                onChange={(e) => { setFunderFilter(e.target.value); setPage(1); }}
+                placeholder="Funder name"
+                className="h-7 text-[11px]"
+              />
+              <Input
+                value={portfolioFilter}
+                onChange={(e) => { setPortfolioFilter(e.target.value); setPage(1); }}
+                placeholder="Portfolio code"
+                className="h-7 text-[11px]"
+              />
+              <div className="flex items-center gap-1 col-span-2 md:col-span-1">
+                <Input
+                  type="date"
+                  value={payoutFrom}
+                  onChange={(e) => { setPayoutFrom(e.target.value); setPage(1); }}
+                  className="h-7 text-[11px] px-1.5"
+                  title="Payout from"
+                />
+                <span className="text-[10px] text-muted-foreground">→</span>
+                <Input
+                  type="date"
+                  value={payoutTo}
+                  onChange={(e) => { setPayoutTo(e.target.value); setPage(1); }}
+                  className="h-7 text-[11px] px-1.5"
+                  title="Payout to"
+                />
+              </div>
+              <div className="flex items-center gap-1 col-span-2 md:col-span-1">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={amountMin}
+                  onChange={(e) => { setAmountMin(e.target.value); setPage(1); }}
+                  placeholder="Min UGX"
+                  className="h-7 text-[11px] px-1.5"
+                />
+                <span className="text-[10px] text-muted-foreground">→</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={amountMax}
+                  onChange={(e) => { setAmountMax(e.target.value); setPage(1); }}
+                  placeholder="Max UGX"
+                  className="h-7 text-[11px] px-1.5"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
