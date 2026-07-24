@@ -189,21 +189,21 @@ export default function AgentCampaignsPage() {
               You haven't generated any campaign links yet.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="min-w-[880px] w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="text-left px-3 py-2">Link</th>
-                    <th className="text-left px-3 py-2">Campaign</th>
-                    <th className="text-left px-3 py-2">Location</th>
-                    <th className="text-left px-3 py-2">Source</th>
-                    <th className="text-right px-3 py-2">Clicks</th>
-                    <th className="text-right px-3 py-2">Unique</th>
-                    <th className="text-right px-3 py-2">Regs</th>
-                    <th className="text-right px-3 py-2">Sub-agents</th>
-                    <th className="text-right px-3 py-2">Qualified</th>
-                    <th className="text-left px-3 py-2">Status</th>
-                    <th className="text-left px-3 py-2">Actions</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Link</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Campaign</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Location</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Source</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Clicks</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Unique</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Regs</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Sub-agents</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Qualified</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Status</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -288,22 +288,22 @@ function LinkRowUI({
           /c/{link.location_slug}/{link.short_code}
         </button>
       </td>
-      <td className="px-3 py-2">{link.campaign_name}</td>
-      <td className="px-3 py-2">{link.district_name || link.location_display || "—"}</td>
-      <td className="px-3 py-2">{labelize(link.selected_source)}</td>
-      <td className="px-3 py-2 text-right">{link.total_clicks}</td>
-      <td className="px-3 py-2 text-right">{link.unique_clicks}</td>
-      <td className="px-3 py-2 text-right">{link.total_registrations}</td>
-      <td className="px-3 py-2 text-right">
+      <td className="px-3 py-2 whitespace-nowrap">{link.campaign_name}</td>
+      <td className="px-3 py-2 whitespace-nowrap">{link.district_name || link.location_display || "—"}</td>
+      <td className="px-3 py-2 whitespace-nowrap">{labelize(link.selected_source)}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">{link.total_clicks}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">{link.unique_clicks}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">{link.total_registrations}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">
         {link.total_sub_agent_registrations}
       </td>
-      <td className="px-3 py-2 text-right">{link.qualified_sub_agents}</td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2 text-right whitespace-nowrap">{link.qualified_sub_agents}</td>
+      <td className="px-3 py-2 whitespace-nowrap">
         <Badge variant={link.status === "active" ? "default" : "secondary"}>
           {link.status}
         </Badge>
       </td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2 whitespace-nowrap">
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" onClick={copy} title="Copy link">
             <Copy className="w-4 h-4" />
