@@ -677,10 +677,10 @@ export function WithdrawalPayoutCard({
                 )}
                 <Button
                   className="w-full h-12 gap-2 font-semibold text-base"
-                  variant="outline"
-                  onClick={() => {}}
-                  disabled
-                  title="Claiming is temporarily disabled"
+                  variant={payoutsUiEnabled ? 'default' : 'outline'}
+                  onClick={() => { if (payoutsUiEnabled) handleClaim(withdrawal.id); }}
+                  disabled={!payoutsUiEnabled}
+                  title={payoutsUiEnabled ? undefined : 'Claiming is temporarily disabled'}
                 >
                   <UserCheck className="h-5 w-5" /> Claim This Withdrawal
                 </Button>
