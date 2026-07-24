@@ -45,7 +45,7 @@ import {
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
   ChevronsUpDown, X, Image as ImageIcon, CalendarDays, Info, ChevronLeft, ArrowUpDown,
-  ArrowUp, ArrowDown, Minus,
+  ArrowUp, ArrowDown, Minus, Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildRentEstimator } from '@/lib/missionProjection';
@@ -1559,6 +1559,80 @@ function AgentNetworkDriverDialog({
   );
 }
 
+// ===== ROI payable export helpers (CSV + PDF) =====
+
+function exportRoiPayableCsv(rows: ROIPayableLine[], windowDays: number, total: number) {
+  const header = ['Funder', 'Portfolio', 'Investment (UGX)', 'ROI %', 'Payout date', 'Amount (UGX)'];
+  const esc = (v: unknown) => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [header.join(',')];
+  rows.forEach((r) => {
+    lines.push([
+      esc(r.account_name || 'Funder'),
+      esc(r.portfolio_code || ''),
+      esc(Math.round(r.investment_amount)),
+      esc(r.roi_percentage),
+      esc(new Date(r.next_roi_date).toISOString().slice(0, 10)),
+      esc(Math.round(r.roi_amount)),
+    ].join(','));
+  });
+  lines.push(['', '', '', '', 'TOTAL', esc(Math.round(total))].join(','));
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `roi-payable-${windowDays}d-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast.success(`Exported ${rows.length} row${rows.length === 1 ? '' : 's'} to CSV`);
+}
+
+async function exportRoiPayablePdf(rows: ROIPayableLine[], windowDays: number, total: number) {
+  try {
+    const { default: jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const generatedAt = new Date();
+    pdf.setFontSize(14);
+    pdf.text('ROI payable — next cycle', 14, 14);
+    pdf.setFontSize(9);
+    pdf.setTextColor(120);
+    pdf.text(`Window: next ${windowDays} day${windowDays === 1 ? '' : 's'} · ${rows.length} portfolio${rows.length === 1 ? '' : 's'} · Total UGX ${Math.round(total).toLocaleString()}`, 14, 20);
+    pdf.text(`Generated ${generatedAt.toLocaleString()}`, 14, 25);
+    autoTable(pdf, {
+      startY: 30,
+      head: [['Funder', 'Portfolio', 'Investment', 'ROI %', 'Payout date', 'Amount']],
+      body: rows.map((r) => [
+        r.account_name || 'Funder',
+        r.portfolio_code || '',
+        `UGX ${Math.round(r.investment_amount).toLocaleString()}`,
+        `${r.roi_percentage}%`,
+        new Date(r.next_roi_date).toLocaleDateString(),
+        `UGX ${Math.round(r.roi_amount).toLocaleString()}`,
+      ]),
+      foot: [[
+        { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: `UGX ${Math.round(total).toLocaleString()}`, styles: { fontStyle: 'bold' } },
+      ]],
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [88, 28, 135], textColor: 255 },
+      footStyles: { fillColor: [245, 235, 255], textColor: 20 },
+      columnStyles: {
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        5: { halign: 'right' },
+      },
+    });
+    pdf.save(`roi-payable-${windowDays}d-${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast.success(`Exported ${rows.length} row${rows.length === 1 ? '' : 's'} to PDF`);
+  } catch (e) {
+    console.error('[roi-payable] PDF export failed', e);
+    toast.error('PDF export failed');
+  }
+}
+
 function statusTone(status: string | null): string {
   switch ((status || '').toLowerCase()) {
     case 'available': return 'text-emerald-600 bg-emerald-500/10';
@@ -2491,6 +2565,26 @@ function ROIPayableDialog({
         <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
           <Badge variant="outline" className="text-[10px]">{filtered.length} portfolio{filtered.length !== 1 ? 's' : ''} due · next {windowDays} day{windowDays !== 1 ? 's' : ''}</Badge>
           <Badge className="text-[10px] text-amber-700 bg-amber-500/10">{formatUGX(total)} payable</Badge>
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-[11px]"
+              disabled={searched.length === 0}
+              onClick={() => exportRoiPayableCsv(searched, windowDays, total)}
+            >
+              <Download className="h-3 w-3 mr-1" /> CSV
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-[11px]"
+              disabled={searched.length === 0}
+              onClick={() => exportRoiPayablePdf(searched, windowDays, total)}
+            >
+              <Download className="h-3 w-3 mr-1" /> PDF
+            </Button>
+          </div>
         </div>
 
         {/* Search + Sort + page-size bar */}
