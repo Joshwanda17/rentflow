@@ -139,6 +139,7 @@ Deno.serve(async (req) => {
           direction: 'cash_out',
           category: 'partner_funding',
           ledger_scope: 'wallet',
+          recipient_type: 'user',
           source_table: 'wallets',
           description: `Welile Operations invested UGX ${amount.toLocaleString()} from ${partnerName}'s wallet into Rent Management Pool. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
           currency: 'UGX',
