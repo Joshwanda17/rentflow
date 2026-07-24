@@ -289,31 +289,35 @@ export function WelileMissionBoard() {
     const start = new Date(); start.setHours(0, 0, 0, 0);
     let end: Date;
     if (roiCardPeriod === 'custom') {
-      if (!roiCustomRange.from) return { total: 0, count: 0, earliest: null as string | null, start, end: start, valid: false };
+      if (!roiCustomRange.from) return { total: 0, count: 0, scheduled: 0, earliest: null as string | null, start, end: start, valid: false };
       const from = new Date(roiCustomRange.from); from.setHours(0, 0, 0, 0);
       const to = new Date(roiCustomRange.to ?? roiCustomRange.from); to.setHours(23, 59, 59, 999);
-      let total = 0, count = 0; let earliest: Date | null = null;
+      let total = 0, count = 0, scheduled = 0; let earliest: Date | null = null;
       rows.forEach((r) => {
         const d = new Date(r.next_roi_date);
         if (d >= from && d <= to) {
           total += r.roi_amount; count += 1;
+          const sch = roiScheduleMap?.get(r.id);
+          if (sch && sch.scheduled_date === r.next_roi_date) scheduled += 1;
           if (!earliest || d < earliest) earliest = d;
         }
       });
-      return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null, start: from, end: to, valid: true };
+      return { total, count, scheduled, earliest: earliest ? (earliest as Date).toISOString() : null, start: from, end: to, valid: true };
     }
     const days = roiCardPeriod === 'day' ? 1 : roiCardPeriod === 'week' ? 7 : 30;
     end = new Date(start); end.setDate(end.getDate() + days); end.setHours(23, 59, 59, 999);
-    let total = 0, count = 0; let earliest: Date | null = null;
+    let total = 0, count = 0, scheduled = 0; let earliest: Date | null = null;
     rows.forEach((r) => {
       const d = new Date(r.next_roi_date);
       if (d >= start && d <= end) {
         total += r.roi_amount; count += 1;
+        const sch = roiScheduleMap?.get(r.id);
+        if (sch && sch.scheduled_date === r.next_roi_date) scheduled += 1;
         if (!earliest || d < earliest) earliest = d;
       }
     });
-    return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null, start, end, valid: true };
-  }, [roiPayableRows, roiCardPeriod, roiCustomRange]);
+    return { total, count, scheduled, earliest: earliest ? (earliest as Date).toISOString() : null, start, end, valid: true };
+  }, [roiPayableRows, roiCardPeriod, roiCustomRange, roiScheduleMap]);
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
