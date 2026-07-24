@@ -26612,6 +26612,7 @@ export type Database = {
           withdrawable: number
         }[]
       }
+      get_withdraw_context: { Args: { p_user_id: string }; Returns: Json }
       get_withdrawable_total: { Args: { p_user_id: string }; Returns: number }
       get_withdrawal_history: {
         Args: { p_limit?: number; p_offset?: number; p_search?: string }

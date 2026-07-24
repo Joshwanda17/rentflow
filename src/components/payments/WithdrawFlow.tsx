@@ -25,6 +25,8 @@ import { Trash2, Star } from 'lucide-react';
 import { downloadWithdrawalReceiptPdf, shareWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
 import { useLanguage } from '@/hooks/useLanguage';
 import { WITHDRAWAL_REASON_OPTIONS, OTHER_WITHDRAWAL_REASON } from '@/lib/cashoutAgentConfig';
+import { useWithdrawContext, invalidateWithdrawContext } from '@/hooks/useWithdrawContext';
+import { AlertTriangle } from 'lucide-react';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
@@ -91,6 +93,11 @@ export default function WithdrawFlow({
   const { user } = useAuth();
   const qc = useQueryClient();
   const { language } = useLanguage();
+  // Unified withdrawal context — single source of truth for paused flag,
+  // KYC daily limits, frozen accounts and server-computed `canSubmit`.
+  // Migrating both dialogs onto this hook eliminates gate drift where one
+  // dialog enforced a rule the other missed (e.g. the payout-freeze bug).
+  const withdrawCtx = useWithdrawContext(user?.id);
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
@@ -223,7 +230,15 @@ export default function WithdrawFlow({
     : ledgerAvailable !== null
       ? Math.min(availableBalance, ledgerAvailable)
       : availableBalance;
-  const maxAmount = source === 'available' ? trueAvailable : roiBalance;
+  // Clamp additionally by KYC daily remaining (from the unified context).
+  // Cap of 0 while the context loads is avoided by using Infinity as the
+  // sentinel until we have a real number, so the amount input isn't
+  // needlessly zero-locked on first render.
+  const kycRemainingToday = withdrawCtx.isLoading
+    ? Number.POSITIVE_INFINITY
+    : withdrawCtx.usageToday.remainingAmount;
+  const rawMax = source === 'available' ? trueAvailable : roiBalance;
+  const maxAmount = Math.min(rawMax, kycRemainingToday);
 
   // Agent performance gate. `isAgent` broadens to anyone with agent-family
   // roles so hybrid accounts (agent + merchant_agent + proxy_agent, etc.)
@@ -518,6 +533,14 @@ export default function WithdrawFlow({
   };
 
   const canProceed = () => {
+    // Global gates — apply on every step. Server-computed so a paused
+    // platform / frozen account / exhausted daily count blocks the flow
+    // uniformly across every dialog.
+    if (!withdrawCtx.isLoading && !withdrawCtx.gates.canSubmit) {
+      // Special case: on step 0 (Source) we still want to allow closing /
+      // navigating; the disable-Next behavior is enough.
+      return false;
+    }
     // Agent performance gate — blocks step 0 and 1 for the "available"
     // (personal wallet) source. Landlord-float payouts use a separate
     // flow and are exempt. Threshold: today_pct < 20% with active tenants.
@@ -811,6 +834,7 @@ export default function WithdrawFlow({
       // in the strict view). Nudge the shared ops-wallet cache so every hero
       // card / withdrawal gate on this session sees the reduced figure.
       if (user?.id) invalidateOpsWallet(qc, user.id);
+      if (user?.id) invalidateWithdrawContext(qc, user.id);
       onSuccess?.();
 
       // Confirmation SMS to the requester (server-side, idempotent). Fire-and-
@@ -949,6 +973,17 @@ export default function WithdrawFlow({
       case 0:
         return (
           <div className="space-y-4">
+            {!withdrawCtx.isLoading && !withdrawCtx.gates.canSubmit && (
+              <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 space-y-1">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-destructive" />
+                  <h4 className="font-bold text-destructive">Withdrawal blocked</h4>
+                </div>
+                <p className="text-sm text-destructive/90">
+                  {withdrawCtx.gates.blockReason ?? 'You cannot submit a withdrawal right now.'}
+                </p>
+              </div>
+            )}
             {isPerfLocked && (
               <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 space-y-2">
                 <div className="flex items-center gap-2">
