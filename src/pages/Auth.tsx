@@ -11,6 +11,7 @@ import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { OAuthEnvironmentHint } from '@/components/auth/OAuthEnvironmentHint';
+import { OAuthErrorCard } from '@/components/auth/OAuthErrorCard';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
@@ -26,6 +27,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
+import { captureOAuthRedirectError } from '@/lib/oauthErrorLog';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -338,6 +340,10 @@ export default function Auth() {
   // immediately. Consume the param once so a reload doesn't re-trigger it.
   const oauthAutoStartedRef = useRef(false);
   useEffect(() => {
+    // Capture provider-side failures returned via ?error= / #error= on redirect
+    // back to the auth page. This makes the exact reason visible instead of a
+    // silent bounce back to the login form.
+    try { captureOAuthRedirectError('google'); } catch { /* non-fatal */ }
     if (oauthAutoStartedRef.current) return;
     const provider = searchParams.get('oauth');
     if (provider !== 'google' && provider !== 'apple') return;
@@ -580,6 +586,7 @@ export default function Auth() {
                 </div>
 
                 <OAuthEnvironmentHint />
+                <OAuthErrorCard />
 
                 <div className="flex w-full flex-wrap items-center justify-center gap-4">
                   <GoogleSignInButton
@@ -779,6 +786,7 @@ export default function Auth() {
                 </form>
 
                 <OAuthEnvironmentHint />
+                <OAuthErrorCard />
 
                 <GoogleSignInButton
                   onClick={wrappedHandleGoogleSignIn}
@@ -1121,6 +1129,7 @@ export default function Auth() {
                 {/* Social signup */}
                 <div className="space-y-2.5">
                   <OAuthEnvironmentHint />
+                <OAuthErrorCard />
                   <GoogleSignInButton
                     onClick={wrappedHandleGoogleSignIn}
                     disabled={isGoogleLoading || isAppleLoading || isLoading}
