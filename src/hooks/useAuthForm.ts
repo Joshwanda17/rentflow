@@ -1030,6 +1030,23 @@ export function useAuthForm() {
             context: 'signInWithOAuth',
           });
         } catch { /* logging must never break sign-in */ }
+        // Account linking recovery: if Google refused because the email is
+        // already registered with a password, stash a pending link and guide
+        // the user to sign in with their password. useAuth will auto-link
+        // once the session is established.
+        try {
+          const { isAccountExistsError, setPendingIdentityLink } =
+            await import('@/lib/pendingIdentityLink');
+          if (isAccountExistsError(error.message)) {
+            setPendingIdentityLink({ provider: 'google' });
+            toast({
+              title: 'This email already has an account',
+              description:
+                'Sign in with your password below and we will connect your Google account automatically.',
+            });
+            return;
+          }
+        } catch { /* fall through to generic toast */ }
         toast({
           title: 'Google Sign In Failed',
           description: isProviderError
