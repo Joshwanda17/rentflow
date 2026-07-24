@@ -48,6 +48,81 @@ export interface WalletBalanceView {
 export const walletBalanceKey = (userId: string | null | undefined) =>
   ["wallet-view", userId ?? ""] as const;
 
+/** Query key for the latest 10 wallet transactions preview. */
+export const walletRecentTxKey = (userId: string | null | undefined) =>
+  ["wallet-recent-tx", userId ?? ""] as const;
+
+/** Canonical shape of a wallet transaction row (ledger-derived). */
+export interface WalletTxRow {
+  id: string;
+  transaction_date: string;
+  amount: number;
+  direction: "cash_in" | "cash_out";
+  category: string;
+  description: string | null;
+  reference_id: string | null;
+  linked_party: string | null;
+  source_table: string | null;
+}
+
+/** How many recent transactions ship with the balance preview. */
+export const WALLET_RECENT_TX_LIMIT = 10;
+
+/**
+ * Base user-facing ledger query — mirrors the "user-facing ledger filter"
+ * rule (hide admin_correction + system_balance_correction; wallet + bridge
+ * scopes only). Reused by both the preview hook and the paginated hook so
+ * the numbers never diverge.
+ */
+function baseUserLedgerQuery(userId: string) {
+  return supabase
+    .from("general_ledger")
+    .select(
+      "id, transaction_date, amount, direction, category, description, reference_id, linked_party, source_table",
+      { count: "exact" },
+    )
+    .eq("user_id", userId)
+    .in("ledger_scope", ["wallet", "bridge"])
+    .neq("classification", "admin_correction")
+    .neq("category", "system_balance_correction");
+}
+
+export async function fetchRecentWalletTransactions(
+  userId: string,
+  limit = WALLET_RECENT_TX_LIMIT,
+): Promise<WalletTxRow[]> {
+  trackRequest("db", "wallet_recent_transactions");
+  const { data, error } = await baseUserLedgerQuery(userId)
+    .order("transaction_date", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as WalletTxRow[];
+}
+
+/** Shared pagination fetcher — used by `useWalletTransactions`. */
+export async function fetchWalletTransactionsPage(
+  userId: string,
+  opts: { page: number; pageSize: number; direction?: "all" | "in" | "out" },
+): Promise<{ rows: WalletTxRow[]; total: number }> {
+  trackRequest("db", "wallet_transactions_page");
+  const from = opts.page * opts.pageSize;
+  const to = from + opts.pageSize - 1;
+  let q = baseUserLedgerQuery(userId).order("transaction_date", { ascending: false });
+  if (opts.direction === "in") q = q.eq("direction", "cash_in");
+  if (opts.direction === "out") q = q.eq("direction", "cash_out");
+  const { data, error, count } = await q.range(from, to);
+  if (error) throw error;
+  return { rows: (data ?? []) as WalletTxRow[], total: count ?? 0 };
+}
+
+/** Called by every wallet mutation to invalidate BOTH balance and preview. */
+export function invalidateWalletBalance(qc: QueryClient, userId: string | null | undefined) {
+  if (!userId) return;
+  qc.invalidateQueries({ queryKey: walletBalanceKey(userId) });
+  qc.invalidateQueries({ queryKey: walletRecentTxKey(userId) });
+  qc.invalidateQueries({ queryKey: ["wallet-tx-page", userId] });
+}
+
 const EMPTY: Omit<WalletBalanceView, "userId"> = {
   withdrawable: 0,
   floatBalance: 0,
@@ -100,7 +175,11 @@ function acquireChannel(userId: string, qc: QueryClient) {
     existing.refCount += 1;
     return;
   }
-  const invalidate = () => qc.invalidateQueries({ queryKey: walletBalanceKey(userId) });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: walletBalanceKey(userId) });
+    qc.invalidateQueries({ queryKey: walletRecentTxKey(userId) });
+    qc.invalidateQueries({ queryKey: ["wallet-tx-page", userId] });
+  };
   const channel = supabase
     .channel(`wallet-view-${userId}`)
     .on(
@@ -154,6 +233,22 @@ export function useWalletBalance(userId: string | null | undefined) {
     retry: 1,
   });
 
+  // Latest 10 transactions ship alongside the balance. Same realtime channel
+  // invalidates both queries so wallet cards on every dashboard (tenant /
+  // agent / funder / landlord) render balance + recent activity from one
+  // canonical source with one round-trip apiece.
+  const recent = useQuery<WalletTxRow[]>({
+    queryKey: walletRecentTxKey(userId),
+    enabled: !!userId,
+    queryFn: () => fetchRecentWalletTransactions(userId as string),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
+  });
+
   useEffect(() => {
     if (!userId) return;
     acquireChannel(userId, qc);
@@ -167,11 +262,9 @@ export function useWalletBalance(userId: string | null | undefined) {
     isFetching: query.isFetching,
     error: query.error,
     refetch: query.refetch,
+    /** Latest 10 wallet transactions (user-facing filter applied). */
+    recentTransactions: recent.data ?? [],
+    recentTransactionsLoading: recent.isLoading,
+    refetchRecentTransactions: recent.refetch,
   };
-}
-
-/** Call from every financial mutation's onSuccess. */
-export function invalidateWalletBalance(qc: QueryClient, userId: string | null | undefined) {
-  if (!userId) return;
-  qc.invalidateQueries({ queryKey: walletBalanceKey(userId) });
 }

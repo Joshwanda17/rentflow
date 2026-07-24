@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowDownLeft,
@@ -7,24 +7,18 @@ import {
   Calendar,
   Loader2,
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  useWalletTransactions,
+  type WalletTxDirection,
+} from '@/hooks/wallet/useWalletTransactions';
+import type { WalletTxRow } from '@/hooks/wallet/useWalletBalance';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { LedgerEntryDetailDrawer } from './LedgerEntryDetailDrawer';
 
-interface LedgerEntry {
-  id: string;
-  transaction_date: string;
-  amount: number;
-  direction: string;
-  category: string;
-  description: string | null;
-  reference_id: string | null;
-  linked_party: string | null;
-  source_table: string;
-}
+type LedgerEntry = WalletTxRow;
 
 type FilterKey = 'all' | 'in' | 'out' | 'pending' | 'completed';
 
@@ -102,81 +96,70 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'completed', label: 'Completed' },
 ];
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 export function WalletLedgerStatement() {
   const { user } = useAuth();
-  const [entries, setEntries] = useState<LedgerEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  // Accumulate every page loaded so far — server-paginated "Load more".
+  const [accumulated, setAccumulated] = useState<LedgerEntry[]>([]);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchLedger = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
+  // Map UI filter → hook direction.
+  const direction: WalletTxDirection =
+    filter === 'in' ? 'in' : filter === 'out' ? 'out' : 'all';
 
-    const { data, error } = await supabase
-      .from('general_ledger')
-      .select(
-        'id, transaction_date, amount, direction, category, description, reference_id, linked_party, source_table',
-      )
-      .eq('user_id', user.id)
-      .in('ledger_scope', ['wallet', 'bridge'])
-      // Hide admin/CFO reconciliation legs (admin_correction + system_balance_correction)
-      // from end users. Production reversals stay visible.
-      .or('classification.neq.admin_correction,category.neq.system_balance_correction')
-      .order('transaction_date', { ascending: false });
+  const {
+    rows,
+    page,
+    hasNext,
+    isLoading: loading,
+    isFetching,
+    next,
+    setDirection,
+  } = useWalletTransactions(user?.id, { pageSize: PAGE_SIZE, direction });
 
-    if (error) {
-      console.error('[WalletLedgerStatement] Error:', error);
-    } else {
-      setEntries(data || []);
-    }
-    setLoading(false);
-  }, [user]);
+  // Push each newly-loaded page into the accumulated view. Reset when the
+  // filter changes (page resets to 0 inside the hook via setDirection).
+  useEffect(() => {
+    setDirection(direction);
+    setAccumulated([]);
+  }, [direction, setDirection]);
 
   useEffect(() => {
-    fetchLedger();
-  }, [fetchLedger]);
-
-  // Reset paging when filter changes
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [filter, entries.length]);
+    if (!rows.length) return;
+    setAccumulated((prev) => {
+      // Page 0 replaces (fresh filter/refetch); later pages append with de-dup.
+      if (page === 0) return rows;
+      const seen = new Set(prev.map((r) => r.id));
+      return [...prev, ...rows.filter((r) => !seen.has(r.id))];
+    });
+  }, [rows, page]);
 
   const filteredEntries = useMemo(() => {
-    return entries.filter((e) => {
-      if (filter === 'in') return e.direction === 'cash_in';
-      if (filter === 'out') return e.direction === 'cash_out';
-      // Ledger-posted rows are always completed; there is no pending source yet.
-      if (filter === 'pending') return false;
-      return true;
-    });
-  }, [entries, filter]);
+    if (filter === 'pending') return [] as LedgerEntry[];
+    return accumulated;
+  }, [accumulated, filter]);
 
-  const visibleEntries = filteredEntries.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredEntries.length;
+  const visibleEntries = filteredEntries;
+  const hasMore = hasNext && filter !== 'pending';
 
-  // Infinite scroll — window-scoped observer with generous rootMargin so users
-  // don't have to bump the bottom for the next page to load.
+  // Infinite scroll — auto-load the next server page as the sentinel enters view.
   useEffect(() => {
-    if (loading || !hasMore) return;
+    if (loading || isFetching || !hasMore) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver(
       (obs) => {
-        if (obs[0]?.isIntersecting) {
-          setVisibleCount((c) => Math.min(c + PAGE_SIZE, filteredEntries.length));
-        }
+        if (obs[0]?.isIntersecting) next();
       },
       { rootMargin: '240px 0px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [loading, hasMore, filteredEntries.length]);
+  }, [loading, isFetching, hasMore, next]);
 
   // Group the visible slice by calendar day, preserving newest-first order.
   const dayGroups = useMemo(() => {
