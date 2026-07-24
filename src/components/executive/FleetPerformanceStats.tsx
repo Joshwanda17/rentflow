@@ -813,25 +813,37 @@ export function FleetPerformanceStats({
     try {
       const PAGE = 1000;
       let fromIdx = 0;
+      const raw: Array<{ agent_id: string; amount: number; rent_request_id: string | null }> = [];
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data, error } = await supabase
           .from('agent_collections')
-          .select('agent_id, amount')
+          .select('agent_id, amount, rent_request_id, tracking_id')
           .gte('created_at', start.toISOString())
           .lt('created_at', end.toISOString())
           .gt('amount', 0)
+          .like('tracking_id', 'AGT-%')
           .range(fromIdx, fromIdx + PAGE - 1);
         if (error) { errMsg = error.message; break; }
         const chunk = data || [];
         for (const r of chunk as any[]) {
-          const amt = Number(r.amount) || 0;
-          fleetSum += amt;
-          rowCount += 1;
-          if (r.agent_id) perAgent[r.agent_id] = (perAgent[r.agent_id] || 0) + amt;
+          raw.push({
+            agent_id: r.agent_id,
+            amount: Number(r.amount) || 0,
+            rent_request_id: r.rent_request_id ?? null,
+          });
         }
         if (chunk.length < PAGE) break;
         fromIdx += PAGE;
+      }
+      // Exclude CFO-funded landlord-float allocations to match the KPI definition.
+      const rrIds = Array.from(new Set(raw.map((r) => r.rent_request_id).filter((x): x is string => !!x)));
+      const excluded = await fetchLandlordFloatRentRequestIds(rrIds);
+      for (const r of raw) {
+        if (r.rent_request_id && excluded.has(r.rent_request_id)) continue;
+        fleetSum += r.amount;
+        rowCount += 1;
+        if (r.agent_id) perAgent[r.agent_id] = (perAgent[r.agent_id] || 0) + r.amount;
       }
     } catch (e: any) {
       errMsg = e?.message || 'Verify failed';
