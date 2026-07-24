@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import {
@@ -6,6 +6,7 @@ import {
   getCachedTransactions,
 } from '@/lib/offlineDataStorage';
 import { useServiceValidation } from '@/core/services/useServiceValidation';
+import { useWalletBalance } from '@/hooks/wallet/useWalletBalance';
 
 interface WalletTransaction {
   id: string;
@@ -33,56 +34,33 @@ interface Wallet {
 export function useWallet() {
   const { user } = useAuth();
   const { preValidateTransfer, checkBalance } = useServiceValidation();
-  // Money must never be hydrated from browser/IndexedDB cache. Older cached
-  // first-paint values made funds appear briefly, then disappear after the
-  // strict ledger refetch. Start empty and fetch the ledger-derived view.
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+  // Balance now comes from the canonical `useWalletBalance` hook: shared
+  // React Query key + shared realtime channel + zero cross-session cache.
+  // Every consumer of `useWallet` on the same page dedupes into ONE
+  // wallet round-trip.
+  const balance = useWalletBalance(user?.id);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isOfflineData, setIsOfflineData] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
+  const wallet: Wallet | null = useMemo(() => {
+    if (!user?.id || balance.isLoading) return null;
+    return {
+      id: `strict-${user.id}`,
+      user_id: user.id,
+      balance: balance.withdrawable + balance.floatBalance,
+      withdrawable: balance.withdrawable,
+      float_balance: balance.floatBalance,
+      created_at: new Date().toISOString(),
+      updated_at: balance.updatedAt ?? new Date().toISOString(),
+    };
+  }, [user?.id, balance.isLoading, balance.withdrawable, balance.floatBalance, balance.updatedAt]);
+
   const fetchWallet = useCallback(async (_force = false) => {
-    if (!user) return;
-
-    if (!navigator.onLine) return;
-
-    try {
-      // STRICT-BY-CONSTRUCTION: end users only ever see ledger-derived
-      // balances. The wallets.* cache is operator-only (CFO / FinOps
-      // reconciliation) and is never read here. `get_user_wallet_view`
-      // returns withdrawable / float / advance computed live from
-      // general_ledger with admin corrections excluded and pending holds
-      // subtracted. We surface the SUM as `balance` so existing call-sites
-      // (`wallet?.balance`) keep working without churn.
-      const { data: viewRow, error: viewErr } = await supabase.rpc(
-        'get_user_wallet_view',
-        { p_user_id: user.id },
-      );
-      if (viewErr) {
-        console.warn('[useWallet] strict view error:', viewErr);
-        return;
-      }
-      const v = (viewRow ?? {}) as Record<string, unknown>;
-      const withdrawable = Number((v.withdrawable as number | string | undefined) ?? 0);
-      const floatBalance = Number((v.float_balance as number | string | undefined) ?? 0);
-      // advance is a liability, not spendable — exclude from displayed balance.
-      const displayed: Wallet = {
-        id: `strict-${user.id}`,
-        user_id: user.id,
-        balance: withdrawable + floatBalance,
-        withdrawable,
-        float_balance: floatBalance,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      setWallet(displayed);
-      setIsOfflineData(false);
-      setLastSyncedAt(new Date());
-    } catch (e) {
-      console.warn('[useWallet] Failed to fetch strict wallet view:', e);
-    }
-  }, [user]);
+    await balance.refetch();
+    setLastSyncedAt(new Date());
+    setIsOfflineData(false);
+  }, [balance]);
 
   const fetchTransactions = useCallback(async () => {
     if (!user) return;
@@ -201,59 +179,27 @@ export function useWallet() {
     return { error: new Error('Direct deposits not allowed. Please use the deposit request flow.') };
   }, []);
 
+  // One-time cleanup of legacy `wallet_*` localStorage entries left by
+  // earlier releases. No polling — realtime + the canonical hook keep
+  // the balance fresh.
   useEffect(() => {
-    if (user) {
-      // Only show loading if we have NO cached data at all — prevents flash when cache exists
-      const hasCachedData = wallet !== null;
-      if (!hasCachedData) setLoading(true);
-      // Only fetch wallet balance on mount — transactions load lazily when wallet sheet opens
-      fetchWallet().finally(() => setLoading(false));
-
-      // SINGLE realtime channel for wallet balance only (reduced from 4 channels to 1).
-      // NOTE: `public.wallets` is a VIEW — realtime publications can only
-      // observe the underlying physical table `wallets_physical`. The previous
-      // subscription on `wallets` silently never fired.
-      const walletChannel = supabase
-        .channel(`wallet-${user.id}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'wallets_physical', filter: `user_id=eq.${user.id}` },
-          () => {
-            // Don't trust the realtime payload's cached `balance` directly —
-            // re-derive against the ledger so the UI always matches backend truth.
-            void fetchWallet(true);
-          }
-        )
-        .subscribe();
-
-      // Anti-drift: every 60s wipe old wallet_* localStorage entries and
-      // refetch ledger-true balances. We no longer store money balances in
-      // browser cache, but this removes stale values from earlier releases.
-      const driftInterval = window.setInterval(() => {
-        try {
-          const keys: string[] = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && k.startsWith('wallet_')) keys.push(k);
-          }
-          keys.forEach((k) => localStorage.removeItem(k));
-        } catch {}
-        void fetchWallet(true);
-      }, 60_000);
-
-      return () => {
-        supabase.removeChannel(walletChannel);
-        window.clearInterval(driftInterval);
-      };
-    }
-  }, [user, fetchWallet, fetchTransactions]);
+    if (!user) return;
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('wallet_')) keys.push(k);
+      }
+      keys.forEach((k) => localStorage.removeItem(k));
+    } catch {}
+  }, [user]);
 
   const refreshWallet = useCallback(() => fetchWallet(true), [fetchWallet]);
 
   return {
     wallet,
     transactions,
-    loading,
+    loading: balance.isLoading,
     isOfflineData,
     lastSyncedAt,
     sendMoney,
