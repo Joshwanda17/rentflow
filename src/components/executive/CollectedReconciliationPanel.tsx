@@ -8,6 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Download, RefreshCw, AlertTriangle } from "lucide-react";
 import { formatUGX } from "@/lib/agentAdvanceCalculations";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 /**
  * Daily reconciliation view for Fleet "Collected".
@@ -293,8 +301,16 @@ export function CollectedReconciliationPanel() {
                 rows.map((r) => {
                   const pct = r.total_amount > 0 ? (r.excluded_amount / r.total_amount) * 100 : 0;
                   return (
-                    <tr key={r.day} className="border-t">
-                      <td className="px-3 py-2 font-medium">{r.day}</td>
+                    <tr
+                      key={r.day}
+                      className="border-t cursor-pointer hover:bg-muted/40"
+                      onClick={() => setDrillDay(r.day)}
+                      role="button"
+                      title="Open drilldown"
+                    >
+                      <td className="px-3 py-2 font-medium underline-offset-2 hover:underline">
+                        {r.day}
+                      </td>
                       <td className="px-3 py-2 text-right">{formatUGX(r.total_amount)}</td>
                       <td className="px-3 py-2 text-right text-muted-foreground">{r.total_rows}</td>
                       <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400">
@@ -318,6 +334,7 @@ export function CollectedReconciliationPanel() {
             </tbody>
           </table>
         </div>
+        <ReconciliationDrilldown day={drillDay} onClose={() => setDrillDay(null)} />
       </CardContent>
     </Card>
   );
