@@ -161,6 +161,7 @@ export function CollectedReconciliationPanel() {
 
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(defaultEnd);
+  const [drillDay, setDrillDay] = useState<string | null>(null);
 
   // Convert to a half-open [start, end+1day) window in local time
   const { startISO, endISO } = useMemo(() => {
