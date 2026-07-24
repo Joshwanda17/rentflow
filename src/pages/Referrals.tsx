@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 import { RewardHistoryBadges } from '@/components/RewardHistoryBadges';
+import { ReferralBonusProgress } from '@/components/ReferralBonusProgress';
 import { motion } from 'framer-motion';
 import { ReferralsSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
@@ -203,6 +204,9 @@ export default function Referrals() {
 
         {/* Monthly Achievement Badges */}
         <RewardHistoryBadges />
+
+        {/* UGX 500 Restricted Referral Bonus Progress */}
+        <ReferralBonusProgress />
 
         {/* Leaderboard */}
         <ReferralLeaderboard limit={5} />
