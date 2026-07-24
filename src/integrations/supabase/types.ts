@@ -26911,6 +26911,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      link_campaign_sub_agent: { Args: { p_user_id: string }; Returns: Json }
       list_assignable_agents: {
         Args: never
         Returns: {
