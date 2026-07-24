@@ -16929,11 +16929,12 @@ export type Database = {
           agent_id: string
           campaign_id: string
           created_at: string
+          district_name: string | null
           expires_at: string | null
           first_click_at: string | null
           id: string
           link_type: Database["public"]["Enums"]["recruitment_link_type"]
-          location_id: string
+          location_id: string | null
           location_slug: string
           placement_name: string | null
           qualified_sub_agents: number
@@ -16950,11 +16951,12 @@ export type Database = {
           agent_id: string
           campaign_id: string
           created_at?: string
+          district_name?: string | null
           expires_at?: string | null
           first_click_at?: string | null
           id?: string
           link_type?: Database["public"]["Enums"]["recruitment_link_type"]
-          location_id: string
+          location_id?: string | null
           location_slug: string
           placement_name?: string | null
           qualified_sub_agents?: number
@@ -16971,11 +16973,12 @@ export type Database = {
           agent_id?: string
           campaign_id?: string
           created_at?: string
+          district_name?: string | null
           expires_at?: string | null
           first_click_at?: string | null
           id?: string
           link_type?: Database["public"]["Enums"]["recruitment_link_type"]
-          location_id?: string
+          location_id?: string | null
           location_slug?: string
           placement_name?: string | null
           qualified_sub_agents?: number
@@ -24645,42 +24648,82 @@ export type Database = {
         Returns: number
       }
       country_to_continent: { Args: { p_country: string }; Returns: string }
-      create_campaign_link: {
-        Args: {
-          p_campaign_id: string
-          p_link_type?: Database["public"]["Enums"]["recruitment_link_type"]
-          p_location_id: string
-          p_placement_name?: string
-          p_selected_source: Database["public"]["Enums"]["recruitment_source"]
-        }
-        Returns: {
-          agent_id: string
-          campaign_id: string
-          created_at: string
-          expires_at: string | null
-          first_click_at: string | null
-          id: string
-          link_type: Database["public"]["Enums"]["recruitment_link_type"]
-          location_id: string
-          location_slug: string
-          placement_name: string | null
-          qualified_sub_agents: number
-          selected_source: Database["public"]["Enums"]["recruitment_source"]
-          short_code: string
-          status: Database["public"]["Enums"]["recruitment_link_status"]
-          total_clicks: number
-          total_registrations: number
-          total_sub_agent_registrations: number
-          unique_clicks: number
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "recruitment_campaign_links"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      create_campaign_link:
+        | {
+            Args: {
+              p_agent_id?: string
+              p_campaign_id: string
+              p_district_name: string
+              p_link_type?: Database["public"]["Enums"]["recruitment_link_type"]
+              p_placement_name?: string
+              p_selected_source: Database["public"]["Enums"]["recruitment_source"]
+            }
+            Returns: {
+              agent_id: string
+              campaign_id: string
+              created_at: string
+              district_name: string | null
+              expires_at: string | null
+              first_click_at: string | null
+              id: string
+              link_type: Database["public"]["Enums"]["recruitment_link_type"]
+              location_id: string | null
+              location_slug: string
+              placement_name: string | null
+              qualified_sub_agents: number
+              selected_source: Database["public"]["Enums"]["recruitment_source"]
+              short_code: string
+              status: Database["public"]["Enums"]["recruitment_link_status"]
+              total_clicks: number
+              total_registrations: number
+              total_sub_agent_registrations: number
+              unique_clicks: number
+              updated_at: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "recruitment_campaign_links"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_campaign_id: string
+              p_link_type?: Database["public"]["Enums"]["recruitment_link_type"]
+              p_location_id: string
+              p_placement_name?: string
+              p_selected_source: Database["public"]["Enums"]["recruitment_source"]
+            }
+            Returns: {
+              agent_id: string
+              campaign_id: string
+              created_at: string
+              district_name: string | null
+              expires_at: string | null
+              first_click_at: string | null
+              id: string
+              link_type: Database["public"]["Enums"]["recruitment_link_type"]
+              location_id: string | null
+              location_slug: string
+              placement_name: string | null
+              qualified_sub_agents: number
+              selected_source: Database["public"]["Enums"]["recruitment_source"]
+              short_code: string
+              status: Database["public"]["Enums"]["recruitment_link_status"]
+              total_clicks: number
+              total_registrations: number
+              total_sub_agent_registrations: number
+              unique_clicks: number
+              updated_at: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "recruitment_campaign_links"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       create_direct_conversation: {
         Args: { other_user_id: string }
         Returns: string
@@ -26855,6 +26898,7 @@ export type Database = {
         }
         Returns: number
       }
+      normalize_district_name: { Args: { p_input: string }; Returns: string }
       normalize_e164_phone: { Args: { raw: string }; Returns: string }
       normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
       normalize_phone: { Args: { p: string }; Returns: string }
@@ -27801,6 +27845,7 @@ export type Database = {
           source: string
         }[]
       }
+      slugify_district: { Args: { p_input: string }; Returns: string }
       snapshot_agent_daily_eligibility: {
         Args: { p_days?: number }
         Returns: number
