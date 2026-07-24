@@ -70,8 +70,13 @@ Deno.serve(async (req) => {
       if (/already|registered|exists/i.test(message)) {
         return json({ error: "This email is already registered. Please sign in or use another email." }, 409);
       }
-      console.error("[create-funder-onboarding-account] create failed:", message);
-      return json({ error: "Could not create funder account" }, 400);
+      console.error("[create-funder-onboarding-account] create failed:", JSON.stringify({
+        message,
+        status: (error as any).status,
+        code: (error as any).code,
+        name: (error as any).name,
+      }));
+      return json({ error: message || "Could not create funder account", code: (error as any).code }, 400);
     }
 
     const userId = data.user?.id;
