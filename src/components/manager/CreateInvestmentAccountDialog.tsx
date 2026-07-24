@@ -651,7 +651,16 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
             </Button>
           ) : (
             <Button
-              onClick={handleCreate}
+              onClick={() => {
+                // Pre-validate cheap client-side checks BEFORE opening the
+                // confirm dialog so we don't ask the operator to confirm a
+                // debit that would immediately be rejected.
+                if (!selectedUser || !form.investment_amount) return;
+                if (partnerFrozen || !isApproved) { handleCreate(); return; }
+                const amt = parseFloat(form.investment_amount);
+                if (isNaN(amt) || amt < 20000) { handleCreate(); return; }
+                setConfirmOpen(true);
+              }}
               className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.75rem] h-auto py-2"
               disabled={
                 saving ||
@@ -659,8 +668,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                 !form.investment_amount ||
                 !isApproved ||
                 partnerFrozen ||
-                portfolioCheckLoading ||
-                (mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0)
+                portfolioCheckLoading
               }
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
@@ -681,6 +689,63 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           )}
         </DialogFooter>
       </DialogContent>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Debit partner wallet now?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  You are about to create a portfolio for{' '}
+                  <span className="font-semibold">{selectedUser?.full_name}</span>{' '}
+                  and immediately debit their wallet:
+                </p>
+                <div className="rounded-md bg-muted/50 border p-3 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-bold">
+                      UGX {Number(form.investment_amount || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span>{form.duration_months} months</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ROI</span>
+                    <span>{form.roi_percentage}% ({form.roi_mode === 'monthly_payout' ? 'monthly payout' : 'compounding'})</span>
+                  </div>
+                  {existingPortfolioCount != null && existingPortfolioCount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Existing portfolios</span>
+                      <span>{existingPortfolioCount}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  The wallet debit posts <strong>immediately</strong>. If the portfolio is later
+                  rejected or cancelled, the funds will be refunded to the partner wallet via a
+                  reversing ledger entry — never leave a portfolio hanging without either activating
+                  or rejecting it.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={(e) => {
+                e.preventDefault();
+                setConfirmOpen(false);
+                handleCreate();
+              }}
+            >
+              {saving ? 'Creating…' : 'Confirm & debit wallet'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
