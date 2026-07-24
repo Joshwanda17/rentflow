@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Download, RefreshCw, AlertTriangle } from "lucide-react";
-import { formatUGX } from "@/lib/currency";
+import { formatUGX } from "@/lib/agentAdvanceCalculations";
 
 /**
  * Daily reconciliation view for Fleet "Collected".
