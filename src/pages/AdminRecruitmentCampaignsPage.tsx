@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GenerateLinkDialog } from "@/pages/AgentCampaignsPage";
 
 type Campaign = {
   id: string;
@@ -60,6 +61,20 @@ export default function AdminRecruitmentCampaignsPage() {
       if (error) throw error;
       return data as Campaign[];
     },
+  });
+
+  const locationsQ = useQuery({
+    queryKey: ["recruitment-locations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("recruitment_locations")
+        .select("id, district, display_name, slug, region")
+        .eq("is_active", true)
+        .order("district");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+    staleTime: 300_000,
   });
 
   const analyticsQ = useQuery({
@@ -104,9 +119,16 @@ export default function AdminRecruitmentCampaignsPage() {
             Track agent-driven sub-agent recruitment by location and source.
           </p>
         </div>
-        <CreateCampaignDialog
-          onCreated={() => qc.invalidateQueries({ queryKey: ["admin-campaigns"] })}
-        />
+        <div className="flex items-center gap-2">
+          <GenerateLinkDialog
+            campaigns={(campaignsQ.data ?? []) as any}
+            locations={(locationsQ.data ?? []) as any}
+            onCreated={() => qc.invalidateQueries({ queryKey: ["admin-campaign-analytics"] })}
+          />
+          <CreateCampaignDialog
+            onCreated={() => qc.invalidateQueries({ queryKey: ["admin-campaigns"] })}
+          />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

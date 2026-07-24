@@ -328,7 +328,7 @@ function LinkRowUI({
   );
 }
 
-function GenerateLinkDialog({
+export function GenerateLinkDialog({
   campaigns,
   locations,
   onCreated,
