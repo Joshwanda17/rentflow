@@ -13,9 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CashAgentSelector, type SelectedCashAgent } from './CashAgentSelector';
-import { useWithdrawalsPaused } from '@/hooks/useWithdrawalsPaused';
 import { AlertTriangle } from 'lucide-react';
-import { useAvailableBalance } from '@/hooks/useAvailableBalance';
+import { useWithdrawContext } from '@/hooks/useWithdrawContext';
 import { Lock } from 'lucide-react';
 
 interface WithdrawRequestDialogProps {
@@ -177,8 +176,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const { paused: withdrawalsPaused } = useWithdrawalsPaused();
-  const { restrictedHeld } = useAvailableBalance(user?.id);
+  const withdrawCtx = useWithdrawContext(user?.id);
+  const withdrawalsPaused = withdrawCtx.gates.withdrawalsPaused;
+  const { restrictedHeld } = withdrawCtx.wallet;
   const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
   const [pendingAmount, setPendingAmount] = useState(0);
   const isSubmittingRef = useRef(false);
