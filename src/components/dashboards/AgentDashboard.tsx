@@ -540,22 +540,48 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
   const CLAIM_WINDOW_MS = 15 * 60 * 1000;
   const COMMISSION_RATE = 0.005;
+  // Mirror the exact filters the Merchant Payouts sheet uses so the badge
+  // count can NEVER exceed the number of rows the agent actually sees when
+  // they open the queue. Without these filters the badge was counting rows
+  // in categories this agent is not authorized to process (and rows from
+  // frozen accounts), so users saw "4 unclaimed" and then 0 inside.
+  const merchantAgentConfig = useMemo(
+    () => (isCashoutAgent ? normalizeCashoutAgentConfig((isCashoutAgent as any).config, isCashoutAgent as any) : null),
+    [isCashoutAgent],
+  );
+  const merchantCategoryOrClause = useMemo(
+    () => buildQueueCategoryOrClause(merchantAgentConfig),
+    [merchantAgentConfig],
+  );
   const { data: pendingEarnings, dataUpdatedAt: pendingUpdatedAt, isFetching: pendingFetching } = useQuery({
-    queryKey: ['cashout-pending-earnings', user.id],
-    enabled: !!isCashoutAgent,
+    queryKey: ['cashout-pending-earnings', user.id, merchantCategoryOrClause],
+    enabled: !!isCashoutAgent && !!merchantAgentConfig,
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
     queryFn: async () => {
       const { supabase } = await import('@/integrations/supabase/client');
       const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      // Fetch frozen user ids inline (cheap, cached implicitly by staleTime).
+      const { data: frozenRows } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('is_frozen', true)
+        .limit(5000);
+      const frozenUserIds = (frozenRows || []).map((r: any) => r.id);
       // Available = unclaimed OR a claim that has expired (>15 min).
-      const { data, error } = await supabase
+      let q = supabase
         .from('withdrawal_requests')
         .select('amount')
         .in('status', CASHOUT_QUEUE_STATUSES)
-        .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`)
-        .limit(2000);
+        .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
+      if (merchantCategoryOrClause) q = q.or(merchantCategoryOrClause);
+      if (frozenUserIds.length) {
+        const list = `(${frozenUserIds.join(',')})`;
+        q = q.not('user_id', 'in', list);
+        q = q.or(`linked_party.is.null,linked_party.not.in.${list}`);
+      }
+      const { data, error } = await q.limit(2000);
       if (error) return { count: 0, totalCommission: 0 };
       const rows = data || [];
       const totalCommission = rows.reduce(
