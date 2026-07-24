@@ -24,6 +24,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GenerateLinkDialog } from "@/pages/AgentCampaignsPage";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 
 type Campaign = {
   id: string;
@@ -103,6 +115,29 @@ export default function AdminRecruitmentCampaignsPage() {
       qc.invalidateQueries({ queryKey: ["admin-campaign-analytics"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const deleteCampaign = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("recruitment_campaigns")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: (id) => {
+      toast.success("Campaign deleted");
+      if (campaignId === id) setCampaignId("");
+      qc.invalidateQueries({ queryKey: ["admin-campaigns"] });
+      qc.invalidateQueries({ queryKey: ["admin-campaign-analytics"] });
+    },
+    onError: (e: any) =>
+      toast.error(
+        e?.message?.includes("foreign key")
+          ? "This campaign has links or registrations attached. Complete or archive it instead."
+          : e?.message ?? "Failed to delete",
+      ),
   });
 
   const summary = analyticsQ.data?.summary ?? {};
@@ -225,6 +260,38 @@ export default function AdminRecruitmentCampaignsPage() {
                             Complete
                           </Button>
                         )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={deleteCampaign.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete “{c.name}”?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This permanently removes the campaign. Links or
+                                registrations already attached to it will block
+                                deletion — mark it Completed instead if that
+                                happens. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => deleteCampaign.mutate(c.id)}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </td>
                   </tr>
