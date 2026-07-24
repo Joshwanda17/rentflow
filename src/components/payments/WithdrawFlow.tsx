@@ -230,7 +230,15 @@ export default function WithdrawFlow({
     : ledgerAvailable !== null
       ? Math.min(availableBalance, ledgerAvailable)
       : availableBalance;
-  const maxAmount = source === 'available' ? trueAvailable : roiBalance;
+  // Clamp additionally by KYC daily remaining (from the unified context).
+  // Cap of 0 while the context loads is avoided by using Infinity as the
+  // sentinel until we have a real number, so the amount input isn't
+  // needlessly zero-locked on first render.
+  const kycRemainingToday = withdrawCtx.isLoading
+    ? Number.POSITIVE_INFINITY
+    : withdrawCtx.usageToday.remainingAmount;
+  const rawMax = source === 'available' ? trueAvailable : roiBalance;
+  const maxAmount = Math.min(rawMax, kycRemainingToday);
 
   // Agent performance gate. `isAgent` broadens to anyone with agent-family
   // roles so hybrid accounts (agent + merchant_agent + proxy_agent, etc.)
