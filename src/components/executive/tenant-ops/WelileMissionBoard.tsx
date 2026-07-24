@@ -45,7 +45,7 @@ import {
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
   ChevronsUpDown, X, Image as ImageIcon, CalendarDays, Info, ChevronLeft, ArrowUpDown,
-  ArrowUp, ArrowDown, Minus,
+  ArrowUp, ArrowDown, Minus, Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildRentEstimator } from '@/lib/missionProjection';
