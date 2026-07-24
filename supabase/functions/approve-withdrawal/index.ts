@@ -1629,7 +1629,14 @@ Deno.serve(async (req) => {
       }
     };
 
-    if (!poolFunded && !isLandlordFloatPayout && (!wallet || totalSpendable < amount)) {
+    // Ledger is authoritative: if reconcile_wallet_from_ledger above didn't
+    // materialize a wallets row (rare — happens for freshly-linked proxy
+    // agents), fall back to the ledger figure instead of blocking a payout
+    // the ledger clearly backs. Merchants were seeing a bogus "Insufficient
+    // proxy agent wallet balance. Available: UGX 198,883,259, requested:
+    // UGX 1,657,500" because `!wallet` short-circuited the guard even though
+    // the ledger held enough.
+    if (!poolFunded && !isLandlordFloatPayout && totalSpendable < amount) {
       const failureReason = isProxyPayout
         ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
         : isCommissionWithdrawal
