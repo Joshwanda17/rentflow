@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SignupSourceFunnel } from './SignupSourceFunnel';
 import { MerchandiseManager } from './MerchandiseManager';
+import AdminRecruitmentCampaignsPage from '@/pages/AdminRecruitmentCampaignsPage';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
 type ReferralDateFilter = '6months' | 'today' | 'yesterday' | 'last_week';
@@ -36,6 +37,9 @@ function getDateBounds(filter: ReferralDateFilter, customStart: Date, customEnd:
 export function CMODashboard({ activeTab }: { activeTab?: string } = {}) {
   if (activeTab === 'merchandise') {
     return <MerchandiseManager />;
+  }
+  if (activeTab === 'campaigns') {
+    return <AdminRecruitmentCampaignsPage />;
   }
   return <CMOMarketingDashboard />;
 }
