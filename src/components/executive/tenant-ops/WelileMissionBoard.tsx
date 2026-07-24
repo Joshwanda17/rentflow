@@ -137,9 +137,40 @@ export function WelileMissionBoard() {
   const [fundersOpen, setFundersOpen] = useState(false);
   const [roiPayableOpen, setRoiPayableOpen] = useState(false);
   // Priority 3 · ROI payable card period selector (day / week / month / custom range)
-  const [roiCardPeriod, setRoiCardPeriod] = useState<'day' | 'week' | 'month' | 'custom'>('week');
-  const [roiCustomRange, setRoiCustomRange] = useState<{ from?: Date; to?: Date }>({});
+  // Persisted in localStorage so operators see the same filter after refresh.
+  const ROI_PERIOD_KEY = 'welile.mission.roiCardPeriod';
+  const ROI_RANGE_KEY = 'welile.mission.roiCustomRange';
+  const [roiCardPeriod, setRoiCardPeriod] = useState<'day' | 'week' | 'month' | 'custom'>(() => {
+    if (typeof window === 'undefined') return 'week';
+    const v = window.localStorage.getItem(ROI_PERIOD_KEY);
+    return v === 'day' || v === 'week' || v === 'month' || v === 'custom' ? v : 'week';
+  });
+  const [roiCustomRange, setRoiCustomRange] = useState<{ from?: Date; to?: Date }>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = window.localStorage.getItem(ROI_RANGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as { from?: string; to?: string };
+      return {
+        from: parsed.from ? new Date(parsed.from) : undefined,
+        to: parsed.to ? new Date(parsed.to) : undefined,
+      };
+    } catch {
+      return {};
+    }
+  });
   const [roiRangeOpen, setRoiRangeOpen] = useState(false);
+  useEffect(() => {
+    try { window.localStorage.setItem(ROI_PERIOD_KEY, roiCardPeriod); } catch { /* ignore */ }
+  }, [roiCardPeriod]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ROI_RANGE_KEY, JSON.stringify({
+        from: roiCustomRange.from?.toISOString(),
+        to: roiCustomRange.to?.toISOString(),
+      }));
+    } catch { /* ignore */ }
+  }, [roiCustomRange]);
   const [landlordRecvOpen, setLandlordRecvOpen] = useState(false);
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
