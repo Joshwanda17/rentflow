@@ -3,6 +3,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,6 +80,11 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
   // we block the action and prompt the operator to use the invite flow.
   const [existingPortfolioCount, setExistingPortfolioCount] = useState<number | null>(null);
   const [portfolioCheckLoading, setPortfolioCheckLoading] = useState(false);
+  // Guardrail: operator must explicitly confirm the wallet debit before we
+  // create a portfolio. Same dialog for first-time and repeat partners so
+  // there's no silent "invite fallthrough" that leaves the wallet credited
+  // but never debited (see 2026-07-24 forensic backfill).
+  const [confirmOpen, setConfirmOpen] = useState(false);
   // When the selected partner is managed by a proxy agent, the dialog shows
   // the proxy agent's wallet balance instead — funding is debited from that
   // wallet server-side (enforced in create-investor-portfolio edge fn).
@@ -274,14 +289,6 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       });
       return;
     }
-    if (mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0) {
-      toast({
-        title: 'Partner already has a portfolio',
-        description: 'Direct Create Portfolio is only for first-time partners. Use "Send invite" for additional portfolios.',
-        variant: 'destructive',
-      });
-      return;
-    }
     const amt = parseFloat(form.investment_amount);
     if (isNaN(amt) || amt < 20000) {
       toast({ title: 'Investment must be at least UGX 20,000', variant: 'destructive' });
@@ -419,13 +426,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           )}
 
           {selectedUser && !partnerFrozen && isApproved && mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0 && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5 flex items-start gap-2">
-              <Shield className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div className="rounded-lg border border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 p-2.5 flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-xs">
-                <p className="font-semibold text-destructive">Partner already has {existingPortfolioCount} portfolio{existingPortfolioCount === 1 ? '' : 's'}</p>
+                <p className="font-semibold text-amber-800 dark:text-amber-200">
+                  Partner already holds {existingPortfolioCount} portfolio{existingPortfolioCount === 1 ? '' : 's'}
+                </p>
                 <p className="text-muted-foreground mt-0.5 leading-relaxed">
-                  Direct Create Portfolio is only allowed for first-time partners.
-                  Use the standard <strong>Send invite</strong> flow to add another portfolio for this partner.
+                  A new portfolio will still debit their wallet immediately. Only cancel/reject the portfolio if they should be refunded.
                 </p>
               </div>
             </div>
@@ -643,7 +651,16 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
             </Button>
           ) : (
             <Button
-              onClick={handleCreate}
+              onClick={() => {
+                // Pre-validate cheap client-side checks BEFORE opening the
+                // confirm dialog so we don't ask the operator to confirm a
+                // debit that would immediately be rejected.
+                if (!selectedUser || !form.investment_amount) return;
+                if (partnerFrozen || !isApproved) { handleCreate(); return; }
+                const amt = parseFloat(form.investment_amount);
+                if (isNaN(amt) || amt < 20000) { handleCreate(); return; }
+                setConfirmOpen(true);
+              }}
               className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.75rem] h-auto py-2"
               disabled={
                 saving ||
@@ -651,8 +668,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
                 !form.investment_amount ||
                 !isApproved ||
                 partnerFrozen ||
-                portfolioCheckLoading ||
-                (mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0)
+                portfolioCheckLoading
               }
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
@@ -673,6 +689,63 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           )}
         </DialogFooter>
       </DialogContent>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Debit partner wallet now?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  You are about to create a portfolio for{' '}
+                  <span className="font-semibold">{selectedUser?.full_name}</span>{' '}
+                  and immediately debit their wallet:
+                </p>
+                <div className="rounded-md bg-muted/50 border p-3 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-bold">
+                      UGX {Number(form.investment_amount || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span>{form.duration_months} months</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ROI</span>
+                    <span>{form.roi_percentage}% ({form.roi_mode === 'monthly_payout' ? 'monthly payout' : 'compounding'})</span>
+                  </div>
+                  {existingPortfolioCount != null && existingPortfolioCount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Existing portfolios</span>
+                      <span>{existingPortfolioCount}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  The wallet debit posts <strong>immediately</strong>. If the portfolio is later
+                  rejected or cancelled, the funds will be refunded to the partner wallet via a
+                  reversing ledger entry — never leave a portfolio hanging without either activating
+                  or rejecting it.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={(e) => {
+                e.preventDefault();
+                setConfirmOpen(false);
+                handleCreate();
+              }}
+            >
+              {saving ? 'Creating…' : 'Confirm & debit wallet'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
