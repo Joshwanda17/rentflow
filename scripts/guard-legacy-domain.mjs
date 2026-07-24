@@ -13,6 +13,11 @@
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
+import {
+  CANONICAL_DOMAIN,
+  LEGACY_DOMAINS,
+  buildLegacyDomainRegex,
+} from './site-domains.mjs';
 
 const REPO_ROOT = new URL('../', import.meta.url).pathname;
 
@@ -29,9 +34,8 @@ const SCANNABLE_EXT = new Set([
   '.html', '.htm', '.xml', '.txt', '.json', '.css', '.webmanifest',
 ]);
 
-// Matches the legacy hostnames (with optional www.), NOT welileapp.com.
-// Also catches the lovable staging subdomain `welilereceipts-com.lovable.app`.
-const LEGACY_RE = /\b(?:www\.)?welilereceipts?\.com\b|welilereceipts-com\.lovable\.app/i;
+// Legacy hostnames come from scripts/site-domains.mjs (env-configurable).
+const LEGACY_RE = buildLegacyDomainRegex();
 const ALLOW_MARKER = 'legacy-domain-guard-allow';
 
 // Files whose entire purpose is to reference the legacy domain (redirect
@@ -86,8 +90,9 @@ for (const rel of SCAN_TARGETS) {
 
 if (violations.length > 0) {
   console.error('\n❌ Legacy-domain guard failed.\n');
-  console.error('Shipping code must reference welileapp.com — never welilereceipts.com /');
-  console.error('welilereciept.com / welilereceipts-com.lovable.app.\n');
+  console.error(
+    `Shipping code must reference ${CANONICAL_DOMAIN} — never ${LEGACY_DOMAINS.join(' / ')}.\n`,
+  );
   console.error('Fix the URL, or if the reference is intentional (e.g. a redirect');
   console.error(`guard), append the comment "${ALLOW_MARKER}" to that line.\n`);
   for (const v of violations) {
@@ -98,4 +103,6 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log('✅ Legacy-domain guard passed — no welilereceipts.com references in shipping code.');
+console.log(
+  `✅ Legacy-domain guard passed — no ${LEGACY_DOMAINS.join(' / ')} references in shipping code.`,
+);
