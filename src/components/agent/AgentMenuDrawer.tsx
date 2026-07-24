@@ -114,7 +114,6 @@ interface Category {
 export function AgentMenuDrawer({ 
   open, 
   onOpenChange, 
-  onRegisterUser,
   onDeposit,
   onPostRentRequest,
   onInviteSubAgent,
