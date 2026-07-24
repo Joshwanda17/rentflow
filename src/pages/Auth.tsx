@@ -581,6 +581,7 @@ export default function Auth() {
                 </div>
 
                 <OAuthEnvironmentHint />
+                <OAuthErrorCard />
 
                 <div className="flex w-full flex-wrap items-center justify-center gap-4">
                   <GoogleSignInButton
@@ -780,6 +781,7 @@ export default function Auth() {
                 </form>
 
                 <OAuthEnvironmentHint />
+                <OAuthErrorCard />
 
                 <GoogleSignInButton
                   onClick={wrappedHandleGoogleSignIn}
@@ -1122,6 +1124,7 @@ export default function Auth() {
                 {/* Social signup */}
                 <div className="space-y-2.5">
                   <OAuthEnvironmentHint />
+                <OAuthErrorCard />
                   <GoogleSignInButton
                     onClick={wrappedHandleGoogleSignIn}
                     disabled={isGoogleLoading || isAppleLoading || isLoading}
