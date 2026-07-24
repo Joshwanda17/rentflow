@@ -79,6 +79,7 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const [requestOpen, setRequestOpen] = useState(false);
   const [pendingOpen, setPendingOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const { enabled: payoutsUiEnabled } = usePayoutsUiEnabled();
   const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
