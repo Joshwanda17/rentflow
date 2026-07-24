@@ -2507,6 +2507,25 @@ function ROIPayableDialog({
     },
   });
 
+  // Latest schedule per portfolio for the pill + persistent status.
+  const { data: scheduleMap } = useQuery({
+    queryKey: ['roi-payable-schedule-map'],
+    enabled: open,
+    refetchInterval: open ? refetchIntervalMs : false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('roi_payout_schedules')
+        .select('portfolio_id, scheduled_date, scheduled_by, reason, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const map = new Map<string, { scheduled_date: string; scheduled_by: string; reason: string | null; created_at: string }>();
+      (data ?? []).forEach((r: any) => {
+        if (!map.has(r.portfolio_id)) map.set(r.portfolio_id, r);
+      });
+      return map;
+    },
+  });
+
   const periods: { key: ROIPeriodKey; label: string; days?: number }[] = [
     { key: '1d', label: 'Next 1 day', days: 1 },
     { key: '7d', label: 'Next 7 days', days: 7 },
