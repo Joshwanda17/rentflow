@@ -1,5 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -2646,6 +2647,98 @@ interface ROIPayableLine {
   roi_amount: number;
 }
 
+// Virtualised list body for the ROI payable drilldown so that thousands of
+// portfolio lines can be browsed at 60fps with no pagination round-trips.
+// Only the rows currently in the viewport (+overscan) are mounted in the DOM.
+function VirtualisedROIList({
+  rows, scheduleMap, onSchedule, onOpenDetail,
+}: {
+  rows: ROIPayableLine[];
+  scheduleMap: Map<string, { scheduled_date: string; scheduled_by: string; reason: string | null; created_at: string }> | undefined;
+  onSchedule: (r: ROIPayableLine) => void;
+  onOpenDetail: (r: ROIPayableLine) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const fmtDate = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString() : '—';
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 96,
+    overscan: 8,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className="px-4 pb-4 overflow-auto"
+      style={{ maxHeight: '55vh', contain: 'strict' }}
+    >
+      <div style={{ height: virtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+        {virtualizer.getVirtualItems().map((v) => {
+          const r = rows[v.index];
+          const sch = scheduleMap?.get(r.id);
+          const isScheduled = !!sch && sch.scheduled_date === r.next_roi_date;
+          return (
+            <div
+              key={r.id}
+              ref={virtualizer.measureElement}
+              data-index={v.index}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${v.start}px)`,
+                paddingBottom: 6,
+              }}
+            >
+              <div className="rounded-lg border border-border bg-card p-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm truncate flex-1">{r.account_name || 'Funder'}</span>
+                  <span className="text-sm font-bold text-amber-700 tabular-nums shrink-0">{formatUGX(r.roi_amount)}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                  <span>Portfolio {r.portfolio_code}</span>
+                  <span>{r.roi_percentage}% of {formatUGX(r.investment_amount)}</span>
+                  <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Payout {fmtDate(r.next_roi_date)}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  {isScheduled ? (
+                    <Badge className="text-[9.5px] h-5 px-1.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                      <Check className="h-2.5 w-2.5 mr-1" /> Scheduled for {fmtDate(sch!.scheduled_date)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[9.5px] h-5 px-1.5 text-muted-foreground">Pending</Badge>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 px-2 text-[10px] gap-1"
+                      onClick={() => onSchedule(r)}
+                    >
+                      <CalendarDays className="h-3 w-3" /> {isScheduled ? 'Reschedule' : 'Schedule'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-[10px] gap-1"
+                      onClick={() => onOpenDetail(r)}
+                    >
+                      <FileText className="h-3 w-3" /> Details
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ROIPayableDialog({
   open, refetchIntervalMs, onClose, cardPeriod, cardCustomRange,
 }: {
@@ -2886,108 +2979,31 @@ function ROIPayableDialog({
               )}
             </button>
           </div>
-          <div className="flex items-center gap-1.5 ml-auto">
-            <span className="text-[10px] text-muted-foreground font-medium">Show</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}
-            >
-              <SelectTrigger className="h-7 text-[11px] w-16">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 20, 50, 100].map((n) => (
-                  <SelectItem key={n} value={String(n)} className="text-[11px]">{n}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span className="text-[10px] text-muted-foreground font-medium">per page</span>
+          <div className="flex items-center gap-1.5 ml-auto text-[10px] text-muted-foreground font-medium">
+            <Zap className="h-3 w-3 text-primary" />
+            Virtualised · {searched.length.toLocaleString()} rows
           </div>
         </div>
 
-        <ScrollArea className="max-h-[55vh] px-4 pb-4">
-          {isLoading ? (
-            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
-          ) : paginated.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No ROI payable in the next {windowDays} day{windowDays !== 1 ? 's' : ''}.</p>
-          ) : (
-            <ul className="space-y-1.5">
-              {paginated.map((r) => (
-                (() => {
-                  const sch = scheduleMap?.get(r.id);
-                  const isScheduled = !!sch && sch.scheduled_date === r.next_roi_date;
-                  return (
-                    <li key={r.id} className="rounded-lg border border-border bg-card p-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm truncate flex-1">{r.account_name || 'Funder'}</span>
-                        <span className="text-sm font-bold text-amber-700 tabular-nums shrink-0">{formatUGX(r.roi_amount)}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
-                        <span>Portfolio {r.portfolio_code}</span>
-                        <span>{r.roi_percentage}% of {formatUGX(r.investment_amount)}</span>
-                        <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Payout {fmtDate(r.next_roi_date)}</span>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        {isScheduled ? (
-                          <Badge className="text-[9.5px] h-5 px-1.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
-                            <Check className="h-2.5 w-2.5 mr-1" /> Scheduled for {fmtDate(sch!.scheduled_date)}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[9.5px] h-5 px-1.5 text-muted-foreground">
-                            Pending
-                          </Badge>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 px-2 text-[10px] gap-1"
-                          onClick={() => setScheduleTarget(r)}
-                        >
-                          <CalendarDays className="h-3 w-3" /> {isScheduled ? 'Reschedule' : 'Schedule'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 text-[10px] gap-1"
-                          onClick={() => setDetailTarget(r)}
-                        >
-                          <FileText className="h-3 w-3" /> Details
-                        </Button>
-                      </div>
-                    </li>
-                  );
-                })()
-              ))}
-            </ul>
-          )}
-        </ScrollArea>
+        {isLoading ? (
+          <div className="px-4 pb-4 space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+        ) : searched.length === 0 ? (
+          <p className="px-4 pb-6 text-sm text-muted-foreground text-center py-6">
+            No ROI payable in the next {windowDays} day{windowDays !== 1 ? 's' : ''}.
+          </p>
+        ) : (
+          <VirtualisedROIList
+            rows={searched}
+            scheduleMap={scheduleMap}
+            onSchedule={setScheduleTarget}
+            onOpenDetail={setDetailTarget}
+          />
+        )}
 
-        {/* Pagination footer */}
-        {sorted.length > 0 && (
-          <div className="px-4 pb-4 flex items-center justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground">
-              {sorted.length.toLocaleString()} total · page {safePage} of {totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-[10px]"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage <= 1}
-              >
-                <ChevronLeft className="h-3.5 w-3.5 mr-0.5" /> Prev
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-[10px]"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage >= totalPages}
-              >
-                Next <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
-              </Button>
-            </div>
+        {searched.length > 0 && (
+          <div className="px-4 pb-3 pt-1 border-t border-border text-[10px] text-muted-foreground flex items-center justify-between">
+            <span>{searched.length.toLocaleString()} rows · scroll to browse</span>
+            <span className="tabular-nums">Total: {formatUGX(total)}</span>
           </div>
         )}
       </DialogContent>
