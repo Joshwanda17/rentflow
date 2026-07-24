@@ -10,6 +10,7 @@ import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { OAuthEnvironmentHint } from '@/components/auth/OAuthEnvironmentHint';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
@@ -578,6 +579,8 @@ export default function Auth() {
                   <div className="flex-1 border-t border-border/40" />
                 </div>
 
+                <OAuthEnvironmentHint />
+
                 <div className="flex w-full flex-wrap items-center justify-center gap-4">
                   <GoogleSignInButton
                     onClick={wrappedHandleGoogleSignIn}
@@ -774,6 +777,8 @@ export default function Auth() {
                     {emailLoginLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Sign In'}
                   </Button>
                 </form>
+
+                <OAuthEnvironmentHint />
 
                 <GoogleSignInButton
                   onClick={wrappedHandleGoogleSignIn}
@@ -1115,6 +1120,7 @@ export default function Auth() {
               <div className="space-y-3 animate-in fade-in duration-200">
                 {/* Social signup */}
                 <div className="space-y-2.5">
+                  <OAuthEnvironmentHint />
                   <GoogleSignInButton
                     onClick={wrappedHandleGoogleSignIn}
                     disabled={isGoogleLoading || isAppleLoading || isLoading}
