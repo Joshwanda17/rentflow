@@ -2491,6 +2491,26 @@ function ROIPayableDialog({
         <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
           <Badge variant="outline" className="text-[10px]">{filtered.length} portfolio{filtered.length !== 1 ? 's' : ''} due · next {windowDays} day{windowDays !== 1 ? 's' : ''}</Badge>
           <Badge className="text-[10px] text-amber-700 bg-amber-500/10">{formatUGX(total)} payable</Badge>
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-[11px]"
+              disabled={searched.length === 0}
+              onClick={() => exportRoiPayableCsv(searched, windowDays, total)}
+            >
+              <Download className="h-3 w-3 mr-1" /> CSV
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-[11px]"
+              disabled={searched.length === 0}
+              onClick={() => exportRoiPayablePdf(searched, windowDays, total)}
+            >
+              <Download className="h-3 w-3 mr-1" /> PDF
+            </Button>
+          </div>
         </div>
 
         {/* Search + Sort + page-size bar */}
