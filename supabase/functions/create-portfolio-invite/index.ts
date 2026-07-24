@@ -125,12 +125,11 @@ Deno.serve(async (req) => {
       return json({ error: "Selected user is not a registered partner" }, 400);
     }
 
-    // Direct-confirmation rule: partner must have ZERO existing portfolios.
-    if (directConfirmation && existingPortfolio) {
-      return json({
-        error: "This partner already has a portfolio. Direct confirmation only applies to first-time partners — use the invite flow instead.",
-      }, 409);
-    }
+    // Note: direct_confirmation is now allowed for ANY approved partner,
+    // including those with existing portfolios. Every new portfolio must
+    // debit the partner wallet at creation — the previous "invite fallthrough"
+    // for existing partners left wallets credited but never debited
+    // (see backfill 2026-07-24 for ISAAC / PAMELA / Mbakureeba Joshua).
 
     if (directConfirmation) {
       const { data: strictAvailRaw, error: availErr } = await admin.rpc("get_user_available_balance", {
