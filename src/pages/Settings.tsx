@@ -44,6 +44,7 @@ const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard
 const ResidenceAddressForm = lazy(() => import('@/components/profile/ResidenceAddressForm'));
 const EmailEditor = lazy(() => import('@/components/profile/EmailEditor'));
 const MobileMoneyNameCard = lazy(() => import('@/components/settings/MobileMoneyNameCard'));
+const AccountLinkingCard = lazy(() => import('@/components/settings/AccountLinkingCard'));
 const ProfileChangeHistory = lazy(() => import('@/components/settings/ProfileChangeHistory'));
 const ShareCardThemeSettings = lazy(() => import('@/components/agent/ShareCardThemeSettings'));
 const AgentRentCapacitySelfCard = lazy(() =>
@@ -443,6 +444,11 @@ export default function Settings() {
                 {user && (
                   <LazySection name="MobileMoneyName">
                     <MobileMoneyNameCard userId={user.id} />
+                  </LazySection>
+                )}
+                {user && (
+                  <LazySection name="AccountLinking">
+                    <AccountLinkingCard />
                   </LazySection>
                 )}
                 <Card className="rounded-2xl">
