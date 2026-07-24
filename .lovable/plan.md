@@ -1,91 +1,111 @@
-## Phase Two — Recruitment Campaign Attribution & Persistence
 
-Extends Phase One. No tenant scope. No new reward rule (existing UGX 10,000 on 3 verified houses stays).
+# Enterprise UI Performance — Zero-Cache Deduplication
 
-### 1. New backend tables (migration, additive only)
+## Guiding rule (hard constraint from you)
 
-- `campaign_attributions` — server-side source of truth.
-  - `attribution_token` (secure random, unique), `campaign_link_id`, `campaign_id`, `referring_agent_id`, `campaign_location_id`, `selected_source`, `link_type`, `placement_name`, `anonymous_visitor_id`, `initial_click_id`, `latest_click_id`, `status` (`active | registration_started | registration_completed | expired | invalidated | duplicate | existing_user`), `first_seen_at`, `last_seen_at`, `expires_at`, `registration_started_at`, `registration_completed_at`, `registered_user_id`, `registered_sub_agent_id`, `locked_at`.
-  - Indexes on token, link, agent, visitor, registered_user, status, expires_at.
-  - Unique partial index preventing duplicate `registration_completed` per `registered_user_id`.
-- `sub_agent_registration_drafts` — multi-step draft, non-sensitive fields only, no passwords.
-- `campaign_attribution_audit_logs` — append-only history of attribution changes.
-- `recruitment_campaigns.attribution_window_days` (default 30) added if missing.
+**No wallet caching.** Every wallet read hits `get_user_wallet_view` (already strict/ledger-derived — the same math the ledger statement uses). The wallet card and the ledger will always show the same number because they will read from the same RPC through the same hook.
 
-RLS: all tables locked to service_role + owning agent read where applicable. GRANTs included per house rules.
+The 526k call volume is not solved by caching stale values. It is solved by:
 
-### 2. New/updated edge functions
+1. **In-flight request dedup** — React Query natively coalesces 5 concurrent subscribers to `['wallet', userId]` into ONE network request. All 5 components get the same fresh response. This is not caching; the response is thrown away immediately (`staleTime: 0, gcTime: 0`). It only prevents the *same millisecond* firing the RPC 5 times.
+2. **Killing duplicate hooks** — right now `useAgentBalances`, `useAuthoritativeWalletBalance`, `useOpsWallet`, and inline `supabase.rpc('get_user_wallet_view')` calls each own their own query key. Same data, different keys = no dedup. We collapse them to ONE hook with ONE key.
+3. **Killing polling** — `refetchInterval: 30_000` on `useAgentBalances` alone is ~2 calls/min/agent × ~1000 active agents × 8hr day = ~960k calls/day. Realtime already invalidates on wallet changes; the poll is redundant.
 
-- `campaign-resolve` (public, no JWT): validates short code, records click (dedup by visitor + short window), creates or refreshes a `campaign_attributions` row, filters obvious bots by UA, returns `{ attribution_token, canonical_slug, campaign_meta }`. Sets first-party cookie `welile_campaign_attribution` (HttpOnly, Secure, SameSite=Lax, 30d).
-- `campaign-attribution-restore`: given a token from cookie or localStorage, validates server-side and rehydrates cookie; returns campaign meta or `invalid|expired|completed`.
-- `campaign-registration-draft` (upsert): persists step progress keyed by attribution token; idempotent.
-- `campaign-registration-complete`: transactional — creates user/sub-agent (reusing existing sub-agent registration RPC), links to attribution, locks attribution, marks `registration_completed`, writes audit row. Idempotency key required.
-- Existing `campaign-click` kept but delegates to `campaign-resolve` for de-dup consistency.
+## Phase 1 — Wallet unification (highest ROI, ship first)
 
-### 3. Attribution lifecycle rules
+**Single hook:** `useWalletBalance(userId)` in `src/hooks/wallet/useWalletBalance.ts`.
 
-- Latest valid link wins UNTIL lock point (successful phone/OTP verification or first server-confirmed identity step). After lock, new clicks are recorded as interactions but never replace `referring_agent_id`.
-- Existing-user phone: attribution marked `existing_user`, no sub-agent created, no reward, friendly redirect to login.
-- Canonical slug: if URL slug mismatches stored slug, redirect to canonical while keeping same attribution.
+- Reads `get_user_wallet_view` (strict RPC — same source as the ledger).
+- Query key: `['wallet', userId]` — one key for the whole app.
+- `staleTime: 0`, `gcTime: 0`, `refetchOnWindowFocus: false`, `refetchOnReconnect: false`, `refetchOnMount: 'always'`, no `refetchInterval`.
+- Invalidated by `useWalletRealtime` on `wallets`, `general_ledger`, `wallet_transactions` postgres_changes for that user.
+- Returns the exact fields the wallet card and ledger both need: `{ withdrawable, float_balance, advance_balance, pending_holds, total_visible, updated_at }`.
 
-### 4. Frontend changes
+**Deprecate / redirect:**
+- `useAgentBalances` → thin wrapper over `useWalletBalance` (keep the commission-netting math, but consume the same underlying query).
+- `useAuthoritativeWalletBalance` → already a wrapper over `useOpsWallet`; point both at `useWalletBalance`.
+- `useOpsWallet` in `useOpsDataLayer` → same underlying key.
+- Grep for direct `supabase.rpc('get_user_wallet_view')` calls in components (wallet card, withdraw dialog, deposit dialog, hero, statement, drawer, statistics) and replace with the hook.
 
-- `src/lib/campaignAttribution.ts` — replace localStorage-first flow with:
-  1. Read cookie via a lightweight `/functions/v1/campaign-resolve/whoami` check.
-  2. Fallback to `localStorage` token; validate through `campaign-attribution-restore`.
-  3. Never trust local values without server validation.
-  4. Expose `useCampaignAttribution()` hook.
-- `src/pages/CampaignRedirect.tsx` — call `campaign-resolve` (single call replacing click+resolve pair), honor canonical redirect, then navigate to `/auth?ref=campaign` (unchanged URL surface).
-- `src/hooks/useAuth.tsx` — after successful auth/OTP, call `campaign-registration-complete` with idempotency key; on success, clear draft, keep historical attribution.
-- Registration flow (OTP screens): call `campaign-registration-draft` at each meaningful step; on reload, hydrate step from draft.
-- Recovery banner: subtle "Continue your Welile sub-agent registration" strip shown when active attribution + no completed registration.
-- Agent Campaign dashboard (`AgentCampaignsPage.tsx`):
-  - Always list from DB (already true) — verify no state-only links; ensure QR modal reuses stored `short_code` (no regeneration).
-  - Add columns: returning visitors, registration starts, completed registrations, qualified sub-agents.
-- Admin dashboard: same additional metrics + attribution funnel.
+**Result:** every wallet card, dialog, statement, and drawer on a screen shares ONE in-flight request per user. From 5–15 duplicate calls per screen render down to 1. Wallet card ≡ ledger, guaranteed by construction.
 
-### 5. Analytics view
+## Phase 2 — Global refetch defaults
 
-New view/RPC `campaign_link_metrics_v2` returning: total_clicks, unique_visitors, returning_visitors, registration_starts, completed_registrations, qualified_sub_agents. Reused by agent + admin pages.
+In `src/App.tsx` (or wherever `QueryClient` is constructed), set default options:
 
-### 6. Security
+```
+defaultOptions: {
+  queries: {
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
+  }
+}
+```
 
-- Attribution tokens: 32-byte base64url, generated via `pgcrypto`.
-- Cookie HttpOnly + Secure + SameSite=Lax, set only from edge functions.
-- Rate-limit `campaign-resolve` per IP+short_code.
-- RLS: agents can read only their own links + metrics; admins full.
+Screens that genuinely need focus-refetch (very few — maybe live dashboards) opt in explicitly. This one change kills a huge tail of "tab focus fires 20 queries" bursts.
 
-### 7. Data migration (safe, additive)
+## Phase 3 — Profile & role dedup
 
-- Backfill `campaign_attributions` from existing `recruitment_campaign_registrations` where visitor + link are known; leave the rest untouched.
-- No deletes, no resets of Phase One data.
+- `useUserProfile(userId)` — single hook, key `['profile', userId]`. Replaces the ~10 places that inline `supabase.from('profiles').select().eq('id', userId)`.
+- `useUserRoles(userId)` — single hook. Roles change rarely; `staleTime: 5 * 60_000` is fine here (roles are not money).
+- Batch variant `useProfiles(userIds[])` — one `.in('id', userIds)` request; list pages (agent ops, tenant ops, landlord ops) stop firing N profile queries.
 
-### 8. Tests
+## Phase 4 — Search hardening (platform-wide)
 
-Vitest + Playwright covering:
-- Link persistence after refresh/logout/login.
-- QR modal reuses same short code.
-- Attribution restore from cookie and localStorage.
-- OTP → completion keeps original agent.
-- Existing phone → no duplicate sub-agent, no reward.
-- Idempotent double-submit of completion.
-- Slug mismatch canonical redirect keeps attribution.
-- Disabled link blocks new attribution but preserves history.
+Create `src/hooks/useDebouncedSearch.ts`:
+- Min 3 chars (currently many searches fire on 1–2 chars or empty strings).
+- 400ms debounce.
+- AbortController on each keystroke — cancels prior in-flight request.
+- No fetch on empty string, ever.
 
-### 9. Explicit non-goals
+Apply to: `TenantOpsSearch`, `LandlordOpsDashboard` search, `UserSearchPicker`, agent search, staff search. This alone should kill the 83k landlord searches with 1928ms mean.
 
-- No tenant campaign work.
-- No changes to reward formula.
-- No GPS prompts.
-- No rebuild of Phase One tables.
+## Phase 5 — Dialog data flow
 
-### Rollout order
+Rule: dialogs receive data via props from the parent that opened them. No re-fetching the same wallet, profile, or row the parent already has. Audit `WithdrawFlow`, `DepositFlow`, `EditUser`, `AssignFloat`, `WithdrawalPayoutCard`, `MerchantFloatRequestsPanel` action dialogs.
 
-1. Migration for new tables + column + indexes + RLS + GRANTs.
-2. Edge functions (resolve, restore, draft, complete).
-3. Frontend attribution lib + CampaignRedirect + registration hooks.
-4. Dashboard metric upgrades.
-5. Backfill migration.
-6. Tests.
+## Phase 6 — Instrumentation (so we can see the win)
 
-Ready to execute on approval.
+Extend `src/lib/costMonitor.ts` with a Supabase interceptor:
+- Wrap `supabase.rpc` / `.from().select()` to record `{ rpc_or_table, timestamp, screen_route }`.
+- Dev-only overlay: press `Ctrl+Shift+D` to see live counts, top offenders, duplicates in the last 60s.
+- CFO route `/cfo/performance` reads aggregated counters and shows a "requests-per-screen" leaderboard.
+
+## Phase 7 — Batch RPCs for list pages
+
+Only where a list clearly fires N-per-row today:
+- `get_wallet_balances_bulk(user_ids uuid[])` — for ops list views that show a balance column.
+- `get_profiles_bulk(user_ids uuid[])` — same.
+
+These are new SECURITY DEFINER RPCs; ops-role gated. Each replaces up to 100 individual round-trips with 1.
+
+## Phase 8 — Lazy load hidden tabs
+
+Screens with tabs (CFO dashboard, More panel, Analytics) — hooks in inactive tabs must not fire. Guard with `enabled: activeTab === 'this'`. Quick pass; ~2h of work.
+
+## Phase 9 — Pagination floor
+
+Any `.select()` that today returns > 100 rows gets an explicit `.range(0, 49)` and a "Load more" button. Withdrawal history, ledger view, landlord directory, user list.
+
+## Rollout order (fastest wins first)
+
+1. **Day 1 (today):** Phase 1 (wallet unification) + Phase 2 (global defaults) + Phase 6 instrumentation overlay. Measurable CPU drop within an hour of deploy.
+2. **Day 2:** Phase 4 (search) + Phase 3 (profile hook). Kills the landlord-search CPU and profile-lookup tail.
+3. **Day 3:** Phase 5 dialog audit + Phase 8 lazy tabs.
+4. **Day 4:** Phase 7 batch RPCs where the instrumentation shows they still matter. Phase 9 pagination.
+
+## Deliverables (per phase, in the closing message)
+
+- Files changed.
+- Grep evidence of old duplicate call sites removed.
+- Instrumentation numbers from the dev overlay: before vs after per screen.
+- Confirmation that wallet card === ledger === strict RPC.
+
+## Explicit non-goals
+
+- No new caches, no localStorage wallet snapshots, no stale-while-revalidate on money data.
+- No changes to ledger math or `get_user_wallet_view`.
+- No changes to realtime channels beyond invalidation wiring.
+
+Approve and I'll ship Phase 1 + 2 + 6 in the next turn.
