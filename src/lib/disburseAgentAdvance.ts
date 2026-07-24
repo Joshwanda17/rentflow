@@ -26,6 +26,7 @@ export async function disburseAgentAdvanceRequest(opts: {
   const cycleDays = Number(opts.cycleDays ?? req.cycle_days);
   const monthlyRate = Number(opts.monthlyRate ?? req.monthly_rate);
   if (!Number.isFinite(principal) || principal <= 0) throw new Error('Principal must be greater than zero');
+  if (principal < 10000) throw new Error('Principal must be at least UGX 10,000 — advances below this are not permitted.');
   if (!Number.isFinite(cycleDays) || cycleDays <= 0) throw new Error('Cycle days must be greater than zero');
 
   const registrationFee = calculateRegistrationFee(principal);
