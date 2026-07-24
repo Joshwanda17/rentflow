@@ -42,6 +42,15 @@ const HALT_CONTROLS: ControlDef[] = [
   { key: 'withdrawals_paused', label: 'Pause withdrawals', description: 'Block all wallet withdrawals platform-wide.', danger: true },
 ];
 
+const UI_OVERRIDE_CONTROLS: ControlDef[] = [
+  {
+    key: 'payouts_ui_enabled',
+    label: 'Enable Claim & Withdraw buttons',
+    description: 'Re-enable the "Withdraw" buttons (agent hero, funder actions) and the merchant "Claim" button. Leave OFF while payouts are frozen; flip ON when payouts are available.',
+    protective: true,
+  },
+];
+
 const GUARD_CONTROLS: ControlDef[] = [
   { key: 'enforce_cash_guard', label: 'Enforce cash guard', description: 'Block disbursements that would breach available cash.', protective: true },
   { key: 'enforce_roi_coverage', label: 'Enforce returns coverage', description: 'Require sufficient coverage before paying supporter returns.', protective: true },
@@ -49,7 +58,7 @@ const GUARD_CONTROLS: ControlDef[] = [
   { key: 'strict_mode', label: 'Strict ledger mode', description: 'Reject any ledger entry using a non-allowlisted category.', protective: true },
 ];
 
-const ALL_KEYS = [...AUTOMATION_CONTROLS, ...HALT_CONTROLS, ...GUARD_CONTROLS].map((c) => c.key);
+const ALL_KEYS = [...AUTOMATION_CONTROLS, ...HALT_CONTROLS, ...GUARD_CONTROLS, ...UI_OVERRIDE_CONTROLS].map((c) => c.key);
 
 export function PlatformControlsPanel() {
   const { toast } = useToast();
@@ -149,6 +158,7 @@ export function PlatformControlsPanel() {
       <MaintenanceToggleCard />
       {renderGroup('Automation engines', 'Turn scheduled money movements on or off.', AUTOMATION_CONTROLS)}
       {renderGroup('Emergency halts', 'Immediately stop credit or withdrawals during an incident.', HALT_CONTROLS)}
+      {renderGroup('Payout UI overrides', 'Re-enable payout buttons (Claim / Withdraw) once payouts are available again.', UI_OVERRIDE_CONTROLS)}
       {renderGroup('Safety guards', 'Protective checks that keep the ledger and cash safe. Keep these ON unless instructed.', GUARD_CONTROLS)}
     </div>
   );
