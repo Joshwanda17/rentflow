@@ -5,11 +5,15 @@
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-const BASE_URL = 'https://welileapp.com';
-// Legacy domain being consolidated into BASE_URL via 301 redirects.
-// A dedicated sitemap of these URLs helps Google recrawl the old domain,
-// discover each 301, and transfer signals to the canonical welileapp.com pages.
-const LEGACY_BASE_URL = 'https://welilereceipts.com';
+// Domains come from scripts/site-domains.mjs (env-configurable per deployment).
+// @ts-expect-error — plain .mjs sibling with no bundled type declarations.
+import { CANONICAL_ORIGIN, LEGACY_ORIGIN } from './site-domains.mjs';
+
+const BASE_URL = CANONICAL_ORIGIN;
+// Legacy domain being consolidated into BASE_URL via 301 redirects. A
+// dedicated sitemap of these URLs helps Google recrawl the old domain,
+// discover each 301, and transfer signals to the canonical pages.
+const LEGACY_BASE_URL = LEGACY_ORIGIN;
 
 interface SitemapEntry {
   path: string;
