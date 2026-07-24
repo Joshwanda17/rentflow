@@ -834,6 +834,7 @@ export default function WithdrawFlow({
       // in the strict view). Nudge the shared ops-wallet cache so every hero
       // card / withdrawal gate on this session sees the reduced figure.
       if (user?.id) invalidateOpsWallet(qc, user.id);
+      if (user?.id) invalidateWithdrawContext(qc, user.id);
       onSuccess?.();
 
       // Confirmation SMS to the requester (server-side, idempotent). Fire-and-
