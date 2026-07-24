@@ -386,15 +386,37 @@ async function fetchExpectedDailyByAgent(): Promise<Record<string, number>> {
  * agent-tagged totals without needing a rent_request join, and keeps
  * "Collected" perfectly aligned with the per-agent capacity page.
  */
+/**
+ * Set of rent_request_ids that were CFO-funded via landlord float
+ * (i.e. `agent_landlord_float_allocations` exists for that rent_request).
+ * These allocations are excluded from "Collected" because the landlord was
+ * paid from CFO-disbursed landlord float, not from a fresh field collection.
+ */
+async function fetchLandlordFloatRentRequestIds(rentRequestIds: string[]): Promise<Set<string>> {
+  const excluded = new Set<string>();
+  if (rentRequestIds.length === 0) return excluded;
+  const BATCH = 200;
+  for (let i = 0; i < rentRequestIds.length; i += BATCH) {
+    const chunk = rentRequestIds.slice(i, i + BATCH);
+    const { data, error } = await supabase
+      .from('agent_landlord_float_allocations')
+      .select('rent_request_id')
+      .in('rent_request_id', chunk);
+    if (error) { console.error('[FleetPerformanceStats] llf allocations lookup failed', error); continue; }
+    (data || []).forEach((r: any) => { if (r.rent_request_id) excluded.add(r.rent_request_id); });
+  }
+  return excluded;
+}
+
 async function fetchCollectedByAgent(start: Date, end: Date): Promise<Record<string, number>> {
-  const byAgent: Record<string, number> = {};
   const PAGE = 1000;
   let from = 0;
+  const rows: Array<{ agent_id: string; amount: number; rent_request_id: string | null }> = [];
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
       .from('agent_collections')
-      .select('agent_id, amount')
+      .select('agent_id, amount, rent_request_id')
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
       .gt('amount', 0)
@@ -406,14 +428,25 @@ async function fetchCollectedByAgent(start: Date, end: Date): Promise<Record<str
       .like('tracking_id', 'AGT-%')
       .range(from, from + PAGE - 1);
     if (error) { console.error('[FleetPerformanceStats] agent_collections page failed', error); break; }
-    const rows = data || [];
-    rows.forEach((r: any) => {
+    const page = data || [];
+    page.forEach((r: any) => {
       if (!r.agent_id) return;
-      byAgent[r.agent_id] = (byAgent[r.agent_id] || 0) + (Number(r.amount) || 0);
+      rows.push({ agent_id: r.agent_id, amount: Number(r.amount) || 0, rent_request_id: r.rent_request_id ?? null });
     });
-    if (rows.length < PAGE) break;
+    if (page.length < PAGE) break;
     from += PAGE;
   }
+  // Exclude "landlord float allocations" — rent_requests whose landlord was
+  // paid from CFO-disbursed landlord float (i.e. an `agent_landlord_float_allocations`
+  // row exists for that rent_request). Those are pool repayments, not
+  // fresh field collections.
+  const rrIds = Array.from(new Set(rows.map((r) => r.rent_request_id).filter((x): x is string => !!x)));
+  const excluded = await fetchLandlordFloatRentRequestIds(rrIds);
+  const byAgent: Record<string, number> = {};
+  rows.forEach((r) => {
+    if (r.rent_request_id && excluded.has(r.rent_request_id)) return;
+    byAgent[r.agent_id] = (byAgent[r.agent_id] || 0) + r.amount;
+  });
   return byAgent;
 }
 
@@ -451,14 +484,14 @@ function bucketKeyFor(d: Date, gran: TrendGranularity) {
 
 /** Collected total per time bucket (hour/day/month) across the whole fleet within [start, end). */
 async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranularity): Promise<Record<string, number>> {
-  const byBucket: Record<string, number> = {};
   const PAGE = 1000;
   let from = 0;
+  const rows: Array<{ amount: number; created_at: string; rent_request_id: string | null }> = [];
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
       .from('agent_collections')
-      .select('amount, created_at')
+      .select('amount, created_at, rent_request_id')
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
       .gt('amount', 0)
@@ -466,15 +499,22 @@ async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranular
       .like('tracking_id', 'AGT-%')
       .range(from, from + PAGE - 1);
     if (error) { console.error('[FleetPerformanceStats] bucket agent_collections page failed', error); break; }
-    const rows = data || [];
-    rows.forEach((r: any) => {
+    const page = data || [];
+    page.forEach((r: any) => {
       if (!r.created_at) return;
-      const k = bucketKeyFor(new Date(r.created_at), gran);
-      byBucket[k] = (byBucket[k] || 0) + (Number(r.amount) || 0);
+      rows.push({ amount: Number(r.amount) || 0, created_at: r.created_at, rent_request_id: r.rent_request_id ?? null });
     });
-    if (rows.length < PAGE) break;
+    if (page.length < PAGE) break;
     from += PAGE;
   }
+  const rrIds = Array.from(new Set(rows.map((r) => r.rent_request_id).filter((x): x is string => !!x)));
+  const excluded = await fetchLandlordFloatRentRequestIds(rrIds);
+  const byBucket: Record<string, number> = {};
+  rows.forEach((r) => {
+    if (r.rent_request_id && excluded.has(r.rent_request_id)) return;
+    const k = bucketKeyFor(new Date(r.created_at), gran);
+    byBucket[k] = (byBucket[k] || 0) + r.amount;
+  });
   return byBucket;
 }
 
