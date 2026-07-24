@@ -2709,17 +2709,42 @@ function ROIPayableDialog({
           ) : (
             <ul className="space-y-1.5">
               {paginated.map((r) => (
-                <li key={r.id} className="rounded-lg border border-border bg-card p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm truncate flex-1">{r.account_name || 'Funder'}</span>
-                    <span className="text-sm font-bold text-amber-700 tabular-nums shrink-0">{formatUGX(r.roi_amount)}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
-                    <span>Portfolio {r.portfolio_code}</span>
-                    <span>{r.roi_percentage}% of {formatUGX(r.investment_amount)}</span>
-                    <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Payout {fmtDate(r.next_roi_date)}</span>
-                  </div>
-                </li>
+                (() => {
+                  const sch = scheduleMap?.get(r.id);
+                  const isScheduled = !!sch && sch.scheduled_date === r.next_roi_date;
+                  return (
+                    <li key={r.id} className="rounded-lg border border-border bg-card p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm truncate flex-1">{r.account_name || 'Funder'}</span>
+                        <span className="text-sm font-bold text-amber-700 tabular-nums shrink-0">{formatUGX(r.roi_amount)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                        <span>Portfolio {r.portfolio_code}</span>
+                        <span>{r.roi_percentage}% of {formatUGX(r.investment_amount)}</span>
+                        <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Payout {fmtDate(r.next_roi_date)}</span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        {isScheduled ? (
+                          <Badge className="text-[9.5px] h-5 px-1.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                            <Check className="h-2.5 w-2.5 mr-1" /> Scheduled for {fmtDate(sch!.scheduled_date)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[9.5px] h-5 px-1.5 text-muted-foreground">
+                            Pending
+                          </Badge>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[10px] gap-1"
+                          onClick={() => setScheduleTarget(r)}
+                        >
+                          <CalendarDays className="h-3 w-3" /> {isScheduled ? 'Reschedule' : 'Schedule'}
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })()
               ))}
             </ul>
           )}
@@ -2753,6 +2778,128 @@ function ROIPayableDialog({
             </div>
           </div>
         )}
+      </DialogContent>
+      <ScheduleRoiConfirmDialog
+        line={scheduleTarget}
+        onClose={() => setScheduleTarget(null)}
+        onScheduled={() => {
+          setScheduleTarget(null);
+          queryClient.invalidateQueries({ queryKey: ['roi-payable-lines'] });
+          queryClient.invalidateQueries({ queryKey: ['roi-payable-schedule-map'] });
+          queryClient.invalidateQueries({ queryKey: ['mission-roi-payable-next'] });
+          queryClient.invalidateQueries({ queryKey: ['mission-roi-schedule-map'] });
+        }}
+      />
+    </Dialog>
+  );
+}
+
+function ScheduleRoiConfirmDialog({
+  line, onClose, onScheduled,
+}: {
+  line: ROIPayableLine | null;
+  onClose: () => void;
+  onScheduled: () => void;
+}) {
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (line) {
+      setDate(line.next_roi_date ? new Date(line.next_roi_date) : undefined);
+      setReason('');
+    }
+  }, [line?.id]);
+
+  const submit = async () => {
+    if (!line || !date) return;
+    const iso = format(date, 'yyyy-MM-dd');
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.rpc('schedule_roi_payout', {
+        p_portfolio_id: line.id,
+        p_new_date: iso,
+        p_reason: reason.trim() || null,
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (res && res.ok === false) throw new Error(res.error || 'Failed to schedule');
+      toast.success(`Scheduled payout for ${line.account_name || 'funder'} on ${format(date, 'MMM d, yyyy')}`);
+      onScheduled();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to schedule ROI payout');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  return (
+    <Dialog open={!!line} onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
+      <DialogContent className="max-w-md p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-emerald-600" /> Schedule ROI payout
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Move the next ROI payout date for this portfolio. The change is recorded with your name and reason for audit.
+          </p>
+        </DialogHeader>
+        {line && (
+          <div className="px-4 pb-2 space-y-3">
+            <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold truncate">{line.account_name || 'Funder'}</span>
+                <span className="text-xs font-bold text-amber-700 tabular-nums">{formatUGX(line.roi_amount)}</span>
+              </div>
+              <div className="mt-1 text-[10px] text-muted-foreground flex flex-wrap gap-x-3">
+                <span>Portfolio {line.portfolio_code}</span>
+                <span>Current payout: {fmtDate(line.next_roi_date)}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">New payout date</label>
+              <div className="mt-1.5 rounded-lg border border-border">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(d) => d < today}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Reason (optional)</label>
+              <Input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. funder requested delay; treasury pacing"
+                className="mt-1.5 h-8 text-xs"
+                maxLength={200}
+              />
+            </div>
+          </div>
+        )}
+        <div className="p-4 pt-2 flex items-center justify-end gap-2 border-t border-border">
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 text-xs gap-1"
+            onClick={submit}
+            disabled={busy || !date}
+          >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            Confirm schedule
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
