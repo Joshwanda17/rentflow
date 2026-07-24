@@ -238,6 +238,87 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
             <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
 
+          {/* Attach / change landlord — debounced trigram search, or register a new one. */}
+          <div className="space-y-2 pt-1 border-t border-border pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1.5 text-sm">
+                <User className="h-3.5 w-3.5" /> Landlord
+              </Label>
+              {selectedLandlord?.id && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedLandlord(null); setManualLandlord(false); }}
+                  className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  Change
+                </button>
+              )}
+            </div>
+
+            {selectedLandlord?.id ? (
+              <div className="flex items-start gap-2 p-2 rounded-lg border border-border bg-muted/40">
+                <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{selectedLandlord.name}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {selectedLandlord.phone}
+                    {selectedLandlord.verified ? ' · Verified' : ''}
+                  </p>
+                </div>
+              </div>
+            ) : loadingLandlord ? (
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading current landlord…
+              </div>
+            ) : manualLandlord ? (
+              <div className="space-y-2 p-2 rounded-lg border border-dashed border-border">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] text-muted-foreground">Register a new landlord</p>
+                  <button
+                    type="button"
+                    onClick={() => { setManualLandlord(false); setManualName(''); setManualPhone(''); }}
+                    className="text-[11px] text-muted-foreground underline underline-offset-2"
+                  >
+                    Search instead
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-ll-name" className="text-xs">Full name</Label>
+                  <Input id="edit-ll-name" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Landlord name" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-ll-phone" className="text-xs">Phone (Ugandan)</Label>
+                  <Input
+                    id="edit-ll-phone"
+                    value={manualPhone}
+                    onChange={(e) => setManualPhone(e.target.value)}
+                    placeholder="0771234567"
+                    inputMode="tel"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
+                  {manualPhoneError && manualPhone.trim() ? <FieldError message={manualPhoneError} /> : null}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <LandlordSearchSelect
+                  value={selectedLandlord}
+                  onChange={setSelectedLandlord}
+                  inline
+                  onAddNew={() => setManualLandlord(true)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setManualLandlord(true)}
+                  className="inline-flex items-center gap-1 text-[11px] text-primary underline underline-offset-2"
+                >
+                  <UserPlus className="h-3 w-3" /> Register new landlord
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Walkthrough video link (external — YouTube / Google Drive) */}
           <div className="space-y-1">
             <Label htmlFor="edit-video" className="flex items-center gap-1.5">
