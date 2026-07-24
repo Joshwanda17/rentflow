@@ -18,7 +18,7 @@ export interface AuditEntry {
 
 export async function logAudit(entry: AuditEntry): Promise<{ error: Error | null }> {
   try {
-    const { error } = await supabase.from("audit_logs").insert({
+    const { error } = await (supabase.from("audit_logs") as any).insert({
       action_type: entry.actionType,
       table_name: entry.tableName,
       record_id: entry.recordId,
