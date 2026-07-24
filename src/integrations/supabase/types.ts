@@ -26911,6 +26911,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      link_campaign_sub_agent: { Args: { p_user_id: string }; Returns: Json }
       list_assignable_agents: {
         Args: never
         Returns: {
@@ -28041,6 +28042,10 @@ export type Database = {
         }[]
       }
       sweep_agent_advance_recovery: { Args: never; Returns: Json }
+      sweep_link_campaign_sub_agents: {
+        Args: { p_batch_size?: number }
+        Returns: Json
+      }
       sync_house_listing_image_urls: {
         Args: { p_listing: string }
         Returns: undefined
