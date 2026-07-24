@@ -237,6 +237,10 @@ export function normalizeCashoutAgentConfig(
       };
       merged.networks = { mtn: !!legacy.handles_mtn, airtel: !!legacy.handles_airtel };
     }
+    // Legacy fallback: pre-matrix merchants must not be silently denied every
+    // queue category (that hides ALL withdrawals from them). Seed full category
+    // access — the CFO can tighten this in the permission matrix.
+    for (const c of ALL_PAYOUT_CATEGORIES) merged.categories[c.id] = true;
   }
   return merged;
 }
