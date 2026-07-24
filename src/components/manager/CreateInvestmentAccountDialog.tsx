@@ -3,6 +3,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,6 +80,11 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
   // we block the action and prompt the operator to use the invite flow.
   const [existingPortfolioCount, setExistingPortfolioCount] = useState<number | null>(null);
   const [portfolioCheckLoading, setPortfolioCheckLoading] = useState(false);
+  // Guardrail: operator must explicitly confirm the wallet debit before we
+  // create a portfolio. Same dialog for first-time and repeat partners so
+  // there's no silent "invite fallthrough" that leaves the wallet credited
+  // but never debited (see 2026-07-24 forensic backfill).
+  const [confirmOpen, setConfirmOpen] = useState(false);
   // When the selected partner is managed by a proxy agent, the dialog shows
   // the proxy agent's wallet balance instead — funding is debited from that
   // wallet server-side (enforced in create-investor-portfolio edge fn).
@@ -270,14 +285,6 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       toast({
         title: 'Partner not approved',
         description: 'This funder must be approved in Partner Onboarding before a portfolio can be created.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0) {
-      toast({
-        title: 'Partner already has a portfolio',
-        description: 'Direct Create Portfolio is only for first-time partners. Use "Send invite" for additional portfolios.',
         variant: 'destructive',
       });
       return;
