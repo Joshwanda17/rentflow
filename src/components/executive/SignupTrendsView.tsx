@@ -79,6 +79,10 @@ export function SignupTrendsView() {
   const prevStart = new Date(start.getTime() - spanDays * 86400000);
   const prevEnd = new Date(start.getTime() - 1);
 
+  // Row cap for chart/table sampling. KPIs are computed from exact server counts
+  // (see queries below) so they remain correct even if this cap is hit.
+  const ROW_CAP = 60000;
+
   // Signups in current range
   const { data: current, isLoading } = useQuery({
     queryKey: ['signup-trends-current', start.toISOString(), end.toISOString()],
@@ -87,8 +91,7 @@ export function SignupTrendsView() {
       const rows: ProfileRow[] = [];
       const pageSize = 1000;
       let offset = 0;
-      // Cap at 20k rows to avoid runaway queries.
-      while (offset < 20000) {
+      while (offset < ROW_CAP) {
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name, phone, created_at, referrer_id, signup_source')
@@ -106,6 +109,31 @@ export function SignupTrendsView() {
     },
   });
 
+  // Exact server-side counts drive the KPI cards (independent of the row cap).
+  const { data: totals } = useQuery({
+    queryKey: ['signup-trends-totals', start.toISOString(), end.toISOString()],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const [totalRes, referredRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString()),
+        supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', start.toISOString())
+          .lte('created_at', end.toISOString())
+          .not('referrer_id', 'is', null),
+      ]);
+      return {
+        total: totalRes.count || 0,
+        referred: referredRes.count || 0,
+      };
+    },
+  });
+
   const { data: prevCount } = useQuery({
     queryKey: ['signup-trends-prev-count', prevStart.toISOString(), prevEnd.toISOString()],
     staleTime: 5 * 60 * 1000,
@@ -120,9 +148,10 @@ export function SignupTrendsView() {
   });
 
   const rows = current || [];
-  const totalSignups = rows.length;
-  const referred = rows.filter((r) => !!r.referrer_id).length;
-  const organic = totalSignups - referred;
+  const totalSignups = totals?.total ?? 0;
+  const referred = totals?.referred ?? 0;
+  const organic = Math.max(0, totalSignups - referred);
+  const sampleTruncated = totalSignups > rows.length;
   const referralShare = totalSignups > 0 ? Math.round((referred / totalSignups) * 100) : 0;
   const growthPct = (prevCount || 0) > 0 ? Math.round(((totalSignups - (prevCount || 0)) / (prevCount || 0)) * 100) : 0;
   const avgPerDay = spanDays > 0 ? Math.round(totalSignups / spanDays) : 0;
@@ -320,7 +349,14 @@ export function SignupTrendsView() {
 
       {/* Main trend chart */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
-        <h3 className="text-sm font-semibold mb-3">Signups over time</h3>
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <h3 className="text-sm font-semibold">Signups over time</h3>
+          {sampleTruncated && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400">
+              Chart sample: {rows.length.toLocaleString()} / {totalSignups.toLocaleString()} rows
+            </span>
+          )}
+        </div>
         {trend.length === 0 ? (
           <p className="text-xs text-muted-foreground py-12 text-center">No signups in this range.</p>
         ) : (
