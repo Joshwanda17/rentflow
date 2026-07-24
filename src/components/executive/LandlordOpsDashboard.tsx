@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
+import { HOUSE_LISTING_SELECT } from '@/lib/landlord-ops/queries';
+import { fetchListingProfileMaps, enrichListingsWithProfiles } from '@/lib/landlord-ops/profile-utils';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
@@ -836,43 +838,12 @@ export function LandlordOpsDashboard() {
     queryKey: ['exec-house-listings-ops'],
     queryFn: async () => {
       const { data } = await supabase.from('house_listings')
-        .select(`
-          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
-          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
-          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
-          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
-        `)
+        .select(HOUSE_LISTING_SELECT)
         .order('created_at', { ascending: false })
         .limit(500);
-
-      const agentIds = [...new Set((data || []).map(d => d.agent_id).filter(Boolean))];
-      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
-      let agentMap = new Map<string, { full_name: string | null; phone: string | null; email: string | null }>();
-      let tenantMap = new Map<string, { full_name: string | null; phone: string | null }>();
-
-      const profileFetches: (() => Promise<void>)[] = [];
-      if (agentIds.length) {
-        profileFetches.push(async () => {
-          const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', agentIds);
-          if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
-        });
-      }
-      if (tenantIds.length) {
-        profileFetches.push(async () => {
-          const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds);
-          if (profiles) tenantMap = new Map(profiles.map(p => [p.id, p]));
-        });
-      }
-      await Promise.all(profileFetches.map(fn => fn()));
-
-      return (data || []).map(d => ({
-        ...d,
-        agent_name: agentMap.get(d.agent_id)?.full_name || null,
-        agent_phone: agentMap.get(d.agent_id)?.phone || null,
-        agent_email: agentMap.get(d.agent_id)?.email || null,
-        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
-        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
-      })) as ListingWithLandlord[];
+      const rows = (data ?? []) as any[];
+      const maps = await fetchListingProfileMaps(rows);
+      return enrichListingsWithProfiles(rows, maps) as ListingWithLandlord[];
     },
     staleTime: 60000,
   });
@@ -889,37 +860,14 @@ export function LandlordOpsDashboard() {
     staleTime: 60_000,
     queryFn: async () => {
       const { data } = await supabase.from('house_listings')
-        .select(`
-          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
-          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
-          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
-          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
-        `)
+        .select(HOUSE_LISTING_SELECT)
         .eq('verified', false)
         .not('status', 'in', '(rejected,delisted)')
         .order('created_at', { ascending: false })
         .limit(2000);
-
-      const agentIds = [...new Set((data || []).map(d => d.agent_id).filter(Boolean))] as string[];
-      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
-      const agentMap = new Map<string, any>();
-      const tenantMap = new Map<string, any>();
-      for (let i = 0; i < agentIds.length; i += 200) {
-        const { data: aps } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', agentIds.slice(i, i + 200));
-        (aps || []).forEach(p => agentMap.set(p.id, p));
-      }
-      for (let i = 0; i < tenantIds.length; i += 200) {
-        const { data: tps } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(i, i + 200));
-        (tps || []).forEach(p => tenantMap.set(p.id, p));
-      }
-      return (data || []).map(d => ({
-        ...d,
-        agent_name: d.agent_id ? (agentMap.get(d.agent_id)?.full_name || null) : null,
-        agent_phone: d.agent_id ? (agentMap.get(d.agent_id)?.phone || null) : null,
-        agent_email: d.agent_id ? (agentMap.get(d.agent_id)?.email || null) : null,
-        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
-        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
-      })) as ListingWithLandlord[];
+      const rows = (data ?? []) as any[];
+      const maps = await fetchListingProfileMaps(rows);
+      return enrichListingsWithProfiles(rows, maps) as ListingWithLandlord[];
     },
   });
 
@@ -953,38 +901,19 @@ export function LandlordOpsDashboard() {
       if (landlordIds.length) orParts.push(`landlord_id.in.(${landlordIds.join(',')})`);
 
       const { data } = await supabase.from('house_listings')
-        .select(`
-          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
-          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
-          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
-          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
-        `)
+        .select(HOUSE_LISTING_SELECT)
         .or(orParts.join(','))
         .order('created_at', { ascending: false })
         .limit(500);
 
-      const agentMap = new Map((agentProfiles.data || []).map(p => [p.id, p]));
-      // Fetch any agent profiles we didn't already resolve
-      const missingAgentIds = [...new Set((data || []).map(d => d.agent_id).filter(id => id && !agentMap.has(id)))] as string[];
-      if (missingAgentIds.length) {
-        const { data: more } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', missingAgentIds);
-        (more || []).forEach(p => agentMap.set(p.id, p));
-      }
-      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
-      let tenantMap = new Map<string, any>();
-      if (tenantIds.length) {
-        const { data: tps } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds);
-        tenantMap = new Map((tps || []).map(p => [p.id, p]));
-      }
-
-      return (data || []).map(d => ({
-        ...d,
-        agent_name: d.agent_id ? (agentMap.get(d.agent_id)?.full_name || null) : null,
-        agent_phone: d.agent_id ? (agentMap.get(d.agent_id)?.phone || null) : null,
-        agent_email: d.agent_id ? (agentMap.get(d.agent_id)?.email || null) : null,
-        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
-        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
-      })) as ListingWithLandlord[];
+      const rows = (data ?? []) as any[];
+      // Seed the agent map with what we already resolved so we don't refetch.
+      const seed = new Map<string, any>((agentProfiles.data || []).map((p: any) => [p.id, p]));
+      const maps = await fetchListingProfileMaps(rows);
+      // Merge the pre-resolved agent profiles that fetchListingProfileMaps missed
+      // (agents matched by the search but with no listing in the result set).
+      seed.forEach((v, k) => { if (!maps.agentMap.has(k)) maps.agentMap.set(k, v); });
+      return enrichListingsWithProfiles(rows, maps) as ListingWithLandlord[];
     },
   });
 
@@ -995,12 +924,7 @@ export function LandlordOpsDashboard() {
     staleTime: 30_000,
     queryFn: async () => {
       let query = supabase.from('house_listings')
-        .select(`
-          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
-          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
-          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
-          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
-        `)
+        .select(HOUSE_LISTING_SELECT)
         .order('created_at', { ascending: false })
         .limit(2000);
       if (verifyDateFrom) query = query.gte('created_at', new Date(verifyDateFrom).toISOString());
@@ -1009,30 +933,9 @@ export function LandlordOpsDashboard() {
         query = query.lte('created_at', new Date(to).toISOString());
       }
       const { data } = await query;
-      const agentIds = [...new Set((data || []).map(d => d.agent_id).filter(Boolean))] as string[];
-      const agentMap = new Map<string, any>();
-      if (agentIds.length) {
-        for (let i = 0; i < agentIds.length; i += 200) {
-          const { data: aps } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', agentIds.slice(i, i + 200));
-          (aps || []).forEach(p => agentMap.set(p.id, p));
-        }
-      }
-      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
-      const tenantMap = new Map<string, any>();
-      if (tenantIds.length) {
-        for (let i = 0; i < tenantIds.length; i += 200) {
-          const { data: tps } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(i, i + 200));
-          (tps || []).forEach(p => tenantMap.set(p.id, p));
-        }
-      }
-      return (data || []).map(d => ({
-        ...d,
-        agent_name: d.agent_id ? (agentMap.get(d.agent_id)?.full_name || null) : null,
-        agent_phone: d.agent_id ? (agentMap.get(d.agent_id)?.phone || null) : null,
-        agent_email: d.agent_id ? (agentMap.get(d.agent_id)?.email || null) : null,
-        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
-        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
-      })) as ListingWithLandlord[];
+      const rows = (data ?? []) as any[];
+      const maps = await fetchListingProfileMaps(rows);
+      return enrichListingsWithProfiles(rows, maps) as ListingWithLandlord[];
     },
   });
 
@@ -1710,29 +1613,81 @@ export function LandlordOpsDashboard() {
     }
     if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
     setBulkBusy('verify');
-    const results = await runBulk(targets, 6, async (h) => {
-      try {
-        const { data, error } = await supabase.functions.invoke('credit-listing-bonus', { body: { listing_id: h.id } });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
-          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, verified: true, listing_bonus_paid: true } : l) : old);
-        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
-      } catch (err: any) {
-        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
-      }
-    });
+    const ids = targets.map(h => h.id);
+    const titleById = new Map(targets.map(h => [h.id, h.title] as const));
+    let results: Array<{ id: string; title: string; ok: boolean; error?: string }>;
+    let batchSummary: { verified: number; already: number; ineligible: number; failed: number; notifPending: number } = {
+      verified: 0, already: 0, ineligible: 0, failed: 0, notifPending: 0,
+    };
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-verify-house-listings', {
+        body: { listing_ids: ids },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const verifiedArr = ((data as any)?.verified ?? []) as Array<{ id: string; error?: string; message?: string }>;
+      const alreadyArr = ((data as any)?.alreadyVerified ?? []) as Array<{ id: string; message?: string }>;
+      const ineligibleArr = ((data as any)?.ineligible ?? []) as Array<{ id: string; error?: string }>;
+      const failedArr = ((data as any)?.failed ?? []) as Array<{ id: string; error?: string }>;
+      const notifPendingArr = ((data as any)?.notificationsPending ?? []) as Array<{ id: string }>;
+
+      const verifiedIds = new Set(verifiedArr.map(r => r.id));
+      const alreadyIds = new Set(alreadyArr.map(r => r.id));
+      const successIds = new Set<string>([...verifiedIds, ...alreadyIds]);
+
+      // Patch cache only for records the server actually committed. Failed /
+      // ineligible rows stay unchanged so the UI keeps the selection where the
+      // operator can retry them.
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+        Array.isArray(old)
+          ? old.map(l => successIds.has(l.id)
+              ? { ...l, verified: true, listing_bonus_paid: true }
+              : l)
+          : old);
+
+      batchSummary = {
+        verified: verifiedArr.length,
+        already: alreadyArr.length,
+        ineligible: ineligibleArr.length,
+        failed: failedArr.length,
+        notifPending: notifPendingArr.length,
+      };
+
+      results = ids.map(id => {
+        const title = titleById.get(id) ?? '';
+        if (verifiedIds.has(id)) return { id, title, ok: true };
+        if (alreadyIds.has(id)) return { id, title, ok: true, error: 'Already verified' };
+        const inelig = ineligibleArr.find(r => r.id === id);
+        if (inelig) return { id, title, ok: false, error: inelig.error || 'Ineligible' };
+        const fail = failedArr.find(r => r.id === id);
+        return { id, title, ok: false, error: fail?.error || 'Verification failed' };
+      });
+    } catch (err: any) {
+      results = ids.map(id => ({ id, title: titleById.get(id) ?? '', ok: false, error: err?.message || 'Unknown error' }));
+      batchSummary.failed = ids.length;
+    }
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
-    clearVerifySelection();
+    // Keep failed selections so operator can retry; clear only successes.
+    setVerifySelectedIds(prev => {
+      const next = new Set(prev);
+      for (const r of results) if (r.ok) next.delete(r.id);
+      return next;
+    });
     setBulkResult({ action: 'Verify houses', results });
+    const notifNote = batchSummary.notifPending > 0
+      ? ` (${batchSummary.notifPending} notification${batchSummary.notifPending === 1 ? '' : 's'} pending)`
+      : '';
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} verified` : `${ok} verified, ${failed} failed`,
-      description: failed === 0 ? 'Agents credited for newly verified listings.' : 'Some listings could not be verified.',
+      description: failed === 0
+        ? `Agents credited for newly verified listings.${notifNote}`
+        : `Some listings could not be verified.${notifNote}`,
       variant: failed === 0 ? undefined : 'destructive',
     });
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ['exec-house-listings-ops'], refetchType: 'none' });
+    queryClient.invalidateQueries({ queryKey: ['exec-house-listings-pending'], refetchType: 'none' });
   };
 
   // Reject every selected house (single shared reason, min 10 chars).
