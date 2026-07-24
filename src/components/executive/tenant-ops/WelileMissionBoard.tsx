@@ -2462,6 +2462,7 @@ function ROIPayableDialog({
   const [pageSize, setPageSize] = useState<number>(20);
   const [searchQuery, setSearchQuery] = useState('');
   const [scheduleTarget, setScheduleTarget] = useState<ROIPayableLine | null>(null);
+  const [detailTarget, setDetailTarget] = useState<ROIPayableLine | null>(null);
 
   // Sync dialog window to the card's selected period on open, so the drilldown
   // lists exactly the same items the card summarised.
@@ -2741,6 +2742,14 @@ function ROIPayableDialog({
                           onClick={() => setScheduleTarget(r)}
                         >
                           <CalendarDays className="h-3 w-3" /> {isScheduled ? 'Reschedule' : 'Schedule'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[10px] gap-1"
+                          onClick={() => setDetailTarget(r)}
+                        >
+                          <FileText className="h-3 w-3" /> Details
                         </Button>
                       </div>
                     </li>
