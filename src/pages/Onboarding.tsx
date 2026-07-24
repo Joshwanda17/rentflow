@@ -16,6 +16,7 @@ import { numberToWords } from '@/lib/numberToWords';
 import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
 import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
 import { SignaturePad } from '@/components/shared/SignaturePad';
+import { preflightSignup, attachSignupUser } from '@/lib/signupGuard';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
@@ -30,6 +31,10 @@ const registerUser = async (payload: {
   referrerId?: string;
 }): Promise<{ status: string; data: { user: any; userId: string; hasSession: boolean } }> => {
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+  const guard = await preflightSignup({ email: payload.email, phone: payload.phone, path: '/funder-onboarding' });
+  if (!guard.allowed) {
+    throw new Error(guard.reason || 'Sign-up is temporarily unavailable from this device or network. Please try again tomorrow.');
+  }
   // Funder onboarding is vetted through /partner-onboarding, so it must not use
   // the public auth sign-up call (that sends the misleading confirmation email).
   // Create a pre-confirmed account server-side, then sign in once so the contract
@@ -52,6 +57,7 @@ const registerUser = async (payload: {
     throw new Error(parsed);
   }
   if (!data?.userId) throw new Error(data?.error || 'Failed to create funder account');
+  await attachSignupUser(guard.attempt_id, data.userId);
 
   const signInResult = await supabase.auth.signInWithPassword({
     email: payload.email,
