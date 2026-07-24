@@ -1021,6 +1021,15 @@ export function useAuthForm() {
       const { error } = await signInWithGoogle();
       if (error) {
         const isProviderError = error.message?.toLowerCase().includes('not supported') || error.message?.toLowerCase().includes('provider');
+        try {
+          const { recordOAuthError } = await import('@/lib/oauthErrorLog');
+          recordOAuthError({
+            provider: 'google',
+            message: error.message || 'Unknown error',
+            code: (error as { code?: string; status?: number }).code || String((error as { status?: number }).status || ''),
+            context: 'signInWithOAuth',
+          });
+        } catch { /* logging must never break sign-in */ }
         toast({
           title: 'Google Sign In Failed',
           description: isProviderError
@@ -1032,6 +1041,10 @@ export function useAuthForm() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[GoogleSignIn] Unexpected error:', err);
+      try {
+        const { recordOAuthError } = await import('@/lib/oauthErrorLog');
+        recordOAuthError({ provider: 'google', message: msg, context: 'signInWithOAuth:throw' });
+      } catch { /* ignore */ }
       // Friendlier message for provider config issues
       const isProviderError = msg.toLowerCase().includes('not supported') || msg.toLowerCase().includes('provider');
       toast({
