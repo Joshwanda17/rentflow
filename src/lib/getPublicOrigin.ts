@@ -1,5 +1,11 @@
-/** The single canonical public origin for every generated/shared link. */
-export const CANONICAL_ORIGIN = 'https://welileapp.com';
+/**
+ * The single canonical public origin for every generated/shared link.
+ * Overridable per deployment via `VITE_CANONICAL_ORIGIN` (baked in at build
+ * time by Vite). Falls back to the production origin.
+ */
+export const CANONICAL_ORIGIN: string =
+  (import.meta.env?.VITE_CANONICAL_ORIGIN as string | undefined)?.trim() ||
+  'https://welileapp.com';
 
 /**
  * Returns the canonical public-facing origin for share/referral/invite links.
