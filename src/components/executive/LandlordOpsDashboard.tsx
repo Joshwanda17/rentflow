@@ -1613,29 +1613,81 @@ export function LandlordOpsDashboard() {
     }
     if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
     setBulkBusy('verify');
-    const results = await runBulk(targets, 6, async (h) => {
-      try {
-        const { data, error } = await supabase.functions.invoke('credit-listing-bonus', { body: { listing_id: h.id } });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
-          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, verified: true, listing_bonus_paid: true } : l) : old);
-        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
-      } catch (err: any) {
-        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
-      }
-    });
+    const ids = targets.map(h => h.id);
+    const titleById = new Map(targets.map(h => [h.id, h.title] as const));
+    let results: Array<{ id: string; title: string; ok: boolean; error?: string }>;
+    let batchSummary: { verified: number; already: number; ineligible: number; failed: number; notifPending: number } = {
+      verified: 0, already: 0, ineligible: 0, failed: 0, notifPending: 0,
+    };
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-verify-house-listings', {
+        body: { listing_ids: ids },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const verifiedArr = ((data as any)?.verified ?? []) as Array<{ id: string; error?: string; message?: string }>;
+      const alreadyArr = ((data as any)?.alreadyVerified ?? []) as Array<{ id: string; message?: string }>;
+      const ineligibleArr = ((data as any)?.ineligible ?? []) as Array<{ id: string; error?: string }>;
+      const failedArr = ((data as any)?.failed ?? []) as Array<{ id: string; error?: string }>;
+      const notifPendingArr = ((data as any)?.notificationsPending ?? []) as Array<{ id: string }>;
+
+      const verifiedIds = new Set(verifiedArr.map(r => r.id));
+      const alreadyIds = new Set(alreadyArr.map(r => r.id));
+      const successIds = new Set<string>([...verifiedIds, ...alreadyIds]);
+
+      // Patch cache only for records the server actually committed. Failed /
+      // ineligible rows stay unchanged so the UI keeps the selection where the
+      // operator can retry them.
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+        Array.isArray(old)
+          ? old.map(l => successIds.has(l.id)
+              ? { ...l, verified: true, listing_bonus_paid: true }
+              : l)
+          : old);
+
+      batchSummary = {
+        verified: verifiedArr.length,
+        already: alreadyArr.length,
+        ineligible: ineligibleArr.length,
+        failed: failedArr.length,
+        notifPending: notifPendingArr.length,
+      };
+
+      results = ids.map(id => {
+        const title = titleById.get(id) ?? '';
+        if (verifiedIds.has(id)) return { id, title, ok: true };
+        if (alreadyIds.has(id)) return { id, title, ok: true, error: 'Already verified' };
+        const inelig = ineligibleArr.find(r => r.id === id);
+        if (inelig) return { id, title, ok: false, error: inelig.error || 'Ineligible' };
+        const fail = failedArr.find(r => r.id === id);
+        return { id, title, ok: false, error: fail?.error || 'Verification failed' };
+      });
+    } catch (err: any) {
+      results = ids.map(id => ({ id, title: titleById.get(id) ?? '', ok: false, error: err?.message || 'Unknown error' }));
+      batchSummary.failed = ids.length;
+    }
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
-    clearVerifySelection();
+    // Keep failed selections so operator can retry; clear only successes.
+    setVerifySelectedIds(prev => {
+      const next = new Set(prev);
+      for (const r of results) if (r.ok) next.delete(r.id);
+      return next;
+    });
     setBulkResult({ action: 'Verify houses', results });
+    const notifNote = batchSummary.notifPending > 0
+      ? ` (${batchSummary.notifPending} notification${batchSummary.notifPending === 1 ? '' : 's'} pending)`
+      : '';
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} verified` : `${ok} verified, ${failed} failed`,
-      description: failed === 0 ? 'Agents credited for newly verified listings.' : 'Some listings could not be verified.',
+      description: failed === 0
+        ? `Agents credited for newly verified listings.${notifNote}`
+        : `Some listings could not be verified.${notifNote}`,
       variant: failed === 0 ? undefined : 'destructive',
     });
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ['exec-house-listings-ops'], refetchType: 'none' });
+    queryClient.invalidateQueries({ queryKey: ['exec-house-listings-pending'], refetchType: 'none' });
   };
 
   // Reject every selected house (single shared reason, min 10 chars).
