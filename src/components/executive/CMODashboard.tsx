@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { SignupSourceFunnel } from './SignupSourceFunnel';
 import { MerchandiseManager } from './MerchandiseManager';
 import AdminRecruitmentCampaignsPage from '@/pages/AdminRecruitmentCampaignsPage';
+import { GrowthMetricsView } from './GrowthMetricsView';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
 type DatePreset = '6months' | 'today' | 'yesterday' | 'last_week' | 'last_30' | 'last_90' | 'mtd' | 'ytd' | 'custom';
@@ -49,6 +50,9 @@ export function CMODashboard({ activeTab }: { activeTab?: string } = {}) {
   }
   if (activeTab === 'campaigns') {
     return <AdminRecruitmentCampaignsPage />;
+  }
+  if (activeTab === 'growth') {
+    return <GrowthMetricsView />;
   }
   return <CMOMarketingDashboard />;
 }
