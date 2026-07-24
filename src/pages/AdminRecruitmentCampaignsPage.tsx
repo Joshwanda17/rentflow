@@ -122,8 +122,8 @@ export default function AdminRecruitmentCampaignsPage() {
         <div className="flex items-center gap-2">
           <GenerateLinkDialog
             campaigns={(campaignsQ.data ?? []) as any}
-            locations={(locationsQ.data ?? []) as any}
             onCreated={() => qc.invalidateQueries({ queryKey: ["admin-campaign-analytics"] })}
+            showAgentPicker
           />
           <CreateCampaignDialog
             onCreated={() => qc.invalidateQueries({ queryKey: ["admin-campaigns"] })}
