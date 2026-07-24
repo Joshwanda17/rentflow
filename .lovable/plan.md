@@ -1,111 +1,58 @@
 
-# Enterprise UI Performance — Zero-Cache Deduplication
+# Landlord Ops Phase 2 — Execution Plan
 
-## Guiding rule (hard constraint from you)
+Phase 1 (single/bulk hide + bulk reject via atomic RPCs, server-side audit, optimistic patch, lazy invalidation) stays untouched. Phase 2 completes the dedup, replaces client aggregation, makes bulk verify atomic & idempotent, and tunes caching.
 
-**No wallet caching.** Every wallet read hits `get_user_wallet_view` (already strict/ledger-derived — the same math the ledger statement uses). The wallet card and the ledger will always show the same number because they will read from the same RPC through the same hook.
+## Order of execution
 
-The 526k call volume is not solved by caching stale values. It is solved by:
+Each numbered block is a single, verifiable change. I'll ship them in this order to keep the tree buildable at every step.
 
-1. **In-flight request dedup** — React Query natively coalesces 5 concurrent subscribers to `['wallet', userId]` into ONE network request. All 5 components get the same fresh response. This is not caching; the response is thrown away immediately (`staleTime: 0, gcTime: 0`). It only prevents the *same millisecond* firing the RPC 5 times.
-2. **Killing duplicate hooks** — right now `useAgentBalances`, `useAuthoritativeWalletBalance`, `useOpsWallet`, and inline `supabase.rpc('get_user_wallet_view')` calls each own their own query key. Same data, different keys = no dedup. We collapse them to ONE hook with ONE key.
-3. **Killing polling** — `refetchInterval: 30_000` on `useAgentBalances` alone is ~2 calls/min/agent × ~1000 active agents × 8hr day = ~960k calls/day. Realtime already invalidates on wallet changes; the poll is redundant.
+### 1. Shared listing utilities (client-only, no DB)
+- `src/lib/landlord-ops/queries.ts` — `HOUSE_LISTING_SELECT` constant (superset of all 4 duplicated selects incl. nested `landlord`), `RawHouseListing`, `EnrichedHouseListing` types.
+- `src/lib/landlord-ops/profile-utils.ts` — `fetchProfilesByIds(ids, { chunkSize=500, concurrency=4 })` (Set-dedup, filter null, `Promise.all` over chunks), `buildProfileMap`, `enrichListingsWithProfiles`. Returns `Map<string, Profile>`; missing = `null`, DB failure throws.
+- `src/lib/landlord-ops/audit.ts` — `logAudit({ actionType, tableName, recordId, metadata })` thin wrapper for the remaining non-transactional client audit sites (approve/reject landlord, delete, etc.). Actor is always `auth.uid()` server-side.
+- Replace the four `house_listings` select duplications (lines 838/891/955/997) + every `.from('profiles').select().in('id', …)` enrichment loop in `LandlordOpsDashboard.tsx` with these helpers. Cache shape unchanged.
 
-## Phase 1 — Wallet unification (highest ROI, ship first)
+### 2. Bulk verify — atomic + idempotent
+- Migration: new RPC `bulk_verify_house_listings(p_listing_ids uuid[], p_reason text) RETURNS TABLE(id uuid, status text, agent_id uuid, bonus_credited boolean, error text)`.
+  - `SECURITY DEFINER`, `SET search_path=public`, `is_landlord_ops_staff(auth.uid())` gate, `array_length ≤ 500` guard.
+  - Per listing (in one transactional loop): row-lock via `SELECT … FOR UPDATE`, skip if already `verified=true` → `status='already_verified'`; else `UPDATE house_listings SET verified=true, verified_by=auth.uid(), verified_at=now()`, insert `audit_logs`, then call the existing internal SQL bonus routine used by `credit-listing-bonus`. Idempotency: leverage the existing `listing_bonus_paid` flag + `UNIQUE (listing_id, bonus_type)` on the underlying bonus ledger reference (add if missing).
+  - Wallet credit stays inside the same DB transaction (no HTTP hop). If the bonus routine already lives in an edge fn, extract its SQL core into a `public.credit_listing_bonus_internal(p_listing_id uuid)` SECURITY DEFINER helper and have both single and bulk paths call it.
+- New edge fn `bulk-verify-house-listings`: JWT check → call the RPC → for each `status='verified'` row, fire `notify-listing-verified` (or reuse existing SMS/push path) with `Promise.allSettled`; return `{ totalRequested, verified[], alreadyVerified[], ineligible[], failed[], notificationsPending[] }`.
+- `handleBulkVerify` in dashboard: one invoke, patch `verified/listing_bonus_paid` on `verified[]` in cache, keep `failed[]` selection, lazy invalidate.
 
-**Single hook:** `useWalletBalance(userId)` in `src/hooks/wallet/useWalletBalance.ts`.
+### 3. `all_enriched` action for the landlord list
+- Migration: RPC `get_landlord_ops_enriched(_search, _sort, _category, _pending_filter, _district, _region, _verification, _date_from, _date_to, _limit, _offset)` returning landlords + tenant/agent names + phones + listing counts + rent-request summary joined server-side (single query, `count() OVER()` for total). Reuses `is_landlord_ops_staff` gate.
+- Edge fn `landlord-ops`: add `action: "all_enriched"` returning `{ data, pagination: { page, pageSize, total, totalPages }, summary }`.
+- `src/hooks/useLandlordOps.ts`: add `useLandlordOpsAllEnriched(params)`; delete the `allLandlords` `useQuery` + `landlord-ids → house_listings → profiles → rent_requests` chain in the dashboard (~lines 1040–1225). UI keeps consuming the same field shape (mapper in the hook if needed).
 
-- Reads `get_user_wallet_view` (strict RPC — same source as the ledger).
-- Query key: `['wallet', userId]` — one key for the whole app.
-- `staleTime: 0`, `gcTime: 0`, `refetchOnWindowFocus: false`, `refetchOnReconnect: false`, `refetchOnMount: 'always'`, no `refetchInterval`.
-- Invalidated by `useWalletRealtime` on `wallets`, `general_ledger`, `wallet_transactions` postgres_changes for that user.
-- Returns the exact fields the wallet card and ledger both need: `{ withdrawable, float_balance, advance_balance, pending_holds, total_visible, updated_at }`.
+### 4. Global listing search RPC
+- Migration: `search_house_listings_global(p_query text, p_limit int default 50, p_offset int default 0)` — trim, empty→empty result, `ILIKE` on landlord name/phone, tenant name/phone, agent name/phone, title, district, sub_county, village, short_code, status; wildcard-escape `%` and `_`; parameterized; `is_landlord_ops_staff` gate; ordered by `verified DESC, created_at DESC`.
+- Replace the 5-step client search chain with `supabase.rpc('search_house_listings_global', …)`. Keep the existing debounce; add an `AbortController`/generation counter to drop stale responses.
 
-**Deprecate / redirect:**
-- `useAgentBalances` → thin wrapper over `useWalletBalance` (keep the commission-netting math, but consume the same underlying query).
-- `useAuthoritativeWalletBalance` → already a wrapper over `useOpsWallet`; point both at `useWalletBalance`.
-- `useOpsWallet` in `useOpsDataLayer` → same underlying key.
-- Grep for direct `supabase.rpc('get_user_wallet_view')` calls in components (wallet card, withdraw dialog, deposit dialog, hero, statement, drawer, statistics) and replace with the hook.
+### 5. All Requests consolidation
+- Prefer PostgREST embed: `rent_requests?select=…, tenant:profiles!tenant_id(name,phone), landlord:landlords!landlord_id(name,phone), agent:profiles!agent_id(name,phone)` with existing filter/sort/pagination. Only fall back to an RPC if the FK graph doesn't expose all three joins cleanly — I'll check with `psql` first and pick the simpler route without expanding scope.
 
-**Result:** every wallet card, dialog, statement, and drawer on a screen shares ONE in-flight request per user. From 5–15 duplicate calls per screen render down to 1. Wallet card ≡ ledger, guaranteed by construction.
+### 6. Caching pass
+- Search results: `staleTime 15s`, `gcTime 5m`.
+- All Landlords / paginated ops rows: `staleTime 60s`, `gcTime 10m`, `placeholderData: keepPreviousData`.
+- Verification queue: `staleTime 15s`.
+- Profile / reference: `staleTime 10m`.
+- Query keys already include search/sort/category/page — audit and normalize any that don't. No global stale time change.
 
-## Phase 2 — Global refetch defaults
+### 7. Dev-only measurement
+- `src/lib/landlord-ops/devMetrics.ts`: `withMetric(label, fn)` timing helper + a supabase request counter guarded by `import.meta.env.DEV`. Wire around: All Landlords load, global search, All Requests load, single verify, bulk verify (1 & 100), tab return. Numbers logged to `console.table` only in dev.
 
-In `src/App.tsx` (or wherever `QueryClient` is constructed), set default options:
+### 8. Verification
+- `tsgo` typecheck, `bun run lint` (existing scripts), targeted vitest for any touched tests.
+- Manual matrix per spec: empty/1-char/phone/name searches, missing profiles, 0/many landlords, 1 & 100 selected, retry same batch (must return `already_verified`), rapid typing (stale-drop), filter-change mid-request, unauthorized user (RPC returns permission error), notification failure (verify still committed, `notificationsPending` populated).
 
-```
-defaultOptions: {
-  queries: {
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    retry: 1,
-  }
-}
-```
+## Out of scope this phase
+No visual redesign, no unrelated schema changes, no new dashboard features. Bulk-verify's underlying `credit-listing-bonus` behaviour is preserved bit-for-bit — I only extract its SQL core into a reusable internal function; SMS/push templates unchanged.
 
-Screens that genuinely need focus-refetch (very few — maybe live dashboards) opt in explicitly. This one change kills a huge tail of "tab focus fires 20 queries" bursts.
+## Deliverables at the end
+Before/after request counts, files changed, migrations & edge fn actions added, idempotency mechanism used (unique constraint on bonus ledger + `listing_bonus_paid` flag + row lock), wallet/bonus integrity notes, notification-failure behaviour, `tsgo` + lint results, and any residual risks.
 
-## Phase 3 — Profile & role dedup
+## Approval
 
-- `useUserProfile(userId)` — single hook, key `['profile', userId]`. Replaces the ~10 places that inline `supabase.from('profiles').select().eq('id', userId)`.
-- `useUserRoles(userId)` — single hook. Roles change rarely; `staleTime: 5 * 60_000` is fine here (roles are not money).
-- Batch variant `useProfiles(userIds[])` — one `.in('id', userIds)` request; list pages (agent ops, tenant ops, landlord ops) stop firing N profile queries.
-
-## Phase 4 — Search hardening (platform-wide)
-
-Create `src/hooks/useDebouncedSearch.ts`:
-- Min 3 chars (currently many searches fire on 1–2 chars or empty strings).
-- 400ms debounce.
-- AbortController on each keystroke — cancels prior in-flight request.
-- No fetch on empty string, ever.
-
-Apply to: `TenantOpsSearch`, `LandlordOpsDashboard` search, `UserSearchPicker`, agent search, staff search. This alone should kill the 83k landlord searches with 1928ms mean.
-
-## Phase 5 — Dialog data flow
-
-Rule: dialogs receive data via props from the parent that opened them. No re-fetching the same wallet, profile, or row the parent already has. Audit `WithdrawFlow`, `DepositFlow`, `EditUser`, `AssignFloat`, `WithdrawalPayoutCard`, `MerchantFloatRequestsPanel` action dialogs.
-
-## Phase 6 — Instrumentation (so we can see the win)
-
-Extend `src/lib/costMonitor.ts` with a Supabase interceptor:
-- Wrap `supabase.rpc` / `.from().select()` to record `{ rpc_or_table, timestamp, screen_route }`.
-- Dev-only overlay: press `Ctrl+Shift+D` to see live counts, top offenders, duplicates in the last 60s.
-- CFO route `/cfo/performance` reads aggregated counters and shows a "requests-per-screen" leaderboard.
-
-## Phase 7 — Batch RPCs for list pages
-
-Only where a list clearly fires N-per-row today:
-- `get_wallet_balances_bulk(user_ids uuid[])` — for ops list views that show a balance column.
-- `get_profiles_bulk(user_ids uuid[])` — same.
-
-These are new SECURITY DEFINER RPCs; ops-role gated. Each replaces up to 100 individual round-trips with 1.
-
-## Phase 8 — Lazy load hidden tabs
-
-Screens with tabs (CFO dashboard, More panel, Analytics) — hooks in inactive tabs must not fire. Guard with `enabled: activeTab === 'this'`. Quick pass; ~2h of work.
-
-## Phase 9 — Pagination floor
-
-Any `.select()` that today returns > 100 rows gets an explicit `.range(0, 49)` and a "Load more" button. Withdrawal history, ledger view, landlord directory, user list.
-
-## Rollout order (fastest wins first)
-
-1. **Day 1 (today):** Phase 1 (wallet unification) + Phase 2 (global defaults) + Phase 6 instrumentation overlay. Measurable CPU drop within an hour of deploy.
-2. **Day 2:** Phase 4 (search) + Phase 3 (profile hook). Kills the landlord-search CPU and profile-lookup tail.
-3. **Day 3:** Phase 5 dialog audit + Phase 8 lazy tabs.
-4. **Day 4:** Phase 7 batch RPCs where the instrumentation shows they still matter. Phase 9 pagination.
-
-## Deliverables (per phase, in the closing message)
-
-- Files changed.
-- Grep evidence of old duplicate call sites removed.
-- Instrumentation numbers from the dev overlay: before vs after per screen.
-- Confirmation that wallet card === ledger === strict RPC.
-
-## Explicit non-goals
-
-- No new caches, no localStorage wallet snapshots, no stale-while-revalidate on money data.
-- No changes to ledger math or `get_user_wallet_view`.
-- No changes to realtime channels beyond invalidation wiring.
-
-Approve and I'll ship Phase 1 + 2 + 6 in the next turn.
+Say **go** and I'll ship Block 1 first (pure client utilities, zero DB risk), then Block 2's migration for review before wiring, then the rest in order.
