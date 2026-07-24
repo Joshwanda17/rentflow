@@ -568,7 +568,7 @@ Password: ${createdInvite?.password}`;
         Tap to select who you want to register
       </p>
       <div className="grid grid-cols-2 gap-3">
-        {(Object.keys(registrationConfig) as RegistrationType[]).filter(Boolean).map((type) => {
+        {(Object.keys(registrationConfig) as RegistrationType[]).filter((t) => t && t !== 'supporter').map((type) => {
           if (!type) return null;
           const config = registrationConfig[type];
           const Icon = config.icon;
