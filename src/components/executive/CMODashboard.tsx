@@ -253,7 +253,7 @@ function CMOMarketingDashboard() {
   ];
 
   const { data: recentReferrals, isLoading: loadingReferrals } = useQuery({
-    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus, referralDateFilter],
+    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus, datePreset],
     queryFn: async () => {
       let q = supabase
         .from('referrals')
@@ -289,7 +289,7 @@ function CMOMarketingDashboard() {
   });
 
   const { data: topReferrers, isLoading: loadingTopReferrers } = useQuery({
-    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus, referralDateFilter],
+    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus, datePreset],
     queryFn: async () => {
       let q = supabase
         .from('referrals')
