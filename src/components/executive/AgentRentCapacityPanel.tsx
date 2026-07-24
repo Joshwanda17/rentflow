@@ -21,6 +21,7 @@ import {
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 import { FleetPerformanceStats } from './FleetPerformanceStats';
+import { CollectedReconciliationPanel } from './CollectedReconciliationPanel';
 import { useQualifyingAgentIds } from '@/hooks/useQualifyingAgentIds';
 import { LastUpdatedChip } from './LastUpdatedChip';
 import { AutoRefreshControl, useAutoRefreshInterval } from './AutoRefreshControl';
@@ -415,6 +416,11 @@ export function AgentRentCapacityPanel({
         )}
 
         {!compact && <FleetPerformanceStats detailed={showList} autoRefreshMs={autoRefreshMs} />}
+        {!compact && showList && (
+          <div className="mt-4">
+            <CollectedReconciliationPanel />
+          </div>
+        )}
       </div>
 
       {showList && (
