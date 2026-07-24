@@ -725,6 +725,16 @@ export function WelileMissionBoard() {
                         {(roiPayable?.count ?? 0).toLocaleString()} portfolio{(roiPayable?.count ?? 0) !== 1 ? 's' : ''} due
                         {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''} · tap for line items
                       </p>
+                      {(roiPayable?.count ?? 0) > 0 && (
+                        <div className="mt-1 flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Badge className="text-[9px] h-4 px-1.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                            Scheduled: {roiPayable?.scheduled ?? 0}
+                          </Badge>
+                          <Badge className="text-[9px] h-4 px-1.5 bg-amber-500/15 text-amber-700 border border-amber-500/30">
+                            Pending: {Math.max(0, (roiPayable?.count ?? 0) - (roiPayable?.scheduled ?? 0))}
+                          </Badge>
+                        </div>
+                      )}
                     </button>
                   )}
                   {p.key === 'fund' && (
