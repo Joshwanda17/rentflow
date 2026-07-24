@@ -247,77 +247,12 @@ Deno.serve(async (req) => {
 
         if (!restoreErr) refunded = true;
       } else {
-        // For wallet withdrawals: In the new ledger-first flow, no deduction happens at
-        // request time — so there's nothing to refund. Check if a prior deduction exists
-        // before attempting a reversal (backwards compatibility with old-flow requests).
-        const txGroupId = `wallet-reject-${wId}`;
-        const { data: existing } = await admin
-          .from('general_ledger')
-          .select('id')
-          .eq('transaction_group_id', txGroupId)
-          .limit(1);
-
-        // Check if there was a prior deduction for this withdrawal (old flow)
-        const { data: priorDeduction } = await admin
-          .from('general_ledger')
-          .select('id')
-          .eq('source_id', wId)
-          .eq('source_table', 'withdrawal_requests')
-          .eq('direction', 'cash_out')
-          .eq('ledger_scope', 'wallet')
-          .limit(1);
-
-        const hasPriorDeduction = priorDeduction && priorDeduction.length > 0;
-
-        // Only refund the legacy request-time hold category. A real approved
-        // payout posts `wallet_withdrawal`; refunding that after physical cash
-        // left is exactly the recycled-withdrawal loophole. If a row has a
-        // wallet_withdrawal ledger debit, rejection must NOT create cash_in.
-        const { data: legacyHold } = await admin
-          .from('general_ledger')
-          .select('id')
-          .eq('source_id', wId)
-          .eq('source_table', 'withdrawal_requests')
-          .eq('direction', 'cash_out')
-          .eq('ledger_scope', 'wallet')
-          .eq('category', 'withdrawal_pending')
-          .limit(1);
-
-        const hasLegacyHold = legacyHold && legacyHold.length > 0;
-
-        if (hasLegacyHold && (!existing || existing.length === 0)) {
-          // Old-flow request: wallet was deducted at request time, so restore via balanced RPC
-          const { error: rpcErr } = await admin.rpc('create_ledger_transaction', {
-            entries: [
-              {
-                user_id: userId,
-                ledger_scope: 'wallet',
-                direction: 'cash_in',
-                amount: wr.amount,
-                category: 'system_balance_correction',
-                description: `Wallet withdrawal rejected – funds restored. Reason: ${reason.substring(0, 100)}`,
-                currency: 'UGX',
-                transaction_date: new Date().toISOString(),
-                source_table: 'withdrawal_requests',
-                source_id: wId,
-              },
-              {
-                ledger_scope: 'platform',
-                direction: 'cash_out',
-                amount: wr.amount,
-                category: 'system_balance_correction',
-                description: `Platform releases funds for rejected withdrawal`,
-                currency: 'UGX',
-                transaction_date: new Date().toISOString(),
-                source_table: 'withdrawal_requests',
-                source_id: wId,
-              },
-            ],
-          });
-          if (rpcErr) console.error(`[reject-withdrawal] RPC error for ${wId}:`, rpcErr);
-        }
-        // New-flow requests: no deduction happened, so no refund needed
-        refunded = hasLegacyHold ? true : false;
+        // Policy (2026-07-24): Rejecting a wallet withdrawal at FinOps NEVER
+        // refunds the user's wallet. The rejection simply closes the request
+        // — no ledger entry is created. Legacy request-time holds are no
+        // longer reversed here; if a genuinely stuck legacy hold surfaces,
+        // CFO must resolve it manually via CFO Direct Credit.
+        refunded = false;
       }
 
       // Update the withdrawal status
