@@ -426,13 +426,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           )}
 
           {selectedUser && !partnerFrozen && isApproved && mode === 'direct_confirmation' && (existingPortfolioCount ?? 0) > 0 && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5 flex items-start gap-2">
-              <Shield className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div className="rounded-lg border border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 p-2.5 flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-xs">
-                <p className="font-semibold text-destructive">Partner already has {existingPortfolioCount} portfolio{existingPortfolioCount === 1 ? '' : 's'}</p>
+                <p className="font-semibold text-amber-800 dark:text-amber-200">
+                  Partner already holds {existingPortfolioCount} portfolio{existingPortfolioCount === 1 ? '' : 's'}
+                </p>
                 <p className="text-muted-foreground mt-0.5 leading-relaxed">
-                  Direct Create Portfolio is only allowed for first-time partners.
-                  Use the standard <strong>Send invite</strong> flow to add another portfolio for this partner.
+                  A new portfolio will still debit their wallet immediately. Only cancel/reject the portfolio if they should be refunded.
                 </p>
               </div>
             </div>
