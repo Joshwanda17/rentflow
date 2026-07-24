@@ -288,7 +288,11 @@ const queryClient = new QueryClient({
       retry: isSlowNetwork ? 3 : 2,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, isSlowNetwork ? 30000 : 15000),
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
+      // Reconnect refetch was the largest source of duplicate DB calls
+      // whenever a laptop woke from sleep or a phone rejoined WiFi.
+      // Realtime channels handle freshness after a reconnect; anything
+      // that genuinely needs a hard refetch opts in per-query.
+      refetchOnReconnect: false,
       networkMode: 'offlineFirst',
     },
     mutations: {
