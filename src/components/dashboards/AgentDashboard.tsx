@@ -90,6 +90,7 @@ import { DashboardDataErrorBanner } from '@/components/dashboards/DashboardDataE
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
+import { usePayoutsUiEnabled } from '@/hooks/usePayoutsUiEnabled';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { useAgentDashboardRealtime } from '@/hooks/useAgentDashboardRealtime';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
