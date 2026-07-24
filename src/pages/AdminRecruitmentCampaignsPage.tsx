@@ -362,6 +362,11 @@ export default function AdminRecruitmentCampaignsPage() {
         rows={analyticsQ.data?.by_agent ?? []}
         columns={[
           { key: "agent_name", label: "Agent", render: (r) => r.agent_name ?? r.agent_id },
+          {
+            key: "districts",
+            label: "District(s)",
+            render: (r) => (r.districts ? String(r.districts) : "—"),
+          },
           { key: "links", label: "Links", right: true },
           { key: "clicks", label: "Clicks", right: true },
           { key: "registrations", label: "Regs", right: true },
