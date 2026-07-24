@@ -18,9 +18,10 @@
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
+import { CANONICAL_ORIGIN } from './site-domains.mjs';
 
 const REPO_ROOT = new URL('../', import.meta.url).pathname;
-const BASE = 'https://welileapp.com';
+const BASE = CANONICAL_ORIGIN;
 
 // Indexable public routes -> { file, expected canonical }. Mirrors the
 // staticEntries list in scripts/generate-sitemap.ts.
