@@ -50,7 +50,6 @@ import { GlossaryButton } from '@/components/shared/GlossaryButton';
 interface AgentMenuDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onRegisterUser: () => void;
   onDeposit: () => void;
   onPostRentRequest: () => void;
   onInviteSubAgent: () => void;
@@ -212,7 +211,6 @@ export function AgentMenuDrawer({
       icon: Users,
       label: '👥 People',
       items: [
-        { icon: UserPlus, label: 'Register User', description: 'Onboard tenants & landlords', onClick: onRegisterUser, accent: 'blue-500' },
         { icon: Users, label: 'My Tenants', description: 'Repayment schedules', onClick: onViewTenants, accent: 'primary' },
         { icon: ClipboardList, label: 'Registrations', description: 'Invite status & links', path: '/agent-registrations', accent: 'blue-600' },
         { icon: Building2, label: 'My Landlords', description: 'Registered & referred status', onClick: onViewLandlords, accent: 'emerald-600', badge: '🏠' },
@@ -300,7 +298,7 @@ export function AgentMenuDrawer({
   const MERCHANT_BLOCKED_LABELS = new Set<string>([
     // Tenant operations
     'Pay Rent', 'Top Up Wallet', 'Issue Receipt', 'Share Tenant Form', 'Tenant Reg Form',
-    'Register User', 'My Tenants', 'Rent Requests', 'Saved Rent Drafts', 'Schedules', 'Post Rent',
+    'My Tenants', 'Rent Requests', 'Saved Rent Drafts', 'Schedules', 'Post Rent',
     // Landlord operations
     'Share Landlord Signup', 'Landlord Reg Form', 'My Landlords', 'Landlord Map',
     'Manage Property', 'Managed Props',
