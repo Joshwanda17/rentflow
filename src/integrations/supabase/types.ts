@@ -24390,6 +24390,22 @@ export type Database = {
         Args: { p_created_at: string; p_user_id: string }
         Returns: string
       }
+      bulk_reject_house_listings: {
+        Args: { p_listing_ids: string[]; p_reason: string }
+        Returns: {
+          error: string
+          id: string
+          ok: boolean
+        }[]
+      }
+      bulk_update_house_listing_visibility: {
+        Args: { p_hidden: boolean; p_listing_ids: string[]; p_reason: string }
+        Returns: {
+          id: string
+          is_hidden: boolean
+          title: string
+        }[]
+      }
       calculate_business_advance_limit: {
         Args: { _tenant_id: string }
         Returns: Json
@@ -26657,6 +26673,7 @@ export type Database = {
       }
       is_funder_approved: { Args: { _user_id: string }; Returns: boolean }
       is_landlord_ops: { Args: { _user_id: string }; Returns: boolean }
+      is_landlord_ops_staff: { Args: { _user_id: string }; Returns: boolean }
       is_merchant_agent: { Args: { p_user_id: string }; Returns: boolean }
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
@@ -27839,6 +27856,13 @@ export type Database = {
         }[]
       }
       test_wallet_drift_fix: { Args: never; Returns: Json }
+      toggle_house_listing_visibility: {
+        Args: { p_hidden: boolean; p_listing_id: string; p_reason: string }
+        Returns: {
+          id: string
+          is_hidden: boolean
+        }[]
+      }
       topup_dedup_bucket: { Args: { ts: string }; Returns: string }
       trigger_agent_liability_for_unpaid_rents: {
         Args: never

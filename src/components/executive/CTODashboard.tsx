@@ -126,7 +126,7 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   const { data: systemEvents, isLoading: loadingEvents } = useQuery({
     queryKey: ['cto-system-events-v2'],
     queryFn: async () => {
-      const { data } = await supabase.from('system_events')
+      const { data } = await (supabase as any).from('system_events')
         .select('id, event_type, user_id, related_entity_type, related_entity_id, metadata, processed, created_at')
         .order('created_at', { ascending: false })
         .limit(200);

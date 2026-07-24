@@ -56,7 +56,7 @@ export function MismatchMetricsPanel() {
     setError(null);
     try {
       const since = new Date(Date.now() - WINDOW_HOURS[w] * 3600_000).toISOString();
-      const { data, error: evErr } = await supabase
+      const { data, error: evErr } = await (supabase as any)
         .from('system_events')
         .select('id,user_id,created_at,metadata')
         .eq('event_type', 'finops_provider_mismatch')
