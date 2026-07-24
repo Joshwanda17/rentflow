@@ -340,6 +340,10 @@ export default function Auth() {
   // immediately. Consume the param once so a reload doesn't re-trigger it.
   const oauthAutoStartedRef = useRef(false);
   useEffect(() => {
+    // Capture provider-side failures returned via ?error= / #error= on redirect
+    // back to the auth page. This makes the exact reason visible instead of a
+    // silent bounce back to the login form.
+    try { captureOAuthRedirectError('google'); } catch { /* non-fatal */ }
     if (oauthAutoStartedRef.current) return;
     const provider = searchParams.get('oauth');
     if (provider !== 'google' && provider !== 'apple') return;
