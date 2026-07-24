@@ -1213,8 +1213,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       // several portfolios while only some contributions were ledger-tagged with
       // the tracked categories, which made the ledger-first figure stale (showing
       // only the one recorded contribution instead of the full principal).
+      // Include matured portfolios: they still hold outstanding partner
+      // principal until explicitly withdrawn or renewed. Only exclude terminal
+      // states (withdrawn/cancelled/rejected/pending_ops_approval).
+      const PRINCIPAL_STATUSES = new Set(['active', 'matured']);
       const portfolioFunded = portfolios
-        .filter(p => p.status === 'active' || p.status == null)
+        .filter(p => p.status == null || PRINCIPAL_STATUSES.has(p.status))
         .reduce((s, p) => s + (p.investment_amount || 0), 0);
       // Fall back to the ledger only for imported partners with no portfolio rows.
       const totalFunded = portfolios.length > 0 ? portfolioFunded : ledgerFunded;
