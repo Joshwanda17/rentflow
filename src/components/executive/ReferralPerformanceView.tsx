@@ -25,13 +25,12 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { Share2, Users, Trophy, Percent, TrendingUp, CalendarRange, UserCheck } from 'lucide-react';
+import { Share2, Users, Trophy, Percent, CalendarRange, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { formatUGX } from '@/lib/utils';
 
 type RangePreset = 'last_7' | 'last_30' | 'last_90' | 'last_180' | 'custom';
 type Granularity = 'day' | 'week' | 'month';
@@ -42,7 +41,6 @@ interface ReferralRow {
   phone: string | null;
   created_at: string;
   referrer_id: string;
-  role: string | null;
   signup_source: string | null;
 }
 
@@ -50,9 +48,8 @@ interface ReferrerAggRow {
   referrer_id: string;
   full_name: string | null;
   phone: string | null;
-  role: string | null;
   total: number;
-  activated: number;
+  rate: number;
 }
 
 function rangeBounds(preset: RangePreset, cs: string, ce: string) {
@@ -101,7 +98,7 @@ export function ReferralPerformanceView() {
       for (let from = 0; from < 20000; from += pageSize) {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, phone, created_at, referrer_id, role, signup_source')
+          .select('id, full_name, phone, created_at, referrer_id, signup_source')
           .not('referrer_id', 'is', null)
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString())
@@ -109,7 +106,7 @@ export function ReferralPerformanceView() {
           .range(from, from + pageSize - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
-        rows.push(...(data as ReferralRow[]));
+        rows.push(...(data as unknown as ReferralRow[]));
         if (data.length < pageSize) break;
       }
       return rows;
@@ -149,7 +146,7 @@ export function ReferralPerformanceView() {
       if (topReferrerIds.length === 0) return [] as ReferrerAggRow[];
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, role')
+        .select('id, full_name, phone')
         .in('id', topReferrerIds);
       if (error) throw error;
       return data || [];
@@ -162,9 +159,7 @@ export function ReferralPerformanceView() {
   const {
     trendData,
     sourceMix,
-    roleMix,
     leaderboard,
-    activatedCount,
     referredCount,
   } = useMemo(() => {
     const list = referrals || [];
@@ -189,45 +184,36 @@ export function ReferralPerformanceView() {
 
     // Source mix (signup_source)
     const sourceMap = new Map<string, number>();
-    const roleMap = new Map<string, number>();
-    let activated = 0;
     list.forEach((r) => {
       const s = r.signup_source || 'unknown';
       sourceMap.set(s, (sourceMap.get(s) || 0) + 1);
-      const role = r.role || 'unassigned';
-      roleMap.set(role, (roleMap.get(role) || 0) + 1);
-      if (r.role && r.role !== 'unassigned') activated += 1;
     });
     const sourceMix = Array.from(sourceMap.entries())
       .map(([source, count]) => ({ source, count }))
       .sort((a, b) => b.count - a.count);
-    const roleMix = Array.from(roleMap.entries())
-      .map(([role, count]) => ({ role, count }))
-      .sort((a, b) => b.count - a.count);
 
     // Leaderboard
-    const byRef = new Map<string, { total: number; activated: number }>();
+    const byRef = new Map<string, { total: number }>();
     list.forEach((r) => {
-      const cur = byRef.get(r.referrer_id) || { total: 0, activated: 0 };
+      const cur = byRef.get(r.referrer_id) || { total: 0 };
       cur.total += 1;
-      if (r.role && r.role !== 'unassigned') cur.activated += 1;
       byRef.set(r.referrer_id, cur);
     });
-    const nameById = new Map<string, { full_name: string | null; phone: string | null; role: string | null }>();
+    const nameById = new Map<string, { full_name: string | null; phone: string | null }>();
     (referrerProfiles || []).forEach((p: any) => nameById.set(p.id, p));
+    const maxTotal = Math.max(1, ...Array.from(byRef.values()).map((v) => v.total));
     const leaderboard: ReferrerAggRow[] = Array.from(byRef.entries())
       .map(([id, v]) => ({
         referrer_id: id,
         full_name: nameById.get(id)?.full_name || null,
         phone: nameById.get(id)?.phone || null,
-        role: nameById.get(id)?.role || null,
         total: v.total,
-        activated: v.activated,
+        rate: Math.round((v.total / maxTotal) * 100),
       }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 25);
 
-    return { trendData, sourceMix, roleMix, leaderboard, activatedCount: activated, referredCount };
+    return { trendData, sourceMix, leaderboard, referredCount };
   }, [referrals, referrerProfiles, granularity, start, end]);
 
   const activeReferrerCount = useMemo(() => {
@@ -238,52 +224,46 @@ export function ReferralPerformanceView() {
   const conversionPct = totalSignups && totalSignups > 0
     ? Math.round((referredCount / totalSignups) * 100)
     : 0;
-  const activationPct = referredCount > 0
-    ? Math.round((activatedCount / referredCount) * 100)
-    : 0;
+  const avgPerReferrer = activeReferrerCount > 0
+    ? (referredCount / activeReferrerCount).toFixed(1)
+    : '0';
 
   const leaderboardColumns: Column<ReferrerAggRow>[] = [
     {
       key: 'full_name',
-      header: 'Referrer',
-      render: (r) => (
+      label: 'Referrer',
+      render: (_v, r) => (
         <div>
           <div className="font-medium text-sm">{r.full_name || 'Unknown user'}</div>
           <div className="text-xs text-muted-foreground">{r.phone || '—'}</div>
         </div>
       ),
     },
-    { key: 'role', header: 'Role', render: (r) => <span className="text-xs">{r.role || '—'}</span> },
-    { key: 'total', header: 'Referred', render: (r) => <span className="font-semibold">{r.total}</span> },
-    { key: 'activated', header: 'Activated', render: (r) => <span>{r.activated}</span> },
+    { key: 'phone', label: 'Phone', render: (_v, r) => <span className="text-xs">{r.phone || '—'}</span> },
+    { key: 'total', label: 'Referred', render: (_v, r) => <span className="font-semibold">{r.total}</span> },
     {
       key: 'rate',
-      header: 'Activation',
-      render: (r) => (
-        <span className="text-xs">
-          {r.total ? Math.round((r.activated / r.total) * 100) : 0}%
-        </span>
-      ),
+      label: 'Share of top',
+      render: (_v, r) => <span className="text-xs">{r.rate}%</span>,
     },
   ];
 
   const recentColumns: Column<ReferralRow>[] = [
     {
       key: 'full_name',
-      header: 'New user',
-      render: (r) => (
+      label: 'New user',
+      render: (_v, r) => (
         <div>
           <div className="font-medium text-sm">{r.full_name || 'Unknown'}</div>
           <div className="text-xs text-muted-foreground">{r.phone || '—'}</div>
         </div>
       ),
     },
-    { key: 'role', header: 'Role', render: (r) => <span className="text-xs">{r.role || 'unassigned'}</span> },
-    { key: 'signup_source', header: 'Source', render: (r) => <span className="text-xs">{r.signup_source || 'unknown'}</span> },
+    { key: 'signup_source', label: 'Source', render: (_v, r) => <span className="text-xs">{r.signup_source || 'unknown'}</span> },
     {
       key: 'created_at',
-      header: 'Signed up',
-      render: (r) => <span className="text-xs">{format(new Date(r.created_at), 'MMM d, HH:mm')}</span>,
+      label: 'Signed up',
+      render: (_v, r) => <span className="text-xs">{format(new Date(r.created_at), 'MMM d, HH:mm')}</span>,
     },
   ];
 
@@ -351,10 +331,10 @@ export function ReferralPerformanceView() {
           color="bg-amber-500/10 text-amber-600"
         />
         <KPICard
-          title="Activation rate"
-          value={`${activationPct}%`}
-          subtitle={`${activatedCount} took a role`}
-          icon={TrendingUp}
+          title="Avg per referrer"
+          value={avgPerReferrer}
+          subtitle="Signups / active referrer"
+          icon={Trophy}
           color="bg-green-500/10 text-green-600"
         />
       </div>
@@ -387,8 +367,8 @@ export function ReferralPerformanceView() {
         </div>
       </div>
 
-      {/* Source & role mix */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Source mix */}
+      <div className="grid grid-cols-1 gap-4">
         <div className="rounded-lg border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3">Signup source mix</h3>
           <div className="h-56">
@@ -399,20 +379,6 @@ export function ReferralPerformanceView() {
                 <YAxis type="category" dataKey="source" tick={{ fontSize: 11 }} width={110} />
                 <Tooltip />
                 <Bar dataKey="count" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <h3 className="text-sm font-semibold mb-3">Role adoption of referred users</h3>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={roleMix} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="role" tick={{ fontSize: 11 }} width={110} />
-                <Tooltip />
-                <Bar dataKey="count" fill="hsl(262 83% 58%)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -429,7 +395,6 @@ export function ReferralPerformanceView() {
           columns={leaderboardColumns}
           loading={loadingRefs}
           title="Top referrers"
-          emptyMessage="No referrals in this window."
         />
       </div>
 
@@ -441,7 +406,6 @@ export function ReferralPerformanceView() {
           columns={recentColumns}
           loading={loadingRefs}
           title="Recent referrals"
-          emptyMessage="No referred signups yet in this window."
         />
       </div>
     </div>
