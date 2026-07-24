@@ -16,7 +16,6 @@ import {
   Phone, Mail, ChevronDown, Download, FileText, FileSpreadsheet
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { CreateUserInviteDialog } from '@/components/agent/CreateUserInviteDialog';
 import { AgentRegistrationAnalytics } from '@/components/agent/AgentRegistrationAnalytics';
 import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -83,7 +82,6 @@ export default function AgentRegistrations() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'activated'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'tenant' | 'landlord' | 'supporter'>('all');
-  const [registerOpen, setRegisterOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -278,10 +276,6 @@ Just click the link and enter your password to get started!`;
               <Button variant="ghost" size="icon-sm" onClick={fetchInvites}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
-              <Button size="sm" onClick={() => setRegisterOpen(true)}>
-                <UserPlus className="h-4 w-4 mr-1" />
-                Add
-              </Button>
             </div>
           </div>
 
@@ -375,12 +369,6 @@ Just click the link and enter your password to get started!`;
                   <p className="text-sm text-muted-foreground mt-1">
                     {searchQuery ? 'Try a different search term' : 'Register your first user to get started'}
                   </p>
-                  {!searchQuery && (
-                    <Button className="mt-4" onClick={() => setRegisterOpen(true)}>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Register User
-                    </Button>
-                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -504,7 +492,6 @@ Just click the link and enter your password to get started!`;
         </TabsContent>
       </Tabs>
 
-      <CreateUserInviteDialog open={registerOpen} onOpenChange={setRegisterOpen} />
     </div>
   );
 }
