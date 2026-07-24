@@ -2337,11 +2337,13 @@ interface ROIPayableLine {
 }
 
 function ROIPayableDialog({
-  open, refetchIntervalMs, onClose,
+  open, refetchIntervalMs, onClose, cardPeriod, cardCustomRange,
 }: {
   open: boolean;
   refetchIntervalMs?: number | false;
   onClose: () => void;
+  cardPeriod?: 'day' | 'week' | 'month' | 'custom';
+  cardCustomRange?: { from?: Date; to?: Date };
 }) {
   const [period, setPeriod] = useState<ROIPeriodKey>('7d');
   const [customDays, setCustomDays] = useState<number>(14);
@@ -2350,6 +2352,27 @@ function ROIPayableDialog({
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sync dialog window to the card's selected period on open, so the drilldown
+  // lists exactly the same items the card summarised.
+  useEffect(() => {
+    if (!open || !cardPeriod) return;
+    if (cardPeriod === 'day') { setPeriod('1d'); }
+    else if (cardPeriod === 'week') { setPeriod('7d'); }
+    else if (cardPeriod === 'month') { setPeriod('1m'); }
+    else if (cardPeriod === 'custom') {
+      const from = cardCustomRange?.from;
+      const to = cardCustomRange?.to ?? from;
+      if (from && to) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const end = new Date(to); end.setHours(23, 59, 59, 999);
+        const days = Math.max(1, Math.ceil((end.getTime() - today.getTime()) / (24 * 3600 * 1000)));
+        setPeriod('custom');
+        setCustomDays(days);
+      }
+    }
+    setPage(1);
+  }, [open, cardPeriod, cardCustomRange?.from, cardCustomRange?.to]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['roi-payable-lines'],
