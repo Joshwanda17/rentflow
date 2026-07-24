@@ -150,7 +150,6 @@ const AgentMenuDrawer = lazy(() => import('@/components/agent/AgentMenuDrawer').
 const RentPosterDialog = lazy(() => import('@/components/agent/RentPosterDialog'));
 const RegFormActionDialog = lazy(() => import('@/components/agent/RegFormActionDialog'));
 const AgentDepositDialog = lazy(() => import('@/components/agent/AgentDepositDialog').then(m => ({ default: m.AgentDepositDialog })));
-const UnifiedRegistrationDialog = lazy(() => import('@/components/agent/UnifiedRegistrationDialog').then(m => ({ default: m.UnifiedRegistrationDialog })));
 const RegisterSubAgentDialog = lazy(() => import('@/components/agent/RegisterSubAgentDialog').then(m => ({ default: m.RegisterSubAgentDialog })));
 const AgentLeaderboardPromoDialog = lazy(() => import('@/components/agent/AgentLeaderboardPromoDialog').then(m => ({ default: m.AgentLeaderboardPromoDialog })));
 const AgentRentRequestDialog = lazy(() => import('@/components/agent/AgentRentRequestDialog'));
@@ -297,7 +296,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       }
     } catch { /* ignore */ }
   }, []);
-  const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [subAgentLinkOpen, setSubAgentLinkOpen] = useState(false);
   const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
@@ -683,7 +681,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     await Promise.all([refreshOfflineData(), refreshEarnings(), refreshWallet(), refreshBalances()]);
   };
 
-  const handleRegisterUser = () => { hapticTap(); setRegisterUserOpen(true); };
   // Route the side-menu Deposit entry to the same flow used by the hero
   // wallet card so agents have ONE deposit experience, not two. The hero
   // flow defaults to Operational Float (collected rent cash) and still
@@ -770,7 +767,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   };
 
   const menuItems = [
-    { icon: UserPlus, label: 'Register User', onClick: handleRegisterUser },
     { icon: ShoppingBag, label: 'Buy Merchandise', onClick: () => { hapticTap(); navigate('/merchandise'); } },
   ];
 
@@ -1613,7 +1609,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={menuOpen}
         onOpenChange={setMenuOpen}
         restricted={isMerchant}
-        onRegisterUser={handleRegisterUser}
         onDeposit={handleDeposit}
         onPostRentRequest={() => setRentRequestOpen(true)}
         onInviteSubAgent={handleInviteSubAgent}
@@ -1770,13 +1765,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       {/* Existing Dialogs */}
       <LazyModal when={depositOpen}>
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
-      </LazyModal>
-      <LazyModal when={registerUserOpen}>
-      <UnifiedRegistrationDialog 
-        open={registerUserOpen} 
-        onOpenChange={setRegisterUserOpen}
-        onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
-      />
       </LazyModal>
       <LazyModal when={inviteSubAgentOpen}>
       <RegisterSubAgentDialog
