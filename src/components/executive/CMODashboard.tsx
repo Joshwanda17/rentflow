@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy, LogIn, ShieldCheck, ShieldAlert, UserX } from 'lucide-react';
+import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy, LogIn, ShieldCheck, ShieldAlert, UserX, X } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfDay, endOfDay, subDays } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfDay, endOfDay, subDays, startOfYear } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,21 +14,30 @@ import { MerchandiseManager } from './MerchandiseManager';
 import AdminRecruitmentCampaignsPage from '@/pages/AdminRecruitmentCampaignsPage';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
-type ReferralDateFilter = '6months' | 'today' | 'yesterday' | 'last_week';
+type DatePreset = '6months' | 'today' | 'yesterday' | 'last_week' | 'last_30' | 'last_90' | 'mtd' | 'ytd' | 'custom';
+type SignupSourceFilter = 'all' | 'referred' | 'organic';
 
-function getDateBounds(filter: ReferralDateFilter, customStart: Date, customEnd: Date): { start: Date; end: Date } {
+function presetBounds(preset: DatePreset, customStart: Date, customEnd: Date): { start: Date; end: Date } {
   const now = new Date();
-  switch (filter) {
+  switch (preset) {
     case 'today':
       return { start: startOfDay(now), end: endOfDay(now) };
     case 'yesterday': {
       const y = subDays(now, 1);
       return { start: startOfDay(y), end: endOfDay(y) };
     }
-    case 'last_week': {
-      const weekAgo = subDays(now, 6);
-      return { start: startOfDay(weekAgo), end: endOfDay(now) };
-    }
+    case 'last_week':
+      return { start: startOfDay(subDays(now, 6)), end: endOfDay(now) };
+    case 'last_30':
+      return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
+    case 'last_90':
+      return { start: startOfDay(subDays(now, 89)), end: endOfDay(now) };
+    case 'mtd':
+      return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'ytd':
+      return { start: startOfYear(now), end: endOfDay(now) };
+    case 'custom':
+      return { start: startOfDay(customStart), end: endOfDay(customEnd) };
     default:
       return { start: customStart, end: customEnd };
   }
@@ -49,22 +58,39 @@ function CMOMarketingDashboard() {
   const [startMonth, setStartMonth] = useState(format(subMonths(now, 5), 'yyyy-MM'));
   const [endMonth, setEndMonth] = useState(format(now, 'yyyy-MM'));
   const [referralStatus, setReferralStatus] = useState<ReferralStatus>('all');
-  const [referralDateFilter, setReferralDateFilter] = useState<ReferralDateFilter>('6months');
+  const [datePreset, setDatePreset] = useState<DatePreset>('6months');
+  const [customStartDate, setCustomStartDate] = useState(format(subDays(now, 29), 'yyyy-MM-dd'));
+  const [customEndDate, setCustomEndDate] = useState(format(now, 'yyyy-MM-dd'));
+  const [signupSource, setSignupSource] = useState<SignupSourceFilter>('all');
 
-  const customStart = startOfMonth(new Date(startMonth + '-01'));
-  const customEnd = endOfMonth(new Date(endMonth + '-01'));
-  const { start, end } = getDateBounds(referralDateFilter, customStart, customEnd);
-  const months = eachMonthOfInterval({ start: customStart, end: customEnd });
+  const monthlyStart = startOfMonth(new Date(startMonth + '-01'));
+  const monthlyEnd = endOfMonth(new Date(endMonth + '-01'));
+  const customStart = new Date(customStartDate);
+  const customEnd = new Date(customEndDate);
+  const { start, end } = datePreset === '6months'
+    ? { start: monthlyStart, end: monthlyEnd }
+    : presetBounds(datePreset, customStart, customEnd);
+  const months = eachMonthOfInterval({ start: monthlyStart, end: monthlyEnd });
+
+  // Apply signup source filter to a referrals query
+  const applySource = (q: any) => {
+    if (signupSource === 'referred') return q.not('referrer_id', 'is', null);
+    if (signupSource === 'organic') return q.is('referrer_id', null);
+    return q;
+  };
 
   const { data: signupTrend, isLoading } = useQuery({
-    queryKey: ['exec-signup-trend', startMonth, endMonth],
+    queryKey: ['exec-signup-trend', startMonth, endMonth, signupSource],
     queryFn: async () => {
       const results = [];
       for (const m of months) {
         const s = startOfMonth(m);
         const e = endOfMonth(m);
-        const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true })
+        let q = supabase.from('profiles').select('*', { count: 'exact', head: true })
           .gte('created_at', s.toISOString()).lte('created_at', e.toISOString());
+        if (signupSource === 'referred') q = q.not('referrer_id', 'is', null);
+        if (signupSource === 'organic') q = q.is('referrer_id', null);
+        const { count } = await q;
         results.push({ month: format(s, 'MMM yyyy'), signups: count || 0 });
       }
       return results;
@@ -73,7 +99,7 @@ function CMOMarketingDashboard() {
   });
 
   const { data: referralStats } = useQuery({
-    queryKey: ['exec-referral-stats', startMonth, endMonth, referralDateFilter],
+    queryKey: ['exec-referral-stats', startMonth, endMonth, datePreset, customStartDate, customEndDate],
     queryFn: async () => {
       const rangeFilter = (q: any) =>
         q.gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
@@ -121,9 +147,13 @@ function CMOMarketingDashboard() {
   });
 
   const { data: totalUsers } = useQuery({
-    queryKey: ['exec-total-users-cmo'],
+    queryKey: ['exec-total-users-cmo', datePreset, startMonth, endMonth, customStartDate, customEndDate, signupSource],
     queryFn: async () => {
-      const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+      let q = supabase.from('profiles').select('*', { count: 'exact', head: true })
+        .gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
+      if (signupSource === 'referred') q = q.not('referrer_id', 'is', null);
+      if (signupSource === 'organic') q = q.is('referrer_id', null);
+      const { count } = await q;
       return count || 0;
     },
     staleTime: 600000,
@@ -131,7 +161,7 @@ function CMOMarketingDashboard() {
 
   // Login / authentication metrics (sourced from the OTP login audit, the active login channel)
   const { data: loginStats } = useQuery({
-    queryKey: ['exec-login-stats', startMonth, endMonth, referralDateFilter],
+    queryKey: ['exec-login-stats', startMonth, endMonth, datePreset, customStartDate, customEndDate],
     queryFn: async () => {
       const rangeFilter = (q: any) =>
         q.gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
@@ -223,7 +253,7 @@ function CMOMarketingDashboard() {
   ];
 
   const { data: recentReferrals, isLoading: loadingReferrals } = useQuery({
-    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus, referralDateFilter],
+    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus, datePreset],
     queryFn: async () => {
       let q = supabase
         .from('referrals')
@@ -259,7 +289,7 @@ function CMOMarketingDashboard() {
   });
 
   const { data: topReferrers, isLoading: loadingTopReferrers } = useQuery({
-    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus, referralDateFilter],
+    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus, datePreset],
     queryFn: async () => {
       let q = supabase
         .from('referrals')
@@ -313,87 +343,166 @@ function CMOMarketingDashboard() {
     { label: 'Completed', value: 'completed' },
   ];
 
-  const dateFilterOptions: { label: string; value: ReferralDateFilter }[] = [
+  const dateFilterOptions: { label: string; value: DatePreset }[] = [
     { label: '6 Months', value: '6months' },
     { label: 'Today', value: 'today' },
     { label: 'Yesterday', value: 'yesterday' },
-    { label: 'Last Week', value: 'last_week' },
+    { label: 'Last 7d', value: 'last_week' },
+    { label: 'Last 30d', value: 'last_30' },
+    { label: 'Last 90d', value: 'last_90' },
+    { label: 'MTD', value: 'mtd' },
+    { label: 'YTD', value: 'ytd' },
+    { label: 'Custom', value: 'custom' },
   ];
+
+  const sourceOptions: { label: string; value: SignupSourceFilter }[] = [
+    { label: 'All Sources', value: 'all' },
+    { label: 'Referred', value: 'referred' },
+    { label: 'Organic', value: 'organic' },
+  ];
+
+  const activeFilterCount =
+    (datePreset !== '6months' ? 1 : 0) +
+    (referralStatus !== 'all' ? 1 : 0) +
+    (signupSource !== 'all' ? 1 : 0);
+
+  const resetFilters = () => {
+    const n = new Date();
+    setStartMonth(format(subMonths(n, 5), 'yyyy-MM'));
+    setEndMonth(format(n, 'yyyy-MM'));
+    setDatePreset('6months');
+    setReferralStatus('all');
+    setSignupSource('all');
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="start-month" className="text-xs">From</Label>
-          <Input
-            id="start-month"
-            type="month"
-            value={startMonth}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val <= endMonth) setStartMonth(val);
-            }}
-            className="w-40"
-          />
+      <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <CalendarRange className="w-4 h-4 text-primary" /> Filters
+            {activeFilterCount > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">({activeFilterCount} active)</span>
+            )}
+          </h3>
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-xs h-7">
+              <X className="w-3 h-3 mr-1" /> Reset
+            </Button>
+          )}
         </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="end-month" className="text-xs">To</Label>
-          <Input
-            id="end-month"
-            type="month"
-            value={endMonth}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val >= startMonth) setEndMonth(val);
-            }}
-            className="w-40"
-          />
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            const n = new Date();
-            setStartMonth(format(subMonths(n, 5), 'yyyy-MM'));
-            setEndMonth(format(n, 'yyyy-MM'));
-          }}
-        >
-          <CalendarRange className="w-4 h-4 mr-1" />
-          Last 6 Months
-        </Button>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-2">
-          {statusOptions.map((opt) => (
-            <Button
-              key={opt.value}
-              size="sm"
-              variant={referralStatus === opt.value ? 'default' : 'outline'}
-              onClick={() => setReferralStatus(opt.value)}
-            >
-              {opt.label}
-            </Button>
-          ))}
+        <div>
+          <Label className="text-xs text-muted-foreground">Date range</Label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {dateFilterOptions.map((opt) => (
+              <Button
+                key={opt.value}
+                size="sm"
+                variant={datePreset === opt.value ? 'secondary' : 'outline'}
+                onClick={() => setDatePreset(opt.value)}
+                className="text-xs"
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
-        <div className="flex flex-wrap gap-2">
-          {dateFilterOptions.map((opt) => (
-            <Button
-              key={opt.value}
-              size="sm"
-              variant={referralDateFilter === opt.value ? 'secondary' : 'outline'}
-              onClick={() => setReferralDateFilter(opt.value)}
-              className="text-xs"
-            >
-              {opt.label}
-            </Button>
-          ))}
+
+        {datePreset === 'custom' && (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="custom-start" className="text-xs">From date</Label>
+              <Input
+                id="custom-start"
+                type="date"
+                value={customStartDate}
+                max={customEndDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="w-44"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="custom-end" className="text-xs">To date</Label>
+              <Input
+                id="custom-end"
+                type="date"
+                value={customEndDate}
+                min={customStartDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="w-44"
+              />
+            </div>
+          </div>
+        )}
+
+        {datePreset === '6months' && (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="start-month" className="text-xs">From month</Label>
+              <Input
+                id="start-month"
+                type="month"
+                value={startMonth}
+                onChange={(e) => { if (e.target.value <= endMonth) setStartMonth(e.target.value); }}
+                className="w-40"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="end-month" className="text-xs">To month</Label>
+              <Input
+                id="end-month"
+                type="month"
+                value={endMonth}
+                onChange={(e) => { if (e.target.value >= startMonth) setEndMonth(e.target.value); }}
+                className="w-40"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-4">
+          <div>
+            <Label className="text-xs text-muted-foreground">Referral status</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {statusOptions.map((opt) => (
+                <Button
+                  key={opt.value}
+                  size="sm"
+                  variant={referralStatus === opt.value ? 'default' : 'outline'}
+                  onClick={() => setReferralStatus(opt.value)}
+                  className="text-xs"
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Signup source</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {sourceOptions.map((opt) => (
+                <Button
+                  key={opt.value}
+                  size="sm"
+                  variant={signupSource === opt.value ? 'default' : 'outline'}
+                  onClick={() => setSignupSource(opt.value)}
+                  className="text-xs"
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
+
+        <p className="text-xs text-muted-foreground">
+          Showing {format(start, 'dd MMM yyyy')} → {format(end, 'dd MMM yyyy')}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-        <KPICard title="Total Users" value={(totalUsers || 0).toLocaleString()} icon={Users} loading={isLoading} />
+        <KPICard title={datePreset === '6months' ? 'Total Users' : 'New Users (range)'} value={(totalUsers || 0).toLocaleString()} icon={Users} loading={isLoading} />
         <KPICard title="Monthly Signups" value={lastMonth} icon={UserPlus} loading={isLoading} color="bg-green-500/10 text-green-600" trend={{ value: growthRate, label: 'vs prev month' }} />
         <KPICard
           title={referralStatus === 'all' ? 'Referral Signups' : referralStatus === 'pending' ? 'Pending Referrals' : 'Completed Referrals'}
