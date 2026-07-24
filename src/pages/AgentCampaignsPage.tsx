@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Copy, Share2, QrCode, Download, Ban, Link as LinkIcon } from "lucide-react";
 import { format } from "date-fns";
+import { UserSearchPicker } from "@/components/cfo/UserSearchPicker";
 
 type Campaign = {
   id: string;
@@ -38,8 +39,9 @@ type LinkRow = {
   short_code: string;
   campaign_id: string;
   campaign_name: string;
-  location_id: string;
+  location_id: string | null;
   location_display: string;
+  district_name: string | null;
   location_slug: string;
   selected_source: string;
   link_type: string;
@@ -287,7 +289,7 @@ function LinkRowUI({
         </button>
       </td>
       <td className="px-3 py-2">{link.campaign_name}</td>
-      <td className="px-3 py-2">{link.location_display}</td>
+      <td className="px-3 py-2">{link.district_name || link.location_display || "—"}</td>
       <td className="px-3 py-2">{labelize(link.selected_source)}</td>
       <td className="px-3 py-2 text-right">{link.total_clicks}</td>
       <td className="px-3 py-2 text-right">{link.unique_clicks}</td>
@@ -330,16 +332,19 @@ function LinkRowUI({
 
 export function GenerateLinkDialog({
   campaigns,
-  locations,
   onCreated,
+  showAgentPicker = false,
+  locations: _locations,
 }: {
   campaigns: Campaign[];
-  locations: Location[];
+  locations?: Location[];
   onCreated: () => void;
+  showAgentPicker?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [campaignId, setCampaignId] = useState("");
-  const [locationId, setLocationId] = useState("");
+  const [districtName, setDistrictName] = useState("");
+  const [ownerAgent, setOwnerAgent] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const [source, setSource] = useState<(typeof SOURCES)[number]>("whatsapp");
   const [linkType, setLinkType] =
     useState<(typeof LINK_TYPES)[number]>("general_campaign_link");
@@ -351,28 +356,40 @@ export function GenerateLinkDialog({
     [campaigns],
   );
 
+  const districtTrimmed = districtName.trim();
+  const districtValid =
+    districtTrimmed.length >= 2 &&
+    districtTrimmed.length <= 80 &&
+    /[A-Za-z]/.test(districtTrimmed);
+
   const create = useMutation({
     mutationFn: async () => {
       if (!campaignId) throw new Error("Select a campaign");
-      if (!locationId) throw new Error("Select a district");
+      if (!districtValid) {
+        throw new Error(
+          "Enter a valid district (2–80 characters, must contain letters)",
+        );
+      }
+      if (showAgentPicker && !ownerAgent) {
+        throw new Error("Select the agent who will own this link");
+      }
       const { data, error } = await supabase.rpc("create_campaign_link", {
         p_campaign_id: campaignId,
-        p_location_id: locationId,
+        p_district_name: districtTrimmed,
         p_selected_source: source,
         p_link_type: linkType,
         p_placement_name: placement || null,
+        p_agent_id: showAgentPicker && ownerAgent ? ownerAgent.id : null,
       });
       if (error) throw error;
       return data as unknown as LinkRow;
     },
     onSuccess: (row) => {
-      // The RPC returns the raw row without campaign_name/location_display; fill locally
       const camp = campaigns.find((c) => c.id === row.campaign_id);
-      const loc = locations.find((l) => l.id === row.location_id);
       setResult({
         ...(row as any),
         campaign_name: camp?.name ?? "",
-        location_display: loc?.display_name ?? "",
+        location_display: row.district_name ?? "",
       });
       onCreated();
       toast.success("Campaign link generated");
@@ -417,21 +434,29 @@ export function GenerateLinkDialog({
               </Select>
             </div>
             <div>
-              <Label>District</Label>
-              <Select value={locationId} onValueChange={setLocationId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select district" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.display_name}
-                      {l.region ? ` — ${l.region}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="district-input">District</Label>
+              <Input
+                id="district-input"
+                value={districtName}
+                onChange={(e) => setDistrictName(e.target.value.slice(0, 80))}
+                placeholder="Example: Mbale"
+                maxLength={80}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                One link covers the entire district. The agent may use it anywhere
+                in the district.
+              </p>
             </div>
+            {showAgentPicker && (
+              <div>
+                <UserSearchPicker
+                  label="Referral agent (owner)"
+                  placeholder="Search agent by name or phone"
+                  selectedUser={ownerAgent}
+                  onSelect={setOwnerAgent}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Selected source</Label>
@@ -475,13 +500,16 @@ export function GenerateLinkDialog({
               <Input
                 value={placement}
                 onChange={(e) => setPlacement(e.target.value)}
-                placeholder="e.g. Main entrance sticker"
+                placeholder="e.g. Mbale QR stickers (internal label only)"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Internal label to distinguish links. Not a physical location.
+              </p>
             </div>
             <DialogFooter>
               <Button
                 onClick={() => create.mutate()}
-                disabled={create.isPending}
+                disabled={create.isPending || !campaignId || !districtValid}
               >
                 {create.isPending ? "Generating…" : "Generate campaign link"}
               </Button>
