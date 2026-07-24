@@ -10,6 +10,7 @@ import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { OAuthEnvironmentHint } from '@/components/auth/OAuthEnvironmentHint';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
