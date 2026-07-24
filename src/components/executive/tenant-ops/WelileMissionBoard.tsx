@@ -2452,6 +2452,7 @@ function ROIPayableDialog({
   cardPeriod?: 'day' | 'week' | 'month' | 'custom';
   cardCustomRange?: { from?: Date; to?: Date };
 }) {
+  const queryClient = useQueryClient();
   const [period, setPeriod] = useState<ROIPeriodKey>('7d');
   const [customDays, setCustomDays] = useState<number>(14);
   const [sortField, setSortField] = useState<'roi_amount' | 'next_roi_date' | 'account_name' | 'roi_percentage' | 'portfolio_code'>('next_roi_date');
@@ -2459,6 +2460,7 @@ function ROIPayableDialog({
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
   const [searchQuery, setSearchQuery] = useState('');
+  const [scheduleTarget, setScheduleTarget] = useState<ROIPayableLine | null>(null);
 
   // Sync dialog window to the card's selected period on open, so the drilldown
   // lists exactly the same items the card summarised.
