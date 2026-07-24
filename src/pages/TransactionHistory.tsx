@@ -42,6 +42,11 @@ interface Transaction {
 
 type TransactionType = 'all' | 'sent' | 'received';
 
+type TransactionProfileRow = {
+  id: string;
+  full_name: string | null;
+};
+
 export default function TransactionHistory() {
   const navigate = useNavigate();
   const { user, loading: authLoading, role } = useAuth();
@@ -94,7 +99,10 @@ export default function TransactionHistory() {
           .in('id', userIds)
         : { data: [] };
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+      const profileMap = new Map<string, string>();
+      ((profiles ?? []) as TransactionProfileRow[]).forEach((p) => {
+        profileMap.set(p.id, p.full_name || 'Unknown');
+      });
 
       const enrichedTransactions = data.map(t => ({
         ...t,

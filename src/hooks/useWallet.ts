@@ -31,6 +31,13 @@ interface Wallet {
   created_at: string;
   updated_at: string;
 }
+
+type WalletProfileRow = {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+};
+
 export function useWallet() {
   const { user } = useAuth();
   const { preValidateTransfer, checkBalance } = useServiceValidation();
@@ -112,7 +119,8 @@ export function useWallet() {
             .in('id', userIds)
           : { data: [] };
 
-        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+        const profileMap = new Map<string, WalletProfileRow>();
+        ((profiles ?? []) as WalletProfileRow[]).forEach((p) => profileMap.set(p.id, p));
 
         const enrichedTransactions = filteredData.map(t => ({
           ...t,
