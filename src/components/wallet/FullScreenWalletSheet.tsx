@@ -266,8 +266,15 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
 
               {/* Withdraw card */}
               <Card 
-                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
-                onClick={() => { hapticTap(); setWithdrawOpen(true); }}
+                className={`border-border/50 shadow-sm transition-all ${payoutsUiEnabled ? 'cursor-pointer active:scale-[0.98]' : 'opacity-50 cursor-not-allowed'}`}
+                onClick={() => {
+                  hapticTap();
+                  if (!payoutsUiEnabled) {
+                    toast.info('Withdrawals are temporarily disabled. Please check back soon.');
+                    return;
+                  }
+                  setWithdrawOpen(true);
+                }}
               >
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center shrink-0">
@@ -275,7 +282,9 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-foreground">Withdraw</p>
-                    <p className="text-xs text-muted-foreground">Cash out to mobile money</p>
+                    <p className="text-xs text-muted-foreground">
+                      {payoutsUiEnabled ? 'Cash out to mobile money' : 'Temporarily disabled'}
+                    </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
                 </CardContent>
