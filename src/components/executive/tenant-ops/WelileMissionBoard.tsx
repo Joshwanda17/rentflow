@@ -136,6 +136,10 @@ export function WelileMissionBoard() {
   const [placedOpen, setPlacedOpen] = useState(false);
   const [fundersOpen, setFundersOpen] = useState(false);
   const [roiPayableOpen, setRoiPayableOpen] = useState(false);
+  // Priority 3 · ROI payable card period selector (day / week / month / custom range)
+  const [roiCardPeriod, setRoiCardPeriod] = useState<'day' | 'week' | 'month' | 'custom'>('week');
+  const [roiCustomRange, setRoiCustomRange] = useState<{ from?: Date; to?: Date }>({});
+  const [roiRangeOpen, setRoiRangeOpen] = useState(false);
   const [landlordRecvOpen, setLandlordRecvOpen] = useState(false);
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
