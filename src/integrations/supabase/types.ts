@@ -19097,6 +19097,66 @@ export type Database = {
         }
         Relationships: []
       }
+      signup_attempts: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          device_fp: string | null
+          email: string | null
+          id: string
+          ip: unknown
+          path: string | null
+          phone: string | null
+          reason: string | null
+          referrer: string | null
+          status: string
+          user_agent: string | null
+          user_id: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          device_fp?: string | null
+          email?: string | null
+          id?: string
+          ip?: unknown
+          path?: string | null
+          phone?: string | null
+          reason?: string | null
+          referrer?: string | null
+          status?: string
+          user_agent?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          device_fp?: string | null
+          email?: string | null
+          id?: string
+          ip?: unknown
+          path?: string | null
+          phone?: string | null
+          reason?: string | null
+          referrer?: string | null
+          status?: string
+          user_agent?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
+      }
       sms_broadcast_campaigns: {
         Row: {
           audiences: string[]
@@ -24337,6 +24397,10 @@ export type Database = {
         Args: { p_short_code: string; p_visitor_id?: string }
         Returns: Json
       }
+      attach_signup_attempt_user: {
+        Args: { p_attempt_id: string; p_user_id: string }
+        Returns: undefined
+      }
       auto_activate_merchant_referral: {
         Args: { p_referrer: string }
         Returns: {
@@ -26390,6 +26454,39 @@ export type Database = {
           total_samples: number
         }[]
       }
+      get_signup_attempt_log: {
+        Args: { p_days?: number; p_limit?: number; p_status?: string }
+        Returns: {
+          actor_role: string
+          created_at: string
+          device_fp: string
+          email: string
+          id: string
+          ip: unknown
+          path: string
+          phone: string
+          reason: string
+          status: string
+          user_agent: string
+          user_id: string
+          utm_campaign: string
+          utm_medium: string
+          utm_source: string
+        }[]
+      }
+      get_signup_source_breakdown: {
+        Args: { p_days?: number }
+        Returns: {
+          allowed: number
+          blocked_device: number
+          blocked_ip: number
+          blocked_verification: number
+          path: string
+          successful_signups: number
+          total_attempts: number
+          utm_source: string
+        }[]
+      }
       get_sms_broadcast_status: {
         Args: never
         Returns: {
@@ -27523,6 +27620,20 @@ export type Database = {
       record_short_link_click: {
         Args: { p_code: string; p_referrer?: string; p_user_agent?: string }
         Returns: undefined
+      }
+      record_signup_attempt: {
+        Args: {
+          p_device_fp: string
+          p_email?: string
+          p_path: string
+          p_phone?: string
+          p_referrer?: string
+          p_user_agent?: string
+          p_utm_campaign?: string
+          p_utm_medium?: string
+          p_utm_source?: string
+        }
+        Returns: Json
       }
       recover_agent_arrears_from_credit: {
         Args: {
