@@ -29,6 +29,7 @@ import { SemrushBrandTrackerPanel } from './SemrushBrandTrackerPanel';
 import { BrandSerpVisibilityPanel } from './BrandSerpVisibilityPanel';
 import { ChangeOfAddressMonitorPanel } from './ChangeOfAddressMonitorPanel';
 import { RedirectHealthAlertsPanel } from './RedirectHealthAlertsPanel';
+import { SignupSourceLogPanel } from './SignupSourceLogPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -60,6 +61,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   }
   if (activeTab === 'merchant-invites') {
     return <InviteMerchantAgentCard />;
+  }
+  if (activeTab === 'signup-log') {
+    return <SignupSourceLogPanel />;
   }
 
   // Real: active users in last 7 days
