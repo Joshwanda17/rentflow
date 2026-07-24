@@ -7,14 +7,13 @@
  * ledger statement uses), so the wallet card and the ledger can never
  * show different numbers.
  *
- * The hook does NOT cache wallet balances across time. It uses React
- * Query only to DEDUPE concurrent in-flight requests for the same user:
- * if 5 components mount at the same instant and each asks for user X's
- * wallet, they share ONE network round-trip. Data is not persisted
- * beyond active subscribers.
+ * The hook keeps a very short in-memory cache so wallet cards, dialogs,
+ * sheets, and statements on the same screen do not refetch in a render loop.
+ * Mutations and realtime events still invalidate immediately, so the visible
+ * balance remains live without polling.
  *
- *   staleTime: 0    — any new subscriber past the concurrent tick refetches
- *   gcTime: 0       — data is discarded the moment no component consumes it
+ *   staleTime: 8s   — shared subscribers reuse one recent wallet read
+ *   gcTime: 5m      — avoids remount storms while navigating wallet dialogs
  *   refetchOnWindowFocus: false   — money reads never fire on tab focus
  *   refetchOnReconnect: false     — realtime handles freshness after reconnect
  *   refetchInterval: undefined    — no polling; realtime pushes invalidations
@@ -51,6 +50,9 @@ export const walletBalanceKey = (userId: string | null | undefined) =>
 /** Query key for the latest 10 wallet transactions preview. */
 export const walletRecentTxKey = (userId: string | null | undefined) =>
   ["wallet-recent-tx", userId ?? ""] as const;
+
+const WALLET_VIEW_STALE_MS = 8_000;
+const WALLET_VIEW_GC_MS = 5 * 60_000;
 
 /** Canonical shape of a wallet transaction row (ledger-derived). */
 export interface WalletTxRow {
@@ -225,9 +227,9 @@ export function useWalletBalance(userId: string | null | undefined) {
     queryKey: walletBalanceKey(userId),
     enabled: !!userId,
     queryFn: () => fetchWalletBalance(userId as string),
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
+    staleTime: WALLET_VIEW_STALE_MS,
+    gcTime: WALLET_VIEW_GC_MS,
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 1,
@@ -241,9 +243,9 @@ export function useWalletBalance(userId: string | null | undefined) {
     queryKey: walletRecentTxKey(userId),
     enabled: !!userId,
     queryFn: () => fetchRecentWalletTransactions(userId as string),
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
+    staleTime: WALLET_VIEW_STALE_MS,
+    gcTime: WALLET_VIEW_GC_MS,
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 1,

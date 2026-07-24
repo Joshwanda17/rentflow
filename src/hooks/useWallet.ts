@@ -10,8 +10,8 @@ import { useWalletBalance } from '@/hooks/wallet/useWalletBalance';
 
 interface WalletTransaction {
   id: string;
-  sender_id: string;
-  recipient_id: string;
+  sender_id: string | null;
+  recipient_id: string | null;
   amount: number;
   description: string | null;
   created_at: string;
@@ -56,11 +56,13 @@ export function useWallet() {
     };
   }, [user?.id, balance.isLoading, balance.withdrawable, balance.floatBalance, balance.updatedAt]);
 
+  const refetchBalance = balance.refetch;
+
   const fetchWallet = useCallback(async (_force = false) => {
-    await balance.refetch();
+    await refetchBalance();
     setLastSyncedAt(new Date());
     setIsOfflineData(false);
-  }, [balance]);
+  }, [refetchBalance]);
 
   const fetchTransactions = useCallback(async () => {
     if (!user) return;
@@ -96,20 +98,27 @@ export function useWallet() {
         const filteredData = data.filter(t =>
           !ADMIN_ONLY_DESCRIPTIONS.some(term => t.description?.toLowerCase().startsWith(term))
         );
-        const userIds = [...new Set([...filteredData.map(t => t.sender_id), ...filteredData.map(t => t.recipient_id)])];
-        
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', userIds);
+        const userIds = [
+          ...new Set(
+            [...filteredData.map(t => t.sender_id), ...filteredData.map(t => t.recipient_id)]
+              .filter((id): id is string => typeof id === 'string' && id.length > 0),
+          ),
+        ];
+
+        const { data: profiles } = userIds.length > 0
+          ? await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', userIds)
+          : { data: [] };
 
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
         const enrichedTransactions = filteredData.map(t => ({
           ...t,
-          sender_name: profileMap.get(t.sender_id)?.full_name || 'Unknown',
-          recipient_name: profileMap.get(t.recipient_id)?.full_name || 'Unknown',
-          recipient_phone: profileMap.get(t.recipient_id)?.phone || '',
+          sender_name: t.sender_id ? profileMap.get(t.sender_id)?.full_name || 'Unknown' : 'System',
+          recipient_name: t.recipient_id ? profileMap.get(t.recipient_id)?.full_name || 'Unknown' : 'System',
+          recipient_phone: t.recipient_id ? profileMap.get(t.recipient_id)?.phone || '' : '',
         }));
 
         setTransactions(enrichedTransactions);
@@ -120,7 +129,7 @@ export function useWallet() {
     } catch (e) {
       console.warn('[useWallet] Failed to fetch transactions:', e);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const sendMoney = useCallback(async (recipient: string, amount: number, description?: string) => {
     if (!user) return { error: new Error('Please log in first') };
