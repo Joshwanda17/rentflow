@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Info, Copy, Check } from 'lucide-react';
+import { AlertTriangle, Info, Copy, Check, ExternalLink } from 'lucide-react';
 
 /**
  * Detects browser environments where Google OAuth popups commonly fail and
@@ -43,12 +43,60 @@ function detectEnv(): { env: Env; appName?: string } {
   return { env: null };
 }
 
+function isIOSUA(ua: string) {
+  return /iPad|iPhone|iPod/.test(ua);
+}
+function isAndroidUA(ua: string) {
+  return /Android/i.test(ua);
+}
+
+/**
+ * Build a one-tap link that jumps out of an in-app browser into the system
+ * Chrome / Safari. Returns null when we don't have a reliable scheme for the
+ * current OS (in which case we fall back to the "copy link" button).
+ */
+function buildOpenInBrowserHref(): { href: string; label: string } | null {
+  if (typeof window === 'undefined') return null;
+  const ua = navigator.userAgent || '';
+  const current = window.location.href;
+  const url = new URL(current);
+
+  if (isAndroidUA(ua)) {
+    // Android intent URL — opens Chrome directly, falls back to Play Store.
+    const host = url.host;
+    const pathAndQuery = url.pathname + url.search + url.hash;
+    const intent =
+      `intent://${host}${pathAndQuery}` +
+      `#Intent;scheme=${url.protocol.replace(':', '')};` +
+      `package=com.android.chrome;` +
+      `S.browser_fallback_url=${encodeURIComponent(current)};end`;
+    return { href: intent, label: 'Open in Chrome' };
+  }
+
+  if (isIOSUA(ua)) {
+    // iOS: `googlechrome://` opens Chrome if installed. If not, the tap does
+    // nothing — so we surface Safari as the label since it's the OS default
+    // and users can also long-press → Open in Safari.
+    const chromeScheme =
+      (url.protocol === 'https:' ? 'googlechromes://' : 'googlechrome://') +
+      url.host +
+      url.pathname +
+      url.search +
+      url.hash;
+    return { href: chromeScheme, label: 'Open in Chrome' };
+  }
+
+  return null;
+}
+
 export function OAuthEnvironmentHint() {
   const [state, setState] = useState<{ env: Env; appName?: string }>({ env: null });
   const [copied, setCopied] = useState(false);
+  const [openInBrowser, setOpenInBrowser] = useState<{ href: string; label: string } | null>(null);
 
   useEffect(() => {
     setState(detectEnv());
+    setOpenInBrowser(buildOpenInBrowserHref());
   }, []);
 
   const copyLink = async () => {
@@ -76,20 +124,33 @@ export function OAuthEnvironmentHint() {
               Google sign-in doesn't work inside {state.appName ?? 'this app'}.
             </p>
             <p className="leading-relaxed">
-              Google blocks logins from in-app browsers. Tap the <span className="font-semibold">⋯ menu</span> at the top and choose
-              <span className="font-semibold"> "Open in Chrome"</span> (Android) or
-              <span className="font-semibold"> "Open in Safari"</span> (iPhone), then try again.
+              Google blocks logins from in-app browsers. Tap
+              <span className="font-semibold"> "Open in Chrome / Safari"</span> below to
+              continue in your system browser. If it doesn't jump, use the
+              <span className="font-semibold"> ⋯ menu</span> and copy the link.
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={copyLink}
-          className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 font-medium hover:bg-amber-200/70 dark:hover:bg-amber-900/60 transition-colors"
-        >
-          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          {copied ? 'Link copied' : 'Copy page link'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {openInBrowser && (
+            <a
+              href={openInBrowser.href}
+              rel="external noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 text-white px-2.5 py-1 font-semibold hover:bg-amber-700 transition-colors"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {openInBrowser.label}
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={copyLink}
+            className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 font-medium hover:bg-amber-200/70 dark:hover:bg-amber-900/60 transition-colors"
+          >
+            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copied ? 'Link copied' : 'Copy page link'}
+          </button>
+        </div>
       </div>
     );
   }
