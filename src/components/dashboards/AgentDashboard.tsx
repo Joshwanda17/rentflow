@@ -44,6 +44,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
@@ -881,8 +882,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Deposit</span>
               </button>
               <button
-                onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
+                onClick={() => { hapticTap(); toast.info('Withdrawals are temporarily disabled.'); }}
+                disabled
+                aria-disabled="true"
+                title="Withdrawals are temporarily disabled"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/10 bg-white/5 opacity-50 cursor-not-allowed min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <ArrowUpFromLine className="h-4 w-4 text-white/80" />
@@ -918,8 +922,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Deposit</span>
               </button>
               <button
-                onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted active:scale-95 transition-all min-h-[44px]"
+                onClick={() => { hapticTap(); toast.info('Withdrawals are temporarily disabled.'); }}
+                disabled
+                aria-disabled="true"
+                title="Withdrawals are temporarily disabled"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 opacity-50 cursor-not-allowed min-h-[44px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <ArrowUpFromLine className="h-4 w-4 text-muted-foreground" />

@@ -678,16 +678,11 @@ export function WithdrawalPayoutCard({
                 <Button
                   className="w-full h-12 gap-2 font-semibold text-base"
                   variant="outline"
-                  onClick={() => {
-                    setClaimDetailsConfirmed(false);
-                    setEnteredPayoutName('');
-                    setMismatchAcknowledged(false);
-                    setConfirmClaimOpen(true);
-                  }}
-                  disabled={claimingId === withdrawal.id}
-                  title={claimingId === withdrawal.id ? 'Request is being processed…' : 'Claim this withdrawal'}
+                  onClick={() => {}}
+                  disabled
+                  title="Claiming is temporarily disabled"
                 >
-                  {claimingId === withdrawal.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim This Withdrawal</>}
+                  <UserCheck className="h-5 w-5" /> Claim This Withdrawal
                 </Button>
               </div>
             ) : (
