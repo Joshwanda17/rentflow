@@ -57,12 +57,17 @@ export function WalletBreakdownReadOnly({
       const userIds = (rows ?? []).map((r) => r.user_id).filter((id): id is string => !!id);
       if (userIds.length === 0) return [];
 
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds);
+      // Use the ops-scoped RPC so Fin Ops / manager roles can read names & phones
+      // even when direct SELECT on public.profiles is blocked by RLS.
+      const { data: profiles } = await supabase.rpc('ops_get_profiles_lite', {
+        p_ids: userIds,
+      });
 
-      const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      const pmap = new Map(
+        ((profiles ?? []) as Array<{ id: string; full_name: string | null; phone: string | null }>).map(
+          (p) => [p.id, p],
+        ),
+      );
 
       return (rows ?? []).map((r) => {
         const p = r.user_id ? pmap.get(r.user_id) : undefined;
