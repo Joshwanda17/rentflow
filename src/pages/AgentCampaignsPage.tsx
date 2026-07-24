@@ -288,22 +288,22 @@ function LinkRowUI({
           /c/{link.location_slug}/{link.short_code}
         </button>
       </td>
-      <td className="px-3 py-2">{link.campaign_name}</td>
-      <td className="px-3 py-2">{link.district_name || link.location_display || "—"}</td>
-      <td className="px-3 py-2">{labelize(link.selected_source)}</td>
-      <td className="px-3 py-2 text-right">{link.total_clicks}</td>
-      <td className="px-3 py-2 text-right">{link.unique_clicks}</td>
-      <td className="px-3 py-2 text-right">{link.total_registrations}</td>
-      <td className="px-3 py-2 text-right">
+      <td className="px-3 py-2 whitespace-nowrap">{link.campaign_name}</td>
+      <td className="px-3 py-2 whitespace-nowrap">{link.district_name || link.location_display || "—"}</td>
+      <td className="px-3 py-2 whitespace-nowrap">{labelize(link.selected_source)}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">{link.total_clicks}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">{link.unique_clicks}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">{link.total_registrations}</td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">
         {link.total_sub_agent_registrations}
       </td>
-      <td className="px-3 py-2 text-right">{link.qualified_sub_agents}</td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2 text-right whitespace-nowrap">{link.qualified_sub_agents}</td>
+      <td className="px-3 py-2 whitespace-nowrap">
         <Badge variant={link.status === "active" ? "default" : "secondary"}>
           {link.status}
         </Badge>
       </td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2 whitespace-nowrap">
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" onClick={copy} title="Copy link">
             <Copy className="w-4 h-4" />
