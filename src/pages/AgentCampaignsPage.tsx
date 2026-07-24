@@ -189,21 +189,21 @@ export default function AgentCampaignsPage() {
               You haven't generated any campaign links yet.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="min-w-[880px] w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="text-left px-3 py-2">Link</th>
-                    <th className="text-left px-3 py-2">Campaign</th>
-                    <th className="text-left px-3 py-2">Location</th>
-                    <th className="text-left px-3 py-2">Source</th>
-                    <th className="text-right px-3 py-2">Clicks</th>
-                    <th className="text-right px-3 py-2">Unique</th>
-                    <th className="text-right px-3 py-2">Regs</th>
-                    <th className="text-right px-3 py-2">Sub-agents</th>
-                    <th className="text-right px-3 py-2">Qualified</th>
-                    <th className="text-left px-3 py-2">Status</th>
-                    <th className="text-left px-3 py-2">Actions</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Link</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Campaign</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Location</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Source</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Clicks</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Unique</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Regs</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Sub-agents</th>
+                    <th className="text-right px-3 py-2 whitespace-nowrap">Qualified</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Status</th>
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
