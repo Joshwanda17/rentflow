@@ -392,7 +392,7 @@ async function fetchExpectedDailyByAgent(): Promise<Record<string, number>> {
  * These allocations are excluded from "Collected" because the landlord was
  * paid from CFO-disbursed landlord float, not from a fresh field collection.
  */
-async function fetchLandlordFloatRentRequestIds(rentRequestIds: string[]): Promise<Set<string>> {
+export async function fetchLandlordFloatRentRequestIds(rentRequestIds: string[]): Promise<Set<string>> {
   const excluded = new Set<string>();
   if (rentRequestIds.length === 0) return excluded;
   const BATCH = 200;
@@ -408,7 +408,7 @@ async function fetchLandlordFloatRentRequestIds(rentRequestIds: string[]): Promi
   return excluded;
 }
 
-async function fetchCollectedByAgent(start: Date, end: Date): Promise<Record<string, number>> {
+export async function fetchCollectedByAgent(start: Date, end: Date): Promise<Record<string, number>> {
   const PAGE = 1000;
   let from = 0;
   const rows: Array<{ agent_id: string; amount: number; rent_request_id: string | null }> = [];
@@ -483,7 +483,7 @@ function bucketKeyFor(d: Date, gran: TrendGranularity) {
 }
 
 /** Collected total per time bucket (hour/day/month) across the whole fleet within [start, end). */
-async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranularity): Promise<Record<string, number>> {
+export async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranularity): Promise<Record<string, number>> {
   const PAGE = 1000;
   let from = 0;
   const rows: Array<{ amount: number; created_at: string; rent_request_id: string | null }> = [];
