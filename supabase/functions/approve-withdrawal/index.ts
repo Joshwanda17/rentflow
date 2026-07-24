@@ -2015,11 +2015,41 @@ Deno.serve(async (req) => {
     // landlord_payouts row to 'awaiting_agent_receipt' (the same state FinOps
     // used to set after disbursing) so the existing agent receipt-upload flow
     // continues, SMS the landlord, and notify the agent.
+    //
+    // NEW (2026-07-24): the Agent Landlord Payout Float is debited HERE — at
+    // the moment FinOps actually sends the money — not at OTP-verification
+    // time. `deduct_agent_float_for_payout` is atomic and status-guarded so a
+    // concurrent duplicate approval cannot double-debit.
     if (isLandlordFloatPayout) {
       try {
         const landlordPayoutId = (wr as any).landlord_payout_id ?? null;
         const momoRef = reference.trim().toUpperCase();
         if (landlordPayoutId) {
+          const { error: deductErr } = await admin.rpc("deduct_agent_float_for_payout", {
+            p_payout_id: landlordPayoutId,
+          });
+          if (deductErr) {
+            console.error("[approve-withdrawal] LP float debit failed:", deductErr);
+            await admin
+              .from("landlord_payouts")
+              .update({
+                status: "failed",
+                last_error: `FinOps debit failed: ${deductErr.message}`,
+              } as any)
+              .eq("id", landlordPayoutId);
+            // best-effort audit
+            try {
+              await admin.from("audit_logs").insert({
+                user_id: user.id,
+                action_type: "landlord_float_debit_failed",
+                table_name: "landlord_payouts",
+                record_id: landlordPayoutId,
+                reason: "finops_dbt",
+                metadata: { withdrawal_id, error: deductErr.message },
+              });
+            } catch { /* non-blocking */ }
+          }
+
           const { data: lp } = await admin
             .from("landlord_payouts")
             .update({
