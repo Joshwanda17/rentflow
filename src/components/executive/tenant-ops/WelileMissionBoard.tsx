@@ -214,7 +214,7 @@ export function WelileMissionBoard() {
 
   // ROI payable OUT to funders in the next cycle (~next 31 days).
   // Drives the "ROI payable next cycle" figure on Priority 3 (Onboard funders).
-  const { data: roiPayable } = useQuery({
+  const { data: roiPayableRows } = useQuery({
     queryKey: ['mission-roi-payable-next', intervalMs],
     refetchInterval: intervalMs,
     queryFn: async () => {
@@ -224,24 +224,46 @@ export function WelileMissionBoard() {
         .eq('status', 'active')
         .not('next_roi_date', 'is', null);
       if (error) throw error;
-      const now = new Date();
-      const start = new Date(now); start.setHours(0, 0, 0, 0);
-      const end = new Date(start); end.setDate(end.getDate() + 31);
-      let total = 0;
-      let count = 0;
-      let earliest: Date | null = null;
-      (data ?? []).forEach((p: any) => {
-        if (!p.next_roi_date) return;
-        const d = new Date(p.next_roi_date);
-        if (d >= start && d <= end) {
-          total += (Number(p.investment_amount) || 0) * (Number(p.roi_percentage) || 0) / 100;
-          count += 1;
+      return (data ?? [])
+        .filter((p: any) => !!p.next_roi_date)
+        .map((p: any) => ({
+          next_roi_date: p.next_roi_date as string,
+          roi_amount: (Number(p.investment_amount) || 0) * (Number(p.roi_percentage) || 0) / 100,
+        }));
+    },
+  });
+
+  // Compute totals for the selected preset window (day / week / month / custom range).
+  const roiPayable = useMemo(() => {
+    const rows = roiPayableRows ?? [];
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    let end: Date;
+    if (roiCardPeriod === 'custom') {
+      if (!roiCustomRange.from) return { total: 0, count: 0, earliest: null as string | null, start, end: start, valid: false };
+      const from = new Date(roiCustomRange.from); from.setHours(0, 0, 0, 0);
+      const to = new Date(roiCustomRange.to ?? roiCustomRange.from); to.setHours(23, 59, 59, 999);
+      let total = 0, count = 0; let earliest: Date | null = null;
+      rows.forEach((r) => {
+        const d = new Date(r.next_roi_date);
+        if (d >= from && d <= to) {
+          total += r.roi_amount; count += 1;
           if (!earliest || d < earliest) earliest = d;
         }
       });
-      return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null };
-    },
-  });
+      return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null, start: from, end: to, valid: true };
+    }
+    const days = roiCardPeriod === 'day' ? 1 : roiCardPeriod === 'week' ? 7 : 30;
+    end = new Date(start); end.setDate(end.getDate() + days); end.setHours(23, 59, 59, 999);
+    let total = 0, count = 0; let earliest: Date | null = null;
+    rows.forEach((r) => {
+      const d = new Date(r.next_roi_date);
+      if (d >= start && d <= end) {
+        total += r.roi_amount; count += 1;
+        if (!earliest || d < earliest) earliest = d;
+      }
+    });
+    return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null, start, end, valid: true };
+  }, [roiPayableRows, roiCardPeriod, roiCustomRange]);
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
