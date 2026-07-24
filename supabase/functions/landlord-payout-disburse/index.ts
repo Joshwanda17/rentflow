@@ -94,6 +94,31 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Pre-flight: ensure the agent has enough UN-RESERVED LP payout float to
+    // cover this request. We do NOT debit here — the actual debit happens
+    // when Financial Ops approves the merchant payout and sends the money.
+    // Reserved = balance − sum(amount) of already in-flight landlord_payouts.
+    const { data: availableRaw, error: availErr } = await adminClient.rpc(
+      "get_agent_lp_float_available",
+      { p_agent_id: agentId },
+    );
+    if (availErr) {
+      console.error("[landlord-payout-disburse] availability check failed:", availErr);
+      return new Response(
+        JSON.stringify({ error: `Float availability check failed: ${availErr.message}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const availableFloat = Number(availableRaw ?? 0);
+    if (availableFloat < Number(amount)) {
+      return new Response(
+        JSON.stringify({
+          error: `Insufficient Agent Landlord Payout Float. Available UGX ${availableFloat.toLocaleString()}, requested UGX ${Number(amount).toLocaleString()}. Includes UGX already reserved by pending landlord payouts.`,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Insert payout row (eligibility trigger validates cutoff/float/landlord)
     const { data: payout, error: insertErr } = await adminClient
       .from("landlord_payouts")
@@ -135,27 +160,13 @@ Deno.serve(async (req) => {
       { amount, landlord_id },
     );
 
-    // Atomic float deduction
-    const { error: deductErr } = await adminClient.rpc("deduct_agent_float_for_payout", {
-      p_payout_id: payout.id,
-    });
-    if (deductErr) {
-      await adminClient.from("landlord_payouts").update({
-        status: "failed",
-        last_error: `Deduct failed: ${deductErr.message}`,
-      }).eq("id", payout.id);
-      return new Response(
-        JSON.stringify({ error: `Float deduction failed: ${deductErr.message}`, payout_id: payout.id }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // Phase 3: route the landlord payout into the merchant Cash, Mobile Money &
-    // Bank payout queue. A merchant agent will pay the landlord from their own
-    // MoMo float and then settle here — exactly like any other withdrawal. The
-    // float was already deducted above, so the withdrawal row is tagged with a
-    // "Landlord float payout" reason; DB guards skip the agent's withdrawable
-    // balance for these rows and never lock the agent's own wallet.
+    // Route the landlord payout into the merchant Cash / Mobile Money / Bank
+    // payout queue for Financial Ops. The Agent Landlord Payout Float is NOT
+    // debited here — only reserved (see availability check above). It is
+    // debited by `approve-withdrawal` at the moment FinOps records the MoMo
+    // reference and actually sends the money to the landlord's phone. If
+    // FinOps rejects, nothing needs to be refunded because nothing left the
+    // ring-fenced bucket.
     const payoutReason =
       `Landlord float payout — ${landlord_name ?? "Landlord"} (${landlord_phone})`;
     const { data: wrRow, error: wrErr } = await adminClient
@@ -175,13 +186,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (wrErr || !wrRow) {
-      // Could not surface to the merchant queue — refund float and fail.
+      // Could not surface to FinOps queue — fail the payout row. No refund
+      // needed because the float was never debited.
       console.error("[landlord-payout-disburse] withdrawal_requests insert failed:", wrErr);
-      try {
-        await adminClient.rpc("refund_agent_float_for_payout", { p_payout_id: payout.id });
-      } catch (refundEx) {
-        console.error("[landlord-payout-disburse] float refund failed:", refundEx);
-      }
       await adminClient.from("landlord_payouts").update({
         status: "failed",
         last_error: `Merchant queue insert failed: ${wrErr?.message ?? "unknown"}`,

@@ -167,25 +167,20 @@ Deno.serve(async (req) => {
 
       // ── Landlord-float payout rejection ────────────────────────────────
       // These rows live in withdrawal_requests but are funded from the
-      // dedicated agent_landlord_float ledger (deducted at disburse time, not
-      // general_ledger). Restore that float and fail the linked landlord_payout
-      // so it returns to Landlord Ops, then skip the standard wallet reversal.
+      // dedicated agent_landlord_float ledger. As of 2026-07-24 the LP payout
+      // float is only debited when FinOps APPROVES the payout, not at OTP /
+      // queue-insertion time — so a rejection here means nothing left the
+      // ring-fenced bucket and there is no refund to perform. We just fail
+      // the linked landlord_payout so it returns to Landlord Ops and skip
+      // the standard wallet reversal.
       const isLandlordFloatPayout =
         withdrawal_type !== 'float' &&
         typeof (wr as any).reason === 'string' &&
         (wr as any).reason.startsWith('Landlord float payout');
       if (isLandlordFloatPayout) {
-        let refunded = false;
+        const refunded = false; // nothing was ever debited from LP float
         const landlordPayoutId = (wr as any).landlord_payout_id ?? null;
         if (landlordPayoutId) {
-          const { error: refundErr } = await admin.rpc('refund_agent_float_for_payout', {
-            p_payout_id: landlordPayoutId,
-          });
-          if (refundErr) {
-            console.error(`[reject-withdrawal] float refund failed for ${wId}:`, refundErr);
-          } else {
-            refunded = true;
-          }
           await admin
             .from('landlord_payouts')
             .update({ status: 'failed', last_error: `Merchant rejected: ${String(reason).slice(0, 200)}` } as any)
@@ -213,7 +208,7 @@ Deno.serve(async (req) => {
           await admin.from('notifications').insert({
             user_id: userId,
             title: 'Landlord Payout Returned',
-            message: `A merchant agent could not pay UGX ${Number(wr.amount).toLocaleString()} to the landlord. Reason: ${reason}. The float has been restored — please retry from Landlord Ops.`,
+            message: `A merchant agent could not pay UGX ${Number(wr.amount).toLocaleString()} to the landlord. Reason: ${reason}. Your Landlord Payout Float was not debited — please retry from Landlord Ops.`,
             type: 'financial',
           });
         } catch { /* non-blocking */ }
