@@ -407,7 +407,6 @@ function AppRoutes() {
           <Route path="/c/:slug/:code" element={<CampaignRedirect />} />
           <Route path="/c/:code" element={<CampaignRedirect />} />
           <Route path="/agent/campaigns" element={<AgentCampaignsPage />} />
-          <Route path="/admin/recruitment-campaigns" element={<AdminRecruitmentCampaignsPage />} />
           <Route path="/invite/merchant-agent" element={<InviteMerchantAgent />} />
           <Route path="/merchant/register" element={<MerchantRegister />} />
           <Route path="/merchant-agent/onboarding" element={<MerchantAgentOnboarding />} />
