@@ -145,13 +145,32 @@ Deno.serve(async (req) => {
       const payoutSummary = isBank
         ? [row.bank_name, row.bank_account_number].filter(Boolean).join(' ') || 'Bank Transfer'
         : [row.momo_provider, row.momo_number].filter(Boolean).join(' ') || 'Mobile Money';
+      // Resolve the partner's real ROI% from their most recent portfolio so
+      // partners on non-default rates (e.g. 20%) never see a hardcoded 15%.
+      let monthlyReturnLabel = '15%';
+      try {
+        const { data: portfolio } = await admin
+          .from('investor_portfolios')
+          .select('roi_percentage, created_at, status')
+          .eq('investor_id', partnerId)
+          .not('roi_percentage', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const pct = Number(portfolio?.roi_percentage);
+        if (Number.isFinite(pct) && pct > 0) {
+          monthlyReturnLabel = `${Number.isInteger(pct) ? pct : pct.toFixed(2).replace(/\.?0+$/, '')}%`;
+        }
+      } catch (e) {
+        console.warn('roi_percentage lookup failed, falling back to 15%:', e);
+      }
       const templateData = {
         partner_name: row.full_name || 'Partner',
         partner_email: row.email,
         partner_reference: reference,
         partnership_amount: `UGX ${amountNum.toLocaleString('en-US')}`,
         partnership_amount_words: row.partnership_amount_words || numberToWords(amountNum),
-        monthly_return: '15%',
+        monthly_return: monthlyReturnLabel,
         payout_summary: payoutSummary,
         agreement_download_url: signedUrl || PARTNER_PORTAL_URL,
         agreement_download_available: signedUrl ? 'yes' : 'no',
