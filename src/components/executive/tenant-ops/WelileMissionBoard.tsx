@@ -136,6 +136,10 @@ export function WelileMissionBoard() {
   const [placedOpen, setPlacedOpen] = useState(false);
   const [fundersOpen, setFundersOpen] = useState(false);
   const [roiPayableOpen, setRoiPayableOpen] = useState(false);
+  // Priority 3 · ROI payable card period selector (day / week / month / custom range)
+  const [roiCardPeriod, setRoiCardPeriod] = useState<'day' | 'week' | 'month' | 'custom'>('week');
+  const [roiCustomRange, setRoiCustomRange] = useState<{ from?: Date; to?: Date }>({});
+  const [roiRangeOpen, setRoiRangeOpen] = useState(false);
   const [landlordRecvOpen, setLandlordRecvOpen] = useState(false);
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
@@ -210,7 +214,7 @@ export function WelileMissionBoard() {
 
   // ROI payable OUT to funders in the next cycle (~next 31 days).
   // Drives the "ROI payable next cycle" figure on Priority 3 (Onboard funders).
-  const { data: roiPayable } = useQuery({
+  const { data: roiPayableRows } = useQuery({
     queryKey: ['mission-roi-payable-next', intervalMs],
     refetchInterval: intervalMs,
     queryFn: async () => {
@@ -220,24 +224,46 @@ export function WelileMissionBoard() {
         .eq('status', 'active')
         .not('next_roi_date', 'is', null);
       if (error) throw error;
-      const now = new Date();
-      const start = new Date(now); start.setHours(0, 0, 0, 0);
-      const end = new Date(start); end.setDate(end.getDate() + 31);
-      let total = 0;
-      let count = 0;
-      let earliest: Date | null = null;
-      (data ?? []).forEach((p: any) => {
-        if (!p.next_roi_date) return;
-        const d = new Date(p.next_roi_date);
-        if (d >= start && d <= end) {
-          total += (Number(p.investment_amount) || 0) * (Number(p.roi_percentage) || 0) / 100;
-          count += 1;
+      return (data ?? [])
+        .filter((p: any) => !!p.next_roi_date)
+        .map((p: any) => ({
+          next_roi_date: p.next_roi_date as string,
+          roi_amount: (Number(p.investment_amount) || 0) * (Number(p.roi_percentage) || 0) / 100,
+        }));
+    },
+  });
+
+  // Compute totals for the selected preset window (day / week / month / custom range).
+  const roiPayable = useMemo(() => {
+    const rows = roiPayableRows ?? [];
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    let end: Date;
+    if (roiCardPeriod === 'custom') {
+      if (!roiCustomRange.from) return { total: 0, count: 0, earliest: null as string | null, start, end: start, valid: false };
+      const from = new Date(roiCustomRange.from); from.setHours(0, 0, 0, 0);
+      const to = new Date(roiCustomRange.to ?? roiCustomRange.from); to.setHours(23, 59, 59, 999);
+      let total = 0, count = 0; let earliest: Date | null = null;
+      rows.forEach((r) => {
+        const d = new Date(r.next_roi_date);
+        if (d >= from && d <= to) {
+          total += r.roi_amount; count += 1;
           if (!earliest || d < earliest) earliest = d;
         }
       });
-      return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null };
-    },
-  });
+      return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null, start: from, end: to, valid: true };
+    }
+    const days = roiCardPeriod === 'day' ? 1 : roiCardPeriod === 'week' ? 7 : 30;
+    end = new Date(start); end.setDate(end.getDate() + days); end.setHours(23, 59, 59, 999);
+    let total = 0, count = 0; let earliest: Date | null = null;
+    rows.forEach((r) => {
+      const d = new Date(r.next_roi_date);
+      if (d >= start && d <= end) {
+        total += r.roi_amount; count += 1;
+        if (!earliest || d < earliest) earliest = d;
+      }
+    });
+    return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null, start, end, valid: true };
+  }, [roiPayableRows, roiCardPeriod, roiCustomRange]);
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
@@ -599,13 +625,13 @@ export function WelileMissionBoard() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <p className="text-[9px] font-bold uppercase tracking-wide text-purple-800 leading-none cursor-help underline decoration-dotted underline-offset-2">
-                                ROI payable · next cycle
+                                ROI payable · {roiCardPeriod === 'day' ? 'next day' : roiCardPeriod === 'week' ? 'next week' : roiCardPeriod === 'month' ? 'next month' : 'custom range'}
                               </p>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-[260px] space-y-1.5">
-                              <p className="text-xs font-semibold">ROI Payable — Next Cycle</p>
+                              <p className="text-xs font-semibold">ROI Payable — Selected Window</p>
                               <p className="text-[11px] text-muted-foreground leading-snug">
-                                The total <strong className="text-foreground">Returns</strong> (monthly flat-rate payout) due to active Supporters whose next ROI date falls within the next 31 days.
+                                The total <strong className="text-foreground">Returns</strong> (monthly flat-rate payout) due to active Supporters whose next ROI date falls within the selected window.
                               </p>
                               <p className="text-[11px] text-muted-foreground leading-snug">
                                 <strong className="text-foreground">How it is calculated:</strong> For every active portfolio, we multiply the <em>investment_amount</em> by the <em>roi_percentage</em> to get the monthly Return owed. We then sum only those with a <em>next_roi_date</em> in the upcoming 31-day window.
@@ -628,14 +654,10 @@ export function WelileMissionBoard() {
                           <TooltipContent side="bottom" className="max-w-[260px] space-y-1.5">
                             <p className="text-xs font-semibold">Aggregated across all active portfolios</p>
                             <p className="text-[11px] text-muted-foreground leading-snug">
-                              This total sums the monthly Returns owed by <strong className="text-foreground">every active portfolio</strong> whose next ROI date falls within the next 31-day window.
+                              This total sums the monthly Returns owed by <strong className="text-foreground">every active portfolio</strong> whose next ROI date falls within the selected window.
                             </p>
                             <p className="text-[11px] text-muted-foreground leading-snug">
-                              <strong className="text-foreground">Date range:</strong> Today → {(() => {
-                                const end = new Date();
-                                end.setDate(end.getDate() + 31);
-                                return end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-                              })()} (31 days)
+                              <strong className="text-foreground">Date range:</strong> {roiPayable.start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} → {roiPayable.end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                             </p>
                             <div className="rounded-md bg-purple-500/10 border border-purple-500/20 px-2 py-1">
                               <p className="text-[10px] font-mono text-purple-700">
@@ -650,6 +672,76 @@ export function WelileMissionBoard() {
                         {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''} · tap for line items
                       </p>
                     </button>
+                  )}
+                  {p.key === 'fund' && (
+                    <div className="mt-1.5 flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                      {([
+                        { k: 'day', label: 'Day' },
+                        { k: 'week', label: 'Week' },
+                        { k: 'month', label: 'Month' },
+                      ] as const).map((opt) => (
+                        <button
+                          key={opt.k}
+                          type="button"
+                          onClick={() => setRoiCardPeriod(opt.k)}
+                          className={cn(
+                            'px-2 py-0.5 rounded-md text-[9.5px] font-semibold border transition',
+                            roiCardPeriod === opt.k
+                              ? 'bg-purple-700 text-white border-purple-700'
+                              : 'bg-card border-purple-600/30 text-purple-800 hover:bg-purple-500/10',
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                      <Popover open={roiRangeOpen} onOpenChange={setRoiRangeOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => setRoiCardPeriod('custom')}
+                            className={cn(
+                              'px-2 py-0.5 rounded-md text-[9.5px] font-semibold border transition inline-flex items-center gap-1',
+                              roiCardPeriod === 'custom'
+                                ? 'bg-purple-700 text-white border-purple-700'
+                                : 'bg-card border-purple-600/30 text-purple-800 hover:bg-purple-500/10',
+                            )}
+                          >
+                            <CalendarDays className="h-3 w-3" />
+                            {roiCardPeriod === 'custom' && roiCustomRange.from
+                              ? `${roiCustomRange.from.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}${roiCustomRange.to ? ` – ${roiCustomRange.to.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}`
+                              : 'Custom'}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="range"
+                            selected={roiCustomRange.from ? { from: roiCustomRange.from, to: roiCustomRange.to } : undefined}
+                            onSelect={(range: any) => {
+                              setRoiCardPeriod('custom');
+                              setRoiCustomRange({ from: range?.from, to: range?.to });
+                            }}
+                            initialFocus
+                            className={cn('p-3 pointer-events-auto')}
+                          />
+                          <div className="flex items-center justify-between gap-2 p-2 border-t border-border">
+                            <button
+                              type="button"
+                              onClick={() => setRoiCustomRange({})}
+                              className="text-[10px] text-muted-foreground hover:text-foreground"
+                            >
+                              Clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRoiRangeOpen(false)}
+                              className="text-[10px] font-semibold text-purple-700 hover:text-purple-900"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   )}
                   {p.key === 'fund' && (
                     <Button
