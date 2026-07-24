@@ -14,7 +14,7 @@ import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './Ho
 import { parseHouseVideo, normalizeHouseVideoUrl } from '@/lib/houseVideoUrl';
 import { FieldError } from '@/components/shared/FormFeedback';
 import { LandlordSearchSelect, type LandlordOption } from './LandlordSearchSelect';
-import { toUgandaLocalDigits, normalizeUgandaPhone, validateLandlordPhone } from '@/lib/phoneUtils';
+import { toUgandaLocalDigits, normalizeUgandaPhone, isValidUgandanPhoneNumber } from '@/lib/phoneUtils';
 
 interface EditHouseListingDialogProps {
   open: boolean;
@@ -90,7 +90,9 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const videoTouched = videoUrl !== (listing?.video_url ?? '');
   const totalPhotos = existingUrls.length + newImages.length;
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
-  const manualPhoneError = manualLandlord ? validateLandlordPhone(manualPhone) : null;
+  const manualPhoneError = manualLandlord
+    ? (manualPhone.trim() ? (isValidUgandanPhoneNumber(manualPhone).isValid ? null : 'Enter a valid Ugandan phone number (e.g. 0771234567)') : 'Phone number is required')
+    : null;
   const manualLandlordReady =
     manualLandlord && manualName.trim().length >= 2 && !manualPhoneError;
   const hasLandlord = !!selectedLandlord?.id || manualLandlordReady;
