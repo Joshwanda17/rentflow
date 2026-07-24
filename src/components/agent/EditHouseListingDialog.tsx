@@ -91,7 +91,7 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const totalPhotos = existingUrls.length + newImages.length;
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
   const manualPhoneError = manualLandlord
-    ? (manualPhone.trim() ? (isValidUgandanPhoneNumber(manualPhone).isValid ? null : 'Enter a valid Ugandan phone number (e.g. 0771234567)') : 'Phone number is required')
+    ? (manualPhone.trim() ? (isValidUgandanPhoneNumber(manualPhone).valid ? null : 'Enter a valid Ugandan phone number (e.g. 0771234567)') : 'Phone number is required')
     : null;
   const manualLandlordReady =
     manualLandlord && manualName.trim().length >= 2 && !manualPhoneError;
