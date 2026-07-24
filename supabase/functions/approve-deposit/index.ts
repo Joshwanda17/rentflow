@@ -511,34 +511,58 @@ Deno.serve(async (req) => {
       // the category. Wallet buckets are NEVER computed in the UI or written
       // directly — the routing trigger + apply_wallet_movement own that.
       const rawPurpose = (depositRequest.deposit_purpose || '').toString().trim().toLowerCase();
-      // Auto-verified deposits (matched against MoMo email receipt by the
-      // system / Zero-Touch poller / EmailAutoMatchPanel) ALWAYS land in
-      // Operational Float — that's the platform default for agent-sourced
-      // mobile-money inflows. The user can still pick 'personal_deposit'
-      // explicitly in the UI, but if the deposit was auto-approved we
-      // override the bucket to float regardless of `deposit_purpose`.
-      const isFloatDeposit =
-        rawPurpose === 'operational_float' ||
-        (!!auto_approved && rawPurpose !== 'personal_deposit');
+      // ── STRICT PURPOSE-BASED ROUTING (2026-07-24) ───────────────────
+      // The user's explicit selection on the top-up screen is the SOLE
+      // source of truth for the destination wallet bucket. The backend
+      // MUST NOT infer routing from the payment provider, auto-approval
+      // flag, agent role, or any other signal.
+      //
+      //   operational_float       → float bucket        (company money)
+      //   personal_deposit        → withdrawable bucket (user money)
+      //   partnership_deposit /
+      //   personal_rent_repayment /
+      //   other                   → withdrawable bucket (legacy defaults)
+      //
+      // Missing / unknown purpose → HARD REJECT. Never silently default,
+      // because that is exactly how users' personal money ends up trapped
+      // in the float bucket.
+      const KNOWN_PURPOSES = new Set([
+        'operational_float',
+        'personal_deposit',
+        'partnership_deposit',
+        'personal_rent_repayment',
+        'other',
+      ]);
+      if (!rawPurpose || !KNOWN_PURPOSES.has(rawPurpose)) {
+        const msg = !rawPurpose
+          ? `Deposit purpose is required for ${depositRequest.id}. Refusing to approve.`
+          : `Unknown deposit_purpose='${rawPurpose}' for ${depositRequest.id}. Refusing to approve.`;
+        console.error(`[approve-deposit] ${msg}`);
+        await supabaseAdmin.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'approve_deposit_purpose_invalid',
+          table_name: 'deposit_requests',
+          record_id: depositRequest.id,
+          metadata: {
+            amount: depositRequest.amount,
+            target_user_id: depositRequest.user_id,
+            raw_purpose: rawPurpose || null,
+            reason: 'missing_or_unknown_deposit_purpose',
+          },
+        });
+        results.push({
+          id: depositRequest.id,
+          status: 'error',
+          amount: Number(depositRequest.amount),
+          user_id: depositRequest.user_id,
+        });
+        continue;
+      }
+      const isFloatDeposit = rawPurpose === 'operational_float';
       const depositCategory: 'agent_float_deposit' | 'wallet_deposit' =
         isFloatDeposit ? 'agent_float_deposit' : 'wallet_deposit';
       const depositBucket: 'float' | 'withdrawable' =
         isFloatDeposit ? 'float' : 'withdrawable';
-      if (!rawPurpose) {
-        // Missing purpose → safe default to personal (withdrawable). Logged
-        // so ops can spot any UI regression that stops sending purpose.
-        console.warn(
-          `[approve-deposit] deposit_purpose missing for ${depositRequest.id}; ` +
-          `defaulting to wallet_deposit (withdrawable). user=${depositRequest.user_id}`,
-        );
-      } else if (!['operational_float', 'personal_deposit'].includes(rawPurpose)) {
-        // Unknown purpose (e.g. legacy 'partnership_deposit', 'other') →
-        // keep historical behavior of crediting withdrawable, but log.
-        console.warn(
-          `[approve-deposit] Unrecognized deposit_purpose='${rawPurpose}' for ${depositRequest.id}; ` +
-          `falling back to wallet_deposit (withdrawable).`,
-        );
-      }
       if (isLargeDeposit) {
         console.log(
           `[approve-deposit] LARGE deposit start id=${depositRequest.id} ` +
