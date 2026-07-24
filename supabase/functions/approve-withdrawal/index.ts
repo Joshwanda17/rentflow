@@ -1937,14 +1937,18 @@ Deno.serve(async (req) => {
       // solvency guard in the database too. The trigger adds back only this
       // withdrawal's pending hold while keeping all other holds reserved.
       //
-      // EXCEPTION — proxy payouts: the database's balance check clamps by the
-      // proxy AGENT's cached `wallets.withdrawable_balance`, which is
-      // routinely tiny (often 0–30k) even when the PARTNER-linked ledger
-      // holds hundreds of millions earmarked for delivery. We already ran a
-      // full ledger-truth solvency check above (`ledgerAvailable` on
-      // partnerLinkedNet / proxy agent ledger + pending holds), so skip the
-      // DB-side re-check for proxy payouts to unblock merchant claims.
-      skip_balance_check: isProxyPayout,
+      // The edge function has ALREADY enforced the ledger-truth solvency
+      // check above (see the `totalSpendable < amount` guard around
+      // line 1639, using `get_user_available_balance` / partner-linked
+      // ledger). The DB-side re-check inside `create_ledger_transaction`
+      // clamps against the cached `wallets.withdrawable_balance`, which
+      // can lag the ledger (proxy agents, freshly-anchored wallets, or
+      // wallets whose projection has not caught up yet) and produces the
+      // "Insufficient withdrawable balance (ledger-checked). Available:
+      // UGX 66,900 … Cached UGX 16,900" false-positive that blocks
+      // merchant agents. Since the authoritative check has already
+      // passed, skip the redundant DB re-check for every payout.
+      skip_balance_check: true,
     });
     txnGroupId = _txnGroupId;
 
