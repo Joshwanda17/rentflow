@@ -973,6 +973,17 @@ export default function WithdrawFlow({
       case 0:
         return (
           <div className="space-y-4">
+            {!withdrawCtx.isLoading && !withdrawCtx.gates.canSubmit && (
+              <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 space-y-1">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-destructive" />
+                  <h4 className="font-bold text-destructive">Withdrawal blocked</h4>
+                </div>
+                <p className="text-sm text-destructive/90">
+                  {withdrawCtx.gates.blockReason ?? 'You cannot submit a withdrawal right now.'}
+                </p>
+              </div>
+            )}
             {isPerfLocked && (
               <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 space-y-2">
                 <div className="flex items-center gap-2">
