@@ -184,8 +184,10 @@ export function defaultCashoutAgentConfig(): CashoutAgentConfig {
   const categories: Record<string, boolean> = {};
   const approvals: Record<string, ApprovalRule> = {};
   for (const c of ALL_PAYOUT_CATEGORIES) {
-    // Sensible default: only enable the core customer-facing cash-out categories.
-    categories[c.id] = ['wallet_withdrawals', 'merchant_settlement', 'cashout_commission'].includes(c.id);
+    // No implicit access. Every payout category must be explicitly allocated to
+    // the merchant by the CFO — a merchant only sees the withdrawal
+    // transactions for the categories mapped to them.
+    categories[c.id] = false;
     approvals[c.id] = c.defaultApproval;
   }
   const banks: Record<string, boolean> = {};
