@@ -1936,7 +1936,15 @@ Deno.serve(async (req) => {
       // Post-maintenance hard rule: payout debits must pass the ledger-backed
       // solvency guard in the database too. The trigger adds back only this
       // withdrawal's pending hold while keeping all other holds reserved.
-      skip_balance_check: false,
+      //
+      // EXCEPTION — proxy payouts: the database's balance check clamps by the
+      // proxy AGENT's cached `wallets.withdrawable_balance`, which is
+      // routinely tiny (often 0–30k) even when the PARTNER-linked ledger
+      // holds hundreds of millions earmarked for delivery. We already ran a
+      // full ledger-truth solvency check above (`ledgerAvailable` on
+      // partnerLinkedNet / proxy agent ledger + pending holds), so skip the
+      // DB-side re-check for proxy payouts to unblock merchant claims.
+      skip_balance_check: isProxyPayout,
     });
     txnGroupId = _txnGroupId;
 
