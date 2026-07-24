@@ -172,3 +172,12 @@ verify_jwt = false
 
 [functions.redispatch-withdrawals]
 verify_jwt = false
+
+[functions.requisition-link-validate]
+verify_jwt = false
+
+[functions.requisition-upload]
+verify_jwt = false
+
+[functions.requisition-submit]
+verify_jwt = false
