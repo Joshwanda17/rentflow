@@ -1088,14 +1088,14 @@ export function FleetPerformanceStats({
               label="Collected"
               value={formatUGX(totalCollected)}
               tone="text-primary"
-              info="Sourced from agent_collections — every tenant payment and landlord-float allocation writes a row here, so this total matches the per-agent capacity page."
+              info="Field collections only: agent_collections rows stamped AGT-* by agent_allocate_tenant_payment, excluding rent_requests where CFO landlord float paid the tenant."
               formula={{
-                equation: 'Collected = agent_collections',
+                equation: "Collected = agent_collections (AGT-*) − rent_requests funded from agent_landlord_float_allocations",
                 components: [
-                  { label: 'Tenant payments', description: 'Rent collected from funded tenants (cash, MoMo, bank, etc.)' },
-                  { label: 'Landlord-float allocations', description: 'CFO-approved landlord float moved to an agent for disbursement' },
+                  { label: 'Included', description: "Agent used their operational wallet float to knock down a tenant's outstanding balance." },
+                  { label: 'Excluded', description: 'CFO-funded landlord-float allocations — the landlord was paid from CFO-disbursed float, so this is pool repayment, not a fresh collection.' },
                 ],
-                footnote: 'Both record an agent_collections row with amount > 0 and tag the responsible agent.',
+                footnote: 'Legacy tracking_ids (ALLOC-*, TPAY-*, WEL-TXN-*, null) are also excluded.',
               }}
               onClick={() => openDrill()}
               clickHint="View every collection record contributing to this total"
