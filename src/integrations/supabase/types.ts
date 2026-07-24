@@ -18372,6 +18372,44 @@ export type Database = {
           },
         ]
       }
+      roi_payout_schedules: {
+        Row: {
+          created_at: string
+          id: string
+          portfolio_id: string
+          previous_date: string | null
+          reason: string | null
+          scheduled_by: string
+          scheduled_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          portfolio_id: string
+          previous_date?: string | null
+          reason?: string | null
+          scheduled_by: string
+          scheduled_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          portfolio_id?: string
+          previous_date?: string | null
+          reason?: string | null
+          scheduled_by?: string
+          scheduled_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roi_payout_schedules_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "investor_portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_access_requests: {
         Row: {
           created_at: string
@@ -27579,6 +27617,10 @@ export type Database = {
           user_id: string
           withdrawable_before: number
         }[]
+      }
+      schedule_roi_payout: {
+        Args: { p_new_date: string; p_portfolio_id: string; p_reason?: string }
+        Returns: Json
       }
       search_agents: {
         Args: { result_limit?: number; search_term?: string }
