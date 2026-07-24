@@ -172,6 +172,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .then((m) => m.completePendingOAuthFunnel(session.user.id))
                 .catch(() => {});
             }, 0);
+            // If Google sign-in previously failed with "account already exists"
+            // and the user then signed in with their password, auto-link the
+            // Google identity to this account.
+            setTimeout(() => {
+              (async () => {
+                try {
+                  const { getPendingIdentityLink, clearPendingIdentityLink } =
+                    await import('@/lib/pendingIdentityLink');
+                  const pending = getPendingIdentityLink();
+                  if (!pending) return;
+                  const { error } = await supabase.auth.linkIdentity({
+                    provider: pending.provider,
+                    options: { redirectTo: `${window.location.origin}/settings?linked=${pending.provider}` },
+                  });
+                  if (!error) clearPendingIdentityLink();
+                } catch { /* ignore */ }
+              })();
+            }, 0);
             // If this browser has a pending campaign attribution, attach it
             // to the new session. Fire-and-forget, idempotent server-side.
             setTimeout(() => {
