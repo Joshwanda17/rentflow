@@ -44,8 +44,7 @@ export async function fetchProfilesByIds(
   const workers = Array.from({ length: Math.min(concurrency, chunks.length) }, async () => {
     while (cursor < chunks.length) {
       const idx = cursor++;
-      const { data, error } = await supabase
-        .from("profiles")
+      const { data, error } = await (supabase.from("profiles") as any)
         .select(columns)
         .in("id", chunks[idx]);
       if (error) throw error;
