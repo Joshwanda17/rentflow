@@ -4,6 +4,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import type { AppRole } from './types';
 import { beginOAuthFunnel, trackOAuthRedirected, trackOAuthError, completePendingOAuthFunnel } from '@/lib/oauthFunnel';
 import { revokeCurrentDevicePush } from '@/lib/webPush';
+import { preflightSignup, attachSignupUser } from '@/lib/signupGuard';
 
 // Maintenance lock removed 2026-05-08 — was silently returning a fake
 // "Welile is under maintenance" error on every sign-in / sign-up unless
@@ -19,6 +20,10 @@ export async function signUp(
   signupSource?: string,
   referrerId?: string,
 ) {
+  const guard = await preflightSignup({ email, phone });
+  if (!guard.allowed) {
+    return { data: null, error: new Error(guard.reason || 'Sign-up is temporarily unavailable from this device or network. Please try again tomorrow.') as Error };
+  }
   const redirectUrl = `${window.location.origin}/`;
   // Build metadata explicitly. Only include `signup_source` when it is a
   // non-empty string so the Postgres `handle_new_user` trigger persists it
@@ -49,10 +54,17 @@ export async function signUp(
     password,
     options: { emailRedirectTo: redirectUrl, data },
   });
+  if (!error) {
+    await attachSignupUser(guard.attempt_id, signUpData?.user?.id ?? null);
+  }
   return { data: signUpData, error: error as Error | null };
 }
 
 export async function signUpWithoutRole(email: string, password: string, fullName: string, phone: string, referrerId?: string, intendedRole?: string, signupSource?: string) {
+  const guard = await preflightSignup({ email, phone });
+  if (!guard.allowed) {
+    return { data: null, error: new Error(guard.reason || 'Sign-up is temporarily unavailable from this device or network. Please try again tomorrow.') as Error };
+  }
   const redirectUrl = `${window.location.origin}/`;
   const data: Record<string, unknown> = {
     full_name: fullName,
@@ -75,6 +87,9 @@ export async function signUpWithoutRole(email: string, password: string, fullNam
     password,
     options: { emailRedirectTo: redirectUrl, data },
   });
+  if (!error) {
+    await attachSignupUser(guard.attempt_id, signUpData?.user?.id ?? null);
+  }
   return { data: signUpData, error: error as Error | null };
 }
 
