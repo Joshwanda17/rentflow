@@ -73,7 +73,9 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
         </Button>
         <Button
           variant={btnVariant}
-          className={btnClass}
+          className={btnClass + ' opacity-50 cursor-not-allowed'}
+          disabled
+          title="Withdrawals are temporarily disabled"
           onClick={() => { hapticTap(); setShowWithdraw(true); }}
         >
           <ArrowUpRight className={`w-4 h-4 ${isHero ? 'text-rose-300' : 'text-rose-600'}`} />
