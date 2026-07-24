@@ -2800,6 +2800,11 @@ function ROIPayableDialog({
           queryClient.invalidateQueries({ queryKey: ['mission-roi-schedule-map'] });
         }}
       />
+      <ROIDetailDialog
+        line={detailTarget}
+        onClose={() => setDetailTarget(null)}
+        onSchedule={(l) => { setDetailTarget(null); setScheduleTarget(l); }}
+      />
     </Dialog>
   );
 }
