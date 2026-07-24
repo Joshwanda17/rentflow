@@ -836,43 +836,12 @@ export function LandlordOpsDashboard() {
     queryKey: ['exec-house-listings-ops'],
     queryFn: async () => {
       const { data } = await supabase.from('house_listings')
-        .select(`
-          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
-          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
-          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
-          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
-        `)
+        .select(HOUSE_LISTING_SELECT)
         .order('created_at', { ascending: false })
         .limit(500);
-
-      const agentIds = [...new Set((data || []).map(d => d.agent_id).filter(Boolean))];
-      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
-      let agentMap = new Map<string, { full_name: string | null; phone: string | null; email: string | null }>();
-      let tenantMap = new Map<string, { full_name: string | null; phone: string | null }>();
-
-      const profileFetches: (() => Promise<void>)[] = [];
-      if (agentIds.length) {
-        profileFetches.push(async () => {
-          const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', agentIds);
-          if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
-        });
-      }
-      if (tenantIds.length) {
-        profileFetches.push(async () => {
-          const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds);
-          if (profiles) tenantMap = new Map(profiles.map(p => [p.id, p]));
-        });
-      }
-      await Promise.all(profileFetches.map(fn => fn()));
-
-      return (data || []).map(d => ({
-        ...d,
-        agent_name: agentMap.get(d.agent_id)?.full_name || null,
-        agent_phone: agentMap.get(d.agent_id)?.phone || null,
-        agent_email: agentMap.get(d.agent_id)?.email || null,
-        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
-        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
-      })) as ListingWithLandlord[];
+      const rows = (data ?? []) as any[];
+      const maps = await fetchListingProfileMaps(rows);
+      return enrichListingsWithProfiles(rows, maps) as ListingWithLandlord[];
     },
     staleTime: 60000,
   });
@@ -889,37 +858,14 @@ export function LandlordOpsDashboard() {
     staleTime: 60_000,
     queryFn: async () => {
       const { data } = await supabase.from('house_listings')
-        .select(`
-          id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
-          latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
-          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
-          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
-        `)
+        .select(HOUSE_LISTING_SELECT)
         .eq('verified', false)
         .not('status', 'in', '(rejected,delisted)')
         .order('created_at', { ascending: false })
         .limit(2000);
-
-      const agentIds = [...new Set((data || []).map(d => d.agent_id).filter(Boolean))] as string[];
-      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
-      const agentMap = new Map<string, any>();
-      const tenantMap = new Map<string, any>();
-      for (let i = 0; i < agentIds.length; i += 200) {
-        const { data: aps } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', agentIds.slice(i, i + 200));
-        (aps || []).forEach(p => agentMap.set(p.id, p));
-      }
-      for (let i = 0; i < tenantIds.length; i += 200) {
-        const { data: tps } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(i, i + 200));
-        (tps || []).forEach(p => tenantMap.set(p.id, p));
-      }
-      return (data || []).map(d => ({
-        ...d,
-        agent_name: d.agent_id ? (agentMap.get(d.agent_id)?.full_name || null) : null,
-        agent_phone: d.agent_id ? (agentMap.get(d.agent_id)?.phone || null) : null,
-        agent_email: d.agent_id ? (agentMap.get(d.agent_id)?.email || null) : null,
-        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
-        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
-      })) as ListingWithLandlord[];
+      const rows = (data ?? []) as any[];
+      const maps = await fetchListingProfileMaps(rows);
+      return enrichListingsWithProfiles(rows, maps) as ListingWithLandlord[];
     },
   });
 
