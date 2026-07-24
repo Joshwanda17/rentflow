@@ -25,6 +25,8 @@ import { Trash2, Star } from 'lucide-react';
 import { downloadWithdrawalReceiptPdf, shareWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
 import { useLanguage } from '@/hooks/useLanguage';
 import { WITHDRAWAL_REASON_OPTIONS, OTHER_WITHDRAWAL_REASON } from '@/lib/cashoutAgentConfig';
+import { useWithdrawContext, invalidateWithdrawContext } from '@/hooks/useWithdrawContext';
+import { AlertTriangle } from 'lucide-react';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
@@ -91,6 +93,11 @@ export default function WithdrawFlow({
   const { user } = useAuth();
   const qc = useQueryClient();
   const { language } = useLanguage();
+  // Unified withdrawal context — single source of truth for paused flag,
+  // KYC daily limits, frozen accounts and server-computed `canSubmit`.
+  // Migrating both dialogs onto this hook eliminates gate drift where one
+  // dialog enforced a rule the other missed (e.g. the payout-freeze bug).
+  const withdrawCtx = useWithdrawContext(user?.id);
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
@@ -518,6 +525,14 @@ export default function WithdrawFlow({
   };
 
   const canProceed = () => {
+    // Global gates — apply on every step. Server-computed so a paused
+    // platform / frozen account / exhausted daily count blocks the flow
+    // uniformly across every dialog.
+    if (!withdrawCtx.isLoading && !withdrawCtx.gates.canSubmit) {
+      // Special case: on step 0 (Source) we still want to allow closing /
+      // navigating; the disable-Next behavior is enough.
+      return false;
+    }
     // Agent performance gate — blocks step 0 and 1 for the "available"
     // (personal wallet) source. Landlord-float payouts use a separate
     // flow and are exempt. Threshold: today_pct < 20% with active tenants.
