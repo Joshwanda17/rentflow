@@ -31,8 +31,8 @@ import { format } from 'date-fns';
 
 interface Transaction {
   id: string;
-  sender_id: string;
-  recipient_id: string;
+  sender_id: string | null;
+  recipient_id: string | null;
   amount: number;
   description: string | null;
   created_at: string;
@@ -41,6 +41,11 @@ interface Transaction {
 }
 
 type TransactionType = 'all' | 'sent' | 'received';
+
+type TransactionProfileRow = {
+  id: string;
+  full_name: string | null;
+};
 
 export default function TransactionHistory() {
   const navigate = useNavigate();
@@ -80,19 +85,29 @@ export default function TransactionHistory() {
     }
 
     if (data && data.length > 0) {
-      const userIds = [...new Set([...data.map(t => t.sender_id), ...data.map(t => t.recipient_id)])];
-      
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', userIds);
+      const userIds = [
+        ...new Set(
+          [...data.map(t => t.sender_id), ...data.map(t => t.recipient_id)]
+            .filter((id): id is string => typeof id === 'string' && id.length > 0),
+        ),
+      ];
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+      const { data: profiles } = userIds.length > 0
+        ? await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds)
+        : { data: [] };
+
+      const profileMap = new Map<string, string>();
+      ((profiles ?? []) as TransactionProfileRow[]).forEach((p) => {
+        profileMap.set(p.id, p.full_name || 'Unknown');
+      });
 
       const enrichedTransactions = data.map(t => ({
         ...t,
-        sender_name: profileMap.get(t.sender_id) || 'Unknown',
-        recipient_name: profileMap.get(t.recipient_id) || 'Unknown',
+        sender_name: t.sender_id ? profileMap.get(t.sender_id) || 'Unknown' : 'System',
+        recipient_name: t.recipient_id ? profileMap.get(t.recipient_id) || 'Unknown' : 'System',
       }));
 
       setTransactions(enrichedTransactions);
@@ -102,7 +117,7 @@ export default function TransactionHistory() {
       setFilteredTransactions([]);
     }
     setLoading(false);
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (user) {
