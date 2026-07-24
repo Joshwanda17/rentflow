@@ -141,7 +141,7 @@ function OperatorMismatchTodayBadge() {
     (async () => {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
-      const { count: c, error } = await supabase
+      const { count: c, error } = await (supabase as any)
         .from('system_events')
         .select('id', { count: 'exact', head: true })
         .eq('event_type', 'finops_provider_mismatch')
