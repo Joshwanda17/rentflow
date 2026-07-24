@@ -1593,6 +1593,199 @@ function AgentNetworkDriverDialog({
   );
 }
 
+// ===== ROI drilldown item detail dialog =====
+// Shows the exact inputs used to compute the payout amount for a portfolio,
+// plus the full audit trail of reschedules recorded against that portfolio.
+function ROIDetailDialog({
+  line, onClose, onSchedule,
+}: {
+  line: ROIPayableLine | null;
+  onClose: () => void;
+  onSchedule: (line: ROIPayableLine) => void;
+}) {
+  const open = !!line;
+  const portfolioId = line?.id ?? null;
+
+  // Full portfolio record — gives us the canonical inputs & cycle metadata.
+  const { data: portfolio, isLoading: pLoading } = useQuery({
+    queryKey: ['roi-detail-portfolio', portfolioId],
+    enabled: open && !!portfolioId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('investor_portfolios')
+        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, next_roi_date, last_roi_date, status, created_at, activated_at, user_id')
+        .eq('id', portfolioId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Full audit trail — every reschedule recorded for this portfolio.
+  const { data: trail, isLoading: tLoading } = useQuery({
+    queryKey: ['roi-detail-trail', portfolioId],
+    enabled: open && !!portfolioId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('roi_payout_schedules')
+        .select('id, previous_date, scheduled_date, scheduled_by, reason, created_at')
+        .eq('portfolio_id', portfolioId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Resolve scheduler names in a single batched query.
+  const schedulerIds = useMemo(
+    () => Array.from(new Set((trail ?? []).map((r) => r.scheduled_by).filter(Boolean))) as string[],
+    [trail],
+  );
+  const { data: schedulerMap } = useQuery({
+    queryKey: ['roi-detail-schedulers', schedulerIds.sort().join(',')],
+    enabled: open && schedulerIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', schedulerIds);
+      if (error) throw error;
+      const m = new Map<string, { full_name: string | null; email: string | null }>();
+      (data ?? []).forEach((p: any) => m.set(p.id, { full_name: p.full_name, email: p.email }));
+      return m;
+    },
+  });
+
+  const investment = Number(portfolio?.investment_amount ?? line?.investment_amount ?? 0);
+  const roiPct = Number(portfolio?.roi_percentage ?? line?.roi_percentage ?? 0);
+  const payout = investment * roiPct / 100;
+  const fmtDate = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString() : '—';
+  const fmtDT = (d: string | null | undefined) => d ? new Date(d).toLocaleString() : '—';
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-2xl p-0 gap-0">
+        <DialogHeader className="px-4 pt-4 pb-2 border-b border-border">
+          <DialogTitle className="text-sm flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            ROI payout detail
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            {portfolio?.account_name || line?.account_name || 'Funder'} · Portfolio {portfolio?.portfolio_code || line?.portfolio_code}
+          </p>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[70vh]">
+          <div className="p-4 space-y-4">
+            {/* Calculation inputs */}
+            <section className="rounded-lg border border-border bg-card">
+              <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+                <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Calculation inputs</h4>
+              </div>
+              {pLoading ? (
+                <div className="p-3"><Skeleton className="h-16 w-full" /></div>
+              ) : (
+                <div className="p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="rounded border border-border/70 p-2">
+                      <div className="text-muted-foreground">Investment amount</div>
+                      <div className="font-semibold tabular-nums">{formatUGX(investment)}</div>
+                    </div>
+                    <div className="rounded border border-border/70 p-2">
+                      <div className="text-muted-foreground">ROI rate (monthly)</div>
+                      <div className="font-semibold tabular-nums">{roiPct}%</div>
+                    </div>
+                    <div className="rounded border border-border/70 p-2">
+                      <div className="text-muted-foreground">Current payout date</div>
+                      <div className="font-semibold">{fmtDate(portfolio?.next_roi_date ?? line?.next_roi_date)}</div>
+                    </div>
+                    <div className="rounded border border-border/70 p-2">
+                      <div className="text-muted-foreground">Last payout date</div>
+                      <div className="font-semibold">{fmtDate(portfolio?.last_roi_date)}</div>
+                    </div>
+                    <div className="rounded border border-border/70 p-2">
+                      <div className="text-muted-foreground">Status</div>
+                      <div className="font-semibold capitalize">{portfolio?.status ?? '—'}</div>
+                    </div>
+                    <div className="rounded border border-border/70 p-2">
+                      <div className="text-muted-foreground">Activated</div>
+                      <div className="font-semibold">{fmtDate(portfolio?.activated_at ?? portfolio?.created_at)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-amber-900 dark:text-amber-200">
+                      <span className="font-mono">{formatUGX(investment)} × {roiPct}%</span>
+                      <span className="mx-1 opacity-70">=</span>
+                    </div>
+                    <div className="text-base font-bold tabular-nums text-amber-800 dark:text-amber-200">
+                      {formatUGX(payout)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* Audit trail */}
+            <section className="rounded-lg border border-border bg-card">
+              <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+                <History className="h-3.5 w-3.5 text-primary" />
+                <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Audit trail
+                </h4>
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  {(trail ?? []).length} entr{(trail ?? []).length === 1 ? 'y' : 'ies'}
+                </span>
+              </div>
+              {tLoading ? (
+                <div className="p-3 space-y-1.5">
+                  {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                </div>
+              ) : (trail?.length ?? 0) === 0 ? (
+                <p className="p-4 text-[11px] text-muted-foreground text-center">
+                  No reschedules recorded — this record has never been modified.
+                </p>
+              ) : (
+                <ol className="p-2 space-y-1.5">
+                  {trail!.map((r: any) => {
+                    const who = schedulerMap?.get(r.scheduled_by);
+                    return (
+                      <li key={r.id} className="rounded border border-border/70 p-2 text-[11px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3 text-primary" />
+                            {fmtDate(r.previous_date)} <ArrowRight className="h-3 w-3" /> {fmtDate(r.scheduled_date)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{fmtDT(r.created_at)}</span>
+                        </div>
+                        <div className="mt-1 text-[10px] text-muted-foreground">
+                          By <span className="font-medium text-foreground">{who?.full_name || who?.email || r.scheduled_by.slice(0, 8)}</span>
+                        </div>
+                        {r.reason && (
+                          <div className="mt-1 text-[11px] italic text-muted-foreground">"{r.reason}"</div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </section>
+          </div>
+        </ScrollArea>
+
+        <div className="px-4 py-3 border-t border-border flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={onClose}>Close</Button>
+          {line && (
+            <Button size="sm" className="h-8 text-[11px] gap-1" onClick={() => onSchedule(line)}>
+              <CalendarDays className="h-3.5 w-3.5" /> Reschedule
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ===== ROI payable export helpers (CSV + PDF) =====
 
 function exportRoiPayableCsv(rows: ROIPayableLine[], windowDays: number, total: number) {
