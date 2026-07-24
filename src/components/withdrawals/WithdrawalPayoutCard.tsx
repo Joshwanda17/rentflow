@@ -21,6 +21,7 @@ import {
   Copy, AlertTriangle, ClipboardPaste, Upload, X as XIcon, FileText, Lock,
 } from 'lucide-react';
 import { parsePayoutConfirmationSms } from '@/utils/smsParser';
+import { usePayoutsUiEnabled } from '@/hooks/usePayoutsUiEnabled';
 
 export interface WithdrawalPayoutCardProps {
   withdrawal: any;
@@ -53,6 +54,7 @@ export function WithdrawalPayoutCard({
   completingId = null,
   readOnly = false,
 }: WithdrawalPayoutCardProps) {
+  const { enabled: payoutsUiEnabled } = usePayoutsUiEnabled();
   const [reference, setReference] = useState('');
   // Raw confirmation SMS the merchant agent pastes after sending the money.
   // We parse out the TID (auto-fills the reference) and the sent amount, then
@@ -677,10 +679,10 @@ export function WithdrawalPayoutCard({
                 )}
                 <Button
                   className="w-full h-12 gap-2 font-semibold text-base"
-                  variant="outline"
-                  onClick={() => {}}
-                  disabled
-                  title="Claiming is temporarily disabled"
+                  variant={payoutsUiEnabled ? 'default' : 'outline'}
+                  onClick={() => { if (payoutsUiEnabled) onClaim?.(); }}
+                  disabled={!payoutsUiEnabled}
+                  title={payoutsUiEnabled ? undefined : 'Claiming is temporarily disabled'}
                 >
                   <UserCheck className="h-5 w-5" /> Claim This Withdrawal
                 </Button>
