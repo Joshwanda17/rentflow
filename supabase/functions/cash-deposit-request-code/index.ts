@@ -175,7 +175,6 @@ Deno.serve(async (req) => {
       user_id: user.id,
       amount,
       code_hash: codeHash,
-      code_plain: code,
       emailed_to: VERIFIER_EMAIL,
       status: "awaiting_code",
     } as any).select("id, max_attempts, expires_at").single();
