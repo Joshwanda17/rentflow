@@ -28042,10 +28042,6 @@ export type Database = {
         }[]
       }
       sweep_agent_advance_recovery: { Args: never; Returns: Json }
-      sweep_link_campaign_sub_agents: {
-        Args: { p_batch_size?: number }
-        Returns: Json
-      }
       sync_house_listing_image_urls: {
         Args: { p_listing: string }
         Returns: undefined
