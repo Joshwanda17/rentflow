@@ -2347,7 +2347,7 @@ function ROIPayableDialog({
 }) {
   const [period, setPeriod] = useState<ROIPeriodKey>('7d');
   const [customDays, setCustomDays] = useState<number>(14);
-  const [sortField, setSortField] = useState<'roi_amount' | 'next_roi_date' | 'account_name' | 'roi_percentage'>('next_roi_date');
+  const [sortField, setSortField] = useState<'roi_amount' | 'next_roi_date' | 'account_name' | 'roi_percentage' | 'portfolio_code'>('next_roi_date');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
@@ -2428,6 +2428,7 @@ function ROIPayableDialog({
       else if (sortField === 'roi_percentage') cmp = a.roi_percentage - b.roi_percentage;
       else if (sortField === 'next_roi_date') cmp = new Date(a.next_roi_date).getTime() - new Date(b.next_roi_date).getTime();
       else if (sortField === 'account_name') cmp = (a.account_name || '').localeCompare(b.account_name || '');
+      else if (sortField === 'portfolio_code') cmp = (a.portfolio_code || '').localeCompare(b.portfolio_code || '');
       return sortAsc ? cmp : -cmp;
     });
     return rows;
@@ -2516,6 +2517,7 @@ function ROIPayableDialog({
                 <SelectItem value="next_roi_date" className="text-[11px]">Payout date</SelectItem>
                 <SelectItem value="roi_amount" className="text-[11px]">ROI amount</SelectItem>
                 <SelectItem value="account_name" className="text-[11px]">Funder name</SelectItem>
+                <SelectItem value="portfolio_code" className="text-[11px]">Portfolio code</SelectItem>
                 <SelectItem value="roi_percentage" className="text-[11px]">ROI %</SelectItem>
               </SelectContent>
             </Select>
