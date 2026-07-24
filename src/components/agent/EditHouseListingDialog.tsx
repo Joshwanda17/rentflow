@@ -8,11 +8,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HouseListing, calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, X, AlertTriangle, Video, Check } from 'lucide-react';
+import { Loader2, X, AlertTriangle, Video, Check, User, UserPlus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { parseHouseVideo, normalizeHouseVideoUrl } from '@/lib/houseVideoUrl';
 import { FieldError } from '@/components/shared/FormFeedback';
+import { LandlordSearchSelect, type LandlordOption } from './LandlordSearchSelect';
+import { toUgandaLocalDigits, normalizeUgandaPhone, isValidUgandanPhoneNumber } from '@/lib/phoneUtils';
 
 interface EditHouseListingDialogProps {
   open: boolean;
@@ -38,6 +40,15 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   // Newly captured/selected photos pending upload.
   const [newImages, setNewImages] = useState<HouseImageFile[]>([]);
 
+  // Landlord attachment (search existing or register new). Mirrors the
+  // ListEmptyHouseDialog flow so the same debounced trigram search + duplicate
+  // guard + auto-create fallback is used when the agent edits a listing.
+  const [selectedLandlord, setSelectedLandlord] = useState<LandlordOption | null>(null);
+  const [manualLandlord, setManualLandlord] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualPhone, setManualPhone] = useState('');
+  const [loadingLandlord, setLoadingLandlord] = useState(false);
+
   useEffect(() => {
     if (listing) {
       setTitle(listing.title);
@@ -48,6 +59,25 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
       setVideoUrl(listing.video_url ?? '');
       setExistingUrls(Array.isArray(listing.image_urls) ? listing.image_urls.filter(Boolean) : []);
       setNewImages([]);
+      // Reset landlord state, then hydrate from the currently linked landlord.
+      setSelectedLandlord(null);
+      setManualLandlord(false);
+      setManualName('');
+      setManualPhone('');
+      if (listing.landlord_id) {
+        setLoadingLandlord(true);
+        supabase
+          .from('landlords_directory')
+          .select('id, name, phone, property_address, district, town_council, county, village, verified')
+          .eq('id', listing.landlord_id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setSelectedLandlord(data as LandlordOption);
+          })
+          .then(undefined, () => {})
+          // supabase's PostgrestBuilder doesn't chain .finally in all versions
+          .then(() => setLoadingLandlord(false));
+      }
     }
   }, [listing]);
 
@@ -60,7 +90,13 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const videoTouched = videoUrl !== (listing?.video_url ?? '');
   const totalPhotos = existingUrls.length + newImages.length;
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
-  const canSave = !videoInvalid;
+  const manualPhoneError = manualLandlord
+    ? (manualPhone.trim() ? (isValidUgandanPhoneNumber(manualPhone).valid ? null : 'Enter a valid Ugandan phone number (e.g. 0771234567)') : 'Phone number is required')
+    : null;
+  const manualLandlordReady =
+    manualLandlord && manualName.trim().length >= 2 && !manualPhoneError;
+  const hasLandlord = !!selectedLandlord?.id || manualLandlordReady;
+  const canSave = !videoInvalid && hasLandlord;
 
   const handleSave = async () => {
     if (!title.trim() || !address.trim() || !region.trim() || monthlyRent <= 0) {
@@ -73,6 +109,54 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
     }
     setSaving(true);
     try {
+      // Resolve landlord first — we never want to save a listing without one.
+      let landlordId: string | null = selectedLandlord?.id ?? null;
+      let landlordName: string | null = selectedLandlord?.name ?? null;
+      let landlordPhone: string | null = selectedLandlord?.phone ?? null;
+
+      if (!landlordId && manualLandlord) {
+        const canonicalPhone = toUgandaLocalDigits(manualPhone);
+        const cleanName = manualName.trim();
+        // Duplicate guard — reuse existing landlord if name+phone already exists.
+        const { data: matches } = await supabase.rpc('find_landlord_duplicate', {
+          p_name: cleanName,
+          p_phone: canonicalPhone,
+        });
+        const dup = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
+        if (dup?.id) {
+          landlordId = dup.id;
+          landlordName = (dup as any).name ?? cleanName;
+          landlordPhone = (dup as any).phone ?? canonicalPhone;
+          toast({
+            title: `Linked to existing landlord "${landlordName}"`,
+            description: 'A landlord with these details already existed — reused to avoid a duplicate.',
+          });
+        } else {
+          const { data: newLandlord, error: llErr } = await supabase
+            .from('landlords')
+            .insert({
+              name: cleanName,
+              phone: canonicalPhone,
+              property_address: address.trim() || null,
+              region: region.trim() || null,
+              registered_by: user?.id ?? null,
+              managed_by_agent_id: user?.id ?? null,
+            })
+            .select('id')
+            .single();
+          if (llErr || !newLandlord?.id) {
+            throw new Error(llErr?.message ? `Could not save the landlord: ${llErr.message}` : 'Could not save the landlord.');
+          }
+          landlordId = newLandlord.id;
+          landlordName = cleanName;
+          landlordPhone = canonicalPhone;
+        }
+      }
+
+      if (!landlordId) {
+        throw new Error('Attach a landlord (search an existing one or register a new one) before saving.');
+      }
+
       // Upload any newly added photos and merge with the ones the agent kept.
       let imageUrls = [...existingUrls];
       if (newImages.length && user?.id) {
@@ -92,6 +176,9 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
         monthly_rent: monthlyRent,
         image_urls: imageUrls,
         video_url: normalizeHouseVideoUrl(trimmedVideo) || null,
+        landlord_id: landlordId,
+        landlord_name: landlordName,
+        landlord_phone: landlordPhone ? normalizeUgandaPhone(landlordPhone) : null,
       };
       if (calc) {
         updates.access_fee = calc.accessFee;
@@ -149,6 +236,87 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
           <div className="space-y-1">
             <Label htmlFor="edit-desc">Description (optional)</Label>
             <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+          </div>
+
+          {/* Attach / change landlord — debounced trigram search, or register a new one. */}
+          <div className="space-y-2 pt-1 border-t border-border pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1.5 text-sm">
+                <User className="h-3.5 w-3.5" /> Landlord
+              </Label>
+              {selectedLandlord?.id && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedLandlord(null); setManualLandlord(false); }}
+                  className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  Change
+                </button>
+              )}
+            </div>
+
+            {selectedLandlord?.id ? (
+              <div className="flex items-start gap-2 p-2 rounded-lg border border-border bg-muted/40">
+                <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{selectedLandlord.name}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {selectedLandlord.phone}
+                    {selectedLandlord.verified ? ' · Verified' : ''}
+                  </p>
+                </div>
+              </div>
+            ) : loadingLandlord ? (
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading current landlord…
+              </div>
+            ) : manualLandlord ? (
+              <div className="space-y-2 p-2 rounded-lg border border-dashed border-border">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] text-muted-foreground">Register a new landlord</p>
+                  <button
+                    type="button"
+                    onClick={() => { setManualLandlord(false); setManualName(''); setManualPhone(''); }}
+                    className="text-[11px] text-muted-foreground underline underline-offset-2"
+                  >
+                    Search instead
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-ll-name" className="text-xs">Full name</Label>
+                  <Input id="edit-ll-name" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Landlord name" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-ll-phone" className="text-xs">Phone (Ugandan)</Label>
+                  <Input
+                    id="edit-ll-phone"
+                    value={manualPhone}
+                    onChange={(e) => setManualPhone(e.target.value)}
+                    placeholder="0771234567"
+                    inputMode="tel"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
+                  {manualPhoneError && manualPhone.trim() ? <FieldError message={manualPhoneError} /> : null}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <LandlordSearchSelect
+                  value={selectedLandlord}
+                  onChange={setSelectedLandlord}
+                  inline
+                  onAddNew={() => setManualLandlord(true)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setManualLandlord(true)}
+                  className="inline-flex items-center gap-1 text-[11px] text-primary underline underline-offset-2"
+                >
+                  <UserPlus className="h-3 w-3" /> Register new landlord
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Walkthrough video link (external — YouTube / Google Drive) */}
