@@ -17316,6 +17316,9 @@ export type Database = {
           id: string
           referred_id: string
           referrer_id: string
+          restricted_amount: number
+          unlocked: boolean
+          unlocked_at: string | null
         }
         Insert: {
           bonus_amount?: number
@@ -17328,6 +17331,9 @@ export type Database = {
           id?: string
           referred_id: string
           referrer_id: string
+          restricted_amount?: number
+          unlocked?: boolean
+          unlocked_at?: string | null
         }
         Update: {
           bonus_amount?: number
@@ -17340,6 +17346,9 @@ export type Database = {
           id?: string
           referred_id?: string
           referrer_id?: string
+          restricted_amount?: number
+          unlocked?: boolean
+          unlocked_at?: string | null
         }
         Relationships: [
           {
@@ -26128,6 +26137,19 @@ export type Database = {
       get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
       get_my_ai_id_summary: { Args: never; Returns: Json }
       get_my_listing_block: { Args: never; Returns: Json }
+      get_my_referral_bonuses: {
+        Args: never
+        Returns: {
+          created_at: string
+          progress: Json
+          referral_id: string
+          referred_id: string
+          referred_name: string
+          restricted_amount: number
+          unlocked: boolean
+          unlocked_at: string
+        }[]
+      }
       get_my_subagent_profiles: {
         Args: never
         Returns: {
@@ -26356,6 +26378,7 @@ export type Database = {
         Returns: number
       }
       get_public_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
+      get_referral_progress: { Args: { p_referred_id: string }; Returns: Json }
       get_rent_requests_summary: { Args: never; Returns: Json }
       get_shadow_match_rate: {
         Args: { p_hours?: number }
