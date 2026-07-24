@@ -1594,18 +1594,12 @@ export function LandlordOpsDashboard() {
     }
     setTogglingHide(s => ({ ...s, [listing.id]: true }));
     try {
-      const { error } = await supabase
-        .from('house_listings')
-        .update({ is_hidden: nextHidden })
-        .eq('id', listing.id);
-      if (error) throw error;
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: nextHidden ? 'listing_hidden' : 'listing_unhidden',
-        table_name: 'house_listings',
-        record_id: listing.id,
-        metadata: { reason: trimmed, listing_title: listing.title, hidden_by: 'landlord_ops' },
+      const { error } = await supabase.rpc('toggle_house_listing_visibility', {
+        p_listing_id: listing.id,
+        p_hidden: nextHidden,
+        p_reason: trimmed,
       });
+      if (error) throw error;
       queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
         if (!Array.isArray(old)) return old;
         return old.map(l => l.id === listing.id ? { ...l, is_hidden: nextHidden } : l);
@@ -1616,7 +1610,9 @@ export function LandlordOpsDashboard() {
           ? `${listing.title} is hidden from the tenant dashboard.`
           : `${listing.title} is back on the tenant dashboard.`,
       });
-      refetch();
+      // Optimistic cache patch above already reflects the new state;
+      // skip full refetch — invalidate lazily so the next natural fetch is fresh.
+      queryClient.invalidateQueries({ queryKey: ['exec-house-listings-ops'], refetchType: 'none' });
     } catch (err: any) {
       toast({ title: `Failed to ${action} house`, description: err?.message || 'Please try again.', variant: 'destructive' });
     } finally {
@@ -1672,24 +1668,25 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy(nextHidden ? 'hide' : 'unhide');
-    const results = await runBulk(selected, 6, async (h) => {
-      try {
-        const { error } = await supabase.from('house_listings').update({ is_hidden: nextHidden }).eq('id', h.id);
-        if (error) throw error;
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          action_type: nextHidden ? 'listing_hidden' : 'listing_unhidden',
-          table_name: 'house_listings',
-          record_id: h.id,
-          metadata: { reason: trimmed, listing_title: h.title, hidden_by: 'landlord_ops', bulk: true },
-        });
-        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
-          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, is_hidden: nextHidden } : l) : old);
-        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
-      } catch (err: any) {
-        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
-      }
-    });
+    const ids = selected.map(h => h.id);
+    const titleById = new Map(selected.map(h => [h.id, h.title] as const));
+    let results: Array<{ id: string; title: string; ok: boolean; error?: string }>;
+    try {
+      const { data, error } = await supabase.rpc('bulk_update_house_listing_visibility', {
+        p_listing_ids: ids,
+        p_hidden: nextHidden,
+        p_reason: trimmed,
+      });
+      if (error) throw error;
+      const updatedIds = new Set(((data ?? []) as Array<{ id: string }>).map(r => r.id));
+      results = ids.map(id => updatedIds.has(id)
+        ? { id, title: titleById.get(id) ?? '', ok: true }
+        : { id, title: titleById.get(id) ?? '', ok: false, error: 'Not updated' });
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+        Array.isArray(old) ? old.map(l => updatedIds.has(l.id) ? { ...l, is_hidden: nextHidden } : l) : old);
+    } catch (err: any) {
+      results = ids.map(id => ({ id, title: titleById.get(id) ?? '', ok: false, error: err?.message || 'Unknown error' }));
+    }
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
@@ -1700,7 +1697,7 @@ export function LandlordOpsDashboard() {
       description: nextHidden ? 'Selected houses are off the tenant dashboard.' : 'Selected houses are back on the tenant dashboard.',
       variant: failed === 0 ? undefined : 'destructive',
     });
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ['exec-house-listings-ops'], refetchType: 'none' });
   };
 
   // Verify (credit bonus where unpaid) every selected unverified house.
@@ -1749,23 +1746,31 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy('reject');
-    const results = await runBulk(selected, 6, async (h) => {
-      try {
-        const { data, error } = await supabase.rpc('reject_house_listing', { p_listing_id: h.id, p_reason: trimmed });
-        if (error) throw error;
-        if (data && typeof data === 'object' && 'error' in (data as any)) throw new Error((data as any).error);
-        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
-          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
-        // Web-push only (no SMS) — best effort, never blocks the bulk loop.
+    const ids = selected.map(h => h.id);
+    const titleById = new Map(selected.map(h => [h.id, h.title] as const));
+    let results: Array<{ id: string; title: string; ok: boolean; error?: string }>;
+    try {
+      const { data, error } = await supabase.rpc('bulk_reject_house_listings', {
+        p_listing_ids: ids,
+        p_reason: trimmed,
+      });
+      if (error) throw error;
+      const rejectedIds = new Set(((data ?? []) as Array<{ id: string }>).map(r => r.id));
+      results = ids.map(id => rejectedIds.has(id)
+        ? { id, title: titleById.get(id) ?? '', ok: true }
+        : { id, title: titleById.get(id) ?? '', ok: false, error: 'Not rejected' });
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+        Array.isArray(old) ? old.map(l => rejectedIds.has(l.id) ? { ...l, status: 'rejected' } : l) : old);
+      // Web-push only (no SMS) — fire-and-forget per rejected listing.
+      rejectedIds.forEach(id => {
         invokeEdgeFunction('notify-listing-rejected', {
-          body: { listing_id: h.id, reason: trimmed },
+          body: { listing_id: id, reason: trimmed },
           silent: true,
         }).catch(() => { /* best-effort */ });
-        return { id: h.id, title: h.title, ok: true } as { id: string; title: string; ok: boolean; error?: string };
-      } catch (err: any) {
-        return { id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' };
-      }
-    });
+      });
+    } catch (err: any) {
+      results = ids.map(id => ({ id, title: titleById.get(id) ?? '', ok: false, error: err?.message || 'Unknown error' }));
+    }
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
@@ -1775,7 +1780,7 @@ export function LandlordOpsDashboard() {
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} rejected` : `${ok} rejected, ${failed} failed`,
       variant: failed === 0 ? undefined : 'destructive',
     });
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ['exec-house-listings-ops'], refetchType: 'none' });
   };
 
   // Approve (verify) a pending landlord with an optional inline note.
