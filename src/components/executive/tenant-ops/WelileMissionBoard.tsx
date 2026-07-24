@@ -1613,7 +1613,7 @@ function ROIDetailDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('investor_portfolios')
-        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, next_roi_date, last_roi_date, status, created_at, activated_at, user_id')
+        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, next_roi_date, maturity_date, duration_months, total_roi_earned, payout_day, status, created_at')
         .eq('id', portfolioId!)
         .maybeSingle();
       if (error) throw error;
@@ -1656,8 +1656,9 @@ function ROIDetailDialog({
     },
   });
 
-  const investment = Number(portfolio?.investment_amount ?? line?.investment_amount ?? 0);
-  const roiPct = Number(portfolio?.roi_percentage ?? line?.roi_percentage ?? 0);
+  const p: any = portfolio ?? null;
+  const investment = Number(p?.investment_amount ?? line?.investment_amount ?? 0);
+  const roiPct = Number(p?.roi_percentage ?? line?.roi_percentage ?? 0);
   const payout = investment * roiPct / 100;
   const fmtDate = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString() : '—';
   const fmtDT = (d: string | null | undefined) => d ? new Date(d).toLocaleString() : '—';
@@ -1671,7 +1672,7 @@ function ROIDetailDialog({
             ROI payout detail
           </DialogTitle>
           <p className="text-[11px] text-muted-foreground">
-            {portfolio?.account_name || line?.account_name || 'Funder'} · Portfolio {portfolio?.portfolio_code || line?.portfolio_code}
+            {p?.account_name || line?.account_name || 'Funder'} · Portfolio {p?.portfolio_code || line?.portfolio_code}
           </p>
         </DialogHeader>
 
@@ -1698,19 +1699,27 @@ function ROIDetailDialog({
                     </div>
                     <div className="rounded border border-border/70 p-2">
                       <div className="text-muted-foreground">Current payout date</div>
-                      <div className="font-semibold">{fmtDate(portfolio?.next_roi_date ?? line?.next_roi_date)}</div>
+                      <div className="font-semibold">{fmtDate(p?.next_roi_date ?? line?.next_roi_date)}</div>
                     </div>
                     <div className="rounded border border-border/70 p-2">
-                      <div className="text-muted-foreground">Last payout date</div>
-                      <div className="font-semibold">{fmtDate(portfolio?.last_roi_date)}</div>
+                      <div className="text-muted-foreground">Maturity date</div>
+                      <div className="font-semibold">{fmtDate(p?.maturity_date)}</div>
                     </div>
                     <div className="rounded border border-border/70 p-2">
                       <div className="text-muted-foreground">Status</div>
-                      <div className="font-semibold capitalize">{portfolio?.status ?? '—'}</div>
+                      <div className="font-semibold capitalize">{p?.status ?? '—'}</div>
                     </div>
                     <div className="rounded border border-border/70 p-2">
-                      <div className="text-muted-foreground">Activated</div>
-                      <div className="font-semibold">{fmtDate(portfolio?.activated_at ?? portfolio?.created_at)}</div>
+                      <div className="text-muted-foreground">Created</div>
+                      <div className="font-semibold">{fmtDate(p?.created_at)}</div>
+                    </div>
+                    <div className="rounded border border-border/70 p-2">
+                      <div className="text-muted-foreground">Duration</div>
+                      <div className="font-semibold">{p?.duration_months ?? '—'} months</div>
+                    </div>
+                    <div className="rounded border border-border/70 p-2">
+                      <div className="text-muted-foreground">Total ROI paid</div>
+                      <div className="font-semibold tabular-nums">{formatUGX(Number(p?.total_roi_earned || 0))}</div>
                     </div>
                   </div>
                   <div className="mt-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 flex items-center justify-between gap-2">
