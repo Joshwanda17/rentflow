@@ -8,11 +8,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HouseListing, calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, X, AlertTriangle, Video, Check } from 'lucide-react';
+import { Loader2, X, AlertTriangle, Video, Check, User, UserPlus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { parseHouseVideo, normalizeHouseVideoUrl } from '@/lib/houseVideoUrl';
 import { FieldError } from '@/components/shared/FormFeedback';
+import { LandlordSearchSelect, type LandlordOption } from './LandlordSearchSelect';
+import { toUgandaLocalDigits, normalizeUgandaPhone, validateLandlordPhone } from '@/lib/phoneUtils';
 
 interface EditHouseListingDialogProps {
   open: boolean;
@@ -38,6 +40,15 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   // Newly captured/selected photos pending upload.
   const [newImages, setNewImages] = useState<HouseImageFile[]>([]);
 
+  // Landlord attachment (search existing or register new). Mirrors the
+  // ListEmptyHouseDialog flow so the same debounced trigram search + duplicate
+  // guard + auto-create fallback is used when the agent edits a listing.
+  const [selectedLandlord, setSelectedLandlord] = useState<LandlordOption | null>(null);
+  const [manualLandlord, setManualLandlord] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualPhone, setManualPhone] = useState('');
+  const [loadingLandlord, setLoadingLandlord] = useState(false);
+
   useEffect(() => {
     if (listing) {
       setTitle(listing.title);
@@ -48,6 +59,25 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
       setVideoUrl(listing.video_url ?? '');
       setExistingUrls(Array.isArray(listing.image_urls) ? listing.image_urls.filter(Boolean) : []);
       setNewImages([]);
+      // Reset landlord state, then hydrate from the currently linked landlord.
+      setSelectedLandlord(null);
+      setManualLandlord(false);
+      setManualName('');
+      setManualPhone('');
+      if (listing.landlord_id) {
+        setLoadingLandlord(true);
+        supabase
+          .from('landlords_directory')
+          .select('id, name, phone, property_address, district, town_council, county, village, verified')
+          .eq('id', listing.landlord_id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setSelectedLandlord(data as LandlordOption);
+          })
+          .then(undefined, () => {})
+          // supabase's PostgrestBuilder doesn't chain .finally in all versions
+          .then(() => setLoadingLandlord(false));
+      }
     }
   }, [listing]);
 
@@ -60,7 +90,11 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const videoTouched = videoUrl !== (listing?.video_url ?? '');
   const totalPhotos = existingUrls.length + newImages.length;
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
-  const canSave = !videoInvalid;
+  const manualPhoneError = manualLandlord ? validateLandlordPhone(manualPhone) : null;
+  const manualLandlordReady =
+    manualLandlord && manualName.trim().length >= 2 && !manualPhoneError;
+  const hasLandlord = !!selectedLandlord?.id || manualLandlordReady;
+  const canSave = !videoInvalid && hasLandlord;
 
   const handleSave = async () => {
     if (!title.trim() || !address.trim() || !region.trim() || monthlyRent <= 0) {
@@ -73,6 +107,54 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
     }
     setSaving(true);
     try {
+      // Resolve landlord first — we never want to save a listing without one.
+      let landlordId: string | null = selectedLandlord?.id ?? null;
+      let landlordName: string | null = selectedLandlord?.name ?? null;
+      let landlordPhone: string | null = selectedLandlord?.phone ?? null;
+
+      if (!landlordId && manualLandlord) {
+        const canonicalPhone = toUgandaLocalDigits(manualPhone);
+        const cleanName = manualName.trim();
+        // Duplicate guard — reuse existing landlord if name+phone already exists.
+        const { data: matches } = await supabase.rpc('find_landlord_duplicate', {
+          p_name: cleanName,
+          p_phone: canonicalPhone,
+        });
+        const dup = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
+        if (dup?.id) {
+          landlordId = dup.id;
+          landlordName = (dup as any).name ?? cleanName;
+          landlordPhone = (dup as any).phone ?? canonicalPhone;
+          toast({
+            title: `Linked to existing landlord "${landlordName}"`,
+            description: 'A landlord with these details already existed — reused to avoid a duplicate.',
+          });
+        } else {
+          const { data: newLandlord, error: llErr } = await supabase
+            .from('landlords')
+            .insert({
+              name: cleanName,
+              phone: canonicalPhone,
+              property_address: address.trim() || null,
+              region: region.trim() || null,
+              registered_by: user?.id ?? null,
+              managed_by_agent_id: user?.id ?? null,
+            })
+            .select('id')
+            .single();
+          if (llErr || !newLandlord?.id) {
+            throw new Error(llErr?.message ? `Could not save the landlord: ${llErr.message}` : 'Could not save the landlord.');
+          }
+          landlordId = newLandlord.id;
+          landlordName = cleanName;
+          landlordPhone = canonicalPhone;
+        }
+      }
+
+      if (!landlordId) {
+        throw new Error('Attach a landlord (search an existing one or register a new one) before saving.');
+      }
+
       // Upload any newly added photos and merge with the ones the agent kept.
       let imageUrls = [...existingUrls];
       if (newImages.length && user?.id) {
@@ -92,6 +174,9 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
         monthly_rent: monthlyRent,
         image_urls: imageUrls,
         video_url: normalizeHouseVideoUrl(trimmedVideo) || null,
+        landlord_id: landlordId,
+        landlord_name: landlordName,
+        landlord_phone: landlordPhone ? normalizeUgandaPhone(landlordPhone) : null,
       };
       if (calc) {
         updates.access_fee = calc.accessFee;
