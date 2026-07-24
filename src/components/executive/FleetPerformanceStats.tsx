@@ -398,6 +398,12 @@ async function fetchCollectedByAgent(start: Date, end: Date): Promise<Record<str
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
       .gt('amount', 0)
+      // "Collected" is defined strictly as float allocations produced by
+      // `agent_allocate_tenant_payment` (agent uses operational float to
+      // reduce a tenant's outstanding balance). That RPC stamps
+      // `tracking_id = 'AGT-<txn-group>'`; everything else (legacy cash
+      // captures, ALLOC-*, TPAY-*, WEL-TXN-*) is excluded.
+      .like('tracking_id', 'AGT-%')
       .range(from, from + PAGE - 1);
     if (error) { console.error('[FleetPerformanceStats] agent_collections page failed', error); break; }
     const rows = data || [];
@@ -456,6 +462,8 @@ async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranular
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
       .gt('amount', 0)
+      // Strict float-allocation definition — see fetchCollectedByAgent.
+      .like('tracking_id', 'AGT-%')
       .range(from, from + PAGE - 1);
     if (error) { console.error('[FleetPerformanceStats] bucket agent_collections page failed', error); break; }
     const rows = data || [];
