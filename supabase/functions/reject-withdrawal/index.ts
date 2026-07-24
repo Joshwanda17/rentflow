@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
           await admin.from('notifications').insert({
             user_id: userId,
             title: 'Landlord Payout Returned',
-            message: `A merchant agent could not pay UGX ${Number(wr.amount).toLocaleString()} to the landlord. Reason: ${reason}. The float has been restored — please retry from Landlord Ops.`,
+            message: `A merchant agent could not pay UGX ${Number(wr.amount).toLocaleString()} to the landlord. Reason: ${reason}. Your Landlord Payout Float was not debited — please retry from Landlord Ops.`,
             type: 'financial',
           });
         } catch { /* non-blocking */ }
