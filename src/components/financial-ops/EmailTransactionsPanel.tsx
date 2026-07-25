@@ -3916,6 +3916,31 @@ export function EmailTransactionsPanel() {
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {alertRows.length} total unresolved in this window (awaiting routing or unparsed).
               </p>
+              {unreadArrivalSpan && (
+                <>
+                  <p className="text-[11px] text-orange-800/90 dark:text-orange-300/90 mt-1">
+                    Newest arrived {formatAlertArrival(unreadArrivalSpan.newest)}
+                    {unreadAlertCount > 1 && <> · oldest unread {formatAlertArrival(unreadArrivalSpan.oldest)}</>}
+                  </p>
+                  <ul className="mt-1.5 space-y-0.5">
+                    {unreadArrivalSpan.sorted.slice(0, 3).map((r) => (
+                      <li key={r.id} className="text-[11px] text-muted-foreground flex items-center gap-1.5 min-w-0">
+                        <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                        <span className="font-mono shrink-0">{formatAlertArrival(r)}</span>
+                        <span className="truncate">
+                          — {r.counterparty_name || r.sender || 'Unknown sender'}
+                          {r.amount ? ` · ${formatUGX(Number(r.amount))}` : ''}
+                        </span>
+                      </li>
+                    ))}
+                    {unreadAlertCount > 3 && (
+                      <li className="text-[11px] text-muted-foreground/80">
+                        +{unreadAlertCount - 3} more unread…
+                      </li>
+                    )}
+                  </ul>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
