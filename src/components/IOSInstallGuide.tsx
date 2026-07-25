@@ -168,6 +168,15 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
               </li>
             </ul>
           </div>
+
+          <div className="text-center">
+            <a
+              href="/install-diagnostics"
+              className="text-xs text-primary underline underline-offset-2"
+            >
+              Still not working? Run install diagnostics
+            </a>
+          </div>
         </div>
       </div>
 
