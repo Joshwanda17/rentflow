@@ -3987,6 +3987,15 @@ export function EmailTransactionsPanel() {
               {bulkBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
               Resolve all
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              disabled={!unreadArrivalSpan}
+              onClick={() => unreadArrivalSpan && setAlertDetailsRow(unreadArrivalSpan.newest)}
+            >
+              Open details
+            </Button>
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={markAlertsSeen}>
               Mark all seen
             </Button>
