@@ -1597,13 +1597,20 @@ export function EmailTransactionsPanel() {
    * timestamp). RLS restricts inserts to Financial Ops roles. After the
    * batch lands we refresh the marks map and clear the selection.
    */
-  const applyBulkMark = async (mark: 'credited' | 'uncredited') => {
-    const ids = Array.from(selectedIds);
+  const applyBulkMark = async (
+    mark: 'credited' | 'uncredited',
+    idsOverride?: string[],
+    presetReason?: string,
+  ) => {
+    const ids = idsOverride ?? Array.from(selectedIds);
     if (!ids.length) return;
-    const reason = window.prompt(
-      `Reason for marking ${ids.length} email(s) as ${mark} (logged in audit trail, optional):`,
-      ''
-    );
+    const reason =
+      presetReason !== undefined
+        ? presetReason
+        : window.prompt(
+            `Reason for marking ${ids.length} email(s) as ${mark} (logged in audit trail, optional):`,
+            ''
+          );
     // null = cancelled, '' = proceed without reason
     if (reason === null) return;
     setBulkBusy(true);
@@ -2613,6 +2620,28 @@ export function EmailTransactionsPanel() {
     setAlertsSeenTs(now);
     try { localStorage.setItem(ALERTS_SEEN_KEY, String(now)); } catch { /* ignore */ }
   }, []);
+
+  /**
+   * Bulk triage helpers for unmatched alerts. `selectAllAlertRows` tick-selects
+   * every attention-needing row in the current window (needs routing /
+   * unparsed) so the existing bulk-mark bar can act on them; `resolveAllAlerts`
+   * is the one-tap path that marks them resolved (credited) in a single
+   * append-only batch and acknowledges the unread counter.
+   */
+  const selectAllAlertRows = useCallback(() => {
+    setSelectedIds(new Set(alertRows.map((r) => r.id)));
+  }, [alertRows]);
+
+  const resolveAlertRows = useCallback(async (targets: GmailTx[]) => {
+    const ids = targets.map((r) => r.id);
+    if (!ids.length) return;
+    const ok = window.confirm(
+      `Mark ${ids.length} unmatched alert${ids.length === 1 ? '' : 's'} as resolved? This is logged in the audit trail.`,
+    );
+    if (!ok) return;
+    await applyBulkMark('credited', ids, 'Bulk resolved unmatched alerts from Email Transactions triage');
+    markAlertsSeen();
+  }, [applyBulkMark, markAlertsSeen]);
 
   /**
    * Compute debit metadata for a single row. Reused in filtering, sorting,
@@ -3774,6 +3803,24 @@ export function EmailTransactionsPanel() {
             >
               Review now
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              disabled={bulkBusy || alertRows.length === 0}
+              onClick={() => { selectAllAlertRows(); document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+            >
+              Select all {alertRows.length}
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              disabled={bulkBusy || alertRows.length === 0}
+              onClick={() => resolveAlertRows(alertRows)}
+            >
+              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+              Resolve all
+            </Button>
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={markAlertsSeen}>
               Mark all seen
             </Button>
@@ -4270,7 +4317,23 @@ export function EmailTransactionsPanel() {
                 <div className="text-xs font-medium">
                   <span className="text-primary">{selectedIds.size}</span> selected
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkBusy || alertRows.length === 0}
+                    onClick={selectAllAlertRows}
+                  >
+                    Select unresolved ({alertRows.length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={bulkBusy}
+                    onClick={() => resolveAlertRows(alertRows.filter((r) => selectedIds.has(r.id)))}
+                  >
+                    {bulkBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                    Resolve selected alerts
+                  </Button>
                   <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('credited')}>
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as paid in
                   </Button>
