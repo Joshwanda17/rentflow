@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, Shield, ShieldAlert, UserCheck } from 'lucide-react';
+import { RefreshCw, Shield, ShieldAlert, ShieldOff, UserCheck, Ban } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 
 type Breakdown = {
   path: string;
@@ -48,6 +53,51 @@ const STATUS_COLORS: Record<string, string> = {
 export function SignupSourceLogPanel() {
   const [days, setDays] = useState<number>(7);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [blockIp, setBlockIp] = useState<string | null>(null);
+  const [blockReason, setBlockReason] = useState('');
+  const qc = useQueryClient();
+
+  const blockedIps = useQuery({
+    queryKey: ['blocked-signup-ips'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('blocked_signup_ips' as any)
+        .select('ip, reason, blocked_by_role, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Array<{ ip: string; reason: string; blocked_by_role: string | null; created_at: string }>;
+    },
+    staleTime: 60_000,
+  });
+
+  const blockedSet = new Set((blockedIps.data ?? []).map((b) => b.ip));
+
+  const blockMutation = useMutation({
+    mutationFn: async ({ ip, reason }: { ip: string; reason: string }) => {
+      const { error } = await (supabase as any).rpc('block_signup_ip', { p_ip: ip, p_reason: reason });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('IP blocked from future signups');
+      setBlockIp(null);
+      setBlockReason('');
+      qc.invalidateQueries({ queryKey: ['blocked-signup-ips'] });
+      qc.invalidateQueries({ queryKey: ['signup-attempt-log'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to block IP'),
+  });
+
+  const unblockMutation = useMutation({
+    mutationFn: async (ip: string) => {
+      const { error } = await (supabase as any).rpc('unblock_signup_ip', { p_ip: ip });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('IP unblocked');
+      qc.invalidateQueries({ queryKey: ['blocked-signup-ips'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to unblock IP'),
+  });
 
   const breakdown = useQuery({
     queryKey: ['signup-source-breakdown', days],
@@ -204,6 +254,7 @@ export function SignupSourceLogPanel() {
                 <TableHead>Device</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Reason</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -225,15 +276,112 @@ export function SignupSourceLogPanel() {
                     {r.actor_role && <div className="text-[10px] text-muted-foreground mt-0.5">by {r.actor_role}</div>}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate">{r.reason || (r.user_id ? '✓ account created' : '')}</TableCell>
+                  <TableCell className="text-right">
+                    {r.ip ? (
+                      blockedSet.has(r.ip) ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => unblockMutation.mutate(r.ip!)}
+                          disabled={unblockMutation.isPending}
+                        >
+                          <ShieldOff className="h-3.5 w-3.5 mr-1" /> Unblock
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => { setBlockIp(r.ip); setBlockReason(''); }}
+                        >
+                          <Ban className="h-3.5 w-3.5 mr-1" /> Block IP
+                        </Button>
+                      )
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {(!log.data || log.data.length === 0) && !log.isLoading && (
-                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">No entries.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">No entries.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {(blockedIps.data?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Ban className="h-4 w-4 text-destructive" /> Blocked IPs ({blockedIps.data?.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>IP</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Blocked by</TableHead>
+                  <TableHead>When</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(blockedIps.data ?? []).map((b) => (
+                  <TableRow key={b.ip}>
+                    <TableCell className="font-mono text-xs">{b.ip}</TableCell>
+                    <TableCell className="text-xs">{b.reason}</TableCell>
+                    <TableCell className="text-xs">{b.blocked_by_role || '—'}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(b.created_at), 'MMM d, HH:mm')}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => unblockMutation.mutate(b.ip)}
+                        disabled={unblockMutation.isPending}
+                      >
+                        <ShieldOff className="h-3.5 w-3.5 mr-1" /> Unblock
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={!!blockIp} onOpenChange={(o) => { if (!o) { setBlockIp(null); setBlockReason(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Block IP address</DialogTitle>
+            <DialogDescription>
+              Signups from <span className="font-mono">{blockIp}</span> will be refused. Existing sessions are not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Reason (min 5 chars, required)</label>
+            <Textarea
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              placeholder="e.g. Bot-farming account creation from this IP on 2026-07-25"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setBlockIp(null); setBlockReason(''); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={blockReason.trim().length < 5 || blockMutation.isPending}
+              onClick={() => blockIp && blockMutation.mutate({ ip: blockIp, reason: blockReason.trim() })}
+            >
+              <Ban className="h-4 w-4 mr-1" /> Block IP
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
