@@ -6287,7 +6287,21 @@ export function EmailTransactionsPanel() {
 
       <RouteEmailDepositDialog
         open={!!routingRow}
-        onOpenChange={(o) => { if (!o) { setRoutingRow(null); setRoutingSuggestedUser(null); } }}
+        onOpenChange={(o) => {
+          if (o) return;
+          setRoutingRow(null);
+          setRoutingSuggestedUser(null);
+          // Batch mode: advance to the next selected row automatically.
+          if (routeQueue.length) {
+            const [nextId, ...rest] = routeQueue;
+            const nextRow = rows.find((r) => r.id === nextId);
+            setRouteQueue(rest);
+            if (nextRow) {
+              setTimeout(() => navigateToRow(nextRow, nextRow.direction === 'in' ? 'credit' : 'debit'), 200);
+              sonnerToast(`Next selected row (${rest.length} left after this)`);
+            }
+          }
+        }}
         row={routingRow as EmailRowForRouting | null}
         suggestedUser={routingSuggestedUser}
         mode={routingMode}
