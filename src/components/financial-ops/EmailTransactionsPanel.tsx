@@ -7194,6 +7194,43 @@ type ExportPayload = {
 };
 
 type ZoomWindowDay = { date: string; in: number; out: number; net: number };
+
+/**
+ * One-tap audit export: dumps the CURRENTLY FILTERED rows (one line per email)
+ * rather than the aggregated totals. Built for mobile ops/audit hand-offs.
+ */
+function exportFilteredRowsCsv(
+  rows: GmailTx[],
+  statusOf: (r: GmailTx) => string,
+): number {
+  const stamp = format(new Date(), 'yyyy-MM-dd_HHmm');
+  const headers = [
+    'Date (ISO)', 'Status', 'Direction', 'Channel', 'Amount (UGX)', 'Fee (UGX)',
+    'Balance (UGX)', 'Transaction ID', 'Counterparty', 'Sender name', 'Sender email',
+    'Subject', 'Parsed', 'Linked deposit request', 'Auto matched at', 'Gmail message ID',
+  ];
+  const body = rows.map((r) => [
+    csvTimestamp(r.internal_date),
+    statusOf(r),
+    r.direction ?? '',
+    r.channel ?? '',
+    r.amount === null || r.amount === undefined ? '' : Math.round(Number(r.amount)),
+    r.fee === null || r.fee === undefined ? '' : Math.round(Number(r.fee)),
+    r.balance === null || r.balance === undefined ? '' : Math.round(Number(r.balance)),
+    r.transaction_id ?? '',
+    r.counterparty ?? '',
+    r.from_name ?? '',
+    r.from_email ?? '',
+    (r.subject ?? '').replace(/\s+/g, ' ').trim(),
+    r.parsed ? 'yes' : 'no',
+    r.linked_deposit_request_id ?? '',
+    csvTimestamp(r.auto_matched_at),
+    r.gmail_message_id ?? '',
+  ]);
+  downloadCsv(`email-transactions-filtered_${stamp}.csv`, headers, body);
+  return body.length;
+}
+
 type ZoomWindowPayload = {
   days: ZoomWindowDay[];
   totalIn: number;
