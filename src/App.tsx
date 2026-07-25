@@ -518,6 +518,7 @@ function AppRoutes() {
           <Route path="/vendor-portal" element={<VendorPortal />} />
           <Route path="/deposits-management" element={<DepositsManagement />} />
           <Route path="/install" element={<Install />} />
+          <Route path="/install-diagnostics" element={<InstallDiagnostics />} />
           <Route path="/support-report/:token" element={<SupportReport />} />
           <Route path="/activate-supporter" element={<ActivateSupporter />} />
           {/* Chat feature removed */}
