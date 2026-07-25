@@ -6095,28 +6095,73 @@ export function EmailTransactionsPanel() {
 
       <DedupAuditPanel />
 
-      <AlertDialog open={!!pendingSwipe} onOpenChange={(o) => { if (!o) setPendingSwipe(null); }}>
+      <AlertDialog open={!!pendingSwipe} onOpenChange={(o) => { if (!o) { setPendingSwipe(null); setSwipeAck(false); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingSwipe?.mode === 'credit' ? 'Send to wallet?' : 'Charge wallet?'}
+              {pendingSwipe?.mode === 'credit'
+                ? 'Send to wallet?'
+                : pendingSwipe?.mode === 'debit'
+                  ? 'Charge wallet?'
+                  : 'Mark as resolved?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingSwipe?.mode === 'credit'
                 ? `Route this deposit of ${fmtUgx(Number(pendingSwipe?.row.amount ?? 0))} to a user's wallet.`
-                : `Charge ${fmtUgx(Number(pendingSwipe?.row.amount ?? 0))} to a user's wallet for this payout.`}
-              {' '}You'll confirm the recipient and details on the next screen.
+                : pendingSwipe?.mode === 'debit'
+                  ? `Charge ${fmtUgx(Number(pendingSwipe?.row.amount ?? 0))} to a user's wallet for this payout. This reduces their balance.`
+                  : 'This writes an audit mark saying the money is accounted for. It does not move any funds.'}
+              {pendingSwipe && pendingSwipe.mode !== 'resolve'
+                ? " You'll confirm the recipient and details on the next screen."
+                : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {pendingSwipe && (
+            <div className="rounded-md border bg-muted/40 p-2 text-xs space-y-1">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="font-semibold tabular-nums">{fmtUgx(Number(pendingSwipe.row.amount ?? 0))}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Counterparty</span>
+                <span className="font-medium text-right">{pendingSwipe.row.counterparty || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Transaction ID</span>
+                <span className="font-mono text-right">{pendingSwipe.row.transaction_id || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Direction</span>
+                <span className="font-medium">{pendingSwipe.row.direction === 'in' ? 'Money in' : 'Money out'}</span>
+              </div>
+            </div>
+          )}
+          {pendingSwipe?.mode === 'debit' && (
+            <label className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs cursor-pointer">
+              <Checkbox checked={swipeAck} onCheckedChange={(v) => setSwipeAck(!!v)} className="mt-0.5" />
+              <span>
+                I confirm this payout of {fmtUgx(Number(pendingSwipe.row.amount ?? 0))} should be charged to a user's wallet.
+              </span>
+            </label>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              disabled={pendingSwipe?.mode === 'debit' && !swipeAck}
               onClick={() => {
-                if (pendingSwipe) swipeNavigate(pendingSwipe.row, pendingSwipe.mode);
+                if (pendingSwipe) {
+                  if (pendingSwipe.mode === 'resolve') void markRowResolved(pendingSwipe.row, 'credited');
+                  else swipeNavigate(pendingSwipe.row, pendingSwipe.mode);
+                }
                 setPendingSwipe(null);
+                setSwipeAck(false);
               }}
             >
-              {pendingSwipe?.mode === 'credit' ? 'Send to wallet' : 'Charge wallet'}
+              {pendingSwipe?.mode === 'credit'
+                ? 'Send to wallet'
+                : pendingSwipe?.mode === 'debit'
+                  ? 'Charge wallet'
+                  : 'Mark resolved'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
