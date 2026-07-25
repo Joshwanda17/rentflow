@@ -27,7 +27,7 @@ export interface AgentListingCampaign {
  * Reads real current-week data (invited sub-agents, activated sub-agents,
  * verified houses, commission + bonus earned) from the backend RPC.
  *
- * When the agent has met the full target and the UGX 70,000 bonus has not yet
+ * When the agent has met the full target and the UGX 40,000 bonus has not yet
  * been awarded, it self-awards once (idempotent server-side) and refetches.
  */
 export function useAgentListingCampaign(agentId?: string) {
