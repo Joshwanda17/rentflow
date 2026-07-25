@@ -2713,6 +2713,58 @@ export function EmailTransactionsPanel() {
         </div>
       </div>
 
+      {/* Mobile fast-search — sits at the very top of the page (sticky) so ops
+          can find a transaction by reference / TID / amount / sender name or
+          phone without scrolling past the summary cards. Bound to the same
+          `searchQuery` state as the full search bar in the list card, so the
+          two always stay in sync. */}
+      <div className="sm:hidden sticky top-0 z-20 -mx-1 px-1 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b space-y-2">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.currentTarget.blur();
+                document
+                  .getElementById('email-tx-results')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }}
+            placeholder="Search reference, TID, amount or sender…"
+            aria-label="Quick search email transactions"
+            className="h-11 w-full rounded-full border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
+              aria-label="Clear quick search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {searchActive && (
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .getElementById('email-tx-results')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+            className="w-full rounded-lg bg-primary/10 text-primary text-xs font-semibold py-2"
+          >
+            {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'} — tap to view results
+          </button>
+        )}
+      </div>
+
       {/* Date-range selector — recomputes totals/breakdown/exports for the chosen period. */}
       <div className="sm:hidden flex items-center justify-between gap-2">
         <Button
@@ -3512,7 +3564,7 @@ export function EmailTransactionsPanel() {
         </div>
       )}
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
             the body / subject. Sticky on scroll so it's always reachable. */}
