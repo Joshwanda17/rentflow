@@ -5956,12 +5956,12 @@ export function EmailTransactionsPanel() {
           const from = total === 0 ? 0 : isInfinite ? 1 : (safePage - 1) * pageSize + 1;
           const to = isInfinite ? shownCount : Math.min(safePage * pageSize, total);
           return (
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20 text-xs">
+            <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 text-xs">
               <div className="text-muted-foreground tabular-nums">
                 Showing <span className="font-medium text-foreground">{from.toLocaleString()}–{to.toLocaleString()}</span> of{' '}
                 <span className="font-medium text-foreground">{total.toLocaleString()}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -5981,24 +5981,24 @@ export function EmailTransactionsPanel() {
                 </select>
                 {isInfinite ? (
                   to < total ? (
-                    <Button size="sm" variant="outline" className="h-7 px-2"
+                    <Button size="sm" variant="outline" className="h-8 px-3"
                       onClick={() => setInfiniteCount((c) => Math.min(c + pageSize, total))}>
-                      Load more
+                      Load {Math.min(pageSize, total - to)} more
                     </Button>
                   ) : (
                     <span className="text-muted-foreground px-1">All loaded</span>
                   )
                 ) : (
                   <>
-                    <Button size="sm" variant="outline" className="h-7 px-2"
-                      onClick={() => setCurrentPage(1)} disabled={safePage <= 1}>« First</Button>
-                    <Button size="sm" variant="outline" className="h-7 px-2"
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>‹ Prev</Button>
+                    <Button size="sm" variant="outline" className="h-8 px-2 hidden sm:inline-flex"
+                      onClick={() => goToPage(1)} disabled={safePage <= 1}>« First</Button>
+                    <Button size="sm" variant="outline" className="h-8 px-3"
+                      onClick={() => goToPage(Math.max(1, safePage - 1))} disabled={safePage <= 1}>‹ Prev</Button>
                     <span className="tabular-nums text-muted-foreground px-1">Page {safePage} / {totalPages}</span>
-                    <Button size="sm" variant="outline" className="h-7 px-2"
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>Next ›</Button>
-                    <Button size="sm" variant="outline" className="h-7 px-2"
-                      onClick={() => setCurrentPage(totalPages)} disabled={safePage >= totalPages}>Last »</Button>
+                    <Button size="sm" variant="outline" className="h-8 px-3"
+                      onClick={() => goToPage(Math.min(totalPages, safePage + 1))} disabled={safePage >= totalPages}>Next ›</Button>
+                    <Button size="sm" variant="outline" className="h-8 px-2 hidden sm:inline-flex"
+                      onClick={() => goToPage(totalPages)} disabled={safePage >= totalPages}>Last »</Button>
                   </>
                 )}
               </div>
