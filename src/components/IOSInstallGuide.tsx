@@ -1,7 +1,7 @@
 import { X, Square, ArrowDown, Plus } from 'lucide-react';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { getIOSInstallInstructions, isChromeIOS, isFirefoxIOS, isIOSInAppBrowser } from '@/hooks/useIOSCompatibility';
+import { isChromeIOS, isFirefoxIOS, isIOSInAppBrowser } from '@/hooks/useIOSCompatibility';
 import { trackInstallEvent } from '@/lib/installTracking';
 import OpenInSafariCard from '@/components/OpenInSafariCard';
 
@@ -10,7 +10,6 @@ interface IOSInstallGuideProps {
 }
 
 export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
-  const { needsSafari, message } = getIOSInstallInstructions();
   const inApp = isIOSInAppBrowser();
   const isOtherBrowser = isChromeIOS() || isFirefoxIOS();
   const needsSafariRedirect = inApp || isOtherBrowser;
