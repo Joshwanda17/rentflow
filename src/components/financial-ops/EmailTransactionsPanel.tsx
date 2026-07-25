@@ -10,7 +10,7 @@ import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } 
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
 import { Info } from 'lucide-react';
-import { Wrench } from 'lucide-react';
+import { Wrench, Clock } from 'lucide-react';
 import { SlidersHorizontal } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -3928,8 +3928,8 @@ export function EmailTransactionsPanel() {
                         <Clock className="h-3 w-3 shrink-0" aria-hidden />
                         <span className="font-mono shrink-0">{formatAlertArrival(r)}</span>
                         <span className="truncate">
-                          — {r.counterparty_name || r.sender || 'Unknown sender'}
-                          {r.amount ? ` · ${formatUGX(Number(r.amount))}` : ''}
+                          — {r.counterparty || r.from_name || r.from_email || 'Unknown sender'}
+                          {r.amount ? ` · UGX ${Number(r.amount).toLocaleString()}` : ''}
                         </span>
                       </li>
                     ))}
