@@ -4,6 +4,7 @@ import { Download, X, Share, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { toast } from 'sonner';
+import { trackInstallEvent } from '@/lib/installTracking';
 
 const IOSInstallGuide = lazy(() => import('@/components/IOSInstallGuide'));
 
@@ -27,27 +28,42 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
     if (isInstalled) setDismissed(true);
   }, [isInstalled]);
 
+  // Log card impression once per mount when visible.
+  useEffect(() => {
+    if (isInstalled || dismissed || !canShow) return;
+    trackInstallEvent('install_card_shown', { isIOS, hasPrompt });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleDismiss = () => {
     sessionStorage.setItem(SESSION_KEY, '1');
     setDismissed(true);
+    trackInstallEvent('install_card_dismissed', { isIOS });
   };
 
   const handleInstall = async () => {
+    trackInstallEvent('install_cta_clicked', { isIOS, hasPrompt });
     if (isIOS) {
       // Open the full guide (with in-app-browser detection + copy link).
       // A toast alone is not enough — most iPhone install failures are users
       // opening the link from WhatsApp/Facebook/Instagram in-app browsers.
       setShowIOSGuide(true);
+      trackInstallEvent('ios_guide_opened', { source: 'install_card' });
       return;
     }
     if (!hasPrompt || isInstalling) return;
 
     setIsInstalling(true);
+    trackInstallEvent('native_prompt_shown');
     try {
       const accepted = await promptInstall();
       if (accepted) {
+        trackInstallEvent('native_prompt_accepted');
+        trackInstallEvent('app_installed');
         toast.success('App installed successfully!');
         handleDismiss();
+      } else {
+        trackInstallEvent('native_prompt_dismissed');
       }
       // If dismissed in native prompt, leave the card so user can retry
     } catch {
