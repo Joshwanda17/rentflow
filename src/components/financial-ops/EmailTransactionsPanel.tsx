@@ -626,7 +626,10 @@ export function EmailTransactionsPanel() {
   const [paginationMode, setPaginationMode] = useState<PaginationMode>(() => {
     if (typeof window === 'undefined') return 'paged';
     const v = localStorage.getItem('gmail_pagination_mode');
-    return v === 'infinite' ? 'infinite' : 'paged';
+    if (v === 'infinite' || v === 'paged') return v;
+    // First run: phones default to smooth infinite scroll (no tiny pager taps),
+    // desktop keeps the classic pager.
+    return window.matchMedia?.('(max-width: 639px)').matches ? 'infinite' : 'paged';
   });
   useEffect(() => { try { localStorage.setItem('gmail_pagination_mode', paginationMode); } catch {} }, [paginationMode]);
   // How many rows are currently rendered in infinite-scroll mode. Starts at one
