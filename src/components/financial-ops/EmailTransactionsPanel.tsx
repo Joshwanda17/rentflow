@@ -3930,13 +3930,21 @@ export function EmailTransactionsPanel() {
                   </p>
                   <ul className="mt-1.5 space-y-0.5">
                     {unreadArrivalSpan.sorted.slice(0, 3).map((r) => (
-                      <li key={r.id} className="text-[11px] text-muted-foreground flex items-center gap-1.5 min-w-0">
-                        <Clock className="h-3 w-3 shrink-0" aria-hidden />
-                        <span className="font-mono shrink-0">{formatAlertArrival(r)}</span>
-                        <span className="truncate">
-                          — {r.counterparty || r.from_name || r.from_email || 'Unknown sender'}
-                          {r.amount ? ` · UGX ${Number(r.amount).toLocaleString()}` : ''}
-                        </span>
+                      <li key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => setAlertDetailsRow(r)}
+                          className="w-full text-left text-[11px] text-muted-foreground flex items-center gap-1.5 min-w-0 rounded px-1 py-0.5 hover:bg-orange-500/10 hover:text-foreground transition-colors"
+                          aria-label="Open alert details"
+                        >
+                          <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                          <span className="font-mono shrink-0">{formatAlertArrival(r)}</span>
+                          <span className="truncate">
+                            — {r.counterparty || r.from_name || r.from_email || 'Unknown sender'}
+                            {r.amount ? ` · UGX ${Number(r.amount).toLocaleString()}` : ''}
+                          </span>
+                          <ArrowRight className="h-3 w-3 shrink-0 ml-auto" aria-hidden />
+                        </button>
                       </li>
                     ))}
                     {unreadAlertCount > 3 && (
