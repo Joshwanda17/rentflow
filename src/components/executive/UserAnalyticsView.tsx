@@ -292,14 +292,18 @@ export function UserAnalyticsView() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPICard title="Total Users" value={(totals?.allUsers ?? 0).toLocaleString()} icon={Users} />
+        <KPICard title="Total Users" value={(totals?.allUsers ?? 0).toLocaleString()} icon={Users}
+          onClick={() => openDrill({ kind: 'total_users' })} />
         <KPICard title="New Signups" value={(totals?.signups ?? 0).toLocaleString()} icon={UserPlus}
-          color="bg-green-500/10 text-green-600" subtitle="in range" />
+          color="bg-green-500/10 text-green-600" subtitle="in range · click to view"
+          onClick={() => openDrill({ kind: 'signups', start: startISO, end: endISO })} />
         <KPICard title="Active User-Days" value={totalActive.toLocaleString()} icon={Activity}
-          color="bg-blue-500/10 text-blue-600" subtitle="unique/day, summed" />
+          color="bg-blue-500/10 text-blue-600" subtitle="click for distinct users"
+          onClick={() => openDrill({ kind: 'dau', start: startISO, end: endISO })} />
         <KPICard title="Login Success" value={`${loginRate}%`} icon={LogIn}
           color="bg-amber-500/10 text-amber-600"
-          subtitle={`${totals?.loginSuccess ?? 0}/${totals?.loginAttempts ?? 0}`} />
+          subtitle={`${totals?.loginSuccess ?? 0}/${totals?.loginAttempts ?? 0} · click for users`}
+          onClick={() => openDrill({ kind: 'login_success', start: startISO, end: endISO })} />
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-4">
@@ -342,12 +346,17 @@ export function UserAnalyticsView() {
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-sm font-semibold mb-3">Users by Role</h3>
+        <h3 className="text-sm font-semibold mb-3">Users by Role <span className="text-[10px] font-normal text-muted-foreground">(click a role to view)</span></h3>
         <div className="space-y-2">
           {(roleDist || []).map((r) => {
             const max = roleDist?.[0]?.count || 1;
             return (
-              <div key={r.role}>
+              <button
+                key={r.role}
+                type="button"
+                onClick={() => openDrill({ kind: 'role', role: r.role })}
+                className="w-full text-left rounded-md px-1 py-1 -mx-1 hover:bg-muted/40 transition-colors"
+              >
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className="font-medium capitalize">{r.role.replace(/_/g, ' ')}</span>
                   <span className="text-muted-foreground">{r.count.toLocaleString()}</span>
@@ -356,7 +365,7 @@ export function UserAnalyticsView() {
                   <div className="h-full rounded-full bg-primary"
                     style={{ width: `${(r.count / max) * 100}%` }} />
                 </div>
-              </div>
+              </button>
             );
           })}
           {(!roleDist || roleDist.length === 0) && (
@@ -368,6 +377,12 @@ export function UserAnalyticsView() {
       {(loadingSignups || loadingActive) && (
         <p className="text-xs text-muted-foreground text-center">Loading analytics…</p>
       )}
+
+      <UserAnalyticsDrilldown
+        open={!!drillScope}
+        onOpenChange={(v) => { if (!v) setDrillScope(null); }}
+        scope={drillScope}
+      />
     </div>
   );
 }
