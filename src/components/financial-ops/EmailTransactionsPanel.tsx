@@ -717,6 +717,99 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_sort_mode', sortMode); } catch {} }, [sortMode]);
 
+  // ---- Filter presets -------------------------------------------------------
+  // Operators triage the same handful of views all day (e.g. "Needs routing
+  // today", "Big money out"). A preset snapshots every filter/sort control so a
+  // single tap on mobile restores the whole view. Stored in localStorage.
+  type FilterPreset = {
+    id: string;
+    name: string;
+    searchQuery: string;
+    phoneQuery: string;
+    directionFilter: DirectionFilter;
+    matchFilter: MatchFilter;
+    needsRoutingOnly: boolean;
+    debitFilter: DebitFilter;
+    debitSort: DebitSort;
+    statusFilter: StatusFilter;
+    sortMode: SortMode;
+  };
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem('gmail_filter_presets');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? (parsed as FilterPreset[]) : [];
+    } catch { return []; }
+  });
+  const [activePresetId, setActivePresetId] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : localStorage.getItem('gmail_filter_preset_active')
+  );
+  const [presetNameDraft, setPresetNameDraft] = useState('');
+  const [presetSaveOpen, setPresetSaveOpen] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem('gmail_filter_presets', JSON.stringify(filterPresets)); } catch {}
+  }, [filterPresets]);
+  useEffect(() => {
+    try {
+      if (activePresetId) localStorage.setItem('gmail_filter_preset_active', activePresetId);
+      else localStorage.removeItem('gmail_filter_preset_active');
+    } catch {}
+  }, [activePresetId]);
+
+  const currentPresetSnapshot = useCallback((): Omit<FilterPreset, 'id' | 'name'> => ({
+    searchQuery, phoneQuery, directionFilter, matchFilter, needsRoutingOnly,
+    debitFilter, debitSort, statusFilter, sortMode,
+  }), [searchQuery, phoneQuery, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter, sortMode]);
+
+  const savePreset = useCallback(() => {
+    const name = presetNameDraft.trim();
+    if (!name) return;
+    const snap = currentPresetSnapshot();
+    setFilterPresets((prev) => {
+      const existing = prev.find((p) => p.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        setActivePresetId(existing.id);
+        return prev.map((p) => (p.id === existing.id ? { ...p, ...snap, name } : p));
+      }
+      const id = `p_${Date.now().toString(36)}`;
+      setActivePresetId(id);
+      return [...prev, { id, name, ...snap }].slice(-12);
+    });
+    setPresetNameDraft('');
+    setPresetSaveOpen(false);
+    sonnerToast.success(`Preset "${name}" saved`);
+  }, [presetNameDraft, currentPresetSnapshot]);
+
+  const applyPreset = useCallback((p: FilterPreset) => {
+    setSearchQuery(p.searchQuery ?? '');
+    setPhoneQuery(p.phoneQuery ?? '');
+    setDirectionFilter(p.directionFilter ?? 'all');
+    setMatchFilter(p.matchFilter ?? 'all');
+    setNeedsRoutingOnly(Boolean(p.needsRoutingOnly));
+    setDebitFilter(p.debitFilter ?? 'all');
+    setDebitSort(p.debitSort ?? 'none');
+    setStatusFilter(p.statusFilter ?? 'all');
+    setSortMode(p.sortMode ?? 'newest');
+    setActivePresetId(p.id);
+    try { (navigator as any).vibrate?.(10); } catch {}
+  }, []);
+
+  const deletePreset = useCallback((id: string) => {
+    setFilterPresets((prev) => prev.filter((p) => p.id !== id));
+    setActivePresetId((cur) => (cur === id ? null : cur));
+  }, []);
+
+  // A preset stops being "active" as soon as the operator tweaks a control.
+  useEffect(() => {
+    if (!activePresetId) return;
+    const p = filterPresets.find((x) => x.id === activePresetId);
+    if (!p) return;
+    const snap = currentPresetSnapshot();
+    const same = (Object.keys(snap) as Array<keyof typeof snap>).every((k) => (p as any)[k] === snap[k]);
+    if (!same) setActivePresetId(null);
+  }, [activePresetId, filterPresets, currentPresetSnapshot]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
   useEffect(() => {
     setCurrentPage(1);
@@ -3872,6 +3965,64 @@ export function EmailTransactionsPanel() {
               className={`h-4 w-4 transition-transform ${chipFiltersOpen ? 'rotate-180' : ''}`}
             />
           </button>
+          {/* Saved filter presets — one-tap switching between saved views.
+              Always visible (mobile-first) so operators never have to expand the
+              chip groups to restore a triage view. */}
+          <div className="mt-2 sm:mt-0 sm:mb-3">
+            <div className="flex items-center gap-1 overflow-x-auto pb-1" role="group" aria-label="Saved filter presets">
+              <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground pr-1">Views</span>
+              {filterPresets.length === 0 && (
+                <span className="shrink-0 text-[11px] text-muted-foreground">None saved yet</span>
+              )}
+              {filterPresets.map((p) => {
+                const active = activePresetId === p.id;
+                return (
+                  <span
+                    key={p.id}
+                    className={`shrink-0 inline-flex items-center gap-1 rounded-full border pl-2.5 pr-1 py-1 text-[11px] transition-colors ${
+                      active
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                    }`}
+                  >
+                    <button type="button" onClick={() => applyPreset(p)} aria-pressed={active} className="max-w-[120px] truncate">
+                      {p.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deletePreset(p.id)}
+                      aria-label={`Delete preset ${p.name}`}
+                      className="opacity-70 hover:opacity-100 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setPresetSaveOpen((v) => !v)}
+                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+              >
+                <Star className="h-3 w-3" /> Save view
+              </button>
+            </div>
+            {presetSaveOpen && (
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  value={presetNameDraft}
+                  onChange={(e) => setPresetNameDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') savePreset(); }}
+                  placeholder="Name this view (e.g. Needs routing)"
+                  className="h-8 text-xs"
+                  aria-label="Preset name"
+                />
+                <Button size="sm" className="h-8 text-xs" onClick={savePreset} disabled={!presetNameDraft.trim()}>
+                  Save
+                </Button>
+              </div>
+            )}
+          </div>
           <div
             className={`${chipFiltersOpen ? 'flex' : 'hidden sm:flex'} mt-2 sm:mt-0 flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 sm:gap-3`}
           >
