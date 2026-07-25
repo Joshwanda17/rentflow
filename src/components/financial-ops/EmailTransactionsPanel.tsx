@@ -950,16 +950,6 @@ export function EmailTransactionsPanel() {
   // Mobile-only collapse for the status / debit / sort chip groups. Keeps the
   // email list within reach on a phone instead of six wrapped chip rows.
   const [chipFiltersOpen, setChipFiltersOpen] = useState(false);
-  // Rows whose full-detail (receipt + matching reasons) panel is expanded.
-  // Keeps each row compact on a phone; one tap reveals everything.
-  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set());
-  const toggleRowExpanded = useCallback((id: string) => {
-    setExpandedRowIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
   // Selected zoom window on the In-vs-Out daily chart (Brush start/end indices).
   // null = full range. Drives the summary card above the chart.
