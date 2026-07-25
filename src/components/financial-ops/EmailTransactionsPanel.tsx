@@ -4049,9 +4049,70 @@ export function EmailTransactionsPanel() {
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={markAlertsSeen}>
               Mark all seen
             </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAlertSettingsOpen(true)}>
+              <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Alert settings
+            </Button>
           </div>
         </div>
       )}
+
+      {/* Alert notification settings — which alert types count toward badges and
+          whether new arrivals raise an in-app prompt. Stored per browser. */}
+      <Dialog open={alertSettingsOpen} onOpenChange={setAlertSettingsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" /> Alert notification settings
+            </DialogTitle>
+            <DialogDescription>
+              Choose which email alert types show unread badges and trigger in-app prompts.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.needsRouting}
+                onCheckedChange={(v) => updateAlertPrefs({ needsRouting: !!v })}
+              />
+              <span className="text-sm">
+                Awaiting routing
+                <span className="block text-[11px] text-muted-foreground">
+                  Parsed emails not yet routed to a wallet or deposit.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.unparsed}
+                onCheckedChange={(v) => updateAlertPrefs({ unparsed: !!v })}
+              />
+              <span className="text-sm">
+                Unparsed emails
+                <span className="block text-[11px] text-muted-foreground">
+                  Messages the reader could not extract amount / TID from.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.toastPrompt}
+                onCheckedChange={(v) => updateAlertPrefs({ toastPrompt: !!v })}
+              />
+              <span className="text-sm">
+                In-app prompts
+                <span className="block text-[11px] text-muted-foreground">
+                  Pop a toast with a "Review" shortcut when new alerts arrive.
+                </span>
+              </span>
+            </label>
+            {!alertPrefs.needsRouting && !alertPrefs.unparsed && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                All alert types are off — no badges or prompts will show.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
