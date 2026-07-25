@@ -224,6 +224,14 @@ export function isIOSInAppBrowser() {
   return /FBAN|FBAV|Instagram|Line\/|MicroMessenger|Twitter|LinkedInApp|WhatsApp|musical_ly|BytedanceWebview|Snapchat|Telegram/i.test(ua);
 }
 
+// Detect the WhatsApp in-app browser specifically. On iPhone this is the
+// single most common source of failed installs — the WhatsApp WebView does
+// NOT expose "Add to Home Screen" in its Share sheet, so users must first
+// hop out to Safari via the ⋯ menu.
+export function isWhatsAppIOS() {
+  return /WhatsApp/i.test(navigator.userAgent || '');
+}
+
 // Get the best browser for PWA installation on iOS
 export function getIOSInstallInstructions() {
   if (isIOSInAppBrowser()) {
