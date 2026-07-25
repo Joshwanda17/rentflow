@@ -387,6 +387,8 @@ export function UserAnalyticsView() {
       />
 
       <RetentionCohortView />
+
+      <AnalyticsExportJobsPanel start={start} end={end} rangeLabel={rangeLabel} />
     </div>
   );
 }
