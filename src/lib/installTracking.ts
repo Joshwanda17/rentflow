@@ -90,7 +90,7 @@ export async function trackInstallEvent(
       ios_version: detectIosVersion(),
       user_agent: navigator.userAgent,
       url: window.location.href,
-      metadata,
+      metadata: metadata as never,
     };
 
     await supabase.from('install_attempt_events').insert([payload]);
