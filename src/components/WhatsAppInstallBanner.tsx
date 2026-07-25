@@ -1,6 +1,6 @@
 import { MoreHorizontal, Compass, ExternalLink } from 'lucide-react';
 import { useEffect } from 'react';
-import { isIOS, isWhatsAppIOS } from '@/hooks/useIOSCompatibility';
+import { isWhatsAppIOS } from '@/hooks/useIOSCompatibility';
 import { trackInstallEvent } from '@/lib/installTracking';
 
 interface WhatsAppInstallBannerProps {
@@ -16,7 +16,9 @@ interface WhatsAppInstallBannerProps {
  * instruction with a matching icon strip so it's unmistakable.
  */
 export default function WhatsAppInstallBanner({ force, className }: WhatsAppInstallBannerProps) {
-  const show = force || (isIOS() && isWhatsAppIOS());
+  const isIphone =
+    typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  const show = force || (isIphone && isWhatsAppIOS());
 
   useEffect(() => {
     if (show) {
