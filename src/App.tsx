@@ -20,6 +20,7 @@ import AccountFrozenGate from "@/components/account/AccountFrozenGate";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import StalledLoaderWatchdog from "@/components/common/StalledLoaderWatchdog";
+import AuthRecoveryPrompt from "@/components/auth/AuthRecoveryPrompt";
 
 // Dev-only e2e harness (lazy + tree-shaken in prod via the import.meta.env.DEV guard below).
 const BusinessAdvanceHarness = lazyWithRetry(
@@ -735,6 +736,7 @@ const App = () => {
                           </AccountFrozenGate>
                         </PWAInstallGate>
                         <MaintenanceLockScreen />
+                        <AuthRecoveryPrompt />
                       </DeferredProviders>
                       <DeferredErrorBoundary>
                         <Suspense fallback={null}>
