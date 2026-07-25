@@ -2619,6 +2619,28 @@ export function EmailTransactionsPanel() {
    * panel can surface "what needs attention first" at a glance.
    */
   const ALERTS_SEEN_KEY = 'gmail_alerts_last_seen';
+  /**
+   * Alert notification settings. Ops choose which alert types count toward the
+   * unread badges and whether new arrivals raise an in-app toast prompt.
+   * Persisted per-browser in localStorage.
+   */
+  const ALERT_PREFS_KEY = 'gmail_alert_prefs_v1';
+  type AlertPrefs = { needsRouting: boolean; unparsed: boolean; toastPrompt: boolean };
+  const [alertPrefs, setAlertPrefs] = useState<AlertPrefs>(() => {
+    const fallback: AlertPrefs = { needsRouting: true, unparsed: true, toastPrompt: true };
+    if (typeof window === 'undefined') return fallback;
+    try {
+      const raw = localStorage.getItem(ALERT_PREFS_KEY);
+      return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
+    } catch { return fallback; }
+  });
+  const updateAlertPrefs = useCallback((patch: Partial<AlertPrefs>) => {
+    setAlertPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      try { localStorage.setItem(ALERT_PREFS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   const [alertsSeenTs, setAlertsSeenTs] = useState<number>(() => {
     if (typeof window === 'undefined') return 0;
     const raw = Number(localStorage.getItem(ALERTS_SEEN_KEY));
@@ -2631,9 +2653,11 @@ export function EmailTransactionsPanel() {
   const alertRows = useMemo(
     () => filteredRows.filter((r) => {
       const s = getRowStatus(r);
-      return s === 'needs_routing' || s === 'unparsed';
+      if (s === 'needs_routing') return alertPrefs.needsRouting;
+      if (s === 'unparsed') return alertPrefs.unparsed;
+      return false;
     }),
-    [filteredRows, getRowStatus],
+    [filteredRows, getRowStatus, alertPrefs.needsRouting, alertPrefs.unparsed],
   );
   const unreadAlertRows = useMemo(
     () => alertRows.filter((r) => rowTimeMs(r) > alertsSeenTs),
