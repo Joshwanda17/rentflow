@@ -2622,6 +2622,28 @@ export function EmailTransactionsPanel() {
   }, []);
 
   /**
+   * Bulk triage helpers for unmatched alerts. `selectAllAlertRows` tick-selects
+   * every attention-needing row in the current window (needs routing /
+   * unparsed) so the existing bulk-mark bar can act on them; `resolveAllAlerts`
+   * is the one-tap path that marks them resolved (credited) in a single
+   * append-only batch and acknowledges the unread counter.
+   */
+  const selectAllAlertRows = useCallback(() => {
+    setSelectedIds(new Set(alertRows.map((r) => r.id)));
+  }, [alertRows]);
+
+  const resolveAlertRows = useCallback(async (targets: GmailTx[]) => {
+    const ids = targets.map((r) => r.id);
+    if (!ids.length) return;
+    const ok = window.confirm(
+      `Mark ${ids.length} unmatched alert${ids.length === 1 ? '' : 's'} as resolved? This is logged in the audit trail.`,
+    );
+    if (!ok) return;
+    await applyBulkMark('credited', ids, 'Bulk resolved unmatched alerts from Email Transactions triage');
+    markAlertsSeen();
+  }, [applyBulkMark, markAlertsSeen]);
+
+  /**
    * Compute debit metadata for a single row. Reused in filtering, sorting,
    * and rendering so the breakdown logic is defined in one place.
    */
