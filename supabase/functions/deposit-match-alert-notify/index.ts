@@ -22,6 +22,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SLACK_WEBHOOK = Deno.env.get("OPS_SLACK_WEBHOOK_URL") ?? "";
 
 const FROM = "Welile Reports <info@welile.com>";
 const SENDER_DOMAIN = "notify.welile.com";
@@ -100,6 +101,32 @@ function table(title: string, rows: AlertRow[], refLabel: string): string {
   </tr></thead>
   <tbody>${body}</tbody>
 </table>`;
+}
+
+async function postSlack(deposits: AlertRow[], receipts: AlertRow[], windowMinutes: number) {
+  if (!SLACK_WEBHOOK) return { ok: false, error: "OPS_SLACK_WEBHOOK_URL not configured" };
+  const total = deposits.length + receipts.length;
+  const line = (r: AlertRow, kind: string) =>
+    `• *${kind}* ${r.subject_label ?? "—"} • ${fmtUGX(r.amount)} • ref \`${r.transaction_reference ?? "—"}\` • ${r.age_minutes}m • _${r.severity}_`;
+  const lines = [
+    ...deposits.slice(0, 15).map((d) => line(d, "DEPOSIT")),
+    ...receipts.slice(0, 15).map((r) => line(r, "RECEIPT")),
+  ];
+  const overflow = total > lines.length ? `\n_+ ${total - lines.length} more…_` : "";
+  const text =
+    `:warning: *Deposit-match alert — ${total} unmatched* after ${windowMinutes}m ` +
+    `(${deposits.length} deposits, ${receipts.length} receipts)\n${lines.join("\n")}${overflow}`;
+  try {
+    const res = await fetch(SLACK_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return { ok: false, error: `slack ${res.status}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 Deno.serve(async (req) => {
@@ -224,6 +251,8 @@ Deno.serve(async (req) => {
         .in("id", pending.map((a) => a.id));
     }
 
+    const slackResult = await postSlack(deposits, receipts, windowMinutes);
+
     await admin.from("system_events").insert({
       event_type: "deposit_match_alert_notified",
       metadata: {
@@ -233,11 +262,13 @@ Deno.serve(async (req) => {
         window_minutes: windowMinutes,
         recipients,
         results,
+        slack_ok: slackResult.ok,
+        slack_error: slackResult.error ?? null,
       },
     });
 
     return new Response(
-      JSON.stringify({ ...detection, notified: anyQueued ? pending.length : 0, results }),
+      JSON.stringify({ ...detection, notified: anyQueued ? pending.length : 0, results, slack: slackResult }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
