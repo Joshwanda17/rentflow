@@ -3666,7 +3666,27 @@ export function EmailTransactionsPanel() {
           </div>
         </div>
         <RecentEmailsLegend />
-        <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
+        <div className="p-3 sm:p-4 border-b">
+          {/* Mobile: the filter/sort chip groups are collapsed behind one tap so
+              the email list stays reachable without scrolling past six rows of
+              chips. On sm+ they render inline exactly as before. */}
+          <button
+            type="button"
+            onClick={() => setChipFiltersOpen((v) => !v)}
+            aria-expanded={chipFiltersOpen}
+            className="sm:hidden w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs font-semibold"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Filter className="h-3.5 w-3.5" />
+              Filters &amp; sort
+            </span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${chipFiltersOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+          <div
+            className={`${chipFiltersOpen ? 'flex' : 'hidden sm:flex'} mt-2 sm:mt-0 flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 sm:gap-3`}
+          >
           {(() => {
             // Money-in vs money-out chips. Counts respect the active date /
             // search filters so the numbers always match what's listed below.
@@ -3680,7 +3700,7 @@ export function EmailTransactionsPanel() {
               { key: 'out', label: 'Money out', count: outCount },
             ];
             return (
-              <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by money direction">
+              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by money direction">
                 {dirChips.map((c) => {
                   const active = directionFilter === c.key;
                   const tone =
@@ -3697,7 +3717,7 @@ export function EmailTransactionsPanel() {
                       type="button"
                       onClick={() => setDirectionFilter(c.key)}
                       aria-pressed={active}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${tone}`}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors shrink-0 whitespace-nowrap ${tone}`}
                     >
                       {c.label}
                       <span className={`ml-1.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>
@@ -3729,7 +3749,7 @@ export function EmailTransactionsPanel() {
               { key: 'from', label: 'Matched by phone', count: fromCount },
             ];
             return (
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
                 {chips.map((c) => {
                   const active = matchFilter === c.key;
                   return (
@@ -3737,7 +3757,7 @@ export function EmailTransactionsPanel() {
                       key={c.key}
                       type="button"
                       onClick={() => setMatchFilter(c.key)}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors shrink-0 whitespace-nowrap ${
                         active
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background hover:bg-muted text-muted-foreground border-border'
@@ -3767,7 +3787,7 @@ export function EmailTransactionsPanel() {
               { key: 'unparsed', label: 'Unparsed', count: unparsed, tone: 'bg-slate-600 text-white border-slate-600' },
             ];
             return (
-              <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by status">
+              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by status">
                 {chips.map((c) => {
                   const active = statusFilter === c.key;
                   return (
@@ -3776,7 +3796,7 @@ export function EmailTransactionsPanel() {
                       type="button"
                       onClick={() => setStatusFilter(c.key)}
                       aria-pressed={active}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors shrink-0 whitespace-nowrap ${
                         active ? c.tone : 'bg-background hover:bg-muted text-muted-foreground border-border'
                       }`}
                     >
@@ -3800,7 +3820,7 @@ export function EmailTransactionsPanel() {
                 onClick={() => setNeedsRoutingOnly((v) => !v)}
                 aria-pressed={needsRoutingOnly}
                 title="Show only incoming deposits that have not been credited or routed to any wallet"
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 ${
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 self-start shrink-0 whitespace-nowrap ${
                   needsRoutingOnly
                     ? 'bg-orange-600 text-white border-orange-600'
                     : 'bg-background hover:bg-muted text-orange-700 border-orange-500/40'
@@ -3839,7 +3859,7 @@ export function EmailTransactionsPanel() {
               { key: 'none', label: 'Not debited', count: noneDebitCount, activeClass: 'bg-slate-600 text-white border-slate-600', inactiveClass: 'bg-background hover:bg-muted text-slate-700 border-slate-500/40' },
             ];
             return (
-              <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by debit target">
+              <div className="flex items-center gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by debit target">
                 {chips.map((c) => {
                   const active = debitFilter === c.key;
                   return (
@@ -3848,7 +3868,7 @@ export function EmailTransactionsPanel() {
                       type="button"
                       onClick={() => setDebitFilter(c.key)}
                       aria-pressed={active}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 ${
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${
                         active ? c.activeClass : c.inactiveClass
                       }`}
                     >
@@ -3871,8 +3891,8 @@ export function EmailTransactionsPanel() {
               { key: 'debitName', label: 'Charged name' },
             ];
             return (
-              <div className="flex items-center gap-1" role="group" aria-label="Sort by debit breakdown">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Sort</span>
+              <div className="flex items-center gap-1 flex-nowrap w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Sort by debit breakdown">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1 shrink-0">Sort</span>
                 {sortOptions.map((opt) => {
                   const active = debitSort === opt.key;
                   return (
@@ -3881,7 +3901,7 @@ export function EmailTransactionsPanel() {
                       type="button"
                       onClick={() => setDebitSort(opt.key)}
                       aria-pressed={active}
-                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors shrink-0 whitespace-nowrap ${
                         active
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background hover:bg-muted text-muted-foreground border-border'
@@ -3894,6 +3914,7 @@ export function EmailTransactionsPanel() {
               </div>
             );
           })()}
+          </div>
         </div>
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
