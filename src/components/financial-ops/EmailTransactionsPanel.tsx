@@ -4219,6 +4219,28 @@ export function EmailTransactionsPanel() {
                           ariaLabel: `Charge wallet ${fmtUgx(Number(r.amount ?? 0))}${r.counterparty ? ` for payout to ${r.counterparty}` : ''}`,
                         }
                       : null;
+                // Secondary swipe action (swipe RIGHT): for money-in rows that
+                // still need attention, mark the email resolved without opening
+                // the row. Already-settled rows instead open the full routing
+                // history so operators can audit with one gesture.
+                const swipeSecondaryAction: SwipeAction | null =
+                  !manualMark && r.direction === 'in' && !isCredited
+                    ? {
+                        label: 'Mark resolved',
+                        hint: 'Resolve',
+                        icon: <CheckCircle2 className="h-5 w-5" />,
+                        colorClass: 'bg-sky-600',
+                        onAction: () => markRowResolved(r, 'credited'),
+                        ariaLabel: `Mark this ${fmtUgx(Number(r.amount ?? 0))} email${r.counterparty ? ` from ${r.counterparty}` : ''} as resolved`,
+                      }
+                    : {
+                        label: 'View history',
+                        hint: 'History',
+                        icon: <History className="h-5 w-5" />,
+                        colorClass: 'bg-slate-600',
+                        onAction: () => setHistoryDrawerRow(r),
+                        ariaLabel: `View routing history for this ${fmtUgx(Number(r.amount ?? 0))} email`,
+                      };
                 // ── Consolidated "latest outcome" status ──────────────────
                 // A single, plain-language pill shown at the top of the row so
                 // reviewers can verify what happened to the money WITHOUT
@@ -4311,7 +4333,7 @@ export function EmailTransactionsPanel() {
                               }
                             : null;
                 return (
-              <SwipeableEmailRow key={r.id} action={swipeAction}>
+              <SwipeableEmailRow key={r.id} action={swipeAction} secondaryAction={swipeSecondaryAction}>
               <div
                 role="article"
                 aria-label={matchAriaLabel}
