@@ -55,11 +55,6 @@ function canvasSignature(): string {
 }
 
 export async function getDeviceFingerprint(): Promise<string> {
-  try {
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if (cached) return cached;
-  } catch { /* ignore */ }
-
   const parts = [
     getSeed(),
     navigator.userAgent || '',
@@ -73,6 +68,30 @@ export async function getDeviceFingerprint(): Promise<string> {
     canvasSignature(),
   ];
   const hash = await sha256Hex(parts.join('|'));
-  try { localStorage.setItem(STORAGE_KEY, hash); } catch { /* ignore */ }
+
+  // "Don't trust user input": we ALWAYS recompute the fingerprint from live
+  // browser signals rather than trusting whatever value happens to be sitting
+  // in localStorage. If the cached value has been tampered with (edited via
+  // devtools, forged by an extension, or copied between browsers) we detect
+  // the mismatch, wipe the bad cache, and use the freshly computed hash.
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached && cached !== hash) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    localStorage.setItem(STORAGE_KEY, hash);
+  } catch { /* ignore */ }
   return hash;
+}
+
+/**
+ * Shape guard used before we ship the fingerprint to the server. A valid
+ * fingerprint is either the SHA-256 hex digest (64 lowercase hex chars) or
+ * the documented `fb_<hex>` fallback. Anything else is treated as tampered
+ * input and dropped so the server can decide how to react.
+ */
+export function isValidFingerprintShape(fp: string | null | undefined): boolean {
+  if (!fp || typeof fp !== 'string') return false;
+  if (fp.length > 128) return false;
+  return /^[a-f0-9]{64}$/.test(fp) || /^fb_[a-f0-9]{1,64}$/.test(fp);
 }
