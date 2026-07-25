@@ -4664,7 +4664,7 @@ export function EmailTransactionsPanel() {
                         hint: 'Resolve',
                         icon: <CheckCircle2 className="h-5 w-5" />,
                         colorClass: 'bg-sky-600',
-                        onAction: () => markRowResolved(r, 'credited'),
+                        onAction: () => setPendingSwipe({ row: r, mode: 'resolve' }),
                         ariaLabel: `Mark this ${fmtUgx(Number(r.amount ?? 0))} email${r.counterparty ? ` from ${r.counterparty}` : ''} as resolved`,
                       }
                     : {
