@@ -363,6 +363,7 @@ export function DirectCreditTool() {
     shortfall: number;
   } | null>(null);
   const [overdrawApproved, setOverdrawApproved] = useState(false);
+  const [splitFreezing, setSplitFreezing] = useState(false);
 
   // ── Expense-Only Withdrawal state ──────────────────────────────────
   // Used when operation === 'withdraw'. Captures HOW the company is
