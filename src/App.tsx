@@ -19,6 +19,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import AccountFrozenGate from "@/components/account/AccountFrozenGate";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
 import { CurrencyProvider } from "@/hooks/useCurrency";
+import StalledLoaderWatchdog from "@/components/common/StalledLoaderWatchdog";
 
 // Dev-only e2e harness (lazy + tree-shaken in prod via the import.meta.env.DEV guard below).
 const BusinessAdvanceHarness = lazyWithRetry(
@@ -302,30 +303,8 @@ const queryClient = new QueryClient({
   },
 });
 
-// Ultra-minimal page loader - shows retry after 5s
-const PageLoader = memo(() => {
-  const [showRetry, setShowRetry] = useState(false);
-  
-  useEffect(() => {
-    const timer = setTimeout(() => setShowRetry(true), 10000);
-    return () => clearTimeout(timer);
-  }, []);
-  
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
-      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      {showRetry && (
-        <button
-          onClick={() => { sessionStorage.removeItem('chunk_retry'); window.location.reload(); }}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
-          style={{ minHeight: '44px' }}
-        >
-          Tap to Retry
-        </button>
-      )}
-    </div>
-  );
-});
+// Page loader with 15s stall watchdog (Reload / Clear cache recovery)
+const PageLoader = memo(() => <StalledLoaderWatchdog stallAfterMs={15000} />);
 PageLoader.displayName = 'PageLoader';
 
 // Stable routes wrapper — no RoutePrefetcher (DOM overhead), no JS page transitions

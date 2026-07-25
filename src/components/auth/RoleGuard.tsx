@@ -8,6 +8,7 @@ import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
 import { isStaffRole, isPublicRole } from '@/lib/roleConstants';
 import { useToast } from '@/hooks/use-toast';
 import PhoneVerificationGate from '@/components/auth/PhoneVerificationGate';
+import StalledLoaderWatchdog from '@/components/common/StalledLoaderWatchdog';
 
 interface RoleGuardProps {
   allowedRoles: AppRole[];
@@ -43,11 +44,7 @@ export default function RoleGuard({ allowedRoles, children, redirectTo = '/dashb
   }, [loading, user, hasAccess, allowedRoles, roles]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
+    return <StalledLoaderWatchdog label="Signing you in\u2026" />;
   }
 
   if (!user) {
