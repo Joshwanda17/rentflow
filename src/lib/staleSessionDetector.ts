@@ -33,12 +33,37 @@ const STALE_TOKEN_MARKERS = [
 
 const REHYDRATE_EVENT = 'welile:session-rehydrated';
 const SIGNED_OUT_EVENT = 'welile:session-forced-signout';
+const RECOVERY_REQUIRED_EVENT = 'welile:auth-recovery-required';
 const THROTTLE_MS = 30_000;
+const RECOVERY_FAILURE_THRESHOLD = 3;
+const RECOVERY_WINDOW_MS = 5 * 60_000;
 
 let installed = false;
 let inFlight: Promise<void> | null = null;
 let lastAttempt = 0;
 let forcedSignOut = false;
+let recoveryFailures: number[] = [];
+let recoveryDispatched = false;
+
+function recordAuthFailure(reason: string): boolean {
+  const now = Date.now();
+  recoveryFailures = recoveryFailures.filter((t) => now - t < RECOVERY_WINDOW_MS);
+  recoveryFailures.push(now);
+  if (recoveryFailures.length >= RECOVERY_FAILURE_THRESHOLD && !recoveryDispatched) {
+    recoveryDispatched = true;
+    try {
+      window.dispatchEvent(
+        new CustomEvent(RECOVERY_REQUIRED_EVENT, {
+          detail: { reason, failures: recoveryFailures.length },
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }
+  return false;
+}
 
 function isSupabaseUrl(url: string): boolean {
   try {
@@ -71,6 +96,9 @@ async function handleStaleToken(reason: string): Promise<void> {
 
       if (!error && data.session) {
         console.info('[StaleSession] Refresh succeeded — rehydrating app state');
+        // Success — reset the failure counter.
+        recoveryFailures = [];
+        recoveryDispatched = false;
         try {
           window.dispatchEvent(
             new CustomEvent(REHYDRATE_EVENT, { detail: { userId: data.session.user.id } }),
@@ -83,6 +111,7 @@ async function handleStaleToken(reason: string): Promise<void> {
 
       // Refresh failed → the session is truly dead. Sign out cleanly.
       forcedSignOut = true;
+      recordAuthFailure(reason);
       console.warn('[StaleSession] Refresh failed — signing out:', error?.message);
       try {
         window.dispatchEvent(new CustomEvent(SIGNED_OUT_EVENT, { detail: { reason } }));
@@ -152,6 +181,7 @@ export function installStaleSessionDetector(): void {
       const bodyText = await cloned.text().catch(() => '');
 
       if (matchesStaleToken(bodyText, response.status)) {
+        recordAuthFailure(`http_${response.status}`);
         // Fire-and-forget — don't block the caller. The caller will surface
         // the original error and the detector will refresh/redirect in the
         // background.
@@ -174,4 +204,5 @@ export function installStaleSessionDetector(): void {
 export const STALE_SESSION_EVENTS = {
   rehydrated: REHYDRATE_EVENT,
   forcedSignOut: SIGNED_OUT_EVENT,
+  recoveryRequired: RECOVERY_REQUIRED_EVENT,
 };
