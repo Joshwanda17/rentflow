@@ -25809,6 +25809,20 @@ export type Database = {
           without_landlord: number
         }[]
       }
+      get_cohort_retention: {
+        Args: {
+          p_bucket?: string
+          p_end: string
+          p_periods?: number
+          p_start: string
+        }
+        Returns: {
+          active_users: number
+          cohort_date: string
+          cohort_size: number
+          period_number: number
+        }[]
+      }
       get_crm_directory: {
         Args: {
           _limit?: number
