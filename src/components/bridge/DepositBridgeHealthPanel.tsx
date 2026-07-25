@@ -60,7 +60,7 @@ export function DepositBridgeHealthPanel() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_deposit_bridge_metrics');
       if (error) throw error;
-      return data as Record<string, number>;
+      return data as unknown as Record<string, number>;
     },
     refetchInterval: 30_000,
   });
