@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getDeviceFingerprint } from './deviceFingerprint';
+import { getDeviceFingerprint, isValidFingerprintShape } from './deviceFingerprint';
 
 export type SignupGuardResult = {
   allowed: boolean;
@@ -37,7 +37,11 @@ export async function preflightSignup(params: {
   phone?: string | null;
   path?: string | null;
 }): Promise<SignupGuardResult> {
-  const deviceFp = await getDeviceFingerprint().catch(() => null);
+  const rawFp = await getDeviceFingerprint().catch(() => null);
+  // Never send a tampered / malformed fingerprint to the server. If the
+  // client-side value fails shape validation we drop it — the server will
+  // then treat the attempt as `bad_fingerprint` and refuse the signup.
+  const deviceFp = isValidFingerprintShape(rawFp) ? rawFp : null;
   const utm = readUtm();
   const path = (params.path || (typeof window !== 'undefined' ? window.location.pathname : '/')) || '/';
   const ua = typeof navigator !== 'undefined' ? (navigator.userAgent || '').slice(0, 500) : null;
