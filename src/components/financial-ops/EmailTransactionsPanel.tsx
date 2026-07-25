@@ -5912,6 +5912,17 @@ export function EmailTransactionsPanel() {
                                       ? 'name←'
                                       : 'phone';
                             const isPrimary = idx === 0 && arr.length > 1;
+                            // Always-visible confidence indicator: tier word + one-line
+                            // "why" so ops can pick the right destination without hovering.
+                            const tier = score >= 100 ? 'Certain' : score >= 90 ? 'High' : score >= 75 ? 'Likely' : 'Weak';
+                            const tierClass = score >= 100
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : score >= 90
+                                ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40'
+                                : score >= 75
+                                  ? 'bg-amber-500/15 text-amber-700 border-amber-500/40'
+                                  : 'bg-muted text-muted-foreground border-border';
+                            const whyText = `${matchType}: ${matchedValue}`;
                             // Visual hierarchy:
                             //  - primary (top-scoring when there are multiple matches): filled + Star
                             //  - other strong matches: filled (no star)
@@ -5923,6 +5934,7 @@ export function EmailTransactionsPanel() {
                                 : 'bg-primary/10 text-primary border-primary/30';
                             return (
                               <Fragment key={u.id}>
+                              <span className="inline-flex flex-col gap-0.5">
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Badge
@@ -6019,6 +6031,15 @@ export function EmailTransactionsPanel() {
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
+                              <span className="inline-flex items-center gap-1 pl-0.5">
+                                <Badge variant="outline" className={`text-[9px] px-1 py-0 leading-4 ${tierClass}`}>
+                                  {tier} · {score}%
+                                </Badge>
+                                <span className="text-[9px] text-muted-foreground truncate max-w-[180px]" title={whyText}>
+                                  {whyText}
+                                </span>
+                              </span>
+                              </span>
                               {(r.direction === 'out' || r.direction === 'charge') && userProxies[u.id] && (
                                 <ProxyDebitBreakdownDialog
                                   partner={{ id: u.id, name: u.full_name }}
