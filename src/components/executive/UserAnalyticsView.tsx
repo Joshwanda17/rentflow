@@ -28,6 +28,7 @@ import { KPICard } from './KPICard';
 import { Download, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { UserAnalyticsDrilldown, type DrilldownScope } from './UserAnalyticsDrilldown';
 
 function downloadBlob(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -66,9 +67,13 @@ export function UserAnalyticsView() {
   const [preset, setPreset] = useState<RangePreset>('last_7');
   const [customStart, setCustomStart] = useState(format(subDays(now, 6), 'yyyy-MM-dd'));
   const [customEnd, setCustomEnd] = useState(format(now, 'yyyy-MM-dd'));
+  const [drillScope, setDrillScope] = useState<DrilldownScope | null>(null);
 
   const { start, end } = rangeBounds(preset, customStart, customEnd);
   const days = eachDayOfInterval({ start, end });
+  const startISO = start.toISOString();
+  const endISO = end.toISOString();
+  const openDrill = (s: DrilldownScope) => setDrillScope(s);
 
   // Daily signups
   const { data: signupSeries, isLoading: loadingSignups } = useQuery({
