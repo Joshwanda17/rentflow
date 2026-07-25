@@ -24997,7 +24997,7 @@ export type Database = {
               p_agent_id: string
               p_event_type: string
               p_source_id?: string
-              p_tenant_id: string
+              p_tenant_id?: string
             }
             Returns: Json
           }

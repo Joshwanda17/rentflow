@@ -80,7 +80,7 @@ export const EVENT_BONUSES = {
   rent_posted_listed: 1000,
   rent_landlord_verified: 4000,
   rent_request_posted: 5000,
-  house_listed: 5000,
+  house_listed: 2000,
   tenant_replacement: 20000,
   subagent_registration: 10000,
 } as const;
