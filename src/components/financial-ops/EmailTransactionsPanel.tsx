@@ -5108,6 +5108,79 @@ export function EmailTransactionsPanel() {
                         transaction reference tied to the row. */}
                     {expandedRows.has(r.id) && (
                       <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 space-y-3 text-[11px]">
+                        {/* 0) Full receipt — the complete parsed email so a phone
+                            user never has to squint at truncated text. Every
+                            field is stacked one-per-line on small screens. */}
+                        <div className="space-y-1">
+                          <p className="uppercase tracking-wide font-semibold text-[9px] text-muted-foreground inline-flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            Full receipt
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5">
+                            <p><span className="text-muted-foreground">Amount: </span><span className="font-semibold tabular-nums">{fmtUgx(r.amount)}</span></p>
+                            <p><span className="text-muted-foreground">Direction: </span><span className="font-semibold">{r.direction === 'in' ? 'Money in' : r.direction === 'charge' ? 'Charge' : r.direction === 'out' ? 'Money out' : '—'}</span></p>
+                            {r.fee !== null && r.fee !== undefined && (
+                              <p><span className="text-muted-foreground">Fee: </span><span className="tabular-nums">{fmtUgx(r.fee)}</span></p>
+                            )}
+                            {r.balance !== null && r.balance !== undefined && (
+                              <p><span className="text-muted-foreground">Balance on receipt: </span><span className="tabular-nums">{fmtUgx(r.balance)}</span></p>
+                            )}
+                            <p className="break-words"><span className="text-muted-foreground">Counterparty: </span><span className="font-semibold">{r.counterparty || '—'}</span></p>
+                            <p><span className="text-muted-foreground">Channel: </span>{r.channel || '—'}</p>
+                            <p className="break-words sm:col-span-2"><span className="text-muted-foreground">Sender: </span>{r.from_name || '—'}{r.from_email ? ` · ${r.from_email}` : ''}</p>
+                            <p className="sm:col-span-2"><span className="text-muted-foreground">Received: </span>{r.internal_date ? new Date(r.internal_date).toLocaleString('en-GB', { timeZone: tz }) : '—'}</p>
+                          </div>
+                          <p className="break-words"><span className="text-muted-foreground">Subject: </span>{r.subject || '(no subject)'}</p>
+                          <div className="rounded border border-border bg-background p-2 whitespace-pre-wrap break-words leading-relaxed">
+                            {r.snippet || 'No email body captured.'}
+                          </div>
+                        </div>
+                        {/* 0b) Matching reasons — exactly why (or why not) this
+                            email resolved to a wallet, in plain language. */}
+                        <div className="space-y-1 border-t border-border/60 pt-2">
+                          <p className="uppercase tracking-wide font-semibold text-[9px] text-muted-foreground inline-flex items-center gap-1">
+                            <ShieldQuestion className="h-3 w-3" />
+                            Matching reasons
+                          </p>
+                          {matches.length === 0 ? (
+                            <p className="text-muted-foreground">
+                              No user matched. {hasMomoTid || hasReceiptCode
+                                ? 'A reference code exists, but no profile could be tied to it.'
+                                : 'This email carries no MoMo transaction ID or cash receipt code, and no known phone/name was found in the body.'}
+                            </p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {matches.map((u) => {
+                                const mo = u.matched_on;
+                                const why = mo.startsWith('reference ')
+                                  ? 'Receipt code / transaction ID on the email matches this user\u2019s deposit reference (authoritative)'
+                                  : mo.startsWith('from ')
+                                    ? 'Phone number after "from" on the receipt matches this user\u2019s profile phone (strong)'
+                                    : mo.startsWith('to ')
+                                      ? 'Phone number after "to" on the receipt matches this user\u2019s profile phone (strong)'
+                                      : mo.startsWith('name-to ')
+                                        ? 'Name after "to" matches this user\u2019s mobile money name (medium)'
+                                        : mo.startsWith('name-from ')
+                                          ? 'Name after "from" matches this user\u2019s mobile money name (medium)'
+                                          : 'A phone number found in the email body matches this user (weak \u2014 spot-check before crediting)';
+                                return (
+                                  <li key={`${u.id}-${mo}`} className="rounded border border-border bg-background px-2 py-1">
+                                    <p className="font-semibold break-words">{u.full_name}{u.phone ? ` · ${u.phone}` : ''}</p>
+                                    <p className="text-muted-foreground break-words">{why}</p>
+                                    <p className="font-mono text-[10px] text-muted-foreground/70 break-words">signal: {mo}</p>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                          {autoConfidence && (
+                            <p className="text-muted-foreground">
+                              Auto-credit confidence: <span className="font-semibold">{autoConfidence}</span>
+                              {autoScorePct !== null ? ` (${autoScorePct}%)` : ''}
+                              {autoPhoneSource ? ` · phone signal from ${autoPhoneSource}` : ''}
+                            </p>
+                          )}
+                        </div>
                         {/* 1) Linked proxy / matched wallet change */}
                         {isAutoDebited ? (
                           <div className="space-y-1">
