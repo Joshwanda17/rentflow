@@ -384,6 +384,8 @@ export function UserAnalyticsView() {
         onOpenChange={(v) => { if (!v) setDrillScope(null); }}
         scope={drillScope}
       />
+
+      <RetentionCohortView />
     </div>
   );
 }
