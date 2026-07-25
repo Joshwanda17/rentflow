@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Share, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { toast } from 'sonner';
+
+const IOSInstallGuide = lazy(() => import('@/components/IOSInstallGuide'));
 
 const SESSION_KEY = 'welile_install_card_dismissed';
 
@@ -18,6 +20,7 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
     return sessionStorage.getItem(SESSION_KEY) === '1';
   });
   const [isInstalling, setIsInstalling] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   // Auto-hide after install
   useEffect(() => {
@@ -31,8 +34,10 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
 
   const handleInstall = async () => {
     if (isIOS) {
-      toast('Tap the Share button, then "Add to Home Screen"', { duration: 6000 });
-      handleDismiss();
+      // Open the full guide (with in-app-browser detection + copy link).
+      // A toast alone is not enough — most iPhone install failures are users
+      // opening the link from WhatsApp/Facebook/Instagram in-app browsers.
+      setShowIOSGuide(true);
       return;
     }
     if (!hasPrompt || isInstalling) return;
@@ -58,6 +63,12 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
   if (!canShow) return null; // covers: unsupported browser AND not iOS AND no prompt
 
   return (
+    <>
+    {showIOSGuide && (
+      <Suspense fallback={null}>
+        <IOSInstallGuide onClose={() => setShowIOSGuide(false)} />
+      </Suspense>
+    )}
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: -8 }}
@@ -120,5 +131,6 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
         </div>
       </motion.div>
     </AnimatePresence>
+    </>
   );
 }

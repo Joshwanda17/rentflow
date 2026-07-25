@@ -1,6 +1,7 @@
-import { X, Square, ArrowDown, Plus, Share2, ExternalLink } from 'lucide-react';
+import { X, Square, ArrowDown, Plus, Share2, ExternalLink, Copy } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { getIOSInstallInstructions, isChromeIOS, isFirefoxIOS } from '@/hooks/useIOSCompatibility';
+import { getIOSInstallInstructions, isChromeIOS, isFirefoxIOS, isIOSInAppBrowser } from '@/hooks/useIOSCompatibility';
 
 interface IOSInstallGuideProps {
   onClose: () => void;
@@ -8,11 +9,19 @@ interface IOSInstallGuideProps {
 
 export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
   const { needsSafari, message } = getIOSInstallInstructions();
+  const inApp = isIOSInAppBrowser();
   const isOtherBrowser = isChromeIOS() || isFirefoxIOS();
+  const needsSafariRedirect = inApp || isOtherBrowser;
+  const [copied, setCopied] = useState(false);
 
-  const openInSafari = () => {
-    // Copy current URL for easy pasting
-    navigator.clipboard?.writeText(window.location.href);
+  const openInSafari = async () => {
+    try {
+      await navigator.clipboard?.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      /* clipboard blocked — link is still visible below */
+    }
   };
 
   return (
@@ -47,17 +56,24 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
             <p className="text-muted-foreground text-sm mt-1">Rent Facilitation Platform</p>
           </div>
 
-          {/* Chrome/Firefox warning */}
-          {isOtherBrowser && (
+          {/* In-app / non-Safari browser warning — the #1 iPhone install barrier */}
+          {needsSafariRedirect && (
             <div 
               className="animate-fade-in p-4 bg-warning/10 border border-warning/30 rounded-xl"
             >
               <div className="flex items-start gap-3">
                 <ExternalLink className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-medium text-warning-foreground text-sm">Open in Safari</p>
+                  <p className="font-medium text-warning-foreground text-sm">
+                    {inApp ? 'Open in Safari to install' : 'Open in Safari'}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    To install this app, please open this page in Safari. Other browsers on iOS don't support app installation.
+                    {inApp
+                      ? "You're viewing this inside another app (WhatsApp, Facebook, Instagram, etc.). iPhone only lets you install from Safari. Tap the ⋯ or Share menu below and choose \"Open in Safari\", then try installing again."
+                      : "iPhone only allows installing from Safari. Chrome, Firefox and other browsers on iOS don't support Add to Home Screen."}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-2 break-all bg-background/60 rounded px-2 py-1 border">
+                    {window.location.href}
                   </p>
                   <Button 
                     variant="outline" 
@@ -66,8 +82,8 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
                     onClick={openInSafari}
                     style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
                   >
-                    <Share2 className="h-4 w-4" />
-                    Copy Link
+                    <Copy className="h-4 w-4" />
+                    {copied ? 'Link copied — paste in Safari' : 'Copy link for Safari'}
                   </Button>
                 </div>
               </div>
