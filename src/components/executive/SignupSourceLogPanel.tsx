@@ -60,8 +60,8 @@ export function SignupSourceLogPanel() {
   const blockedIps = useQuery({
     queryKey: ['blocked-signup-ips'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('blocked_signup_ips' as any)
+      const { data, error } = await (supabase as any)
+        .from('blocked_signup_ips')
         .select('ip, reason, blocked_by_role, created_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
