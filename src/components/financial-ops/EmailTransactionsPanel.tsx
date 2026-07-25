@@ -6118,7 +6118,7 @@ export function EmailTransactionsPanel() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Sheet open={!!historyDrawerRow} onOpenChange={(o) => { if (!o) setHistoryDrawerRow(null); }}>
+      <Sheet open={!!historyDrawerRow} onOpenChange={(o) => { if (!o) { setHistoryDrawerRow(null); setHistoryQueue([]); } }}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
@@ -6130,6 +6130,31 @@ export function EmailTransactionsPanel() {
                 : ''}
             </SheetDescription>
           </SheetHeader>
+          {historyQueue.length > 1 && historyQueueIndex >= 0 && (
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-2 py-1.5">
+              <span className="text-xs font-medium">
+                Selected {historyQueueIndex + 1} of {historyQueue.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={historyQueueIndex <= 0}
+                  onClick={() => setHistoryDrawerRow(historyQueue[historyQueueIndex - 1])}
+                >
+                  Prev
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={historyQueueIndex >= historyQueue.length - 1}
+                  onClick={() => setHistoryDrawerRow(historyQueue[historyQueueIndex + 1])}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
           {(() => {
             const drawerHistory = historyDrawerRow ? (routingHistory[historyDrawerRow.id] ?? []) : [];
             if (!drawerHistory.length) {
