@@ -25,6 +25,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KPICard } from './KPICard';
+import { Download, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+function downloadBlob(content: string, filename: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toCSV(rows: Array<Record<string, any>>): string {
+  if (!rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const esc = (v: any) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [headers.join(','), ...rows.map((r) => headers.map((h) => esc(r[h])).join(','))].join('\n');
+}
 
 type RangePreset = 'last_7' | 'last_30' | 'last_90' | 'custom';
 
@@ -145,12 +168,94 @@ export function UserAnalyticsView() {
     { label: 'Custom', value: 'custom' },
   ];
 
+  const rangeLabel = `${format(start, 'yyyy-MM-dd')}_to_${format(end, 'yyyy-MM-dd')}`;
+
+  const buildDatasets = () => ({
+    summary: [
+      { metric: 'Total Users', value: totals?.allUsers ?? 0 },
+      { metric: 'New Signups (range)', value: totals?.signups ?? 0 },
+      { metric: 'Active User-Days', value: totalActive },
+      { metric: 'Login Attempts', value: totals?.loginAttempts ?? 0 },
+      { metric: 'Login Success', value: totals?.loginSuccess ?? 0 },
+      { metric: 'Login Success Rate (%)', value: loginRate },
+    ],
+    signups: (signupSeries || []).map((r) => ({
+      date: r.date, signups: r.signups, referred: r.referred, organic: r.organic,
+    })),
+    active: (activeSeries || []).map((r) => ({ date: r.date, active_users: r.active })),
+    roles: (roleDist || []).map((r) => ({ role: r.role, count: r.count })),
+  });
+
+  const handleExportCSV = () => {
+    const d = buildDatasets();
+    const sections = [
+      `User Analytics Report,,${rangeLabel}`,
+      '',
+      'Summary',
+      toCSV(d.summary),
+      '',
+      'Daily Signups',
+      toCSV(d.signups),
+      '',
+      'Daily Active Users',
+      toCSV(d.active),
+      '',
+      'Users by Role',
+      toCSV(d.roles),
+    ];
+    downloadBlob(sections.join('\n'), `user-analytics_${rangeLabel}.csv`, 'text/csv;charset=utf-8');
+  };
+
+  const handleExportPDF = () => {
+    const d = buildDatasets();
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    doc.setFontSize(14);
+    doc.text('User Analytics Report', 40, 40);
+    doc.setFontSize(10);
+    doc.text(`Range: ${format(start, 'yyyy-MM-dd')} to ${format(end, 'yyyy-MM-dd')}`, 40, 58);
+
+    let y = 78;
+    const section = (title: string, head: string[], body: any[][]) => {
+      doc.setFontSize(11);
+      doc.text(title, 40, y);
+      y += 6;
+      autoTable(doc, {
+        startY: y,
+        head: [head],
+        body,
+        headStyles: { fillColor: [30, 41, 59] },
+        styles: { fontSize: 9 },
+        margin: { left: 40, right: 40 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 18;
+    };
+
+    section('Summary', ['Metric', 'Value'], d.summary.map((r) => [r.metric, String(r.value)]));
+    section('Daily Signups', ['Date', 'Signups', 'Referred', 'Organic'],
+      d.signups.map((r) => [r.date, r.signups, r.referred, r.organic]));
+    section('Daily Active Users', ['Date', 'Active Users'],
+      d.active.map((r) => [r.date, r.active_users]));
+    section('Users by Role', ['Role', 'Count'], d.roles.map((r) => [r.role, r.count]));
+
+    doc.save(`user-analytics_${rangeLabel}.pdf`);
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-3">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <CalendarRange className="w-4 h-4 text-primary" /> User Analytics
-        </h3>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <CalendarRange className="w-4 h-4 text-primary" /> User Analytics
+          </h3>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={handleExportCSV} className="text-xs">
+              <Download className="w-3.5 h-3.5 mr-1" /> CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleExportPDF} className="text-xs">
+              <FileText className="w-3.5 h-3.5 mr-1" /> PDF
+            </Button>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
           {presets.map((p) => (
             <Button
