@@ -1,8 +1,9 @@
-import { X, Square, ArrowDown, Plus, Share2, ExternalLink, Copy } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { X, Square, ArrowDown, Plus } from 'lucide-react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { getIOSInstallInstructions, isChromeIOS, isFirefoxIOS, isIOSInAppBrowser } from '@/hooks/useIOSCompatibility';
 import { trackInstallEvent } from '@/lib/installTracking';
+import OpenInSafariCard from '@/components/OpenInSafariCard';
 
 interface IOSInstallGuideProps {
   onClose: () => void;
@@ -13,7 +14,6 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
   const inApp = isIOSInAppBrowser();
   const isOtherBrowser = isChromeIOS() || isFirefoxIOS();
   const needsSafariRedirect = inApp || isOtherBrowser;
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (inApp || isOtherBrowser) {
@@ -27,18 +27,6 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const openInSafari = async () => {
-    trackInstallEvent('copy_link_clicked', { context: 'ios_guide' });
-    try {
-      await navigator.clipboard?.writeText(window.location.href);
-      setCopied(true);
-      trackInstallEvent('copy_link_success', { context: 'ios_guide' });
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      trackInstallEvent('copy_link_failed', { context: 'ios_guide' });
-    }
-  };
 
   return (
     <div
@@ -73,38 +61,7 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
           </div>
 
           {/* In-app / non-Safari browser warning — the #1 iPhone install barrier */}
-          {needsSafariRedirect && (
-            <div 
-              className="animate-fade-in p-4 bg-warning/10 border border-warning/30 rounded-xl"
-            >
-              <div className="flex items-start gap-3">
-                <ExternalLink className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-warning-foreground text-sm">
-                    {inApp ? 'Open in Safari to install' : 'Open in Safari'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {inApp
-                      ? "You're viewing this inside another app (WhatsApp, Facebook, Instagram, etc.). iPhone only lets you install from Safari. Tap the ⋯ or Share menu below and choose \"Open in Safari\", then try installing again."
-                      : "iPhone only allows installing from Safari. Chrome, Firefox and other browsers on iOS don't support Add to Home Screen."}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-2 break-all bg-background/60 rounded px-2 py-1 border">
-                    {window.location.href}
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-3 gap-2 h-11 text-base touch-manipulation active:scale-[0.98] transition-transform"
-                    onClick={openInSafari}
-                    style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
-                  >
-                    <Copy className="h-4 w-4" />
-                    {copied ? 'Link copied — paste in Safari' : 'Copy link for Safari'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
+          {needsSafariRedirect && <OpenInSafariCard />}
 
           {/* Steps */}
           <div className="space-y-6">
