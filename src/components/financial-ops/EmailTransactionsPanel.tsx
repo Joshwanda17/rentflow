@@ -4131,6 +4131,16 @@ export function EmailTransactionsPanel() {
                   {unreadAlertCount} new
                 </Badge>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-[11px]"
+                onClick={() => setAlertSettingsOpen(true)}
+                aria-label="Alert notification settings"
+                title="Alert notification settings"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+              </Button>
             </h3>
             <div className="flex items-center gap-2">
               {searchActive && (
