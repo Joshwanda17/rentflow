@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { isChromeIOS, isFirefoxIOS, isIOSInAppBrowser } from '@/hooks/useIOSCompatibility';
 import { trackInstallEvent } from '@/lib/installTracking';
 import OpenInSafariCard from '@/components/OpenInSafariCard';
+import WhatsAppInstallBanner from '@/components/WhatsAppInstallBanner';
 
 interface IOSInstallGuideProps {
   onClose: () => void;
@@ -58,6 +59,11 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
             <h3 className="text-xl font-bold">Welile.com</h3>
             <p className="text-muted-foreground text-sm mt-1">Rent Facilitation Platform</p>
           </div>
+
+          {/* WhatsApp is the single biggest source of failed iPhone installs —
+              show a dedicated, unmistakable banner with the exact ⋯ → Open in
+              Safari instruction before the generic in-app browser card. */}
+          <WhatsAppInstallBanner />
 
           {/* In-app / non-Safari browser warning — the #1 iPhone install barrier */}
           {needsSafariRedirect && <OpenInSafariCard />}
