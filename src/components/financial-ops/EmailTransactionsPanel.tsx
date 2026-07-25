@@ -2640,6 +2640,28 @@ export function EmailTransactionsPanel() {
     [alertRows, alertsSeenTs, rowTimeMs],
   );
   const unreadAlertCount = unreadAlertRows.length;
+  /** Human-friendly arrival label for an alert row ("12m ago · 14:05"). */
+  const formatAlertArrival = useCallback((r: GmailTx) => {
+    const ms = rowTimeMs(r);
+    if (!ms) return 'unknown time';
+    const diff = Date.now() - ms;
+    const mins = Math.floor(diff / 60000);
+    const rel =
+      mins < 1 ? 'just now'
+        : mins < 60 ? `${mins}m ago`
+          : mins < 1440 ? `${Math.floor(mins / 60)}h ago`
+            : `${Math.floor(mins / 1440)}d ago`;
+    const clock = new Date(ms).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
+    return `${rel} · ${clock}`;
+  }, [rowTimeMs]);
+  /** Newest / oldest unread arrivals, for the banner triage summary. */
+  const unreadArrivalSpan = useMemo(() => {
+    if (unreadAlertRows.length === 0) return null;
+    const sorted = [...unreadAlertRows].sort((a, b) => rowTimeMs(b) - rowTimeMs(a));
+    return { newest: sorted[0], oldest: sorted[sorted.length - 1], sorted };
+  }, [unreadAlertRows, rowTimeMs]);
   const isUnreadAlertRow = useCallback(
     (r: GmailTx) => {
       const s = getRowStatus(r);
