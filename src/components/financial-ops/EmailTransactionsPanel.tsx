@@ -4309,7 +4309,11 @@ export function EmailTransactionsPanel() {
                     </div>
                   </div>
                 )}
-                <div className="flex items-start justify-between gap-4">
+                {/* On phones the amount/action column drops to its own full-width
+                    row underneath the details. Keeping it inline (shrink-0 with
+                    non-wrapping button labels) squeezed the details column down
+                    to ~120px and broke every sentence one word per line. */}
+                <div className="flex flex-wrap items-start gap-x-3 gap-y-2 sm:flex-nowrap sm:justify-between sm:gap-4">
                   <div className="pt-0.5 shrink-0">
                     <Checkbox
                       checked={selectedIds.has(r.id)}
@@ -4333,7 +4337,7 @@ export function EmailTransactionsPanel() {
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-[calc(100%-2.25rem)] sm:basis-auto">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm truncate">{r.from_name || r.from_email || 'Unknown'}</span>
                       {r.parsed ? (
