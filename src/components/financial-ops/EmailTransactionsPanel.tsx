@@ -7284,6 +7284,7 @@ function buildPerDayBreakdown(rows: GmailTx[]) {
 }
 
 function exportTotalsCsv({ rows, totalIn, totalOut, netAmount, channelBreakdown }: ExportPayload) {
+  void 0;
   const perDay = buildPerDayBreakdown(rows);
   const stamp = format(new Date(), 'yyyy-MM-dd_HHmm');
 
