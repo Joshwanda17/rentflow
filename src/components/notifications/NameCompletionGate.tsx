@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { validateFullName } from "@/lib/authValidation";
+import { loginTelemetry as lt } from "@/lib/loginTelemetry";
 
 const SNOOZE_KEY = "welile:name-completion:snoozed-until";
 // Shorter snooze than the phone gate — we really do need a real name so payouts,
@@ -33,14 +34,15 @@ export default function NameCompletionGate() {
     let cancelled = false;
     async function check() {
       if (!user?.id) return;
+      const stop = lt.start('gate.name_completion.check', { userId: user.id });
       const snoozed = Number(localStorage.getItem(SNOOZE_KEY) || 0);
-      if (snoozed && Date.now() < snoozed) return;
+      if (snoozed && Date.now() < snoozed) { stop('snoozed'); return; }
       const { data, error } = await supabase
         .from("profiles")
         .select("full_name")
         .eq("id", user.id)
         .maybeSingle();
-      if (cancelled || error) return;
+      if (cancelled || error) { stop(error ? 'error' : 'cancelled', { message: error?.message }); return; }
       const currentName = String(data?.full_name ?? "").trim();
       const check = validateFullName(currentName);
       if (!check.valid) {
@@ -50,6 +52,9 @@ export default function NameCompletionGate() {
         setLastName(parts.slice(1).join(" ") || "");
         setReason(check.error || "Please add your full legal name.");
         setOpen(true);
+        stop('needs_completion');
+      } else {
+        stop('ok');
       }
       setChecked(true);
     }

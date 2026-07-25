@@ -9,6 +9,7 @@ import { isStaffRole, isPublicRole } from '@/lib/roleConstants';
 import { useToast } from '@/hooks/use-toast';
 import PhoneVerificationGate from '@/components/auth/PhoneVerificationGate';
 import StalledLoaderWatchdog from '@/components/common/StalledLoaderWatchdog';
+import { loginTelemetry as lt } from '@/lib/loginTelemetry';
 
 interface RoleGuardProps {
   allowedRoles: AppRole[];
@@ -25,6 +26,25 @@ export default function RoleGuard({ allowedRoles, children, redirectTo = '/dashb
   const [submitting, setSubmitting] = useState<AppRole | null>(null);
 
   const hasAccess = roles.some(r => allowedRoles.includes(r));
+
+  // One-shot telemetry when the guard resolves: which path we ended on.
+  useEffect(() => {
+    if (loading) {
+      lt.mark('guard.loading', { path: window.location.pathname, allowedRoles });
+      return;
+    }
+    if (!user) {
+      lt.mark('guard.no_user_redirect', { path: window.location.pathname });
+      return;
+    }
+    lt.mark('guard.resolved', {
+      path: window.location.pathname,
+      allowedRoles,
+      userRoles: roles,
+      hasAccess,
+    }, hasAccess ? 'ok' : 'denied');
+  }, [loading, user?.id, hasAccess, roles.join(','), allowedRoles.join(',')]);
+
 
   // Log unauthorized access attempts
   useEffect(() => {

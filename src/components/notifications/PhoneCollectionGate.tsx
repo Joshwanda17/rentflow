@@ -150,6 +150,8 @@ export default function PhoneCollectionGate() {
     let cancelled = false;
     async function check() {
       if (!user?.id || !user.email) return;
+      const stop = (await import("@/lib/loginTelemetry"))
+        .loginTelemetry.start('gate.phone_collection.check', { userId: user.id });
       // Detect Google (or other OAuth) sign-up: Supabase stores the identity
       // provider on app_metadata.provider and providers[].
       const meta = (user as any).app_metadata || {};
@@ -166,6 +168,7 @@ export default function PhoneCollectionGate() {
       const snoozed = Number(localStorage.getItem(SNOOZE_KEY) || 0);
       if (snoozed && Date.now() < snoozed) {
         setChecked(true);
+        stop('snoozed');
         return;
       }
       const { data, error } = await supabase
@@ -173,7 +176,7 @@ export default function PhoneCollectionGate() {
         .select("phone, full_name, mobile_money_name, phone_verified")
         .eq("id", user.id)
         .maybeSingle();
-      if (cancelled || error) return;
+      if (cancelled || error) { stop(error ? 'error' : 'cancelled', { message: error?.message }); return; }
       const priorPhone = String(data?.phone ?? "").trim();
       const priorVerified = Boolean((data as any)?.phone_verified);
       // For OAuth (Google) sign-ups we ALSO force verification when a phone
@@ -196,6 +199,9 @@ export default function PhoneCollectionGate() {
             reason: !priorPhone ? "no_phone" : "oauth_phone_unverified",
           },
         });
+        stop('prompt_shown', { hadPriorPhone: Boolean(priorPhone), providers });
+      } else {
+        stop('ok');
       }
       setChecked(true);
     }

@@ -12664,6 +12664,48 @@ export type Database = {
           },
         ]
       }
+      login_phase_events: {
+        Row: {
+          created_at: string
+          detail: Json | null
+          duration_ms: number | null
+          id: number
+          ms_since_start: number | null
+          path: string | null
+          phase: string
+          session_trace_id: string
+          status: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json | null
+          duration_ms?: number | null
+          id?: number
+          ms_since_start?: number | null
+          path?: string | null
+          phase: string
+          session_trace_id: string
+          status?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: Json | null
+          duration_ms?: number | null
+          id?: number
+          ms_since_start?: number | null
+          path?: string | null
+          phase?: string
+          session_trace_id?: string
+          status?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       managed_locations: {
         Row: {
           active: boolean

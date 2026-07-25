@@ -10,6 +10,7 @@ import {
   getPreloadedRoles,
 } from '@/lib/sessionCache';
 import { installStaleSessionDetector, STALE_SESSION_EVENTS } from '@/lib/staleSessionDetector';
+import { loginTelemetry as lt } from '@/lib/loginTelemetry';
 
 
 // Re-export types so existing imports keep working
@@ -23,6 +24,7 @@ import * as ops from './auth/authOperations';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function enforceAccountAccess(userId: string): Promise<boolean> {
+  const stop = lt.start('auth.enforceAccountAccess', { userId });
   try {
     const [{ data: profile }, { data: fraudBlocked }] = await Promise.all([
       supabase
@@ -48,12 +50,16 @@ async function enforceAccountAccess(userId: string): Promise<boolean> {
       } catch { /* ignore */ }
       clearAllAuthStorage();
       await supabase.auth.signOut();
+      stop('fraud_blocked', { frozen: profile?.is_frozen ?? false });
       window.location.href = '/auth';
       return false;
     }
   } catch (error) {
     console.warn('[Auth] account access guard failed:', error);
+    stop('error', { message: (error as Error)?.message });
+    return true;
   }
+  stop('ok');
   return true;
 }
 
@@ -81,6 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    lt.mark('auth.provider.mount', {
+      hasCachedSession: Boolean(cachedSession?.userId),
+      cachedRolesCount: cachedRoles?.length ?? 0,
+    });
     let isMounted = true;
     let rolesFetched = false; // prevent duplicate role fetches
 
@@ -93,8 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // any stale in-memory identity state is rehydrated from the new session.
     const onRehydrated = () => {
       if (!isMounted) return;
+      lt.mark('auth.rehydrate.start');
       supabase.auth.getSession().then(({ data: { session: fresh } }) => {
         if (!isMounted || !fresh?.user) return;
+        lt.setUserId(fresh.user.id);
+        lt.mark('auth.rehydrate.session_ok', { userId: fresh.user.id });
         setSession(fresh);
         setUser(fresh.user);
         setCachedSession(fresh.user.id, fresh.user.email || '', fresh.expires_at || 0);
@@ -106,6 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!isMounted) return;
+        lt.mark('auth.state_change', {
+          event,
+          hasSession: Boolean(session),
+          userId: session?.user?.id ?? null,
+        });
 
         // OTP login fallback guard: when a session is established right after an
         // OTP-initiated magic-link redirect, verify the resolved auth user id
@@ -236,9 +254,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     const initializeAuth = async () => {
+      lt.mark('auth.init.start');
       const forceLoadingOff = setTimeout(() => {
         if (isMounted) {
           console.warn('[Auth] Init timeout after 8s — forcing loading off');
+          lt.mark('auth.init.timeout_forced', undefined, 'warn');
           setLoading(false);
         }
       }, 8000);
@@ -247,11 +267,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let earlyRoleFetch: Promise<void> | null = null;
       if (cachedSession?.userId && !rolesFetched) {
         rolesFetched = true;
+        lt.setUserId(cachedSession.userId);
+        lt.mark('auth.roles.early_fetch.start', { userId: cachedSession.userId });
         earlyRoleFetch = fetchUserRoles(cachedSession.userId, role, setRolesWithRef, setRole);
+        earlyRoleFetch.finally(() => lt.mark('auth.roles.early_fetch.end'));
       }
 
       try {
+        const stopGet = lt.start('auth.getSession');
         const { data: { session }, error } = await supabase.auth.getSession();
+        stopGet(error ? 'error' : (session ? 'ok' : 'null'), {
+          message: error?.message,
+          userId: session?.user?.id ?? null,
+        });
         if (!isMounted) return;
 
         if (error) {
@@ -272,6 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } else {
           if (session) {
+            lt.setUserId(session.user.id);
             const allowed = await enforceAccountAccess(session.user.id);
             if (!allowed || !isMounted) return;
             setSession(session);
@@ -280,27 +309,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
             // If early fetch was for the same user, just await it; otherwise fetch fresh
             if (earlyRoleFetch && cachedSession?.userId === session.user.id) {
+              const stopWait = lt.start('auth.roles.early_fetch.await');
               const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
               await Promise.race([earlyRoleFetch, timeoutPromise]);
+              stopWait();
             } else {
               rolesFetched = true;
+              const stopRoles = lt.start('auth.roles.fetch', { userId: session.user.id });
               const rolePromise = fetchUserRoles(session.user.id, role, setRolesWithRef, setRole);
               const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
               await Promise.race([rolePromise, timeoutPromise]);
+              stopRoles();
             }
           } else if (cachedSession) {
             console.log('[Auth] getSession() null but cached session exists — preserving state');
+            lt.mark('auth.init.null_session_cached');
           } else {
             setSession(null);
             setUser(null);
             clearSessionCache();
+            lt.mark('auth.init.no_session');
           }
         }
       } catch (err: any) {
         console.warn('[Auth] Init failed (keeping session for retry):', err?.message);
+        lt.mark('auth.init.error', { message: err?.message }, 'error');
       } finally {
         clearTimeout(forceLoadingOff);
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          lt.mark('auth.init.loading_off');
+        }
       }
     };
 
