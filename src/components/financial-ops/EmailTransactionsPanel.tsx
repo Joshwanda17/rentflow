@@ -3803,6 +3803,24 @@ export function EmailTransactionsPanel() {
             >
               Review now
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              disabled={bulkBusy || alertRows.length === 0}
+              onClick={() => { selectAllAlertRows(); document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+            >
+              Select all {alertRows.length}
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              disabled={bulkBusy || alertRows.length === 0}
+              onClick={() => resolveAlertRows(alertRows)}
+            >
+              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+              Resolve all
+            </Button>
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={markAlertsSeen}>
               Mark all seen
             </Button>
