@@ -7187,7 +7187,6 @@ type ChannelBreakdownRow = {
 
 type ExportPayload = {
   rows: GmailTx[];
-  rows: GmailTx[];
   totalIn: number;
   totalOut: number;
   netAmount: number;
