@@ -2480,6 +2480,50 @@ export function EmailTransactionsPanel() {
   }, [routingHistory, creditedDeposits, manualMarks]);
 
   /**
+   * Unread alert tracking. "Alerts" are rows that need a human: incoming
+   * emails still awaiting routing, plus unparsed rows the parser skipped.
+   * We remember the timestamp of the last time ops acknowledged the queue
+   * (localStorage) and treat any alert row newer than that as unread, so the
+   * panel can surface "what needs attention first" at a glance.
+   */
+  const ALERTS_SEEN_KEY = 'gmail_alerts_last_seen';
+  const [alertsSeenTs, setAlertsSeenTs] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    const raw = Number(localStorage.getItem(ALERTS_SEEN_KEY));
+    return Number.isFinite(raw) ? raw : 0;
+  });
+  const rowTimeMs = useCallback((r: GmailTx) => {
+    const t = r.internal_date ? new Date(r.internal_date).getTime() : NaN;
+    if (Number.isFinite(t)) return t;
+    const c = r.created_at ? new Date(r.created_at).getTime() : NaN;
+    return Number.isFinite(c) ? c : 0;
+  }, []);
+  const alertRows = useMemo(
+    () => filteredRows.filter((r) => {
+      const s = getRowStatus(r);
+      return s === 'needs_routing' || s === 'unparsed';
+    }),
+    [filteredRows, getRowStatus],
+  );
+  const unreadAlertRows = useMemo(
+    () => alertRows.filter((r) => rowTimeMs(r) > alertsSeenTs),
+    [alertRows, alertsSeenTs, rowTimeMs],
+  );
+  const unreadAlertCount = unreadAlertRows.length;
+  const isUnreadAlertRow = useCallback(
+    (r: GmailTx) => {
+      const s = getRowStatus(r);
+      return (s === 'needs_routing' || s === 'unparsed') && rowTimeMs(r) > alertsSeenTs;
+    },
+    [getRowStatus, rowTimeMs, alertsSeenTs],
+  );
+  const markAlertsSeen = useCallback(() => {
+    const now = Date.now();
+    setAlertsSeenTs(now);
+    try { localStorage.setItem(ALERTS_SEEN_KEY, String(now)); } catch { /* ignore */ }
+  }, []);
+
+  /**
    * Compute debit metadata for a single row. Reused in filtering, sorting,
    * and rendering so the breakdown logic is defined in one place.
    */
