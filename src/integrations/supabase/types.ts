@@ -9549,6 +9549,54 @@ export type Database = {
         }
         Relationships: []
       }
+      install_attempt_events: {
+        Row: {
+          created_at: string
+          display_mode: string | null
+          event_type: string
+          id: string
+          in_app_browser: boolean | null
+          in_app_browser_name: string | null
+          ios_version: number | null
+          is_standalone: boolean | null
+          metadata: Json
+          platform: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_mode?: string | null
+          event_type: string
+          id?: string
+          in_app_browser?: boolean | null
+          in_app_browser_name?: string | null
+          ios_version?: number | null
+          is_standalone?: boolean | null
+          metadata?: Json
+          platform?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_mode?: string | null
+          event_type?: string
+          id?: string
+          in_app_browser?: boolean | null
+          in_app_browser_name?: string | null
+          ios_version?: number | null
+          is_standalone?: boolean | null
+          metadata?: Json
+          platform?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       internship_applications: {
         Row: {
           created_at: string
