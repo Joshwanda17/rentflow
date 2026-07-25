@@ -2861,6 +2861,38 @@ export function EmailTransactionsPanel() {
     setRoutingRow(nextRow);
   };
 
+  /**
+   * ── Multi-select batch queues ─────────────────────────────────────────────
+   * Ops often tick several rows and want to work through them without going
+   * back to the list. Two queues drive that:
+   *  - `routeQueue`   : ids still to be routed/charged. Closing the routing
+   *                     dialog automatically opens the next queued row.
+   *  - `historyQueue` : rows to audit; the history drawer gets prev/next.
+   */
+  const [routeQueue, setRouteQueue] = useState<string[]>([]);
+  const [historyQueue, setHistoryQueue] = useState<GmailTx[]>([]);
+
+  const startRouteQueue = useCallback((batch: GmailTx[]) => {
+    if (!batch.length) return;
+    const [first, ...rest] = batch;
+    setRouteQueue(rest.map((r) => r.id));
+    navigateToRow(first, first.direction === 'in' ? 'credit' : 'debit');
+    sonnerToast(`Routing 1 of ${batch.length}`, {
+      description: 'Finish or close this one and the next selected row opens automatically.',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userMatches]);
+
+  const startHistoryQueue = useCallback((batch: GmailTx[]) => {
+    if (!batch.length) return;
+    setHistoryQueue(batch);
+    setHistoryDrawerRow(batch[0]);
+  }, []);
+
+  const historyQueueIndex = historyDrawerRow
+    ? historyQueue.findIndex((r) => r.id === historyDrawerRow.id)
+    : -1;
+
   // Swipe-triggered routing/charging. Because a swipe can easily be the wrong
   // gesture, we snapshot the routing dialog state *before* opening it and show
   // an "Undo" toast that instantly reverts to the previous state (usually
