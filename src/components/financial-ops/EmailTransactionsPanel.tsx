@@ -1027,7 +1027,11 @@ export function EmailTransactionsPanel() {
   }, [historyDrawerRow?.id]);
   // A swipe queues a confirmation step before actually opening the
   // routing/charging dialog, so an accidental swipe can't fire the action.
-  const [pendingSwipe, setPendingSwipe] = useState<{ row: GmailTx; mode: 'credit' | 'debit' } | null>(null);
+  // Swipe confirmation gate. `mode` covers the money actions (credit/debit) and
+  // the resolve action, so no swipe can process anything without a review step.
+  const [pendingSwipe, setPendingSwipe] = useState<{ row: GmailTx; mode: 'credit' | 'debit' | 'resolve' } | null>(null);
+  // High-impact actions (wallet charge) additionally require an explicit tick.
+  const [swipeAck, setSwipeAck] = useState(false);
   // Batch auto-debit state. `autoDebitBusy` disables the banner button while
   // a batch run is in flight; `autoDebitProgress` drives the inline counter.
   const [autoDebitBusy, setAutoDebitBusy] = useState(false);
