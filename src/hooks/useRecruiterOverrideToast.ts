@@ -16,7 +16,7 @@ function describe(eventType: string) {
 
 /**
  * Watches `recruiter_override_events` for the current recruiting agent and shows
- * a clear success / error toast for each UGX 3,000 override payout.
+ * a clear success / error toast for each UGX 1,000 override payout.
  * Marks `toast_seen_at` so a toast never re-fires on reload.
  *
  * Fires on:
@@ -33,12 +33,12 @@ export function useRecruiterOverrideToast(agentId?: string | null) {
       if (row.status === 'failed') {
         toast.error('Recruiter override could not be paid', {
           description:
-            `We tried to pay your UGX ${formatUGX(Number(row.amount) || 3000)} override because ` +
+            `We tried to pay your UGX ${formatUGX(Number(row.amount) || 1000)} override because ` +
             `${describe(row.event_type)}, but it failed. Our team has been notified.`,
           duration: 10_000,
         });
       } else {
-        const amount = formatUGX(Number(row.amount) || 3000);
+        const amount = formatUGX(Number(row.amount) || 1000);
         toast.success('Recruiter override earned! 🎉', {
           description:
             `You earned UGX ${amount} because ${describe(row.event_type)}` +
