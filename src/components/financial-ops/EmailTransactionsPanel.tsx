@@ -2494,9 +2494,7 @@ export function EmailTransactionsPanel() {
   });
   const rowTimeMs = useCallback((r: GmailTx) => {
     const t = r.internal_date ? new Date(r.internal_date).getTime() : NaN;
-    if (Number.isFinite(t)) return t;
-    const c = r.created_at ? new Date(r.created_at).getTime() : NaN;
-    return Number.isFinite(c) ? c : 0;
+    return Number.isFinite(t) ? t : 0;
   }, []);
   const alertRows = useMemo(
     () => filteredRows.filter((r) => {
