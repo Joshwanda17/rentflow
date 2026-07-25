@@ -4,7 +4,7 @@ import {
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
   ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark, KeyRound, SlidersHorizontal, HandCoins, Snowflake, ShoppingBag, MonitorSmartphone
-  , Gauge
+  , Gauge, Download
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -184,6 +184,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Signup Trends', icon: UserCheck, id: 'signups' },
         { label: 'Referral Performance', icon: Share2, id: 'referrals' },
         { label: 'Campaign Analytics', icon: Target, id: 'campaigns' },
+        { label: 'Install Funnel', icon: Download, id: 'install-funnel' },
         { label: 'Merchandise', icon: ShoppingBag, id: 'merchandise' },
         { label: 'Requisitions', icon: ClipboardList, id: 'requisitions' },
       ],
