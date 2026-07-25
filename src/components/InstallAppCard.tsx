@@ -6,6 +6,7 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useInstallPreflight } from '@/hooks/useInstallPreflight';
 import { toast } from 'sonner';
 import { trackInstallEvent } from '@/lib/installTracking';
+import WhatsAppInstallBanner from '@/components/WhatsAppInstallBanner';
 
 const IOSInstallGuide = lazy(() => import('@/components/IOSInstallGuide'));
 
@@ -110,6 +111,10 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
         transition={{ duration: 0.25, ease: 'easeOut' }}
         className={className}
       >
+        {/* WhatsApp-in-app users on iPhone: surface the ⋯ → Open in Safari
+            instruction inline, above the install card, so they see it without
+            having to open the full guide first. Renders nothing otherwise. */}
+        <WhatsAppInstallBanner className="mb-3" />
         <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm p-4 sm:p-5">
           {/* Decorative accent */}
           <div
