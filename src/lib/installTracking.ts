@@ -22,7 +22,8 @@ export type InstallEventType =
   | 'app_installed'
   | 'diagnostics_opened'
   | 'diagnostics_report_copied'
-  | 'install_preflight_failed';
+  | 'install_preflight_failed'
+  | 'whatsapp_banner_shown';
 
 function detectInAppName(): string | null {
   const ua = navigator.userAgent || '';
