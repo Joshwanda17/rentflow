@@ -2984,6 +2984,25 @@ export function EmailTransactionsPanel() {
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">active</Badge>
           )}
         </Button>
+        {/* One-tap audit export of exactly what is on screen (all filters,
+            search and sort applied) — one CSV line per email. */}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="gap-1.5 shrink-0"
+          disabled={visibleRows.length === 0}
+          onClick={() => {
+            try { navigator.vibrate?.(15); } catch { /* haptics optional */ }
+            const count = exportFilteredRowsCsv(visibleRows, getRowStatus);
+            toast({
+              title: 'CSV exported',
+              description: `${count} filtered transaction${count === 1 ? '' : 's'} downloaded.`,
+            });
+          }}
+        >
+          <FileDown className="h-4 w-4" />
+          CSV ({visibleRows.length})
+        </Button>
       </div>
       <div className={`rounded-xl border bg-card p-3 sm:p-4 flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4 ${mobileFiltersOpen ? 'flex' : 'hidden sm:flex'}`}>
         <div className="flex-1 min-w-full sm:min-w-[200px]">
