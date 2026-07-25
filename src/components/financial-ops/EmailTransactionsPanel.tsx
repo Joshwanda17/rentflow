@@ -3647,6 +3647,47 @@ export function EmailTransactionsPanel() {
         </div>
       )}
 
+      {/* Unread alert banner — first thing ops sees: how many attention-needing
+          emails (needs routing / unparsed) arrived since they last acknowledged
+          the queue, with one tap to jump straight to them. */}
+      {unreadAlertCount > 0 && (
+        <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-start gap-2 min-w-0">
+            <span className="relative mt-0.5 shrink-0">
+              <AlertCircle className="h-4 w-4 text-orange-700 dark:text-orange-400" />
+              <span className="absolute -top-1.5 -right-1.5 h-2 w-2 rounded-full bg-orange-600 animate-pulse" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                {unreadAlertCount} new item{unreadAlertCount === 1 ? '' : 's'} need attention
+                <Badge className="ml-2 bg-orange-600 text-white hover:bg-orange-600 text-[10px] font-mono">
+                  {unreadAlertCount} unread
+                </Badge>
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {alertRows.length} total unresolved in this window (awaiting routing or unparsed).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => {
+                setStatusFilter('needs_routing');
+                document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              Review now
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={markAlertsSeen}>
+              Mark all seen
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
@@ -3656,6 +3697,14 @@ export function EmailTransactionsPanel() {
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <Mail className="h-4 w-4 text-muted-foreground" />
               Recent emails
+              {unreadAlertCount > 0 && (
+                <Badge
+                  className="bg-orange-600 text-white hover:bg-orange-600 text-[10px] font-mono"
+                  aria-label={`${unreadAlertCount} unread items needing attention`}
+                >
+                  {unreadAlertCount} new
+                </Badge>
+              )}
             </h3>
             <div className="flex items-center gap-2">
               {searchActive && (
