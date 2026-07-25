@@ -2951,6 +2951,8 @@ export function EmailTransactionsPanel() {
    * actions) without leaving the panel; prev/next walks the unread queue.
    */
   const [alertDetailsRow, setAlertDetailsRow] = useState<GmailTx | null>(null);
+  /** Controlled open state for the alert notification settings dialog. */
+  const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
 
   const startRouteQueue = useCallback((batch: GmailTx[]) => {
     if (!batch.length) return;
