@@ -11,6 +11,7 @@ import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransfe
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
 import { Info } from 'lucide-react';
 import { Wrench } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
@@ -946,6 +947,9 @@ export function EmailTransactionsPanel() {
   // Mobile-only collapsibles: keep filters & stats hidden by default on small screens
   // so the actual email list lands above the fold. On sm+ they're always expanded.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  // Mobile-only collapse for the status / debit / sort chip groups. Keeps the
+  // email list within reach on a phone instead of six wrapped chip rows.
+  const [chipFiltersOpen, setChipFiltersOpen] = useState(false);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
   // Selected zoom window on the In-vs-Out daily chart (Brush start/end indices).
   // null = full range. Drives the summary card above the chart.
@@ -3677,7 +3681,7 @@ export function EmailTransactionsPanel() {
             className="sm:hidden w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs font-semibold"
           >
             <span className="inline-flex items-center gap-2">
-              <Filter className="h-3.5 w-3.5" />
+              <SlidersHorizontal className="h-3.5 w-3.5" />
               Filters &amp; sort
             </span>
             <ChevronDown
