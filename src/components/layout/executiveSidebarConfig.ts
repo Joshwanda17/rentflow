@@ -50,6 +50,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'System Logs', icon: FileText, id: 'system-logs' },
         { label: 'Browser Compatibility', icon: MonitorSmartphone, id: 'browser-compat' },
         { label: 'Signup Log', icon: ShieldCheck, id: 'signup-log' },
+        { label: 'Deposit Bridge', icon: Activity, id: 'bridge-health' },
         { label: 'Platform Users', icon: Users, id: 'platform-users', route: '/platform-users' },
         { label: 'Requisitions', icon: ClipboardList, id: 'requisitions' },
       ],

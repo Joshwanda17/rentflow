@@ -30,6 +30,7 @@ import { BrandSerpVisibilityPanel } from './BrandSerpVisibilityPanel';
 import { ChangeOfAddressMonitorPanel } from './ChangeOfAddressMonitorPanel';
 import { RedirectHealthAlertsPanel } from './RedirectHealthAlertsPanel';
 import { SignupSourceLogPanel } from './SignupSourceLogPanel';
+import { DepositBridgeHealthPanel } from '@/components/bridge/DepositBridgeHealthPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -64,6 +65,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   }
   if (activeTab === 'signup-log') {
     return <SignupSourceLogPanel />;
+  }
+  if (activeTab === 'bridge-health') {
+    return <DepositBridgeHealthPanel />;
   }
 
   // Real: active users in last 7 days

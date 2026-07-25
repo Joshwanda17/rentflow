@@ -6908,6 +6908,179 @@ export type Database = {
           },
         ]
       }
+      deposit_bridge_event_log: {
+        Row: {
+          attempt: number | null
+          created_at: string
+          error: string | null
+          event_id: string
+          from_status: string | null
+          id: string
+          latency_ms: number | null
+          message: string | null
+          metadata: Json
+          to_status: string
+          worker_id: string | null
+        }
+        Insert: {
+          attempt?: number | null
+          created_at?: string
+          error?: string | null
+          event_id: string
+          from_status?: string | null
+          id?: string
+          latency_ms?: number | null
+          message?: string | null
+          metadata?: Json
+          to_status: string
+          worker_id?: string | null
+        }
+        Update: {
+          attempt?: number | null
+          created_at?: string
+          error?: string | null
+          event_id?: string
+          from_status?: string | null
+          id?: string
+          latency_ms?: number | null
+          message?: string | null
+          metadata?: Json
+          to_status?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_bridge_event_log_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_bridge_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deposit_bridge_events: {
+        Row: {
+          amount: number
+          attempt: number
+          correlation_id: string
+          created_at: string
+          currency: string
+          dead_lettered_at: string | null
+          delivered_at: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          ledger_verified_at: string | null
+          max_attempts: number
+          metadata: Json
+          next_attempt_at: string
+          source: string
+          source_id: string
+          status: string
+          transaction_id: string | null
+          updated_at: string
+          user_id: string | null
+          wallet_transaction_group_id: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          amount: number
+          attempt?: number
+          correlation_id?: string
+          created_at?: string
+          currency?: string
+          dead_lettered_at?: string | null
+          delivered_at?: string | null
+          id?: string
+          idempotency_key: string
+          last_error?: string | null
+          ledger_verified_at?: string | null
+          max_attempts?: number
+          metadata?: Json
+          next_attempt_at?: string
+          source: string
+          source_id: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          wallet_transaction_group_id?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          amount?: number
+          attempt?: number
+          correlation_id?: string
+          created_at?: string
+          currency?: string
+          dead_lettered_at?: string | null
+          delivered_at?: string | null
+          id?: string
+          idempotency_key?: string
+          last_error?: string | null
+          ledger_verified_at?: string | null
+          max_attempts?: number
+          metadata?: Json
+          next_attempt_at?: string
+          source?: string
+          source_id?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          wallet_transaction_group_id?: string | null
+          worker_id?: string | null
+        }
+        Relationships: []
+      }
+      deposit_bridge_gap_alerts: {
+        Row: {
+          alert_reason: string
+          amount: number | null
+          approved_at: string | null
+          detected_at: string
+          id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source: string
+          source_id: string
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          alert_reason: string
+          amount?: number | null
+          approved_at?: string | null
+          detected_at?: string
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source: string
+          source_id: string
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          alert_reason?: string
+          amount?: number | null
+          approved_at?: string | null
+          detected_at?: string
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source?: string
+          source_id?: string
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       deposit_decision_audit: {
         Row: {
           actor_email: string | null
@@ -24899,6 +25072,39 @@ export type Database = {
           id: string
         }[]
       }
+      claim_deposit_bridge_events: {
+        Args: { p_batch_size?: number; p_worker_id: string }
+        Returns: {
+          amount: number
+          attempt: number
+          correlation_id: string
+          created_at: string
+          currency: string
+          dead_lettered_at: string | null
+          delivered_at: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          ledger_verified_at: string | null
+          max_attempts: number
+          metadata: Json
+          next_attempt_at: string
+          source: string
+          source_id: string
+          status: string
+          transaction_id: string | null
+          updated_at: string
+          user_id: string | null
+          wallet_transaction_group_id: string | null
+          worker_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "deposit_bridge_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_next_agent_capability_batch: {
         Args: { _job_id?: string }
         Returns: Json
@@ -25216,6 +25422,16 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      deposit_bridge_ledger_present: {
+        Args: {
+          p_amount: number
+          p_source: string
+          p_source_id: string
+          p_transaction_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       derive_deposit_guardrail_source: {
         Args: {
           p_deposit: Database["public"]["Tables"]["deposit_requests"]["Row"]
@@ -25237,6 +25453,7 @@ export type Database = {
           scanned_users: number
         }[]
       }
+      detect_deposit_bridge_gaps: { Args: never; Returns: number }
       detect_deposit_guardrail_alerts: {
         Args: never
         Returns: {
@@ -25332,6 +25549,17 @@ export type Database = {
           _chunk_size?: number
           _reason: string
           _source?: string
+        }
+        Returns: string
+      }
+      enqueue_deposit_bridge_event: {
+        Args: {
+          p_amount: number
+          p_metadata?: Json
+          p_source: string
+          p_source_id: string
+          p_transaction_id: string
+          p_user_id: string
         }
         Returns: string
       }
@@ -26154,6 +26382,8 @@ export type Database = {
           verified: number
         }[]
       }
+      get_deposit_bridge_health: { Args: never; Returns: Json }
+      get_deposit_bridge_metrics: { Args: never; Returns: Json }
       get_deposits_paginated: {
         Args: {
           p_agent_id?: string
@@ -27269,6 +27499,14 @@ export type Database = {
           vendor_id: string
         }[]
       }
+      mark_deposit_bridge_delivered: {
+        Args: { p_event_id: string; p_group_id: string; p_latency_ms?: number }
+        Returns: undefined
+      }
+      mark_deposit_bridge_failed: {
+        Args: { p_error: string; p_event_id: string }
+        Returns: undefined
+      }
       mature_bonus_by_subject: {
         Args: { p_condition: string; p_subject_id: string }
         Returns: number
@@ -27987,6 +28225,10 @@ export type Database = {
           p_reason: string
         }
         Returns: Json
+      }
+      replay_deposit_bridge_event: {
+        Args: { p_event_id: string }
+        Returns: undefined
       }
       request_agent_unallocation: {
         Args: {

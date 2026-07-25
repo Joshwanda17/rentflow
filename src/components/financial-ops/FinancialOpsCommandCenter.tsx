@@ -36,6 +36,7 @@ import { MerchantClaimsLog } from './MerchantClaimsLog';
 import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
 import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
 import { ReceiptArchivePanel } from '@/components/shared/ReceiptArchivePanel';
+import { DepositBridgeHealthPanel } from '@/components/bridge/DepositBridgeHealthPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -48,7 +49,7 @@ import {
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
-  , Store, Archive
+  , Store, Archive, Activity
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -63,7 +64,8 @@ type Tool =
   | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
   | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log'
   | 'merchant_agents' | 'merchant_float' | 'receipt_archive'
-  | 'employee_requisition_links' | 'employee_requisition_queue';
+  | 'employee_requisition_links' | 'employee_requisition_queue'
+  | 'bridge_health';
 // Extend Tool type via union above; add new tools:
 
 
@@ -77,6 +79,7 @@ type MoreAction =
   | { kind: 'view'; id: Exclude<View, 'home'>; label: string; desc: string; icon: typeof Gauge };
 
 const moreActions: MoreAction[] = [
+  { kind: 'tool', id: 'bridge_health', label: 'Deposit Bridge Health', desc: 'Reliability of the queue between Financial Ops and the wallet ledger — pending, retries, DLQ, gap alerts', icon: Activity },
   { kind: 'tool', id: 'receipt_archive', label: 'Receipt Archive', desc: 'Permanent record of every payout receipt — searchable, one URL per receipt', icon: Archive },
   { kind: 'tool', id: 'merchant_agents', label: 'Merchant Agents', desc: 'Manage cash-out (merchant) agents — same module as the CFO Dashboard', icon: Store },
   { kind: 'tool', id: 'merchant_float', label: 'Merchant Float', desc: 'Fund or reject merchant agent operational float requests', icon: HandCoins },
@@ -285,6 +288,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           </div>
         )}
         {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
+        {activeTool === 'bridge_health' && <DepositBridgeHealthPanel />}
         {activeTool === 'withdrawal_history' && <WithdrawalHistoryStatement />}
         {activeTool === 'funded_tenants' && <FundedTenantsList />}
         {activeTool === 'proxy_diagnostics' && <ProxyWithdrawalDiagnosticsPanel />}
