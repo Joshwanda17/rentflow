@@ -2897,6 +2897,12 @@ export function EmailTransactionsPanel() {
    */
   const [routeQueue, setRouteQueue] = useState<string[]>([]);
   const [historyQueue, setHistoryQueue] = useState<GmailTx[]>([]);
+  /**
+   * Inline alert details drawer. Opens the full context for one attention-needing
+   * email (raw subject/snippet, every parsed field, and the routing/resolve
+   * actions) without leaving the panel; prev/next walks the unread queue.
+   */
+  const [alertDetailsRow, setAlertDetailsRow] = useState<GmailTx | null>(null);
 
   const startRouteQueue = useCallback((batch: GmailTx[]) => {
     if (!batch.length) return;
