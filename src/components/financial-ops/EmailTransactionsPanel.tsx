@@ -2768,17 +2768,39 @@ export function EmailTransactionsPanel() {
     const node = infiniteSentinelRef.current;
     if (!node) return;
     if (infiniteCount >= totalVisible) return;
+    let frame = 0;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          setInfiniteCount((c) => Math.min(c + pageSize, totalVisible));
+          // Grow inside a rAF so the reveal happens on the next paint instead of
+          // mid-scroll — keeps momentum scrolling smooth on phones.
+          if (frame) return;
+          frame = requestAnimationFrame(() => {
+            frame = 0;
+            setInfiniteCount((c) => Math.min(c + pageSize, totalVisible));
+          });
         }
       },
-      { rootMargin: '400px 0px' },
+      // Prefetch well ahead of the fold so the next chunk is already rendered
+      // before the operator reaches the bottom (no visible "Loading more…" stall).
+      { rootMargin: '1200px 0px' },
     );
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); if (frame) cancelAnimationFrame(frame); };
   }, [paginationMode, infiniteCount, totalVisible, pageSize]);
+
+  /**
+   * Move to a page (paged mode) and bring the top of the results list into view
+   * WITHOUT scrolling under the sticky search / filter bars. The results anchor
+   * carries `scroll-mt-*`, so `scrollIntoView` stops just below them.
+   */
+  const goToPage = useCallback((page: number) => {
+    setCurrentPage(page);
+    try { navigator.vibrate?.(10); } catch { /* haptics optional */ }
+    requestAnimationFrame(() => {
+      document.getElementById('email-tx-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
 
   /** Compute the best suggested user for a given row and routing mode. */
   const computeSuggestedFor = (r: GmailTx, mode: 'credit' | 'debit') => {
