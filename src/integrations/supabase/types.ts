@@ -4505,6 +4505,33 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_signup_ips: {
+        Row: {
+          blocked_by: string | null
+          blocked_by_role: string | null
+          created_at: string
+          id: string
+          ip: unknown
+          reason: string
+        }
+        Insert: {
+          blocked_by?: string | null
+          blocked_by_role?: string | null
+          created_at?: string
+          id?: string
+          ip: unknown
+          reason: string
+        }
+        Update: {
+          blocked_by?: string | null
+          blocked_by_role?: string | null
+          created_at?: string
+          id?: string
+          ip?: unknown
+          reason?: string
+        }
+        Relationships: []
+      }
       borrower_vouch_disclosures: {
         Row: {
           acknowledged_at: string
@@ -24623,6 +24650,10 @@ export type Database = {
         }
         Returns: Json
       }
+      block_signup_ip: {
+        Args: { p_ip: string; p_reason: string }
+        Returns: string
+      }
       bonus_restriction_config: {
         Args: { p_category: string }
         Returns: {
@@ -28257,6 +28288,7 @@ export type Database = {
         Args: { p_agent_id: string; p_reason?: string }
         Returns: Json
       }
+      unblock_signup_ip: { Args: { p_ip: string }; Returns: boolean }
       update_agent_collection_streak: {
         Args: { p_agent_id: string }
         Returns: undefined
