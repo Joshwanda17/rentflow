@@ -9,6 +9,7 @@ import {
   getPreloadedSession,
   getPreloadedRoles,
 } from '@/lib/sessionCache';
+import { installStaleSessionDetector, STALE_SESSION_EVENTS } from '@/lib/staleSessionDetector';
 
 
 // Re-export types so existing imports keep working
@@ -82,6 +83,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
     let rolesFetched = false; // prevent duplicate role fetches
+
+    // Install the global stale-session detector once. It watches Supabase
+    // responses for bad_jwt / missing sub errors and forces a token refresh
+    // (or a clean sign-out if the refresh token itself is dead).
+    installStaleSessionDetector();
+
+    // When the detector successfully refreshes the token, re-fetch roles so
+    // any stale in-memory identity state is rehydrated from the new session.
+    const onRehydrated = () => {
+      if (!isMounted) return;
+      supabase.auth.getSession().then(({ data: { session: fresh } }) => {
+        if (!isMounted || !fresh?.user) return;
+        setSession(fresh);
+        setUser(fresh.user);
+        setCachedSession(fresh.user.id, fresh.user.email || '', fresh.expires_at || 0);
+        fetchUserRoles(fresh.user.id, role, setRolesWithRef, setRole).catch(() => { /* ignore */ });
+      }).catch(() => { /* ignore */ });
+    };
+    window.addEventListener(STALE_SESSION_EVENTS.rehydrated, onRehydrated as EventListener);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -289,6 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      window.removeEventListener(STALE_SESSION_EVENTS.rehydrated, onRehydrated as EventListener);
     };
   }, []);
 
