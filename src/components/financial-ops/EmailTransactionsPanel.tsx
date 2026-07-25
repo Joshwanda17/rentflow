@@ -717,6 +717,99 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_sort_mode', sortMode); } catch {} }, [sortMode]);
 
+  // ---- Filter presets -------------------------------------------------------
+  // Operators triage the same handful of views all day (e.g. "Needs routing
+  // today", "Big money out"). A preset snapshots every filter/sort control so a
+  // single tap on mobile restores the whole view. Stored in localStorage.
+  type FilterPreset = {
+    id: string;
+    name: string;
+    searchQuery: string;
+    phoneQuery: string;
+    directionFilter: DirectionFilter;
+    matchFilter: MatchFilter;
+    needsRoutingOnly: boolean;
+    debitFilter: DebitFilter;
+    debitSort: DebitSort;
+    statusFilter: StatusFilter;
+    sortMode: SortMode;
+  };
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem('gmail_filter_presets');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? (parsed as FilterPreset[]) : [];
+    } catch { return []; }
+  });
+  const [activePresetId, setActivePresetId] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : localStorage.getItem('gmail_filter_preset_active')
+  );
+  const [presetNameDraft, setPresetNameDraft] = useState('');
+  const [presetSaveOpen, setPresetSaveOpen] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem('gmail_filter_presets', JSON.stringify(filterPresets)); } catch {}
+  }, [filterPresets]);
+  useEffect(() => {
+    try {
+      if (activePresetId) localStorage.setItem('gmail_filter_preset_active', activePresetId);
+      else localStorage.removeItem('gmail_filter_preset_active');
+    } catch {}
+  }, [activePresetId]);
+
+  const currentPresetSnapshot = useCallback((): Omit<FilterPreset, 'id' | 'name'> => ({
+    searchQuery, phoneQuery, directionFilter, matchFilter, needsRoutingOnly,
+    debitFilter, debitSort, statusFilter, sortMode,
+  }), [searchQuery, phoneQuery, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter, sortMode]);
+
+  const savePreset = useCallback(() => {
+    const name = presetNameDraft.trim();
+    if (!name) return;
+    const snap = currentPresetSnapshot();
+    setFilterPresets((prev) => {
+      const existing = prev.find((p) => p.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        setActivePresetId(existing.id);
+        return prev.map((p) => (p.id === existing.id ? { ...p, ...snap, name } : p));
+      }
+      const id = `p_${Date.now().toString(36)}`;
+      setActivePresetId(id);
+      return [...prev, { id, name, ...snap }].slice(-12);
+    });
+    setPresetNameDraft('');
+    setPresetSaveOpen(false);
+    sonnerToast.success(`Preset "${name}" saved`);
+  }, [presetNameDraft, currentPresetSnapshot]);
+
+  const applyPreset = useCallback((p: FilterPreset) => {
+    setSearchQuery(p.searchQuery ?? '');
+    setPhoneQuery(p.phoneQuery ?? '');
+    setDirectionFilter(p.directionFilter ?? 'all');
+    setMatchFilter(p.matchFilter ?? 'all');
+    setNeedsRoutingOnly(Boolean(p.needsRoutingOnly));
+    setDebitFilter(p.debitFilter ?? 'all');
+    setDebitSort(p.debitSort ?? 'none');
+    setStatusFilter(p.statusFilter ?? 'all');
+    setSortMode(p.sortMode ?? 'newest');
+    setActivePresetId(p.id);
+    try { (navigator as any).vibrate?.(10); } catch {}
+  }, []);
+
+  const deletePreset = useCallback((id: string) => {
+    setFilterPresets((prev) => prev.filter((p) => p.id !== id));
+    setActivePresetId((cur) => (cur === id ? null : cur));
+  }, []);
+
+  // A preset stops being "active" as soon as the operator tweaks a control.
+  useEffect(() => {
+    if (!activePresetId) return;
+    const p = filterPresets.find((x) => x.id === activePresetId);
+    if (!p) return;
+    const snap = currentPresetSnapshot();
+    const same = (Object.keys(snap) as Array<keyof typeof snap>).every((k) => (p as any)[k] === snap[k]);
+    if (!same) setActivePresetId(null);
+  }, [activePresetId, filterPresets, currentPresetSnapshot]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
   useEffect(() => {
     setCurrentPage(1);
