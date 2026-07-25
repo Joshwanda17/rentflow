@@ -24,7 +24,7 @@ interface Health {
   checked_at: string;
 }
 
-const statusVariant = (s: Health['status']) =>
+const statusVariant = (s: Health['status']): 'default' | 'secondary' | 'destructive' =>
   s === 'healthy' ? 'default' : s === 'degraded' ? 'secondary' : 'destructive';
 
 function Kpi({ label, value, tone }: { label: string; value: string | number; tone?: 'good' | 'warn' | 'bad' }) {
@@ -50,7 +50,7 @@ export function DepositBridgeHealthPanel() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_deposit_bridge_health');
       if (error) throw error;
-      return data as Health;
+      return data as unknown as Health;
     },
     refetchInterval: 15_000,
   });
