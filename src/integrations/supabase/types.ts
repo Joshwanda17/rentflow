@@ -24233,6 +24233,10 @@ export type Database = {
         Args: { p_withdrawal_id: string }
         Returns: Json
       }
+      admin_assign_subagent_parent: {
+        Args: { _new_parent_id: string; _reason: string; _sub_agent_id: string }
+        Returns: Json
+      }
       admin_freeze_kyc_account: {
         Args: { p_reason: string; p_user_id: string }
         Returns: undefined

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight } from 'lucide-react';
+import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, ArrowLeftRight, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
@@ -46,6 +46,86 @@ export function SubAgentVerificationQueue() {
   const [transferring, setTransferring] = useState(false);
   const [parentResults, setParentResults] = useState<{ id: string; full_name: string; phone: string | null }[]>([]);
   const [searchingParents, setSearchingParents] = useState(false);
+
+  // Admin: assign any agent as a sub-agent to a parent agent (with reason + log)
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignReason, setAssignReason] = useState('');
+  const [assignSubSearch, setAssignSubSearch] = useState('');
+  const [assignParentSearch, setAssignParentSearch] = useState('');
+  const [assignSubResults, setAssignSubResults] = useState<{ id: string; full_name: string; phone: string | null }[]>([]);
+  const [assignParentResults, setAssignParentResults] = useState<{ id: string; full_name: string; phone: string | null }[]>([]);
+  const [assignSub, setAssignSub] = useState<{ id: string; full_name: string; phone: string | null } | null>(null);
+  const [assignParent, setAssignParent] = useState<{ id: string; full_name: string; phone: string | null } | null>(null);
+  const [assignSearchingSub, setAssignSearchingSub] = useState(false);
+  const [assignSearchingParent, setAssignSearchingParent] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+
+  const searchAgents = async (
+    term: string,
+    setResults: (r: { id: string; full_name: string; phone: string | null }[]) => void,
+    setLoading: (b: boolean) => void,
+    excludeId?: string | null,
+  ) => {
+    const t = term.trim();
+    if (t.length < 2) { setResults([]); return; }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .or(`full_name.ilike.%${t}%,phone.ilike.%${t}%`)
+        .limit(15);
+      if (error) throw error;
+      setResults((data || []).filter(p => !excludeId || p.id !== excludeId));
+    } catch (err: any) {
+      toast.error(err.message || 'Search failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetAssignDialog = () => {
+    setAssignOpen(false);
+    setAssignReason('');
+    setAssignSubSearch('');
+    setAssignParentSearch('');
+    setAssignSubResults([]);
+    setAssignParentResults([]);
+    setAssignSub(null);
+    setAssignParent(null);
+  };
+
+  const handleAssign = async () => {
+    if (!assignSub || !assignParent) {
+      toast.error('Select both the agent and their parent agent.');
+      return;
+    }
+    if (assignSub.id === assignParent.id) {
+      toast.error('An agent cannot be assigned to themselves.');
+      return;
+    }
+    if (assignReason.trim().length < 10) {
+      toast.error('Please provide a reason (at least 10 characters).');
+      return;
+    }
+    setAssigning(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_assign_subagent_parent' as any, {
+        _sub_agent_id: assignSub.id,
+        _new_parent_id: assignParent.id,
+        _reason: assignReason.trim(),
+      });
+      if (error) throw error;
+      const mode = (data as any)?.mode === 'reassigned' ? 'reassigned' : 'assigned';
+      toast.success(`${assignSub.full_name} ${mode} as sub-agent of ${assignParent.full_name}. Action logged.`);
+      resetAssignDialog();
+      queryClient.invalidateQueries({ queryKey: ['subagent-verification-queue'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to assign sub-agent');
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['subagent-verification-queue', debouncedSearch.trim().toLowerCase()],
@@ -316,6 +396,15 @@ export function SubAgentVerificationQueue() {
             </span>
           )}
         </CardTitle>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setAssignOpen(true)}
+          className="mt-2 w-full gap-1 h-8 text-xs"
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+          Assign agent as sub-agent
+        </Button>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="relative mb-3">
@@ -538,6 +627,125 @@ export function SubAgentVerificationQueue() {
             >
               {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
               Confirm Transfer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin: Assign agent as sub-agent */}
+      <Dialog open={assignOpen} onOpenChange={(o) => { if (!o) resetAssignDialog(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Assign agent as sub-agent
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto">
+            <p className="text-xs text-muted-foreground">
+              Search for the agent you want to make a sub-agent, then search for their parent agent.
+              If the agent already has a parent, they will be re-assigned. A reason is required and every
+              action is logged in the audit trail.
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase">Agent to make a sub-agent</label>
+              {assignSub ? (
+                <div className="flex items-center justify-between rounded-lg border p-2 bg-muted/30">
+                  <div className="text-sm">
+                    <p className="font-medium">{assignSub.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{assignSub.phone || '—'}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setAssignSub(null)}>Change</Button>
+                </div>
+              ) : (
+                <>
+                  <Input
+                    placeholder="Search by name or phone…"
+                    value={assignSubSearch}
+                    onChange={(e) => {
+                      setAssignSubSearch(e.target.value);
+                      searchAgents(e.target.value, setAssignSubResults, setAssignSearchingSub, assignParent?.id);
+                    }}
+                  />
+                  {assignSearchingSub && <p className="text-xs text-muted-foreground">Searching…</p>}
+                  {assignSubResults.length > 0 && (
+                    <div className="rounded-lg border divide-y max-h-48 overflow-y-auto">
+                      {assignSubResults.map((p) => (
+                        <button
+                          key={p.id}
+                          className="w-full text-left p-2 hover:bg-muted/40 text-sm"
+                          onClick={() => { setAssignSub(p); setAssignSubResults([]); setAssignSubSearch(''); }}
+                        >
+                          <p className="font-medium">{p.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{p.phone || '—'}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase">Parent agent</label>
+              {assignParent ? (
+                <div className="flex items-center justify-between rounded-lg border p-2 bg-muted/30">
+                  <div className="text-sm">
+                    <p className="font-medium">{assignParent.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{assignParent.phone || '—'}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setAssignParent(null)}>Change</Button>
+                </div>
+              ) : (
+                <>
+                  <Input
+                    placeholder="Search by name or phone…"
+                    value={assignParentSearch}
+                    onChange={(e) => {
+                      setAssignParentSearch(e.target.value);
+                      searchAgents(e.target.value, setAssignParentResults, setAssignSearchingParent, assignSub?.id);
+                    }}
+                  />
+                  {assignSearchingParent && <p className="text-xs text-muted-foreground">Searching…</p>}
+                  {assignParentResults.length > 0 && (
+                    <div className="rounded-lg border divide-y max-h-48 overflow-y-auto">
+                      {assignParentResults.map((p) => (
+                        <button
+                          key={p.id}
+                          className="w-full text-left p-2 hover:bg-muted/40 text-sm"
+                          onClick={() => { setAssignParent(p); setAssignParentResults([]); setAssignParentSearch(''); }}
+                        >
+                          <p className="font-medium">{p.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{p.phone || '—'}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground uppercase">Reason (for audit log)</label>
+              <Textarea
+                placeholder="Why is this agent being made a sub-agent? (min 10 characters)"
+                value={assignReason}
+                onChange={(e) => setAssignReason(e.target.value)}
+                maxLength={500}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={resetAssignDialog} disabled={assigning}>Cancel</Button>
+            <Button
+              onClick={handleAssign}
+              disabled={assigning || !assignSub || !assignParent || assignReason.trim().length < 10}
+              className="gap-1"
+            >
+              {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              Confirm Assignment
             </Button>
           </DialogFooter>
         </DialogContent>
