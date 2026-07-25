@@ -15,6 +15,7 @@ import AdminRecruitmentCampaignsPage from '@/pages/AdminRecruitmentCampaignsPage
 import { GrowthMetricsView } from './GrowthMetricsView';
 import { SignupTrendsView } from './SignupTrendsView';
 import { ReferralPerformanceView } from './ReferralPerformanceView';
+import { UserAnalyticsView } from './UserAnalyticsView';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
 type DatePreset = '6months' | 'today' | 'yesterday' | 'last_week' | 'last_30' | 'last_90' | 'mtd' | 'ytd' | 'custom';
@@ -61,6 +62,9 @@ export function CMODashboard({ activeTab }: { activeTab?: string } = {}) {
   }
   if (activeTab === 'referrals') {
     return <ReferralPerformanceView />;
+  }
+  if (activeTab === 'user-analytics') {
+    return <UserAnalyticsView />;
   }
   return <CMOMarketingDashboard />;
 }

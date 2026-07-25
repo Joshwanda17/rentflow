@@ -1,0 +1,263 @@
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  format,
+  startOfDay,
+  endOfDay,
+  subDays,
+  eachDayOfInterval,
+} from 'date-fns';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
+import { Users, UserPlus, LogIn, TrendingUp, CalendarRange, Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { KPICard } from './KPICard';
+
+type RangePreset = 'last_7' | 'last_30' | 'last_90' | 'custom';
+
+function rangeBounds(preset: RangePreset, cs: string, ce: string) {
+  const now = new Date();
+  switch (preset) {
+    case 'last_7': return { start: startOfDay(subDays(now, 6)), end: endOfDay(now) };
+    case 'last_30': return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
+    case 'last_90': return { start: startOfDay(subDays(now, 89)), end: endOfDay(now) };
+    case 'custom': return { start: startOfDay(new Date(cs)), end: endOfDay(new Date(ce)) };
+  }
+}
+
+export function UserAnalyticsView() {
+  const now = new Date();
+  const [preset, setPreset] = useState<RangePreset>('last_7');
+  const [customStart, setCustomStart] = useState(format(subDays(now, 6), 'yyyy-MM-dd'));
+  const [customEnd, setCustomEnd] = useState(format(now, 'yyyy-MM-dd'));
+
+  const { start, end } = rangeBounds(preset, customStart, customEnd);
+  const days = eachDayOfInterval({ start, end });
+
+  // Daily signups
+  const { data: signupSeries, isLoading: loadingSignups } = useQuery({
+    queryKey: ['user-analytics-signups', preset, customStart, customEnd],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('created_at, referrer_id')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
+      const map = new Map<string, { signups: number; referred: number; organic: number }>();
+      days.forEach((d) => map.set(format(d, 'yyyy-MM-dd'), { signups: 0, referred: 0, organic: 0 }));
+      (data || []).forEach((r: any) => {
+        const k = format(new Date(r.created_at), 'yyyy-MM-dd');
+        const row = map.get(k);
+        if (!row) return;
+        row.signups += 1;
+        if (r.referrer_id) row.referred += 1;
+        else row.organic += 1;
+      });
+      return Array.from(map.entries()).map(([k, v]) => ({ date: format(new Date(k), 'MMM d'), ...v }));
+    },
+    staleTime: 300000,
+  });
+
+  // Daily active users (distinct successful logins)
+  const { data: activeSeries, isLoading: loadingActive } = useQuery({
+    queryKey: ['user-analytics-active', preset, customStart, customEnd],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('otp_login_audit')
+        .select('created_at, user_id, outcome')
+        .eq('outcome', 'success')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
+      const map = new Map<string, Set<string>>();
+      days.forEach((d) => map.set(format(d, 'yyyy-MM-dd'), new Set()));
+      (data || []).forEach((r: any) => {
+        const k = format(new Date(r.created_at), 'yyyy-MM-dd');
+        if (r.user_id) map.get(k)?.add(r.user_id);
+      });
+      return Array.from(map.entries()).map(([k, s]) => ({ date: format(new Date(k), 'MMM d'), active: s.size }));
+    },
+    staleTime: 300000,
+  });
+
+  // Totals
+  const { data: totals } = useQuery({
+    queryKey: ['user-analytics-totals', preset, customStart, customEnd],
+    queryFn: async () => {
+      const [signups, allUsers, loginAttempts, loginSuccess] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true })
+          .gte('created_at', start.toISOString()).lte('created_at', end.toISOString()),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('otp_login_audit').select('*', { count: 'exact', head: true })
+          .gte('created_at', start.toISOString()).lte('created_at', end.toISOString()),
+        supabase.from('otp_login_audit').select('*', { count: 'exact', head: true })
+          .eq('outcome', 'success')
+          .gte('created_at', start.toISOString()).lte('created_at', end.toISOString()),
+      ]);
+      return {
+        signups: signups.count || 0,
+        allUsers: allUsers.count || 0,
+        loginAttempts: loginAttempts.count || 0,
+        loginSuccess: loginSuccess.count || 0,
+      };
+    },
+    staleTime: 300000,
+  });
+
+  // Role distribution snapshot
+  const { data: roleDist } = useQuery({
+    queryKey: ['user-analytics-roles'],
+    queryFn: async () => {
+      const { data } = await supabase.from('user_roles').select('role');
+      const counts: Record<string, number> = {};
+      (data || []).forEach((r: any) => { counts[r.role] = (counts[r.role] || 0) + 1; });
+      return Object.entries(counts)
+        .map(([role, count]) => ({ role, count }))
+        .sort((a, b) => b.count - a.count);
+    },
+    staleTime: 600000,
+  });
+
+  const totalActive = useMemo(
+    () => (activeSeries || []).reduce((s, r) => s + r.active, 0),
+    [activeSeries],
+  );
+  const loginRate = totals && totals.loginAttempts > 0
+    ? Math.round((totals.loginSuccess / totals.loginAttempts) * 100)
+    : 0;
+
+  const presets: { label: string; value: RangePreset }[] = [
+    { label: 'Last 7d', value: 'last_7' },
+    { label: 'Last 30d', value: 'last_30' },
+    { label: 'Last 90d', value: 'last_90' },
+    { label: 'Custom', value: 'custom' },
+  ];
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <CalendarRange className="w-4 h-4 text-primary" /> User Analytics
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {presets.map((p) => (
+            <Button
+              key={p.value}
+              size="sm"
+              variant={preset === p.value ? 'secondary' : 'outline'}
+              onClick={() => setPreset(p.value)}
+              className="text-xs"
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
+        {preset === 'custom' && (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">From</Label>
+              <Input type="date" value={customStart} max={customEnd}
+                onChange={(e) => setCustomStart(e.target.value)} className="w-44" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">To</Label>
+              <Input type="date" value={customEnd} min={customStart}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                onChange={(e) => setCustomEnd(e.target.value)} className="w-44" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard title="Total Users" value={(totals?.allUsers ?? 0).toLocaleString()} icon={Users} />
+        <KPICard title="New Signups" value={(totals?.signups ?? 0).toLocaleString()} icon={UserPlus}
+          color="bg-green-500/10 text-green-600" subtitle="in range" />
+        <KPICard title="Active User-Days" value={totalActive.toLocaleString()} icon={Activity}
+          color="bg-blue-500/10 text-blue-600" subtitle="unique/day, summed" />
+        <KPICard title="Login Success" value={`${loginRate}%`} icon={LogIn}
+          color="bg-amber-500/10 text-amber-600"
+          subtitle={`${totals?.loginSuccess ?? 0}/${totals?.loginAttempts ?? 0}`} />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">Daily Signups (Referred vs Organic)</h3>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={signupSeries || []}>
+              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="referred" stackId="a" fill="hsl(var(--primary))" name="Referred" />
+              <Bar dataKey="organic" stackId="a" fill="hsl(var(--muted-foreground))" name="Organic" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">Daily Active Users</h3>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={activeSeries || []}>
+              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Area type="monotone" dataKey="active" stroke="hsl(var(--primary))"
+                fill="hsl(var(--primary))" fillOpacity={0.2} name="Active users" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h3 className="text-sm font-semibold mb-3">Users by Role</h3>
+        <div className="space-y-2">
+          {(roleDist || []).map((r) => {
+            const max = roleDist?.[0]?.count || 1;
+            return (
+              <div key={r.role}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-medium capitalize">{r.role.replace(/_/g, ' ')}</span>
+                  <span className="text-muted-foreground">{r.count.toLocaleString()}</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-primary"
+                    style={{ width: `${(r.count / max) * 100}%` }} />
+                </div>
+              </div>
+            );
+          })}
+          {(!roleDist || roleDist.length === 0) && (
+            <p className="text-xs text-muted-foreground">No role data available.</p>
+          )}
+        </div>
+      </div>
+
+      {(loadingSignups || loadingActive) && (
+        <p className="text-xs text-muted-foreground text-center">Loading analytics…</p>
+      )}
+    </div>
+  );
+}
