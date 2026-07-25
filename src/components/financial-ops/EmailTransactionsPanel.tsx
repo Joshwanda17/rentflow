@@ -1597,13 +1597,20 @@ export function EmailTransactionsPanel() {
    * timestamp). RLS restricts inserts to Financial Ops roles. After the
    * batch lands we refresh the marks map and clear the selection.
    */
-  const applyBulkMark = async (mark: 'credited' | 'uncredited') => {
-    const ids = Array.from(selectedIds);
+  const applyBulkMark = async (
+    mark: 'credited' | 'uncredited',
+    idsOverride?: string[],
+    presetReason?: string,
+  ) => {
+    const ids = idsOverride ?? Array.from(selectedIds);
     if (!ids.length) return;
-    const reason = window.prompt(
-      `Reason for marking ${ids.length} email(s) as ${mark} (logged in audit trail, optional):`,
-      ''
-    );
+    const reason =
+      presetReason !== undefined
+        ? presetReason
+        : window.prompt(
+            `Reason for marking ${ids.length} email(s) as ${mark} (logged in audit trail, optional):`,
+            ''
+          );
     // null = cancelled, '' = proceed without reason
     if (reason === null) return;
     setBulkBusy(true);
