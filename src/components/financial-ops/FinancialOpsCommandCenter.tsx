@@ -288,6 +288,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           </div>
         )}
         {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
+        {activeTool === 'bridge_health' && <DepositBridgeHealthPanel />}
         {activeTool === 'withdrawal_history' && <WithdrawalHistoryStatement />}
         {activeTool === 'funded_tenants' && <FundedTenantsList />}
         {activeTool === 'proxy_diagnostics' && <ProxyWithdrawalDiagnosticsPanel />}
