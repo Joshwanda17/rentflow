@@ -29,6 +29,7 @@ import { Download, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { UserAnalyticsDrilldown, type DrilldownScope } from './UserAnalyticsDrilldown';
+import { RetentionCohortView } from './RetentionCohortView';
 
 function downloadBlob(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -383,6 +384,8 @@ export function UserAnalyticsView() {
         onOpenChange={(v) => { if (!v) setDrillScope(null); }}
         scope={drillScope}
       />
+
+      <RetentionCohortView />
     </div>
   );
 }
