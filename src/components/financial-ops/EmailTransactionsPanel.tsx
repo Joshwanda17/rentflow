@@ -2765,8 +2765,10 @@ export function EmailTransactionsPanel() {
         )}
       </div>
 
-      {/* Date-range selector — recomputes totals/breakdown/exports for the chosen period. */}
-      <div className="sm:hidden flex items-center justify-between gap-2">
+      {/* Date-range selector — recomputes totals/breakdown/exports for the chosen
+          period. Pinned under the quick-search bar on mobile so filters are
+          always one tap away, no scrolling back up. */}
+      <div className="sm:hidden sticky top-[60px] z-[19] flex items-center justify-between gap-2 -mx-1 px-1 py-1.5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
         <Button
           variant="outline"
           size="sm"
@@ -3568,7 +3570,7 @@ export function EmailTransactionsPanel() {
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
             the body / subject. Sticky on scroll so it's always reachable. */}
-        <div className="p-4 border-b bg-muted/30 sticky top-0 z-10 space-y-2">
+        <div className="p-4 border-b bg-muted/30 sm:sticky sm:top-0 sm:z-10 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <Mail className="h-4 w-4 text-muted-foreground" />
@@ -3722,7 +3724,7 @@ export function EmailTransactionsPanel() {
           </div>
         </div>
         <RecentEmailsLegend />
-        <div className="p-3 sm:p-4 border-b">
+        <div className="p-3 sm:p-4 border-b sticky top-[104px] z-[18] bg-card sm:static sm:z-auto">
           {/* Mobile: the filter/sort chip groups are collapsed behind one tap so
               the email list stays reachable without scrolling past six rows of
               chips. On sm+ they render inline exactly as before. */}
