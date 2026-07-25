@@ -93,7 +93,7 @@ export async function trackInstallEvent(
       metadata,
     };
 
-    await supabase.from('install_attempt_events').insert(payload);
+    await supabase.from('install_attempt_events').insert([payload]);
   } catch {
     // Silent — telemetry must never break the flow.
   }
