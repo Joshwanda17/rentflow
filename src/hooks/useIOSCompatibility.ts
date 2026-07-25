@@ -212,8 +212,26 @@ export function isFirefoxIOS() {
   return /FxiOS/.test(navigator.userAgent);
 }
 
+// Detect iOS in-app browsers (WhatsApp, Facebook, Instagram, TikTok, Twitter/X,
+// LinkedIn, Line, WeChat, Telegram, Snapchat). These are the #1 barrier for
+// "Add to Home Screen" on iPhone — the Share menu inside them does NOT expose
+// the Add to Home Screen option, so users must first open the page in Safari.
+export function isIOSInAppBrowser() {
+  const ua = navigator.userAgent || '';
+  // FBAN/FBAV = Facebook, Instagram = Instagram, Line = Line, MicroMessenger = WeChat,
+  // Twitter = X, LinkedInApp = LinkedIn, WhatsApp uses "WhatsApp", TikTok uses
+  // "musical_ly" or "BytedanceWebview", Snapchat uses "Snapchat".
+  return /FBAN|FBAV|Instagram|Line\/|MicroMessenger|Twitter|LinkedInApp|WhatsApp|musical_ly|BytedanceWebview|Snapchat|Telegram/i.test(ua);
+}
+
 // Get the best browser for PWA installation on iOS
 export function getIOSInstallInstructions() {
+  if (isIOSInAppBrowser()) {
+    return {
+      needsSafari: true,
+      message: 'You\'re viewing this inside another app. Tap the ⋯ or Share menu and choose "Open in Safari" to install.',
+    };
+  }
   if (isChromeIOS() || isFirefoxIOS()) {
     return {
       needsSafari: true,
