@@ -1382,7 +1382,7 @@ export function DirectCreditTool() {
                         <Checkbox
                           checked={overdrawApproved}
                           onCheckedChange={(v) => setOverdrawApproved(v === true)}
-                          disabled={mutation.isPending}
+                          disabled={mutation.isPending || splitFreezing}
                           className="mt-0.5"
                         />
                         <span className="text-foreground">
@@ -1390,11 +1390,31 @@ export function DirectCreditTool() {
                           <strong>UGX {overdrawInfo?.shortfall.toLocaleString()}</strong> and I want to proceed.
                         </span>
                       </label>
+                      <div className="rounded-md border border-red-200 bg-red-50 p-3 space-y-2 text-foreground">
+                        <div className="font-semibold text-red-800 flex items-center gap-1.5">
+                          <AlertTriangle className="h-4 w-4" /> Recommended: Freeze + Split Debit
+                        </div>
+                        <p className="text-[13px] leading-relaxed">
+                          Post <strong>UGX {overdrawInfo?.available.toLocaleString()}</strong> as a clean
+                          debit (collectable now), <strong>UGX {overdrawInfo?.shortfall.toLocaleString()}</strong> as
+                          a Force Reversal (recorded as a receivable), and immediately{' '}
+                          <strong>freeze the account</strong> so future inflows are swept by auto-recovery.
+                        </p>
+                      </div>
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel disabled={mutation.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel disabled={mutation.isPending || splitFreezing}>Cancel</AlertDialogCancel>
+                  <Button
+                    type="button"
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    onClick={handleFreezeAndSplitDebit}
+                    disabled={mutation.isPending || splitFreezing || !overdrawApproved}
+                  >
+                    {splitFreezing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Freeze + Split Debit
+                  </Button>
                   <AlertDialogAction
                     className="bg-amber-600 hover:bg-amber-700"
                     onClick={(e) => {
@@ -1403,7 +1423,7 @@ export function DirectCreditTool() {
                         onSettled: () => { setOverdrawInfo(null); setOverdrawApproved(false); },
                       });
                     }}
-                    disabled={mutation.isPending || !overdrawApproved}
+                    disabled={mutation.isPending || splitFreezing || !overdrawApproved}
                   >
                     {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Force reversal & create debt
