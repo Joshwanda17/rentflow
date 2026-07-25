@@ -79,7 +79,7 @@ export function WeeklyListingMissionCard({
     let action: () => void;
 
     if (done) {
-      msg = 'Mission completed! You built a 20-agent listing team and unlocked the UGX 70,000 bonus.';
+      msg = 'Mission completed! You built a 20-agent listing team and unlocked the UGX 40,000 bonus.';
       label = 'View Earnings';
       action = onViewEarnings;
     } else if (campaign.invited_count === 0 && campaign.verified_houses_count === 0) {
@@ -95,7 +95,7 @@ export function WeeklyListingMissionCard({
       label = 'Help Agents List Houses';
       action = onHelpList;
     } else if (activatedLeft > 0) {
-      msg = `Only ${activatedLeft} active ${activatedLeft === 1 ? 'agent' : 'agents'} remain between you and the UGX 70,000 campaign bonus.`;
+      msg = `Only ${activatedLeft} active ${activatedLeft === 1 ? 'agent' : 'agents'} remain between you and the UGX 40,000 campaign bonus.`;
       label = 'Help Agents List Houses';
       action = onHelpList;
     } else {

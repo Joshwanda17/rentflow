@@ -86,7 +86,7 @@ export function AgentListingCampaignPanel() {
           {weekStart && weekEnd
             ? `${format(weekStart, 'dd MMM')} – ${format(weekEnd, 'dd MMM yyyy')}`
             : 'Current week'}{' '}
-          · UGX 3,000 per verified house · UGX 70,000 completion bonus
+          · UGX 3,000 per verified house · UGX 40,000 completion bonus
         </p>
       </div>
 
@@ -272,10 +272,10 @@ export function AgentListingCampaignPanel() {
         )}
       </div>
 
-      {/* Qualifiers podium — agents in the race for the UGX 70,000 completion bonus */}
+      {/* Qualifiers podium — agents in the race for the UGX 40,000 completion bonus */}
       {(() => {
         const HOUSE_RATE = 3000;
-        const COMPLETION_BONUS = 70000;
+        const COMPLETION_BONUS = 40000;
         const SUB_TARGET = 20;            // 20 sub-agents this week
         const HOUSES_PER_SUB = 3;         // each with 3+ verified houses
         const MIN_ACTIVATED_TO_SHOW = 1;  // show anyone with progress
@@ -290,7 +290,7 @@ export function AgentListingCampaignPanel() {
               (b.sub_agents_week ?? 0) - (a.sub_agents_week ?? 0),
           );
 
-        // Only agents who actually hit the 20-activated-subs rule win the 70K.
+        // Only agents who actually hit the 20-activated-subs rule win the 40K.
         const winnerIds = new Set(
           qualifiers
             .filter((a) => (a.activated_subs_week ?? 0) >= SUB_TARGET)
@@ -302,7 +302,7 @@ export function AgentListingCampaignPanel() {
             <div className="px-4 py-3 border-b border-amber-500/20 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Crown className="h-5 w-5 text-amber-500" />
-                <h4 className="text-sm font-bold">Race for the UGX 70,000</h4>
+                <h4 className="text-sm font-bold">Race for the UGX 40,000</h4>
               </div>
               <span className="text-[11px] text-muted-foreground">
                 Rule: invite {SUB_TARGET} sub-agents this week · each with {HOUSES_PER_SUB}+ verified houses
@@ -353,11 +353,11 @@ export function AgentListingCampaignPanel() {
                           </span>
                           {alreadyPaid ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
-                              <CheckCircle2 className="h-3 w-3" /> 70K Paid
+                              <CheckCircle2 className="h-3 w-3" /> 40K Paid
                             </span>
                           ) : pending ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-700 border border-amber-500/40 animate-pulse">
-                              <Clock className="h-3 w-3" /> 70K Pending
+                              <Clock className="h-3 w-3" /> 40K Pending
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-muted text-muted-foreground border border-border">
@@ -377,7 +377,7 @@ export function AgentListingCampaignPanel() {
                         </div>
                         <div className="text-[10px] text-muted-foreground tabular-nums">
                           {verified}×3,000
-                          {(alreadyPaid || pending) ? ` + 70,000${pending ? ' pending' : ''}` : ''}
+                          {(alreadyPaid || pending) ? ` + 40,000${pending ? ' pending' : ''}` : ''}
                         </div>
                       </div>
                     </div>
