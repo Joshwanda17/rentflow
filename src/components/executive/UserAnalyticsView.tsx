@@ -214,8 +214,11 @@ export function UserAnalyticsView() {
     doc.setFontSize(10);
     doc.text(`Range: ${format(start, 'yyyy-MM-dd')} to ${format(end, 'yyyy-MM-dd')}`, 40, 58);
 
-    let y = 80;
-    const addSection = (title: string, head: string[], body: any[][]) => {
+    let y = 78;
+    const section = (title: string, head: string[], body: any[][]) => {
+      doc.setFontSize(11);
+      doc.text(title, 40, y);
+      y += 6;
       autoTable(doc, {
         startY: y,
         head: [head],
@@ -223,30 +226,16 @@ export function UserAnalyticsView() {
         headStyles: { fillColor: [30, 41, 59] },
         styles: { fontSize: 9 },
         margin: { left: 40, right: 40 },
-        didDrawPage: () => {},
       });
-      // @ts-ignore
-      y = (doc as any).lastAutoTable.finalY + 20;
-      doc.setFontSize(11);
-      doc.text(title, 40, y);
-      y += 8;
+      y = (doc as any).lastAutoTable.finalY + 18;
     };
 
-    doc.setFontSize(11);
-    doc.text('Summary', 40, y); y += 8;
-    addSection('Daily Signups', ['Metric', 'Value'], d.summary.map((r) => [r.metric, String(r.value)]));
-    addSection('Daily Active Users', ['Date', 'Signups', 'Referred', 'Organic'],
+    section('Summary', ['Metric', 'Value'], d.summary.map((r) => [r.metric, String(r.value)]));
+    section('Daily Signups', ['Date', 'Signups', 'Referred', 'Organic'],
       d.signups.map((r) => [r.date, r.signups, r.referred, r.organic]));
-    addSection('Users by Role', ['Date', 'Active Users'],
+    section('Daily Active Users', ['Date', 'Active Users'],
       d.active.map((r) => [r.date, r.active_users]));
-    autoTable(doc, {
-      startY: y,
-      head: [['Role', 'Count']],
-      body: d.roles.map((r) => [r.role, r.count]),
-      headStyles: { fillColor: [30, 41, 59] },
-      styles: { fontSize: 9 },
-      margin: { left: 40, right: 40 },
-    });
+    section('Users by Role', ['Role', 'Count'], d.roles.map((r) => [r.role, r.count]));
 
     doc.save(`user-analytics_${rangeLabel}.pdf`);
   };
