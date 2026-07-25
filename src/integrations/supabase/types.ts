@@ -7025,6 +7025,90 @@ export type Database = {
         }
         Relationships: []
       }
+      deposit_match_alert_config: {
+        Row: {
+          enabled: boolean
+          id: number
+          min_amount: number
+          notify_emails: string[]
+          updated_at: string
+          updated_by: string | null
+          window_minutes: number
+        }
+        Insert: {
+          enabled?: boolean
+          id?: number
+          min_amount?: number
+          notify_emails?: string[]
+          updated_at?: string
+          updated_by?: string | null
+          window_minutes?: number
+        }
+        Update: {
+          enabled?: boolean
+          id?: number
+          min_amount?: number
+          notify_emails?: string[]
+          updated_at?: string
+          updated_by?: string | null
+          window_minutes?: number
+        }
+        Relationships: []
+      }
+      deposit_match_alerts: {
+        Row: {
+          age_minutes: number
+          alert_type: string
+          amount: number | null
+          created_at: string
+          details: Json
+          id: string
+          notified_at: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          subject_id: string
+          subject_label: string | null
+          transaction_reference: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          age_minutes?: number
+          alert_type: string
+          amount?: number | null
+          created_at?: string
+          details?: Json
+          id?: string
+          notified_at?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          subject_id: string
+          subject_label?: string | null
+          transaction_reference?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          age_minutes?: number
+          alert_type?: string
+          amount?: number | null
+          created_at?: string
+          details?: Json
+          id?: string
+          notified_at?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          subject_id?: string
+          subject_label?: string | null
+          transaction_reference?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       deposit_profile_reconciliations: {
         Row: {
           action: string
@@ -25162,6 +25246,7 @@ export type Database = {
           window_minutes: number
         }[]
       }
+      detect_deposit_match_failures: { Args: never; Returns: Json }
       detect_ledger_group_imbalances: {
         Args: { p_since_hours?: number }
         Returns: number

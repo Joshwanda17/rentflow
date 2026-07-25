@@ -1,0 +1,251 @@
+// Ops notification for deposit-match failures.
+//
+// Runs the `detect_deposit_match_failures` detector (configurable window in
+// `deposit_match_alert_config`), then emails every open alert that has not
+// been notified yet to the configured ops recipients through the existing
+// email queue (enqueue_email -> process-email-queue).
+//
+// Two failure classes are reported:
+//  - deposit_unmatched:       an agent/user deposit submission is still
+//                             pending past the window with no matching
+//                             mobile-money email receipt.
+//  - email_receipt_unmatched: an incoming mobile-money receipt arrived but
+//                             was never attached/routed to any deposit.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const FROM = "Welile Reports <info@welile.com>";
+const SENDER_DOMAIN = "notify.welile.com";
+
+function fmtUGX(n: number | null): string {
+  return `UGX ${Math.round(Number(n) || 0).toLocaleString("en-US")}`;
+}
+
+function esc(s: unknown): string {
+  return String(s ?? "").replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string,
+  );
+}
+
+function generateToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function ensureUnsubscribeToken(
+  admin: ReturnType<typeof createClient>,
+  email: string,
+): Promise<string> {
+  const normalized = email.trim().toLowerCase();
+  const { data: existing } = await admin
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalized)
+    .maybeSingle();
+  if (existing?.token) return existing.token as string;
+  const token = generateToken();
+  await admin
+    .from("email_unsubscribe_tokens")
+    .upsert({ token, email: normalized }, { onConflict: "email", ignoreDuplicates: true });
+  const { data: stored } = await admin
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalized)
+    .maybeSingle();
+  return (stored?.token as string) || token;
+}
+
+interface AlertRow {
+  id: string;
+  alert_type: string;
+  subject_label: string | null;
+  amount: number | null;
+  transaction_reference: string | null;
+  age_minutes: number;
+  severity: string;
+  details: Record<string, unknown> | null;
+}
+
+function table(title: string, rows: AlertRow[], refLabel: string): string {
+  if (!rows.length) return "";
+  const body = rows
+    .map(
+      (r) => `<tr>
+  <td style="padding:6px 10px;border-bottom:1px solid #eee">${esc(r.subject_label)}</td>
+  <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${fmtUGX(r.amount)}</td>
+  <td style="padding:6px 10px;border-bottom:1px solid #eee;font-family:monospace">${esc(r.transaction_reference) || "—"}</td>
+  <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${r.age_minutes} min</td>
+  <td style="padding:6px 10px;border-bottom:1px solid #eee;text-transform:uppercase">${esc(r.severity)}</td>
+</tr>`,
+    )
+    .join("");
+  return `<h3 style="margin:22px 0 8px;font:600 15px system-ui">${esc(title)} (${rows.length})</h3>
+<table style="width:100%;border-collapse:collapse;font:13px system-ui">
+  <thead><tr style="background:#f6f6f6;text-align:left">
+    <th style="padding:6px 10px">Subject</th>
+    <th style="padding:6px 10px;text-align:right">Amount</th>
+    <th style="padding:6px 10px">${esc(refLabel)}</th>
+    <th style="padding:6px 10px;text-align:right">Age</th>
+    <th style="padding:6px 10px">Severity</th>
+  </tr></thead>
+  <tbody>${body}</tbody>
+</table>`;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+    auth: { persistSession: false },
+  });
+
+  try {
+    const { data: detect, error: detectErr } = await admin.rpc(
+      "detect_deposit_match_failures",
+    );
+    if (detectErr) throw new Error(`detector failed: ${detectErr.message}`);
+
+    const detection = (detect ?? {}) as Record<string, unknown>;
+    if (detection.enabled === false) {
+      return new Response(JSON.stringify({ skipped: true, reason: "alerts disabled" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: cfg } = await admin
+      .from("deposit_match_alert_config")
+      .select("window_minutes, notify_emails")
+      .eq("id", 1)
+      .maybeSingle();
+
+    const recipients: string[] = (cfg?.notify_emails as string[] | null)?.filter(Boolean) ?? [];
+    const windowMinutes = Number(cfg?.window_minutes ?? 30);
+
+    const { data: alerts, error: alertsErr } = await admin
+      .from("deposit_match_alerts")
+      .select(
+        "id, alert_type, subject_label, amount, transaction_reference, age_minutes, severity, details",
+      )
+      .is("resolved_at", null)
+      .is("notified_at", null)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (alertsErr) throw new Error(`alert fetch failed: ${alertsErr.message}`);
+
+    const pending = (alerts ?? []) as AlertRow[];
+    if (!pending.length) {
+      return new Response(
+        JSON.stringify({ ...detection, notified: 0, reason: "no new alerts" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const deposits = pending.filter((a) => a.alert_type === "deposit_unmatched");
+    const receipts = pending.filter((a) => a.alert_type === "email_receipt_unmatched");
+
+    const subject =
+      `Deposit match alert — ${pending.length} unmatched ` +
+      `(${deposits.length} deposits, ${receipts.length} receipts) after ${windowMinutes} min`;
+
+    const html = `<div style="font:14px system-ui;color:#111;max-width:760px">
+  <h2 style="margin:0 0 6px;font:700 18px system-ui">Deposit matching needs attention</h2>
+  <p style="margin:0 0 4px;color:#555">
+    These items have not matched within the configured ${windowMinutes}-minute window.
+  </p>
+  ${table("Deposit submissions with no email receipt", deposits, "Reference typed")}
+  ${table("Email receipts not attached to any deposit", receipts, "Receipt TID")}
+  <p style="margin:20px 0 0;color:#777;font-size:12px">
+    Resolve in Financial Ops → Email Transactions. Alerts clear automatically once the
+    deposit is approved or the receipt is linked/routed.
+  </p>
+</div>`;
+
+    const text = [
+      subject,
+      "",
+      ...deposits.map(
+        (d) =>
+          `DEPOSIT  ${d.subject_label} ${fmtUGX(d.amount)} ref=${d.transaction_reference ?? "-"} age=${d.age_minutes}m ${d.severity}`,
+      ),
+      ...receipts.map(
+        (r) =>
+          `RECEIPT  ${r.subject_label} ${fmtUGX(r.amount)} tid=${r.transaction_reference ?? "-"} age=${r.age_minutes}m ${r.severity}`,
+      ),
+    ].join("\n");
+
+    const results: Record<string, string> = {};
+    const stamp = new Date().toISOString();
+    for (const to of recipients) {
+      const messageId = crypto.randomUUID();
+      const unsubscribeToken = await ensureUnsubscribeToken(admin, to);
+      await admin.from("email_send_log").insert({
+        message_id: messageId,
+        template_name: "deposit-match-alert",
+        recipient_email: to,
+        status: "pending",
+        metadata: { subject, alerts: pending.length },
+      });
+      const { error: enqErr } = await admin.rpc("enqueue_email", {
+        queue_name: "transactional_emails",
+        payload: {
+          message_id: messageId,
+          to,
+          from: FROM,
+          sender_domain: SENDER_DOMAIN,
+          subject,
+          html,
+          text,
+          purpose: "transactional",
+          label: "deposit-match-alert",
+          idempotency_key: `deposit-match-alert:${stamp.slice(0, 16)}:${to}`,
+          unsubscribe_token: unsubscribeToken,
+          queued_at: stamp,
+        },
+      });
+      results[to] = enqErr ? `error: ${enqErr.message}` : "queued";
+      if (enqErr) console.error("[deposit-match-alert] enqueue error", to, enqErr);
+    }
+
+    const anyQueued = Object.values(results).some((v) => v === "queued");
+    if (anyQueued) {
+      await admin
+        .from("deposit_match_alerts")
+        .update({ notified_at: stamp })
+        .in("id", pending.map((a) => a.id));
+    }
+
+    await admin.from("system_events").insert({
+      event_type: "deposit_match_alert_notified",
+      metadata: {
+        alerts: pending.length,
+        deposits: deposits.length,
+        receipts: receipts.length,
+        window_minutes: windowMinutes,
+        recipients,
+        results,
+      },
+    });
+
+    return new Response(
+      JSON.stringify({ ...detection, notified: anyQueued ? pending.length : 0, results }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[deposit-match-alert-notify]", message);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
