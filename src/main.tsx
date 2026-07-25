@@ -7,6 +7,11 @@ import { ensureRuntimePolyfills } from './lib/runtimePolyfills';
 // Then: drops the stored session on a cold start when the user opted
 // out of "remember this device", before Supabase/session-cache read any token.
 import './lib/ephemeralGuard';
+// Initialize login telemetry as early as possible so we capture the very first
+// paint / bootstrap phases (before AuthProvider mounts).
+import { loginTelemetry } from './lib/loginTelemetry';
+loginTelemetry.init();
+loginTelemetry.mark('app.boot');
 import { createRoot } from 'react-dom/client';
 
 const root = document.getElementById('root')!;
