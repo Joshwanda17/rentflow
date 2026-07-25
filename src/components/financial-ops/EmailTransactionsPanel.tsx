@@ -2689,15 +2689,39 @@ export function EmailTransactionsPanel() {
   const isUnreadAlertRow = useCallback(
     (r: GmailTx) => {
       const s = getRowStatus(r);
-      return (s === 'needs_routing' || s === 'unparsed') && rowTimeMs(r) > alertsSeenTs;
+      const enabled = s === 'needs_routing' ? alertPrefs.needsRouting
+        : s === 'unparsed' ? alertPrefs.unparsed
+          : false;
+      return enabled && rowTimeMs(r) > alertsSeenTs;
     },
-    [getRowStatus, rowTimeMs, alertsSeenTs],
+    [getRowStatus, rowTimeMs, alertsSeenTs, alertPrefs.needsRouting, alertPrefs.unparsed],
   );
   const markAlertsSeen = useCallback(() => {
     const now = Date.now();
     setAlertsSeenTs(now);
     try { localStorage.setItem(ALERTS_SEEN_KEY, String(now)); } catch { /* ignore */ }
   }, []);
+
+  /**
+   * In-app prompt: when new unread alerts appear (and prompts are enabled in
+   * alert settings) raise a single toast with a jump-to-queue action.
+   */
+  const promptedUnreadRef = useRef<number>(0);
+  useEffect(() => {
+    if (!alertPrefs.toastPrompt) { promptedUnreadRef.current = unreadAlertCount; return; }
+    if (unreadAlertCount > promptedUnreadRef.current && unreadAlertCount > 0) {
+      sonnerToast(`${unreadAlertCount} email alert${unreadAlertCount === 1 ? '' : 's'} need attention`, {
+        description: 'Emails awaiting routing or unparsed by the reader.',
+        action: {
+          label: 'Review',
+          onClick: () => document
+            .getElementById('email-tx-results')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+        },
+      });
+    }
+    promptedUnreadRef.current = unreadAlertCount;
+  }, [unreadAlertCount, alertPrefs.toastPrompt]);
 
   /**
    * Bulk triage helpers for unmatched alerts. `selectAllAlertRows` tick-selects
