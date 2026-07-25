@@ -6237,6 +6237,105 @@ export function EmailTransactionsPanel() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Inline alert details drawer — raw email, parsed fields and actions for a
+          single attention-needing row, with prev/next through the unread queue. */}
+      <Sheet open={!!alertDetailsRow} onOpenChange={(o) => { if (!o) setAlertDetailsRow(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          {alertDetailsRow && (() => {
+            const r = alertDetailsRow;
+            const queue = unreadArrivalSpan?.sorted ?? [];
+            const idx = queue.findIndex((q) => q.id === r.id);
+            const status = getRowStatus(r);
+            const fields: Array<[string, ReactNode]> = [
+              ['Arrived', formatAlertArrival(r)],
+              ['Status', status.replace('_', ' ')],
+              ['Direction', r.direction || '—'],
+              ['Amount', r.amount ? `UGX ${Number(r.amount).toLocaleString()}` : '—'],
+              ['Fee', r.fee != null ? `UGX ${Number(r.fee).toLocaleString()}` : '—'],
+              ['Balance after', r.balance != null ? `UGX ${Number(r.balance).toLocaleString()}` : '—'],
+              ['Counterparty', r.counterparty || '—'],
+              ['Channel', r.channel || '—'],
+              ['Transaction ID', r.transaction_id || '—'],
+              ['Parsed', r.parsed ? 'yes' : 'no'],
+              ['Linked deposit', r.linked_deposit_request_id || '—'],
+              ['Auto matched', r.auto_matched_at ? format(new Date(r.auto_matched_at), 'dd MMM HH:mm') : '—'],
+            ];
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-orange-600" /> Alert details
+                  </SheetTitle>
+                  <SheetDescription>
+                    {r.from_name || r.from_email || 'Unknown sender'} · {formatAlertArrival(r)}
+                  </SheetDescription>
+                </SheetHeader>
+
+                {queue.length > 1 && idx >= 0 && (
+                  <div className="mt-3 flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-2 py-1.5">
+                    <span className="text-xs font-medium">Unread {idx + 1} of {queue.length}</span>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="outline" className="h-7 text-xs" disabled={idx <= 0}
+                        onClick={() => setAlertDetailsRow(queue[idx - 1])}>Prev</Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" disabled={idx >= queue.length - 1}
+                        onClick={() => setAlertDetailsRow(queue[idx + 1])}>Next</Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold mb-1">Parsed fields</p>
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-md border p-2 text-[11px]">
+                      {fields.map(([k, v]) => (
+                        <Fragment key={k}>
+                          <dt className="text-muted-foreground">{k}</dt>
+                          <dd className="font-mono break-all">{v}</dd>
+                        </Fragment>
+                      ))}
+                    </dl>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold mb-1">Raw message</p>
+                    <div className="rounded-md border bg-muted/30 p-2 space-y-1">
+                      <p className="text-[11px] text-muted-foreground">From: {r.from_email || '—'}</p>
+                      <p className="text-xs font-medium break-words">{r.subject || '(no subject)'}</p>
+                      <p className="text-[11px] whitespace-pre-wrap break-words text-muted-foreground">
+                        {r.snippet || '(no body captured)'}
+                      </p>
+                      <p className="text-[10px] font-mono text-muted-foreground/70 pt-1">
+                        msg {r.gmail_message_id}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" className="h-8 text-xs"
+                      onClick={() => { setAlertDetailsRow(null); navigateToRow(r, r.direction === 'in' ? 'credit' : 'debit'); }}>
+                      <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                      {r.direction === 'in' ? 'Route to wallet' : 'Charge wallet'}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-8 text-xs"
+                      onClick={() => { void markRowResolved(r); }}>
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark resolved
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-8 text-xs"
+                      onClick={() => { setAlertDetailsRow(null); setHistoryDrawerRow(r); }}>
+                      <History className="h-3.5 w-3.5 mr-1" /> History
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 text-xs"
+                      onClick={() => { navigator.clipboard?.writeText(r.transaction_id || r.gmail_message_id); toast({ title: 'Copied reference' }); }}>
+                      <Copy className="h-3.5 w-3.5 mr-1" /> Copy ref
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
+
       <Sheet open={!!historyDrawerRow} onOpenChange={(o) => { if (!o) { setHistoryDrawerRow(null); setHistoryQueue([]); } }}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
