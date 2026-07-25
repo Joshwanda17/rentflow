@@ -7040,10 +7040,12 @@ export type Database = {
           approved_at: string | null
           detected_at: string
           id: string
+          notified_at: string | null
           resolution_notes: string | null
           resolved_at: string | null
           resolved_by: string | null
           severity: string
+          slack_notified_at: string | null
           source: string
           source_id: string
           transaction_id: string | null
@@ -7055,10 +7057,12 @@ export type Database = {
           approved_at?: string | null
           detected_at?: string
           id?: string
+          notified_at?: string | null
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           severity?: string
+          slack_notified_at?: string | null
           source: string
           source_id: string
           transaction_id?: string | null
@@ -7070,10 +7074,12 @@ export type Database = {
           approved_at?: string | null
           detected_at?: string
           id?: string
+          notified_at?: string | null
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           severity?: string
+          slack_notified_at?: string | null
           source?: string
           source_id?: string
           transaction_id?: string | null
