@@ -5269,9 +5269,9 @@ export function EmailTransactionsPanel() {
                       </div>
                     )}
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="w-full sm:w-auto shrink-0 text-left sm:text-right flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border/60 pt-2 sm:mt-0 sm:block sm:border-0 sm:pt-0">
                     <p className={`font-mono font-semibold text-sm ${r.amount ? 'text-emerald-600' : 'text-muted-foreground'}`}>{fmtUgx(r.amount)}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                    <p className="text-[10px] text-muted-foreground sm:mt-0.5">
                       {r.internal_date ? format(new Date(r.internal_date), 'MMM d, HH:mm') : '—'}
                     </p>
                     {r.amount && r.amount > 0 && r.direction !== 'out' && (
