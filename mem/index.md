@@ -57,3 +57,4 @@
 - [Advance sweep peer-transfer shield](mem://features/agent/advance-sweep-transfer-shield) — Peer `wallet_transfer` credits are protected from advance auto-recovery via `get_agent_sweepable_withdrawable`; used by both the 15-min DB sweep and the daily edge function
 - [Proxy Weekend Badge](mem://features/agent/proxy-weekend-badge) — ProxyPartnerFunds shows amber "Weekend" badge next to partner name when `proxy_agent_assignments.created_at` day-of-week is Sat/Sun (client-derived, no schema change)
 - [Daytime listing window](mem://business-model/daytime-listing-window) — Agents/sub-agents can only insert `house_listings` 06:00–18:00 EAT; enforced by `trg_enforce_daytime_house_listing` + client gate in `ListEmptyHouseDialog`; ops/managers/admins bypass
+- [Deposit match alerts](mem://features/financial-ops/deposit-match-alerts) — configurable-window ops email alerts when a deposit submission or incoming email receipt fails to match
