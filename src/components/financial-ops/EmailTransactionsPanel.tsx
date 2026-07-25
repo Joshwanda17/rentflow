@@ -2734,6 +2734,56 @@ export function EmailTransactionsPanel() {
     setSelectedIds(new Set(alertRows.map((r) => r.id)));
   }, [alertRows]);
 
+  /**
+   * Desktop keyboard shortcuts (ignored while typing in inputs):
+   *   g — jump to the needs-routing queue
+   *   s — mark all alerts as seen
+   *   d — open details for the newest unread alert
+   *   ? — show the shortcut cheatsheet
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return;
+      const jump = () => document
+        .getElementById('email-tx-results')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      switch (e.key) {
+        case 'g':
+        case 'G':
+          e.preventDefault();
+          setStatusFilter('needs_routing');
+          jump();
+          sonnerToast('Jumped to needs-routing alerts');
+          break;
+        case 's':
+        case 'S':
+          e.preventDefault();
+          markAlertsSeen();
+          sonnerToast('All alerts marked as seen');
+          break;
+        case 'd':
+        case 'D':
+          if (!unreadArrivalSpan) return;
+          e.preventDefault();
+          setAlertDetailsRow(unreadArrivalSpan.newest);
+          break;
+        case '?':
+          e.preventDefault();
+          sonnerToast('Keyboard shortcuts', {
+            description: 'g — needs-routing queue · s — mark all seen · d — newest alert details',
+            duration: 6000,
+          });
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [markAlertsSeen, unreadArrivalSpan]);
+
   const resolveAlertRows = useCallback(async (targets: GmailTx[]) => {
     const ids = targets.map((r) => r.id);
     if (!ids.length) return;
