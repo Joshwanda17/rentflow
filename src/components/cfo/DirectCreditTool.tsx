@@ -699,6 +699,110 @@ export function DirectCreditTool() {
 
   const isCredit = operation === 'credit';
   const amt = parseFloat(amount || '0');
+
+  // ── One-click Freeze + Split Debit ────────────────────────────────
+  // From the "Insufficient Available Balance" dialog. Posts the available
+  // portion as a clean debit, then the shortfall as a Forced Reversal
+  // (creating a `cfo_debit_obligations` receivable), then freezes the
+  // account via `admin_freeze_kyc_account` so no future outflow can
+  // dodge the debt.
+  const handleFreezeAndSplitDebit = async () => {
+    if (!overdrawInfo || !selectedUser || !selectedCategory) return;
+    const effectiveRecipient: RecipientType | '' =
+      selectedCategory.recipientLock !== 'either'
+        ? selectedCategory.recipientLock
+        : recipientType;
+    if (!effectiveRecipient) {
+      toast({ title: 'Recipient type required', description: 'Choose User or Operational Wallet before splitting.', variant: 'destructive' });
+      return;
+    }
+    const categoryLabel = selectedSubCategory
+      ? `${selectedCategory.label} → ${selectedSubCategory.label}`
+      : selectedCategory.label;
+    const baseBody = {
+      target_user_id: selectedUser.id,
+      reason,
+      operation: 'debit' as const,
+      wallet_category: selectedCategory.walletCategory,
+      platform_category: selectedCategory.platformCategory,
+      financial_impact: selectedCategory.impact,
+      category_label: categoryLabel,
+      sub_category: selectedSubCategoryId || null,
+      recipient_type: effectiveRecipient,
+      manual_credit: true,
+    };
+    const clean = Math.floor(overdrawInfo.available);
+    const debt = Math.max(0, Math.floor(overdrawInfo.shortfall));
+    setSplitFreezing(true);
+    try {
+      // 1) Clean debit up to the strict available balance (skip if 0).
+      if (clean > 0) {
+        const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
+          body: {
+            ...baseBody,
+            amount: clean,
+            reason: `[SPLIT 1/2 — collectable] ${reason}`,
+            allow_overdraw: false,
+          },
+        });
+        if (error) {
+          const msg = await extractFromErrorObject(error, 'Clean debit failed');
+          throw new Error(`Clean debit (UGX ${clean.toLocaleString()}) failed: ${msg}`);
+        }
+        if ((data as any)?.error) throw new Error(`Clean debit failed: ${(data as any).error}`);
+      }
+
+      // 2) Forced Reversal for the shortfall — creates a recoverable debt.
+      if (debt > 0) {
+        const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
+          body: {
+            ...baseBody,
+            amount: debt,
+            reason: `[SPLIT 2/2 — receivable, freeze+recover] ${reason}`,
+            allow_overdraw: true,
+            solvency_bypass_reason: 'duplicate_reversal',
+          },
+        });
+        if (error) {
+          const msg = await extractFromErrorObject(error, 'Force reversal failed');
+          throw new Error(`Force reversal (UGX ${debt.toLocaleString()}) failed: ${msg}`);
+        }
+        if ((data as any)?.error) throw new Error(`Force reversal failed: ${(data as any).error}`);
+      }
+
+      // 3) Freeze the account so future inflows can be swept by recovery
+      //    and no withdrawal can drain the debt.
+      const { error: freezeErr } = await supabase.rpc('admin_freeze_kyc_account', {
+        p_user_id: selectedUser.id,
+        p_reason: `Auto-freeze after CFO Split Debit: UGX ${clean.toLocaleString()} collected + UGX ${debt.toLocaleString()} debt. Reason: ${reason}`,
+      });
+      if (freezeErr) throw new Error(`Debits posted but freeze failed: ${freezeErr.message}`);
+
+      toast({
+        title: '✅ Freeze + Split Debit complete',
+        description: `Collected UGX ${clean.toLocaleString()} · Debt UGX ${debt.toLocaleString()} · Account frozen.`,
+      });
+      qc.invalidateQueries({ queryKey: ['expense-transfers'] });
+      qc.invalidateQueries({ queryKey: ['channel-balances'] });
+      qc.invalidateQueries({ queryKey: ['treasury-cash-snapshot'] });
+      qc.invalidateQueries({ queryKey: ['cfo-overview'] });
+      qc.invalidateQueries({ queryKey: ['cfo-debit-obligations'] });
+      qc.invalidateQueries({ queryKey: ['kyc-console'] });
+      setOverdrawInfo(null);
+      setOverdrawApproved(false);
+      setSelectedUser(null);
+      setAmount('');
+      setReason('');
+      setSelectedCategoryId('');
+      setSelectedSubCategoryId('');
+      setRecipientType('');
+    } catch (e: any) {
+      toast({ title: 'Split Debit failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setSplitFreezing(false);
+    }
+  };
+
   const impactInfo = selectedCategory ? IMPACT_CONFIG[selectedCategory.impact] : null;
   const ImpactIcon = impactInfo?.icon;
 
