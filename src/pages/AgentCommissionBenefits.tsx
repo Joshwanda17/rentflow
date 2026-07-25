@@ -40,7 +40,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
 • List an empty house → *UGX 5,000*
 • A tenant moves into a house you listed → *UGX 5,000*
 • Landlord on your rent request verified → *UGX 4,000*
-• Sub-agent's house/landlord/LC1 verified → *UGX 3,000*
+• Sub-agent's house/landlord/LC1 verified → *UGX 1,000*
 • Rent request posted & listed → *UGX 1,000*
 • Replace a tenant in a house → *UGX 20,000*
 • Register a new agent under you → *UGX 10,000*
