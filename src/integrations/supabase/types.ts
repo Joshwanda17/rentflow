@@ -4234,6 +4234,51 @@ export type Database = {
         }
         Relationships: []
       }
+      analytics_export_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          file_path: string | null
+          id: string
+          kind: string
+          params: Json
+          progress: number
+          requested_by: string
+          row_count: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          file_path?: string | null
+          id?: string
+          kind: string
+          params?: Json
+          progress?: number
+          requested_by: string
+          row_count?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          file_path?: string | null
+          id?: string
+          kind?: string
+          params?: Json
+          progress?: number
+          requested_by?: string
+          row_count?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       angel_pool_config: {
         Row: {
           id: string
