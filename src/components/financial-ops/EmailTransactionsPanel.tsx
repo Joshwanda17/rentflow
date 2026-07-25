@@ -5939,7 +5939,8 @@ export function EmailTransactionsPanel() {
                 className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground"
               >
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading more…
+                Loading {Math.min(pageSize, visibleRows.length - infiniteCount).toLocaleString()} more
+                {' '}({(visibleRows.length - infiniteCount).toLocaleString()} left)
               </div>
             )}
           </div>
