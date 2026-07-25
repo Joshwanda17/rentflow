@@ -10,7 +10,7 @@ import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } 
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
 import { Info } from 'lucide-react';
-import { Wrench } from 'lucide-react';
+import { Wrench, Clock } from 'lucide-react';
 import { SlidersHorizontal } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -2640,6 +2640,28 @@ export function EmailTransactionsPanel() {
     [alertRows, alertsSeenTs, rowTimeMs],
   );
   const unreadAlertCount = unreadAlertRows.length;
+  /** Human-friendly arrival label for an alert row ("12m ago · 14:05"). */
+  const formatAlertArrival = useCallback((r: GmailTx) => {
+    const ms = rowTimeMs(r);
+    if (!ms) return 'unknown time';
+    const diff = Date.now() - ms;
+    const mins = Math.floor(diff / 60000);
+    const rel =
+      mins < 1 ? 'just now'
+        : mins < 60 ? `${mins}m ago`
+          : mins < 1440 ? `${Math.floor(mins / 60)}h ago`
+            : `${Math.floor(mins / 1440)}d ago`;
+    const clock = new Date(ms).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
+    return `${rel} · ${clock}`;
+  }, [rowTimeMs]);
+  /** Newest / oldest unread arrivals, for the banner triage summary. */
+  const unreadArrivalSpan = useMemo(() => {
+    if (unreadAlertRows.length === 0) return null;
+    const sorted = [...unreadAlertRows].sort((a, b) => rowTimeMs(b) - rowTimeMs(a));
+    return { newest: sorted[0], oldest: sorted[sorted.length - 1], sorted };
+  }, [unreadAlertRows, rowTimeMs]);
   const isUnreadAlertRow = useCallback(
     (r: GmailTx) => {
       const s = getRowStatus(r);
@@ -3894,6 +3916,31 @@ export function EmailTransactionsPanel() {
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {alertRows.length} total unresolved in this window (awaiting routing or unparsed).
               </p>
+              {unreadArrivalSpan && (
+                <>
+                  <p className="text-[11px] text-orange-800/90 dark:text-orange-300/90 mt-1">
+                    Newest arrived {formatAlertArrival(unreadArrivalSpan.newest)}
+                    {unreadAlertCount > 1 && <> · oldest unread {formatAlertArrival(unreadArrivalSpan.oldest)}</>}
+                  </p>
+                  <ul className="mt-1.5 space-y-0.5">
+                    {unreadArrivalSpan.sorted.slice(0, 3).map((r) => (
+                      <li key={r.id} className="text-[11px] text-muted-foreground flex items-center gap-1.5 min-w-0">
+                        <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                        <span className="font-mono shrink-0">{formatAlertArrival(r)}</span>
+                        <span className="truncate">
+                          — {r.counterparty || r.from_name || r.from_email || 'Unknown sender'}
+                          {r.amount ? ` · UGX ${Number(r.amount).toLocaleString()}` : ''}
+                        </span>
+                      </li>
+                    ))}
+                    {unreadAlertCount > 3 && (
+                      <li className="text-[11px] text-muted-foreground/80">
+                        +{unreadAlertCount - 3} more unread…
+                      </li>
+                    )}
+                  </ul>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
