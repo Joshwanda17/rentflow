@@ -4317,7 +4317,23 @@ export function EmailTransactionsPanel() {
                 <div className="text-xs font-medium">
                   <span className="text-primary">{selectedIds.size}</span> selected
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkBusy || alertRows.length === 0}
+                    onClick={selectAllAlertRows}
+                  >
+                    Select unresolved ({alertRows.length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={bulkBusy}
+                    onClick={() => resolveAlertRows(alertRows.filter((r) => selectedIds.has(r.id)))}
+                  >
+                    {bulkBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                    Resolve selected alerts
+                  </Button>
                   <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('credited')}>
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as paid in
                   </Button>
