@@ -21,7 +21,8 @@ export type InstallEventType =
   | 'native_prompt_dismissed'
   | 'app_installed'
   | 'diagnostics_opened'
-  | 'diagnostics_report_copied';
+  | 'diagnostics_report_copied'
+  | 'install_preflight_failed';
 
 function detectInAppName(): string | null {
   const ua = navigator.userAgent || '';
