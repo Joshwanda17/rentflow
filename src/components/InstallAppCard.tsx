@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Share, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useInstallPreflight } from '@/hooks/useInstallPreflight';
 import { toast } from 'sonner';
 import { trackInstallEvent } from '@/lib/installTracking';
 
@@ -16,6 +17,9 @@ interface InstallAppCardProps {
 
 export default function InstallAppCard({ className }: InstallAppCardProps) {
   const { canShow, isInstalled, isIOS, hasPrompt, promptInstall } = usePWAInstall();
+  // Preflight: don't advertise install until the manifest, apple-touch-icon,
+  // service worker script, and a signed/CDN asset download all resolve.
+  const preflight = useInstallPreflight(!isInstalled);
   const [dismissed, setDismissed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return sessionStorage.getItem(SESSION_KEY) === '1';
@@ -31,9 +35,18 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
   // Log card impression once per mount when visible.
   useEffect(() => {
     if (isInstalled || dismissed || !canShow) return;
+    if (preflight.loading || !preflight.ready) return;
     trackInstallEvent('install_card_shown', { isIOS, hasPrompt });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [preflight.loading, preflight.ready]);
+
+  // Emit a one-time preflight-failure telemetry per session so we can measure
+  // how often users are silently blocked from seeing the card.
+  useEffect(() => {
+    if (preflight.loading || preflight.ready || preflight.checks.length === 0) return;
+    const failed = preflight.checks.filter((c) => !c.ok).map((c) => c.key);
+    trackInstallEvent('install_preflight_failed', { failed, isIOS });
+  }, [preflight.loading, preflight.ready, preflight.checks, isIOS]);
 
   const handleDismiss = () => {
     sessionStorage.setItem(SESSION_KEY, '1');
@@ -77,6 +90,10 @@ export default function InstallAppCard({ className }: InstallAppCardProps) {
   if (isInstalled) return null;
   if (dismissed) return null;
   if (!canShow) return null; // covers: unsupported browser AND not iOS AND no prompt
+  // Preflight gate: hide the card until every readiness check passes. If a
+  // check fails, /install-diagnostics surfaces the reason.
+  if (preflight.loading) return null;
+  if (!preflight.ready) return null;
 
   return (
     <>
