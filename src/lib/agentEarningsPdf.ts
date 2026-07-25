@@ -114,7 +114,7 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
   bullet('List an empty house', 'UGX 5,000');
   bullet('A tenant moves into a house you listed', 'UGX 5,000');
   bullet('Landlord on your rent request verified', 'UGX 4,000');
-  bullet("Sub-agent's house / landlord / LC1 verified", 'UGX 3,000');
+  bullet("Sub-agent's house / landlord / LC1 verified", 'UGX 1,000');
   bullet('Rent request posted & listed', 'UGX 1,000');
   bullet('Replace a tenant in a house', 'UGX 20,000');
   bullet('Register a new agent under you', 'UGX 10,000');
