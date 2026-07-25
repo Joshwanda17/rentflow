@@ -3965,6 +3965,64 @@ export function EmailTransactionsPanel() {
               className={`h-4 w-4 transition-transform ${chipFiltersOpen ? 'rotate-180' : ''}`}
             />
           </button>
+          {/* Saved filter presets — one-tap switching between saved views.
+              Always visible (mobile-first) so operators never have to expand the
+              chip groups to restore a triage view. */}
+          <div className="mt-2 sm:mt-0 sm:mb-3">
+            <div className="flex items-center gap-1 overflow-x-auto pb-1" role="group" aria-label="Saved filter presets">
+              <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground pr-1">Views</span>
+              {filterPresets.length === 0 && (
+                <span className="shrink-0 text-[11px] text-muted-foreground">None saved yet</span>
+              )}
+              {filterPresets.map((p) => {
+                const active = activePresetId === p.id;
+                return (
+                  <span
+                    key={p.id}
+                    className={`shrink-0 inline-flex items-center gap-1 rounded-full border pl-2.5 pr-1 py-1 text-[11px] transition-colors ${
+                      active
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                    }`}
+                  >
+                    <button type="button" onClick={() => applyPreset(p)} aria-pressed={active} className="max-w-[120px] truncate">
+                      {p.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deletePreset(p.id)}
+                      aria-label={`Delete preset ${p.name}`}
+                      className="opacity-70 hover:opacity-100 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setPresetSaveOpen((v) => !v)}
+                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+              >
+                <Star className="h-3 w-3" /> Save view
+              </button>
+            </div>
+            {presetSaveOpen && (
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  value={presetNameDraft}
+                  onChange={(e) => setPresetNameDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') savePreset(); }}
+                  placeholder="Name this view (e.g. Needs routing)"
+                  className="h-8 text-xs"
+                  aria-label="Preset name"
+                />
+                <Button size="sm" className="h-8 text-xs" onClick={savePreset} disabled={!presetNameDraft.trim()}>
+                  Save
+                </Button>
+              </div>
+            )}
+          </div>
           <div
             className={`${chipFiltersOpen ? 'flex' : 'hidden sm:flex'} mt-2 sm:mt-0 flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 sm:gap-3`}
           >
