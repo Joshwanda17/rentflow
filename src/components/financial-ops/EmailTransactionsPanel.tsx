@@ -2619,6 +2619,28 @@ export function EmailTransactionsPanel() {
    * panel can surface "what needs attention first" at a glance.
    */
   const ALERTS_SEEN_KEY = 'gmail_alerts_last_seen';
+  /**
+   * Alert notification settings. Ops choose which alert types count toward the
+   * unread badges and whether new arrivals raise an in-app toast prompt.
+   * Persisted per-browser in localStorage.
+   */
+  const ALERT_PREFS_KEY = 'gmail_alert_prefs_v1';
+  type AlertPrefs = { needsRouting: boolean; unparsed: boolean; toastPrompt: boolean };
+  const [alertPrefs, setAlertPrefs] = useState<AlertPrefs>(() => {
+    const fallback: AlertPrefs = { needsRouting: true, unparsed: true, toastPrompt: true };
+    if (typeof window === 'undefined') return fallback;
+    try {
+      const raw = localStorage.getItem(ALERT_PREFS_KEY);
+      return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
+    } catch { return fallback; }
+  });
+  const updateAlertPrefs = useCallback((patch: Partial<AlertPrefs>) => {
+    setAlertPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      try { localStorage.setItem(ALERT_PREFS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   const [alertsSeenTs, setAlertsSeenTs] = useState<number>(() => {
     if (typeof window === 'undefined') return 0;
     const raw = Number(localStorage.getItem(ALERTS_SEEN_KEY));
@@ -2631,9 +2653,11 @@ export function EmailTransactionsPanel() {
   const alertRows = useMemo(
     () => filteredRows.filter((r) => {
       const s = getRowStatus(r);
-      return s === 'needs_routing' || s === 'unparsed';
+      if (s === 'needs_routing') return alertPrefs.needsRouting;
+      if (s === 'unparsed') return alertPrefs.unparsed;
+      return false;
     }),
-    [filteredRows, getRowStatus],
+    [filteredRows, getRowStatus, alertPrefs.needsRouting, alertPrefs.unparsed],
   );
   const unreadAlertRows = useMemo(
     () => alertRows.filter((r) => rowTimeMs(r) > alertsSeenTs),
@@ -2665,15 +2689,39 @@ export function EmailTransactionsPanel() {
   const isUnreadAlertRow = useCallback(
     (r: GmailTx) => {
       const s = getRowStatus(r);
-      return (s === 'needs_routing' || s === 'unparsed') && rowTimeMs(r) > alertsSeenTs;
+      const enabled = s === 'needs_routing' ? alertPrefs.needsRouting
+        : s === 'unparsed' ? alertPrefs.unparsed
+          : false;
+      return enabled && rowTimeMs(r) > alertsSeenTs;
     },
-    [getRowStatus, rowTimeMs, alertsSeenTs],
+    [getRowStatus, rowTimeMs, alertsSeenTs, alertPrefs.needsRouting, alertPrefs.unparsed],
   );
   const markAlertsSeen = useCallback(() => {
     const now = Date.now();
     setAlertsSeenTs(now);
     try { localStorage.setItem(ALERTS_SEEN_KEY, String(now)); } catch { /* ignore */ }
   }, []);
+
+  /**
+   * In-app prompt: when new unread alerts appear (and prompts are enabled in
+   * alert settings) raise a single toast with a jump-to-queue action.
+   */
+  const promptedUnreadRef = useRef<number>(0);
+  useEffect(() => {
+    if (!alertPrefs.toastPrompt) { promptedUnreadRef.current = unreadAlertCount; return; }
+    if (unreadAlertCount > promptedUnreadRef.current && unreadAlertCount > 0) {
+      sonnerToast(`${unreadAlertCount} email alert${unreadAlertCount === 1 ? '' : 's'} need attention`, {
+        description: 'Emails awaiting routing or unparsed by the reader.',
+        action: {
+          label: 'Review',
+          onClick: () => document
+            .getElementById('email-tx-results')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+        },
+      });
+    }
+    promptedUnreadRef.current = unreadAlertCount;
+  }, [unreadAlertCount, alertPrefs.toastPrompt]);
 
   /**
    * Bulk triage helpers for unmatched alerts. `selectAllAlertRows` tick-selects
@@ -2903,6 +2951,8 @@ export function EmailTransactionsPanel() {
    * actions) without leaving the panel; prev/next walks the unread queue.
    */
   const [alertDetailsRow, setAlertDetailsRow] = useState<GmailTx | null>(null);
+  /** Controlled open state for the alert notification settings dialog. */
+  const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
 
   const startRouteQueue = useCallback((batch: GmailTx[]) => {
     if (!batch.length) return;
@@ -3999,9 +4049,70 @@ export function EmailTransactionsPanel() {
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={markAlertsSeen}>
               Mark all seen
             </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAlertSettingsOpen(true)}>
+              <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Alert settings
+            </Button>
           </div>
         </div>
       )}
+
+      {/* Alert notification settings — which alert types count toward badges and
+          whether new arrivals raise an in-app prompt. Stored per browser. */}
+      <Dialog open={alertSettingsOpen} onOpenChange={setAlertSettingsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" /> Alert notification settings
+            </DialogTitle>
+            <DialogDescription>
+              Choose which email alert types show unread badges and trigger in-app prompts.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.needsRouting}
+                onCheckedChange={(v) => updateAlertPrefs({ needsRouting: !!v })}
+              />
+              <span className="text-sm">
+                Awaiting routing
+                <span className="block text-[11px] text-muted-foreground">
+                  Parsed emails not yet routed to a wallet or deposit.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.unparsed}
+                onCheckedChange={(v) => updateAlertPrefs({ unparsed: !!v })}
+              />
+              <span className="text-sm">
+                Unparsed emails
+                <span className="block text-[11px] text-muted-foreground">
+                  Messages the reader could not extract amount / TID from.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <Checkbox
+                checked={alertPrefs.toastPrompt}
+                onCheckedChange={(v) => updateAlertPrefs({ toastPrompt: !!v })}
+              />
+              <span className="text-sm">
+                In-app prompts
+                <span className="block text-[11px] text-muted-foreground">
+                  Pop a toast with a "Review" shortcut when new alerts arrive.
+                </span>
+              </span>
+            </label>
+            {!alertPrefs.needsRouting && !alertPrefs.unparsed && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                All alert types are off — no badges or prompts will show.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div id="email-tx-results" className="rounded-xl border bg-card overflow-hidden scroll-mt-20">
         {/* Prominent, full-width search bar — lets ops find any email by
@@ -4020,6 +4131,16 @@ export function EmailTransactionsPanel() {
                   {unreadAlertCount} new
                 </Badge>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-[11px]"
+                onClick={() => setAlertSettingsOpen(true)}
+                aria-label="Alert notification settings"
+                title="Alert notification settings"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+              </Button>
             </h3>
             <div className="flex items-center gap-2">
               {searchActive && (
