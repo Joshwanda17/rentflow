@@ -2861,6 +2861,38 @@ export function EmailTransactionsPanel() {
     setRoutingRow(nextRow);
   };
 
+  /**
+   * ── Multi-select batch queues ─────────────────────────────────────────────
+   * Ops often tick several rows and want to work through them without going
+   * back to the list. Two queues drive that:
+   *  - `routeQueue`   : ids still to be routed/charged. Closing the routing
+   *                     dialog automatically opens the next queued row.
+   *  - `historyQueue` : rows to audit; the history drawer gets prev/next.
+   */
+  const [routeQueue, setRouteQueue] = useState<string[]>([]);
+  const [historyQueue, setHistoryQueue] = useState<GmailTx[]>([]);
+
+  const startRouteQueue = useCallback((batch: GmailTx[]) => {
+    if (!batch.length) return;
+    const [first, ...rest] = batch;
+    setRouteQueue(rest.map((r) => r.id));
+    navigateToRow(first, first.direction === 'in' ? 'credit' : 'debit');
+    sonnerToast(`Routing 1 of ${batch.length}`, {
+      description: 'Finish or close this one and the next selected row opens automatically.',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userMatches]);
+
+  const startHistoryQueue = useCallback((batch: GmailTx[]) => {
+    if (!batch.length) return;
+    setHistoryQueue(batch);
+    setHistoryDrawerRow(batch[0]);
+  }, []);
+
+  const historyQueueIndex = historyDrawerRow
+    ? historyQueue.findIndex((r) => r.id === historyDrawerRow.id)
+    : -1;
+
   // Swipe-triggered routing/charging. Because a swipe can easily be the wrong
   // gesture, we snapshot the routing dialog state *before* opening it and show
   // an "Undo" toast that instantly reverts to the previous state (usually
@@ -4394,6 +4426,30 @@ export function EmailTransactionsPanel() {
                     onClick={selectAllAlertRows}
                   >
                     Select unresolved ({alertRows.length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkBusy || visibleRows.length === 0}
+                    onClick={() => setSelectedIds(new Set(visibleRows.map((r) => r.id)))}
+                  >
+                    Select all shown ({visibleRows.length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkBusy}
+                    onClick={() => startRouteQueue(visibleRows.filter((r) => selectedIds.has(r.id)))}
+                  >
+                    <Zap className="h-3.5 w-3.5 mr-1" /> Route selected ({selectedIds.size})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkBusy}
+                    onClick={() => startHistoryQueue(visibleRows.filter((r) => selectedIds.has(r.id)))}
+                  >
+                    <History className="h-3.5 w-3.5 mr-1" /> Open history ({selectedIds.size})
                   </Button>
                   <Button
                     size="sm"
@@ -6062,7 +6118,7 @@ export function EmailTransactionsPanel() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Sheet open={!!historyDrawerRow} onOpenChange={(o) => { if (!o) setHistoryDrawerRow(null); }}>
+      <Sheet open={!!historyDrawerRow} onOpenChange={(o) => { if (!o) { setHistoryDrawerRow(null); setHistoryQueue([]); } }}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
@@ -6074,6 +6130,31 @@ export function EmailTransactionsPanel() {
                 : ''}
             </SheetDescription>
           </SheetHeader>
+          {historyQueue.length > 1 && historyQueueIndex >= 0 && (
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-2 py-1.5">
+              <span className="text-xs font-medium">
+                Selected {historyQueueIndex + 1} of {historyQueue.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={historyQueueIndex <= 0}
+                  onClick={() => setHistoryDrawerRow(historyQueue[historyQueueIndex - 1])}
+                >
+                  Prev
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={historyQueueIndex >= historyQueue.length - 1}
+                  onClick={() => setHistoryDrawerRow(historyQueue[historyQueueIndex + 1])}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
           {(() => {
             const drawerHistory = historyDrawerRow ? (routingHistory[historyDrawerRow.id] ?? []) : [];
             if (!drawerHistory.length) {
@@ -6206,7 +6287,21 @@ export function EmailTransactionsPanel() {
 
       <RouteEmailDepositDialog
         open={!!routingRow}
-        onOpenChange={(o) => { if (!o) { setRoutingRow(null); setRoutingSuggestedUser(null); } }}
+        onOpenChange={(o) => {
+          if (o) return;
+          setRoutingRow(null);
+          setRoutingSuggestedUser(null);
+          // Batch mode: advance to the next selected row automatically.
+          if (routeQueue.length) {
+            const [nextId, ...rest] = routeQueue;
+            const nextRow = rows.find((r) => r.id === nextId);
+            setRouteQueue(rest);
+            if (nextRow) {
+              setTimeout(() => navigateToRow(nextRow, nextRow.direction === 'in' ? 'credit' : 'debit'), 200);
+              sonnerToast(`Next selected row (${rest.length} left after this)`);
+            }
+          }
+        }}
         row={routingRow as EmailRowForRouting | null}
         suggestedUser={routingSuggestedUser}
         mode={routingMode}
