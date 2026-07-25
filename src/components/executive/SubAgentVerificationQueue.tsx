@@ -631,6 +631,125 @@ export function SubAgentVerificationQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Admin: Assign agent as sub-agent */}
+      <Dialog open={assignOpen} onOpenChange={(o) => { if (!o) resetAssignDialog(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Assign agent as sub-agent
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto">
+            <p className="text-xs text-muted-foreground">
+              Search for the agent you want to make a sub-agent, then search for their parent agent.
+              If the agent already has a parent, they will be re-assigned. A reason is required and every
+              action is logged in the audit trail.
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase">Agent to make a sub-agent</label>
+              {assignSub ? (
+                <div className="flex items-center justify-between rounded-lg border p-2 bg-muted/30">
+                  <div className="text-sm">
+                    <p className="font-medium">{assignSub.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{assignSub.phone || '—'}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setAssignSub(null)}>Change</Button>
+                </div>
+              ) : (
+                <>
+                  <Input
+                    placeholder="Search by name or phone…"
+                    value={assignSubSearch}
+                    onChange={(e) => {
+                      setAssignSubSearch(e.target.value);
+                      searchAgents(e.target.value, setAssignSubResults, setAssignSearchingSub, assignParent?.id);
+                    }}
+                  />
+                  {assignSearchingSub && <p className="text-xs text-muted-foreground">Searching…</p>}
+                  {assignSubResults.length > 0 && (
+                    <div className="rounded-lg border divide-y max-h-48 overflow-y-auto">
+                      {assignSubResults.map((p) => (
+                        <button
+                          key={p.id}
+                          className="w-full text-left p-2 hover:bg-muted/40 text-sm"
+                          onClick={() => { setAssignSub(p); setAssignSubResults([]); setAssignSubSearch(''); }}
+                        >
+                          <p className="font-medium">{p.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{p.phone || '—'}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase">Parent agent</label>
+              {assignParent ? (
+                <div className="flex items-center justify-between rounded-lg border p-2 bg-muted/30">
+                  <div className="text-sm">
+                    <p className="font-medium">{assignParent.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{assignParent.phone || '—'}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setAssignParent(null)}>Change</Button>
+                </div>
+              ) : (
+                <>
+                  <Input
+                    placeholder="Search by name or phone…"
+                    value={assignParentSearch}
+                    onChange={(e) => {
+                      setAssignParentSearch(e.target.value);
+                      searchAgents(e.target.value, setAssignParentResults, setAssignSearchingParent, assignSub?.id);
+                    }}
+                  />
+                  {assignSearchingParent && <p className="text-xs text-muted-foreground">Searching…</p>}
+                  {assignParentResults.length > 0 && (
+                    <div className="rounded-lg border divide-y max-h-48 overflow-y-auto">
+                      {assignParentResults.map((p) => (
+                        <button
+                          key={p.id}
+                          className="w-full text-left p-2 hover:bg-muted/40 text-sm"
+                          onClick={() => { setAssignParent(p); setAssignParentResults([]); setAssignParentSearch(''); }}
+                        >
+                          <p className="font-medium">{p.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{p.phone || '—'}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground uppercase">Reason (for audit log)</label>
+              <Textarea
+                placeholder="Why is this agent being made a sub-agent? (min 10 characters)"
+                value={assignReason}
+                onChange={(e) => setAssignReason(e.target.value)}
+                maxLength={500}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={resetAssignDialog} disabled={assigning}>Cancel</Button>
+            <Button
+              onClick={handleAssign}
+              disabled={assigning || !assignSub || !assignParent || assignReason.trim().length < 10}
+              className="gap-1"
+            >
+              {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              Confirm Assignment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
