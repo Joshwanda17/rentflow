@@ -4429,6 +4429,30 @@ export function EmailTransactionsPanel() {
                   </Button>
                   <Button
                     size="sm"
+                    variant="outline"
+                    disabled={bulkBusy || visibleRows.length === 0}
+                    onClick={() => setSelectedIds(new Set(visibleRows.map((r) => r.id)))}
+                  >
+                    Select all shown ({visibleRows.length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkBusy}
+                    onClick={() => startRouteQueue(visibleRows.filter((r) => selectedIds.has(r.id)))}
+                  >
+                    <Zap className="h-3.5 w-3.5 mr-1" /> Route selected ({selectedIds.size})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkBusy}
+                    onClick={() => startHistoryQueue(visibleRows.filter((r) => selectedIds.has(r.id)))}
+                  >
+                    <History className="h-3.5 w-3.5 mr-1" /> Open history ({selectedIds.size})
+                  </Button>
+                  <Button
+                    size="sm"
                     disabled={bulkBusy}
                     onClick={() => resolveAlertRows(alertRows.filter((r) => selectedIds.has(r.id)))}
                   >
