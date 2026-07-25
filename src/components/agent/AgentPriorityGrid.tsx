@@ -126,9 +126,9 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         }
         iconBg="bg-amber-500 text-white"
         label="List House"
-        valueLabel={formatUGX(10000)}
+        valueLabel={formatUGX(2000)}
         sub="Landlord + LC1 bonus"
-        ariaLabel="List an empty house — earn up to UGX 10,000 when you register the landlord and LC1 chairperson"
+        ariaLabel="List an empty house — earn up to UGX 2,000 when you register the landlord and LC1 chairperson"
         title="List an empty house"
         highlight
       />
