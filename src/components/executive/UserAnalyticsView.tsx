@@ -30,6 +30,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { UserAnalyticsDrilldown, type DrilldownScope } from './UserAnalyticsDrilldown';
 import { RetentionCohortView } from './RetentionCohortView';
+import { AnalyticsExportJobsPanel } from './AnalyticsExportJobsPanel';
 
 function downloadBlob(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -386,6 +387,8 @@ export function UserAnalyticsView() {
       />
 
       <RetentionCohortView />
+
+      <AnalyticsExportJobsPanel start={start} end={end} rangeLabel={rangeLabel} />
     </div>
   );
 }
