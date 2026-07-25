@@ -1568,6 +1568,45 @@ export function EmailTransactionsPanel() {
     }
   };
 
+  /**
+   * Single-row equivalent of `applyBulkMark` — used by the mobile right-swipe
+   * "Mark resolved" gesture. Appends one immutable row to
+   * `email_credit_manual_marks` and updates the local marks map so the row's
+   * status pill flips immediately.
+   */
+  const markRowResolved = async (r: GmailTx, mark: 'credited' | 'uncredited' = 'credited') => {
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth?.user?.id;
+      if (!uid) throw new Error('Not signed in');
+      const { error } = await (supabase.from('email_credit_manual_marks') as any).insert({
+        gmail_transaction_id: r.id,
+        gmail_message_id: r.gmail_message_id ?? null,
+        email_tid: r.transaction_id ?? null,
+        mark,
+        reason: 'Marked resolved from mobile swipe',
+        marked_by: uid,
+      });
+      if (error) throw new Error(error.message);
+      setManualMarks((prev) => ({
+        ...prev,
+        [r.id]: {
+          mark,
+          marked_by: uid,
+          marked_by_name: prev[r.id]?.marked_by_name ?? null,
+          reason: 'Marked resolved from mobile swipe',
+          created_at: new Date().toISOString(),
+        },
+      }));
+      toast({
+        title: mark === 'credited' ? 'Marked as resolved' : 'Marked as not paid in',
+        description: 'Audit trail updated.',
+      });
+    } catch (e: any) {
+      toast({ title: 'Mark failed', description: e?.message || String(e), variant: 'destructive' });
+    }
+  };
+
   // Background fetch of strict ledger-derived withdrawable balances for
   // every possible-user candidate AND every routed target currently shown.
   // Uses the operator-safe `get_user_wallet_view` RPC so the figure matches
@@ -4180,6 +4219,28 @@ export function EmailTransactionsPanel() {
                           ariaLabel: `Charge wallet ${fmtUgx(Number(r.amount ?? 0))}${r.counterparty ? ` for payout to ${r.counterparty}` : ''}`,
                         }
                       : null;
+                // Secondary swipe action (swipe RIGHT): for money-in rows that
+                // still need attention, mark the email resolved without opening
+                // the row. Already-settled rows instead open the full routing
+                // history so operators can audit with one gesture.
+                const swipeSecondaryAction: SwipeAction | null =
+                  !manualMark && r.direction === 'in' && !isCredited
+                    ? {
+                        label: 'Mark resolved',
+                        hint: 'Resolve',
+                        icon: <CheckCircle2 className="h-5 w-5" />,
+                        colorClass: 'bg-sky-600',
+                        onAction: () => markRowResolved(r, 'credited'),
+                        ariaLabel: `Mark this ${fmtUgx(Number(r.amount ?? 0))} email${r.counterparty ? ` from ${r.counterparty}` : ''} as resolved`,
+                      }
+                    : {
+                        label: 'View history',
+                        hint: 'History',
+                        icon: <History className="h-5 w-5" />,
+                        colorClass: 'bg-slate-600',
+                        onAction: () => setHistoryDrawerRow(r),
+                        ariaLabel: `View routing history for this ${fmtUgx(Number(r.amount ?? 0))} email`,
+                      };
                 // ── Consolidated "latest outcome" status ──────────────────
                 // A single, plain-language pill shown at the top of the row so
                 // reviewers can verify what happened to the money WITHOUT
@@ -4272,7 +4333,7 @@ export function EmailTransactionsPanel() {
                               }
                             : null;
                 return (
-              <SwipeableEmailRow key={r.id} action={swipeAction}>
+              <SwipeableEmailRow key={r.id} action={swipeAction} secondaryAction={swipeSecondaryAction}>
               <div
                 role="article"
                 aria-label={matchAriaLabel}

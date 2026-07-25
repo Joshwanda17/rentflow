@@ -34,9 +34,12 @@ const MAX_DRAG = 132; // px the row can travel while dragging
  */
 export function SwipeableEmailRow({
   action,
+  secondaryAction,
   children,
 }: {
   action?: SwipeAction | null;
+  /** Optional action revealed by swiping the row RIGHT (e.g. mark resolved). */
+  secondaryAction?: SwipeAction | null;
   children: ReactNode;
 }) {
   const [dx, setDx] = useState(0);
@@ -45,9 +48,11 @@ export function SwipeableEmailRow({
   const startY = useRef<number | null>(null);
   const dragging = useRef(false);
 
-  if (!action) return <>{children}</>;
+  if (!action && !secondaryAction) return <>{children}</>;
 
   const armed = Math.abs(dx) >= TRIGGER_THRESHOLD;
+  // Which action the current drag direction targets.
+  const activeAction = dx < 0 ? action : dx > 0 ? secondaryAction : null;
 
   const reset = () => {
     setAnimating(true);
@@ -72,9 +77,11 @@ export function SwipeableEmailRow({
     const deltaX = t.clientX - startX.current;
     const deltaY = t.clientY - startY.current;
     if (!dragging.current) {
-      // Only engage on a clearly horizontal left swipe; otherwise let the
-      // list scroll vertically as normal.
-      if (deltaX < -8 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Only engage on a clearly horizontal swipe (left → primary action,
+      // right → secondary action); otherwise let the list scroll vertically.
+      const wantsLeft = deltaX < -8 && !!action;
+      const wantsRight = deltaX > 8 && !!secondaryAction;
+      if ((wantsLeft || wantsRight) && Math.abs(deltaX) > Math.abs(deltaY)) {
         dragging.current = true;
       } else if (Math.abs(deltaY) > 8) {
         startX.current = null;
@@ -83,18 +90,21 @@ export function SwipeableEmailRow({
         return;
       }
     }
-    const clamped = Math.max(-MAX_DRAG, Math.min(0, deltaX));
+    const clamped = Math.max(
+      action ? -MAX_DRAG : 0,
+      Math.min(secondaryAction ? MAX_DRAG : 0, deltaX),
+    );
     setDx(clamped);
     if (e.cancelable) e.preventDefault();
   };
 
   const onTouchEnd = () => {
-    const fire = Math.abs(dx) >= TRIGGER_THRESHOLD;
+    const fire = Math.abs(dx) >= TRIGGER_THRESHOLD ? activeAction : null;
     if (fire) {
       try {
         (navigator as unknown as { vibrate?: (n: number) => void }).vibrate?.(12);
       } catch { /* haptics best-effort */ }
-      action.onAction();
+      fire.onAction();
     }
     reset();
   };
@@ -107,34 +117,60 @@ export function SwipeableEmailRow({
         assistive-tech users can trigger the same primary action without a
         swipe gesture.
       */}
-      <button
-        type="button"
-        onClick={action.onAction}
-        aria-label={action.ariaLabel ?? action.label}
-        className={`sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:inline-flex focus:items-center focus:gap-1.5 focus:rounded-md focus:px-3 focus:py-2 focus:text-xs focus:font-semibold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-h-11 ${action.colorClass}`}
-      >
-        <span aria-hidden className="inline-flex items-center gap-1.5">
-          {action.icon}
-          {action.label}
-        </span>
-      </button>
-      {/* Revealed action panel behind the row. */}
-      <div
-        aria-hidden
-        className={`absolute inset-y-0 right-0 flex items-center justify-end gap-2 pr-5 pl-8 text-white transition-opacity ${action.colorClass} ${
-          dx < -4 ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{ width: MAX_DRAG + 24 }}
-      >
+      {[action, secondaryAction].map((a, i) =>
+        a ? (
+          <button
+            key={i}
+            type="button"
+            onClick={a.onAction}
+            aria-label={a.ariaLabel ?? a.label}
+            className={`sr-only focus:not-sr-only focus:absolute focus:left-2 focus:z-10 focus:inline-flex focus:items-center focus:gap-1.5 focus:rounded-md focus:px-3 focus:py-2 focus:text-xs focus:font-semibold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-h-11 ${i === 0 ? 'focus:top-2' : 'focus:top-16'} ${a.colorClass}`}
+          >
+            <span aria-hidden className="inline-flex items-center gap-1.5">
+              {a.icon}
+              {a.label}
+            </span>
+          </button>
+        ) : null,
+      )}
+      {/* Revealed action panel behind the row — right edge for the primary
+          (left-swipe) action, left edge for the secondary (right-swipe) one. */}
+      {action && (
         <div
-          className={`flex flex-col items-center gap-0.5 transition-transform ${armed ? 'scale-110' : 'scale-95'}`}
+          aria-hidden
+          className={`absolute inset-y-0 right-0 flex items-center justify-end gap-2 pr-5 pl-8 text-white transition-opacity ${action.colorClass} ${
+            dx < -4 ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{ width: MAX_DRAG + 24 }}
         >
-          {action.icon}
-          <span className="text-[10px] font-semibold uppercase tracking-wide">
-            {armed ? action.label : action.hint}
-          </span>
+          <div
+            className={`flex flex-col items-center gap-0.5 transition-transform ${armed ? 'scale-110' : 'scale-95'}`}
+          >
+            {action.icon}
+            <span className="text-[10px] font-semibold uppercase tracking-wide">
+              {armed ? action.label : action.hint}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
+      {secondaryAction && (
+        <div
+          aria-hidden
+          className={`absolute inset-y-0 left-0 flex items-center justify-start gap-2 pl-5 pr-8 text-white transition-opacity ${secondaryAction.colorClass} ${
+            dx > 4 ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{ width: MAX_DRAG + 24 }}
+        >
+          <div
+            className={`flex flex-col items-center gap-0.5 transition-transform ${armed ? 'scale-110' : 'scale-95'}`}
+          >
+            {secondaryAction.icon}
+            <span className="text-[10px] font-semibold uppercase tracking-wide">
+              {armed ? secondaryAction.label : secondaryAction.hint}
+            </span>
+          </div>
+        </div>
+      )}
       {/* Foreground row content — translates with the drag. */}
       <div
         onTouchStart={onTouchStart}
