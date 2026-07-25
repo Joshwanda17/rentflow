@@ -1682,14 +1682,15 @@ export function EmailTransactionsPanel() {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth?.user?.id;
       if (!uid) throw new Error('Not signed in');
-      const { error } = await (supabase.from('email_credit_manual_marks') as any).insert({
+      const prevMark = manualMarks[r.id] ?? null;
+      const { data: inserted, error } = await (supabase.from('email_credit_manual_marks') as any).insert({
         gmail_transaction_id: r.id,
         gmail_message_id: r.gmail_message_id ?? null,
         email_tid: r.transaction_id ?? null,
         mark,
         reason: 'Marked resolved from mobile swipe',
         marked_by: uid,
-      });
+      }).select('id').maybeSingle();
       if (error) throw new Error(error.message);
       setManualMarks((prev) => ({
         ...prev,
@@ -1701,9 +1702,33 @@ export function EmailTransactionsPanel() {
           created_at: new Date().toISOString(),
         },
       }));
-      toast({
-        title: mark === 'credited' ? 'Marked as resolved' : 'Marked as not paid in',
-        description: 'Audit trail updated.',
+      // Undo snackbar: swipes are easy to trigger by accident on mobile, so the
+      // mark stays reversible for a few seconds (deletes the audit row again).
+      sonnerToast(mark === 'credited' ? 'Marked as resolved' : 'Marked as not paid in', {
+        description: 'Swiped by mistake? Undo within a few seconds.',
+        duration: 8000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              if (inserted?.id) {
+                const { error: delErr } = await (supabase.from('email_credit_manual_marks') as any)
+                  .delete()
+                  .eq('id', inserted.id);
+                if (delErr) throw new Error(delErr.message);
+              }
+              setManualMarks((prev) => {
+                const next = { ...prev };
+                if (prevMark) next[r.id] = prevMark;
+                else delete next[r.id];
+                return next;
+              });
+              sonnerToast.success('Mark reverted');
+            } catch (e: any) {
+              sonnerToast.error('Could not undo', { description: e?.message || String(e) });
+            }
+          },
+        },
       });
     } catch (e: any) {
       toast({ title: 'Mark failed', description: e?.message || String(e), variant: 'destructive' });
