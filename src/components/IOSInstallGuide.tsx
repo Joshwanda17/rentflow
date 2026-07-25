@@ -1,7 +1,8 @@
 import { X, Square, ArrowDown, Plus, Share2, ExternalLink, Copy } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { getIOSInstallInstructions, isChromeIOS, isFirefoxIOS, isIOSInAppBrowser } from '@/hooks/useIOSCompatibility';
+import { trackInstallEvent } from '@/lib/installTracking';
 
 interface IOSInstallGuideProps {
   onClose: () => void;
@@ -14,13 +15,28 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
   const needsSafariRedirect = inApp || isOtherBrowser;
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (inApp || isOtherBrowser) {
+      trackInstallEvent('in_app_browser_detected', {
+        chromeIOS: isChromeIOS(),
+        firefoxIOS: isFirefoxIOS(),
+      });
+    }
+    return () => {
+      trackInstallEvent('ios_guide_closed');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openInSafari = async () => {
+    trackInstallEvent('copy_link_clicked', { context: 'ios_guide' });
     try {
       await navigator.clipboard?.writeText(window.location.href);
       setCopied(true);
+      trackInstallEvent('copy_link_success', { context: 'ios_guide' });
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      /* clipboard blocked — link is still visible below */
+      trackInstallEvent('copy_link_failed', { context: 'ios_guide' });
     }
   };
 

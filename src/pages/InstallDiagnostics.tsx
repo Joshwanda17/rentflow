@@ -11,6 +11,7 @@ import {
 } from '@/hooks/useIOSCompatibility';
 import { detectStandalone } from '@/lib/pwaStandalone';
 import { globalDeferredPrompt } from '@/hooks/usePWAInstall';
+import { trackInstallEvent } from '@/lib/installTracking';
 
 type Status = 'ok' | 'warn' | 'fail' | 'info';
 
@@ -69,6 +70,8 @@ export default function InstallDiagnostics() {
 
   useEffect(() => {
     let cancelled = false;
+
+    trackInstallEvent('diagnostics_opened');
 
     async function run() {
       const ua = navigator.userAgent || '';
@@ -250,10 +253,13 @@ export default function InstallDiagnostics() {
   const warnings = checks.filter((c) => c.status === 'warn');
 
   const copyLink = async () => {
+    trackInstallEvent('copy_link_clicked', { context: 'diagnostics' });
     try {
       await navigator.clipboard.writeText(window.location.origin);
+      trackInstallEvent('copy_link_success', { context: 'diagnostics' });
       toast.success('Link copied — open Safari and paste it in the address bar.');
     } catch {
+      trackInstallEvent('copy_link_failed', { context: 'diagnostics' });
       toast.error('Could not copy — long-press the URL bar to copy manually.');
     }
   };
@@ -272,6 +278,9 @@ export default function InstallDiagnostics() {
     ].join('\n');
     try {
       await navigator.clipboard.writeText(lines);
+      trackInstallEvent('diagnostics_report_copied', {
+        failing: checks.filter((c) => c.status === 'fail').map((c) => c.id),
+      });
       toast.success('Diagnostics report copied to clipboard.');
     } catch {
       toast.error('Could not copy report.');
