@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { ShieldAlert, Phone } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { Button } from '@/components/ui/button';
+import { useEffect } from 'react';
+import { loginTelemetry as lt } from '@/lib/loginTelemetry';
 
 interface ListingBlock {
   blocked?: boolean;
@@ -56,6 +58,14 @@ export function AccountFrozenGate({ children }: { children: React.ReactNode }) {
   const profileFrozen = !!profileFreeze?.is_frozen;
   const listingFrozen = !!listingBlock?.blocked && listingBlock?.freeze_scope === 'all';
   const frozen = !!user && (profileFrozen || listingFrozen);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    lt.mark('gate.account_frozen.check', {
+      profileFrozen,
+      listingFrozen,
+    }, frozen ? 'frozen' : 'ok');
+  }, [user?.id, profileFrozen, listingFrozen, frozen]);
 
   if (!frozen) return <>{children}</>;
 
