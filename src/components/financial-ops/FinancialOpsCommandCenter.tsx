@@ -1,6 +1,7 @@
 import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react';
 // Eagerly imported: only what's needed on the Home view.
 import { WalletOverviewCard } from './WalletOverviewCard';
+import { MomoFeedSilenceAlert } from './MomoFeedSilenceAlert';
 
 // Everything below is code-split — a panel's JS is only fetched when its
 // tool/view is opened. Keeps /admin/financial-ops first paint fast.
@@ -530,6 +531,9 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
+        <div className="mb-4">
+          <MomoFeedSilenceAlert />
+        </div>
         {content}
       </div>
     </div>
