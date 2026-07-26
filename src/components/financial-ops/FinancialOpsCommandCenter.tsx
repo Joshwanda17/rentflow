@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react';
 // Eagerly imported: only what's needed on the Home view.
 import { WalletOverviewCard } from './WalletOverviewCard';
 
@@ -7,10 +7,10 @@ import { WalletOverviewCard } from './WalletOverviewCard';
 const lz = (
   loader: () => Promise<Record<string, any>>,
   name: string,
-): React.ComponentType<any> => lazy(async () => {
+): ComponentType<any> => lazy(async () => {
   const m = await loader();
   return { default: m[name] };
-}) as unknown as React.ComponentType<any>;
+}) as unknown as ComponentType<any>;
 
 const PanelFallback = () => (
   <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
