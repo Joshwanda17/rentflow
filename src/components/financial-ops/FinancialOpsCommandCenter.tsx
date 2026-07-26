@@ -600,19 +600,24 @@ function FinOpsHome({
 
       {/* "More" Sheet */}
       <Sheet open={moreSheet} onOpenChange={setMoreSheet}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] overflow-hidden w-full max-w-full">
-          <SheetHeader>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-md p-0 flex flex-col overflow-hidden"
+        >
+          <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
             <SheetTitle>Explore Tools</SheetTitle>
             <SheetDescription>Everything beyond verifying deposits and approving withdrawals</SheetDescription>
           </SheetHeader>
-          <div className="grid gap-1.5 mt-4 overflow-y-auto overflow-x-hidden pb-4 min-w-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 min-w-0">
             {moreActions.map(a => (
               <button
                 key={`${a.kind}-${a.id}`}
                 onClick={() => openMoreAction(a)}
-                className="w-full max-w-full flex items-center gap-3 p-3 sm:p-4 rounded-xl hover:bg-accent/40 transition-colors text-left overflow-hidden"
+                className="w-full max-w-full flex items-center gap-3 p-3 rounded-xl hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-colors text-left overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                <a.icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <a.icon className="h-4.5 w-4.5 text-primary" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <span className="font-medium text-sm block break-words">{a.label}</span>
                   <span className="text-[11px] text-muted-foreground block break-words">{a.desc}</span>
