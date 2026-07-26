@@ -11,8 +11,6 @@ import { toast } from 'sonner';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 
-export default ManualFloatCreditPanel;
-
 interface PickedUser { id: string; full_name: string; phone: string }
 
 function toIsoLocal(dt: string): string | null {
