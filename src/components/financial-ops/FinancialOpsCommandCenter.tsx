@@ -49,9 +49,12 @@ import {
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
-  , Store, Archive, Activity
+  , Store, Archive, Activity, CheckCircle2, Sparkles
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { formatUGX } from '@/lib/rentCalculations';
 
 type View = 'home' | 'deposits' | 'offline_collections';
 type Tool =
