@@ -24929,6 +24929,10 @@ export type Database = {
         Args: { p_created_at: string; p_user_id: string }
         Returns: string
       }
+      bulk_recover_gap_alerts: {
+        Args: { p_alert_ids: string[] }
+        Returns: Json
+      }
       bulk_reject_house_listings: {
         Args: { p_listing_ids: string[]; p_reason: string }
         Returns: {
