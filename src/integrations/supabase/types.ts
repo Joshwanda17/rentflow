@@ -25610,6 +25610,7 @@ export type Database = {
         Returns: Json
       }
       extract_public_schema_sql: { Args: never; Returns: string }
+      extract_tid_normalized: { Args: { p_text: string }; Returns: string }
       fin_ops_recent_cash_codes: {
         Args: { p_limit?: number }
         Returns: {
