@@ -324,23 +324,388 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
 
   // Home: Core tools front and center
   return (
+    <FinOpsHome
+      onView={setView}
+      onOpenTool={openTool}
+      onOpenMore={() => setMoreSheet(true)}
+      onFocusBucket={setFocusBucket}
+      walletBreakdownOpen={walletBreakdownOpen}
+      setWalletBreakdownOpen={(v) => {
+        setWalletBreakdownOpen(v);
+        if (userId) setStoredOpen(userId, v);
+      }}
+      focusBucket={focusBucket}
+      onClearFocus={() => setFocusBucket(null)}
+      moreSheet={moreSheet}
+      setMoreSheet={setMoreSheet}
+      openMoreAction={openMoreAction}
+    />
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Precision FinOps — professional home view
+// ═══════════════════════════════════════════════════════════════════
+
+interface FinOpsHomeProps {
+  onView: (v: View) => void;
+  onOpenTool: (t: Tool) => void;
+  onOpenMore: () => void;
+  onFocusBucket: (b: 'float' | 'withdrawable' | null) => void;
+  walletBreakdownOpen: boolean;
+  setWalletBreakdownOpen: (v: boolean) => void;
+  focusBucket: 'float' | 'withdrawable' | null;
+  onClearFocus: () => void;
+  moreSheet: boolean;
+  setMoreSheet: (v: boolean) => void;
+  openMoreAction: (a: MoreAction) => void;
+}
+
+function FinOpsHome({
+  onView, onOpenTool, onOpenMore, onFocusBucket,
+  walletBreakdownOpen, setWalletBreakdownOpen, focusBucket, onClearFocus,
+  moreSheet, setMoreSheet, openMoreAction,
+}: FinOpsHomeProps) {
+  const qc = useQueryClient();
+
+  const { data: totals, isLoading: totalsLoading } = useQuery({
+    queryKey: ['finops-wallet-overview'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_wallet_totals');
+      if (error) throw error;
+      const d = data as any;
+      return {
+        totalBalance: Number(d.total_balance ?? 0),
+        walletCount: Number(d.total_wallets ?? 0),
+        activeWallets: Number(d.active_wallets ?? 0),
+        totalFloat: Number(d.total_float ?? 0),
+        totalWithdrawable: Number(d.total_withdrawable ?? 0),
+      };
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: strict } = useQuery({
+    queryKey: ['finops-wallet-overview-strict'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_wallet_totals_strict');
+      if (error) throw error;
+      const d = data as any;
+      return {
+        strictTotal: Number(d?.strict_total ?? 0),
+        driftedWallets: Number(d?.drifted_wallets ?? 0),
+        totalDrift: Number(d?.total_drift ?? 0),
+      };
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: queues } = useQuery({
+    queryKey: ['finops-wallet-overview-queues'],
+    queryFn: async () => {
+      const userDeposits = await supabase
+        .from('deposit_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      const fieldDeposits = await supabase
+        .from('field_deposit_batches')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_finops_verification');
+      const withdrawals = await supabase
+        .from('withdrawal_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      const claims = await supabase
+        .from('withdrawal_requests')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['claimed', 'processing']);
+      return {
+        depositsPending: (userDeposits.count ?? 0) + (fieldDeposits.count ?? 0),
+        payoutsPending: withdrawals.count ?? 0,
+        activeClaims: claims.count ?? 0,
+      };
+    },
+    staleTime: 15_000,
+  });
+
+  const driftMaterial = (strict?.totalDrift ?? 0) > 100 || (strict?.driftedWallets ?? 0) > 0;
+
+  const refreshAll = () => {
+    qc.invalidateQueries({ queryKey: ['finops-wallet-overview'] });
+    qc.invalidateQueries({ queryKey: ['finops-wallet-overview-strict'] });
+    qc.invalidateQueries({ queryKey: ['finops-wallet-overview-queues'] });
+  };
+
+  return (
     <div className="space-y-6">
-      {/* Page header — bigger title so the operator immediately knows where
-          they are without parsing. */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          Financial Ops
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Verify deposits, approve withdrawals and keep the platform balanced.
-        </p>
+      {/* Header row */}
+      <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Financial Operations</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Verify deposits, approve withdrawals and keep the platform balanced.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> Live
+          </span>
+          <button
+            onClick={refreshAll}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5" /> Refresh
+          </button>
+        </div>
       </div>
 
-      <WalletOverviewCard
-        onOpenReconciliation={() => openTool('recon')}
-        onOpenBreakdown={() => openTool('wallet_breakdown')}
-        onDrillBucket={(bucket) => setFocusBucket(bucket)}
+      {/* Hero + Ledger Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 min-w-0">
+          <WalletOverviewCard
+            onOpenReconciliation={() => onOpenTool('recon')}
+            onOpenBreakdown={() => onOpenTool('wallet_breakdown')}
+            onDrillBucket={(bucket) => onFocusBucket(bucket)}
+          />
+        </div>
+        <button
+          onClick={() => onOpenTool('recon')}
+          className="text-left rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all min-w-0 flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Ledger Health</p>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+              driftMaterial
+                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                : 'bg-primary/10 text-primary'
+            }`}>
+              {driftMaterial ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
+              {driftMaterial ? 'Drift' : 'Reconciled'}
+            </span>
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+            <span>Last verified moments ago</span>
+          </div>
+          <div className="flex-1" />
+          <div className="mt-6 pt-4 border-t border-border">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Ledger total</p>
+            <p className="mt-1 font-mono text-lg font-bold tabular-nums text-foreground break-all">
+              {formatUGX(strict?.strictTotal ?? 0)}
+            </p>
+            {driftMaterial && (
+              <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                {strict?.driftedWallets ?? 0} wallet(s) drifted · {formatUGX(strict?.totalDrift ?? 0)}
+              </p>
+            )}
+          </div>
+        </button>
+      </div>
+
+      {/* Flagship action tiles */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <ActionStatTile
+          onClick={() => onView('deposits')}
+          icon={ShieldCheck}
+          tone="primary"
+          count={queues?.depositsPending ?? 0}
+          countLabel="Pending Verification"
+          title="Verify Deposits"
+          desc="User top-ups & agent field cash — one place."
+        />
+        <ActionStatTile
+          onClick={() => onOpenTool('withdrawals')}
+          icon={Banknote}
+          tone="secondary"
+          count={queues?.payoutsPending ?? 0}
+          countLabel="Payout Requests"
+          title="Withdrawal Approvals"
+          desc="Review and release user withdrawable funds."
+        />
+        <ActionStatTile
+          onClick={() => onOpenTool('merchant_claims')}
+          icon={HandCoins}
+          tone="tertiary"
+          count={queues?.activeClaims ?? 0}
+          countLabel="Active Claims"
+          title="Merchant Claims"
+          desc="Operational settlements for cash-out agents."
+        />
+      </div>
+
+      {/* Wallet Breakdown */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setWalletBreakdownOpen(!walletBreakdownOpen)}
+          className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight">Wallet Breakdown</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Search every wallet by name, phone, or balance range.
+            </p>
+          </div>
+          {walletBreakdownOpen ? (
+            <ChevronUp className="h-5 w-5 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
+          )}
+        </button>
+        {walletBreakdownOpen && (
+          <div className="px-4 pb-4 border-t border-border">
+            <WalletBreakdownReadOnly
+              focusBucket={focusBucket}
+              onClearFocus={onClearFocus}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Pulse strip — dense KPI row (kept for operators) */}
+      <FinancialOpsPulseStrip
+        onSelect={(key) => {
+          switch (key) {
+            case 'deposits': onView('deposits'); break;
+            case 'cash_out':
+            case 'wallet_ops':
+            case 'invest_wd': onOpenTool('withdrawals'); break;
+            case 'today': onOpenTool('audit'); break;
+          }
+        }}
       />
+
+      {/* Quick-access footer row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-border">
+        <QuickTile icon={Activity} label="Bridge Health" desc="API connectivity status." onClick={() => onOpenTool('bridge_health')} />
+        <QuickTile icon={Archive} label="Receipt Archive" desc="Every payout receipt." onClick={() => onOpenTool('receipt_archive')} />
+        <QuickTile icon={ArrowRightLeft} label="Cash-Out Timeline" desc="Agent settlement flow." onClick={() => onOpenTool('cashout_settlement')} />
+        <QuickTile icon={MoreHorizontal} label="Explore Tools" desc="Audit & review logs." onClick={onOpenMore} />
+      </div>
+
+      {/* Cash Deposit Codes — time-sensitive quick action */}
+      <button
+        onClick={() => onOpenTool('cash_codes')}
+        className="w-full flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+      >
+        <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+          <KeyRound className="h-5 w-5 text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm">Cash Deposit Codes</p>
+          <p className="text-xs text-muted-foreground">Read pending codes back to depositors — codes expire in 2 min.</p>
+        </div>
+        <ChevronDown className="h-4 w-4 text-muted-foreground rotate-[-90deg]" />
+      </button>
+
+      {/* "More" Sheet */}
+      <Sheet open={moreSheet} onOpenChange={setMoreSheet}>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] overflow-hidden w-full max-w-full">
+          <SheetHeader>
+            <SheetTitle>Explore Tools</SheetTitle>
+            <SheetDescription>Everything beyond verifying deposits and approving withdrawals</SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-1.5 mt-4 overflow-y-auto overflow-x-hidden pb-4 min-w-0">
+            {moreActions.map(a => (
+              <button
+                key={`${a.kind}-${a.id}`}
+                onClick={() => openMoreAction(a)}
+                className="w-full max-w-full flex items-center gap-3 p-3 sm:p-4 rounded-xl hover:bg-accent/40 transition-colors text-left overflow-hidden"
+              >
+                <a.icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-sm block break-words">{a.label}</span>
+                  <span className="text-[11px] text-muted-foreground block break-words">{a.desc}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function ActionStatTile({
+  onClick, icon: Icon, tone, count, countLabel, title, desc,
+}: {
+  onClick: () => void;
+  icon: typeof ShieldCheck;
+  tone: 'primary' | 'secondary' | 'tertiary';
+  count: number;
+  countLabel: string;
+  title: string;
+  desc: string;
+}) {
+  const toneClass =
+    tone === 'primary'
+      ? 'bg-primary/10 text-primary'
+      : tone === 'secondary'
+      ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+      : 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400';
+  return (
+    <button
+      onClick={onClick}
+      className="group relative text-left rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all min-h-[168px] flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${toneClass}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="text-right">
+          <p className="text-3xl sm:text-4xl font-black tabular-nums leading-none text-foreground">
+            {count.toLocaleString()}
+          </p>
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            {countLabel}
+          </p>
+        </div>
+      </div>
+      <div className="flex-1" />
+      <div className="mt-4">
+        <p className="font-bold text-base tracking-tight">{title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
+      </div>
+    </button>
+  );
+}
+
+function QuickTile({
+  icon: Icon, label, desc, onClick,
+}: {
+  icon: typeof Activity;
+  label: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="text-left rounded-xl border border-border bg-card p-3 hover:border-primary/40 hover:bg-primary/5 transition-all min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <div className="flex items-start gap-2.5">
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate">{label}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{desc}</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Deprecated legacy home (unreachable — kept only for reference during
+// migration; will be removed once the professional home is validated).
+// ═══════════════════════════════════════════════════════════════════
+function _legacyHomeUnused() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Financial Ops</h1>
+      </div>
 
       {/* Drilldown table: every user's Operations Float and Withdrawable */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
