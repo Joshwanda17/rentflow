@@ -325,6 +325,11 @@ export function MerchandiseManager() {
     queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
   };
 
+  // Pagination
+  const catalogPage = usePagination(catalog);
+  const salesPage = usePagination(filteredSales);
+  const purchasesPage = usePagination(filteredPurchases);
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header + actions */}
@@ -467,11 +472,26 @@ export function MerchandiseManager() {
                 </tr>
               </thead>
               <tbody>
-                {catalog.map((c) => (
+                {catalogPage.slice.map((c) => {
+                  const imgs = (c.image_urls && c.image_urls.length > 0)
+                    ? c.image_urls
+                    : c.image_url ? [c.image_url] : [];
+                  return (
                   <tr key={c.id} className="border-b border-border/40">
                     <td className="py-2 pr-3">
-                      <div className="font-medium">{c.item_name}</div>
-                      {c.description && <div className="text-[11px] text-muted-foreground line-clamp-1">{c.description}</div>}
+                      <div className="flex items-center gap-2">
+                        {imgs.length > 0 ? (
+                          <StorageImage src={imgs[0]} alt={c.item_name} className="h-10 w-10 rounded-md object-cover border border-border" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center border border-border">
+                            <ImageIcon className="h-4 w-4 text-muted-foreground/50" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-medium">{c.item_name}</div>
+                          {c.description && <div className="text-[11px] text-muted-foreground line-clamp-1">{c.description}</div>}
+                        </div>
+                      </div>
                     </td>
                     <td className="py-2 px-3 text-right font-semibold">{formatUGX(Number(c.unit_price))}</td>
                     <td className="py-2 px-3 text-right text-muted-foreground">{formatUGX(Number(c.unit_cost))}</td>
@@ -507,9 +527,11 @@ export function MerchandiseManager() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
+            <Pager {...catalogPage} />
           </div>
         )}
       </Section>
@@ -599,7 +621,7 @@ export function MerchandiseManager() {
                 </tr>
               </thead>
               <tbody>
-                {filteredSales.map((s) => (
+                {salesPage.slice.map((s) => (
                   <tr key={s.id} className="border-b border-border/40">
                     <td className="py-2 pr-3 whitespace-nowrap">{format(new Date(s.sale_date), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">{s.item_name}</td>
@@ -631,6 +653,7 @@ export function MerchandiseManager() {
                 ))}
               </tbody>
             </table>
+            <Pager {...salesPage} />
           </div>
         )}
       </Section>
@@ -654,7 +677,7 @@ export function MerchandiseManager() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPurchases.map((p) => (
+                {purchasesPage.slice.map((p) => (
                   <tr key={p.id} className="border-b border-border/40">
                     <td className="py-2 pr-3 whitespace-nowrap">{format(new Date(p.purchase_date), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">{p.item_name}</td>
@@ -671,6 +694,7 @@ export function MerchandiseManager() {
                 ))}
               </tbody>
             </table>
+            <Pager {...purchasesPage} />
           </div>
         )}
       </Section>
