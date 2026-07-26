@@ -1,0 +1,202 @@
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Wallet, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
+import UserSearchPicker from '@/components/cfo/UserSearchPicker';
+import { formatUGX } from '@/lib/rentCalculations';
+
+interface PickedUser { id: string; full_name: string; phone: string }
+
+function toIsoLocal(dt: string): string | null {
+  // dt from <input type="datetime-local"> is "YYYY-MM-DDTHH:mm"
+  if (!dt) return null;
+  const d = new Date(dt);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+export default function ManualFloatCreditPanel() {
+  const qc = useQueryClient();
+  const [user, setUser] = useState<PickedUser | null>(null);
+  const [tid, setTid] = useState('');
+  const [amount, setAmount] = useState('');
+  const [depositedAt, setDepositedAt] = useState<string>(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+  });
+  const [depositorName, setDepositorName] = useState('');
+  const [notes, setNotes] = useState('');
+  const [confirming, setConfirming] = useState(false);
+
+  const amountNum = Number((amount || '').replace(/,/g, ''));
+  const cleanTid = tid.replace(/\s+/g, '');
+
+  const canSubmit =
+    !!user &&
+    cleanTid.length >= 4 &&
+    Number.isFinite(amountNum) &&
+    amountNum > 0 &&
+    !!depositedAt &&
+    depositorName.trim().length >= 2;
+
+  const credit = useMutation({
+    mutationFn: async () => {
+      const iso = toIsoLocal(depositedAt);
+      if (!iso) throw new Error('Invalid date/time');
+      const { data, error } = await (supabase.rpc as any)('finops_manual_float_credit', {
+        p_user_id: user!.id,
+        p_tid: cleanTid,
+        p_amount: amountNum,
+        p_deposited_at: iso,
+        p_depositor_name: depositorName.trim(),
+        p_notes: notes.trim() || null,
+      });
+      if (error) throw error;
+      return data as { ok: boolean; transaction_group_id: string };
+    },
+    onSuccess: (res) => {
+      toast.success(`Float credited — TID ${cleanTid} locked. Ref ${res.transaction_group_id.slice(0, 8)}`);
+      setTid('');
+      setAmount('');
+      setDepositorName('');
+      setNotes('');
+      setConfirming(false);
+      qc.invalidateQueries({ queryKey: ['bridge-health'] });
+      qc.invalidateQueries({ queryKey: ['bridge-recent'] });
+    },
+    onError: (e: Error) => {
+      setConfirming(false);
+      toast.error(e.message);
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Wallet className="h-5 w-5" /> Manual Float Credit (TID-locked)
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Fill the TID, amount, deposit date/time and depositor's name. We post a balanced
+            double-entry (float credit + platform offset) and lock the TID so a late IFTTT/email
+            arrival cannot double-credit.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <UserSearchPicker
+              label="Recipient user (agent / partner)"
+              placeholder="Search by name, phone or email…"
+              selectedUser={user}
+              onSelect={setUser}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="mfc-tid">Transaction ID (TID)</Label>
+              <Input
+                id="mfc-tid"
+                value={tid}
+                onChange={(e) => setTid(e.target.value)}
+                placeholder="e.g. 152535220332"
+                inputMode="numeric"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="mfc-amount">Amount (UGX)</Label>
+              <Input
+                id="mfc-amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder="50000"
+                inputMode="decimal"
+              />
+              {amountNum > 0 && (
+                <div className="text-xs text-muted-foreground">{formatUGX(amountNum)}</div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="mfc-dt">Deposit date &amp; time</Label>
+              <Input
+                id="mfc-dt"
+                type="datetime-local"
+                value={depositedAt}
+                onChange={(e) => setDepositedAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="mfc-depositor">Depositor's name (as on SMS)</Label>
+              <Input
+                id="mfc-depositor"
+                value={depositorName}
+                onChange={(e) => setDepositorName(e.target.value)}
+                placeholder="e.g. Okwakol Micheal"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="mfc-notes">Notes (optional)</Label>
+            <Textarea
+              id="mfc-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Why this manual credit is being posted (e.g. IFTTT feed silent, verified from phone photo)"
+              rows={2}
+            />
+          </div>
+
+          {!confirming ? (
+            <Button
+              className="w-full sm:w-auto"
+              disabled={!canSubmit || credit.isPending}
+              onClick={() => setConfirming(true)}
+            >
+              Review &amp; credit float
+            </Button>
+          ) : (
+            <div className="rounded-md border p-3 space-y-3 bg-muted/30">
+              <div className="flex items-start gap-2 text-sm">
+                <ShieldCheck className="h-4 w-4 mt-0.5 text-emerald-600" />
+                <div className="space-y-1">
+                  <div><span className="text-muted-foreground">User:</span> <span className="font-medium">{user?.full_name}</span> <span className="text-muted-foreground">({user?.phone})</span></div>
+                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-semibold">{formatUGX(amountNum)}</span></div>
+                  <div><span className="text-muted-foreground">TID:</span> <span className="font-mono">{cleanTid}</span></div>
+                  <div><span className="text-muted-foreground">When:</span> {new Date(depositedAt).toLocaleString()}</div>
+                  <div><span className="text-muted-foreground">Depositor:</span> {depositorName.trim()}</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 text-xs text-amber-700">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
+                This posts a real double-entry credit. TID will be locked and cannot be reversed
+                from this screen — use the ledger tools to reverse if needed.
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => credit.mutate()}
+                  disabled={credit.isPending}
+                >
+                  {credit.isPending ? 'Posting…' : 'Confirm credit'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={credit.isPending}>
+                  Back
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
