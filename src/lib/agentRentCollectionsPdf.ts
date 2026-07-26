@@ -67,7 +67,25 @@ export async function generateAgentRentCollectionsPdf(params: {
 
   if (error) throw error;
   const rows: CollectionRow[] = (data as CollectionRow[]) || [];
-  const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const totalCollected = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+
+  // Expected daily target for the same period
+  const fromDate = from.toISOString().split('T')[0];
+  const toDate = to.toISOString().split('T')[0];
+  const { data: expectedRows, error: expectedError } = await supabase
+    .from('agent_daily_eligibility_history')
+    .select('expected_daily')
+    .eq('agent_id', agentId)
+    .gte('day', fromDate)
+    .lte('day', toDate);
+
+  if (expectedError) throw expectedError;
+  const totalExpected = ((expectedRows as { expected_daily: number }[]) || [])
+    .reduce((s, r) => s + Number(r.expected_daily || 0), 0);
+  const collectionRate = totalExpected > 0
+    ? Math.round((totalCollected / totalExpected) * 100)
+    : 0;
+
 
   // Fetch tenant names
   const tenantIds = Array.from(new Set(rows.map(r => r.tenant_id).filter((v): v is string => !!v)));
