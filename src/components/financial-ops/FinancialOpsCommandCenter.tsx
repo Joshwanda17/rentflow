@@ -65,7 +65,7 @@ import {
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
-  , Store, Archive, Activity, CheckCircle2, Sparkles
+  , Store, Archive, Activity, CheckCircle2, Sparkles, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -163,6 +163,15 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   const [moreSheet, setMoreSheet] = useState(false);
   const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
   const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(() => getStoredOpen(userId));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('finops_sidebar_collapsed') === '1';
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('finops_sidebar_collapsed', sidebarCollapsed ? '1' : '0');
+    }
+  }, [sidebarCollapsed]);
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
