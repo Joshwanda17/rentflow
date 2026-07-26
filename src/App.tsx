@@ -196,6 +196,7 @@ const AdminAccessAuditPage = lazy(() => import('./pages/admin/AccessAudit'));
 const AdminFinancialOpsPage = lazy(() => import('./pages/admin/FinancialOps'));
 const AdminReferralsPage = lazy(() => import('./pages/admin/Referrals'));
 const AdminOAuthFailuresPage = lazy(() => import('./pages/admin/OAuthFailures'));
+const AdminRecoverySmsLogPage = lazy(() => import('./pages/admin/RecoverySmsLog'));
 const AdminArchivedAccountsPage = lazy(() => import('./pages/admin/ArchivedAccounts'));
 const AdminAccountConflictsPage = lazy(() => import('./pages/admin/AccountConflicts'));
 const AgentRecommendationAuditPage = lazy(() => import('./pages/admin/AgentRecommendationAudit'));
