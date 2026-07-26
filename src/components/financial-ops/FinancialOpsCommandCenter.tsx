@@ -3,6 +3,7 @@ import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react';
 import { WalletOverviewCard } from './WalletOverviewCard';
 import { MomoFeedSilenceAlert } from './MomoFeedSilenceAlert';
 import { IftttDiagnosticsPanel } from './IftttDiagnosticsPanel';
+import { MerchantPhoneChecklist } from './MerchantPhoneChecklist';
 
 // Everything below is code-split — a panel's JS is only fetched when its
 // tool/view is opened. Keeps /admin/financial-ops first paint fast.
@@ -535,6 +536,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         <div className="mb-4 space-y-4">
           <MomoFeedSilenceAlert />
           <IftttDiagnosticsPanel />
+          <MerchantPhoneChecklist />
         </div>
         {content}
       </div>
