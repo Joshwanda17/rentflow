@@ -411,12 +411,14 @@ export default function MerchandiseStore() {
       {/* Order confirm dialog */}
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Confirm order</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Confirm your purchase</DialogTitle>
+          </DialogHeader>
           {selected && (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                {selected.image_url ? (
-                  <img src={selected.image_url} alt={selected.item_name} className="w-14 h-14 rounded-lg object-cover" />
+                {pickImage(selected) ? (
+                  <StorageImage src={pickImage(selected)} alt={selected.item_name} className="w-14 h-14 rounded-lg object-cover" />
                 ) : (
                   <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center">
                     <Package className="h-6 w-6 text-muted-foreground/40" />
@@ -432,17 +434,30 @@ export default function MerchandiseStore() {
                 <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
               </div>
               <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
-                <span className="text-muted-foreground">Total (repaid from wallet)</span>
+                <span className="text-muted-foreground">Wallet balance</span>
+                <span className="font-semibold">{formatUGX(availableWallet)}</span>
+              </div>
+              <div className={`rounded-lg px-3 py-2 flex justify-between text-sm ${insufficient ? 'bg-destructive/10 text-destructive' : 'bg-primary/5 text-foreground'}`}>
+                <span className="text-muted-foreground">Total to debit now</span>
                 <span className="font-bold">{formatUGX(orderTotal)}</span>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                This amount will be recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
-              </p>
+              {insufficient ? (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2 flex gap-2 text-[11px] text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <p><span className="font-semibold">Insufficient balance.</span> Top up your wallet or reduce the quantity to continue.</p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  The full amount is debited from your withdrawable wallet immediately. No credit, no daily deductions.
+                </p>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelected(null)} disabled={ordering}>Cancel</Button>
-            <Button onClick={placeOrder} disabled={ordering}>{ordering ? 'Ordering…' : 'Confirm order'}</Button>
+            <Button onClick={placeOrder} disabled={ordering || insufficient}>
+              {ordering ? 'Processing…' : insufficient ? 'Insufficient balance' : `Pay ${formatUGX(orderTotal)}`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
