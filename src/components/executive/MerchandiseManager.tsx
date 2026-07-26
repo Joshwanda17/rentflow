@@ -503,7 +503,7 @@ export function MerchandiseManager() {
                     </td>
                     <td className="py-2 pl-3">
                       <div className="flex justify-end gap-1">
-                        <EditCatalogItemButton item={c} onSaved={refresh} />
+                        <EditCatalogItemButton item={c} userId={user?.id} onSaved={refresh} />
                         <Button
                           variant="ghost" size="sm" className="h-7 gap-1 text-xs"
                           onClick={async () => {
