@@ -21,6 +21,7 @@ import {
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
   Repeat, CheckCircle2, CircleDollarSign, Store, ShoppingBag, Power,
   Upload, X, ChevronLeft, ChevronRight, ImageIcon,
+  Pencil,
 } from 'lucide-react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { optimizeImage } from '@/lib/imageOptimizer';
@@ -502,6 +503,7 @@ export function MerchandiseManager() {
                     </td>
                     <td className="py-2 pl-3">
                       <div className="flex justify-end gap-1">
+                        <EditCatalogItemButton item={c} onSaved={refresh} />
                         <Button
                           variant="ghost" size="sm" className="h-7 gap-1 text-xs"
                           onClick={async () => {
