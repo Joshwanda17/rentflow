@@ -2673,7 +2673,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       >
       <div
         className="w-full sm:max-w-md bg-background rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto p-4 space-y-3"
-        onClick={(e) => e.stopPointerCapture?.((e as any).pointerId ?? 0)}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 text-base font-semibold">
           <ClipboardPaste className="h-4 w-4 text-primary" />
