@@ -316,11 +316,14 @@ export default function MerchandiseStore() {
           ) : catalog.length === 0 ? (
             <p className="text-xs text-muted-foreground py-6 text-center">No merchandise available right now.</p>
           ) : (
+            <>
             <div className="grid grid-cols-2 gap-3">
-              {catalog.map((item) => (
+              {catalogSlice.map((item) => {
+                const img = pickImage(item);
+                return (
                 <Card key={item.id} className="overflow-hidden">
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.item_name} className="w-full h-28 object-cover" loading="lazy" />
+                  {img ? (
+                    <StorageImage src={img} alt={item.item_name} className="w-full h-28 object-cover" loading="lazy" />
                   ) : (
                     <div className="w-full h-28 bg-muted flex items-center justify-center">
                       <Package className="h-8 w-8 text-muted-foreground/40" />
@@ -337,8 +340,17 @@ export default function MerchandiseStore() {
                     </Button>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-3 text-xs">
+                <Button variant="outline" size="sm" className="h-7" disabled={safePage <= 1} onClick={() => setCatalogPage(safePage - 1)}>Previous</Button>
+                <span className="text-muted-foreground">Page {safePage} of {totalPages}</span>
+                <Button variant="outline" size="sm" className="h-7" disabled={safePage >= totalPages} onClick={() => setCatalogPage(safePage + 1)}>Next</Button>
+              </div>
+            )}
+            </>
           )}
         </div>
 
