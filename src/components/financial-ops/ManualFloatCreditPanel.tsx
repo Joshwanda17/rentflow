@@ -212,3 +212,4 @@ export function ManualFloatCreditPanel() {
     </div>
   );
 }
+export default ManualFloatCreditPanel;
