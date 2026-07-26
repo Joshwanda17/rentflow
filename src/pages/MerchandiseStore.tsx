@@ -431,7 +431,19 @@ export default function MerchandiseStore() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Quantity</Label>
-                <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  value={quantity}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const digits = raw.replace(/[^0-9]/g, '');
+                    setQuantity(digits === '' ? '' : String(parseInt(digits, 10)));
+                  }}
+                />
               </div>
               <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
                 <span className="text-muted-foreground">Wallet balance</span>
