@@ -65,7 +65,7 @@ import {
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
-  , Store, Archive, Activity, CheckCircle2, Sparkles
+  , Store, Archive, Activity, CheckCircle2, Sparkles, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -163,6 +163,15 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   const [moreSheet, setMoreSheet] = useState(false);
   const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
   const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(() => getStoredOpen(userId));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('finops_sidebar_collapsed') === '1';
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('finops_sidebar_collapsed', sidebarCollapsed ? '1' : '0');
+    }
+  }, [sidebarCollapsed]);
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
@@ -409,58 +418,73 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   return (
     <div className="flex gap-6 items-start min-w-0">
       {/* Persistent sidebar (desktop) */}
-      <aside className="hidden lg:flex w-64 xl:w-72 shrink-0 sticky top-16 self-start max-h-[calc(100vh-5rem)] flex-col rounded-2xl border border-border bg-card overflow-hidden">
+      <aside className={`hidden lg:flex ${sidebarCollapsed ? 'w-14' : 'w-64 xl:w-72'} shrink-0 sticky top-16 self-start max-h-[calc(100vh-5rem)] flex-col rounded-2xl border border-border bg-card overflow-hidden transition-[width] duration-200`}>
         {/* Sidebar header */}
-        <div className="px-4 pt-4 pb-3 border-b border-border bg-gradient-to-br from-primary/5 via-card to-card">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-primary" />
+        <div className={`${sidebarCollapsed ? 'px-2 py-3' : 'px-4 pt-4 pb-3'} border-b border-border bg-gradient-to-br from-primary/5 via-card to-card`}>
+          <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
+            <div className={`flex items-center gap-2 min-w-0 ${sidebarCollapsed ? 'hidden' : ''}`}>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-none">Financial Ops</p>
+                <p className="text-sm font-semibold text-foreground mt-1 leading-none">Command Center</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-none">Financial Ops</p>
-              <p className="text-sm font-semibold text-foreground mt-1 leading-none">Command Center</p>
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+          </div>
+          {/* Search — hidden when collapsed */}
+          {!sidebarCollapsed && (
+            <div className="mt-3 relative">
+              <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={sidebarQuery}
+                onChange={(e) => setSidebarQuery(e.target.value)}
+                placeholder="Search tools…"
+                className="w-full h-8 pl-8 pr-2.5 rounded-md bg-background border border-border text-xs placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary/40"
+              />
             </div>
-          </div>
-          {/* Search */}
-          <div className="mt-3 relative">
-            <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={sidebarQuery}
-              onChange={(e) => setSidebarQuery(e.target.value)}
-              placeholder="Search tools…"
-              className="w-full h-8 pl-8 pr-2.5 rounded-md bg-background border border-border text-xs placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary/40"
-            />
-          </div>
+          )}
         </div>
 
         {/* Home shortcut */}
-        <div className="px-2 pt-2">
+        <div className={`${sidebarCollapsed ? 'px-1.5' : 'px-2'} pt-2`}>
           <button
             onClick={() => { setActiveTool(null); setView('home'); }}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'} py-2 rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               activeId === null
                 ? 'bg-primary/10 text-primary'
                 : 'text-foreground hover:bg-muted/60'
             }`}
+            title="Overview"
           >
             <HomeIcon className={`h-4 w-4 shrink-0 ${activeId === null ? 'text-primary' : 'text-muted-foreground'}`} />
-            <span className="text-[13px] font-semibold">Overview</span>
+            {!sidebarCollapsed && <span className="text-[13px] font-semibold">Overview</span>}
           </button>
         </div>
 
         {/* Grouped navigation */}
-        <nav className="flex-1 overflow-y-auto px-2 pb-3 pt-1 scrollbar-thin">
-          {filteredGroups.length === 0 && (
+        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'px-1.5' : 'px-2'} pb-3 pt-1 scrollbar-thin`}>
+          {!sidebarCollapsed && filteredGroups.length === 0 && (
             <p className="px-2.5 py-6 text-center text-xs text-muted-foreground">
               No tools match "{sidebarQuery}"
             </p>
           )}
-          {filteredGroups.map((group) => (
-            <div key={group.title} className="mt-3 first:mt-2">
-              <p className="px-2.5 mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
-                {group.title}
-              </p>
+          {(sidebarCollapsed ? sidebarGroups : filteredGroups).map((group, gi) => (
+            <div key={group.title} className={`mt-3 first:mt-2 ${sidebarCollapsed && gi > 0 ? 'pt-2 border-t border-border/60' : ''}`}>
+              {!sidebarCollapsed && (
+                <p className="px-2.5 mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+                  {group.title}
+                </p>
+              )}
               <div className="flex flex-col gap-0.5">
                 {group.items.map((a) => {
                   const isActive = activeId === a.id;
@@ -468,20 +492,22 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
                     <button
                       key={`${a.kind}-${a.id}`}
                       onClick={() => openMoreAction(a)}
-                      className={`group w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary relative ${
+                      className={`group w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-2.5 py-1.5'} rounded-md text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary relative ${
                         isActive
                           ? 'bg-primary/10 text-primary font-semibold'
                           : 'text-foreground/85 hover:bg-muted/60 hover:text-foreground'
                       }`}
-                      title={a.desc}
+                      title={sidebarCollapsed ? a.label : a.desc}
                     >
-                      {isActive && (
+                      {isActive && !sidebarCollapsed && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r-full bg-primary" />
                       )}
                       <a.icon className={`h-3.5 w-3.5 shrink-0 transition-colors ${
                         isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
                       }`} />
-                      <span className="text-[13px] leading-tight truncate">{a.label}</span>
+                      {!sidebarCollapsed && (
+                        <span className="text-[13px] leading-tight truncate">{a.label}</span>
+                      )}
                     </button>
                   );
                 })}
@@ -491,13 +517,13 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         </nav>
 
         {/* Footer status pill */}
-        <div className="border-t border-border px-3 py-2.5 bg-muted/20">
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <div className={`border-t border-border ${sidebarCollapsed ? 'px-2 py-2 flex justify-center' : 'px-3 py-2.5'} bg-muted/20`}>
+          <div className={`flex items-center gap-2 text-[11px] text-muted-foreground ${sidebarCollapsed ? 'justify-center' : ''}`}>
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
             </span>
-            <span className="font-medium">Live · syncing ledger</span>
+            {!sidebarCollapsed && <span className="font-medium">Live · syncing ledger</span>}
           </div>
         </div>
       </aside>
