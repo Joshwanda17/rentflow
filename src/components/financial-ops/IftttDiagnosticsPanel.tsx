@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Activity, RefreshCw, AlertTriangle } from 'lucide-react';
 import { format, formatDistanceStrict, formatDistanceToNowStrict } from 'date-fns';
-import { formatUGX } from '@/lib/formatCurrency';
+import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
 type Row = {
   id: string;
