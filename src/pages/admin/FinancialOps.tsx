@@ -19,7 +19,7 @@ export default function FinancialOpsPage() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Sticky top bar so the back action is always reachable */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-2">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-2">
           <Button
             variant="ghost"
             size="sm"
@@ -42,7 +42,7 @@ export default function FinancialOpsPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6 min-w-0">
+      <div className="max-w-[1400px] mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6 min-w-0">
         <FinancialOpsCommandCenter />
       </div>
     </div>
