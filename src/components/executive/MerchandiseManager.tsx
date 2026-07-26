@@ -1045,31 +1045,82 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
   const [description, setDescription] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
   const [unitCost, setUnitCost] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [images, setImages] = useState<{ file: File; previewUrl: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const reset = () => {
-    setItemName(''); setDescription(''); setUnitPrice(''); setUnitCost(''); setImageUrl('');
+    setItemName(''); setDescription(''); setUnitPrice(''); setUnitCost('');
+    images.forEach(i => URL.revokeObjectURL(i.previewUrl));
+    setImages([]);
+  };
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    const remaining = 2 - images.length;
+    if (remaining <= 0) { toast.error('Maximum 2 images per item'); return; }
+    setUploading(true);
+    const next: { file: File; previewUrl: string }[] = [];
+    for (const file of files.slice(0, remaining)) {
+      if (!file.type.startsWith('image/')) { toast.error(`${file.name} is not an image`); continue; }
+      if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} exceeds 10MB`); continue; }
+      try {
+        const optimized = await optimizeImage(file, { maxWidth: 1200, quality: 0.8 });
+        next.push({ file: optimized.file, previewUrl: optimized.previewUrl });
+      } catch {
+        next.push({ file, previewUrl: URL.createObjectURL(file) });
+      }
+    }
+    setImages(prev => [...prev, ...next]);
+    setUploading(false);
+  };
+
+  const removeImage = (idx: number) => {
+    setImages(prev => {
+      const copy = [...prev];
+      const [removed] = copy.splice(idx, 1);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return copy;
+    });
   };
 
   const save = async () => {
     if (!itemName.trim()) { toast.error('Item name is required'); return; }
     if (num(unitPrice) <= 0) { toast.error('Price must be greater than 0'); return; }
     setSaving(true);
-    const { error } = await db.from('merchandise_catalog').insert({
-      item_name: itemName.trim(),
-      description: description.trim() || null,
-      unit_price: num(unitPrice),
-      unit_cost: num(unitCost),
-      image_url: imageUrl.trim() || null,
-      is_active: true,
-      created_by: userId ?? null,
-    });
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Item added to storefront');
-    reset();
-    setOpen(false);
-    onSaved();
+    try {
+      const uploaded: string[] = [];
+      for (const img of images) {
+        const ext = (img.file.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = `${userId ?? 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('merchandise')
+          .upload(path, img.file, { cacheControl: '3600', upsert: false, contentType: img.file.type });
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from('merchandise').getPublicUrl(path);
+        uploaded.push(pub.publicUrl);
+      }
+      const { error } = await db.from('merchandise_catalog').insert({
+        item_name: itemName.trim(),
+        description: description.trim() || null,
+        unit_price: num(unitPrice),
+        unit_cost: num(unitCost),
+        image_url: uploaded[0] ?? null,
+        image_urls: uploaded,
+        is_active: true,
+        created_by: userId ?? null,
+      });
+      if (error) throw error;
+      toast.success('Item added to storefront');
+      reset();
+      setOpen(false);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save item');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
