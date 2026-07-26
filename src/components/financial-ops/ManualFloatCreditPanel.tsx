@@ -21,7 +21,7 @@ function toIsoLocal(dt: string): string | null {
   return d.toISOString();
 }
 
-export default function ManualFloatCreditPanel() {
+export function ManualFloatCreditPanel() {
   const qc = useQueryClient();
   const [user, setUser] = useState<PickedUser | null>(null);
   const [tid, setTid] = useState('');
