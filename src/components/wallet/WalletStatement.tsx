@@ -1044,7 +1044,7 @@ export function WalletStatement() {
                 role="tablist"
                 aria-label="Filter transactions"
               >
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   {([
                     { key: 'all',       label: 'All',        active: directionFilter === 'all' && statusFilter === 'all', apply: () => { setDirectionFilter('all'); setStatusFilter('all'); } },
                     { key: 'in',        label: 'Money In',   active: directionFilter === 'credit', apply: () => { setDirectionFilter('credit'); setStatusFilter('all'); } },
@@ -1059,7 +1059,7 @@ export function WalletStatement() {
                       aria-selected={chip.active}
                       onClick={chip.apply}
                       className={cn(
-                        'rounded-full border px-4 py-2 text-xs font-semibold transition-colors',
+                        'min-h-[34px] rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:px-4 sm:py-2',
                         chip.active
                           ? 'border-foreground bg-foreground text-background shadow-sm'
                           : 'border-border bg-card text-muted-foreground hover:bg-muted/40',
@@ -1072,7 +1072,7 @@ export function WalletStatement() {
               </div>
 
               {/* Date range presets */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Date range">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Date range">
                 {[
                   { value: 'all' as const, label: 'All time' },
                   { value: '7d' as const, label: '7d' },
@@ -1085,7 +1085,7 @@ export function WalletStatement() {
                     role="radio"
                     aria-checked={rangePreset === opt.value}
                     aria-label={`Filter to ${opt.label}`}
-                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
+                    className={`min-h-[34px] flex-1 basis-[3.5rem] rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       rangePreset === opt.value
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
@@ -1097,7 +1097,7 @@ export function WalletStatement() {
               </div>
 
               {/* Direction segmented control */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Transaction direction">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Transaction direction">
                 {[
                   { value: 'all' as const, label: 'All', count: entries.length },
                   { value: 'credit' as const, label: 'In', count: entries.filter(e => e.type === 'credit').length },
@@ -1109,7 +1109,7 @@ export function WalletStatement() {
                     role="radio"
                     aria-checked={directionFilter === opt.value}
                     aria-label={`${opt.label === 'In' ? 'Money in' : opt.label === 'Out' ? 'Money out' : 'All transactions'}, ${opt.count} entries`}
-                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
+                    className={`min-h-[34px] flex-1 basis-[3.5rem] rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       directionFilter === opt.value
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
@@ -1146,11 +1146,11 @@ export function WalletStatement() {
               </div>
 
               {showCategoryFilters && (
-                <div id="ws-category-filters" className="flex flex-wrap gap-1.5 pt-1" role="group" aria-label="Filter by transaction type">
+                <div id="ws-category-filters" className="flex flex-wrap items-center gap-1.5 pt-1" role="group" aria-label="Filter by transaction type">
                   <button
                     onClick={() => setCategoryFilter('all')}
                     aria-pressed={categoryFilter === 'all'}
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
+                    className={`min-h-[28px] rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
                       categoryFilter === 'all'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -1168,7 +1168,7 @@ export function WalletStatement() {
                         onClick={() => setCategoryFilter(cat === categoryFilter ? 'all' : cat)}
                         aria-pressed={selected}
                         aria-label={`${selected ? 'Remove' : 'Apply'} ${label} filter, ${count} entries`}
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
+                        className={`min-h-[28px] rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
                           selected
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted text-muted-foreground hover:bg-muted/80'
