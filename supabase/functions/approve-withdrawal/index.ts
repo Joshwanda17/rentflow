@@ -2281,6 +2281,42 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Overdraft auto-recovery advance ────────────────────────────────────
+    // If this payout ended up releasing more money than the user actually had
+    // available at approval time (proxy/merchant paths bypass the cache guard,
+    // or the strict figure was transitional), open a zero-interest recovery
+    // advance for the exact shortfall. The existing `sweep_agent_advance_recovery`
+    // cron will then clear it automatically from any future earnings.
+    //
+    // Skipped for landlord-float payouts (float money, not the user's own
+    // withdrawable), and for proxy payouts on managed accounts (already
+    // covered by the partner-linked ledger).
+    try {
+      if (!isLandlordFloatPayout) {
+        const shortfall = Math.max(0, Math.ceil(amount - Math.max(0, effectiveBalance)));
+        if (shortfall >= 100) {
+          const { data: advId, error: advErr } = await admin.rpc(
+            "create_overdraft_recovery_advance",
+            {
+              p_user_id: fundingUserId,
+              p_shortfall: shortfall,
+              p_withdrawal_id: withdrawal_id,
+              p_actor_id: user.id,
+            },
+          );
+          if (advErr) {
+            console.error("[approve-withdrawal] overdraft advance failed:", advErr);
+          } else if (advId) {
+            console.log(
+              `[approve-withdrawal] opened overdraft recovery advance ${advId} for user ${fundingUserId} shortfall UGX ${shortfall}`,
+            );
+          }
+        }
+      }
+    } catch (odEx) {
+      console.warn("[approve-withdrawal] overdraft recovery step failed:", odEx);
+    }
+
     // ── Payroll Growth Bonus: stop growth on withdrawn money ─────────────
     // Consume FIFO from any active payroll-growth tracker rows so the daily
     // 0.5% bonus only continues to accrue on what's still parked in the wallet.
