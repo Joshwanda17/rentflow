@@ -1179,7 +1179,7 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Add Item'}</Button>
+          <Button onClick={save} disabled={saving || uploading}>{saving ? 'Saving…' : 'Add Item'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
