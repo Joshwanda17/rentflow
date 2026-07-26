@@ -48,6 +48,7 @@ const ProxyWithdrawalDiagnosticsPanel = lz(() => import('./ProxyWithdrawalDiagno
 const FloatToWithdrawablePanel = lz(() => import('./FloatToWithdrawablePanel'), 'FloatToWithdrawablePanel');
 const MomoSignupSmsTemplatePanel = lz(() => import('./MomoSignupSmsTemplatePanel'), 'MomoSignupSmsTemplatePanel');
 const CashDepositCodesPanel = lz(() => import('./CashDepositCodesPanel'), 'CashDepositCodesPanel');
+const ManualFloatCreditPanel = lz(() => import('./ManualFloatCreditPanel'), 'ManualFloatCreditPanel');
 const UserWalletStatementsPanel = lz(() => import('./UserWalletStatementsPanel'), 'UserWalletStatementsPanel');
 const WithdrawalNotificationLogPanel = lz(() => import('./WithdrawalNotificationLogPanel'), 'WithdrawalNotificationLogPanel');
 const SmsDeliveryLogPanel = lz(() => import('./SmsDeliveryLogPanel'), 'SmsDeliveryLogPanel');
@@ -68,7 +69,7 @@ import {
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
-  , Store, Archive, Activity, CheckCircle2, Sparkles, PanelLeftClose, PanelLeftOpen
+  , Store, Archive, Activity, CheckCircle2, Sparkles, PanelLeftClose, PanelLeftOpen, Wallet
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -87,7 +88,7 @@ type Tool =
   | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log'
   | 'merchant_agents' | 'merchant_float' | 'receipt_archive'
   | 'employee_requisition_links' | 'employee_requisition_queue'
-  | 'bridge_health';
+  | 'bridge_health' | 'manual_float_credit';
 // Extend Tool type via union above; add new tools:
 
 
@@ -102,6 +103,7 @@ type MoreAction =
 
 const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'bridge_health', label: 'Deposit Bridge Health', desc: 'Reliability of the queue between Financial Ops and the wallet ledger — pending, retries, DLQ, gap alerts', icon: Activity },
+  { kind: 'tool', id: 'manual_float_credit', label: 'Manual Float Credit', desc: 'Credit an agent\u2019s float wallet from a MoMo SMS — TID, amount, date/time & depositor. TID is locked so late feeds cannot double-credit.', icon: Wallet },
   { kind: 'tool', id: 'receipt_archive', label: 'Receipt Archive', desc: 'Permanent record of every payout receipt — searchable, one URL per receipt', icon: Archive },
   { kind: 'tool', id: 'merchant_agents', label: 'Merchant Agents', desc: 'Manage cash-out (merchant) agents — same module as the CFO Dashboard', icon: Store },
   { kind: 'tool', id: 'merchant_float', label: 'Merchant Float', desc: 'Fund or reject merchant agent operational float requests', icon: HandCoins },
@@ -322,6 +324,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'topup_audit' && <PartnershipTopupAuditLog />}
         {activeTool === 'momo_sms_template' && <MomoSignupSmsTemplatePanel />}
         {activeTool === 'cash_codes' && <CashDepositCodesPanel />}
+        {activeTool === 'manual_float_credit' && <ManualFloatCreditPanel />}
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
         {activeTool === 'withdrawal_notif_log' && <WithdrawalNotificationLogPanel />}
         {activeTool === 'sms_delivery_log' && <SmsDeliveryLogPanel />}
@@ -372,7 +375,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Deposits & Reconciliation',
       items: moreActions.filter(a => [
-        'bridge_health','email_tx','auto_credit_review','offline_collections',
+        'bridge_health','manual_float_credit','email_tx','auto_credit_review','offline_collections',
         'recon','recon_review','mismatch_metrics',
       ].includes(a.id as string)),
     },

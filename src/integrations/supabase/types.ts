@@ -25704,6 +25704,17 @@ export type Database = {
           village: string
         }[]
       }
+      finops_manual_float_credit: {
+        Args: {
+          p_amount: number
+          p_deposited_at: string
+          p_depositor_name: string
+          p_notes?: string
+          p_tid: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       force_approve_rejected_rent_request: {
         Args: { p_payout_ref?: string; p_reason: string; p_request_id: string }
         Returns: string
