@@ -2660,25 +2660,25 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         })()}
       </DialogContent>
     </Dialog>
-    <Dialog
-      open={smsPasteOpen}
-      onOpenChange={(o) => {
-        setSmsPasteOpen(o);
-        if (!o) setSmsConfirmStep(false);
-      }}
-      modal={false}
-    >
-      <DialogContent
-        className="max-w-md z-[110] max-h-[90vh] overflow-y-auto"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+    {smsPasteOpen && (
+      <div
+        className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"
+        style={{ pointerEvents: 'auto' }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setSmsPasteOpen(false);
+            setSmsConfirmStep(false);
+          }
+        }}
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <ClipboardPaste className="h-4 w-4 text-primary" />
-            {smsConfirmStep ? 'Confirm extracted details' : 'Paste your SMS'}
-          </DialogTitle>
-        </DialogHeader>
+      <div
+        className="w-full sm:max-w-md bg-background rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto p-4 space-y-3"
+        onClick={(e) => e.stopPointerCapture?.((e as any).pointerId ?? 0)}
+      >
+        <div className="flex items-center gap-2 text-base font-semibold">
+          <ClipboardPaste className="h-4 w-4 text-primary" />
+          {smsConfirmStep ? 'Confirm extracted details' : 'Paste your SMS'}
+        </div>
         {!smsConfirmStep ? (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
@@ -2819,8 +2819,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             </div>
           );
         })()}
-      </DialogContent>
-    </Dialog>
+      </div>
+      </div>
+    )}
     {/* Unsaved-changes confirm — only mounts when a user tries to back out
         with content typed. Mobile-friendly: stacked full-width buttons. */}
     <AlertDialog
