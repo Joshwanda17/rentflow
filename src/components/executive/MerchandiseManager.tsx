@@ -20,7 +20,10 @@ import {
   Package, ShoppingCart, Boxes, TrendingUp, Wallet, Coins, Users, HandCoins,
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
   Repeat, CheckCircle2, CircleDollarSign, Store, ShoppingBag, Power,
+  Upload, X, ChevronLeft, ChevronRight, ImageIcon,
 } from 'lucide-react';
+import { StorageImage } from '@/components/ui/StorageImage';
+import { optimizeImage } from '@/lib/imageOptimizer';
 
 // The merchandise tables are new; the generated Supabase types don't include
 // them yet, so we reach them through an untyped client alias.
@@ -82,6 +85,7 @@ interface CatalogItem {
   unit_price: number;
   unit_cost: number;
   image_url: string | null;
+  image_urls: string[] | null;
   is_active: boolean;
   created_at: string;
 }
@@ -90,6 +94,33 @@ const num = (v: string) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : 0;
 };
+
+const PAGE_SIZE = 10;
+
+function usePagination<T>(rows: T[], pageSize = PAGE_SIZE) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const slice = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
+  return { slice, page: safePage, totalPages, setPage, total: rows.length };
+}
+
+function Pager({ page, totalPages, setPage, total }: { page: number; totalPages: number; setPage: (n: number) => void; total: number }) {
+  if (total <= PAGE_SIZE) return null;
+  return (
+    <div className="flex items-center justify-between px-1 pt-3 text-xs text-muted-foreground">
+      <span>Page {page} of {totalPages} · {total.toLocaleString()} rows</span>
+      <div className="flex gap-1">
+        <Button variant="outline" size="sm" className="h-7 px-2" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function MerchandiseManager() {
   const { user } = useAuth();
