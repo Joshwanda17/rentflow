@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Zap } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Zap, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -44,6 +45,7 @@ function Kpi({ label, value, tone }: { label: string; value: string | number; to
 export function DepositBridgeHealthPanel() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<'dlq' | 'gaps' | 'recent'>('dlq');
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
 
   const health = useQuery({
     queryKey: ['bridge-health'],
@@ -94,6 +96,30 @@ export function DepositBridgeHealthPanel() {
     },
     refetchInterval: 30_000,
   });
+
+  const bulkRecover = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { data, error } = await supabase.rpc('bulk_recover_gap_alerts', { p_alert_ids: ids });
+      if (error) throw error;
+      return data as { recovered: number; duplicate: number; skipped: number; errors: unknown[] };
+    },
+    onSuccess: (res) => {
+      const errCount = Array.isArray(res?.errors) ? res.errors.length : 0;
+      toast.success(
+        `Recovered ${res?.recovered ?? 0} · Duplicates closed ${res?.duplicate ?? 0} · Skipped ${res?.skipped ?? 0}${errCount ? ` · Errors ${errCount}` : ''}`
+      );
+      setSelected({});
+      qc.invalidateQueries({ queryKey: ['bridge-gaps'] });
+      qc.invalidateQueries({ queryKey: ['bridge-health'] });
+      qc.invalidateQueries({ queryKey: ['bridge-recent'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const gapRows = (gaps.data ?? []) as Array<{ id: string; transaction_id?: string | null; amount?: number | null; user_id?: string | null; severity: string; alert_reason: string; detected_at: string }>;
+  const selectableIds = gapRows.map((g) => g.id);
+  const selectedIds = selectableIds.filter((id) => selected[id]);
+  const allSelected = selectableIds.length > 0 && selectedIds.length === selectableIds.length;
 
   const recent = useQuery({
     queryKey: ['bridge-recent'],
@@ -238,25 +264,75 @@ export function DepositBridgeHealthPanel() {
 
       {tab === 'gaps' && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Gap Detector Alerts (unresolved)</CardTitle></CardHeader>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
+            <CardTitle className="text-sm">Gap Detector Alerts (unresolved)</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={selectableIds.length === 0}
+                onClick={() =>
+                  setSelected(allSelected ? {} : Object.fromEntries(selectableIds.map((id) => [id, true])))
+                }
+              >
+                {allSelected ? 'Clear all' : 'Select all'}
+              </Button>
+              <Button
+                size="sm"
+                disabled={selectedIds.length === 0 || bulkRecover.isPending}
+                onClick={() => {
+                  if (!confirm(`Recover ${selectedIds.length} selected gap alert(s)? A production float credit will be posted for each, and any TID already reconciled will be closed without double credit.`)) return;
+                  bulkRecover.mutate(selectedIds);
+                }}
+              >
+                <Wand2 className="h-4 w-4 mr-1" />
+                Bulk recover ({selectedIds.length || 'none'})
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={selectableIds.length === 0 || bulkRecover.isPending}
+                onClick={() => {
+                  if (!confirm(`Recover ALL ${selectableIds.length} open gap alert(s)?`)) return;
+                  bulkRecover.mutate(selectableIds);
+                }}
+              >
+                Recover all
+              </Button>
+            </div>
+          </CardHeader>
           <CardContent className="space-y-2">
-            {(gaps.data ?? []).length === 0 && (
+            {gapRows.length === 0 && (
               <div className="text-sm text-muted-foreground py-4 text-center">No open gaps.</div>
             )}
-            {(gaps.data ?? []).map((g: any) => (
-              <div key={g.id} className="border rounded p-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <Badge variant={g.severity === 'critical' ? 'destructive' : 'secondary'}>{g.severity}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(g.detected_at), { addSuffix: true })}
-                  </span>
+            {gapRows.map((g) => {
+              const recoverable = !!(g.user_id && g.amount && Number(g.amount) > 0);
+              return (
+                <div key={g.id} className="border rounded p-3 text-sm flex items-start gap-3">
+                  <Checkbox
+                    className="mt-1"
+                    checked={!!selected[g.id]}
+                    onCheckedChange={(v) =>
+                      setSelected((s) => ({ ...s, [g.id]: !!v }))
+                    }
+                    aria-label="Select gap alert for bulk recovery"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant={g.severity === 'critical' ? 'destructive' : 'secondary'}>{g.severity}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(g.detected_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                    <div className="mt-1 font-mono text-xs truncate">{g.transaction_id ?? '(no TID)'}</div>
+                    <div className="text-xs text-muted-foreground">
+                      UGX {Number(g.amount ?? 0).toLocaleString()} · {g.alert_reason}
+                      {!recoverable && <span className="ml-2 text-amber-600">· needs manual data</span>}
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-1 font-mono text-xs truncate">{g.transaction_id ?? g.source_id}</div>
-                <div className="text-xs text-muted-foreground">
-                  UGX {Number(g.amount ?? 0).toLocaleString()} · {g.alert_reason}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
