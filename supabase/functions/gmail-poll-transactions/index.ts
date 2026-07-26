@@ -307,7 +307,16 @@ async function gmailFetch(path: string, init?: RequestInit) {
       const retryable = isAuth || isTransient;
 
       const err = new Error(`Gmail ${path} [${res.status}]: ${body}`);
-      if (!retryable || attempt === MAX_ATTEMPTS) throw err;
+      if (!retryable || attempt === MAX_ATTEMPTS) {
+        // Persistent auth failure → raise a FinOps alert so ingestion
+        // outages surface immediately instead of silently piling up.
+        if (isAuth) {
+          await raiseGmailAuthAlert(res.status, body, path).catch((e) =>
+            console.warn('[gmailFetch] failed to raise auth alert:', e),
+          );
+        }
+        throw err;
+      }
 
       lastErr = err;
       const delay = BASE_DELAY_MS * Math.pow(3, attempt - 1); // 500, 1500, 4500
@@ -328,6 +337,48 @@ async function gmailFetch(path: string, init?: RequestInit) {
     }
   }
   throw lastErr ?? new Error(`Gmail ${path}: exhausted retries`);
+}
+
+// Fixed sentinel subject_id so repeated failures upsert onto the same
+// alert row (deposit_match_alerts has UNIQUE(alert_type, subject_id)).
+const GMAIL_AUTH_ALERT_SUBJECT_ID = '00000000-0000-0000-0000-000000000001';
+
+async function raiseGmailAuthAlert(status: number, body: string, path: string) {
+  try {
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const severity = status === 401 ? 'critical' : 'high';
+    const message =
+      status === 401
+        ? 'Gmail OAuth token expired or unauthorized — Gmail ingestion is HALTED. Reconnect Gmail (google_mail connector) immediately.'
+        : 'Gmail API returned 403 (insufficient scope). Confirm gmail.readonly scope is granted on the connector.';
+    await admin
+      .from('deposit_match_alerts')
+      .upsert(
+        {
+          alert_type: 'gmail_auth_failure',
+          subject_id: GMAIL_AUTH_ALERT_SUBJECT_ID,
+          subject_label: 'Gmail API auth failure',
+          severity,
+          age_minutes: 0,
+          details: {
+            http_status: status,
+            gmail_path: path,
+            response_body: body?.slice(0, 2000) ?? null,
+            message,
+            observed_at: new Date().toISOString(),
+          },
+          notified_at: null,
+          resolved_at: null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'alert_type,subject_id' },
+      );
+  } catch (e) {
+    console.warn('[raiseGmailAuthAlert] insert failed:', e);
+  }
 }
 
 Deno.serve(async (req) => {
