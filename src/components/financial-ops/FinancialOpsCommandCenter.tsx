@@ -1,48 +1,64 @@
-import { useEffect, useState } from 'react';
-import { FinancialOpsPulseStrip } from './FinancialOpsPulseStrip';
-import { ApprovalQueue } from './ApprovalQueue';
-import { TransactionSearch } from './TransactionSearch';
-import { ReconciliationDashboard } from './ReconciliationDashboard';
-import { AuditFeed } from './AuditFeed';
-import { ScaleDashboard } from './ScaleDashboard';
-import { FinOpsWithdrawalVerification } from './FinOpsWithdrawalVerification';
-import { EmailPayoutAutoMatchPanel } from './EmailPayoutAutoMatchPanel';
-import { LandlordPayoutsQueue } from './LandlordPayoutsQueue';
-import { LedgerHub } from '@/components/ledgers/LedgerHub';
-import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
+import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react';
+// Eagerly imported: only what's needed on the Home view.
 import { WalletOverviewCard } from './WalletOverviewCard';
-import { OfflineSubmissionsQueue } from './OfflineSubmissionsQueue';
-import { VerifyDepositsHub } from './VerifyDepositsHub';
-import { MismatchMetricsPanel } from './MismatchMetricsPanel';
-import { ReconciliationReviewScreen } from './ReconciliationReviewScreen';
-import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
-import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
-import { PartnershipTopupAuditLog } from './PartnershipTopupAuditLog';
-import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
-import { FinOpsWalletMovePanel } from './FinOpsWalletMovePanel';
-import { EmailTransactionsPanel } from './EmailTransactionsPanel';
-import { BulkBankPayoutPanel } from './BulkBankPayoutPanel';
-import { FundedTenantsList } from './FundedTenantsList';
-import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
-import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPanel';
-import { FloatToWithdrawablePanel } from './FloatToWithdrawablePanel';
-import { MomoSignupSmsTemplatePanel } from './MomoSignupSmsTemplatePanel';
-import { CashDepositCodesPanel } from './CashDepositCodesPanel';
-import { UserWalletStatementsPanel } from './UserWalletStatementsPanel';
-import { WithdrawalNotificationLogPanel } from './WithdrawalNotificationLogPanel';
-import { SmsDeliveryLogPanel } from './SmsDeliveryLogPanel';
-import { CashoutSettlementTimeline } from './CashoutSettlementTimeline';
-import { MerchantClaimsLog } from './MerchantClaimsLog';
-import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
-import { MerchantFloatRequestsPanel } from '@/components/cfo/MerchantFloatRequestsPanel';
-import { ReceiptArchivePanel } from '@/components/shared/ReceiptArchivePanel';
-import { DepositBridgeHealthPanel } from '@/components/bridge/DepositBridgeHealthPanel';
 
+// Everything below is code-split — a panel's JS is only fetched when its
+// tool/view is opened. Keeps /admin/financial-ops first paint fast.
+const lz = (
+  loader: () => Promise<Record<string, any>>,
+  name: string,
+): ComponentType<any> => lazy(async () => {
+  const m = await loader();
+  return { default: m[name] };
+}) as unknown as ComponentType<any>;
 
-import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
-import { AgentRequisitionForm } from './AgentRequisitionForm';
-import { EmployeeRequisitionLinksPanel } from './EmployeeRequisitionLinksPanel';
-import { EmployeeRequisitionQueuePanel } from './EmployeeRequisitionQueuePanel';
+const PanelFallback = () => (
+  <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+    Loading…
+  </div>
+);
+
+const ApprovalQueue = lz(() => import('./ApprovalQueue'), 'ApprovalQueue');
+const TransactionSearch = lz(() => import('./TransactionSearch'), 'TransactionSearch');
+const ReconciliationDashboard = lz(() => import('./ReconciliationDashboard'), 'ReconciliationDashboard');
+const AuditFeed = lz(() => import('./AuditFeed'), 'AuditFeed');
+const ScaleDashboard = lz(() => import('./ScaleDashboard'), 'ScaleDashboard');
+const FinOpsWithdrawalVerification = lz(() => import('./FinOpsWithdrawalVerification'), 'FinOpsWithdrawalVerification');
+const EmailPayoutAutoMatchPanel = lz(() => import('./EmailPayoutAutoMatchPanel'), 'EmailPayoutAutoMatchPanel');
+const LandlordPayoutsQueue = lz(() => import('./LandlordPayoutsQueue'), 'LandlordPayoutsQueue');
+const LedgerHub = lz(() => import('@/components/ledgers/LedgerHub'), 'LedgerHub');
+const PendingWalletOperationsWidget = lz(() => import('@/components/manager/PendingWalletOperationsWidget'), 'PendingWalletOperationsWidget');
+const OfflineSubmissionsQueue = lz(() => import('./OfflineSubmissionsQueue'), 'OfflineSubmissionsQueue');
+const VerifyDepositsHub = lz(() => import('./VerifyDepositsHub'), 'VerifyDepositsHub');
+const MismatchMetricsPanel = lz(() => import('./MismatchMetricsPanel'), 'MismatchMetricsPanel');
+const ReconciliationReviewScreen = lz(() => import('./ReconciliationReviewScreen'), 'ReconciliationReviewScreen');
+const WithdrawalHistoryStatement = lz(() => import('./WithdrawalHistoryStatement'), 'WithdrawalHistoryStatement');
+const PortfolioTopUpVerification = lz(() => import('./PortfolioTopUpVerification'), 'PortfolioTopUpVerification');
+const PartnershipTopupAuditLog = lz(() => import('./PartnershipTopupAuditLog'), 'PartnershipTopupAuditLog');
+const WalletBreakdownReadOnly = lz(() => import('./WalletBreakdownReadOnly'), 'WalletBreakdownReadOnly');
+const FinOpsWalletMovePanel = lz(() => import('./FinOpsWalletMovePanel'), 'FinOpsWalletMovePanel');
+const EmailTransactionsPanel = lz(() => import('./EmailTransactionsPanel'), 'EmailTransactionsPanel');
+const BulkBankPayoutPanel = lz(() => import('./BulkBankPayoutPanel'), 'BulkBankPayoutPanel');
+const FundedTenantsList = lz(() => import('./FundedTenantsList'), 'FundedTenantsList');
+const AutoCreditReviewPanel = lz(() => import('./AutoCreditReviewPanel'), 'AutoCreditReviewPanel');
+const ProxyWithdrawalDiagnosticsPanel = lz(() => import('./ProxyWithdrawalDiagnosticsPanel'), 'ProxyWithdrawalDiagnosticsPanel');
+const FloatToWithdrawablePanel = lz(() => import('./FloatToWithdrawablePanel'), 'FloatToWithdrawablePanel');
+const MomoSignupSmsTemplatePanel = lz(() => import('./MomoSignupSmsTemplatePanel'), 'MomoSignupSmsTemplatePanel');
+const CashDepositCodesPanel = lz(() => import('./CashDepositCodesPanel'), 'CashDepositCodesPanel');
+const UserWalletStatementsPanel = lz(() => import('./UserWalletStatementsPanel'), 'UserWalletStatementsPanel');
+const WithdrawalNotificationLogPanel = lz(() => import('./WithdrawalNotificationLogPanel'), 'WithdrawalNotificationLogPanel');
+const SmsDeliveryLogPanel = lz(() => import('./SmsDeliveryLogPanel'), 'SmsDeliveryLogPanel');
+const CashoutSettlementTimeline = lz(() => import('./CashoutSettlementTimeline'), 'CashoutSettlementTimeline');
+const MerchantClaimsLog = lz(() => import('./MerchantClaimsLog'), 'MerchantClaimsLog');
+const CashoutAgentManager = lz(() => import('@/components/cfo/CashoutAgentManager'), 'CashoutAgentManager');
+const MerchantFloatRequestsPanel = lz(() => import('@/components/cfo/MerchantFloatRequestsPanel'), 'MerchantFloatRequestsPanel');
+const ReceiptArchivePanel = lz(() => import('@/components/shared/ReceiptArchivePanel'), 'ReceiptArchivePanel');
+const DepositBridgeHealthPanel = lz(() => import('@/components/bridge/DepositBridgeHealthPanel'), 'DepositBridgeHealthPanel');
+const OpportunitySummaryForm = lz(() => import('@/components/manager/OpportunitySummaryForm'), 'OpportunitySummaryForm');
+const AgentRequisitionForm = lz(() => import('./AgentRequisitionForm'), 'AgentRequisitionForm');
+const EmployeeRequisitionLinksPanel = lz(() => import('./EmployeeRequisitionLinksPanel'), 'EmployeeRequisitionLinksPanel');
+const EmployeeRequisitionQueuePanel = lz(() => import('./EmployeeRequisitionQueuePanel'), 'EmployeeRequisitionQueuePanel');
+const FinancialOpsPulseStrip = lz(() => import('./FinancialOpsPulseStrip'), 'FinancialOpsPulseStrip');
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
@@ -191,7 +207,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     return (
       <div className="space-y-5">
         <SubBack onClick={() => setView('home')} />
-        <VerifyDepositsHub />
+        <Suspense fallback={<PanelFallback />}> <VerifyDepositsHub /> </Suspense>
       </div>
     );
   }
@@ -201,7 +217,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     return (
       <div className="space-y-5">
         <SubBack onClick={() => setView('home')} />
-        <OfflineSubmissionsQueue />
+        <Suspense fallback={<PanelFallback />}> <OfflineSubmissionsQueue /> </Suspense>
       </div>
     );
   }
@@ -212,6 +228,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     return (
       <div className="space-y-5 pb-24 sm:pb-16">
         <SubBack onClick={() => setActiveTool(null)} />
+        <Suspense fallback={<PanelFallback />}>
         {activeTool === 'ops' && <ScaleDashboard />}
         {activeTool === 'email_tx' && <EmailTransactionsPanel />}
         {activeTool === 'auto_credit_review' && <AutoCreditReviewPanel />}
@@ -318,6 +335,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             <MerchantFloatRequestsPanel />
           </div>
         )}
+        </Suspense>
       </div>
     );
   }
