@@ -20,7 +20,10 @@ import {
   Package, ShoppingCart, Boxes, TrendingUp, Wallet, Coins, Users, HandCoins,
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
   Repeat, CheckCircle2, CircleDollarSign, Store, ShoppingBag, Power,
+  Upload, X, ChevronLeft, ChevronRight, ImageIcon,
 } from 'lucide-react';
+import { StorageImage } from '@/components/ui/StorageImage';
+import { optimizeImage } from '@/lib/imageOptimizer';
 
 // The merchandise tables are new; the generated Supabase types don't include
 // them yet, so we reach them through an untyped client alias.
@@ -82,6 +85,7 @@ interface CatalogItem {
   unit_price: number;
   unit_cost: number;
   image_url: string | null;
+  image_urls: string[] | null;
   is_active: boolean;
   created_at: string;
 }
@@ -90,6 +94,33 @@ const num = (v: string) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : 0;
 };
+
+const PAGE_SIZE = 10;
+
+function usePagination<T>(rows: T[], pageSize = PAGE_SIZE) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const slice = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
+  return { slice, page: safePage, totalPages, setPage, total: rows.length };
+}
+
+function Pager({ page, totalPages, setPage, total }: { page: number; totalPages: number; setPage: (n: number) => void; total: number }) {
+  if (total <= PAGE_SIZE) return null;
+  return (
+    <div className="flex items-center justify-between px-1 pt-3 text-xs text-muted-foreground">
+      <span>Page {page} of {totalPages} · {total.toLocaleString()} rows</span>
+      <div className="flex gap-1">
+        <Button variant="outline" size="sm" className="h-7 px-2" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function MerchandiseManager() {
   const { user } = useAuth();
@@ -294,6 +325,11 @@ export function MerchandiseManager() {
     queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
   };
 
+  // Pagination
+  const catalogPage = usePagination(catalog);
+  const salesPage = usePagination(filteredSales);
+  const purchasesPage = usePagination(filteredPurchases);
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header + actions */}
@@ -436,11 +472,26 @@ export function MerchandiseManager() {
                 </tr>
               </thead>
               <tbody>
-                {catalog.map((c) => (
+                {catalogPage.slice.map((c) => {
+                  const imgs = (c.image_urls && c.image_urls.length > 0)
+                    ? c.image_urls
+                    : c.image_url ? [c.image_url] : [];
+                  return (
                   <tr key={c.id} className="border-b border-border/40">
                     <td className="py-2 pr-3">
-                      <div className="font-medium">{c.item_name}</div>
-                      {c.description && <div className="text-[11px] text-muted-foreground line-clamp-1">{c.description}</div>}
+                      <div className="flex items-center gap-2">
+                        {imgs.length > 0 ? (
+                          <StorageImage src={imgs[0]} alt={c.item_name} className="h-10 w-10 rounded-md object-cover border border-border" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center border border-border">
+                            <ImageIcon className="h-4 w-4 text-muted-foreground/50" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-medium">{c.item_name}</div>
+                          {c.description && <div className="text-[11px] text-muted-foreground line-clamp-1">{c.description}</div>}
+                        </div>
+                      </div>
                     </td>
                     <td className="py-2 px-3 text-right font-semibold">{formatUGX(Number(c.unit_price))}</td>
                     <td className="py-2 px-3 text-right text-muted-foreground">{formatUGX(Number(c.unit_cost))}</td>
@@ -476,9 +527,11 @@ export function MerchandiseManager() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
+            <Pager {...catalogPage} />
           </div>
         )}
       </Section>
@@ -568,7 +621,7 @@ export function MerchandiseManager() {
                 </tr>
               </thead>
               <tbody>
-                {filteredSales.map((s) => (
+                {salesPage.slice.map((s) => (
                   <tr key={s.id} className="border-b border-border/40">
                     <td className="py-2 pr-3 whitespace-nowrap">{format(new Date(s.sale_date), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">{s.item_name}</td>
@@ -600,6 +653,7 @@ export function MerchandiseManager() {
                 ))}
               </tbody>
             </table>
+            <Pager {...salesPage} />
           </div>
         )}
       </Section>
@@ -623,7 +677,7 @@ export function MerchandiseManager() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPurchases.map((p) => (
+                {purchasesPage.slice.map((p) => (
                   <tr key={p.id} className="border-b border-border/40">
                     <td className="py-2 pr-3 whitespace-nowrap">{format(new Date(p.purchase_date), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">{p.item_name}</td>
@@ -640,6 +694,7 @@ export function MerchandiseManager() {
                 ))}
               </tbody>
             </table>
+            <Pager {...purchasesPage} />
           </div>
         )}
       </Section>
@@ -990,31 +1045,82 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
   const [description, setDescription] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
   const [unitCost, setUnitCost] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [images, setImages] = useState<{ file: File; previewUrl: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const reset = () => {
-    setItemName(''); setDescription(''); setUnitPrice(''); setUnitCost(''); setImageUrl('');
+    setItemName(''); setDescription(''); setUnitPrice(''); setUnitCost('');
+    images.forEach(i => URL.revokeObjectURL(i.previewUrl));
+    setImages([]);
+  };
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    const remaining = 2 - images.length;
+    if (remaining <= 0) { toast.error('Maximum 2 images per item'); return; }
+    setUploading(true);
+    const next: { file: File; previewUrl: string }[] = [];
+    for (const file of files.slice(0, remaining)) {
+      if (!file.type.startsWith('image/')) { toast.error(`${file.name} is not an image`); continue; }
+      if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} exceeds 10MB`); continue; }
+      try {
+        const optimized = await optimizeImage(file, { maxWidth: 1200, quality: 0.8 });
+        next.push({ file: optimized.file, previewUrl: optimized.previewUrl });
+      } catch {
+        next.push({ file, previewUrl: URL.createObjectURL(file) });
+      }
+    }
+    setImages(prev => [...prev, ...next]);
+    setUploading(false);
+  };
+
+  const removeImage = (idx: number) => {
+    setImages(prev => {
+      const copy = [...prev];
+      const [removed] = copy.splice(idx, 1);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return copy;
+    });
   };
 
   const save = async () => {
     if (!itemName.trim()) { toast.error('Item name is required'); return; }
     if (num(unitPrice) <= 0) { toast.error('Price must be greater than 0'); return; }
     setSaving(true);
-    const { error } = await db.from('merchandise_catalog').insert({
-      item_name: itemName.trim(),
-      description: description.trim() || null,
-      unit_price: num(unitPrice),
-      unit_cost: num(unitCost),
-      image_url: imageUrl.trim() || null,
-      is_active: true,
-      created_by: userId ?? null,
-    });
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Item added to storefront');
-    reset();
-    setOpen(false);
-    onSaved();
+    try {
+      const uploaded: string[] = [];
+      for (const img of images) {
+        const ext = (img.file.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = `${userId ?? 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('merchandise')
+          .upload(path, img.file, { cacheControl: '3600', upsert: false, contentType: img.file.type });
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from('merchandise').getPublicUrl(path);
+        uploaded.push(pub.publicUrl);
+      }
+      const { error } = await db.from('merchandise_catalog').insert({
+        item_name: itemName.trim(),
+        description: description.trim() || null,
+        unit_price: num(unitPrice),
+        unit_cost: num(unitCost),
+        image_url: uploaded[0] ?? null,
+        image_urls: uploaded,
+        is_active: true,
+        created_by: userId ?? null,
+      });
+      if (error) throw error;
+      toast.success('Item added to storefront');
+      reset();
+      setOpen(false);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save item');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1043,17 +1149,37 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
               <Input type="number" min={0} value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Optional" />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Image URL</Label>
-            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Optional https://…" />
+          <div className="space-y-2">
+            <Label className="text-xs">Product photos ({images.length}/2)</Label>
+            {images.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {images.map((img, i) => (
+                  <div key={i} className="relative aspect-square rounded-md overflow-hidden border border-border">
+                    <img src={img.previewUrl} alt={`preview-${i}`} className="w-full h-full object-cover" />
+                    <Button type="button" variant="destructive" size="icon"
+                      className="absolute top-1 right-1 h-6 w-6" onClick={() => removeImage(i)}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {images.length < 2 && (
+              <label className="flex items-center justify-center gap-2 h-10 rounded-md border border-dashed border-border text-xs text-muted-foreground cursor-pointer hover:bg-muted/40">
+                <Upload className="h-3.5 w-3.5" />
+                {uploading ? 'Optimizing…' : 'Upload photo (max 2)'}
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} disabled={uploading} />
+              </label>
+            )}
+            <p className="text-[10px] text-muted-foreground">Images are resized to 1200px WebP and stored securely.</p>
           </div>
           <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2 text-[11px] text-muted-foreground">
-            Agents can order this from their dashboard. The cost is recorded as a credit sale and recovered from their wallet (15%, up to 4×/day).
+            Agents can order this from their dashboard. On purchase the item price is debited from the agent's withdrawable wallet immediately.
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Add Item'}</Button>
+          <Button onClick={save} disabled={saving || uploading}>{saving ? 'Saving…' : 'Add Item'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

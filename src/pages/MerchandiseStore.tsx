@@ -14,11 +14,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone, Bike,
+  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone, Bike, AlertCircle,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
+import { StorageImage } from '@/components/ui/StorageImage';
 
 // Merchandise tables aren't in generated types yet.
 const db = supabase as any;
@@ -29,6 +30,7 @@ interface CatalogItem {
   description: string | null;
   unit_price: number;
   image_url: string | null;
+  image_urls: string[] | null;
   is_active: boolean;
 }
 
@@ -51,6 +53,8 @@ interface Deduction {
   created_at: string;
 }
 
+const PAGE_SIZE = 8;
+
 export default function MerchandiseStore() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -64,6 +68,7 @@ export default function MerchandiseStore() {
   const [bikeOpen, setBikeOpen] = useState(false);
   const [bikeAmount, setBikeAmount] = useState('');
   const [orderingBike, setOrderingBike] = useState(false);
+  const [catalogPage, setCatalogPage] = useState(1);
   const { withdrawableBalance } = useAgentBalances(user?.id);
   const availableWallet = Math.max(0, withdrawableBalance);
 
@@ -116,24 +121,49 @@ export default function MerchandiseStore() {
 
   const qty = Math.max(1, parseInt(quantity || '1', 10) || 1);
   const orderTotal = selected ? Number(selected.unit_price) * qty : 0;
+  const insufficient = selected ? orderTotal > availableWallet : false;
+
+  const pickImage = (item: CatalogItem | null): string | null => {
+    if (!item) return null;
+    if (item.image_urls && item.image_urls.length > 0) return item.image_urls[0];
+    return item.image_url || null;
+  };
+
+  const totalPages = Math.max(1, Math.ceil(catalog.length / PAGE_SIZE));
+  const safePage = Math.min(catalogPage, totalPages);
+  const catalogSlice = catalog.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const placeOrder = async () => {
     if (!selected) return;
+    if (insufficient) {
+      toast.error('Insufficient balance', {
+        description: `Your wallet has ${formatUGX(availableWallet)} but this order needs ${formatUGX(orderTotal)}.`,
+      });
+      return;
+    }
     setOrdering(true);
-    const { data, error } = await db.rpc('agent_order_merchandise', {
+    const { error } = await db.rpc('agent_purchase_merchandise', {
       p_catalog_id: selected.id,
       p_quantity: qty,
     });
     setOrdering(false);
     if (error) {
-      toast.error(error.message || 'Could not place order');
+      const msg = error.message || 'Could not place order';
+      if (msg.includes('INSUFFICIENT_BALANCE')) {
+        toast.error('Insufficient balance', {
+          description: `Your wallet has ${formatUGX(availableWallet)} but this order needs ${formatUGX(orderTotal)}.`,
+        });
+      } else {
+        toast.error(msg);
+      }
       return;
     }
-    toast.success(`Ordered ${selected.item_name}. ${formatUGX(orderTotal)} will be recovered from your wallet.`);
+    toast.success(`${selected.item_name} purchased. ${formatUGX(orderTotal)} debited from your wallet.`);
     setSelected(null);
     setQuantity('1');
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['wallet-view', user?.id] });
   };
 
   const phoneAmountNum = Math.max(0, parseInt(phoneAmount || '0', 10) || 0);
@@ -286,11 +316,14 @@ export default function MerchandiseStore() {
           ) : catalog.length === 0 ? (
             <p className="text-xs text-muted-foreground py-6 text-center">No merchandise available right now.</p>
           ) : (
+            <>
             <div className="grid grid-cols-2 gap-3">
-              {catalog.map((item) => (
+              {catalogSlice.map((item) => {
+                const img = pickImage(item);
+                return (
                 <Card key={item.id} className="overflow-hidden">
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.item_name} className="w-full h-28 object-cover" loading="lazy" />
+                  {img ? (
+                    <StorageImage src={img} alt={item.item_name} className="w-full h-28 object-cover" loading="lazy" />
                   ) : (
                     <div className="w-full h-28 bg-muted flex items-center justify-center">
                       <Package className="h-8 w-8 text-muted-foreground/40" />
@@ -307,8 +340,17 @@ export default function MerchandiseStore() {
                     </Button>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-3 text-xs">
+                <Button variant="outline" size="sm" className="h-7" disabled={safePage <= 1} onClick={() => setCatalogPage(safePage - 1)}>Previous</Button>
+                <span className="text-muted-foreground">Page {safePage} of {totalPages}</span>
+                <Button variant="outline" size="sm" className="h-7" disabled={safePage >= totalPages} onClick={() => setCatalogPage(safePage + 1)}>Next</Button>
+              </div>
+            )}
+            </>
           )}
         </div>
 
@@ -369,12 +411,14 @@ export default function MerchandiseStore() {
       {/* Order confirm dialog */}
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Confirm order</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Confirm your purchase</DialogTitle>
+          </DialogHeader>
           {selected && (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                {selected.image_url ? (
-                  <img src={selected.image_url} alt={selected.item_name} className="w-14 h-14 rounded-lg object-cover" />
+                {pickImage(selected) ? (
+                  <StorageImage src={pickImage(selected)} alt={selected.item_name} className="w-14 h-14 rounded-lg object-cover" />
                 ) : (
                   <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center">
                     <Package className="h-6 w-6 text-muted-foreground/40" />
@@ -390,17 +434,30 @@ export default function MerchandiseStore() {
                 <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
               </div>
               <div className="rounded-lg bg-muted/50 px-3 py-2 flex justify-between text-sm">
-                <span className="text-muted-foreground">Total (repaid from wallet)</span>
+                <span className="text-muted-foreground">Wallet balance</span>
+                <span className="font-semibold">{formatUGX(availableWallet)}</span>
+              </div>
+              <div className={`rounded-lg px-3 py-2 flex justify-between text-sm ${insufficient ? 'bg-destructive/10 text-destructive' : 'bg-primary/5 text-foreground'}`}>
+                <span className="text-muted-foreground">Total to debit now</span>
                 <span className="font-bold">{formatUGX(orderTotal)}</span>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                This amount will be recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
-              </p>
+              {insufficient ? (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2 flex gap-2 text-[11px] text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <p><span className="font-semibold">Insufficient balance.</span> Top up your wallet or reduce the quantity to continue.</p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  The full amount is debited from your withdrawable wallet immediately. No credit, no daily deductions.
+                </p>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelected(null)} disabled={ordering}>Cancel</Button>
-            <Button onClick={placeOrder} disabled={ordering}>{ordering ? 'Ordering…' : 'Confirm order'}</Button>
+            <Button onClick={placeOrder} disabled={ordering || insufficient}>
+              {ordering ? 'Processing…' : insufficient ? 'Insufficient balance' : `Pay ${formatUGX(orderTotal)}`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
