@@ -2310,25 +2310,42 @@ Deno.serve(async (req) => {
             console.log(
               `[approve-withdrawal] opened overdraft recovery advance ${advId} for user ${fundingUserId} shortfall UGX ${shortfall}`,
             );
-            // Notify user via SMS — plain English, 33% platform fee
+            // Notify user via SMS — plain English, 33% platform fee.
+            // Route through the shared multi-provider chain so every attempt
+            // lands in sms_delivery_log (source=`withdrawal_recovery_advance`)
+            // for admin troubleshooting.
             try {
-              const fee = Math.ceil(shortfall * 0.33);
-              const total = shortfall + fee;
-              const msg =
-                `Welile: You withdrew UGX ${shortfall.toLocaleString()} more than what was in your wallet. ` +
-                `An auto-recovery advance of UGX ${shortfall.toLocaleString()} + 33% fee (UGX ${fee.toLocaleString()}) ` +
-                `= UGX ${total.toLocaleString()} has been opened. It will be recovered automatically from your future ` +
-                `earnings and paid to the platform. Nothing will be taken back from your wallet.`;
-              fetch(`${supabaseUrl}/functions/v1/send-sms`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${serviceKey}`,
-                },
-                body: JSON.stringify({ user_id: fundingUserId, message: msg }),
-              }).catch(() => {});
+              const { data: rProfile } = await admin
+                .from("profiles")
+                .select("phone, full_name")
+                .eq("id", fundingUserId)
+                .maybeSingle();
+              const rawPhone = (rProfile as any)?.phone || "";
+              if (rawPhone) {
+                const fee = Math.ceil(shortfall * 0.33);
+                const total = shortfall + fee;
+                const recoveryMsg =
+                  `WELILE: You withdrew UGX ${shortfall.toLocaleString()} more than what was in your wallet. ` +
+                  `An auto-recovery advance of UGX ${shortfall.toLocaleString()} + 33% fee (UGX ${fee.toLocaleString()}) ` +
+                  `= UGX ${total.toLocaleString()} has been opened. It will be paid back automatically from your ` +
+                  `future earnings straight to the platform. Nothing will be taken back from your wallet.`;
+                sendSMS(rawPhone, recoveryMsg, {
+                  admin,
+                  source: "withdrawal_recovery_advance",
+                  reference_id: String(advId),
+                  recipient_user_id: fundingUserId,
+                  recipient_name: (rProfile as any)?.full_name ?? null,
+                  idempotencyKey: `withdrawal_recovery_advance:${advId}`,
+                }).catch((e) =>
+                  console.error("[approve-withdrawal] recovery SMS failed:", e),
+                );
+              } else {
+                console.warn(
+                  `[approve-withdrawal] recovery SMS skipped — no phone on file for ${fundingUserId}`,
+                );
+              }
             } catch (_smsEx) {
-              // best-effort
+              console.warn("[approve-withdrawal] recovery SMS exception:", _smsEx);
             }
           }
         }
