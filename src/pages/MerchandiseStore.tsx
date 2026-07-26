@@ -14,11 +14,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone, Bike,
+  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone, Bike, AlertCircle,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
+import { StorageImage } from '@/components/ui/StorageImage';
 
 // Merchandise tables aren't in generated types yet.
 const db = supabase as any;
@@ -29,6 +30,7 @@ interface CatalogItem {
   description: string | null;
   unit_price: number;
   image_url: string | null;
+  image_urls: string[] | null;
   is_active: boolean;
 }
 
@@ -51,6 +53,8 @@ interface Deduction {
   created_at: string;
 }
 
+const PAGE_SIZE = 8;
+
 export default function MerchandiseStore() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -64,6 +68,7 @@ export default function MerchandiseStore() {
   const [bikeOpen, setBikeOpen] = useState(false);
   const [bikeAmount, setBikeAmount] = useState('');
   const [orderingBike, setOrderingBike] = useState(false);
+  const [catalogPage, setCatalogPage] = useState(1);
   const { withdrawableBalance } = useAgentBalances(user?.id);
   const availableWallet = Math.max(0, withdrawableBalance);
 
@@ -116,24 +121,49 @@ export default function MerchandiseStore() {
 
   const qty = Math.max(1, parseInt(quantity || '1', 10) || 1);
   const orderTotal = selected ? Number(selected.unit_price) * qty : 0;
+  const insufficient = selected ? orderTotal > availableWallet : false;
+
+  const pickImage = (item: CatalogItem | null): string | null => {
+    if (!item) return null;
+    if (item.image_urls && item.image_urls.length > 0) return item.image_urls[0];
+    return item.image_url || null;
+  };
+
+  const totalPages = Math.max(1, Math.ceil(catalog.length / PAGE_SIZE));
+  const safePage = Math.min(catalogPage, totalPages);
+  const catalogSlice = catalog.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const placeOrder = async () => {
     if (!selected) return;
+    if (insufficient) {
+      toast.error('Insufficient balance', {
+        description: `Your wallet has ${formatUGX(availableWallet)} but this order needs ${formatUGX(orderTotal)}.`,
+      });
+      return;
+    }
     setOrdering(true);
-    const { data, error } = await db.rpc('agent_order_merchandise', {
+    const { error } = await db.rpc('agent_purchase_merchandise', {
       p_catalog_id: selected.id,
       p_quantity: qty,
     });
     setOrdering(false);
     if (error) {
-      toast.error(error.message || 'Could not place order');
+      const msg = error.message || 'Could not place order';
+      if (msg.includes('INSUFFICIENT_BALANCE')) {
+        toast.error('Insufficient balance', {
+          description: `Your wallet has ${formatUGX(availableWallet)} but this order needs ${formatUGX(orderTotal)}.`,
+        });
+      } else {
+        toast.error(msg);
+      }
       return;
     }
-    toast.success(`Ordered ${selected.item_name}. ${formatUGX(orderTotal)} will be recovered from your wallet.`);
+    toast.success(`${selected.item_name} purchased. ${formatUGX(orderTotal)} debited from your wallet.`);
     setSelected(null);
     setQuantity('1');
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-deductions', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['wallet-view', user?.id] });
   };
 
   const phoneAmountNum = Math.max(0, parseInt(phoneAmount || '0', 10) || 0);
