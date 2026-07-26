@@ -354,13 +354,16 @@ export function WalletStatement() {
       const allEntries: LedgerEntry[] = (ledger || []).map(row => ({
         id: row.id,
         date: row.transaction_date,
-        type: row.direction === 'cash_in' ? 'credit' : 'debit',
+        type: (row.direction === 'cash_in' ? 'credit' : 'debit') as 'credit' | 'debit',
         category: row.category,
         description: row.description || getCategoryMeta(row.category, row.direction).label,
         amount: row.amount,
         reference_id: row.reference_id,
         linked_party: row.linked_party,
-      }));
+      }))
+        // Hide internal bucket reclassifications (Withdrawable ↔ Float) — these are
+        // paired legs that net to zero for the user and only confuse the statement.
+        .filter(e => !(typeof e.reference_id === 'string' && /^WDR2FLT-/i.test(e.reference_id)));
 
       for (const re of referralEarnings || []) {
         const alreadyIn = allEntries.some(e => e.category === 'referral_bonus' &&
