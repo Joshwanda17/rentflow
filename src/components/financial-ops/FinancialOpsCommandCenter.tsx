@@ -203,29 +203,23 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   );
 
   // Sub-view: Verify Deposits (unified — user TIDs + field/agent cash)
+  let content: JSX.Element;
   if (view === 'deposits') {
-    return (
+    content = (
       <div className="space-y-5">
         <SubBack onClick={() => setView('home')} />
         <Suspense fallback={<PanelFallback />}> <VerifyDepositsHub /> </Suspense>
       </div>
     );
-  }
-
-  // Sub-view: Offline Collections (agent IndexedDB drafts submitted with proof)
-  if (view === 'offline_collections') {
-    return (
+  } else if (view === 'offline_collections') {
+    content = (
       <div className="space-y-5">
         <SubBack onClick={() => setView('home')} />
         <Suspense fallback={<PanelFallback />}> <OfflineSubmissionsQueue /> </Suspense>
       </div>
     );
-  }
-
-
-  // Sub-view: Active tool
-  if (activeTool) {
-    return (
+  } else if (activeTool) {
+    content = (
       <div className="space-y-5 pb-24 sm:pb-16">
         <SubBack onClick={() => setActiveTool(null)} />
         <Suspense fallback={<PanelFallback />}>
@@ -338,26 +332,64 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         </Suspense>
       </div>
     );
+  } else {
+    content = (
+      <FinOpsHome
+        onView={setView}
+        onOpenTool={openTool}
+        onOpenMore={() => setMoreSheet(true)}
+        onFocusBucket={setFocusBucket}
+        walletBreakdownOpen={walletBreakdownOpen}
+        setWalletBreakdownOpen={(v) => {
+          setWalletBreakdownOpen(v);
+          if (userId) setStoredOpen(userId, v);
+        }}
+        focusBucket={focusBucket}
+        onClearFocus={() => setFocusBucket(null)}
+        moreSheet={moreSheet}
+        setMoreSheet={setMoreSheet}
+        openMoreAction={openMoreAction}
+      />
+    );
   }
 
-  // Home: Core tools front and center
+  const activeId: string | null = activeTool ?? (view !== 'home' ? view : null);
+
   return (
-    <FinOpsHome
-      onView={setView}
-      onOpenTool={openTool}
-      onOpenMore={() => setMoreSheet(true)}
-      onFocusBucket={setFocusBucket}
-      walletBreakdownOpen={walletBreakdownOpen}
-      setWalletBreakdownOpen={(v) => {
-        setWalletBreakdownOpen(v);
-        if (userId) setStoredOpen(userId, v);
-      }}
-      focusBucket={focusBucket}
-      onClearFocus={() => setFocusBucket(null)}
-      moreSheet={moreSheet}
-      setMoreSheet={setMoreSheet}
-      openMoreAction={openMoreAction}
-    />
+    <div className="flex gap-6 items-start min-w-0">
+      {/* Persistent sidebar (desktop) */}
+      <aside className="hidden lg:block w-64 xl:w-72 shrink-0 sticky top-16 self-start max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border border-border bg-card p-2">
+        <div className="px-2.5 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Financial Ops</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Tools & modules</p>
+        </div>
+        <nav className="flex flex-col gap-0.5 pb-2">
+          {moreActions.map((a) => {
+            const isActive = activeId === a.id;
+            return (
+              <button
+                key={`${a.kind}-${a.id}`}
+                onClick={() => openMoreAction(a)}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-foreground hover:bg-muted/60'
+                }`}
+                title={a.desc}
+              >
+                <a.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className="text-[13px] font-medium truncate">{a.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
+        {content}
+      </div>
+    </div>
   );
 }
 
