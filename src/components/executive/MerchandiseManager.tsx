@@ -1149,12 +1149,32 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
               <Input type="number" min={0} value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Optional" />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Image URL</Label>
-            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Optional https://…" />
+          <div className="space-y-2">
+            <Label className="text-xs">Product photos ({images.length}/2)</Label>
+            {images.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {images.map((img, i) => (
+                  <div key={i} className="relative aspect-square rounded-md overflow-hidden border border-border">
+                    <img src={img.previewUrl} alt={`preview-${i}`} className="w-full h-full object-cover" />
+                    <Button type="button" variant="destructive" size="icon"
+                      className="absolute top-1 right-1 h-6 w-6" onClick={() => removeImage(i)}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {images.length < 2 && (
+              <label className="flex items-center justify-center gap-2 h-10 rounded-md border border-dashed border-border text-xs text-muted-foreground cursor-pointer hover:bg-muted/40">
+                <Upload className="h-3.5 w-3.5" />
+                {uploading ? 'Optimizing…' : 'Upload photo (max 2)'}
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} disabled={uploading} />
+              </label>
+            )}
+            <p className="text-[10px] text-muted-foreground">Images are resized to 1200px WebP and stored securely.</p>
           </div>
           <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2 text-[11px] text-muted-foreground">
-            Agents can order this from their dashboard. The cost is recorded as a credit sale and recovered from their wallet (15%, up to 4×/day).
+            Agents can order this from their dashboard. On purchase the item price is debited from the agent's withdrawable wallet immediately.
           </div>
         </div>
         <DialogFooter>
