@@ -354,7 +354,7 @@ export function WalletStatement() {
       const allEntries: LedgerEntry[] = (ledger || []).map(row => ({
         id: row.id,
         date: row.transaction_date,
-        type: row.direction === 'cash_in' ? 'credit' : 'debit',
+        type: (row.direction === 'cash_in' ? 'credit' : 'debit') as 'credit' | 'debit',
         category: row.category,
         description: row.description || getCategoryMeta(row.category, row.direction).label,
         amount: row.amount,
