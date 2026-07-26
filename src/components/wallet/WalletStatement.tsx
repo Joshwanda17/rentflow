@@ -360,7 +360,10 @@ export function WalletStatement() {
         amount: row.amount,
         reference_id: row.reference_id,
         linked_party: row.linked_party,
-      }));
+      }))
+        // Hide internal bucket reclassifications (Withdrawable ↔ Float) — these are
+        // paired legs that net to zero for the user and only confuse the statement.
+        .filter(e => !(typeof e.reference_id === 'string' && /^WDR2FLT-/i.test(e.reference_id)));
 
       for (const re of referralEarnings || []) {
         const alreadyIn = allEntries.some(e => e.category === 'referral_bonus' &&
