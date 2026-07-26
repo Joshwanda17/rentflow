@@ -196,6 +196,7 @@ const AdminAccessAuditPage = lazy(() => import('./pages/admin/AccessAudit'));
 const AdminFinancialOpsPage = lazy(() => import('./pages/admin/FinancialOps'));
 const AdminReferralsPage = lazy(() => import('./pages/admin/Referrals'));
 const AdminOAuthFailuresPage = lazy(() => import('./pages/admin/OAuthFailures'));
+const AdminRecoverySmsLogPage = lazy(() => import('./pages/admin/RecoverySmsLog'));
 const AdminArchivedAccountsPage = lazy(() => import('./pages/admin/ArchivedAccounts'));
 const AdminAccountConflictsPage = lazy(() => import('./pages/admin/AccountConflicts'));
 const AgentRecommendationAuditPage = lazy(() => import('./pages/admin/AgentRecommendationAudit'));
@@ -570,6 +571,7 @@ function AppRoutes() {
           <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo']}><AdminFinancialOpsPage /></RoleGuard>} />
           <Route path="/admin/referrals" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'coo', 'cto']}><AdminReferralsPage /></RoleGuard>} />
           <Route path="/admin/oauth-failures" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'ceo', 'coo', 'cto']}><AdminOAuthFailuresPage /></RoleGuard>} />
+          <Route path="/admin/recovery-sms-log" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'ceo', 'coo', 'cto']}><AdminRecoverySmsLogPage /></RoleGuard>} />
           <Route path="/admin/archived-accounts" element={<RoleGuard allowedRoles={['super_admin', 'manager']}><AdminArchivedAccountsPage /></RoleGuard>} />
           <Route path="/admin/account-conflicts" element={<RoleGuard allowedRoles={['super_admin', 'manager']}><AdminAccountConflictsPage /></RoleGuard>} />
           <Route path="/admin/recommendation-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto', 'coo', 'operations']}><AgentRecommendationAuditPage /></RoleGuard>} />
