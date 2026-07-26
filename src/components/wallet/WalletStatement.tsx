@@ -1044,7 +1044,7 @@ export function WalletStatement() {
                 role="tablist"
                 aria-label="Filter transactions"
               >
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   {([
                     { key: 'all',       label: 'All',        active: directionFilter === 'all' && statusFilter === 'all', apply: () => { setDirectionFilter('all'); setStatusFilter('all'); } },
                     { key: 'in',        label: 'Money In',   active: directionFilter === 'credit', apply: () => { setDirectionFilter('credit'); setStatusFilter('all'); } },
@@ -1059,7 +1059,7 @@ export function WalletStatement() {
                       aria-selected={chip.active}
                       onClick={chip.apply}
                       className={cn(
-                        'rounded-full border px-4 py-2 text-xs font-semibold transition-colors',
+                        'min-h-[34px] rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:px-4 sm:py-2',
                         chip.active
                           ? 'border-foreground bg-foreground text-background shadow-sm'
                           : 'border-border bg-card text-muted-foreground hover:bg-muted/40',
