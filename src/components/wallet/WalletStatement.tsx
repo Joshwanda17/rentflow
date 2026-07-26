@@ -152,6 +152,8 @@ const CATEGORY_META: Record<string, { label: string; Icon: React.ElementType; co
   transfer_out:          { label: 'Transfer Sent',            Icon: ArrowDownToLine,colorClass: 'text-destructive bg-destructive/10', plainExplanation: 'Money you sent to another Welile user.' },
   transfer_in:           { label: 'Transfer Received',        Icon: Landmark,       colorClass: 'text-primary bg-primary/10', plainExplanation: 'Money received from another Welile user.' },
   pool_investment:       { label: 'Pool Investment',          Icon: ArrowDownToLine,colorClass: 'text-primary bg-primary/10', plainExplanation: 'Money moved from your wallet to the rent management pool.' },
+  agent_repayment:       { label: 'Advance Auto-Recovery',    Icon: ArrowDownToLine,colorClass: 'text-destructive bg-destructive/10', plainExplanation: 'You withdrew a little more than what was actually in your wallet, so this amount was owed. It is being paid back automatically from your earnings until it is fully cleared. No interest is charged.' },
+  agent_advance_credit:  { label: 'Advance Received',         Icon: Banknote,       colorClass: 'text-primary bg-primary/10', plainExplanation: 'An advance was added to your wallet. It will be repaid over the agreed period.' },
 };
 
 function getCategoryMeta(category: string, direction: string) {
