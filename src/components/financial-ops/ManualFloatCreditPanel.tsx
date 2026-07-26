@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Wallet, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import UserSearchPicker from '@/components/cfo/UserSearchPicker';
+import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface PickedUser { id: string; full_name: string; phone: string }
