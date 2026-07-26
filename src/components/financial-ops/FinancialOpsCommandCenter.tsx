@@ -4,13 +4,19 @@ import { WalletOverviewCard } from './WalletOverviewCard';
 
 // Everything below is code-split — a panel's JS is only fetched when its
 // tool/view is opened. Keeps /admin/financial-ops first paint fast.
-const lz = <T extends Record<string, any>, K extends keyof T>(
-  loader: () => Promise<T>,
-  name: K,
-) => lazy(async () => {
+const lz = (
+  loader: () => Promise<Record<string, any>>,
+  name: string,
+): React.ComponentType<any> => lazy(async () => {
   const m = await loader();
-  return { default: m[name] as any };
-});
+  return { default: m[name] };
+}) as unknown as React.ComponentType<any>;
+
+const PanelFallback = () => (
+  <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+    Loading…
+  </div>
+);
 
 const ApprovalQueue = lz(() => import('./ApprovalQueue'), 'ApprovalQueue');
 const TransactionSearch = lz(() => import('./TransactionSearch'), 'TransactionSearch');
@@ -52,6 +58,7 @@ const OpportunitySummaryForm = lz(() => import('@/components/manager/Opportunity
 const AgentRequisitionForm = lz(() => import('./AgentRequisitionForm'), 'AgentRequisitionForm');
 const EmployeeRequisitionLinksPanel = lz(() => import('./EmployeeRequisitionLinksPanel'), 'EmployeeRequisitionLinksPanel');
 const EmployeeRequisitionQueuePanel = lz(() => import('./EmployeeRequisitionQueuePanel'), 'EmployeeRequisitionQueuePanel');
+const FinancialOpsPulseStrip = lz(() => import('./FinancialOpsPulseStrip'), 'FinancialOpsPulseStrip');
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
