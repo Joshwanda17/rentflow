@@ -1097,7 +1097,7 @@ export function WalletStatement() {
               </div>
 
               {/* Direction segmented control */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Transaction direction">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Transaction direction">
                 {[
                   { value: 'all' as const, label: 'All', count: entries.length },
                   { value: 'credit' as const, label: 'In', count: entries.filter(e => e.type === 'credit').length },
@@ -1109,7 +1109,7 @@ export function WalletStatement() {
                     role="radio"
                     aria-checked={directionFilter === opt.value}
                     aria-label={`${opt.label === 'In' ? 'Money in' : opt.label === 'Out' ? 'Money out' : 'All transactions'}, ${opt.count} entries`}
-                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
+                    className={`min-h-[34px] flex-1 basis-[3.5rem] rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       directionFilter === opt.value
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
