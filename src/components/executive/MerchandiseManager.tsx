@@ -503,7 +503,7 @@ export function MerchandiseManager() {
                     </td>
                     <td className="py-2 pl-3">
                       <div className="flex justify-end gap-1">
-                        <EditCatalogItemButton item={c} onSaved={refresh} />
+                        <EditCatalogItemButton item={c} userId={user?.id} onSaved={refresh} />
                         <Button
                           variant="ghost" size="sm" className="h-7 gap-1 text-xs"
                           onClick={async () => {
@@ -742,13 +742,52 @@ function RecoveryBadge({ status }: { status: 'active' | 'completed' | 'cancelled
 // ---------------------------------------------------------------------------
 // Edit storefront catalog item
 // ---------------------------------------------------------------------------
-function EditCatalogItemButton({ item, onSaved }: { item: any; onSaved: () => void }) {
+function EditCatalogItemButton({ item, userId, onSaved }: { item: any; userId?: string; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(item.item_name ?? '');
   const [description, setDescription] = useState(item.description ?? '');
   const [price, setPrice] = useState(String(item.unit_price ?? ''));
   const [cost, setCost] = useState(String(item.unit_cost ?? ''));
+  const initialImages = (): string[] => {
+    if (Array.isArray(item.image_urls) && item.image_urls.length > 0) return item.image_urls.slice(0, 2);
+    if (item.image_url) return [item.image_url];
+    return [];
+  };
+  const [existingUrls, setExistingUrls] = useState<string[]>(initialImages());
+  const [newImages, setNewImages] = useState<{ file: File; previewUrl: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const totalImages = existingUrls.length + newImages.length;
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    const remaining = 2 - totalImages;
+    if (remaining <= 0) { toast.error('Maximum 2 images per item'); return; }
+    setUploading(true);
+    const next: { file: File; previewUrl: string }[] = [];
+    for (const file of files.slice(0, remaining)) {
+      if (!file.type.startsWith('image/')) { toast.error(`${file.name} is not an image`); continue; }
+      if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} exceeds 10MB`); continue; }
+      try {
+        const optimized = await optimizeImage(file, { maxWidth: 1200, quality: 0.8 });
+        next.push({ file: optimized.file, previewUrl: optimized.previewUrl });
+      } catch {
+        next.push({ file, previewUrl: URL.createObjectURL(file) });
+      }
+    }
+    setNewImages(prev => [...prev, ...next]);
+    setUploading(false);
+  };
+
+  const removeExisting = (idx: number) => setExistingUrls(prev => prev.filter((_, i) => i !== idx));
+  const removeNew = (idx: number) => setNewImages(prev => {
+    const copy = [...prev];
+    const [removed] = copy.splice(idx, 1);
+    if (removed) URL.revokeObjectURL(removed.previewUrl);
+    return copy;
+  });
 
   const save = async () => {
     const trimmed = name.trim();
@@ -758,21 +797,53 @@ function EditCatalogItemButton({ item, onSaved }: { item: any; onSaved: () => vo
     if (!Number.isFinite(p) || p < 0) { toast.error('Price must be a non-negative number'); return; }
     if (!Number.isFinite(c) || c < 0) { toast.error('Cost must be a non-negative number'); return; }
     setSaving(true);
-    const { error } = await db.from('merchandise_catalog').update({
-      item_name: trimmed,
-      description: description.trim() || null,
-      unit_price: p,
-      unit_cost: c,
-    }).eq('id', item.id);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Item updated');
-    setOpen(false);
-    onSaved();
+    try {
+      const uploaded: string[] = [];
+      for (const img of newImages) {
+        const ext = (img.file.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = `${userId ?? 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('merchandise')
+          .upload(path, img.file, { cacheControl: '3600', upsert: false, contentType: img.file.type });
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from('merchandise').getPublicUrl(path);
+        uploaded.push(pub.publicUrl);
+      }
+      const finalUrls = [...existingUrls, ...uploaded].slice(0, 2);
+      const { error } = await db.from('merchandise_catalog').update({
+        item_name: trimmed,
+        description: description.trim() || null,
+        unit_price: p,
+        unit_cost: c,
+        image_url: finalUrls[0] ?? null,
+        image_urls: finalUrls,
+      }).eq('id', item.id);
+      if (error) throw error;
+      toast.success('Item updated');
+      newImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
+      setNewImages([]);
+      setOpen(false);
+      onSaved();
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) { setName(item.item_name ?? ''); setDescription(item.description ?? ''); setPrice(String(item.unit_price ?? '')); setCost(String(item.unit_cost ?? '')); } }}>
+    <Dialog open={open} onOpenChange={(v) => {
+      setOpen(v);
+      if (v) {
+        setName(item.item_name ?? '');
+        setDescription(item.description ?? '');
+        setPrice(String(item.unit_price ?? ''));
+        setCost(String(item.unit_cost ?? ''));
+        setExistingUrls(initialImages());
+        newImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
+        setNewImages([]);
+      }
+    }}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
           <Pencil className="h-3.5 w-3.5" /> Edit
@@ -799,9 +870,40 @@ function EditCatalogItemButton({ item, onSaved }: { item: any; onSaved: () => vo
               <Input type="number" inputMode="numeric" min={0} value={cost} onChange={(e) => setCost(e.target.value)} />
             </div>
           </div>
+          <div className="space-y-1">
+            <Label>Images (max 2)</Label>
+            <div className="flex flex-wrap gap-2">
+              {existingUrls.map((url, idx) => (
+                <div key={`ex-${idx}`} className="relative">
+                  <StorageImage src={url} alt="" className="h-20 w-20 rounded-md object-cover border border-border" />
+                  <button type="button" onClick={() => removeExisting(idx)}
+                    className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {newImages.map((img, idx) => (
+                <div key={`new-${idx}`} className="relative">
+                  <img src={img.previewUrl} alt="" className="h-20 w-20 rounded-md object-cover border border-border" />
+                  <button type="button" onClick={() => removeNew(idx)}
+                    className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {totalImages < 2 && (
+                <label className="h-20 w-20 rounded-md border border-dashed border-border flex flex-col items-center justify-center text-xs text-muted-foreground cursor-pointer hover:bg-muted">
+                  <Upload className="h-4 w-4 mb-1" />
+                  {uploading ? 'Optimizing…' : 'Add'}
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} disabled={uploading} />
+                </label>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">Auto-optimized to 1200px WebP. Max 10MB per file.</p>
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving || uploading}>Cancel</Button>
           <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
         </DialogFooter>
       </DialogContent>
