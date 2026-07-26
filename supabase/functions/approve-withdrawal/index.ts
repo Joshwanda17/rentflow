@@ -2310,6 +2310,26 @@ Deno.serve(async (req) => {
             console.log(
               `[approve-withdrawal] opened overdraft recovery advance ${advId} for user ${fundingUserId} shortfall UGX ${shortfall}`,
             );
+            // Notify user via SMS — plain English, 33% platform fee
+            try {
+              const fee = Math.ceil(shortfall * 0.33);
+              const total = shortfall + fee;
+              const msg =
+                `Welile: You withdrew UGX ${shortfall.toLocaleString()} more than what was in your wallet. ` +
+                `An auto-recovery advance of UGX ${shortfall.toLocaleString()} + 33% fee (UGX ${fee.toLocaleString()}) ` +
+                `= UGX ${total.toLocaleString()} has been opened. It will be recovered automatically from your future ` +
+                `earnings and paid to the platform. Nothing will be taken back from your wallet.`;
+              fetch(`${supabaseUrl}/functions/v1/send-sms`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${serviceKey}`,
+                },
+                body: JSON.stringify({ user_id: fundingUserId, message: msg }),
+              }).catch(() => {});
+            } catch (_smsEx) {
+              // best-effort
+            }
           }
         }
       }
