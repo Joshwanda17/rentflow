@@ -21,6 +21,7 @@ import {
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
   Repeat, CheckCircle2, CircleDollarSign, Store, ShoppingBag, Power,
   Upload, X, ChevronLeft, ChevronRight, ImageIcon,
+  Pencil,
 } from 'lucide-react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { optimizeImage } from '@/lib/imageOptimizer';
@@ -502,6 +503,7 @@ export function MerchandiseManager() {
                     </td>
                     <td className="py-2 pl-3">
                       <div className="flex justify-end gap-1">
+                        <EditCatalogItemButton item={c} onSaved={refresh} />
                         <Button
                           variant="ghost" size="sm" className="h-7 gap-1 text-xs"
                           onClick={async () => {
@@ -735,6 +737,76 @@ function RecoveryBadge({ status }: { status: 'active' | 'completed' | 'cancelled
   } as const;
   const label = { active: 'Recovering', completed: 'Fully Paid', cancelled: 'Cancelled' }[status];
   return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>{label}</span>;
+}
+
+// ---------------------------------------------------------------------------
+// Edit storefront catalog item
+// ---------------------------------------------------------------------------
+function EditCatalogItemButton({ item, onSaved }: { item: any; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState(item.item_name ?? '');
+  const [description, setDescription] = useState(item.description ?? '');
+  const [price, setPrice] = useState(String(item.unit_price ?? ''));
+  const [cost, setCost] = useState(String(item.unit_cost ?? ''));
+
+  const save = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) { toast.error('Item name is required'); return; }
+    const p = Number(price);
+    const c = Number(cost);
+    if (!Number.isFinite(p) || p < 0) { toast.error('Price must be a non-negative number'); return; }
+    if (!Number.isFinite(c) || c < 0) { toast.error('Cost must be a non-negative number'); return; }
+    setSaving(true);
+    const { error } = await db.from('merchandise_catalog').update({
+      item_name: trimmed,
+      description: description.trim() || null,
+      unit_price: p,
+      unit_cost: c,
+    }).eq('id', item.id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Item updated');
+    setOpen(false);
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) { setName(item.item_name ?? ''); setDescription(item.description ?? ''); setPrice(String(item.unit_price ?? '')); setCost(String(item.unit_cost ?? '')); } }}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Edit storefront item</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Item name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+          </div>
+          <div className="space-y-1">
+            <Label>Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={2} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Price (UGX)</Label>
+              <Input type="number" inputMode="numeric" min={0} value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Cost (UGX)</Label>
+              <Input type="number" inputMode="numeric" min={0} value={cost} onChange={(e) => setCost(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ---------------------------------------------------------------------------
