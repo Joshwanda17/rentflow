@@ -1146,11 +1146,11 @@ export function WalletStatement() {
               </div>
 
               {showCategoryFilters && (
-                <div id="ws-category-filters" className="flex flex-wrap gap-1.5 pt-1" role="group" aria-label="Filter by transaction type">
+                <div id="ws-category-filters" className="flex flex-wrap items-center gap-1.5 pt-1" role="group" aria-label="Filter by transaction type">
                   <button
                     onClick={() => setCategoryFilter('all')}
                     aria-pressed={categoryFilter === 'all'}
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
+                    className={`min-h-[28px] rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
                       categoryFilter === 'all'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -1168,7 +1168,7 @@ export function WalletStatement() {
                         onClick={() => setCategoryFilter(cat === categoryFilter ? 'all' : cat)}
                         aria-pressed={selected}
                         aria-label={`${selected ? 'Remove' : 'Apply'} ${label} filter, ${count} entries`}
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
+                        className={`min-h-[28px] rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
                           selected
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted text-muted-foreground hover:bg-muted/80'
