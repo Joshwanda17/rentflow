@@ -105,6 +105,67 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Overdraft pre-check ───────────────────────────────────────────────
+    // The `wallets` view floors each bucket at 0. A user can be silently
+    // OVERDRAWN on float (past rent collections exceeded recorded float
+    // deposits) — in which case posting +amount to float only fills the
+    // hidden hole and the visible float stays at 0. Detect that here from
+    // the raw ledger and refuse (unless the caller explicitly acknowledges).
+    const acknowledgeOverdraft = body?.acknowledge_float_overdraft === true;
+    const { data: floatNetRow } = await adminClient
+      .rpc("compute_wallet_float_net", { p_user_id: targetUserId })
+      .maybeSingle();
+    // Fallback: compute in-line via SQL if the helper doesn't exist yet.
+    let floatNet: number | null = null;
+    if (floatNetRow && typeof (floatNetRow as any).net === "number") {
+      floatNet = Number((floatNetRow as any).net);
+    } else {
+      const { data: rows } = await adminClient
+        .from("general_ledger")
+        .select("amount, direction, wallet_bucket, category, classification")
+        .eq("user_id", targetUserId)
+        .eq("ledger_scope", "wallet");
+      if (Array.isArray(rows)) {
+        let net = 0;
+        for (const r of rows as Array<{
+          amount: number; direction: string; wallet_bucket: string | null;
+          category: string; classification: string | null;
+        }>) {
+          const cls = r.classification;
+          const okCls =
+            cls === null || cls === "production" ||
+            (cls === "admin_correction" && r.category === "system_balance_correction" &&
+              (r.direction === "debit" || r.direction === "cash_out"));
+          if (!okCls) continue;
+          if (r.wallet_bucket !== "float") continue;
+          const sign = r.direction === "cash_in" || r.direction === "credit" ? 1 : -1;
+          net += sign * Number(r.amount);
+        }
+        floatNet = net;
+      }
+    }
+    if (floatNet !== null && floatNet < 0 && !acknowledgeOverdraft) {
+      const shortfall = Math.abs(floatNet);
+      const afterMove = floatNet + amount;
+      return json(
+        {
+          error:
+            `Float is already overdrawn by UGX ${shortfall.toLocaleString()} ` +
+            `(past rent collections exceeded recorded float deposits). ` +
+            `Moving UGX ${amount.toLocaleString()} would ${
+              afterMove <= 0
+                ? `only fill the overdraft — visible Float would stay at UGX 0.`
+                : `leave visible Float at UGX ${afterMove.toLocaleString()}.`
+            } Resubmit with acknowledge_float_overdraft=true to proceed.`,
+          code: "FLOAT_OVERDRAWN",
+          float_net: floatNet,
+          shortfall,
+          visible_float_after: Math.max(0, afterMove),
+        },
+        409,
+      );
+    }
+
     const { data: targetProfile } = await adminClient
       .from("profiles")
       .select("full_name")
