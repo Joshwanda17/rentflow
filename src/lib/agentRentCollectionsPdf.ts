@@ -67,7 +67,25 @@ export async function generateAgentRentCollectionsPdf(params: {
 
   if (error) throw error;
   const rows: CollectionRow[] = (data as CollectionRow[]) || [];
-  const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const totalCollected = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+
+  // Expected daily target for the same period
+  const fromDate = from.toISOString().split('T')[0];
+  const toDate = to.toISOString().split('T')[0];
+  const { data: expectedRows, error: expectedError } = await supabase
+    .from('agent_daily_eligibility_history')
+    .select('expected_daily')
+    .eq('agent_id', agentId)
+    .gte('day', fromDate)
+    .lte('day', toDate);
+
+  if (expectedError) throw expectedError;
+  const totalExpected = ((expectedRows as { expected_daily: number }[]) || [])
+    .reduce((s, r) => s + Number(r.expected_daily || 0), 0);
+  const collectionRate = totalExpected > 0
+    ? Math.round((totalCollected / totalExpected) * 100)
+    : 0;
+
 
   // Fetch tenant names
   const tenantIds = Array.from(new Set(rows.map(r => r.tenant_id).filter((v): v is string => !!v)));
@@ -118,16 +136,35 @@ export async function generateAgentRentCollectionsPdf(params: {
   pdf.text(`Period: ${from.toLocaleDateString('en-GB')} — ${to.toLocaleDateString('en-GB')}`, margin, y);
   y += 8;
 
-  // Summary card
-  pdf.setFillColor(243, 232, 255);
-  pdf.roundedRect(margin, y, pw - margin * 2, 16, 2, 2, 'F');
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(12);
-  pdf.text(`Total Collected: ${formatUGX(total)}`, margin + 4, y + 7);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.text(`${rows.length} payment${rows.length === 1 ? '' : 's'} recorded`, margin + 4, y + 13);
-  y += 22;
+  // Summary cards
+  const cardH = 16;
+  const gap = 4;
+  const cardW = (pw - margin * 2 - gap * 2) / 3;
+
+  const summaries = [
+    { label: 'Total Expected', value: formatUGX(totalExpected), color: 107, sub: `${(expectedRows || []).length} day${(expectedRows || []).length === 1 ? '' : 's'}` },
+    { label: 'Total Collected', value: formatUGX(totalCollected), color: 22, sub: `${rows.length} payment${rows.length === 1 ? '' : 's'}` },
+    { label: 'Collection Rate', value: `${collectionRate}%`, color: collectionRate >= 80 ? 22 : collectionRate >= 50 ? 180 : 239, sub: 'of expected target' },
+  ];
+
+  summaries.forEach((s, i) => {
+    const x = margin + i * (cardW + gap);
+    pdf.setFillColor(243, 232, 255);
+    pdf.roundedRect(x, y, cardW, cardH, 2, 2, 'F');
+    pdf.setTextColor(107, 33, 168);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.text(s.label, x + 3, y + 5);
+    pdf.setTextColor(s.color === 239 ? 220 : s.color, s.color === 22 ? 163 : s.color === 239 ? 68 : 31, s.color === 239 ? 68 : 168);
+    pdf.setFontSize(11);
+    pdf.text(s.value, x + 3, y + 12);
+    pdf.setTextColor(100, 100, 100);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.text(s.sub, x + 3, y + 15.5);
+  });
+  y += cardH + 8;
+
 
   // Table header
   const cols = [margin, margin + 30, margin + 62, margin + 120];
