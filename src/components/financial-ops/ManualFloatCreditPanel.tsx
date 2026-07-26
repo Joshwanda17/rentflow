@@ -21,7 +21,7 @@ function toIsoLocal(dt: string): string | null {
   return d.toISOString();
 }
 
-export default function ManualFloatCreditPanel() {
+export function ManualFloatCreditPanel() {
   const qc = useQueryClient();
   const [user, setUser] = useState<PickedUser | null>(null);
   const [tid, setTid] = useState('');
@@ -59,7 +59,19 @@ export default function ManualFloatCreditPanel() {
         p_notes: notes.trim() || null,
       });
       if (error) throw error;
-      return data as { ok: boolean; transaction_group_id: string };
+      const result = data as { ok: boolean; transaction_group_id: string };
+      // Fire-and-forget SMS notify to the agent
+      supabase.functions
+        .invoke('notify-manual-float-credit', {
+          body: {
+            user_id: user!.id,
+            amount: amountNum,
+            tid: cleanTid,
+            transaction_group_id: result.transaction_group_id,
+          },
+        })
+        .catch((e) => console.warn('notify-manual-float-credit failed', e));
+      return result;
     },
     onSuccess: (res) => {
       toast.success(`Float credited — TID ${cleanTid} locked. Ref ${res.transaction_group_id.slice(0, 8)}`);
@@ -200,3 +212,4 @@ export default function ManualFloatCreditPanel() {
     </div>
   );
 }
+export default ManualFloatCreditPanel;
