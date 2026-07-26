@@ -14,6 +14,8 @@ interface CollectionRow {
   momo_provider: string | null;
 }
 
+interface TenantLite { id: string; full_name: string | null; phone: string | null }
+
 function rangeFor(range: RangeKey): { from: Date; to: Date; label: string } {
   const to = new Date();
   const from = new Date();
@@ -67,20 +69,34 @@ export async function generateAgentRentCollectionsPdf(params: {
   const rows: CollectionRow[] = (data as CollectionRow[]) || [];
   const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
 
+  // Fetch tenant names
+  const tenantIds = Array.from(new Set(rows.map(r => r.tenant_id).filter((v): v is string => !!v)));
+  const tenantMap = new Map<string, string>();
+  if (tenantIds.length > 0) {
+    const { data: tenants } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', tenantIds);
+    ((tenants as TenantLite[]) || []).forEach(t => {
+      tenantMap.set(t.id, t.full_name || t.phone || '—');
+    });
+  }
+
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const pw = pdf.internal.pageSize.getWidth();
   const ph = pdf.internal.pageSize.getHeight();
   const margin = 12;
 
-  // Header band
-  pdf.setFillColor(16, 122, 87); // welile green
+  // Header band — purple
+  pdf.setFillColor(107, 33, 168); // welile purple
   pdf.rect(0, 0, pw, 30, 'F');
 
-  const logoUrl = await loadLogoDataUrl();
-  if (logoUrl) {
-    try { pdf.addImage(logoUrl, 'PNG', margin, 8, 34, 14); } catch { /* ignore */ }
-  }
+  // White wordmark text (avoids relying on colored logo asset)
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(22);
+  pdf.text('Welile', margin, 20);
 
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold');
@@ -103,7 +119,7 @@ export async function generateAgentRentCollectionsPdf(params: {
   y += 8;
 
   // Summary card
-  pdf.setFillColor(240, 253, 244);
+  pdf.setFillColor(243, 232, 255);
   pdf.roundedRect(margin, y, pw - margin * 2, 16, 2, 2, 'F');
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(12);
@@ -114,8 +130,8 @@ export async function generateAgentRentCollectionsPdf(params: {
   y += 22;
 
   // Table header
-  const cols = [margin, margin + 34, margin + 70, margin + 108, margin + 145];
-  const labels = ['Date', 'Amount', 'Method', 'Provider', 'Location'];
+  const cols = [margin, margin + 30, margin + 62, margin + 120];
+  const labels = ['Date', 'Amount', 'Tenant', 'Method'];
   pdf.setFillColor(243, 244, 246);
   pdf.rect(margin, y, pw - margin * 2, 7, 'F');
   pdf.setFontSize(8);
@@ -143,9 +159,9 @@ export async function generateAgentRentCollectionsPdf(params: {
     pdf.setFont('helvetica', 'bold');
     pdf.text(formatUGX(Number(r.amount || 0)), cols[1] + 2, y + 5);
     pdf.setFont('helvetica', 'normal');
-    pdf.text((r.payment_method || '—').substring(0, 16), cols[2] + 2, y + 5);
-    pdf.text((r.momo_provider || '—').substring(0, 16), cols[3] + 2, y + 5);
-    pdf.text((r.location_name || '—').substring(0, 22), cols[4] + 2, y + 5);
+    const tenantName = (r.tenant_id && tenantMap.get(r.tenant_id)) || '—';
+    pdf.text(tenantName.substring(0, 28), cols[2] + 2, y + 5);
+    pdf.text((r.payment_method || '—').substring(0, 20), cols[3] + 2, y + 5);
     y += rowH;
   });
 
