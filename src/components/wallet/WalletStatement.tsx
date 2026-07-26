@@ -1040,11 +1040,11 @@ export function WalletStatement() {
             <div className="mb-5 space-y-2.5" role="region" aria-label="Statement filters">
               {/* Quick filters (fintech pill row) */}
               <div
-                className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="px-0 pb-1"
                 role="tablist"
                 aria-label="Filter transactions"
               >
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {([
                     { key: 'all',       label: 'All',        active: directionFilter === 'all' && statusFilter === 'all', apply: () => { setDirectionFilter('all'); setStatusFilter('all'); } },
                     { key: 'in',        label: 'Money In',   active: directionFilter === 'credit', apply: () => { setDirectionFilter('credit'); setStatusFilter('all'); } },
@@ -1059,7 +1059,7 @@ export function WalletStatement() {
                       aria-selected={chip.active}
                       onClick={chip.apply}
                       className={cn(
-                        'whitespace-nowrap rounded-full border px-5 py-2 text-xs font-semibold transition-colors',
+                        'rounded-full border px-4 py-2 text-xs font-semibold transition-colors',
                         chip.active
                           ? 'border-foreground bg-foreground text-background shadow-sm'
                           : 'border-border bg-card text-muted-foreground hover:bg-muted/40',
