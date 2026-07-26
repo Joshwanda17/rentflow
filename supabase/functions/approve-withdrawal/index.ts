@@ -2322,13 +2322,12 @@ Deno.serve(async (req) => {
                 .maybeSingle();
               const rawPhone = (rProfile as any)?.phone || "";
               if (rawPhone) {
-                const fee = Math.ceil(shortfall * 0.33);
-                const total = shortfall + fee;
                 const recoveryMsg =
                   `WELILE: You withdrew UGX ${shortfall.toLocaleString()} more than what was in your wallet. ` +
-                  `An auto-recovery advance of UGX ${shortfall.toLocaleString()} + 33% fee (UGX ${fee.toLocaleString()}) ` +
-                  `= UGX ${total.toLocaleString()} has been opened. It will be paid back automatically from your ` +
-                  `future earnings straight to the platform. Nothing will be taken back from your wallet.`;
+                  `An Advance Auto-Recovery has been opened for that shortfall plus a small platform fee. ` +
+                  `It will be paid back automatically from your future earnings and goes straight to the platform — ` +
+                  `nothing will be taken back from your wallet. You will see it on your next earnings as ` +
+                  `"Advance Auto-Recovery" until it is fully cleared.`;
                 sendSMS(rawPhone, recoveryMsg, {
                   admin,
                   source: "withdrawal_recovery_advance",
