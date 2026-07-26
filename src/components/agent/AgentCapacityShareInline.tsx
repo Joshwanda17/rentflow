@@ -9,6 +9,16 @@ import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
 import { Download, Share2, Loader2, FileImage } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { downloadAgentRentCollectionsPdf, type RangeKey } from '@/lib/agentRentCollectionsPdf';
+import { ChevronDown, FileText } from 'lucide-react';
 
 /**
  * Compact "Download report card" entry point on the Tenants page. The agent
@@ -25,6 +35,7 @@ export function AgentCapacityShareInline() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState<RangeKey | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [cardH, setCardH] = useState(0);
@@ -66,6 +77,21 @@ export function AgentCapacityShareInline() {
   const dateLabel = new Date().toLocaleDateString('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Kampala',
   });
+
+  const downloadPdf = async (range: RangeKey) => {
+    if (pdfBusy) return;
+    hapticTap();
+    setPdfBusy(range);
+    try {
+      await downloadAgentRentCollectionsPdf({ agentId: user.id, agentName, range });
+      toast.success(`${range.charAt(0).toUpperCase() + range.slice(1)} report downloaded`);
+    } catch (err) {
+      console.error('rent collections pdf failed', err);
+      toast.error('Could not generate the report. Please try again.');
+    } finally {
+      setPdfBusy(null);
+    }
+  };
 
   const generatePng = async (pixelRatio = 2) => {
     if (!cardRef.current) throw new Error('No card ref');
@@ -150,15 +176,41 @@ export function AgentCapacityShareInline() {
 
   return (
     <>
-      {/* Tiny clickable entry point */}
-      <button
-        type="button"
-        onClick={() => { hapticTap(); setOpen(true); }}
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
-      >
-        <FileImage className="h-4 w-4" />
-        Download report card
-      </button>
+      {/* Dropdown entry point — pick daily card (PNG) or PDF for week/month/year */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            onClick={() => hapticTap()}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
+          >
+            {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileImage className="h-4 w-4" />}
+            Download report
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuLabel>Rent collections report</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpen(true); hapticTap(); }}>
+            <FileImage className="h-4 w-4 mr-2" />
+            Daily card (image)
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={!!pdfBusy} onSelect={(e) => { e.preventDefault(); downloadPdf('weekly'); }}>
+            <FileText className="h-4 w-4 mr-2" />
+            Weekly (PDF)
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!!pdfBusy} onSelect={(e) => { e.preventDefault(); downloadPdf('monthly'); }}>
+            <FileText className="h-4 w-4 mr-2" />
+            Monthly (PDF)
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!!pdfBusy} onSelect={(e) => { e.preventDefault(); downloadPdf('yearly'); }}>
+            <FileText className="h-4 w-4 mr-2" />
+            Yearly (PDF)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* Off-screen capture node — always mounted so PNG export works instantly */}
       <div aria-hidden style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none' }}>
