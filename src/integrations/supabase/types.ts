@@ -25307,6 +25307,15 @@ export type Database = {
         }
         Returns: Json
       }
+      create_overdraft_recovery_advance: {
+        Args: {
+          p_actor_id?: string
+          p_shortfall: number
+          p_user_id: string
+          p_withdrawal_id: string
+        }
+        Returns: string
+      }
       create_pending_portfolio: {
         Args: {
           p_amount: number
