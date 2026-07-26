@@ -1072,7 +1072,7 @@ export function WalletStatement() {
               </div>
 
               {/* Date range presets */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Date range">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Date range">
                 {[
                   { value: 'all' as const, label: 'All time' },
                   { value: '7d' as const, label: '7d' },
@@ -1085,7 +1085,7 @@ export function WalletStatement() {
                     role="radio"
                     aria-checked={rangePreset === opt.value}
                     aria-label={`Filter to ${opt.label}`}
-                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
+                    className={`min-h-[34px] flex-1 basis-[3.5rem] rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       rangePreset === opt.value
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
