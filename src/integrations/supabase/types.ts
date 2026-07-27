@@ -25923,6 +25923,16 @@ export type Database = {
         }[]
       }
       get_agent_daily_missions: { Args: { p_agent_id?: string }; Returns: Json }
+      get_agent_directory_region_breakdown: {
+        Args: { _verified_only?: boolean }
+        Returns: {
+          active_30d: number
+          agent_count: number
+          district: string
+          region: string
+          verified_count: number
+        }[]
+      }
       get_agent_directory_rows: {
         Args: {
           _limit?: number

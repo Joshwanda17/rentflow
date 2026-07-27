@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import {
   Search, Users, Phone, MapPin, X, FileDown, Loader2,
-  ShieldCheck, Sparkles, Activity, ChevronLeft, ChevronRight,
+  ShieldCheck, Sparkles, Activity, ChevronLeft, ChevronRight, LayoutList, Map,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { useAgentCapacityMap } from '@/hooks/useAgentCapacityMap';
 import { AgentCapacityBadge } from './AgentCapacityBadge';
 import { AgentAvatar } from './AgentAvatar';
+import { AgentRegionBreakdown } from './AgentRegionBreakdown';
 
 interface AgentRow {
   id: string;
@@ -64,6 +65,7 @@ export function AgentDirectory() {
   const [page, setPage] = useState(0);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'region'>('list');
   const { toast } = useToast();
 
   // Debounce search (300ms) and reset page when search/sort/filter changes
@@ -172,6 +174,34 @@ export function AgentDirectory() {
         ))}
       </div>
 
+      {/* View mode toggle */}
+      <div className="flex items-center gap-1 rounded-full bg-muted/50 p-0.5 w-fit">
+        <button
+          onClick={() => setViewMode('list')}
+          className={cn(
+            'flex items-center gap-1 text-xs px-3 py-1.5 rounded-full transition-colors',
+            viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+          )}
+        >
+          <LayoutList className="h-3.5 w-3.5" />
+          List
+        </button>
+        <button
+          onClick={() => setViewMode('region')}
+          className={cn(
+            'flex items-center gap-1 text-xs px-3 py-1.5 rounded-full transition-colors',
+            viewMode === 'region' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+          )}
+        >
+          <Map className="h-3.5 w-3.5" />
+          By Region
+        </button>
+      </div>
+
+      {viewMode === 'region' ? (
+        <AgentRegionBreakdown verifiedOnly={verifiedOnly} />
+      ) : (
+      <>
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -366,6 +396,8 @@ export function AgentDirectory() {
             Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
           </Button>
         </div>
+      )}
+      </>
       )}
 
       <UserProfileDialog
