@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     // When true → skip the invite link email and instead immediately approve
     // the portfolio + send the standard Tenant Partnership Confirmation.
     // Only allowed for partners that currently have NO portfolios.
-    const directConfirmation = body?.direct_confirmation === true;
+    let directConfirmation = body?.direct_confirmation === true;
 
     if (!UUID.test(partnerId)) return json({ error: "Invalid partner ID" }, 400);
     if (!Number.isFinite(amount) || amount < 20000) return json({ error: "Amount must be at least UGX 20,000" }, 400);
@@ -125,6 +125,14 @@ Deno.serve(async (req) => {
     ]);
     if (!role && !existingPortfolio) {
       return json({ error: "Selected user is not a registered partner" }, 400);
+    }
+
+    // Auto-upgrade FIRST portfolio to direct confirmation: partner details
+    // were captured at funder-onboarding, so there is nothing for the partner
+    // to complete. Anything after the first portfolio still follows whatever
+    // the caller requested (invite by default).
+    if (!existingPortfolio) {
+      directConfirmation = true;
     }
 
     // Note: direct_confirmation is now allowed for ANY approved partner,
