@@ -46,6 +46,7 @@ import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
 import { AgentListingCampaignPanel } from './AgentListingCampaignPanel';
 import { DailyRentReport } from '@/components/reports/DailyRentReport';
 import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
+import { AgentOpsOverview } from './agent-ops-v2/AgentOpsOverview';
 import { Badge } from '@/components/ui/badge';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
@@ -283,12 +284,12 @@ export function AgentOpsDashboard() {
 
   // Grouped sections for the "More" tab (mobile dropdown + grid)
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
-    { title: '👥 Agent Network', keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
-    { title: '🧩 Operations', keys: ['trust-capture', 'pipeline', 'escalations', 'tasks', 'connector'] },
+    { title: '📊 Overview', keys: ['brief', 'alerts'] },
+    { title: '👥 Agents', keys: ['directory', 'lifecycle', 'performance', 'leaderboard', 'sub-agents', 'service-centres', 'promote-tenant', 'bulk-ops', 'feature-flags'] },
+    { title: '🧭 Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'listing-campaign', 'trust-capture', 'tasks', 'escalations', 'connector'] },
+    { title: '💵 Finance', keys: ['balances', 'float-payouts', 'earnings', 'transfers', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: '💰 Advances', keys: ['advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments'] },
-    { title: '🏢 Business', keys: ['service-centres', 'transfers', 'locked-transfers', 'float-payouts'] },
-    { title: '📊 Insights', keys: ['leaderboard', 'listing-campaign', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
-    { title: '🔗 System', keys: ['bulk-ops'] },
+    { title: '📄 Reports', keys: ['performance-report', 'allocation-report'] },
   ];
 
   // Main content region — sub-view when one is active, else the overview / more-grid.
@@ -306,13 +307,8 @@ export function AgentOpsDashboard() {
     </div>
   ) : bottomTab !== 'more' ? (
     <div className="space-y-4">
+      <AgentOpsOverview onOpenSection={handleOpenSection} />
       <AgentMonthlyKpis />
-      <AdvanceAnalyticsPanel />
-      <AgentOpsHomeView
-        range={dateRange}
-        onRangeChange={setDateRange}
-        onOpenSection={handleOpenSection}
-      />
       <AgentAdvanceRepaymentMonitor />
     </div>
   ) : (
