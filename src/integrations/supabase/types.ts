@@ -14530,6 +14530,45 @@ export type Database = {
           },
         ]
       }
+      partner_funding_backfill_log: {
+        Row: {
+          amount: number | null
+          detail: string | null
+          id: string
+          investor_id: string | null
+          portfolio_code: string | null
+          portfolio_id: string | null
+          run_at: string
+          status: string | null
+          wallet_after: number | null
+          wallet_before: number | null
+        }
+        Insert: {
+          amount?: number | null
+          detail?: string | null
+          id?: string
+          investor_id?: string | null
+          portfolio_code?: string | null
+          portfolio_id?: string | null
+          run_at?: string
+          status?: string | null
+          wallet_after?: number | null
+          wallet_before?: number | null
+        }
+        Update: {
+          amount?: number | null
+          detail?: string | null
+          id?: string
+          investor_id?: string | null
+          portfolio_code?: string | null
+          portfolio_id?: string | null
+          run_at?: string
+          status?: string | null
+          wallet_after?: number | null
+          wallet_before?: number | null
+        }
+        Relationships: []
+      }
       payment_tokens: {
         Row: {
           agent_id: string
