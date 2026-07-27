@@ -1,12 +1,12 @@
 import { createPortal } from 'react-dom';
-import { Home, Briefcase, Users, Wallet, MoreHorizontal } from 'lucide-react';
+import { LayoutDashboard, Users, Compass, Wallet, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type BottomTab = 'home' | 'pipeline' | 'agents' | 'finance' | 'more';
 
 const TABS: { key: BottomTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { key: 'home', label: 'Dashboard', icon: Home },
-  { key: 'pipeline', label: 'Pipeline', icon: Briefcase },
+  { key: 'home', label: 'Overview', icon: LayoutDashboard },
+  { key: 'pipeline', label: 'Field', icon: Compass },
   { key: 'agents', label: 'Agents', icon: Users },
   { key: 'finance', label: 'Finance', icon: Wallet },
   { key: 'more', label: 'More', icon: MoreHorizontal },
