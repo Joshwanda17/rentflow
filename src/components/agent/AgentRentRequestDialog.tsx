@@ -1709,11 +1709,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.');
       } else if (landlordCheck === 'missing') {
         errors.push('Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.');
-      } else if (landlordCheck === 'unverified') {
-        errors.push('Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.');
       } else if (landlordCheck === 'checking') {
         errors.push('Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.');
-      } else if (landlordCheck !== 'registered') {
+      } else if (landlordCheck !== 'registered' && landlordCheck !== 'unverified') {
         errors.push('Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.');
       }
       // The landlord's listed house MUST show photos. Block rent requests on
@@ -1774,11 +1772,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
       } else if (landlordCheck === 'missing') {
         map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
-      } else if (landlordCheck === 'unverified') {
-        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
       } else if (landlordCheck === 'checking') {
         map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
-      } else if (landlordCheck !== 'registered') {
+      } else if (landlordCheck !== 'registered' && landlordCheck !== 'unverified') {
         map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
       }
       if (selectedHouse && !listingHasRealPhoto(selectedHouse)) {
