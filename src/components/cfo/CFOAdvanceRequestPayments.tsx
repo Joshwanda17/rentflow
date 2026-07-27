@@ -24,6 +24,7 @@ import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, 
 import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
 import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
+import { AgentLocationBadge } from '@/components/ops/AgentLocationBadge';
 
 export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed?: () => void } = {}) {
   const { user } = useAuth();
