@@ -1,7 +1,14 @@
 // Partner Ops → approves a portfolio that was completed by the partner.
-// Flips 'pending_ops_approval' → 'active' and dispatches the standard
+// Debits the partner wallet for the portfolio amount, flips
+// 'pending_ops_approval' → 'active', and dispatches the standard
 // partnership-agreement email (existing template) so the partner receives
 // their final signed portfolio confirmation.
+//
+// Bug fix (2026-07-27): the invite flow previously activated portfolios
+// WITHOUT ever debiting the partner wallet — money stayed in the wallet
+// while the portfolio was live. Debit now happens here atomically before
+// status flips to 'active'. Idempotency key `portfolio-funding-<id>`
+// makes retries safe.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
@@ -47,6 +54,94 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
+    // Load the portfolio + partner up-front so we can debit the wallet
+    // BEFORE the RPC flips it to 'active'. This closes the historical
+    // bug where invite-flow portfolios were activated without any wallet
+    // deduction (see backfill list dated 2026-07-27).
+    const { data: preRow, error: preErr } = await admin
+      .from("investor_portfolios")
+      .select("id, investor_id, investment_amount, portfolio_code, status")
+      .eq("id", portfolioId).maybeSingle();
+    if (preErr) return json({ error: `Portfolio lookup failed: ${preErr.message}` }, 500);
+    if (!preRow) return json({ error: "Portfolio not found." }, 404);
+    if (!["pending_ops_approval", "awaiting_partner_details"].includes(String(preRow.status))) {
+      return json({ error: "This portfolio is not awaiting approval." }, 409);
+    }
+
+    const partnerId = String(preRow.investor_id);
+    const amount = Number(preRow.investment_amount);
+    const portfolioCode = String(preRow.portfolio_code || "");
+
+    // Skip re-debit if a partner_funding cash_out leg already exists for this
+    // portfolio (defensive against retries or historical funding paths).
+    const { data: existingDebit } = await admin
+      .from("general_ledger")
+      .select("id")
+      .eq("source_table", "investor_portfolios")
+      .eq("source_id", portfolioId)
+      .eq("category", "partner_funding")
+      .eq("direction", "cash_out")
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingDebit) {
+      // Strict balance check via the single source of truth.
+      const { data: strictAvailRaw, error: availErr } = await admin.rpc(
+        "get_user_available_balance",
+        { p_user_id: partnerId },
+      );
+      if (availErr) {
+        console.error("[approve-pending-portfolio] strict balance lookup failed:", availErr);
+        return json({ error: "Could not verify partner wallet balance. Please retry." }, 500);
+      }
+      const strictAvail = Number(strictAvailRaw ?? 0);
+      if (strictAvail < amount) {
+        return json({
+          error: `Insufficient partner wallet balance. Need UGX ${amount.toLocaleString()}, but only UGX ${strictAvail.toLocaleString()} is available. Top up the partner wallet before approving.`,
+        }, 400);
+      }
+
+      const idempotencyKey = `portfolio-funding-${portfolioId}`;
+      const { error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
+        idempotency_key: idempotencyKey,
+        entries: [
+          {
+            user_id: partnerId,
+            amount,
+            direction: "cash_out",
+            category: "partner_funding",
+            ledger_scope: "wallet",
+            recipient_type: "user",
+            description: `Wallet deduction for portfolio ${portfolioCode}`,
+            source_table: "investor_portfolios",
+            source_id: portfolioId,
+            reference_id: portfolioCode,
+            linked_party: "platform",
+          },
+          {
+            amount,
+            direction: "cash_in",
+            category: "partner_funding",
+            ledger_scope: "platform",
+            description: `Platform capital received for portfolio ${portfolioCode}`,
+            source_table: "investor_portfolios",
+            source_id: portfolioId,
+            reference_id: portfolioCode,
+            linked_party: partnerId,
+          },
+        ],
+      });
+      if (ledgerErr) {
+        console.error("[approve-pending-portfolio] wallet debit failed:", ledgerErr);
+        const msg = (ledgerErr as any).message || "unknown error";
+        return json({
+          error: `Wallet deduction failed: ${msg}. Portfolio was NOT activated.`,
+        }, 500);
+      }
+    } else {
+      console.log("[approve-pending-portfolio] Debit already posted for", portfolioId, "— skipping.");
+    }
+
     // RPC enforces the Ops-role gate + status transition atomically.
     const { error: rpcErr } = await userClient.rpc("approve_pending_portfolio", {
       p_portfolio_id: portfolioId,
@@ -56,7 +151,7 @@ Deno.serve(async (req) => {
       if (msg.includes("NOT_AUTHORIZED")) return json({ error: "Only Partner Operations can approve portfolios." }, 403);
       if (msg.includes("INVALID_STATUS")) return json({ error: "This portfolio is not awaiting approval." }, 409);
       if (msg.includes("PORTFOLIO_NOT_FOUND")) return json({ error: "Portfolio not found." }, 404);
-      return json({ error: `Could not approve portfolio: ${msg}` }, 500);
+      return json({ error: `Wallet was debited but portfolio activation failed: ${msg}. Contact operations.` }, 500);
     }
 
     // Fetch portfolio + partner for the final email.
