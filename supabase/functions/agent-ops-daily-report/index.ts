@@ -476,19 +476,19 @@ function buildReceivablesSection(r: Report): string {
   const totalNext90 = r.receivables.horizons.find((h) => h.days === 90)?.totalDue ?? 0;
 
   return `
-    <div style="background:#fef7ec;border:1px solid #f5d38a;border-radius:14px;padding:14px 16px;margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
+    <table role="presentation" style="width:100%;background:#fef7ec;border:1px solid #f5d38a;border-radius:14px;margin-bottom:18px;border-collapse:separate;">
+      <tr>
+        <td style="padding:14px 16px;vertical-align:top;">
           <h2 style="margin:0;font-size:17px;color:${PURPLE_DK};">Advance Repayments Receivable</h2>
           <p style="margin:4px 0 0;font-size:11px;color:#7a5a1a;">Projected inflows from ${r.receivables.activeAdvances.toLocaleString()} active agent advances · Total outstanding ${esc(fmtUGX(r.receivables.totalOutstanding))}</p>
-        </div>
-        <div style="text-align:right;">
+        </td>
+        <td style="padding:14px 16px;text-align:right;vertical-align:top;white-space:nowrap;">
           <div style="font-size:10px;color:#7a5a1a;text-transform:uppercase;letter-spacing:.4px;">Projected interest (90d)</div>
           <div style="font-size:20px;font-weight:800;color:${GREEN};">${esc(fmtUGX(totalInterestNext90))}</div>
           <div style="font-size:10px;color:#7a5a1a;">of ${esc(fmtUGX(totalNext90))} total collections</div>
-        </div>
-      </div>
-    </div>
+        </td>
+      </tr>
+    </table>
     <table style="width:100%;border-collapse:separate;border-spacing:0;margin-bottom:22px;">
       <tr>${cards}</tr>
     </table>
