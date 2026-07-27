@@ -615,6 +615,181 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Sticky bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky bottom-2 z-30 mt-3">
+          <div className="mx-auto max-w-3xl rounded-2xl border bg-background/95 backdrop-blur shadow-lg p-3 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 mr-auto">
+              <Layers className="h-4 w-4 text-primary" />
+              <div className="text-xs">
+                <p className="font-bold">{selectedIds.size} selected · {formatUGX(selectedTotal)}</p>
+                {hasFlaggedInSelection && (
+                  <p className="text-[10px] text-amber-600 font-medium">Some rows are above suggested / limit</p>
+                )}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => { setBulkAction('reject'); setBulkAckFlagged(false); }}
+              className="gap-1.5"
+            >
+              <XCircle className="h-3.5 w-3.5" /> Reject
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => { setBulkAction('approve_to_cfo'); setBulkAckFlagged(false); }}
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> Approve → CFO
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => { setBulkAction('approve_disburse'); setBulkAckFlagged(false); setBulkSkipReason(''); }}
+              className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              <Zap className="h-3.5 w-3.5" /> Approve &amp; disburse
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk confirm dialog */}
+      <AlertDialog
+        open={!!bulkAction}
+        onOpenChange={(open) => {
+          if (!open && !bulkRunning) {
+            setBulkAction(null);
+            setBulkAckFlagged(false);
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkAction === 'reject'
+                ? `Reject ${selectedRequests.length} advance request${selectedRequests.length === 1 ? '' : 's'}`
+                : bulkAction === 'approve_disburse'
+                  ? `Approve & disburse ${selectedRequests.length} advance${selectedRequests.length === 1 ? '' : 's'}`
+                  : `Send ${selectedRequests.length} advance${selectedRequests.length === 1 ? '' : 's'} to CFO`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === 'approve_disburse'
+                ? 'Skips the CFO stage — each agent wallet is credited and daily deductions start immediately.'
+                : bulkAction === 'reject'
+                  ? 'Each agent will see the rejection reason below.'
+                  : 'Each request will move to the CFO queue with the note below (if any).'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="max-h-56 overflow-y-auto rounded-lg border bg-muted/30 p-2 space-y-1">
+            {selectedRequests.map((r: any) => {
+              const amt = getEditedAmount(r);
+              const flagged = isFlagged(r);
+              return (
+                <div key={r.id} className="flex items-center justify-between text-[11px] py-1 px-1.5 rounded">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold truncate">{r.agent_full_name || 'Agent'}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{r.agent_phone || ''}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold">{formatUGX(amt)}</p>
+                    {flagged && (
+                      <p className="text-[10px] text-amber-600 inline-flex items-center gap-1">
+                        <AlertTriangle className="h-2.5 w-2.5" /> Above suggested/limit
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {bulkAction !== 'reject' && (
+            <div className="flex items-center justify-between text-xs mt-1 px-1">
+              <span className="text-muted-foreground">Combined total</span>
+              <span className="font-bold">{formatUGX(selectedTotal)}</span>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              {bulkAction === 'reject' ? 'Rejection reason (shown to agents)' : 'Shared decision note (optional)'}
+            </Label>
+            <Textarea
+              value={bulkNotes}
+              onChange={(e) => setBulkNotes(e.target.value)}
+              rows={2}
+              placeholder={bulkAction === 'reject' ? 'Reason applied to every rejected request…' : 'Applied to every approved request…'}
+              disabled={bulkRunning}
+            />
+          </div>
+
+          {bulkAction === 'approve_disburse' && (
+            <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
+              <p className="text-xs font-bold flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5 text-amber-600" />
+                Skip-CFO reason (required)
+              </p>
+              <Textarea
+                placeholder="Reason for skipping CFO for this batch (min 10 chars)…"
+                value={bulkSkipReason}
+                onChange={(e) => setBulkSkipReason(e.target.value)}
+                rows={2}
+                disabled={bulkRunning}
+              />
+            </div>
+          )}
+
+          {hasFlaggedInSelection && bulkAction !== 'reject' && (
+            <label className="flex items-start gap-2 cursor-pointer select-none text-[11px] mt-1">
+              <Checkbox
+                checked={bulkAckFlagged}
+                onCheckedChange={(v) => setBulkAckFlagged(!!v)}
+                className="mt-0.5"
+                disabled={bulkRunning}
+              />
+              <span>I've reviewed the flagged rows (above suggested or over current limit).</span>
+            </label>
+          )}
+
+          {bulkRunning && bulkProgress && (
+            <div className="rounded-md bg-muted p-2 text-[11px] flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Processing {bulkProgress.done} of {bulkProgress.total}…
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkRunning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                bulkRunning ||
+                (bulkAction === 'approve_disburse' && bulkSkipReason.trim().length < 10) ||
+                (bulkAction === 'reject' && bulkNotes.trim().length < 3) ||
+                (hasFlaggedInSelection && bulkAction !== 'reject' && !bulkAckFlagged)
+              }
+              onClick={(e) => { e.preventDefault(); runBulk(); }}
+              className={cn(
+                'text-white',
+                bulkAction === 'reject' && 'bg-red-600 hover:bg-red-700',
+                bulkAction === 'approve_to_cfo' && 'bg-emerald-600 hover:bg-emerald-700',
+                bulkAction === 'approve_disburse' && 'bg-amber-600 hover:bg-amber-700',
+              )}
+            >
+              {bulkRunning ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-1.5" /> Working…</>
+              ) : bulkAction === 'reject' ? (
+                <>Reject {selectedRequests.length}</>
+              ) : bulkAction === 'approve_disburse' ? (
+                <><Zap className="h-4 w-4 mr-1.5" /> Disburse {selectedRequests.length}</>
+              ) : (
+                <>Approve {selectedRequests.length}</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
