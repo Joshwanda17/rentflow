@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Users, ArrowRight, Calculator, Zap, Shield, ArrowLeft, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
