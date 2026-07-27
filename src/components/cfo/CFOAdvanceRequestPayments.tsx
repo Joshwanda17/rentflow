@@ -24,6 +24,7 @@ import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, 
 import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
 import { AgentAdvanceEvaluationDialog } from '@/components/agent/AgentAdvanceEvaluationDialog';
+import { AgentLocationBadge } from '@/components/ops/AgentLocationBadge';
 
 export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed?: () => void } = {}) {
   const { user } = useAuth();
@@ -77,7 +78,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advance_requests')
-        .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
+        .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone, region, district, sub_county, parish, village, city)')
         .in('status', ['pending', 'agent_ops_approved', 'cfo_approved', 'cfo_rejected'])
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -878,6 +879,16 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                           <span>{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</span>
                           {!isPending && !isCfoRejected && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
                         </p>
+                        <AgentLocationBadge
+                          req={{
+                            agent_region: profile?.region,
+                            agent_district: profile?.district,
+                            agent_sub_county: profile?.sub_county,
+                            agent_parish: profile?.parish,
+                            agent_village: profile?.village,
+                            agent_city: profile?.city,
+                          }}
+                        />
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-lg font-bold text-primary">{formatUGX(currentPrincipal)}</p>

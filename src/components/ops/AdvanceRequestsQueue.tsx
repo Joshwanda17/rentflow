@@ -29,6 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AgentLocationBadge } from '@/components/ops/AgentLocationBadge';
 import {
   AgentAdvanceEvaluationDialog,
   type PotentialInfo,
@@ -233,6 +234,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold truncate">{req.agent_full_name || 'Agent'}</p>
                     <p className="text-[10px] text-muted-foreground">{req.agent_phone || ''} • {format(new Date(req.created_at), 'MMM d, yyyy')}</p>
+                    <AgentLocationBadge req={req} />
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-base font-bold text-primary">{formatUGX(requested)}</p>
