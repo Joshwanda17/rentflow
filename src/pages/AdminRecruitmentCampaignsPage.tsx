@@ -314,7 +314,7 @@ export default function AdminRecruitmentCampaignsPage() {
           title="Performance by location"
           rows={analyticsQ.data?.by_location ?? []}
           columns={[
-            { key: "district", label: "District" },
+            { key: "district", label: "District", render: (r) => r.district ?? "—" },
             { key: "links", label: "Links", right: true },
             { key: "clicks", label: "Clicks", right: true },
             { key: "unique_clicks", label: "Unique", right: true },
