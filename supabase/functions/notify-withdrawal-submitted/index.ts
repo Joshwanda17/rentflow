@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     const { data: w, error: wErr } = await admin
       .from("withdrawal_requests")
-      .select("id, user_id, amount, payout_method, mobile_money_number")
+      .select("id, user_id, amount, payout_method, mobile_money_number, linked_party")
       .eq("id", withdrawalId)
       .maybeSingle();
     if (wErr || !w) {
@@ -99,8 +99,9 @@ Deno.serve(async (req) => {
 
     const reference = `REQ-${String(w.id).replace(/-/g, "").slice(0, 12).toUpperCase()}`;
     const message =
-      `WELILE: We received your withdrawal request of UGX ${amount.toLocaleString()} (${reference}). ` +
-      `Your funds will be released once approved. We'll text you again when the payout is on its way.`;
+      `WELILE: Withdrawal Processing. Your withdrawal request of UGX ${amount.toLocaleString()} ` +
+      `(${reference}) has been received and is being processed. ` +
+      `You'll be notified once the payment provider confirms delivery.`;
 
     const sent = await sendSMS(recipient, message, {
       admin,
@@ -111,7 +112,40 @@ Deno.serve(async (req) => {
       idempotencyKey: `withdrawal_submitted:${w.id}`,
     });
 
-    return new Response(JSON.stringify({ ok: true, sent }), {
+    // Proxy-partner processing SMS: for proxy withdrawals the requester is the
+    // agent, so the partner (linked_party) never got a submit notice. Send
+    // them their own "Processing" text so they know money is on the way but
+    // not yet confirmed by the payment provider.
+    let partnerSent: any = null;
+    const linkedParty = (w as any).linked_party as string | null;
+    if (linkedParty && linkedParty !== w.user_id) {
+      try {
+        const { data: partnerProfile } = await admin
+          .from("profiles")
+          .select("full_name, phone")
+          .eq("id", linkedParty)
+          .maybeSingle();
+        const partnerPhoneRaw = ((partnerProfile as any)?.phone || "").trim();
+        if (isUgandanPhone(partnerPhoneRaw)) {
+          const partnerMsg =
+            `WELILE: Withdrawal Processing. A payout of UGX ${amount.toLocaleString()} ` +
+            `(${reference}) has been initiated on your behalf by your authorized Welile agent. ` +
+            `You'll get a final confirmation once the payment provider confirms delivery.`;
+          partnerSent = await sendSMS(formatPhoneInternational(partnerPhoneRaw), partnerMsg, {
+            admin,
+            source: "withdrawal_submitted_partner",
+            reference_id: w.id,
+            recipient_user_id: linkedParty,
+            recipient_name: (partnerProfile as any)?.full_name ?? null,
+            idempotencyKey: `withdrawal_submitted_partner:${w.id}`,
+          });
+        }
+      } catch (e) {
+        console.warn("[notify-withdrawal-submitted] partner SMS failed:", e);
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true, sent, partnerSent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {

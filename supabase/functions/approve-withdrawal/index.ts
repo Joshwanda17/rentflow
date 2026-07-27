@@ -2740,8 +2740,8 @@ Deno.serve(async (req) => {
 
       const customerFirstName = (profile?.full_name || "").toString().trim().split(/\s+/)[0] || "Customer";
       const smsMsg =
-        `WELILE: Withdrawal Successful. Dear ${customerFirstName}, your cash withdrawal of ` +
-        `UGX ${amount.toLocaleString()} has been completed successfully.\n` +
+        `WELILE: Payment Received. Dear ${customerFirstName}, your payout of ` +
+        `UGX ${amount.toLocaleString()} has been confirmed by the payment provider and delivered successfully.\n` +
         `Transaction ID: ${refUpper}.` +
         `${recipientLine}` +
         `${bankLine}` +
