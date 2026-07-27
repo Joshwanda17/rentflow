@@ -109,8 +109,8 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         icon={<UserPlus className="h-6 w-6" strokeWidth={2.2} />}
         iconBg="bg-emerald-600 text-white"
         label="Add Tenant"
-        valueLabel="New tenant"
-        sub="Start a rent request"
+        valueLabel="Earn UGX 10,000"
+        sub="On landlord float disbursed"
       />
       )}
 
