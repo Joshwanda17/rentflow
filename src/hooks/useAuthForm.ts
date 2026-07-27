@@ -9,6 +9,7 @@ import { getLocationData } from '@/hooks/useGeolocation';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
 import { validateSignUp, validateFullName } from '@/lib/authValidation';
 import { roleToSlug } from '@/lib/roleRoutes';
+import { getStoredAttributionToken } from '@/lib/campaignAttribution';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -501,6 +502,7 @@ export function useAuthForm() {
     }
 
     const storedSignupSource = signupSourceState || sanitizeSignupSource((() => { try { return localStorage.getItem(SIGNUP_SOURCE_KEY); } catch { return null; } })());
+    const campaignAttributionToken = getStoredAttributionToken();
     // Effective intended role. The sub-agent recruiting link uses `?become=agent`
     // (not `?role=agent`), so also honour `become`/localStorage `become_role`.
     // Passing `intended_role='agent'` + a referrer is what lets the server-side
@@ -529,6 +531,7 @@ export function useAuthForm() {
           referrer_id: storedReferrerId || null,
           intended_role: effectiveIntendedRole || null,
           signup_source: storedSignupSource || null,
+          campaign_attribution_token: campaignAttributionToken || null,
         },
       });
       // When the edge function returns a non-2xx status, supabase-js sets `fnError`
