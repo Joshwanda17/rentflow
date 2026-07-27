@@ -440,6 +440,8 @@ export default function CFODashboardPage() {
         );
       case 'wallet-activities':
         return <CFOWalletActivities />;
+      case 'earnings-explainer':
+        return <EarningsExplainer role="cfo" />;
       case 'sms-log':
         return (
           <div className="space-y-6">
