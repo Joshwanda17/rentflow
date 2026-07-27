@@ -9503,6 +9503,8 @@ export type Database = {
           has_security: boolean | null
           has_water: boolean | null
           house_category: string
+          house_verified_bonus_paid: boolean
+          house_verified_bonus_paid_at: string | null
           id: string
           image_urls: string[] | null
           is_agent_caretaker: boolean | null
@@ -9559,6 +9561,8 @@ export type Database = {
           has_security?: boolean | null
           has_water?: boolean | null
           house_category?: string
+          house_verified_bonus_paid?: boolean
+          house_verified_bonus_paid_at?: string | null
           id?: string
           image_urls?: string[] | null
           is_agent_caretaker?: boolean | null
@@ -9615,6 +9619,8 @@ export type Database = {
           has_security?: boolean | null
           has_water?: boolean | null
           house_category?: string
+          house_verified_bonus_paid?: boolean
+          house_verified_bonus_paid_at?: string | null
           id?: string
           image_urls?: string[] | null
           is_agent_caretaker?: boolean | null
