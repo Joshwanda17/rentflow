@@ -3,9 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getVisitorId,
-  storeCampaignRef,
   createOrRefreshCampaignAttribution,
-  type CampaignRef,
+  purgeLegacyCampaignRef,
 } from "@/lib/campaignAttribution";
 
 type CampaignRedirectState =
@@ -22,13 +21,15 @@ export default function CampaignRedirect() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Sweep any legacy JSON attribution blob from older builds.
+      purgeLegacyCampaignRef();
       if (!code) {
         setState({ status: "invalid", message: "Missing campaign code." });
         return;
       }
       // Fire click record (best-effort) + create/refresh server-side attribution.
       const visitorId = getVisitorId();
-      const [clickRes, attrRes, resolveRes] = await Promise.all([
+      const [clickRes, , resolveRes] = await Promise.all([
         supabase.functions.invoke("campaign-click", {
           body: {
             short_code: code,
@@ -44,13 +45,7 @@ export default function CampaignRedirect() {
 
       const meta = (resolveRes.data ?? null) as {
         link_id?: string;
-        campaign_id?: string;
-        campaign_name?: string;
-        agent_id?: string;
         location_slug?: string;
-        location_display?: string;
-        district?: string;
-        selected_source?: string;
         status?: string;
         campaign_status?: string;
       } | null;
@@ -72,22 +67,6 @@ export default function CampaignRedirect() {
         return;
       }
 
-      const ref: CampaignRef = {
-        short_code: code,
-        campaign_id: meta.campaign_id!,
-        campaign_name: meta.campaign_name,
-        agent_id: meta.agent_id!,
-        location_slug: meta.location_slug ?? slug,
-        location_display: meta.location_display,
-        district: meta.district,
-        selected_source: meta.selected_source,
-        captured_at: Date.now(),
-        attribution_token:
-          (attrRes as { attribution_token?: string } | null)?.attribution_token,
-        locked: (attrRes as { locked?: boolean } | null)?.locked,
-      };
-      storeCampaignRef(ref);
-
       // Canonical slug redirect if user hand-edited the location in the URL
       if (meta.location_slug && meta.location_slug !== slug) {
         window.history.replaceState(
@@ -98,10 +77,11 @@ export default function CampaignRedirect() {
       }
 
       void clickRes; // click already recorded server-side (best effort)
-      // Attribution is already persisted server-side + first-party cookie +
-      // localStorage via storeCampaignRef(). Redirect to a CLEAN /auth so no
-      // internal identifiers leak into the URL. Auth.tsx restores the
-      // attribution via getStoredAttributionToken() / restoreAttributionFromToken.
+      // Attribution is already persisted server-side; the opaque token lives
+      // in a first-party cookie + localStorage recovery key
+      // (welile_campaign_attribution / welile_campaign_attribution_token).
+      // Redirect to a CLEAN /auth so no internal identifiers leak into the URL.
+      // Auth.tsx restores attribution via restoreAttributionFromToken().
       // Campaign links are recruitment funnels — force the Sign Up tab and
       // preselect the agent role so the visitor lands ready to register as a
       // sub-agent of the referring agent.
