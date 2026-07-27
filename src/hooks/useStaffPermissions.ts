@@ -29,7 +29,7 @@ export function useStaffPermissions() {
 
     // Also include dashboards matching the user's own roles
     // e.g. a user with 'ceo' role can always access 'ceo' dashboard
-    const roleDashboards = roles.filter(r => ['ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm'].includes(r));
+    const roleDashboards = roles.filter(r => ['ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr'].includes(r));
 
     const fetchPermissions = async () => {
       const { data } = await supabase
