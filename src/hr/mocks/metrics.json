@@ -1,0 +1,41 @@
+{
+
+  "metric_definitions": [
+
+    { "id": "met_001", "key": "on_time_completion_rate", "name": "On-time completion rate", "description": "Share of tasks completed on or before the due date in the period.", "department_id": null, "unit": "percent", "direction": "higher_is_better", "target_value": 90, "target_basis": "target", "period_type": "monthly", "source": "derived_task", "source_key": "on_time_completion_rate", "version": 1, "active": true, "created_at": "2026-07-01T09:00:00Z", "created_by_employee_id": "emp_001" },
+
+    { "id": "met_002", "key": "acceptance_lag_hours", "name": "Acceptance lag", "description": "Median hours between a task being assigned and acknowledged.", "department_id": null, "unit": "hours", "direction": "lower_is_better", "target_value": 8, "target_basis": "sla", "period_type": "monthly", "source": "derived_task", "source_key": "acceptance_lag_hours", "version": 1, "active": true, "created_at": "2026-07-01T09:00:00Z", "created_by_employee_id": "emp_001" },
+
+    { "id": "met_003", "key": "rework_rate", "name": "Rework rate", "description": "Share of submitted tasks returned at least once.", "department_id": null, "unit": "percent", "direction": "lower_is_better", "target_value": 10, "target_basis": "target", "period_type": "monthly", "source": "derived_task", "source_key": "rework_rate", "version": 1, "active": true, "created_at": "2026-07-01T09:00:00Z", "created_by_employee_id": "emp_001" },
+
+    { "id": "met_004", "key": "cycle_time_hours", "name": "Cycle time", "description": "Median hours between acknowledgement and submission.", "department_id": null, "unit": "hours", "direction": "lower_is_better", "target_value": null, "target_basis": "own_trend", "period_type": "monthly", "source": "derived_task", "source_key": "cycle_time_hours", "version": 1, "active": true, "created_at": "2026-07-01T09:00:00Z", "created_by_employee_id": "emp_001" },
+
+    { "id": "met_005", "key": "col_recovery_rate", "name": "Arrears recovery rate", "description": "Value recovered as a share of arrears assigned in the period.", "department_id": "dep_col", "unit": "percent", "direction": "higher_is_better", "target_value": 65, "target_basis": "target", "period_type": "monthly", "source": "manual_entry", "source_key": "manual", "version": 2, "active": true, "created_at": "2026-07-02T11:30:00Z", "created_by_employee_id": "emp_003" },
+
+    { "id": "met_006", "key": "col_promise_kept_rate", "name": "Promise-to-pay kept rate", "description": "Share of agreed payment plans honoured on schedule.", "department_id": "dep_col", "unit": "percent", "direction": "higher_is_better", "target_value": 70, "target_basis": "target", "period_type": "weekly", "source": "manual_entry", "source_key": "manual", "version": 1, "active": true, "created_at": "2026-07-02T11:45:00Z", "created_by_employee_id": "emp_003" }
+
+  ],
+
+  "metric_snapshots": [
+
+    { "id": "snp_001", "metric_definition_id": "met_001", "metric_definition_version": 1, "subject_type": "employee", "subject_id": "emp_002", "assignment_id": "asg_002", "period_type": "monthly", "period_start": "2026-06-01", "period_end": "2026-06-30", "value": 82, "target_value": 90, "attainment_pct": 91.1, "status": "locked", "computed_at": "2026-07-01T02:00:00Z", "inputs_snapshot": { "tasks_due": 11, "tasks_on_time": 9 }, "supersedes_snapshot_id": null, "correction_reason": null },
+
+    { "id": "snp_002", "metric_definition_id": "met_001", "metric_definition_version": 1, "subject_type": "employee", "subject_id": "emp_002", "assignment_id": "asg_002", "period_type": "monthly", "period_start": "2026-07-01", "period_end": "2026-07-31", "value": 75, "target_value": 90, "attainment_pct": 83.3, "status": "open", "computed_at": "2026-07-27T02:00:00Z", "inputs_snapshot": { "tasks_due": 8, "tasks_on_time": 6 }, "supersedes_snapshot_id": null, "correction_reason": null },
+
+    { "id": "snp_003", "metric_definition_id": "met_003", "metric_definition_version": 1, "subject_type": "employee", "subject_id": "emp_002", "assignment_id": "asg_002", "period_type": "monthly", "period_start": "2026-07-01", "period_end": "2026-07-31", "value": 25, "target_value": 10, "attainment_pct": 40.0, "status": "open", "computed_at": "2026-07-27T02:00:00Z", "inputs_snapshot": { "tasks_submitted": 4, "tasks_returned": 1 }, "supersedes_snapshot_id": null, "correction_reason": null },
+
+    { "id": "snp_004", "metric_definition_id": "met_005", "metric_definition_version": 2, "subject_type": "department", "subject_id": "dep_col", "assignment_id": null, "period_type": "monthly", "period_start": "2026-06-01", "period_end": "2026-06-30", "value": 58.4, "target_value": 65, "attainment_pct": 89.8, "status": "locked", "computed_at": "2026-07-01T02:00:00Z", "inputs_snapshot": { "arrears_assigned_ugx": 412000000, "recovered_ugx": 240608000 }, "supersedes_snapshot_id": null, "correction_reason": null },
+
+    { "id": "snp_005", "metric_definition_id": "met_005", "metric_definition_version": 2, "subject_type": "department", "subject_id": "dep_col", "assignment_id": null, "period_type": "monthly", "period_start": "2026-05-01", "period_end": "2026-05-31", "value": 61.2, "target_value": 65, "attainment_pct": 94.2, "status": "locked", "computed_at": "2026-06-01T02:00:00Z", "inputs_snapshot": { "arrears_assigned_ugx": 388000000, "recovered_ugx": 237456000 }, "supersedes_snapshot_id": "snp_099", "correction_reason": "Two late payments posted after month-end close; recomputed 3 Jun." }
+
+  ],
+
+  "performance_flags": [
+
+    { "id": "flg_001", "subject_type": "employee", "subject_id": "emp_002", "metric_definition_id": "met_003", "period_start": "2026-07-01", "period_end": "2026-07-31", "flag_type": "below_target", "severity": "watch", "narrative_text": "Rework rate is 25% against a 10% target this period: 1 of 4 submitted tasks was returned. The returned task (TSK-00003) was sent back for missing photo evidence on two visits and one tenant not visited.", "narrative_model": "mock-model-v0", "acknowledged_by_employee_id": null, "acknowledged_at": null, "created_at": "2026-07-27T02:05:00Z" },
+
+    { "id": "flg_002", "subject_type": "employee", "subject_id": "emp_005", "metric_definition_id": "met_001", "period_start": "2026-07-01", "period_end": "2026-07-31", "flag_type": "trend_improve", "severity": "info", "narrative_text": "On-time completion has risen for three consecutive periods, from 61% in May to 88% in July.", "narrative_model": "mock-model-v0", "acknowledged_by_employee_id": "emp_003", "acknowledged_at": "2026-07-27T08:10:00Z", "created_at": "2026-07-27T02:05:00Z" }
+
+  ]
+
+}
