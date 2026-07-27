@@ -25782,12 +25782,16 @@ export type Database = {
           houses_bonus: number
           houses_listed: number
           phone: string
+          promissory_bonus: number
+          promissory_notes: number
           registered_subagents: number
           rent_collected: number
           rent_requests: number
           requests_bonus: number
           stored_total_limit: number
           subagents_bonus: number
+          tenants_bonus: number
+          tenants_registered: number
           territory: string
           total_limit: number
           total_matched: number
