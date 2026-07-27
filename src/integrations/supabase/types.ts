@@ -24948,6 +24948,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      auto_upgrade_kyc_from_activity: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       award_agent_listing_campaign_bonus: {
         Args: { p_agent_id: string }
         Returns: Json
@@ -25667,6 +25671,7 @@ export type Database = {
         Returns: Json
       }
       ensure_depositor_profile: { Args: { p_user_id: string }; Returns: string }
+      evaluate_kyc_activity: { Args: { p_user_id: string }; Returns: Json }
       evaluate_kyc_upgrade_eligibility: {
         Args: { p_user_id: string }
         Returns: Json
