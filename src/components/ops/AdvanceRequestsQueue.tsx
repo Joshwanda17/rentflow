@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
   CheckCircle2, XCircle, Loader2, Clock, User, Info,
-  Users, ChevronRight, Target, AlertTriangle, Zap, MapPin,
+  Users, ChevronRight, Target, AlertTriangle, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
