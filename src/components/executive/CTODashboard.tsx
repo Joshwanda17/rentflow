@@ -22,6 +22,7 @@ import { CTOPasswordResetPanel } from '@/components/cto/CTOPasswordResetPanel';
 import PlatformControlsPanel from '@/components/cto/PlatformControlsPanel';
 import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
 import InviteMerchantAgentCard from '@/components/agent/InviteMerchantAgentCard';
+import MerchantInviteLinksManager from '@/components/agent/MerchantInviteLinksManager';
 import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
 import { SeoCoverageDashboard } from './SeoCoverageDashboard';
 import { SeoRedirectAuditPanel } from './SeoRedirectAuditPanel';
@@ -61,7 +62,7 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
     return <CTOAgentFreezePanel />;
   }
   if (activeTab === 'merchant-invites') {
-    return <InviteMerchantAgentCard />;
+    return <MerchantInviteLinksManager />;
   }
   if (activeTab === 'signup-log') {
     return <SignupSourceLogPanel />;
