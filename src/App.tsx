@@ -188,6 +188,10 @@ const VerificationRequestDetailPage = lazy(() => import('./pages/VerificationReq
 const PhantomDriftDetailPage = lazy(() => import('./pages/cfo/PhantomDriftDetail'));
 const COODashboardPage = lazy(() => import('./pages/coo/Dashboard'));
 const HRDashboardPage = lazy(() => import('./pages/hr/Dashboard'));
+const HRTasksPage = lazy(() => import('./hr/pages/Tasks'));
+const HRProductivityPage = lazy(() => import('./hr/pages/Productivity'));
+const HRRecruitmentPage = lazy(() => import('./hr/pages/Recruitment'));
+const HRMetricDefinitionsPage = lazy(() => import('./hr/pages/MetricDefinitions'));
 const HREmployeeProfilePage = lazy(() => import('./pages/hr/EmployeeProfile'));
 const DirectorDashboardPage = lazy(() => import('./pages/director/Dashboard'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/Dashboard'));
@@ -563,6 +567,10 @@ function AppRoutes() {
           <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'cto']}><CMODashboardPage /></RoleGuard>} />
           <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'cto']}><CRMDashboardPage /></RoleGuard>} />
           <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRDashboardPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRTasksPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/productivity" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRProductivityPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/recruitment" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRRecruitmentPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/metrics" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRMetricDefinitionsPage /></RoleGuard>} />
           <Route path="/hr/profiles/:userId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HREmployeeProfilePage /></RoleGuard>} />
           <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'employee']}><AdminDashboardPage /></RoleGuard>} />
           <Route path="/director/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']}><DirectorDashboardPage /></RoleGuard>} />

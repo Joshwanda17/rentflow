@@ -239,6 +239,15 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Requisitions', icon: ClipboardList, id: 'requisitions' },
       ],
     },
+    {
+      title: 'Performance & Hiring',
+      items: [
+        { label: 'Tasks', icon: ClipboardList, id: 'hr-tasks', route: '/hr/dashboard/tasks' },
+        { label: 'Productivity', icon: TrendingUp, id: 'hr-productivity', route: '/hr/dashboard/productivity' },
+        { label: 'Recruitment', icon: UserCheck, id: 'hr-recruitment', route: '/hr/dashboard/recruitment' },
+        { label: 'Metric Definitions', icon: Gauge, id: 'hr-metrics', route: '/hr/dashboard/metrics' },
+      ],
+    },
   ],
   super_admin: [
     {
