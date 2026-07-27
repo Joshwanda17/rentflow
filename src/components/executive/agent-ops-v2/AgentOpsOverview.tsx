@@ -218,6 +218,8 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         <KpiTile
           title="Total Agents"
           value={fmtNum(k.total_agents || 0)}
+          delta={pctDelta(k.total_agents || 0, k.total_agents_prev || 0)}
+          subtitle={`of ${fmtNum(k.total_users || 0)} users`}
           icon={Users}
           accent="bg-primary"
           onClick={() => onOpenSection('directory')}
@@ -227,6 +229,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Active Agents"
           value={fmtNum(k.active_agents_curr || 0)}
           delta={pctDelta(k.active_agents_curr || 0, k.active_agents_prev || 0)}
+          subtitle={`of ${fmtNum(k.total_agents || 0)} agents`}
           icon={Activity}
           accent="bg-emerald-600"
           spark={trendData.map((t) => t.activeAgents)}
@@ -237,6 +240,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="New Agents"
           value={fmtNum(k.new_agents_curr || 0)}
           delta={pctDelta(k.new_agents_curr || 0, k.new_agents_prev || 0)}
+          subtitle={`of ${fmtNum(k.total_agents || 0)} agents`}
           icon={UserPlus}
           accent="bg-sky-600"
           spark={trendData.map((t) => t.agents)}
