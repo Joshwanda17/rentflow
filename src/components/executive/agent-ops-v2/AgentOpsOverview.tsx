@@ -56,9 +56,10 @@ interface KpiTileProps {
   spark?: number[];
   onClick?: () => void;
   loading?: boolean;
+  subtitle?: string;
 }
 
-function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, loading }: KpiTileProps) {
+function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, loading, subtitle }: KpiTileProps) {
   const up = (delta ?? 0) >= 0;
   const sparkData = (spark || []).map((y, x) => ({ x, y }));
   return (
@@ -95,6 +96,9 @@ function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, load
         <Skeleton className="h-6 w-20" />
       ) : (
         <p className="text-lg sm:text-xl font-bold text-foreground leading-tight tabular-nums">{value}</p>
+      )}
+      {subtitle && !loading && (
+        <p className="text-[10px] text-muted-foreground line-clamp-1 tabular-nums">{subtitle}</p>
       )}
       <div className="h-8 -mx-1 -mb-1 mt-auto">
         {sparkData.length > 1 && (
@@ -214,6 +218,8 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         <KpiTile
           title="Total Agents"
           value={fmtNum(k.total_agents || 0)}
+          delta={pctDelta(k.total_agents || 0, k.total_agents_prev || 0)}
+          subtitle={`of ${fmtNum(k.total_users || 0)} users`}
           icon={Users}
           accent="bg-primary"
           onClick={() => onOpenSection('directory')}
@@ -223,6 +229,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="Active Agents"
           value={fmtNum(k.active_agents_curr || 0)}
           delta={pctDelta(k.active_agents_curr || 0, k.active_agents_prev || 0)}
+          subtitle={`of ${fmtNum(k.total_agents || 0)} agents`}
           icon={Activity}
           accent="bg-emerald-600"
           spark={trendData.map((t) => t.activeAgents)}
@@ -233,6 +240,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           title="New Agents"
           value={fmtNum(k.new_agents_curr || 0)}
           delta={pctDelta(k.new_agents_curr || 0, k.new_agents_prev || 0)}
+          subtitle={`of ${fmtNum(k.total_agents || 0)} agents`}
           icon={UserPlus}
           accent="bg-sky-600"
           spark={trendData.map((t) => t.agents)}
