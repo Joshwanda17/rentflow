@@ -39,23 +39,78 @@ Deno.serve(async (req) => {
       return json({ error: 'forbidden' }, 403);
     }
 
-    const body = await req.json() as { id: string; action: 'approve' | 'reject'; reason?: string };
+    const body = await req.json() as { id: string; action: 'approve' | 'reject'; reason?: string; amount?: number };
     if (!body?.id || !['approve', 'reject'].includes(body.action)) return json({ error: 'bad_request' }, 400);
     if (body.action === 'reject' && (!body.reason || body.reason.trim().length < 10)) {
       return json({ error: 'reason_required' }, 400);
     }
 
+    // Optional CFO amount override on approval
+    let overrideAmount: number | null = null;
+    if (body.action === 'approve' && body.amount != null) {
+      const n = Number(body.amount);
+      if (!Number.isFinite(n) || n <= 0) return json({ error: 'invalid_amount' }, 400);
+      overrideAmount = Math.round(n * 100) / 100;
+    }
+
     const patch = body.action === 'approve'
-      ? { status: 'approved', approved_by: userId, approved_at: new Date().toISOString(), rejection_reason: null }
+      ? {
+          status: 'approved',
+          approved_by: userId,
+          approved_at: new Date().toISOString(),
+          rejection_reason: null,
+          ...(overrideAmount != null ? { amount: overrideAmount } : {}),
+        }
       : { status: 'rejected', approved_by: userId, approved_at: new Date().toISOString(), rejection_reason: body.reason!.trim() };
 
     const { data: updated, error: upErr } = await admin
       .from('employee_requisitions')
       .update(patch)
       .eq('id', body.id)
-      .select('id, employee_email, employee_name, amount, currency, purpose')
+      .select('id, employee_email, employee_name, amount, currency, purpose, category')
       .single();
     if (upErr) throw upErr;
+
+    // On approval, credit the requester's wallet via CFO Direct Credit.
+    let creditError: string | null = null;
+    if (body.action === 'approve') {
+      try {
+        const { data: profile } = await admin
+          .from('profiles')
+          .select('id')
+          .ilike('email', updated.employee_email)
+          .maybeSingle();
+        if (!profile?.id) {
+          creditError = 'No user profile matches ' + updated.employee_email;
+        } else {
+          const { data: cc, error: ccErr } = await admin.functions.invoke('cfo-direct-credit', {
+            body: {
+              target_user_id: profile.id,
+              amount: Number(updated.amount),
+              operation: 'credit',
+              recipient_type: 'user',
+              wallet_category: 'payroll_expense',
+              platform_category: 'payroll_expense',
+              financial_impact: 'expense',
+              category_label: 'Employee Requisition',
+              sub_category: updated.category,
+              reason: `Requisition ${updated.id.slice(0, 8)}: ${updated.purpose}`,
+              manual_credit: true,
+            },
+          });
+          if (ccErr || (cc as { error?: string })?.error) {
+            creditError = (cc as { error?: string })?.error ?? ccErr?.message ?? 'credit_failed';
+          } else {
+            await admin
+              .from('employee_requisitions')
+              .update({ status: 'paid' })
+              .eq('id', body.id);
+          }
+        }
+      } catch (e) {
+        creditError = String((e as Error).message ?? e);
+      }
+    }
 
     // Audit
     try {
@@ -64,7 +119,9 @@ Deno.serve(async (req) => {
         table_name: 'employee_requisitions',
         record_id: body.id,
         performed_by: userId,
-        reason: body.action === 'approve' ? 'CFO approval via portal' : body.reason!.trim(),
+        reason: body.action === 'approve'
+          ? `CFO approval via portal (${updated.currency} ${Number(updated.amount).toLocaleString()})`
+          : body.reason!.trim(),
       } as never);
     } catch (_) { /* non-fatal */ }
 
@@ -81,7 +138,7 @@ Deno.serve(async (req) => {
       });
     } catch (_) { /* non-fatal */ }
 
-    return json({ ok: true }, 200);
+    return json({ ok: true, credit_error: creditError }, 200);
   } catch (e) {
     console.error('decide error', e);
     return json({ error: String((e as Error).message ?? e) }, 500);
