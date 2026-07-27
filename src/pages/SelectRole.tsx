@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import WelileLogo from '@/components/WelileLogo';
 import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
+import { attachCampaignIfPresent, getStoredAttributionToken } from '@/lib/campaignAttribution';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 
@@ -131,6 +132,9 @@ export default function SelectRole() {
 
     const { error } = await addRole(becomeRole);
     if (!error) {
+      if (becomeRole === 'agent' && getStoredAttributionToken()) {
+        await attachCampaignIfPresent();
+      }
       localStorage.removeItem('become_role');
       toast({
         title: 'Welcome!',
@@ -230,6 +234,10 @@ export default function SelectRole() {
         setIsLoading(false);
         return;
       }
+    }
+
+    if (selectedRoles.includes('agent') && getStoredAttributionToken()) {
+      await attachCampaignIfPresent();
     }
 
     // If this is a sub-agent signup, create the sub-agent relationship
