@@ -1835,11 +1835,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
       } else if (landlordCheck === 'missing') {
         map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
-      } else if (landlordCheck === 'unverified') {
-        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
       } else if (landlordCheck === 'checking') {
         map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
-      } else if (landlordCheck !== 'registered') {
+      } else if (landlordCheck !== 'registered' && landlordCheck !== 'unverified') {
         map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
       }
       if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
@@ -1859,11 +1857,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
       } else if (landlordCheck === 'missing') {
         map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
-      } else if (landlordCheck === 'unverified') {
-        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
       } else if (landlordCheck === 'checking') {
         map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
-      } else if (landlordCheck !== 'registered') {
+      } else if (landlordCheck !== 'registered' && landlordCheck !== 'unverified') {
         map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
       }
       if (selectedHouse && !listingHasRealPhoto(selectedHouse)) {
@@ -2362,7 +2358,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (isOutstanding) {
       if (!selectedLandlord) errors.push('Pick the landlord from the list');
       else if (landlordCheck === 'missing') errors.push('Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord.');
-      else if (landlordCheck === 'unverified') errors.push('Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.');
       else if (landlordCheck === 'checking') errors.push('Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.');
       if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
         errors.push('Type the rent amount');
@@ -2382,11 +2377,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.');
       } else if (landlordCheck === 'missing') {
         errors.push('Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.');
-      } else if (landlordCheck === 'unverified') {
-        errors.push('Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.');
       } else if (landlordCheck === 'checking') {
         errors.push('Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.');
-      } else if (landlordCheck !== 'registered') {
+      } else if (landlordCheck !== 'registered' && landlordCheck !== 'unverified') {
         errors.push('Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.');
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
@@ -2610,20 +2603,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           setDetailStep(2);
           return;
         }
-        // Hard gate: the landlord must be VERIFIED before a rent request can be
-        // posted. An unverified (newly registered) landlord must be verified by
-        // ops first.
-        if (!landlordRow.verified) {
-          const msg = 'This landlord is registered but not yet verified. They must be verified before you can post a rent request.';
-          setSubmissionError(msg);
-          toast.error('Landlord not verified', { description: msg });
-          setLoading(false);
-          setRequestState('idle');
-          submitLockRef.current = false;
-          setDetailStep(2);
-          return;
-        }
-        setLandlordVerifiedAtSubmit(true);
+        // Posting is allowed even if the landlord is not yet verified. The
+        // rent request stays pending until Landlord Ops verify the landlord,
+        // at which point the request is processed. We still fire a
+        // verification request (below/UI) so ops know to review this landlord.
+        setLandlordVerifiedAtSubmit(!!landlordRow.verified);
       } catch (lookupErr) {
         // A failed lookup (e.g. transient network) shouldn't silently pass the
         // registration gate. Stop and let the agent retry.
