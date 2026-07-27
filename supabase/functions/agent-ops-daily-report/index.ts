@@ -169,7 +169,7 @@ function nameOf(p: any): string {
 async function buildReport(
   admin: ReturnType<typeof createClient>,
   dateStr: string,
-): Promise<Report> {
+): Promise<Report & { activity: ActivityBlock }> {
   const { startISO, endISO } = eatDayBounds(dateStr);
 
   const [collectionsRes, advancesRes, depositsRes] = await Promise.all([
@@ -346,6 +346,103 @@ async function buildReport(
       activeAdvances: (activeAdvances ?? []).length,
       totalOutstanding: Math.round(totalOutstanding),
     },
+    activity: await buildActivityBlock(admin, startISO, endISO),
+  };
+}
+
+async function buildActivityBlock(
+  admin: ReturnType<typeof createClient>,
+  startISO: string,
+  endISO: string,
+): Promise<ActivityBlock> {
+  const countIn = async (
+    table: string,
+    dateCol: string,
+    extra?: (q: any) => any,
+  ): Promise<number> => {
+    let q: any = admin.from(table).select("id", { count: "exact", head: true })
+      .gte(dateCol, startISO).lt(dateCol, endISO);
+    if (extra) q = extra(q);
+    const { count, error } = await q;
+    if (error) {
+      console.warn(`[agent-ops-daily-report] count ${table}.${dateCol} failed:`, error.message);
+      return 0;
+    }
+    return count ?? 0;
+  };
+
+  const [
+    listingsCreated,
+    listingsVerified,
+    listingsRejected,
+    landlordsOnboarded,
+    landlordsVerified,
+    subAgentsRecruited,
+    subAgentsVerified,
+    campaignRegistrations,
+  ] = await Promise.all([
+    countIn("house_listings", "created_at"),
+    countIn("house_listings", "verified_at", (q) => q.eq("verified", true)),
+    countIn("house_listings", "updated_at", (q) => q.eq("status", "rejected")),
+    countIn("landlords", "created_at"),
+    countIn("landlords", "verified_at", (q) => q.eq("verified", true)),
+    countIn("agent_subagents", "created_at"),
+    countIn("agent_subagents", "verified_at"),
+    countIn("recruitment_campaign_registrations", "registered_at"),
+  ]);
+
+  // Field visits: count rows + unique agents
+  const { data: visits } = await admin
+    .from("agent_visits")
+    .select("agent_id")
+    .gte("created_at", startISO)
+    .lt("created_at", endISO);
+  const fieldVisits = (visits ?? []).length;
+  const visitingAgents = new Set((visits ?? []).map((v: any) => v.agent_id).filter(Boolean)).size;
+
+  // Landlord payouts settled today
+  const { data: payouts } = await admin
+    .from("landlord_payouts")
+    .select("amount")
+    .gte("updated_at", startISO)
+    .lt("updated_at", endISO)
+    .in("status", ["completed", "paid", "success"]);
+  const landlordPayoutsAmount = (payouts ?? []).reduce(
+    (s: number, p: any) => s + Number(p.amount ?? 0),
+    0,
+  );
+
+  // Advance repayments actually applied today
+  const { data: repay } = await admin
+    .from("agent_advance_ledger")
+    .select("amount_deducted, interest_accrued")
+    .gte("created_at", startISO)
+    .lt("created_at", endISO);
+  const advanceRepaymentsAmount = (repay ?? []).reduce(
+    (s: number, r: any) => s + Number(r.amount_deducted ?? 0),
+    0,
+  );
+  const advanceInterestAccrued = (repay ?? []).reduce(
+    (s: number, r: any) => s + Number(r.interest_accrued ?? 0),
+    0,
+  );
+
+  return {
+    listingsCreated,
+    listingsVerified,
+    listingsRejected,
+    landlordsOnboarded,
+    landlordsVerified,
+    subAgentsRecruited,
+    subAgentsVerified,
+    campaignRegistrations,
+    fieldVisits,
+    visitingAgents,
+    landlordPayoutsCount: (payouts ?? []).length,
+    landlordPayoutsAmount: Math.round(landlordPayoutsAmount),
+    advanceRepaymentsCount: (repay ?? []).length,
+    advanceRepaymentsAmount: Math.round(advanceRepaymentsAmount),
+    advanceInterestAccrued: Math.round(advanceInterestAccrued),
   };
 }
 
