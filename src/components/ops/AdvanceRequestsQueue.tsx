@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
   CheckCircle2, XCircle, Loader2, Clock, User, Info,
-  Users, ChevronRight, Target, AlertTriangle, Zap,
+  Users, ChevronRight, Target, AlertTriangle, Zap, MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
@@ -233,6 +233,7 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold truncate">{req.agent_full_name || 'Agent'}</p>
                     <p className="text-[10px] text-muted-foreground">{req.agent_phone || ''} • {format(new Date(req.created_at), 'MMM d, yyyy')}</p>
+                    <AgentLocationBadge req={req} />
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-base font-bold text-primary">{formatUGX(requested)}</p>
