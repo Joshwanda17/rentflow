@@ -327,6 +327,29 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         Tap a request to open the full evaluation — suggested vs requested, limit and performance.
       </p>
 
+      {requests.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-xs">
+            <Checkbox
+              checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+              onCheckedChange={toggleAll}
+            />
+            <span className="font-semibold">
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all for group review'}
+            </span>
+          </label>
+          {selectedIds.size > 0 && (
+            <button
+              type="button"
+              onClick={() => { setSelectedIds(new Set()); setBulkFailures({}); }}
+              className="text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {requests.map((req: any) => {
         const p = req.agent_id ? potentialMap[req.agent_id] : undefined;
         const requested = num(req.principal);
@@ -334,15 +357,31 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         const limit = p ? p.current_limit : 0;
         const overSuggested = p && requested > suggested;
         const overLimit = p && limit > 0 && requested > limit;
+        const isSel = selectedIds.has(req.id);
+        const failureMsg = bulkFailures[req.id];
         return (
-          <button
-            key={req.id}
-            onClick={() => setSelected(req)}
-            className="w-full text-left"
-          >
-            <Card className="overflow-hidden hover:border-primary/40 hover:shadow-md active:scale-[0.99] transition-all">
+          <div key={req.id} className="relative">
+            <button
+              onClick={() => setSelected(req)}
+              className="w-full text-left"
+            >
+            <Card className={cn(
+              'overflow-hidden hover:border-primary/40 hover:shadow-md active:scale-[0.99] transition-all',
+              isSel && 'border-primary ring-1 ring-primary/40',
+              failureMsg && 'border-red-500 ring-1 ring-red-400',
+            )}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
+                  <span
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleOne(req.id); }}
+                    className="flex items-center justify-center h-6 w-6 shrink-0"
+                  >
+                    <Checkbox
+                      checked={isSel}
+                      onCheckedChange={() => toggleOne(req.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </span>
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <User className="h-5 w-5 text-primary" />
                   </div>
@@ -400,9 +439,16 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                     </p>
                   )}
                 </div>
+                {failureMsg && (
+                  <div className="mt-2 flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/30 px-2 py-1.5 text-[10px] text-red-700 dark:text-red-400">
+                    <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>Last bulk run: {failureMsg}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          </button>
+            </button>
+          </div>
         );
       })}
 
