@@ -4,6 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle2, XCircle, ChevronDown, ChevronUp, Paperclip } from 'lucide-react';
 
@@ -42,6 +44,7 @@ export function EmployeeRequisitionQueuePanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [amountEdits, setAmountEdits] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
@@ -55,17 +58,28 @@ export function EmployeeRequisitionQueuePanel() {
 
   useEffect(() => { load(); }, [statusFilter]);
 
-  const decide = async (id: string, action: 'approve' | 'reject', reason?: string) => {
+  const decide = async (
+    id: string,
+    action: 'approve' | 'reject',
+    reason?: string,
+    amount?: number,
+  ) => {
     setBusyId(id);
     const { data, error } = await supabase.functions.invoke('requisition-decide', {
-      body: { id, action, reason },
+      body: { id, action, reason, amount },
     });
     setBusyId(null);
     if (error || (data as { error?: string })?.error) {
       toast.error((data as { error?: string })?.error ?? error?.message ?? 'Failed');
       return;
     }
-    toast.success(action === 'approve' ? 'Requisition approved' : 'Requisition rejected');
+    const creditErr = (data as { credit_error?: string | null })?.credit_error;
+    if (action === 'approve') {
+      if (creditErr) toast.warning(`Approved, but wallet credit failed: ${creditErr}`);
+      else toast.success('Approved — wallet credited');
+    } else {
+      toast.success('Requisition rejected');
+    }
     setExpanded(null);
     setRejectReason('');
     load();
@@ -149,6 +163,20 @@ export function EmployeeRequisitionQueuePanel() {
 
                     {r.status === 'pending' && (
                       <div className="space-y-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Approved amount ({r.currency})</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            step="1"
+                            value={amountEdits[r.id] ?? String(r.amount)}
+                            onChange={e => setAmountEdits(prev => ({ ...prev, [r.id]: e.target.value }))}
+                            className="h-9"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Requested: {r.currency} {Number(r.amount).toLocaleString()}. Edit before approving to credit a different amount.
+                          </p>
+                        </div>
                         <Textarea
                           rows={2}
                           placeholder="Rejection reason (required to reject, min 10 chars)"
@@ -156,7 +184,20 @@ export function EmployeeRequisitionQueuePanel() {
                           onChange={e => setRejectReason(e.target.value)}
                         />
                         <div className="flex gap-2">
-                          <Button size="sm" disabled={busyId === r.id} onClick={() => decide(r.id, 'approve')}>
+                          <Button
+                            size="sm"
+                            disabled={busyId === r.id}
+                            onClick={() => {
+                              const raw = amountEdits[r.id];
+                              const parsed = raw != null && raw !== '' ? Number(raw) : Number(r.amount);
+                              if (!Number.isFinite(parsed) || parsed <= 0) {
+                                toast.error('Enter a valid amount greater than 0');
+                                return;
+                              }
+                              const changed = Math.abs(parsed - Number(r.amount)) > 0.001;
+                              decide(r.id, 'approve', undefined, changed ? parsed : undefined);
+                            }}
+                          >
                             <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                           </Button>
                           <Button
