@@ -103,6 +103,16 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const [skipCfo, setSkipCfo] = useState(false);
   const [skipReason, setSkipReason] = useState('');
 
+  // ---- Bulk review state ---------------------------------------------------
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<null | 'approve_to_cfo' | 'approve_disburse' | 'reject'>(null);
+  const [bulkNotes, setBulkNotes] = useState('');
+  const [bulkSkipReason, setBulkSkipReason] = useState('');
+  const [bulkAckFlagged, setBulkAckFlagged] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkFailures, setBulkFailures] = useState<Record<string, string>>({});
+
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['advance-requests-queue', stage],
     queryFn: async () => {
