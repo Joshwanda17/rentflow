@@ -28184,20 +28184,36 @@ export type Database = {
         Args: { p_code: string; p_referrer?: string; p_user_agent?: string }
         Returns: undefined
       }
-      record_signup_attempt: {
-        Args: {
-          p_device_fp: string
-          p_email?: string
-          p_path: string
-          p_phone?: string
-          p_referrer?: string
-          p_user_agent?: string
-          p_utm_campaign?: string
-          p_utm_medium?: string
-          p_utm_source?: string
-        }
-        Returns: Json
-      }
+      record_signup_attempt:
+        | {
+            Args: {
+              p_device_fp: string
+              p_email?: string
+              p_path: string
+              p_phone?: string
+              p_referrer?: string
+              p_user_agent?: string
+              p_utm_campaign?: string
+              p_utm_medium?: string
+              p_utm_source?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_device_fp?: string
+              p_email?: string
+              p_ip?: string
+              p_path?: string
+              p_phone?: string
+              p_referrer?: string
+              p_user_agent?: string
+              p_utm_campaign?: string
+              p_utm_medium?: string
+              p_utm_source?: string
+            }
+            Returns: Json
+          }
       recover_agent_arrears_from_credit: {
         Args: {
           p_agent_id: string
