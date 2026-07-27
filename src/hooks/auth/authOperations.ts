@@ -5,6 +5,7 @@ import type { AppRole } from './types';
 import { beginOAuthFunnel, trackOAuthRedirected, trackOAuthError, completePendingOAuthFunnel } from '@/lib/oauthFunnel';
 import { revokeCurrentDevicePush } from '@/lib/webPush';
 import { preflightSignup, attachSignupUser } from '@/lib/signupGuard';
+import { getStoredAttributionToken } from '@/lib/campaignAttribution';
 
 // Maintenance lock removed 2026-05-08 — was silently returning a fake
 // "Welile is under maintenance" error on every sign-in / sign-up unless
@@ -29,6 +30,8 @@ export async function signUp(
   // non-empty string so the Postgres `handle_new_user` trigger persists it
   // verbatim into `profiles.signup_source` (it NULLIFs empty strings).
   const data: Record<string, unknown> = { full_name: fullName, phone, role };
+  const campaignAttributionToken = getStoredAttributionToken();
+  if (campaignAttributionToken) data.campaign_attribution_token = campaignAttributionToken;
   const trimmedSource = (signupSource ?? '').trim();
   if (trimmedSource) {
     data.signup_source = trimmedSource;
@@ -72,6 +75,8 @@ export async function signUpWithoutRole(email: string, password: string, fullNam
     referrer_id: referrerId || null,
     intended_role: intendedRole || null,
   };
+  const campaignAttributionToken = getStoredAttributionToken();
+  if (campaignAttributionToken) data.campaign_attribution_token = campaignAttributionToken;
   // Only include `signup_source` when it is a non-empty string so the Postgres
   // `handle_new_user` trigger persists it verbatim into `profiles.signup_source`
   // (it NULLIFs empty strings). This is what powers connector attribution,

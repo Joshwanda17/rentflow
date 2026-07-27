@@ -29,7 +29,7 @@ export default function CampaignRedirect() {
       }
       // Fire click record (best-effort) + create/refresh server-side attribution.
       const visitorId = getVisitorId();
-      const [clickRes, , resolveRes] = await Promise.all([
+      const [clickRes, attrMeta, resolveRes] = await Promise.all([
         supabase.functions.invoke("campaign-click", {
           body: {
             short_code: code,
@@ -42,6 +42,15 @@ export default function CampaignRedirect() {
         supabase.rpc("resolve_campaign_short_code", { p_short_code: code }),
       ]);
       if (cancelled) return;
+
+      if (attrMeta?.status === "ok" && attrMeta.referring_agent_id) {
+        try {
+          localStorage.setItem("referral_agent_id", attrMeta.referring_agent_id);
+          localStorage.setItem("become_role", "agent");
+        } catch {
+          // Server-side attribution token remains the source of truth.
+        }
+      }
 
       const meta = (resolveRes.data ?? null) as {
         link_id?: string;
