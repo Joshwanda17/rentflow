@@ -4,7 +4,9 @@
     { "id": "dep_sal", "name": "Sales", "code": "SAL", "head_employee_id": null, "active": true },
     { "id": "dep_cus", "name": "Customer Care", "code": "CUS", "head_employee_id": null, "active": true },
     { "id": "dep_fld", "name": "Field Operations", "code": "FLD", "head_employee_id": null, "active": true },
-    { "id": "dep_hr", "name": "People & Culture", "code": "HRP", "head_employee_id": "emp_001", "active": true }
+    { "id": "dep_hr", "name": "People & Culture", "code": "HRP", "head_employee_id": "emp_001", "active": true },
+    { "id": "dep_exe", "name": "Executive", "code": "EXE", "head_employee_id": "emp_006", "active": true },
+    { "id": "dep_eng", "name": "Engineering & Product", "code": "ENG", "head_employee_id": null, "active": true }
   ],
   "assignments": [
     { "id": "asg_001", "employee_id": "emp_001", "department_id": "dep_hr", "department_name": "People & Culture", "role_title": "Chief People Officer", "manager_employee_id": null, "employment_type": "permanent", "valid_from": "2025-02-01", "valid_to": null },
