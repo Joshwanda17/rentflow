@@ -4,11 +4,13 @@
 // 2) a direct-confirmation first portfolio that immediately debits the
 //    partner wallet, activates the portfolio, and sends the final confirmation.
 //
-// Invite mode: no wallet is debited. No ledger row is written. The portfolio
-// sits at status='awaiting_partner_details' until the partner completes it,
-// then flips to 'pending_ops_approval'. Ops approves via
-// approve-pending-portfolio, which flips it to 'active' and dispatches the
-// existing partnership-agreement email.
+// Invite mode: the partner wallet is ALWAYS debited at portfolio creation
+// (idempotency key `portfolio-funding-<id>`). The portfolio then sits at
+// status='awaiting_partner_details' until the partner completes it, then
+// flips to 'pending_ops_approval'. Ops approves via approve-pending-portfolio,
+// which flips it to 'active' and dispatches the existing partnership-agreement
+// email. approve-pending-portfolio detects the existing debit and skips
+// re-charging.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
@@ -131,7 +133,10 @@ Deno.serve(async (req) => {
     // for existing partners left wallets credited but never debited
     // (see backfill 2026-07-24 for ISAAC / PAMELA / Mbakureeba Joshua).
 
-    if (directConfirmation) {
+    // Strict balance check applies to BOTH invite and direct confirmation —
+    // we debit the wallet at creation in every path so money never sits in
+    // the wallet while a portfolio exists (even if pending partner details).
+    {
       const { data: strictAvailRaw, error: availErr } = await admin.rpc("get_user_available_balance", {
         p_user_id: partnerId,
       });
@@ -179,6 +184,66 @@ Deno.serve(async (req) => {
     const portfolioId = row?.portfolio_id;
     const portfolioCode = row?.portfolio_code;
 
+    // ── Debit partner wallet at creation ──────────────────────────────────
+    // Runs for BOTH invite and direct-confirmation branches, using the same
+    // idempotency key that approve-pending-portfolio checks for, so the later
+    // approval step becomes a no-op on the ledger side.
+    const fundingIdempotencyKey = `portfolio-funding-${portfolioId}`;
+    const fundingLedgerRes = await withRetry<unknown>(
+      "portfolio_funding_on_creation",
+      portfolioId,
+      () => admin.rpc("create_ledger_transaction", {
+        idempotency_key: fundingIdempotencyKey,
+        entries: [
+          {
+            user_id: partnerId,
+            amount,
+            direction: "cash_out",
+            category: "partner_funding",
+            ledger_scope: "wallet",
+            recipient_type: "user",
+            description: `Wallet deduction for portfolio ${portfolioCode}`,
+            source_table: "investor_portfolios",
+            source_id: portfolioId,
+            reference_id: portfolioCode,
+            linked_party: "platform",
+          },
+          {
+            amount,
+            direction: "cash_in",
+            category: "partner_funding",
+            ledger_scope: "platform",
+            description: `Platform capital received for portfolio ${portfolioCode}`,
+            source_table: "investor_portfolios",
+            source_id: portfolioId,
+            reference_id: portfolioCode,
+            linked_party: partnerId,
+          },
+        ],
+      }),
+    );
+    const fundingLedgerErr = fundingLedgerRes.error as { message?: string } | null;
+    if (fundingLedgerErr) {
+      console.error("[create-portfolio-invite] creation-time wallet debit failed:", fundingLedgerErr);
+      // Roll the pending portfolio back so we don't leave a phantom row.
+      await admin.from("investor_portfolios").delete().eq("id", portfolioId);
+      return json({
+        error: `Wallet deduction failed: ${fundingLedgerErr.message || "unknown error"}. Portfolio was not created.`,
+      }, 500);
+    }
+    const fundingTxGroupId = String(fundingLedgerRes.data || "");
+
+    // Mirror to wallet_transactions for the partner's activity feed.
+    const { error: wtErr } = await admin.from("wallet_transactions").insert({
+      sender_id: partnerId,
+      recipient_id: partnerId,
+      amount,
+      description: `Portfolio funded: ${portfolioCode}`,
+    });
+    if (wtErr && (wtErr as any).code !== "23505") {
+      console.warn("[create-portfolio-invite] wallet transaction insert failed:", wtErr);
+    }
+
     // Build the completion URL. Origin comes from the request so the same
     // function works in preview + production without extra config.
     const origin = req.headers.get("origin") || "https://welileapp.com";
@@ -198,58 +263,9 @@ Deno.serve(async (req) => {
         return json({ error: "Portfolio was created but could not be loaded for funding." }, 500);
       }
 
-      const idempotencyKey = `direct-confirmation-portfolio-funding-${portfolioId}`;
-      const ledgerRes = await withRetry<unknown>(
-        "direct_confirmation_portfolio_funding",
-        portfolioId,
-        () => admin.rpc("create_ledger_transaction", {
-          idempotency_key: idempotencyKey,
-          entries: [
-            {
-              user_id: partnerId,
-              amount,
-              direction: "cash_out",
-              category: "partner_funding",
-              ledger_scope: "wallet",
-              recipient_type: "user",
-              description: `Wallet deduction for first portfolio ${portfolioCode}`,
-              source_table: "investor_portfolios",
-              source_id: portfolioId,
-              reference_id: portfolioCode,
-              linked_party: "platform",
-            },
-            {
-              amount,
-              direction: "cash_in",
-              category: "partner_funding",
-              ledger_scope: "platform",
-              description: `Platform capital received for first portfolio ${portfolioCode}`,
-              source_table: "investor_portfolios",
-              source_id: portfolioId,
-              reference_id: portfolioCode,
-              linked_party: partnerId,
-            },
-          ],
-        }),
-      );
-
-      const ledgerErr = ledgerRes.error as { message?: string } | null;
-      if (ledgerErr) {
-        console.error("[create-portfolio-invite] direct confirmation ledger failed:", ledgerErr);
-        return json({ error: `Wallet deduction failed: ${ledgerErr.message || "unknown error"}. Portfolio was not activated.` }, 500);
-      }
-
-      const txGroupId = String(ledgerRes.data || "");
-
-      const { error: txErr } = await admin.from("wallet_transactions").insert({
-        sender_id: partnerId,
-        recipient_id: partnerId,
-        amount,
-        description: `Portfolio creation: ${portfolioCode}`,
-      });
-      if (txErr && (txErr as any).code !== "23505") {
-        console.warn("[create-portfolio-invite] wallet transaction insert failed:", txErr);
-      }
+      // Wallet debit already posted above at creation time (idempotency key
+      // `portfolio-funding-<id>`). Reuse its transaction group id for audit.
+      const txGroupId = fundingTxGroupId;
 
       const { error: approveErr } = await userClient.rpc("approve_pending_portfolio", {
         p_portfolio_id: portfolioId,
