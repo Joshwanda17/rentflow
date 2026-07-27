@@ -56,9 +56,10 @@ interface KpiTileProps {
   spark?: number[];
   onClick?: () => void;
   loading?: boolean;
+  subtitle?: string;
 }
 
-function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, loading }: KpiTileProps) {
+function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, loading, subtitle }: KpiTileProps) {
   const up = (delta ?? 0) >= 0;
   const sparkData = (spark || []).map((y, x) => ({ x, y }));
   return (
@@ -95,6 +96,9 @@ function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, load
         <Skeleton className="h-6 w-20" />
       ) : (
         <p className="text-lg sm:text-xl font-bold text-foreground leading-tight tabular-nums">{value}</p>
+      )}
+      {subtitle && !loading && (
+        <p className="text-[10px] text-muted-foreground line-clamp-1 tabular-nums">{subtitle}</p>
       )}
       <div className="h-8 -mx-1 -mb-1 mt-auto">
         {sparkData.length > 1 && (
