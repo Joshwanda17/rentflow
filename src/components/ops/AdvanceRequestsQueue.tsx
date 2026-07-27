@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
   CheckCircle2, XCircle, Loader2, Clock, User, Info,
-  Users, ChevronRight, Target, AlertTriangle, Zap,
+  Users, ChevronRight, Target, AlertTriangle, Zap, Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
