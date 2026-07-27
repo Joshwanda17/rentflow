@@ -878,6 +878,16 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                           <span>{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</span>
                           {!isPending && !isCfoRejected && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
                         </p>
+                        <AgentLocationBadge
+                          req={{
+                            agent_region: profile?.region,
+                            agent_district: profile?.district,
+                            agent_sub_county: profile?.sub_county,
+                            agent_parish: profile?.parish,
+                            agent_village: profile?.village,
+                            agent_city: profile?.city,
+                          }}
+                        />
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-lg font-bold text-primary">{formatUGX(currentPrincipal)}</p>
