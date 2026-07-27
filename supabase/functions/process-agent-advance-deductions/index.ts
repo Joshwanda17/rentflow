@@ -129,6 +129,52 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Ahead-of-schedule check: if the agent has already paid down more than
+      // the cumulative expected-to-date, skip today's deduction. They still
+      // appear on the daily report with status "ahead" (idempotency row).
+      {
+        const cycleDaysAhead = Number(advance.cycle_days) || 30;
+        const totalPayableAhead =
+          Number(advance.principal) + Number(advance.access_fee || 0);
+        const scheduledDailyAhead =
+          cycleDaysAhead > 0 ? Math.round(totalPayableAhead / cycleDaysAhead) : 0;
+        const issuedDate = new Date(issuedAtEAT + 'T00:00:00Z').getTime();
+        const todayDate = new Date(todayEAT + 'T00:00:00Z').getTime();
+        const daysElapsed = Math.max(
+          1,
+          Math.min(
+            cycleDaysAhead,
+            Math.floor((todayDate - issuedDate) / 86400000) + 1,
+          ),
+        );
+        const expectedToDate = Math.min(
+          totalPayableAhead,
+          scheduledDailyAhead * daysElapsed,
+        );
+        const paidToDate = Math.max(
+          0,
+          totalPayableAhead - Number(advance.outstanding_balance || 0),
+        );
+        if (paidToDate >= expectedToDate && Number(advance.outstanding_balance || 0) > 0) {
+          await supabase.from('agent_advance_ledger').insert({
+            advance_id: advance.id,
+            date: today,
+            opening_balance: Number(advance.outstanding_balance),
+            interest_accrued: 0,
+            amount_deducted: 0,
+            closing_balance: Number(advance.outstanding_balance),
+            deduction_status: 'ahead',
+          });
+          await notifyAgent(
+            advance.agent_id,
+            `WELILE: You are ahead on your advance repayment — no deduction today. Outstanding ${fmtUGX(advance.outstanding_balance)}.`,
+            'advance_ahead_skip',
+          );
+          skipped.push(advance.id);
+          continue;
+        }
+      }
+
       const advanceMonthlyRate = Number(advance.monthly_rate) || Number(advance.daily_rate) || DEFAULT_MONTHLY_RATE;
       const dailyInterestRate = Math.pow(1 + advanceMonthlyRate, 1 / 30) - 1;
 
