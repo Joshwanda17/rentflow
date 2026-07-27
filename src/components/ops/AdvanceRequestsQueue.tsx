@@ -197,6 +197,111 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
     return Number.isFinite(parsed) ? parsed : num(req.principal);
   };
 
+  // ---- Bulk helpers --------------------------------------------------------
+  const isFlagged = (req: any) => {
+    const p = req.agent_id ? potentialMap[req.agent_id] : undefined;
+    if (!p) return false;
+    const amt = getEditedAmount(req);
+    return amt > p.suggested_amount || (p.current_limit > 0 && amt > p.current_limit);
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = requests.length > 0 && selectedIds.size === requests.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(requests.map((r: any) => r.id)));
+  };
+
+  const selectedRequests = useMemo(
+    () => requests.filter((r: any) => selectedIds.has(r.id)),
+    [requests, selectedIds],
+  );
+  const selectedTotal = selectedRequests.reduce((s: number, r: any) => s + getEditedAmount(r), 0);
+  const hasFlaggedInSelection = selectedRequests.some(isFlagged);
+
+  async function processOne(req: any, action: 'approve_to_cfo' | 'approve_disburse' | 'reject'): Promise<void> {
+    if (!user?.id) throw new Error('Not authenticated');
+    const amt = getEditedAmount(req);
+    const note = bulkNotes.trim() || null;
+    if (action === 'approve_disburse') {
+      await disburseAgentAdvanceRequest({
+        req,
+        actorId: user.id,
+        principal: amt,
+        notes: note,
+        skipReason: bulkSkipReason.trim() || null,
+      });
+      return;
+    }
+    const updateData: any = {};
+    if (action === 'approve_to_cfo') {
+      updateData.status = config.nextStatus;
+      updateData[config.reviewerCol] = user.id;
+      updateData[config.reviewedAtCol] = new Date().toISOString();
+      if (note) updateData[config.notesCol] = note;
+      if (amt > 0 && amt !== num(req.principal)) updateData.principal = amt;
+    } else {
+      updateData.status = 'rejected';
+      updateData.rejection_reason = note || 'Bulk-rejected at agent ops stage';
+      updateData[config.reviewerCol] = user.id;
+      updateData[config.reviewedAtCol] = new Date().toISOString();
+    }
+    const { data, error } = await supabase
+      .from('agent_advance_requests')
+      .update(updateData)
+      .eq('id', req.id)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Blocked — status changed or permission denied');
+  }
+
+  async function runBulk() {
+    if (!bulkAction || selectedRequests.length === 0) return;
+    setBulkRunning(true);
+    setBulkFailures({});
+    setBulkProgress({ done: 0, total: selectedRequests.length });
+    let ok = 0;
+    const failures: Record<string, string> = {};
+    for (let i = 0; i < selectedRequests.length; i++) {
+      const req = selectedRequests[i];
+      try {
+        await processOne(req, bulkAction);
+        ok += 1;
+      } catch (err: any) {
+        failures[req.id] = err?.message || 'Failed';
+      }
+      setBulkProgress({ done: i + 1, total: selectedRequests.length });
+    }
+    const failedCount = Object.keys(failures).length;
+    setBulkFailures(failures);
+    if (failedCount === 0) {
+      toast.success(`${ok} request${ok === 1 ? '' : 's'} processed`);
+      setSelectedIds(new Set());
+      setBulkAction(null);
+      setBulkNotes('');
+      setBulkSkipReason('');
+      setBulkAckFlagged(false);
+    } else {
+      toast.warning(`${ok} succeeded · ${failedCount} failed — see highlighted rows`);
+      // Keep only failed rows selected so the operator can retry.
+      setSelectedIds(new Set(Object.keys(failures)));
+      setBulkAction(null);
+    }
+    setBulkRunning(false);
+    setBulkProgress(null);
+    queryClient.invalidateQueries({ queryKey: ['advance-requests-queue'] });
+    queryClient.invalidateQueries({ queryKey: ['advance-requests-reviewed'] });
+    queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+  }
+
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
