@@ -154,7 +154,11 @@ export async function restoreAttributionFromToken() {
     { p_token: token } as any,
   );
   if (error) return null;
-  const meta = data as { status?: string; attribution_token?: string } | null;
+  const meta = data as {
+    status?: string;
+    attribution_token?: string;
+    referring_agent_name?: string;
+  } | null;
   if (!meta) return null;
   if (meta.status !== "ok") {
     if (["invalid", "expired", "invalidated", "link_inactive", "campaign_inactive", "completed"].includes(meta.status || "")) {

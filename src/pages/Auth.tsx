@@ -47,6 +47,7 @@ export default function Auth() {
   const [hasCampaignAttribution, setHasCampaignAttribution] = useState<boolean>(
     () => !!getStoredAttributionToken(),
   );
+  const [referringAgentName, setReferringAgentName] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -57,7 +58,11 @@ export default function Auth() {
       }
       const res = await restoreAttributionFromToken().catch(() => null);
       if (cancelled) return;
-      setHasCampaignAttribution(!!res && (res as { status?: string }).status === 'ok');
+      const ok = !!res && (res as { status?: string }).status === 'ok';
+      setHasCampaignAttribution(ok);
+      setReferringAgentName(
+        ok ? ((res as { referring_agent_name?: string }).referring_agent_name ?? null) : null,
+      );
     })();
     return () => {
       cancelled = true;
@@ -457,10 +462,14 @@ export default function Auth() {
             <MessageCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-foreground">
-                You are joining through a Welile recruitment campaign
+                {referringAgentName
+                  ? `You are joining through Agent ${referringAgentName}`
+                  : 'You are joining through a Welile recruitment campaign'}
               </p>
               <p className="text-xs text-muted-foreground">
-                Your referring agent will be linked to you automatically after sign up.
+                {referringAgentName
+                  ? `${referringAgentName} will be linked as your referring agent automatically after sign up.`
+                  : 'Your referring agent will be linked to you automatically after sign up.'}
               </p>
             </div>
           </div>
