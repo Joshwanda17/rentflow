@@ -1,24 +1,25 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const STORAGE_KEY = "wr_campaign_ref";
+const LEGACY_STORAGE_KEY = "wr_campaign_ref";
 const TOKEN_KEY = "welile_campaign_attribution_token";
 const COOKIE_NAME = "welile_campaign_attribution";
 const VISITOR_KEY = "wr_visitor_id";
-const ATTR_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-export type CampaignRef = {
-  short_code: string;
-  campaign_id: string;
-  campaign_name?: string;
-  agent_id: string;
-  location_slug: string;
-  location_display?: string;
-  district?: string;
-  selected_source?: string;
-  captured_at: number;
-  attribution_token?: string;
-  locked?: boolean;
-};
+/**
+ * Remove any stale legacy attribution JSON blob that older builds may have
+ * written to localStorage. Attribution is server-authoritative; the client
+ * must only ever persist the opaque token (in a cookie + a mirrored
+ * localStorage recovery key) and an anonymous visitor id.
+ */
+export function purgeLegacyCampaignRef() {
+  try {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {}
+}
+
+// Run once at module load so every entry point that touches attribution
+// (CampaignRedirect, /auth, useAuth) transparently sweeps the legacy key.
+purgeLegacyCampaignRef();
 
 export function getVisitorId(): string {
   try {
@@ -75,34 +76,16 @@ function persistToken(token: string) {
   } catch {}
 }
 
-export function storeCampaignRef(ref: CampaignRef) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ref));
-    if (ref.attribution_token) persistToken(ref.attribution_token);
-  } catch {}
-}
-
-export function getStoredCampaignRef(): CampaignRef | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as CampaignRef;
-    // Expire after 30 days
-    if (Date.now() - (parsed.captured_at ?? 0) > ATTR_TTL_MS) {
-      localStorage.removeItem(STORAGE_KEY);
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * Clear all client-side attribution recovery state. The server row remains
+ * intact — this only removes the opaque token from cookie + localStorage and
+ * sweeps any residual legacy blob.
+ */
 export function clearCampaignRef() {
   try {
-    localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(TOKEN_KEY);
     clearCookie(COOKIE_NAME);
+    purgeLegacyCampaignRef();
   } catch {}
 }
 
@@ -222,52 +205,25 @@ export async function saveRegistrationDraft(params: {
  */
 export async function attachCampaignIfPresent(): Promise<void> {
   const token = getStoredAttributionToken();
-  // Prefer token-based completion (Phase Two path).
-  if (token) {
-    try {
-      const { data, error } = await supabase.rpc(
-        "complete_campaign_attribution" as any,
-        { p_token: token } as any,
-      );
-      if (!error) {
-        const status = (data as { status?: string } | null)?.status;
-        if (
-          status === "ok" ||
-          status === "already_completed" ||
-          status === "already_completed_other_user" ||
-          status === "already_attributed" ||
-          status === "self_referral_blocked" ||
-          status === "link_inactive" ||
-          status === "campaign_inactive" ||
-          status === "expired"
-        ) {
-          clearCampaignRef();
-          return;
-        }
-      }
-    } catch {
-      // fall through to legacy path
-    }
-  }
-  // Legacy path: short_code stored without attribution_token.
-  const ref = getStoredCampaignRef();
-  if (!ref) return;
+  if (!token) return;
   try {
-    const { data, error } = await supabase.rpc("attach_campaign_registration", {
-      p_short_code: ref.short_code,
-      p_visitor_id: getVisitorId(),
-    });
-    if (!error) {
-      const status = (data as { status?: string } | null)?.status;
-      if (
-        status === "ok" ||
-        status === "already_attributed" ||
-        status === "self_referral_blocked" ||
-        status === "link_inactive" ||
-        status === "campaign_inactive"
-      ) {
-        clearCampaignRef();
-      }
+    const { data, error } = await supabase.rpc(
+      "complete_campaign_attribution" as any,
+      { p_token: token } as any,
+    );
+    if (error) return;
+    const status = (data as { status?: string } | null)?.status;
+    if (
+      status === "ok" ||
+      status === "already_completed" ||
+      status === "already_completed_other_user" ||
+      status === "already_attributed" ||
+      status === "self_referral_blocked" ||
+      status === "link_inactive" ||
+      status === "campaign_inactive" ||
+      status === "expired"
+    ) {
+      clearCampaignRef();
     }
   } catch {
     // Silent — retry on next auth event
