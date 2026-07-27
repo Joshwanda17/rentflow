@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildPartnershipAgreementRequest, buildPartnerCompoundCreationRequest, dispatchTransactionalEmail, resolveManagedProxy } from "../_shared/partnership-emails.ts";
+import { buildPartnershipAgreementRequest, buildPartnerCompoundCreationRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
 import { withRetry } from "../_shared/rpcRetry.ts";
 import { isValidInvestmentAmount, MIN_INVESTMENT_ERROR } from "../_shared/investmentAmount.ts";
 
@@ -79,57 +79,20 @@ Deno.serve(async (req) => {
       .eq("user_id", body.partner_id).eq("role", "supporter").maybeSingle();
     if (!partnerRole) return json({ error: "Selected user is not a registered partner/supporter" }, 400);
 
-    // ── MANAGED-PROXY DEFAULT (operator selection wins) ──
-    // If the partner is managed by a proxy agent (is_managed_account=true) the
-    // proxy wallet is the *default* funding source. However, the Welile
-    // Operations operator explicitly chooses the funding wallet in the UI
-    // (partner-wallet card vs proxy-agent card). We MUST honour that explicit
-    // choice — when the operator selects the partner's own wallet, fund from
-    // the partner wallet; only fall back to the proxy wallet when the operator
-    // did not specify a valid source. Both paths are independently validated
-    // below (proxy assignment must be approved; wallet source must equal the
-    // partner), so respecting the selection cannot bypass any control.
-    const managedProxyForCreate = await resolveManagedProxy(adminClient, body.partner_id);
-    if (managedProxyForCreate) {
-      const operatorChosePartnerWallet =
-        body.payment_method === "wallet" && body.source_wallet_user_id === body.partner_id;
-      const operatorChoseProxyWallet =
-        body.payment_method === "proxy_agent" && body.source_wallet_user_id === managedProxyForCreate.agentId;
-
-      if (operatorChosePartnerWallet || operatorChoseProxyWallet) {
-        console.log(
-          `[coo-create-portfolio] Honouring operator wallet selection for managed partner=${body.partner_id}: ` +
-          `method=${body.payment_method} source=${body.source_wallet_user_id}`,
-        );
-      } else {
-        // Ambiguous / unspecified selection → default to the managed proxy wallet.
-        console.warn(
-          `[coo-create-portfolio] Managed-proxy default applied: partner=${body.partner_id} ` +
-          `defaulted payment_method=proxy_agent source=${managedProxyForCreate.agentId} ` +
-          `(was method=${body.payment_method} source=${body.source_wallet_user_id})`,
-        );
-        body.payment_method = "proxy_agent";
-        body.source_wallet_user_id = managedProxyForCreate.agentId;
-      }
+    // ── PORTFOLIO CREATION FUNDS ALWAYS COME FROM THE PARTNER WALLET ──
+    // Even when the partner is managed by a proxy agent, the principal for a
+    // NEW portfolio MUST be debited from the partner's own wallet — never the
+    // proxy agent's wallet. Proxy wallets are only involved in payout routing
+    // (ROI), not in funding portfolio creation. We force the source here so
+    // legacy UI paths that still send `proxy_agent` cannot debit the proxy.
+    if (body.payment_method !== "wallet" || body.source_wallet_user_id !== body.partner_id) {
+      console.warn(
+        `[coo-create-portfolio] Forcing partner-wallet funding: partner=${body.partner_id} ` +
+        `was method=${body.payment_method} source=${body.source_wallet_user_id}`,
+      );
     }
-
-    // If proxy_agent, validate the assignment is real & approved
-    if (body.payment_method === "proxy_agent") {
-      const { data: assignment } = await adminClient
-        .from("proxy_agent_assignments")
-        .select("agent_id")
-        .eq("beneficiary_id", body.partner_id)
-        .eq("agent_id", body.source_wallet_user_id)
-        .eq("is_active", true)
-        .eq("approval_status", "approved")
-        .maybeSingle();
-      if (!assignment) return json({ error: "No active proxy-agent assignment for this partner" }, 400);
-    } else {
-      // wallet path: source must equal partner
-      if (body.source_wallet_user_id !== body.partner_id) {
-        return json({ error: "Partner wallet source mismatch" }, 400);
-      }
-    }
+    body.payment_method = "wallet";
+    body.source_wallet_user_id = body.partner_id;
 
     // Check source wallet balance
     const { data: sourceWallet, error: walletErr } = await adminClient
