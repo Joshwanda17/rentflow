@@ -23662,11 +23662,17 @@ export type Database = {
       agent_advance_requests_privileged: {
         Row: {
           access_fee: number | null
+          agent_city: string | null
+          agent_district: string | null
           agent_full_name: string | null
           agent_id: string | null
           agent_ops_notes: string | null
           agent_ops_reviewed_at: string | null
+          agent_parish: string | null
           agent_phone: string | null
+          agent_region: string | null
+          agent_sub_county: string | null
+          agent_village: string | null
           approved_by_coo: string | null
           cfo_adjusted_rate: number | null
           cfo_approved_at: string | null
