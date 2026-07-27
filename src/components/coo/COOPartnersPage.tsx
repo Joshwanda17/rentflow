@@ -4435,7 +4435,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   onActionComplete?: () => void;
 }) {
   const [search, setSearch] = useState('');
-  const [rangeFilter, setRangeFilter] = useState<string>('7');
+  // Default to "today" so the dialog matches the Nearing-Payout card count
+  // (the card is strictly scoped to portfolios due today).
+  const [rangeFilter, setRangeFilter] = useState<string>('today');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | 'split' | null>>({});
   const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending' | 'completed' | 'split'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
@@ -4446,8 +4448,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [paymentStep, setPaymentStep] = useState<'list' | 'payment-options' | 'split-config'>('list');
   const [checkingManagedStep2, setCheckingManagedStep2] = useState(false);
   // Hide anyone whose ROI is already credited / pending this cycle so they can't
-  // be paid twice. Off by default; a toggle reveals them (read-only, no Pay btn).
-  const [showProcessed, setShowProcessed] = useState(false);
+  // be paid twice. ON by default so the visible count / PDF export match the
+  // Nearing-Payout card (which counts every portfolio due today regardless of
+  // processing state). Pay buttons are already disabled for processed rows.
+  const [showProcessed, setShowProcessed] = useState(true);
 
   // Split payout state
   const [splitCashAmount, setSplitCashAmount] = useState(0);
