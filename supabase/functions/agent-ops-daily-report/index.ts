@@ -144,6 +144,24 @@ interface Report {
   };
 }
 
+interface ActivityBlock {
+  listingsCreated: number;
+  listingsVerified: number;
+  listingsRejected: number;
+  landlordsOnboarded: number;
+  landlordsVerified: number;
+  subAgentsRecruited: number;
+  subAgentsVerified: number;
+  campaignRegistrations: number;
+  fieldVisits: number;
+  visitingAgents: number;
+  landlordPayoutsCount: number;
+  landlordPayoutsAmount: number;
+  advanceRepaymentsCount: number;
+  advanceRepaymentsAmount: number;
+  advanceInterestAccrued: number;
+}
+
 function nameOf(p: any): string {
   return (p?.full_name || "").trim() || "Unknown agent";
 }
@@ -151,7 +169,7 @@ function nameOf(p: any): string {
 async function buildReport(
   admin: ReturnType<typeof createClient>,
   dateStr: string,
-): Promise<Report> {
+): Promise<Report & { activity: ActivityBlock }> {
   const { startISO, endISO } = eatDayBounds(dateStr);
 
   const [collectionsRes, advancesRes, depositsRes] = await Promise.all([
@@ -328,6 +346,103 @@ async function buildReport(
       activeAdvances: (activeAdvances ?? []).length,
       totalOutstanding: Math.round(totalOutstanding),
     },
+    activity: await buildActivityBlock(admin, startISO, endISO),
+  };
+}
+
+async function buildActivityBlock(
+  admin: ReturnType<typeof createClient>,
+  startISO: string,
+  endISO: string,
+): Promise<ActivityBlock> {
+  const countIn = async (
+    table: string,
+    dateCol: string,
+    extra?: (q: any) => any,
+  ): Promise<number> => {
+    let q: any = admin.from(table).select("id", { count: "exact", head: true })
+      .gte(dateCol, startISO).lt(dateCol, endISO);
+    if (extra) q = extra(q);
+    const { count, error } = await q;
+    if (error) {
+      console.warn(`[agent-ops-daily-report] count ${table}.${dateCol} failed:`, error.message);
+      return 0;
+    }
+    return count ?? 0;
+  };
+
+  const [
+    listingsCreated,
+    listingsVerified,
+    listingsRejected,
+    landlordsOnboarded,
+    landlordsVerified,
+    subAgentsRecruited,
+    subAgentsVerified,
+    campaignRegistrations,
+  ] = await Promise.all([
+    countIn("house_listings", "created_at"),
+    countIn("house_listings", "verified_at", (q) => q.eq("verified", true)),
+    countIn("house_listings", "updated_at", (q) => q.eq("status", "rejected")),
+    countIn("landlords", "created_at"),
+    countIn("landlords", "verified_at", (q) => q.eq("verified", true)),
+    countIn("agent_subagents", "created_at"),
+    countIn("agent_subagents", "verified_at"),
+    countIn("recruitment_campaign_registrations", "registered_at"),
+  ]);
+
+  // Field visits: count rows + unique agents
+  const { data: visits } = await admin
+    .from("agent_visits")
+    .select("agent_id")
+    .gte("created_at", startISO)
+    .lt("created_at", endISO);
+  const fieldVisits = (visits ?? []).length;
+  const visitingAgents = new Set((visits ?? []).map((v: any) => v.agent_id).filter(Boolean)).size;
+
+  // Landlord payouts settled today
+  const { data: payouts } = await admin
+    .from("landlord_payouts")
+    .select("amount")
+    .gte("updated_at", startISO)
+    .lt("updated_at", endISO)
+    .in("status", ["completed", "paid", "success"]);
+  const landlordPayoutsAmount = (payouts ?? []).reduce(
+    (s: number, p: any) => s + Number(p.amount ?? 0),
+    0,
+  );
+
+  // Advance repayments actually applied today
+  const { data: repay } = await admin
+    .from("agent_advance_ledger")
+    .select("amount_deducted, interest_accrued")
+    .gte("created_at", startISO)
+    .lt("created_at", endISO);
+  const advanceRepaymentsAmount = (repay ?? []).reduce(
+    (s: number, r: any) => s + Number(r.amount_deducted ?? 0),
+    0,
+  );
+  const advanceInterestAccrued = (repay ?? []).reduce(
+    (s: number, r: any) => s + Number(r.interest_accrued ?? 0),
+    0,
+  );
+
+  return {
+    listingsCreated,
+    listingsVerified,
+    listingsRejected,
+    landlordsOnboarded,
+    landlordsVerified,
+    subAgentsRecruited,
+    subAgentsVerified,
+    campaignRegistrations,
+    fieldVisits,
+    visitingAgents,
+    landlordPayoutsCount: (payouts ?? []).length,
+    landlordPayoutsAmount: Math.round(landlordPayoutsAmount),
+    advanceRepaymentsCount: (repay ?? []).length,
+    advanceRepaymentsAmount: Math.round(advanceRepaymentsAmount),
+    advanceInterestAccrued: Math.round(advanceInterestAccrued),
   };
 }
 
@@ -361,26 +476,63 @@ function buildReceivablesSection(r: Report): string {
   const totalNext90 = r.receivables.horizons.find((h) => h.days === 90)?.totalDue ?? 0;
 
   return `
-    <div style="background:#fef7ec;border:1px solid #f5d38a;border-radius:14px;padding:14px 16px;margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
+    <table role="presentation" style="width:100%;background:#fef7ec;border:1px solid #f5d38a;border-radius:14px;margin-bottom:18px;border-collapse:separate;">
+      <tr>
+        <td style="padding:14px 16px;vertical-align:top;">
           <h2 style="margin:0;font-size:17px;color:${PURPLE_DK};">Advance Repayments Receivable</h2>
           <p style="margin:4px 0 0;font-size:11px;color:#7a5a1a;">Projected inflows from ${r.receivables.activeAdvances.toLocaleString()} active agent advances · Total outstanding ${esc(fmtUGX(r.receivables.totalOutstanding))}</p>
-        </div>
-        <div style="text-align:right;">
+        </td>
+        <td style="padding:14px 16px;text-align:right;vertical-align:top;white-space:nowrap;">
           <div style="font-size:10px;color:#7a5a1a;text-transform:uppercase;letter-spacing:.4px;">Projected interest (90d)</div>
           <div style="font-size:20px;font-weight:800;color:${GREEN};">${esc(fmtUGX(totalInterestNext90))}</div>
           <div style="font-size:10px;color:#7a5a1a;">of ${esc(fmtUGX(totalNext90))} total collections</div>
-        </div>
-      </div>
-    </div>
+        </td>
+      </tr>
+    </table>
     <table style="width:100%;border-collapse:separate;border-spacing:0;margin-bottom:22px;">
       <tr>${cards}</tr>
     </table>
   `;
 }
 
-function buildHtml(r: Report, prettyDate: string): string {
+function buildActivitySection(a: ActivityBlock): string {
+  const row = (
+    label: string,
+    value: string,
+    sub?: string,
+    color = PURPLE_DK,
+  ) => `
+    <td style="padding:12px 10px;background:#faf7ff;border:1px solid #ece5fb;border-radius:10px;text-align:center;vertical-align:top;">
+      <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.4px;">${esc(label)}</div>
+      <div style="font-size:20px;font-weight:800;color:${color};margin-top:4px;">${esc(value)}</div>
+      ${sub ? `<div style="font-size:10px;color:#888;margin-top:3px;">${esc(sub)}</div>` : ""}
+    </td>`;
+  return `
+    <h2 style="font-size:15px;margin:22px 0 8px;color:${PURPLE_DK};">Agent activity today</h2>
+    <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:6px;">
+      <tr>
+        ${row("Houses listed", a.listingsCreated.toLocaleString())}
+        ${row("Houses verified", a.listingsVerified.toLocaleString(), undefined, GREEN)}
+        ${row("Houses rejected", a.listingsRejected.toLocaleString(), undefined, RED)}
+        ${row("Landlords added", a.landlordsOnboarded.toLocaleString())}
+      </tr>
+      <tr>
+        ${row("Landlords verified", a.landlordsVerified.toLocaleString(), undefined, GREEN)}
+        ${row("Sub-agents recruited", a.subAgentsRecruited.toLocaleString())}
+        ${row("Sub-agents verified", a.subAgentsVerified.toLocaleString(), undefined, GREEN)}
+        ${row("Campaign sign-ups", a.campaignRegistrations.toLocaleString(), undefined, SKY)}
+      </tr>
+      <tr>
+        ${row("Field visits", a.fieldVisits.toLocaleString(), `${a.visitingAgents.toLocaleString()} agents`)}
+        ${row("Landlord payouts", a.landlordPayoutsCount.toLocaleString(), fmtUGX(a.landlordPayoutsAmount), GREEN)}
+        ${row("Advance repayments", a.advanceRepaymentsCount.toLocaleString(), fmtUGX(a.advanceRepaymentsAmount), GREEN)}
+        ${row("Interest accrued", fmtUGX(a.advanceInterestAccrued), "on active advances", AMBER)}
+      </tr>
+    </table>
+  `;
+}
+
+function buildHtml(r: Report & { activity: ActivityBlock }, prettyDate: string): string {
   const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
 
   // Chart 1 — hourly collections (count + volume dual axis).
@@ -466,6 +618,8 @@ function buildHtml(r: Report, prettyDate: string): string {
         </tr>
       </table>
 
+      ${buildActivitySection(r.activity)}
+
       <div style="margin:22px 0;">
         <img src="${hourlyChart}" alt="Collections by hour" width="700" style="width:100%;max-width:700px;border:1px solid #eee;border-radius:8px;" />
       </div>
@@ -505,7 +659,7 @@ function buildHtml(r: Report, prettyDate: string): string {
   </body></html>`;
 }
 
-function buildText(r: Report, prettyDate: string): string {
+function buildText(r: Report & { activity: ActivityBlock }, prettyDate: string): string {
   const lines: string[] = [];
   lines.push(`Agent Ops Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
@@ -520,6 +674,16 @@ function buildText(r: Report, prettyDate: string): string {
   lines.push(`Rent collections: ${r.collectionsCount} (${fmtUGX(r.collectionsTotal)})`);
   lines.push(`Wallet deposits: ${r.depositsCount} (${fmtUGX(r.depositsTotal)})`);
   lines.push(`Advance requests: ${r.advancesCount} (pending ${r.advancesPending}, approved ${r.advancesApproved})`);
+  lines.push("");
+  const a = r.activity;
+  lines.push("== Agent activity ==");
+  lines.push(`Houses listed: ${a.listingsCreated} (verified ${a.listingsVerified}, rejected ${a.listingsRejected})`);
+  lines.push(`Landlords: ${a.landlordsOnboarded} added, ${a.landlordsVerified} verified`);
+  lines.push(`Sub-agents: ${a.subAgentsRecruited} recruited, ${a.subAgentsVerified} verified`);
+  lines.push(`Campaign sign-ups: ${a.campaignRegistrations}`);
+  lines.push(`Field visits: ${a.fieldVisits} (${a.visitingAgents} agents)`);
+  lines.push(`Landlord payouts: ${a.landlordPayoutsCount} (${fmtUGX(a.landlordPayoutsAmount)})`);
+  lines.push(`Advance repayments today: ${a.advanceRepaymentsCount} (${fmtUGX(a.advanceRepaymentsAmount)}) · interest accrued ${fmtUGX(a.advanceInterestAccrued)}`);
   lines.push("");
   lines.push("Per agent:");
   for (const a of r.perAgent) {
