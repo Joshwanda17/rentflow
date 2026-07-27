@@ -249,6 +249,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRole(null);
           setRolesWithRef([]);
           clearSessionCache();
+          // If the sign-out was triggered by an expired/invalid token (not by
+          // the user tapping "Sign out" — which navigates via ops.signOutUser),
+          // redirect immediately to /auth instead of leaving the user idle on
+          // a broken authenticated screen.
+          try {
+            const path = window.location.pathname;
+            const alreadyOnAuth = path.startsWith('/auth') || path === '/' || path.startsWith('/campaign');
+            if (!alreadyOnAuth) {
+              const next = window.location.pathname + window.location.search;
+              window.location.replace(`/auth?next=${encodeURIComponent(next)}&reason=session_expired`);
+            }
+          } catch { /* ignore */ }
         }
       },
     );
