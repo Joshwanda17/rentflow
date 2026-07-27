@@ -25153,6 +25153,10 @@ export type Database = {
         Args: { p_token: string }
         Returns: Json
       }
+      complete_campaign_attribution_for_user: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: Json
+      }
       complete_partner_portfolio: {
         Args: { p_portfolio_id: string; p_raw_token: string }
         Returns: string
