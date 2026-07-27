@@ -57,6 +57,7 @@ const MerchantClaimsLog = lz(() => import('./MerchantClaimsLog'), 'MerchantClaim
 const CashoutAgentManager = lz(() => import('@/components/cfo/CashoutAgentManager'), 'CashoutAgentManager');
 const MerchantFloatRequestsPanel = lz(() => import('@/components/cfo/MerchantFloatRequestsPanel'), 'MerchantFloatRequestsPanel');
 const ReceiptArchivePanel = lz(() => import('@/components/shared/ReceiptArchivePanel'), 'ReceiptArchivePanel');
+const EarningsExplainer = lz(() => import('@/components/shared/EarningsExplainer'), 'EarningsExplainer');
 const DepositBridgeHealthPanel = lz(() => import('@/components/bridge/DepositBridgeHealthPanel'), 'DepositBridgeHealthPanel');
 const OpportunitySummaryForm = lz(() => import('@/components/manager/OpportunitySummaryForm'), 'OpportunitySummaryForm');
 const AgentRequisitionForm = lz(() => import('./AgentRequisitionForm'), 'AgentRequisitionForm');
@@ -88,7 +89,8 @@ type Tool =
   | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log'
   | 'merchant_agents' | 'merchant_float' | 'receipt_archive'
   | 'employee_requisition_links' | 'employee_requisition_queue'
-  | 'bridge_health' | 'manual_float_credit';
+  | 'bridge_health' | 'manual_float_credit'
+  | 'earnings_explainer';
 // Extend Tool type via union above; add new tools:
 
 
@@ -102,6 +104,7 @@ type MoreAction =
   | { kind: 'view'; id: Exclude<View, 'home'>; label: string; desc: string; icon: typeof Gauge };
 
 const moreActions: MoreAction[] = [
+  { kind: 'tool', id: 'earnings_explainer', label: 'How Did They Earn?', desc: 'Plain-English breakdown of every UGX that landed in a user\u2019s wallet — grouped by source (commissions, deposits, ROI, payroll, corrections) with counts and samples.', icon: Sparkles },
   { kind: 'tool', id: 'bridge_health', label: 'Deposit Bridge Health', desc: 'Reliability of the queue between Financial Ops and the wallet ledger — pending, retries, DLQ, gap alerts', icon: Activity },
   { kind: 'tool', id: 'manual_float_credit', label: 'Manual Float Credit', desc: 'Credit an agent\u2019s float wallet from a MoMo SMS — TID, amount, date/time & depositor. TID is locked so late feeds cannot double-credit.', icon: Wallet },
   { kind: 'tool', id: 'receipt_archive', label: 'Receipt Archive', desc: 'Permanent record of every payout receipt — searchable, one URL per receipt', icon: Archive },
@@ -326,6 +329,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'cash_codes' && <CashDepositCodesPanel />}
         {activeTool === 'manual_float_credit' && <ManualFloatCreditPanel />}
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
+        {activeTool === 'earnings_explainer' && <EarningsExplainer role="finops" />}
         {activeTool === 'withdrawal_notif_log' && <WithdrawalNotificationLogPanel />}
         {activeTool === 'sms_delivery_log' && <SmsDeliveryLogPanel />}
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
@@ -395,7 +399,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Wallets & Users',
       items: moreActions.filter(a => [
-        'user_statements','funded_tenants','float_to_withdrawable',
+        'user_statements','earnings_explainer','funded_tenants','float_to_withdrawable',
         'momo_sms_template',
       ].includes(a.id as string)),
     },

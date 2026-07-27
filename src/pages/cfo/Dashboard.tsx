@@ -63,6 +63,7 @@ import { FieldCashExposureCard } from '@/components/cfo/FieldCashExposureCard';
 import { CFOAgentOpsFloatSender } from '@/components/cfo/CFOAgentOpsFloatSender';
 import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
+import { EarningsExplainer } from '@/components/shared/EarningsExplainer';
 import { AgentAllocationTracesPanel } from '@/components/cfo/AgentAllocationTracesPanel';
 import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionDriftPanel';
 import { DuplicateRoiCreditsPanel } from '@/components/cfo/DuplicateRoiCreditsPanel';
@@ -439,6 +440,8 @@ export default function CFODashboardPage() {
         );
       case 'wallet-activities':
         return <CFOWalletActivities />;
+      case 'earnings-explainer':
+        return <EarningsExplainer role="cfo" />;
       case 'sms-log':
         return (
           <div className="space-y-6">

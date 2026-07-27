@@ -63,6 +63,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Home', icon: BarChart3, id: 'overview' },
         { label: 'Send Money', icon: Wallet, id: 'wallet-payout' },
         { label: 'Wallet Activities', icon: ClipboardList, id: 'wallet-activities' },
+        { label: 'How Did They Earn?', icon: ClipboardList, id: 'earnings-explainer' },
         { label: 'Platform Impact', icon: Globe, id: 'platform-impact' },
         { label: 'Merchant Float Requests', icon: HandCoins, id: 'merchant-float' },
         { label: 'Request Funding (Director)', icon: HandCoins, id: 'requisitions' },
