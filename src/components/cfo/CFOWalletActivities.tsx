@@ -33,6 +33,11 @@ interface LedgerEntry {
 }
 
 const PAGE = 1000;
+const WITHDRAWAL_CATEGORIES = new Set([
+  'wallet_withdrawal',
+  'agent_commission_withdrawal',
+  'proxy_partner_withdrawal',
+]);
 
 export function CFOWalletActivities() {
   const [selectedUser, setSelectedUser] = useState<UserResult | null>(null);
@@ -96,6 +101,31 @@ export function CFOWalletActivities() {
   const netBalance = totalIn - totalOut;
   const hasFilters = directionFilter !== 'all' || dateFrom || dateTo;
   const clearFilters = () => { setDirectionFilter('all'); setDateFrom(''); setDateTo(''); };
+
+  // Since-last-withdrawal tracker: `entries` is desc by date, so the first
+  // withdrawal we find is the most recent. Everything BEFORE it in the array
+  // (i.e. more recent) is post-withdrawal activity.
+  const sinceLastWithdrawal = useMemo(() => {
+    const lastIdx = entries.findIndex(
+      e => e.direction === 'cash_out' && WITHDRAWAL_CATEGORIES.has(e.category),
+    );
+    if (lastIdx === -1) return null;
+    const last = entries[lastIdx];
+    const after = entries.slice(0, lastIdx); // newer than last withdrawal
+    const inSince = after
+      .filter(e => e.direction === 'cash_in')
+      .reduce((s, e) => s + Number(e.amount), 0);
+    const outSince = after
+      .filter(e => e.direction === 'cash_out')
+      .reduce((s, e) => s + Number(e.amount), 0);
+    return {
+      last,
+      countSince: after.length,
+      inSince,
+      outSince,
+      netSince: inSince - outSince,
+    };
+  }, [entries]);
 
   const exportPdf = async () => {
     if (!selectedUser || filteredEntries.length === 0) {
@@ -271,6 +301,54 @@ export function CFOWalletActivities() {
               <p className="text-lg font-bold">{filteredEntries.length}<span className="text-xs text-muted-foreground font-normal"> / {entries.length}</span></p>
             </CardContent></Card>
           </div>
+
+          {/* Since Last Withdrawal — track funds after the most recent payout,
+              instead of aggregating the entire ledger. */}
+          {!loading && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <ArrowUpRight className="h-4 w-4" /> Since Last Withdrawal
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {sinceLastWithdrawal ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Last withdrawal</p>
+                      <p className="text-sm font-semibold text-destructive">
+                        −{formatUGX(Number(sinceLastWithdrawal.last.amount))}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(parseISO(sinceLastWithdrawal.last.transaction_date), 'dd MMM yyyy HH:mm')}
+                      </p>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 mt-1">
+                        {sinceLastWithdrawal.last.category}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Credited since</p>
+                      <p className="text-sm font-bold text-success">{formatUGX(sinceLastWithdrawal.inSince)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Debited since</p>
+                      <p className="text-sm font-bold text-destructive">{formatUGX(sinceLastWithdrawal.outSince)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">
+                        Balance since ({sinceLastWithdrawal.countSince} entr{sinceLastWithdrawal.countSince === 1 ? 'y' : 'ies'})
+                      </p>
+                      <p className={`text-sm font-bold ${sinceLastWithdrawal.netSince >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {formatUGX(sinceLastWithdrawal.netSince)}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No withdrawal on record yet — nothing to anchor against.</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex justify-end">
             <Button onClick={exportPdf} disabled={exporting || loading || filteredEntries.length === 0} size="sm">
