@@ -659,7 +659,7 @@ function buildHtml(r: Report & { activity: ActivityBlock }, prettyDate: string):
   </body></html>`;
 }
 
-function buildText(r: Report, prettyDate: string): string {
+function buildText(r: Report & { activity: ActivityBlock }, prettyDate: string): string {
   const lines: string[] = [];
   lines.push(`Agent Ops Daily Report — ${prettyDate} (EAT)`);
   lines.push("");
@@ -674,6 +674,16 @@ function buildText(r: Report, prettyDate: string): string {
   lines.push(`Rent collections: ${r.collectionsCount} (${fmtUGX(r.collectionsTotal)})`);
   lines.push(`Wallet deposits: ${r.depositsCount} (${fmtUGX(r.depositsTotal)})`);
   lines.push(`Advance requests: ${r.advancesCount} (pending ${r.advancesPending}, approved ${r.advancesApproved})`);
+  lines.push("");
+  const a = r.activity;
+  lines.push("== Agent activity ==");
+  lines.push(`Houses listed: ${a.listingsCreated} (verified ${a.listingsVerified}, rejected ${a.listingsRejected})`);
+  lines.push(`Landlords: ${a.landlordsOnboarded} added, ${a.landlordsVerified} verified`);
+  lines.push(`Sub-agents: ${a.subAgentsRecruited} recruited, ${a.subAgentsVerified} verified`);
+  lines.push(`Campaign sign-ups: ${a.campaignRegistrations}`);
+  lines.push(`Field visits: ${a.fieldVisits} (${a.visitingAgents} agents)`);
+  lines.push(`Landlord payouts: ${a.landlordPayoutsCount} (${fmtUGX(a.landlordPayoutsAmount)})`);
+  lines.push(`Advance repayments today: ${a.advanceRepaymentsCount} (${fmtUGX(a.advanceRepaymentsAmount)}) · interest accrued ${fmtUGX(a.advanceInterestAccrued)}`);
   lines.push("");
   lines.push("Per agent:");
   for (const a of r.perAgent) {
