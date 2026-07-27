@@ -1,54 +1,48 @@
-# Group Review & Approval for Agent Advances
+## Goal
+Turn the current `/welcome` (Landing.tsx) into a swipeable onboarding that briefly explains Welile's four core roles — **Tenant**, **Funder/Supporter**, **Agent**, **Landlord** — before a user picks one and continues to auth.
 
-Give the Agent Ops manager a way to select multiple pending advance requests in the queue and act on them in one go — bulk approve (send to CFO), bulk reject, or bulk approve + disburse immediately (skip CFO), instead of opening each request one at a time.
+## Structure
 
-## Where it lives
+```text
+[ Slide 1 ] → [ Slide 2 ] → [ Slide 3 ] → [ Slide 4 ] → [ Role picker + Sign in ]
+  Tenant       Supporter      Agent         Landlord
+```
 
-`src/components/ops/AdvanceRequestsQueue.tsx` — the existing "Agent Advance Requests" list on the Agent Ops dashboard (`/executive-hub?tab=agent-ops`). No new route or tab; the same queue gains a selection mode.
+Each slide occupies the viewport with:
+- Logo (small, top)
+- Emoji/icon in gradient tile (reuses current color per role)
+- Role name + one-line promise (existing `intent` copy)
+- 2–3 short bullets explaining what that role does on Welile
+- Progress dots (1/4 … 4/4)
+- **Back** / **Next** buttons; **Skip** link top-right jumps to the final picker
 
-## User flow
+Final screen: the existing 4 role cards ("What do you need?") + "Sign in to your account" footer, so anyone who already knows their role can act immediately.
 
-1. Each request card gets a checkbox on the left. Tapping the card body still opens the existing per-request evaluation dialog (unchanged).
-2. A "Select all" checkbox at the top toggles every currently-listed request.
-3. When at least one request is selected, a sticky **Bulk action bar** appears at the bottom of the queue showing:
-   - Count selected and combined UGX total.
-   - Actions: **Approve & Send to CFO**, **Approve & Disburse Now**, **Reject**.
-4. Each action opens a confirmation dialog listing every selected agent, name, and requested amount, plus:
-   - A single shared **decision note / rejection reason** textbox (applied to all).
-   - For "Disburse Now": the mandatory skip-CFO reason textbox (same rule as today's single-item flow).
-   - For all: a warning summary if any selected request is over its suggested amount or over the agent's current limit — the row is highlighted in the list, and the operator has to tick "I've reviewed the flagged rows" before Confirm becomes enabled.
-5. On confirm, requests are processed **sequentially** (not in parallel) so wallet ledger writes stay ordered. A progress toast shows "Processing 3 of 12…". At the end a summary toast reports `X succeeded, Y failed`, and the failed rows stay selected with their error message shown inline so the operator can retry or open them individually.
+## Copy (brief, plain UGX-safe language)
 
-## Amounts
+- **Tenant** — "Move in today, pay daily." Get rent funded instantly · Pay small daily amounts · Build trust as you pay.
+- **Funder / Supporter** — "Earn monthly returns backing real tenants." Fund a tenant's rent · Earn monthly returns · Withdraw with 90-day notice.
+- **Agent** — "Earn cash by connecting landlords, houses and tenants." List houses & landlords · Post tenant rent requests · Earn commissions & bonuses.
+- **Landlord** — "Guaranteed rent, no chasing." List your house free · Get paid upfront by Welile · Tenants managed for you.
 
-Group approvals use each request's **currently-edited amount** (from the per-row `amounts` state if the operator opened it, otherwise the original `principal`). There is no bulk amount editor — bulk is for "these look right as-is". Anyone needing to change an amount uses the existing single-request dialog first, then includes it in the selection.
+## Behaviour
 
-## Permissions & safety
-
-- Bulk actions are only visible to the same roles that already see `AdvanceRequestsQueue` (Agent Ops / super admin / CTO — unchanged, no RLS or role change).
-- No new DB migration. Each item still goes through the existing single-item paths:
-  - Approve → CFO: same `agent_advance_requests` update the current `approveMutation` performs.
-  - Approve + Disburse: same `disburseAgentAdvanceRequest` helper in `src/lib/disburseAgentAdvance.ts` (which already handles the ledger, `agent_advances` row, and SMS).
-  - Reject: same `status = 'rejected'` update.
-- Idempotency is preserved because each disbursement is guarded by the existing `.in('status', ['pending', 'agent_ops_approved', 'cfo_approved'])` filter — a row that was already handled just fails cleanly and is reported in the failure list.
+- Route stays `/welcome`; still the public landing.
+- Onboarding shown once — persist `welile_onboarding_seen=true` in `localStorage` after reaching the picker or clicking Skip. Returning visitors land directly on the role-picker view (same layout as today) with a small "Replay intro" link.
+- Tapping a role on the final picker keeps current behavior: `navigate('/auth?role=<role>')`.
+- Keep `PublicHousesPreview`, "Try Rent Calculator" link, trust signals, and the Sign-in footer on the final picker view.
+- Remove PWA install banner and iOS install guide from this screen (they clutter onboarding); PWA install remains available elsewhere.
+- Animations via existing `framer-motion` (slide horizontal transition). Swipe gestures via `motion` drag on mobile; buttons always available.
+- SEO: keep `Helmet` block; update description to reflect onboarding.
 
 ## Technical notes
 
-- New local state in `AdvanceRequestsQueue`:
-  - `selectedIds: Set<string>`
-  - `bulkAction: 'approve_to_cfo' | 'approve_disburse' | 'reject' | null`
-  - `bulkNotes: string`, `bulkSkipReason: string`, `bulkAckFlagged: boolean`
-  - `bulkProgress: { done: number; total: number; failures: Array<{ id: string; agent: string; error: string }> } | null`
-- New helpers extracted from the existing `approveMutation` so both single and bulk paths call the same functions:
-  - `approveToCfo(req, note, amount)`
-  - `rejectRequest(req, reason)`
-  - `approveAndDisburse(req, note, skipReason, amount)` — thin wrapper over `disburseAgentAdvanceRequest`.
-- Bulk runner is a plain `async` loop with `for … of` + try/catch per item; on completion it invalidates the same query keys the current mutation invalidates (`advance-requests-queue`, `advance-requests-reviewed`, `cfo-advance-requests`).
-- Existing per-row checkbox import (`Checkbox` from `@/components/ui/checkbox`) is already in the file — no new UI dependencies.
-- Card click currently opens the evaluation dialog; we'll stop click propagation on the checkbox so ticking it doesn't also open the dialog.
+- Single file edit: `src/pages/Landing.tsx`. No new routes, no router changes.
+- New local component `RoleSlide` inside the file; reuse `intentOptions` array, extended with a `bullets: string[]` and `title` field.
+- State: `step: 0..4` (0–3 = slides, 4 = picker). Initialize to `4` if `localStorage.getItem('welile_onboarding_seen')` is truthy.
+- No backend, no schema, no new packages.
 
 ## Out of scope
 
-- No bulk amount editing.
-- No changes to the CFO-side queue (`CFOAdvanceRequestPayments.tsx`) — the CFO already reviews approved requests one-by-one; that stays as is unless you ask for it separately.
-- No DB migrations, no new edge functions, no schema changes.
+- Auth flow, role permissions, sign-up logic — unchanged.
+- Adding Partner/Merchant/staff roles (user confirmed only the four core roles).
