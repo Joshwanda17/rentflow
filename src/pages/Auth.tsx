@@ -484,6 +484,11 @@ export default function Auth() {
           <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between animate-in fade-in duration-200">
             <span className="text-sm font-medium text-foreground">
               Joining as <span className="font-bold">{roleLabelMap[preSelectedRole!] || preSelectedRole}</span>
+              {referringAgentName && (
+                <span className="block text-xs font-normal text-muted-foreground mt-0.5">
+                  through Agent <span className="font-semibold text-foreground">{referringAgentName}</span>
+                </span>
+              )}
             </span>
             <button type="button" onClick={() => navigate('/welcome')} className="text-xs text-primary hover:underline">
               Change
