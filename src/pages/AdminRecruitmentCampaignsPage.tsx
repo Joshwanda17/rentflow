@@ -372,6 +372,12 @@ export default function AdminRecruitmentCampaignsPage() {
           { key: "registrations", label: "Regs", right: true },
           { key: "sub_agents", label: "Sub-agents", right: true },
           { key: "qualified", label: "Qualified", right: true },
+          {
+            key: "conv",
+            label: "Click → Reg",
+            right: true,
+            render: (r) => pct(r.registrations, r.unique_clicks ?? r.clicks),
+          },
         ]}
       />
 
@@ -479,6 +485,40 @@ function PerfTable({
                 ))
               )}
             </tbody>
+            {rows.length > 0 && (
+              <tfoot className="bg-muted/30 font-semibold border-t">
+                <tr>
+                  {columns.map((c, idx) => {
+                    if (idx === 0) {
+                      return (
+                        <td key={c.key} className="px-3 py-2 text-left">
+                          Total
+                        </td>
+                      );
+                    }
+                    const sum = (key: string) =>
+                      rows.reduce((a, r) => a + Number(r[key] ?? 0), 0);
+                    let content: React.ReactNode = "";
+                    if (c.key === "conv") {
+                      const regs = sum("registrations");
+                      const denom =
+                        sum("unique_clicks") || sum("clicks");
+                      content = pct(regs, denom);
+                    } else if (c.right) {
+                      content = sum(c.key).toLocaleString();
+                    }
+                    return (
+                      <td
+                        key={c.key}
+                        className={`px-3 py-2 ${c.right ? "text-right" : "text-left"}`}
+                      >
+                        {content}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </CardContent>
