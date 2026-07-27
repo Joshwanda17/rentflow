@@ -17187,6 +17187,7 @@ export type Database = {
           id: string
           is_read: boolean
           label: string | null
+          ledger_group_id: string | null
           occurred_at: string
           recruiter_id: string
           source_id: string | null
@@ -17203,6 +17204,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           label?: string | null
+          ledger_group_id?: string | null
           occurred_at?: string
           recruiter_id: string
           source_id?: string | null
@@ -17219,6 +17221,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           label?: string | null
+          ledger_group_id?: string | null
           occurred_at?: string
           recruiter_id?: string
           source_id?: string | null
