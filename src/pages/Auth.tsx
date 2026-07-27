@@ -449,6 +449,23 @@ export default function Auth() {
 
         <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
 
+        {/* Recruitment-campaign banner. Shown when the visitor arrived via
+            /c/{district}/{shortCode} and their attribution token validated
+            server-side. No agent id / campaign id is revealed. */}
+        {hasCampaignAttribution && (
+          <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+            <MessageCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                You are joining through a Welile recruitment campaign
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Your referring agent will be linked to you automatically after sign up.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Role badge for signup */}
         {isSignUp && hasValidRole && (
           <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between animate-in fade-in duration-200">
