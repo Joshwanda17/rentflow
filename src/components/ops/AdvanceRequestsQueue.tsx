@@ -29,6 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AgentLocationBadge } from '@/components/ops/AgentLocationBadge';
 import {
   AgentAdvanceEvaluationDialog,
   type PotentialInfo,
