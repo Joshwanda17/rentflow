@@ -144,6 +144,24 @@ interface Report {
   };
 }
 
+interface ActivityBlock {
+  listingsCreated: number;
+  listingsVerified: number;
+  listingsRejected: number;
+  landlordsOnboarded: number;
+  landlordsVerified: number;
+  subAgentsRecruited: number;
+  subAgentsVerified: number;
+  campaignRegistrations: number;
+  fieldVisits: number;
+  visitingAgents: number;
+  landlordPayoutsCount: number;
+  landlordPayoutsAmount: number;
+  advanceRepaymentsCount: number;
+  advanceRepaymentsAmount: number;
+  advanceInterestAccrued: number;
+}
+
 function nameOf(p: any): string {
   return (p?.full_name || "").trim() || "Unknown agent";
 }
