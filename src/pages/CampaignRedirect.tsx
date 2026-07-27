@@ -102,7 +102,10 @@ export default function CampaignRedirect() {
       // localStorage via storeCampaignRef(). Redirect to a CLEAN /auth so no
       // internal identifiers leak into the URL. Auth.tsx restores the
       // attribution via getStoredAttributionToken() / restoreAttributionFromToken.
-      navigate(`/auth`, { replace: true });
+      // Campaign links are recruitment funnels — force the Sign Up tab and
+      // preselect the agent role so the visitor lands ready to register as a
+      // sub-agent of the referring agent.
+      navigate(`/auth?signup=1&role=agent`, { replace: true });
     })();
     return () => {
       cancelled = true;
