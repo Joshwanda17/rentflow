@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
   CheckCircle2, XCircle, Loader2, Clock, User, Info,
-  Users, ChevronRight, Target, AlertTriangle, Zap,
+  Users, ChevronRight, Target, AlertTriangle, Zap, Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
@@ -102,6 +102,16 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   const [confirm, setConfirm] = useState<{ id: string; amount: number; original: number } | null>(null);
   const [skipCfo, setSkipCfo] = useState(false);
   const [skipReason, setSkipReason] = useState('');
+
+  // ---- Bulk review state ---------------------------------------------------
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<null | 'approve_to_cfo' | 'approve_disburse' | 'reject'>(null);
+  const [bulkNotes, setBulkNotes] = useState('');
+  const [bulkSkipReason, setBulkSkipReason] = useState('');
+  const [bulkAckFlagged, setBulkAckFlagged] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkFailures, setBulkFailures] = useState<Record<string, string>>({});
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['advance-requests-queue', stage],
@@ -187,6 +197,111 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
     return Number.isFinite(parsed) ? parsed : num(req.principal);
   };
 
+  // ---- Bulk helpers --------------------------------------------------------
+  const isFlagged = (req: any) => {
+    const p = req.agent_id ? potentialMap[req.agent_id] : undefined;
+    if (!p) return false;
+    const amt = getEditedAmount(req);
+    return amt > p.suggested_amount || (p.current_limit > 0 && amt > p.current_limit);
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = requests.length > 0 && selectedIds.size === requests.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(requests.map((r: any) => r.id)));
+  };
+
+  const selectedRequests = useMemo(
+    () => requests.filter((r: any) => selectedIds.has(r.id)),
+    [requests, selectedIds],
+  );
+  const selectedTotal = selectedRequests.reduce((s: number, r: any) => s + getEditedAmount(r), 0);
+  const hasFlaggedInSelection = selectedRequests.some(isFlagged);
+
+  async function processOne(req: any, action: 'approve_to_cfo' | 'approve_disburse' | 'reject'): Promise<void> {
+    if (!user?.id) throw new Error('Not authenticated');
+    const amt = getEditedAmount(req);
+    const note = bulkNotes.trim() || null;
+    if (action === 'approve_disburse') {
+      await disburseAgentAdvanceRequest({
+        req,
+        actorId: user.id,
+        principal: amt,
+        notes: note,
+        skipReason: bulkSkipReason.trim() || null,
+      });
+      return;
+    }
+    const updateData: any = {};
+    if (action === 'approve_to_cfo') {
+      updateData.status = config.nextStatus;
+      updateData[config.reviewerCol] = user.id;
+      updateData[config.reviewedAtCol] = new Date().toISOString();
+      if (note) updateData[config.notesCol] = note;
+      if (amt > 0 && amt !== num(req.principal)) updateData.principal = amt;
+    } else {
+      updateData.status = 'rejected';
+      updateData.rejection_reason = note || 'Bulk-rejected at agent ops stage';
+      updateData[config.reviewerCol] = user.id;
+      updateData[config.reviewedAtCol] = new Date().toISOString();
+    }
+    const { data, error } = await supabase
+      .from('agent_advance_requests')
+      .update(updateData)
+      .eq('id', req.id)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Blocked — status changed or permission denied');
+  }
+
+  async function runBulk() {
+    if (!bulkAction || selectedRequests.length === 0) return;
+    setBulkRunning(true);
+    setBulkFailures({});
+    setBulkProgress({ done: 0, total: selectedRequests.length });
+    let ok = 0;
+    const failures: Record<string, string> = {};
+    for (let i = 0; i < selectedRequests.length; i++) {
+      const req = selectedRequests[i];
+      try {
+        await processOne(req, bulkAction);
+        ok += 1;
+      } catch (err: any) {
+        failures[req.id] = err?.message || 'Failed';
+      }
+      setBulkProgress({ done: i + 1, total: selectedRequests.length });
+    }
+    const failedCount = Object.keys(failures).length;
+    setBulkFailures(failures);
+    if (failedCount === 0) {
+      toast.success(`${ok} request${ok === 1 ? '' : 's'} processed`);
+      setSelectedIds(new Set());
+      setBulkAction(null);
+      setBulkNotes('');
+      setBulkSkipReason('');
+      setBulkAckFlagged(false);
+    } else {
+      toast.warning(`${ok} succeeded · ${failedCount} failed — see highlighted rows`);
+      // Keep only failed rows selected so the operator can retry.
+      setSelectedIds(new Set(Object.keys(failures)));
+      setBulkAction(null);
+    }
+    setBulkRunning(false);
+    setBulkProgress(null);
+    queryClient.invalidateQueries({ queryKey: ['advance-requests-queue'] });
+    queryClient.invalidateQueries({ queryKey: ['advance-requests-reviewed'] });
+    queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+  }
+
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
@@ -212,6 +327,29 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         Tap a request to open the full evaluation — suggested vs requested, limit and performance.
       </p>
 
+      {requests.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-xs">
+            <Checkbox
+              checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+              onCheckedChange={toggleAll}
+            />
+            <span className="font-semibold">
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all for group review'}
+            </span>
+          </label>
+          {selectedIds.size > 0 && (
+            <button
+              type="button"
+              onClick={() => { setSelectedIds(new Set()); setBulkFailures({}); }}
+              className="text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {requests.map((req: any) => {
         const p = req.agent_id ? potentialMap[req.agent_id] : undefined;
         const requested = num(req.principal);
@@ -219,15 +357,31 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         const limit = p ? p.current_limit : 0;
         const overSuggested = p && requested > suggested;
         const overLimit = p && limit > 0 && requested > limit;
+        const isSel = selectedIds.has(req.id);
+        const failureMsg = bulkFailures[req.id];
         return (
-          <button
-            key={req.id}
-            onClick={() => setSelected(req)}
-            className="w-full text-left"
-          >
-            <Card className="overflow-hidden hover:border-primary/40 hover:shadow-md active:scale-[0.99] transition-all">
+          <div key={req.id} className="relative">
+            <button
+              onClick={() => setSelected(req)}
+              className="w-full text-left"
+            >
+            <Card className={cn(
+              'overflow-hidden hover:border-primary/40 hover:shadow-md active:scale-[0.99] transition-all',
+              isSel && 'border-primary ring-1 ring-primary/40',
+              failureMsg && 'border-red-500 ring-1 ring-red-400',
+            )}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
+                  <span
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleOne(req.id); }}
+                    className="flex items-center justify-center h-6 w-6 shrink-0"
+                  >
+                    <Checkbox
+                      checked={isSel}
+                      onCheckedChange={() => toggleOne(req.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </span>
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <User className="h-5 w-5 text-primary" />
                   </div>
@@ -285,9 +439,16 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                     </p>
                   )}
                 </div>
+                {failureMsg && (
+                  <div className="mt-2 flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/30 px-2 py-1.5 text-[10px] text-red-700 dark:text-red-400">
+                    <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>Last bulk run: {failureMsg}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          </button>
+            </button>
+          </div>
         );
       })}
 
@@ -449,6 +610,181 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                 <><Zap className="h-4 w-4 mr-1.5" /> Approve &amp; disburse now</>
               ) : (
                 <>Confirm approval</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Sticky bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky bottom-2 z-30 mt-3">
+          <div className="mx-auto max-w-3xl rounded-2xl border bg-background/95 backdrop-blur shadow-lg p-3 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 mr-auto">
+              <Layers className="h-4 w-4 text-primary" />
+              <div className="text-xs">
+                <p className="font-bold">{selectedIds.size} selected · {formatUGX(selectedTotal)}</p>
+                {hasFlaggedInSelection && (
+                  <p className="text-[10px] text-amber-600 font-medium">Some rows are above suggested / limit</p>
+                )}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => { setBulkAction('reject'); setBulkAckFlagged(false); }}
+              className="gap-1.5"
+            >
+              <XCircle className="h-3.5 w-3.5" /> Reject
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => { setBulkAction('approve_to_cfo'); setBulkAckFlagged(false); }}
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> Approve → CFO
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => { setBulkAction('approve_disburse'); setBulkAckFlagged(false); setBulkSkipReason(''); }}
+              className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              <Zap className="h-3.5 w-3.5" /> Approve &amp; disburse
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk confirm dialog */}
+      <AlertDialog
+        open={!!bulkAction}
+        onOpenChange={(open) => {
+          if (!open && !bulkRunning) {
+            setBulkAction(null);
+            setBulkAckFlagged(false);
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkAction === 'reject'
+                ? `Reject ${selectedRequests.length} advance request${selectedRequests.length === 1 ? '' : 's'}`
+                : bulkAction === 'approve_disburse'
+                  ? `Approve & disburse ${selectedRequests.length} advance${selectedRequests.length === 1 ? '' : 's'}`
+                  : `Send ${selectedRequests.length} advance${selectedRequests.length === 1 ? '' : 's'} to CFO`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === 'approve_disburse'
+                ? 'Skips the CFO stage — each agent wallet is credited and daily deductions start immediately.'
+                : bulkAction === 'reject'
+                  ? 'Each agent will see the rejection reason below.'
+                  : 'Each request will move to the CFO queue with the note below (if any).'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="max-h-56 overflow-y-auto rounded-lg border bg-muted/30 p-2 space-y-1">
+            {selectedRequests.map((r: any) => {
+              const amt = getEditedAmount(r);
+              const flagged = isFlagged(r);
+              return (
+                <div key={r.id} className="flex items-center justify-between text-[11px] py-1 px-1.5 rounded">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold truncate">{r.agent_full_name || 'Agent'}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{r.agent_phone || ''}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold">{formatUGX(amt)}</p>
+                    {flagged && (
+                      <p className="text-[10px] text-amber-600 inline-flex items-center gap-1">
+                        <AlertTriangle className="h-2.5 w-2.5" /> Above suggested/limit
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {bulkAction !== 'reject' && (
+            <div className="flex items-center justify-between text-xs mt-1 px-1">
+              <span className="text-muted-foreground">Combined total</span>
+              <span className="font-bold">{formatUGX(selectedTotal)}</span>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              {bulkAction === 'reject' ? 'Rejection reason (shown to agents)' : 'Shared decision note (optional)'}
+            </Label>
+            <Textarea
+              value={bulkNotes}
+              onChange={(e) => setBulkNotes(e.target.value)}
+              rows={2}
+              placeholder={bulkAction === 'reject' ? 'Reason applied to every rejected request…' : 'Applied to every approved request…'}
+              disabled={bulkRunning}
+            />
+          </div>
+
+          {bulkAction === 'approve_disburse' && (
+            <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
+              <p className="text-xs font-bold flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5 text-amber-600" />
+                Skip-CFO reason (required)
+              </p>
+              <Textarea
+                placeholder="Reason for skipping CFO for this batch (min 10 chars)…"
+                value={bulkSkipReason}
+                onChange={(e) => setBulkSkipReason(e.target.value)}
+                rows={2}
+                disabled={bulkRunning}
+              />
+            </div>
+          )}
+
+          {hasFlaggedInSelection && bulkAction !== 'reject' && (
+            <label className="flex items-start gap-2 cursor-pointer select-none text-[11px] mt-1">
+              <Checkbox
+                checked={bulkAckFlagged}
+                onCheckedChange={(v) => setBulkAckFlagged(!!v)}
+                className="mt-0.5"
+                disabled={bulkRunning}
+              />
+              <span>I've reviewed the flagged rows (above suggested or over current limit).</span>
+            </label>
+          )}
+
+          {bulkRunning && bulkProgress && (
+            <div className="rounded-md bg-muted p-2 text-[11px] flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Processing {bulkProgress.done} of {bulkProgress.total}…
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkRunning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                bulkRunning ||
+                (bulkAction === 'approve_disburse' && bulkSkipReason.trim().length < 10) ||
+                (bulkAction === 'reject' && bulkNotes.trim().length < 3) ||
+                (hasFlaggedInSelection && bulkAction !== 'reject' && !bulkAckFlagged)
+              }
+              onClick={(e) => { e.preventDefault(); runBulk(); }}
+              className={cn(
+                'text-white',
+                bulkAction === 'reject' && 'bg-red-600 hover:bg-red-700',
+                bulkAction === 'approve_to_cfo' && 'bg-emerald-600 hover:bg-emerald-700',
+                bulkAction === 'approve_disburse' && 'bg-amber-600 hover:bg-amber-700',
+              )}
+            >
+              {bulkRunning ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-1.5" /> Working…</>
+              ) : bulkAction === 'reject' ? (
+                <>Reject {selectedRequests.length}</>
+              ) : bulkAction === 'approve_disburse' ? (
+                <><Zap className="h-4 w-4 mr-1.5" /> Disburse {selectedRequests.length}</>
+              ) : (
+                <>Approve {selectedRequests.length}</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
