@@ -28,6 +28,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 import { captureOAuthRedirectError } from '@/lib/oauthErrorLog';
+import { getStoredAttributionToken, restoreAttributionFromToken } from '@/lib/campaignAttribution';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -39,6 +40,30 @@ const ROLE_OPTIONS = [
 ];
 
 export default function Auth() {
+  // Detect an active recruitment-campaign attribution (secure token stored
+  // server-side + first-party cookie + localStorage). We never expose the
+  // referring agent id or campaign id in the URL — the token is the only
+  // handle the client keeps, and the server is the source of truth.
+  const [hasCampaignAttribution, setHasCampaignAttribution] = useState<boolean>(
+    () => !!getStoredAttributionToken(),
+  );
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const token = getStoredAttributionToken();
+      if (!token) {
+        if (!cancelled) setHasCampaignAttribution(false);
+        return;
+      }
+      const res = await restoreAttributionFromToken().catch(() => null);
+      if (cancelled) return;
+      setHasCampaignAttribution(!!res && (res as { status?: string }).status === 'ok');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const {
     referralId, becomeRole, preSelectedRole,
     isSignUp, setIsSignUp,
