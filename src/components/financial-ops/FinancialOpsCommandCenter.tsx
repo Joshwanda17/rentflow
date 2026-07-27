@@ -399,7 +399,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Wallets & Users',
       items: moreActions.filter(a => [
-        'user_statements','funded_tenants','float_to_withdrawable',
+        'user_statements','earnings_explainer','funded_tenants','float_to_withdrawable',
         'momo_sms_template',
       ].includes(a.id as string)),
     },
