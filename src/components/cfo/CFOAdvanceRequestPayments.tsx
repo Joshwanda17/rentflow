@@ -77,7 +77,7 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advance_requests')
-        .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
+        .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone, region, district, sub_county, parish, village, city)')
         .in('status', ['pending', 'agent_ops_approved', 'cfo_approved', 'cfo_rejected'])
         .order('created_at', { ascending: true });
       if (error) throw error;
