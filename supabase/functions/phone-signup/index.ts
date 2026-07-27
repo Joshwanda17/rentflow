@@ -37,6 +37,9 @@ Deno.serve(async (req) => {
     const referrerId = body.referrer_id ? String(body.referrer_id).trim() : null;
     const intendedRole = body.intended_role ? String(body.intended_role).trim() : null;
     const signupSource = body.signup_source ? String(body.signup_source).trim() : null;
+    const campaignAttributionToken = body.campaign_attribution_token
+      ? String(body.campaign_attribution_token).trim()
+      : null;
 
     // Only synthetic phone-only accounts are allowed through this path.
     if (!email.endsWith("@welile.user") && !email.endsWith("@welile.agent")) {
@@ -77,6 +80,7 @@ Deno.serve(async (req) => {
       intended_role: intendedRole || null,
     };
     if (signupSource) meta.signup_source = signupSource;
+    if (campaignAttributionToken) meta.campaign_attribution_token = campaignAttributionToken;
 
     const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
       email,
@@ -99,6 +103,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: friendly, raw: createErr.message }), {
         status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (campaignAttributionToken && created.user?.id) {
+      await adminClient.rpc("complete_campaign_attribution_for_user", {
+        p_token: campaignAttributionToken,
+        p_user_id: created.user.id,
       });
     }
 
