@@ -28,6 +28,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 import { captureOAuthRedirectError } from '@/lib/oauthErrorLog';
+import { getStoredAttributionToken, restoreAttributionFromToken } from '@/lib/campaignAttribution';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -39,6 +40,30 @@ const ROLE_OPTIONS = [
 ];
 
 export default function Auth() {
+  // Detect an active recruitment-campaign attribution (secure token stored
+  // server-side + first-party cookie + localStorage). We never expose the
+  // referring agent id or campaign id in the URL — the token is the only
+  // handle the client keeps, and the server is the source of truth.
+  const [hasCampaignAttribution, setHasCampaignAttribution] = useState<boolean>(
+    () => !!getStoredAttributionToken(),
+  );
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const token = getStoredAttributionToken();
+      if (!token) {
+        if (!cancelled) setHasCampaignAttribution(false);
+        return;
+      }
+      const res = await restoreAttributionFromToken().catch(() => null);
+      if (cancelled) return;
+      setHasCampaignAttribution(!!res && (res as { status?: string }).status === 'ok');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const {
     referralId, becomeRole, preSelectedRole,
     isSignUp, setIsSignUp,
@@ -423,6 +448,23 @@ export default function Auth() {
         )}
 
         <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
+
+        {/* Recruitment-campaign banner. Shown when the visitor arrived via
+            /c/{district}/{shortCode} and their attribution token validated
+            server-side. No agent id / campaign id is revealed. */}
+        {hasCampaignAttribution && (
+          <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+            <MessageCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                You are joining through a Welile recruitment campaign
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Your referring agent will be linked to you automatically after sign up.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Role badge for signup */}
         {isSignUp && hasValidRole && (

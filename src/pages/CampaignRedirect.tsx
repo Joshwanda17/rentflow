@@ -98,7 +98,11 @@ export default function CampaignRedirect() {
       }
 
       void clickRes; // click already recorded server-side (best effort)
-      navigate(`/auth?ref=campaign`, { replace: true });
+      // Attribution is already persisted server-side + first-party cookie +
+      // localStorage via storeCampaignRef(). Redirect to a CLEAN /auth so no
+      // internal identifiers leak into the URL. Auth.tsx restores the
+      // attribution via getStoredAttributionToken() / restoreAttributionFromToken.
+      navigate(`/auth`, { replace: true });
     })();
     return () => {
       cancelled = true;
