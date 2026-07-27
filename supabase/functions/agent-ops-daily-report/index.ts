@@ -495,7 +495,44 @@ function buildReceivablesSection(r: Report): string {
   `;
 }
 
-function buildHtml(r: Report, prettyDate: string): string {
+function buildActivitySection(a: ActivityBlock): string {
+  const row = (
+    label: string,
+    value: string,
+    sub?: string,
+    color = PURPLE_DK,
+  ) => `
+    <td style="padding:12px 10px;background:#faf7ff;border:1px solid #ece5fb;border-radius:10px;text-align:center;vertical-align:top;">
+      <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.4px;">${esc(label)}</div>
+      <div style="font-size:20px;font-weight:800;color:${color};margin-top:4px;">${esc(value)}</div>
+      ${sub ? `<div style="font-size:10px;color:#888;margin-top:3px;">${esc(sub)}</div>` : ""}
+    </td>`;
+  return `
+    <h2 style="font-size:15px;margin:22px 0 8px;color:${PURPLE_DK};">Agent activity today</h2>
+    <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:6px;margin-bottom:6px;">
+      <tr>
+        ${row("Houses listed", a.listingsCreated.toLocaleString())}
+        ${row("Houses verified", a.listingsVerified.toLocaleString(), undefined, GREEN)}
+        ${row("Houses rejected", a.listingsRejected.toLocaleString(), undefined, RED)}
+        ${row("Landlords added", a.landlordsOnboarded.toLocaleString())}
+      </tr>
+      <tr>
+        ${row("Landlords verified", a.landlordsVerified.toLocaleString(), undefined, GREEN)}
+        ${row("Sub-agents recruited", a.subAgentsRecruited.toLocaleString())}
+        ${row("Sub-agents verified", a.subAgentsVerified.toLocaleString(), undefined, GREEN)}
+        ${row("Campaign sign-ups", a.campaignRegistrations.toLocaleString(), undefined, SKY)}
+      </tr>
+      <tr>
+        ${row("Field visits", a.fieldVisits.toLocaleString(), `${a.visitingAgents.toLocaleString()} agents`)}
+        ${row("Landlord payouts", a.landlordPayoutsCount.toLocaleString(), fmtUGX(a.landlordPayoutsAmount), GREEN)}
+        ${row("Advance repayments", a.advanceRepaymentsCount.toLocaleString(), fmtUGX(a.advanceRepaymentsAmount), GREEN)}
+        ${row("Interest accrued", fmtUGX(a.advanceInterestAccrued), "on active advances", AMBER)}
+      </tr>
+    </table>
+  `;
+}
+
+function buildHtml(r: Report & { activity: ActivityBlock }, prettyDate: string): string {
   const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
 
   // Chart 1 — hourly collections (count + volume dual axis).
@@ -580,6 +617,8 @@ function buildHtml(r: Report, prettyDate: string): string {
           ${kpiCell("Advances approved", String(r.advancesApproved))}
         </tr>
       </table>
+
+      ${buildActivitySection(r.activity)}
 
       <div style="margin:22px 0;">
         <img src="${hourlyChart}" alt="Collections by hour" width="700" style="width:100%;max-width:700px;border:1px solid #eee;border-radius:8px;" />
