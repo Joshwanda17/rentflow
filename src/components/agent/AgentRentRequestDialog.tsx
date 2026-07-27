@@ -4641,11 +4641,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             <FieldError message="This landlord is not registered in the system — pick another or register them again" />
                           ) : landlordCheck === 'unverified' ? (
                             <div className="mt-1 space-y-2">
-                              <FieldError message="This landlord is registered but not yet verified — they must be verified before you can post a rent request" />
+                              <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-2.5">
+                                <p className="text-xs font-semibold text-amber-800 leading-snug">
+                                  Landlord {selectedLandlord.name} is not yet verified — once approved, your rent request will be processed.
+                                </p>
+                              </div>
                               {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
                                 <p className="text-xs font-medium text-success flex items-center gap-1">
                                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                                  Verification request sent to Landlord Operations — you’ll be able to post once they verify this landlord.
+                                  Verification request sent to Landlord Operations.
                                 </p>
                               ) : (
                                 <Button
