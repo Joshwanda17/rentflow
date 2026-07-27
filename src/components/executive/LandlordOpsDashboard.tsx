@@ -1710,10 +1710,19 @@ export function LandlordOpsDashboard() {
         p_reason: trimmed,
       });
       if (error) throw error;
-      const rejectedIds = new Set(((data ?? []) as Array<{ id: string }>).map(r => r.id));
-      results = ids.map(id => rejectedIds.has(id)
-        ? { id, title: titleById.get(id) ?? '', ok: true }
-        : { id, title: titleById.get(id) ?? '', ok: false, error: 'Not rejected' });
+      const rows = ((data ?? []) as Array<{ id: string; ok: boolean; error: string | null }>);
+      const byId = new Map(rows.map(r => [r.id, r] as const));
+      const rejectedIds = new Set(rows.filter(r => r.ok).map(r => r.id));
+      results = ids.map(id => {
+        const row = byId.get(id);
+        if (row?.ok) return { id, title: titleById.get(id) ?? '', ok: true };
+        return {
+          id,
+          title: titleById.get(id) ?? '',
+          ok: false,
+          error: row?.error || 'Not rejected',
+        };
+      });
       queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
         Array.isArray(old) ? old.map(l => rejectedIds.has(l.id) ? { ...l, status: 'rejected' } : l) : old);
       // Web-push only (no SMS) — fire-and-forget per rejected listing.
