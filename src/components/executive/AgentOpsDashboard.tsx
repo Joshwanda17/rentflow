@@ -462,11 +462,10 @@ function AgentOpsSideNav({
   // below Priority and is open by default (this dashboard is agent-centric).
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
     { title: 'Advances', pinned: true, keys: ['advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments'] },
-    { title: 'Agent Network', defaultOpen: true, keys: ['directory', 'rent-capacity', 'sub-agents', 'promote-tenant', 'lending-agents', 'balances'] },
-    { title: 'Operations', keys: ['pipeline', 'escalations', 'tasks', 'connector'] },
-    { title: 'Business', keys: ['service-centres', 'transfers', 'float-payouts'] },
-    { title: 'Performance & Insights', keys: ['leaderboard', 'listing-campaign', 'performance-report', 'performance', 'lifecycle', 'allocation-report', 'earnings', 'brief', 'alerts'] },
-    { title: 'System', keys: ['bulk-ops'] },
+    { title: 'Agents', defaultOpen: true, keys: ['directory', 'lifecycle', 'performance', 'leaderboard', 'sub-agents', 'service-centres', 'promote-tenant', 'bulk-ops', 'feature-flags'] },
+    { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'listing-campaign', 'trust-capture', 'tasks', 'escalations', 'connector'] },
+    { title: 'Finance', keys: ['balances', 'float-payouts', 'earnings', 'transfers', 'locked-transfers', 'allocation-report', 'lending-agents'] },
+    { title: 'Reports', keys: ['performance-report', 'allocation-report', 'brief', 'alerts'] },
   ];
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
