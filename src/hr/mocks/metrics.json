@@ -12,7 +12,9 @@
 
     { "id": "met_005", "key": "col_recovery_rate", "name": "Arrears recovery rate", "description": "Value recovered as a share of arrears assigned in the period.", "department_id": "dep_col", "unit": "percent", "direction": "higher_is_better", "target_value": 65, "target_basis": "target", "period_type": "monthly", "source": "manual_entry", "source_key": "manual", "version": 2, "active": true, "created_at": "2026-07-02T11:30:00Z", "created_by_employee_id": "emp_003" },
 
-    { "id": "met_006", "key": "col_promise_kept_rate", "name": "Promise-to-pay kept rate", "description": "Share of agreed payment plans honoured on schedule.", "department_id": "dep_col", "unit": "percent", "direction": "higher_is_better", "target_value": 70, "target_basis": "target", "period_type": "weekly", "source": "manual_entry", "source_key": "manual", "version": 1, "active": true, "created_at": "2026-07-02T11:45:00Z", "created_by_employee_id": "emp_003" }
+    { "id": "met_006", "key": "col_promise_kept_rate", "name": "Promise-to-pay kept rate", "description": "Share of agreed payment plans honoured on schedule.", "department_id": "dep_col", "unit": "percent", "direction": "higher_is_better", "target_value": 70, "target_basis": "target", "period_type": "weekly", "source": "manual_entry", "source_key": "manual", "version": 1, "active": true, "created_at": "2026-07-02T11:45:00Z", "created_by_employee_id": "emp_003" },
+
+    { "id": "met_007", "key": "eng_modules_on_plan", "name": "Modules delivered against plan", "description": "Share of planned modules delivered by their agreed date.", "department_id": "dep_eng", "unit": "percent", "direction": "higher_is_better", "target_value": 100, "target_basis": "target", "period_type": "monthly", "source": "manual_entry", "source_key": "manual", "version": 1, "active": true, "created_at": "2026-07-27T06:30:00Z", "created_by_employee_id": "emp_006" }
 
   ],
 
