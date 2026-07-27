@@ -126,6 +126,31 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // === GATE: landlord must be verified before approval ===
+    if (requestAction === 'approve') {
+      if (!rentRequest.landlord_id) {
+        return new Response(
+          JSON.stringify({ error: 'This rent request has no landlord attached. Attach and verify the landlord first.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const { data: landlord } = await adminClient
+        .from('landlords')
+        .select('id, full_name, name, verified')
+        .eq('id', rentRequest.landlord_id)
+        .single();
+      if (!landlord || landlord.verified !== true) {
+        const name = landlord?.full_name || landlord?.name || 'the landlord';
+        return new Response(
+          JSON.stringify({
+            error: `Landlord ${name} is not yet verified. Verify the landlord in Landlord Ops before approving this rent request.`,
+            code: 'LANDLORD_NOT_VERIFIED',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Fetch tenant profile (needed for SMS + notifications)
     const { data: tenantProfile } = await adminClient
       .from('profiles').select('full_name, phone').eq('id', rentRequest.tenant_id).single();
