@@ -172,59 +172,15 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
         setExistingPortfolioCount(pfCount ?? 0);
         setPortfolioCheckLoading(false);
       }
-      // Managed-proxy check: if the partner has an active+approved
-      // is_managed_account=true proxy assignment, funding MUST come from
-      // the proxy agent's wallet. Mirror that here so the displayed
-      // available balance matches the wallet that will actually be debited.
-      let walletOwnerId = selectedUser.id;
-      let proxyAgentId: string | null = null;
-      let proxyAgentName: string | null = null;
-      const { data: managed } = await supabase
-        .from('proxy_agent_assignments')
-        .select('agent_id')
-        .eq('beneficiary_id', selectedUser.id)
-        .eq('is_active', true)
-        .eq('is_managed_account', true)
-        .eq('approval_status', 'approved')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (managed?.agent_id) {
-        walletOwnerId = managed.agent_id;
-        const { data: ap } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', managed.agent_id)
-          .maybeSingle();
-        proxyAgentId = managed.agent_id;
-        proxyAgentName = ap?.full_name || 'Proxy Agent';
-        if (!cancelled) {
-          setManagedProxy({ agentId: proxyAgentId, agentName: proxyAgentName });
-        }
-      }
-
+      // Portfolio funding ALWAYS comes from the partner's own wallet — the
+      // server-side create-investor-portfolio edge fn forces this too.
       const { data, error } = await supabase
         .from('wallets')
         .select('balance')
-        .eq('user_id', walletOwnerId)
+        .eq('user_id', selectedUser.id)
         .maybeSingle();
       if (cancelled) return;
-      let bal = !error && data ? Number(data.balance) || 0 : 0;
-      // Fallback: if this is a managed-proxy partner but the proxy agent's
-      // wallet is empty, load the partner's own wallet balance instead so
-      // the operator can still fund the portfolio from the partner wallet.
-      if (proxyAgentId && bal <= 0) {
-        const { data: partnerWallet } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', selectedUser.id)
-          .maybeSingle();
-        if (cancelled) return;
-        bal = partnerWallet ? Number(partnerWallet.balance) || 0 : 0;
-        // Clear the proxy indicator so the UI shows "Partner wallet" as the
-        // funding source and doesn't confuse the operator.
-        setManagedProxy(null);
-      }
+      const bal = !error && data ? Number(data.balance) || 0 : 0;
       setPartnerBalance(bal);
       // Default the amount to the full available balance (capped at sane max).
       setForm(p => ({
