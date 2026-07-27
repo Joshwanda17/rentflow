@@ -1,48 +1,28 @@
 ## Goal
-Turn the current `/welcome` (Landing.tsx) into a swipeable onboarding that briefly explains Welile's four core roles — **Tenant**, **Funder/Supporter**, **Agent**, **Landlord** — before a user picks one and continues to auth.
+Make the onboarding flow at `/welcome` (Landing.tsx) send users to `/auth` when they tap **Skip** or the **Next** button on the final slide, instead of landing on the role-picker view.
 
-## Structure
+## Changes (single file: `src/pages/Landing.tsx`)
 
-```text
-[ Slide 1 ] → [ Slide 2 ] → [ Slide 3 ] → [ Slide 4 ] → [ Role picker + Sign in ]
-  Tenant       Supporter      Agent         Landlord
-```
+1. **Skip button** (top-right of slides):
+   - Currently sets `step = 4` (role picker) and marks `welile_onboarding_seen`.
+   - Change: still persist `welile_onboarding_seen=true`, then `navigate('/auth')`.
 
-Each slide occupies the viewport with:
-- Logo (small, top)
-- Emoji/icon in gradient tile (reuses current color per role)
-- Role name + one-line promise (existing `intent` copy)
-- 2–3 short bullets explaining what that role does on Welile
-- Progress dots (1/4 … 4/4)
-- **Back** / **Next** buttons; **Skip** link top-right jumps to the final picker
+2. **Next button on the final slide (Landlord, step 3)**:
+   - Currently advances `step` to `4` (picker).
+   - Change: relabel to "Get started" (or keep "Next"), persist `welile_onboarding_seen=true`, then `navigate('/auth')`.
+   - Intermediate slides (steps 0–2) keep advancing to the next slide as today.
 
-Final screen: the existing 4 role cards ("What do you need?") + "Sign in to your account" footer, so anyone who already knows their role can act immediately.
+3. **Returning-visitor behaviour**:
+   - Since the picker view is no longer the destination, initialize returning users (`welile_onboarding_seen` truthy) directly to `/auth` via a `useEffect` redirect — OR keep the picker as the "already onboarded" landing and only bypass it from Skip/final-Next. Recommendation: **redirect returning visitors straight to `/auth`** so `/welcome` is purely first-run onboarding. "Replay intro" link is removed since there's no picker view to host it.
 
-## Copy (brief, plain UGX-safe language)
+4. **Role picker view (step 4)**:
+   - No longer reachable from onboarding. Two options:
+     - **(a) Remove it entirely** — simpler, `/welcome` is 4 slides only.
+     - **(b) Keep it as dead code** — not recommended.
+   - Recommendation: **(a) remove** the picker branch, `PublicHousesPreview`, trust signals, and Sign-in footer from this page. Auth page already handles role selection via `?role=` query param if needed later.
 
-- **Tenant** — "Move in today, pay daily." Get rent funded instantly · Pay small daily amounts · Build trust as you pay.
-- **Funder / Supporter** — "Earn monthly returns backing real tenants." Fund a tenant's rent · Earn monthly returns · Withdraw with 90-day notice.
-- **Agent** — "Earn cash by connecting landlords, houses and tenants." List houses & landlords · Post tenant rent requests · Earn commissions & bonuses.
-- **Landlord** — "Guaranteed rent, no chasing." List your house free · Get paid upfront by Welile · Tenants managed for you.
-
-## Behaviour
-
-- Route stays `/welcome`; still the public landing.
-- Onboarding shown once — persist `welile_onboarding_seen=true` in `localStorage` after reaching the picker or clicking Skip. Returning visitors land directly on the role-picker view (same layout as today) with a small "Replay intro" link.
-- Tapping a role on the final picker keeps current behavior: `navigate('/auth?role=<role>')`.
-- Keep `PublicHousesPreview`, "Try Rent Calculator" link, trust signals, and the Sign-in footer on the final picker view.
-- Remove PWA install banner and iOS install guide from this screen (they clutter onboarding); PWA install remains available elsewhere.
-- Animations via existing `framer-motion` (slide horizontal transition). Swipe gestures via `motion` drag on mobile; buttons always available.
-- SEO: keep `Helmet` block; update description to reflect onboarding.
-
-## Technical notes
-
-- Single file edit: `src/pages/Landing.tsx`. No new routes, no router changes.
-- New local component `RoleSlide` inside the file; reuse `intentOptions` array, extended with a `bullets: string[]` and `title` field.
-- State: `step: 0..4` (0–3 = slides, 4 = picker). Initialize to `4` if `localStorage.getItem('welile_onboarding_seen')` is truthy.
-- No backend, no schema, no new packages.
+## Open question
+Do you want the **Next** on each slide to also pass the current role as `/auth?role=<role>` (so the auth screen pre-selects it), or just a plain `/auth`?
 
 ## Out of scope
-
-- Auth flow, role permissions, sign-up logic — unchanged.
-- Adding Partner/Merchant/staff roles (user confirmed only the four core roles).
+- Auth page itself, routing config, role logic.
