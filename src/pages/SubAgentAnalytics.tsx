@@ -52,7 +52,6 @@ import {
 import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
-import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { AddSubAgentSearch } from '@/components/agent/AddSubAgentSearch';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -291,7 +290,7 @@ export default function SubAgentAnalytics() {
   const [houseTenantLoading, setHouseTenantLoading] = useState(false);
   const [recruiterSplits, setRecruiterSplits] = useState<RecruiterSplit[]>([]);
   const [splitsLoading, setSplitsLoading] = useState(false);
-  const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [releaseConfirmOpen, setReleaseConfirmOpen] = useState(false);
@@ -2128,11 +2127,6 @@ export default function SubAgentAnalytics() {
         </div>
       )}
 
-      <RegisterSubAgentDialog 
-        open={registerDialogOpen}
-        onOpenChange={setRegisterDialogOpen}
-        onSuccess={fetchSubAgentAnalytics}
-      />
 
       {/* House details */}
       <Sheet open={!!selectedHouse} onOpenChange={(open) => { if (!open) setSelectedHouse(null); }}>
@@ -2320,20 +2314,6 @@ export default function SubAgentAnalytics() {
                 the new user as a sub-agent of the inviting agent. */}
             <ShareSubAgentLink />
 
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">or</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full h-12 gap-2 rounded-xl"
-              onClick={() => { hapticTap(); setInviteSheetOpen(false); setRegisterDialogOpen(true); }}
-            >
-              <Sparkles className="h-4 w-4 text-orange-500" />
-              Create a brand-new sub-agent account
-            </Button>
           </div>
         </SheetContent>
       </Sheet>
