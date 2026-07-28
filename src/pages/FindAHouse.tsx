@@ -707,6 +707,19 @@ export default function FindAHouse() {
     radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
+    district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+    subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+    village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    search: debouncedSearch.trim() || undefined,
+    minDailyRate: minPrice,
+    maxDailyRate: maxPrice,
+    minRooms: minRooms || undefined,
+    hasWater: amenities.hasWater || undefined,
+    hasElectricity: amenities.hasElectricity || undefined,
+    hasSecurity: amenities.hasSecurity || undefined,
+    hasParking: amenities.hasParking || undefined,
+    isFurnished: amenities.isFurnished || undefined,
+    sort: sortKey === 'nearest' ? undefined : sortKey,
     // Page through EVERY matching listing — no fixed cap.
     paginate: true,
     // Fetch a large first page so the map pins and the district/sub-county/
@@ -724,7 +737,14 @@ export default function FindAHouse() {
     subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
     village: selectedVillage !== 'all' ? selectedVillage : undefined,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
-    maxDailyRate: maxDaily !== 'all' ? Number(maxDaily) : undefined,
+    minDailyRate: minPrice,
+    maxDailyRate: maxPrice,
+    minRooms: minRooms || undefined,
+    hasWater: amenities.hasWater || undefined,
+    hasElectricity: amenities.hasElectricity || undefined,
+    hasSecurity: amenities.hasSecurity || undefined,
+    hasParking: amenities.hasParking || undefined,
+    isFurnished: amenities.isFurnished || undefined,
     search: debouncedSearch.trim() || undefined,
   });
 
@@ -764,16 +784,20 @@ export default function FindAHouse() {
         l.title.toLowerCase().includes(q)
       );
     }
-    if (verifiedOnly) {
-      result = result.filter(l => l.verified && l.status !== 'pending');
+    if (minPrice !== undefined) {
+      result = result.filter(l => l.daily_rate >= minPrice);
     }
-    if (maxDaily !== 'all') {
-      const cap = Number(maxDaily);
-      result = result.filter(l => l.daily_rate <= cap);
+    if (maxPrice !== undefined) {
+      result = result.filter(l => l.daily_rate <= maxPrice);
     }
-    if (activeAmenities.length > 0) {
-      result = result.filter(l => activeAmenities.every(k => Boolean((l as any)[k])));
+    if (minRooms > 0) {
+      result = result.filter(l => l.number_of_rooms >= minRooms);
     }
+    if (amenities.hasWater) result = result.filter(l => l.has_water);
+    if (amenities.hasElectricity) result = result.filter(l => l.has_electricity);
+    if (amenities.hasSecurity) result = result.filter(l => l.has_security);
+    if (amenities.hasParking) result = result.filter(l => l.has_parking);
+    if (amenities.isFurnished) result = result.filter(l => l.is_furnished);
     switch (sortKey) {
       case 'price_desc':
         result.sort((a, b) => b.daily_rate - a.daily_rate);
@@ -794,7 +818,7 @@ export default function FindAHouse() {
         break;
     }
     return result;
-  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, effectiveLat, effectiveLng, selectedDistrict, selectedSubCounty, selectedVillage]);
+  }, [listings, debouncedSearch, minPrice, maxPrice, minRooms, amenities, sortKey, effectiveLat, effectiveLng, selectedDistrict, selectedSubCounty, selectedVillage]);
 
   // Distinct location options derived from the loaded listings, cascading from
   // the current region/district/sub-county selection. Only areas that actually
@@ -827,13 +851,16 @@ export default function FindAHouse() {
   }, [listings, selectedDistrict, selectedSubCounty]);
 
   const activeFilterCount =
-    (verifiedOnly ? 1 : 0) +
-    (maxDaily !== 'all' ? 1 : 0) +
-    activeAmenities.length +
+    (searchText.trim().length > 0 ? 1 : 0) +
+    (selectedRegion !== 'All Regions' ? 1 : 0) +
     (selectedCategory !== 'all' ? 1 : 0) +
     (selectedDistrict !== 'all' ? 1 : 0) +
     (selectedSubCounty !== 'all' ? 1 : 0) +
-    (selectedVillage !== 'all' ? 1 : 0);
+    (selectedVillage !== 'all' ? 1 : 0) +
+    (minPrice || maxPrice ? 1 : 0) +
+    (minRooms > 0 ? 1 : 0) +
+    Object.values(amenities).filter(Boolean).length +
+    (sortKey !== 'newest' ? 1 : 0);
 
   const sortLabel = SORT_OPTIONS.find(s => s.value === sortKey)?.label ?? '';
 
