@@ -677,10 +677,11 @@ export function FinOpsWalletMovePanel() {
                         Float is overdrawn by {fmt(Math.abs(source.float_balance))}
                       </p>
                       <p className="text-muted-foreground mt-0.5">
-                        The first {fmt(Math.abs(source.float_balance))} of this move fills the
-                        overdraft. Visible Float after move:{' '}
+                        On submit, the platform will first auto-fill the overdraft with a balanced
+                        admin_correction entry (double-entry, hidden from the user's wallet history),
+                        then move {fmt(amountNum || 0)} on top. Visible Float after move:{' '}
                         <span className="font-semibold text-foreground">
-                          {fmt(Math.max(0, source.float_balance + amountNum))}
+                          {fmt(amountNum || 0)}
                         </span>
                         .
                       </p>
@@ -694,8 +695,9 @@ export function FinOpsWalletMovePanel() {
                       onChange={(e) => setAcknowledgeOverdraft(e.target.checked)}
                     />
                     <span>
-                      I acknowledge Float is overdrawn and want to proceed. Post this move even if
-                      it only fills (or partly fills) the overdraft.
+                      I acknowledge Float is overdrawn. Auto-fill the overdraft as a balanced
+                      admin_correction, then post this move on top so visible Float rises by the
+                      full amount.
                     </span>
                   </label>
                 </div>
