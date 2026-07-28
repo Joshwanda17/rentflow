@@ -21,9 +21,11 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { MerchantReconcilePaymentCard } from '@/components/agent/MerchantReconcilePaymentCard';
 
 interface Props {
   agentId: string;
+  cashoutAgentId: string | null;
   withdrawableBalance: number;
   floatBalance: number;
   pendingCount: number;
@@ -47,6 +49,7 @@ interface Props {
  */
 export function MerchantDashboardHome({
   agentId,
+  cashoutAgentId,
   withdrawableBalance,
   floatBalance,
   pendingCount,
@@ -233,6 +236,14 @@ export function MerchantDashboardHome({
         </div>
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </motion.button>
+
+      {/* Reconcile a payment — for when the app reloaded before the TID was entered */}
+      {cashoutAgentId && (
+        <MerchantReconcilePaymentCard
+          agentId={agentId}
+          cashoutAgentId={cashoutAgentId}
+        />
+      )}
     </div>
   );
 }

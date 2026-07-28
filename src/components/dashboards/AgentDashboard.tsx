@@ -1009,6 +1009,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className={cn("space-y-4", tabAnimClass)}>
             <MerchantDashboardHome
               agentId={user.id}
+              cashoutAgentId={(isCashoutAgent as any)?.id ?? null}
               withdrawableBalance={realWithdrawableBalance}
               floatBalance={visibleAgentFloatBalance}
               pendingCount={pendingEarnings?.count ?? 0}
