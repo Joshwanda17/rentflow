@@ -207,97 +207,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             <div className="p-4 space-y-4">
-              {/* Purple gradient balance card */}
-              <Card className="overflow-hidden border-0 shadow-lg">
-                <div className="portfolio-hero-card p-6 text-center">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70 mb-2">
-                    {balanceLabel}
-                  </p>
-                  <AnimatedBalance 
-                    value={displayBalance} 
-                    className="text-[clamp(2rem,9vw,3rem)] font-black text-white tracking-tight block leading-none"
-                  />
-                  <p className="text-[11px] text-white/50 mt-2 uppercase tracking-widest font-medium">
-                    {getDynamicCurrencyName()}
-                  </p>
-                  <WalletDisclaimer variant="dark" />
-                </div>
-              </Card>
-
-
-              {/* Plain-language money breakdown (agents only) */}
-              {isAgent && (
-                <AgentMoneyMapCard
-                  withdrawable={realWithdrawableBalance}
-                  float={visibleAgentFloatBalance}
-                  advance={advanceBalance}
-                  pendingHolds={pendingHolds}
-                />
-              )}
-
-              {/* Bounty: empty houses waiting for a tenant (agents only) */}
-              {isAgent && <EmptyHousePlacementBonusBanner />}
-
-              {/* Float breakdown (agents only) */}
-              {isAgent && visibleAgentFloatBalance > 0 && (
-                <FloatBreakdownCard floatBalance={visibleAgentFloatBalance} />
-              )}
-
-              {/* Deposit card */}
-              <Card 
-                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
-                onClick={() => { hapticTap(); setDepositOpen(true); }}
-              >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-[hsl(270,80%,55%)]/10 flex items-center justify-center shrink-0">
-                    <Plus className="h-6 w-6 text-[hsl(270,80%,55%)]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-foreground">Deposit</p>
-                    <p className="text-xs text-muted-foreground">Add funds to your wallet</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
-                </CardContent>
-              </Card>
-
-
-              {/* Setup Card (NFC) */}
-              <Card
-                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
-                onClick={() => { hapticTap(); setNfcCardOpen(true); }}
-              >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-[hsl(270,80%,55%)]/10 flex items-center justify-center shrink-0">
-                    <CreditCard className="h-6 w-6 text-[hsl(270,80%,55%)]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-foreground">Setup Card</p>
-                    <p className="text-xs text-muted-foreground">Configure NFC card & PIN</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
-                </CardContent>
-              </Card>
-
-              {/* Quick actions row */}
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  onClick={() => { hapticTap(); setSendOpen(true); }} 
-                  variant="outline"
-                  className="h-auto py-3 rounded-2xl border-border/50 flex items-center gap-2"
-                >
-                  <Send className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold">Send</span>
-                </Button>
-                <Button 
-                  onClick={() => { hapticTap(); setRequestOpen(true); }} 
-                  variant="outline"
-                  className="h-auto py-3 rounded-2xl border-border/50 flex items-center gap-2"
-                >
-                  <HandCoins className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold">Request</span>
-                </Button>
-              </div>
-
               {/* Wallet Statement section */}
               <div ref={statementSectionRef} id="wallet-statement-section" className="scroll-mt-4">
                 <div className="flex items-center justify-between mb-3">
@@ -307,54 +216,12 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                   </div>
                 </div>
 
-                {/* All-time net card */}
-                <Card className="border-border/50 shadow-sm mb-4">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">All-Time Net</p>
-                      <p className={`text-xl font-black tabular-nums ${netAmount >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        {netAmount >= 0 ? '+' : ''}{formatCurrency(netAmount)}
-                      </p>
-                    </div>
-                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${netAmount >= 0 ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                      <TrendingUp className={`h-5 w-5 ${netAmount >= 0 ? 'text-success' : 'text-destructive'}`} />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Monthly summary card */}
-                <Card className="border-border/50 shadow-sm mb-4">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        Summary for {currentMonth}
-                      </p>
-                    </div>
-                    <div className="flex items-end justify-between mb-2">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Spent</p>
-                        <p className="text-lg font-bold text-foreground tabular-nums">{formatCurrency(recentStats.sent)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Goal</p>
-                        <p className="text-sm font-semibold text-muted-foreground tabular-nums">{formatCurrency(spentGoal)}</p>
-                      </div>
-                    </div>
-                    <Progress 
-                      value={spentPercent} 
-                      size="sm" 
-                      variant={spentPercent > 80 ? 'destructive' : spentPercent > 50 ? 'warning' : 'default'} 
-                    />
-                  </CardContent>
-                </Card>
-
                 {/* Download Statement Button */}
                 {isAgent && user?.id && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full gap-2 text-xs"
+                    className="w-full gap-2 text-xs mb-4"
                     onClick={async () => {
                       try {
                         const data = await fetchAgentWalletData(user.id);
