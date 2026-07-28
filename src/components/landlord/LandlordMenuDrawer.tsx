@@ -16,7 +16,6 @@ import {
   ScrollText,
   PiggyBank,
   Building,
-  UserPlus,
   MessageSquare,
   FileText,
   DoorOpen,
