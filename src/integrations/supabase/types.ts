@@ -26967,6 +26967,7 @@ export type Database = {
           full_name: string
           id: string
           phone: string
+          sub_agent_id: string
         }[]
       }
       get_nearby_cashout_agents: {

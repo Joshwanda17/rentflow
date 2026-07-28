@@ -679,43 +679,41 @@ export default function SubAgentAnalytics() {
         .in('agent_id', subAgentIds);
 
       const rentRequestsBySubAgent: Record<string, { tenant_id: string; total_repayment: number | null; request_fee: number | null }[]> = {};
-      const allTenantIdSet = new Set<string>();
       (allRentRequests || []).forEach((rr) => {
         const list = rentRequestsBySubAgent[rr.agent_id] || (rentRequestsBySubAgent[rr.agent_id] = []);
         list.push(rr);
-        if (rr.tenant_id) allTenantIdSet.add(rr.tenant_id);
       });
 
-      // Fetch every referenced tenant profile in ONE query.
-      const allTenantIds = [...allTenantIdSet];
-      const tenantProfileById: Record<string, { full_name: string; phone: string | null }> = {};
-      if (allTenantIds.length > 0) {
-        // Sub-agents' tenants are not visible to the parent agent under
-        // profiles RLS, so fetch them through a SECURITY DEFINER RPC that
-        // returns only tenants belonging to the caller's sub-agents.
-        const { data: tenantProfiles } = await supabase.rpc('get_my_subagent_tenant_profiles');
-        const wantedTenantIds = new Set(allTenantIds);
-        (tenantProfiles || []).forEach((tp: { id: string; full_name: string; phone: string | null }) => {
-          if (wantedTenantIds.has(tp.id)) {
-            tenantProfileById[tp.id] = { full_name: tp.full_name, phone: tp.phone ?? null };
-          }
-        });
-      }
+      // Fetch every tenant profile grouped by sub-agent through a SECURITY
+      // DEFINER RPC. Sub-agents' tenants are not visible to the parent agent
+      // under profiles RLS, so this RPC returns only tenants belonging to the
+      // caller's sub-agents across all link types (rent request posting,
+      // rent request assignment, direct referral, referrals table, managed).
+      const { data: tenantProfiles } = await supabase.rpc('get_my_subagent_tenant_profiles');
+      (tenantProfiles || []).forEach((tp) => {
+        const subAgentId = tp.sub_agent_id;
+        if (!subAgentId || !subAgentIdsSet.has(subAgentId)) return;
+        const list = tenantsData[subAgentId] || (tenantsData[subAgentId] = []);
+        if (!list.some((t) => t.id === tp.id)) {
+          list.push({
+            id: tp.id,
+            name: tp.full_name ?? 'Unnamed',
+            phone: tp.phone ?? null,
+            totalRepaid: 0,
+          });
+        }
+      });
 
       for (const subAgentId of subAgentIds) {
         const rentRequests = rentRequestsBySubAgent[subAgentId] || [];
-        const tenantIds = [...new Set(rentRequests.map((rr) => rr.tenant_id).filter(Boolean))];
 
         // Sum facilitated rent volume and service fees
         rentVolumePerSubAgent[subAgentId] = rentRequests.reduce((sum, rr) => sum + Number(rr.total_repayment || 0), 0);
         serviceFeesPerSubAgent[subAgentId] = rentRequests.reduce((sum, rr) => sum + Number(rr.request_fee || 0), 0);
 
-        tenantsData[subAgentId] = tenantIds.map((id) => ({
-          id,
-          name: tenantProfileById[id]?.full_name ?? 'Unnamed',
-          phone: tenantProfileById[id]?.phone ?? null,
-          totalRepaid: 0,
-        }));
+        if (!tenantsData[subAgentId]) {
+          tenantsData[subAgentId] = [];
+        }
 
         earningsPerSubAgent[subAgentId] = 0;
         monthlyEarningsPerSubAgent[subAgentId] = {};
