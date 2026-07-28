@@ -379,18 +379,25 @@ async function buildPdf(a: { dateStr: string; generatedAtLabel: string; m: Metri
   }
   totalRow('Total Amount Paid Out', m.total_paid_out);
 
-  y -= 12;
+  y -= 16;
   drawSectionTitle('Section 3 — Closing Wallet Balance');
+  y -= 8;
+  const balanceBoxHeight = 48;
+  const balanceBoxTop = y;
   page.drawRectangle({
-    x: margin, y: y - 30, width: PAGE_W - margin * 2, height: 48, color: col(245, 243, 250),
+    x: margin,
+    y: balanceBoxTop - balanceBoxHeight,
+    width: PAGE_W - margin * 2,
+    height: balanceBoxHeight,
+    color: col(245, 243, 250),
   });
-  page.drawText('Closing Wallet Balance', { x: margin + 12, y: y - 4, size: 10, font, color: muted });
+  page.drawText('Closing Wallet Balance', { x: margin + 12, y: balanceBoxTop - 20, size: 10, font, color: muted });
   const s = fmt(m.closing_balance);
   page.drawText(s, {
     x: PAGE_W - margin - bold.widthOfTextAtSize(s, 18) - 12,
-    y: y - 18, size: 18, font: bold, color: ink,
+    y: balanceBoxTop - 34, size: 18, font: bold, color: ink,
   });
-  y -= 40;
+  y = balanceBoxTop - balanceBoxHeight;
 
   y -= 20;
   page.drawText(
