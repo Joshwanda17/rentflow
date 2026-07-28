@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { applyCustomerWalletLedgerFilters } from '@/lib/customerWalletHistory';
 
 /**
  * Tracks new wallet activity (general_ledger wallet-scope entries) since the
@@ -25,24 +26,20 @@ export function useWalletActivityBadge(userId: string | undefined) {
     if (!userId) return;
     const lastSeen = getLastSeen();
 
-    let query = supabase
+    let query = applyCustomerWalletLedgerFilters(supabase
       .from('general_ledger')
       .select('transaction_date', { count: 'exact', head: false })
       .eq('user_id', userId)
-      .eq('ledger_scope', 'wallet')
-      .neq('classification', 'admin_correction')
-      .neq('category', 'system_balance_correction')
+      .eq('ledger_scope', 'wallet'))
       .order('transaction_date', { ascending: false })
       .limit(1);
 
     // Also grab count > lastSeen
-    let countQuery = supabase
+    let countQuery = applyCustomerWalletLedgerFilters(supabase
       .from('general_ledger')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .eq('ledger_scope', 'wallet')
-      .neq('classification', 'admin_correction')
-      .neq('category', 'system_balance_correction');
+      .eq('ledger_scope', 'wallet'));
 
     if (lastSeen) {
       countQuery = countQuery.gt('transaction_date', lastSeen);

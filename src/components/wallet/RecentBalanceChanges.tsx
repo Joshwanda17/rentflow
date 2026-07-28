@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 interface LedgerEntry {
   id: string;
@@ -11,6 +12,9 @@ interface LedgerEntry {
   category: string;
   description: string | null;
   transaction_date: string;
+  classification?: string | null;
+  source_table?: string | null;
+  reference_id?: string | null;
 }
 
 const formatUGX = (amount: number) =>
@@ -42,18 +46,16 @@ export function RecentBalanceChanges() {
     const fetchRecent = async () => {
       // Get entries from last 24 hours
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
+      const { data } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
-        .select('id, direction, amount, category, description, transaction_date')
+        .select('id, direction, amount, category, description, transaction_date, classification, source_table, reference_id')
         .eq('user_id', user.id)
-        .gte('transaction_date', since)
-        // Hide admin/CFO reconciliation legs only when both flags align.
-        .or('classification.neq.admin_correction,category.neq.system_balance_correction')
+        .gte('transaction_date', since))
         .order('transaction_date', { ascending: false })
         .limit(5);
 
       if (data && data.length > 0) {
-        setEntries(data);
+        setEntries(data.filter(isCustomerWalletLedgerEntryVisible));
         setDismissed(false);
       }
     };

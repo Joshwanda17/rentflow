@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { applyCustomerWalletLedgerFilters } from '@/lib/customerWalletHistory';
 
 export interface WalletMovementCounts {
   last24h: number;
@@ -19,30 +20,24 @@ export function useWalletMovementCounts(userId?: string) {
       const since30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       const [res24h, res7d, res30d] = await Promise.all([
-        supabase
+        applyCustomerWalletLedgerFilters(supabase
           .from('general_ledger')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('ledger_scope', 'wallet')
-          .gte('transaction_date', since24h)
-          .neq('classification', 'admin_correction')
-          .neq('category', 'system_balance_correction'),
-        supabase
+          .gte('transaction_date', since24h)),
+        applyCustomerWalletLedgerFilters(supabase
           .from('general_ledger')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('ledger_scope', 'wallet')
-          .gte('transaction_date', since7d)
-          .neq('classification', 'admin_correction')
-          .neq('category', 'system_balance_correction'),
-        supabase
+          .gte('transaction_date', since7d)),
+        applyCustomerWalletLedgerFilters(supabase
           .from('general_ledger')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('ledger_scope', 'wallet')
-          .gte('transaction_date', since30d)
-          .neq('classification', 'admin_correction')
-          .neq('category', 'system_balance_correction'),
+          .gte('transaction_date', since30d)),
       ]);
 
       return {
