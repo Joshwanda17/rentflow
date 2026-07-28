@@ -652,6 +652,14 @@ Deno.serve(async (req) => {
             .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
 
           // ── Ledger-first deposit credit (balanced double-entry) ──
+          // CRITICAL: `recipient_type` is the SOLE bucket router (Wallet Routing v2).
+          // Without it on the wallet leg, `wallet_bucket` stays NULL and the
+          // downstream `wallet_balances_projection` treats the money as
+          // withdrawable — silently redirecting agents' float deposits into
+          // their withdrawable bucket. Set it on the wallet leg to match the
+          // deposit purpose.
+          const depositRecipientType: 'user' | 'operational_wallet' =
+            isFloatDeposit ? 'operational_wallet' : 'user';
           const { error: depositLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
             entries: [
               {
@@ -660,6 +668,8 @@ Deno.serve(async (req) => {
                 direction: 'cash_in',
                 category: depositCategory,
                 ledger_scope: 'wallet',
+                recipient_type: depositRecipientType,
+                wallet_bucket: isFloatDeposit ? 'float' : 'withdrawable',
                 source_table: 'deposit_requests',
                 source_id: depositRequest.id,
                 reference_id: depositRequest.transaction_id || depositRequest.id,
