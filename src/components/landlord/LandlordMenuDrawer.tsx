@@ -16,7 +16,6 @@ import {
   ScrollText,
   PiggyBank,
   Building,
-  UserPlus,
   MessageSquare,
   FileText,
   DoorOpen,
@@ -28,7 +27,6 @@ import { Separator } from '@/components/ui/separator';
 interface LandlordMenuDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddTenant: () => void;
   onViewListedHouses?: () => void;
 }
 
@@ -50,7 +48,6 @@ interface MenuItem {
 export function LandlordMenuDrawer({ 
   open, 
   onOpenChange, 
-  onAddTenant,
   onViewListedHouses,
 }: LandlordMenuDrawerProps) {
   const navigate = useNavigate();
@@ -86,13 +83,6 @@ export function LandlordMenuDrawer({
     {
       title: 'Property Management',
       items: [
-        { 
-          icon: UserPlus, 
-          label: 'Add Tenant', 
-          description: 'Register tenant to a property',
-          onClick: onAddTenant,
-          color: 'text-primary'
-        },
         ...(onViewListedHouses ? [{ 
           icon: DoorOpen, 
           label: 'Daily Rent Listings', 
