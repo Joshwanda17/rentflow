@@ -1070,23 +1070,14 @@ export default function FindAHouse() {
                 )}
               </div>
             )}
-            {/* Sort + filter toggle row */}
+            {/* Filter toggle row */}
             <div className="flex gap-2">
-              <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-                <SelectTrigger className="flex-1 h-9 text-xs gap-1.5">
-                  <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <SelectValue placeholder="Sort" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
               <Button
                 type="button"
                 variant={showFilters || activeFilterCount > 0 ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setShowFilters(s => !s)}
-                className="h-9 gap-1.5 shrink-0"
+                className="h-9 gap-1.5 w-full"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 Filters
