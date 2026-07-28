@@ -6588,6 +6588,66 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_wallet_reports: {
+        Row: {
+          closing_balance: number
+          created_at: string
+          deposits_by_source: Json
+          email_recipients: string[] | null
+          email_sent_at: string | null
+          generated_at: string
+          generated_by: string
+          id: string
+          payouts_by_channel: Json
+          pdf_path: string | null
+          period_end: string
+          period_start: string
+          report_date: string
+          total_deposited: number
+          total_paid_out: number
+          updated_at: string
+          xlsx_path: string | null
+        }
+        Insert: {
+          closing_balance?: number
+          created_at?: string
+          deposits_by_source?: Json
+          email_recipients?: string[] | null
+          email_sent_at?: string | null
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          payouts_by_channel?: Json
+          pdf_path?: string | null
+          period_end: string
+          period_start: string
+          report_date: string
+          total_deposited?: number
+          total_paid_out?: number
+          updated_at?: string
+          xlsx_path?: string | null
+        }
+        Update: {
+          closing_balance?: number
+          created_at?: string
+          deposits_by_source?: Json
+          email_recipients?: string[] | null
+          email_sent_at?: string | null
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          payouts_by_channel?: Json
+          pdf_path?: string | null
+          period_end?: string
+          period_start?: string
+          report_date?: string
+          total_deposited?: number
+          total_paid_out?: number
+          updated_at?: string
+          xlsx_path?: string | null
+        }
+        Relationships: []
+      }
       dashboard_missions: {
         Row: {
           created_at: string
@@ -25246,6 +25306,10 @@ export type Database = {
       compute_wallet_ledger_total: {
         Args: { _user_id: string }
         Returns: number
+      }
+      compute_wallet_report: {
+        Args: { _end: string; _start: string }
+        Returns: Json
       }
       confirm_field_collection: {
         Args: {
