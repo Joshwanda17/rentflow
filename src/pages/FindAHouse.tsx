@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
-  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight,
+  SlidersHorizontal, X, Droplets, Zap, Car, Sofa, Loader2, ArrowRight,
+  ArrowUpDown, BedDouble,
   Map as MapIcon, List as ListIcon, Route, Footprints, ArrowLeft
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
@@ -83,24 +84,31 @@ export const REGION_LANDING_SLUGS: Record<string, string> = {
   western: 'Western',
 };
 
-type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
+type SortKey = 'newest' | 'price_asc' | 'price_desc' | 'nearest';
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
-  { value: 'newest', label: 'Newest first' },
   { value: 'nearest', label: 'Nearest first' },
 ];
 
-const AMENITY_FILTERS = [
-  { key: 'has_water', label: 'Water', icon: Droplets },
-  { key: 'has_electricity', label: 'Power', icon: Zap },
-  { key: 'has_security', label: 'Security', icon: Lock },
-  { key: 'has_parking', label: 'Parking', icon: Car },
-  { key: 'is_furnished', label: 'Furnished', icon: Sofa },
-] as const;
+const PRICE_CHIPS: { label: string; min?: number; max?: number }[] = [
+  { label: 'Any price' },
+  { label: 'Under 3k/day', max: 3000 },
+  { label: '3k – 5k/day', min: 3000, max: 5000 },
+  { label: '5k – 10k/day', min: 5000, max: 10000 },
+  { label: '10k – 20k/day', min: 10000, max: 20000 },
+  { label: '20k+/day', min: 20000 },
+];
 
-type AmenityKey = typeof AMENITY_FILTERS[number]['key'];
+const AMENITY_TOGGLES: { key: 'hasWater' | 'hasElectricity' | 'hasSecurity' | 'hasParking' | 'isFurnished'; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: 'hasWater', label: 'Water', Icon: Droplets },
+  { key: 'hasElectricity', label: 'Power', Icon: Zap },
+  { key: 'hasSecurity', label: 'Security', Icon: ShieldCheck },
+  { key: 'hasParking', label: 'Parking', Icon: Car },
+  { key: 'isFurnished', label: 'Furnished', Icon: Sofa },
+];
 
 function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }: { images: string[] | null; title: string; onImageClick?: (index: number) => void; layout?: 'vertical' | 'horizontal' }) {
   const [idx, setIdx] = useState(0);
@@ -573,12 +581,31 @@ export default function FindAHouse() {
     return !!(r && REGIONS.includes(r));
   });
   const [copied, setCopied] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'price_asc');
-  const [verifiedOnly, setVerifiedOnly] = useState(() => searchParams.get('verified') === '1');
-  const [maxDaily, setMaxDaily] = useState<string>(() => searchParams.get('max') || 'all');
-  const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>(
-    () => (searchParams.get('amenities')?.split(',').filter(Boolean) as AmenityKey[]) || []
-  );
+  const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'newest');
+  const [minPrice, setMinPrice] = useState<number | undefined>(() => {
+    const v = searchParams.get('min');
+    return v ? Number(v) : undefined;
+  });
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(() => {
+    const v = searchParams.get('max');
+    return v ? Number(v) : undefined;
+  });
+  const [minRooms, setMinRooms] = useState<number>(() => {
+    const v = searchParams.get('rooms');
+    return v ? Number(v) : 0;
+  });
+  const [amenities, setAmenities] = useState<{
+    hasWater: boolean; hasElectricity: boolean; hasSecurity: boolean; hasParking: boolean; isFurnished: boolean;
+  }>(() => {
+    const list = searchParams.get('amenities')?.split(',').filter(Boolean) || [];
+    return {
+      hasWater: list.includes('hasWater'),
+      hasElectricity: list.includes('hasElectricity'),
+      hasSecurity: list.includes('hasSecurity'),
+      hasParking: list.includes('hasParking'),
+      isFurnished: list.includes('isFurnished'),
+    };
+  });
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
   const [showMap, setShowMap] = useState(false);
@@ -597,12 +624,14 @@ export default function FindAHouse() {
     if (selectedSubCounty !== 'all') p.set('subcounty', selectedSubCounty);
     if (selectedVillage !== 'all') p.set('village', selectedVillage);
     if (selectedCategory !== 'all') p.set('category', selectedCategory);
-    if (sortKey !== 'price_asc') p.set('sort', sortKey);
-    if (verifiedOnly) p.set('verified', '1');
-    if (maxDaily !== 'all') p.set('max', maxDaily);
-    if (activeAmenities.length) p.set('amenities', activeAmenities.join(','));
+    if (sortKey !== 'newest') p.set('sort', sortKey);
+    if (minPrice) p.set('min', String(minPrice));
+    if (maxPrice) p.set('max', String(maxPrice));
+    if (minRooms > 0) p.set('rooms', String(minRooms));
+    const activeAmenityKeys = Object.entries(amenities).filter(([, v]) => v).map(([k]) => k);
+    if (activeAmenityKeys.length) p.set('amenities', activeAmenityKeys.join(','));
     return p.toString();
-  }, [searchText, selectedRegion, selectedDistrict, selectedSubCounty, selectedVillage, selectedCategory, sortKey, verifiedOnly, maxDaily, activeAmenities]);
+  }, [searchText, selectedRegion, selectedDistrict, selectedSubCounty, selectedVillage, selectedCategory, sortKey, minPrice, maxPrice, minRooms, amenities]);
 
   const openDetails = useCallback((listing: HouseListing) => {
     navigate(`/house/${listing.short_code || listing.id}`, {
@@ -620,19 +649,22 @@ export default function FindAHouse() {
   const effectiveLat = hasSharedLocation ? sharedLat : geo.latitude;
   const effectiveLng = hasSharedLocation ? sharedLng : geo.longitude;
 
-  const toggleAmenity = (key: AmenityKey) =>
-    setActiveAmenities(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
+  const toggleAmenity = (key: keyof typeof amenities) => {
+    setAmenities(a => ({ ...a, [key]: !a[key] }));
+  };
 
   const clearFilters = () => {
-    setVerifiedOnly(false);
-    setMaxDaily('all');
-    setActiveAmenities([]);
+    setSearchText('');
+    setSelectedRegion('All Regions');
     setSelectedCategory('all');
     setSelectedDistrict('all');
     setSelectedSubCounty('all');
     setSelectedVillage('all');
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setMinRooms(0);
+    setAmenities({ hasWater: false, hasElectricity: false, hasSecurity: false, hasParking: false, isFurnished: false });
+    setSortKey('newest');
   };
 
   // Selecting a broader area resets the narrower ones so we never keep a stale
@@ -675,6 +707,19 @@ export default function FindAHouse() {
     radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
+    district: selectedDistrict !== 'all' ? selectedDistrict : undefined,
+    subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
+    village: selectedVillage !== 'all' ? selectedVillage : undefined,
+    search: debouncedSearch.trim() || undefined,
+    minDailyRate: minPrice,
+    maxDailyRate: maxPrice,
+    minRooms: minRooms || undefined,
+    hasWater: amenities.hasWater || undefined,
+    hasElectricity: amenities.hasElectricity || undefined,
+    hasSecurity: amenities.hasSecurity || undefined,
+    hasParking: amenities.hasParking || undefined,
+    isFurnished: amenities.isFurnished || undefined,
+    sort: sortKey === 'nearest' ? undefined : sortKey,
     // Page through EVERY matching listing — no fixed cap.
     paginate: true,
     // Fetch a large first page so the map pins and the district/sub-county/
@@ -692,7 +737,14 @@ export default function FindAHouse() {
     subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
     village: selectedVillage !== 'all' ? selectedVillage : undefined,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
-    maxDailyRate: maxDaily !== 'all' ? Number(maxDaily) : undefined,
+    minDailyRate: minPrice,
+    maxDailyRate: maxPrice,
+    minRooms: minRooms || undefined,
+    hasWater: amenities.hasWater || undefined,
+    hasElectricity: amenities.hasElectricity || undefined,
+    hasSecurity: amenities.hasSecurity || undefined,
+    hasParking: amenities.hasParking || undefined,
+    isFurnished: amenities.isFurnished || undefined,
     search: debouncedSearch.trim() || undefined,
   });
 
@@ -732,16 +784,20 @@ export default function FindAHouse() {
         l.title.toLowerCase().includes(q)
       );
     }
-    if (verifiedOnly) {
-      result = result.filter(l => l.verified && l.status !== 'pending');
+    if (minPrice !== undefined) {
+      result = result.filter(l => l.daily_rate >= minPrice);
     }
-    if (maxDaily !== 'all') {
-      const cap = Number(maxDaily);
-      result = result.filter(l => l.daily_rate <= cap);
+    if (maxPrice !== undefined) {
+      result = result.filter(l => l.daily_rate <= maxPrice);
     }
-    if (activeAmenities.length > 0) {
-      result = result.filter(l => activeAmenities.every(k => Boolean((l as any)[k])));
+    if (minRooms > 0) {
+      result = result.filter(l => l.number_of_rooms >= minRooms);
     }
+    if (amenities.hasWater) result = result.filter(l => l.has_water);
+    if (amenities.hasElectricity) result = result.filter(l => l.has_electricity);
+    if (amenities.hasSecurity) result = result.filter(l => l.has_security);
+    if (amenities.hasParking) result = result.filter(l => l.has_parking);
+    if (amenities.isFurnished) result = result.filter(l => l.is_furnished);
     switch (sortKey) {
       case 'price_desc':
         result.sort((a, b) => b.daily_rate - a.daily_rate);
@@ -762,7 +818,7 @@ export default function FindAHouse() {
         break;
     }
     return result;
-  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, effectiveLat, effectiveLng, selectedDistrict, selectedSubCounty, selectedVillage]);
+  }, [listings, debouncedSearch, minPrice, maxPrice, minRooms, amenities, sortKey, effectiveLat, effectiveLng, selectedDistrict, selectedSubCounty, selectedVillage]);
 
   // Distinct location options derived from the loaded listings, cascading from
   // the current region/district/sub-county selection. Only areas that actually
@@ -795,13 +851,16 @@ export default function FindAHouse() {
   }, [listings, selectedDistrict, selectedSubCounty]);
 
   const activeFilterCount =
-    (verifiedOnly ? 1 : 0) +
-    (maxDaily !== 'all' ? 1 : 0) +
-    activeAmenities.length +
+    (searchText.trim().length > 0 ? 1 : 0) +
+    (selectedRegion !== 'All Regions' ? 1 : 0) +
     (selectedCategory !== 'all' ? 1 : 0) +
     (selectedDistrict !== 'all' ? 1 : 0) +
     (selectedSubCounty !== 'all' ? 1 : 0) +
-    (selectedVillage !== 'all' ? 1 : 0);
+    (selectedVillage !== 'all' ? 1 : 0) +
+    (minPrice || maxPrice ? 1 : 0) +
+    (minRooms > 0 ? 1 : 0) +
+    Object.values(amenities).filter(Boolean).length +
+    (sortKey !== 'newest' ? 1 : 0);
 
   const sortLabel = SORT_OPTIONS.find(s => s.value === sortKey)?.label ?? '';
 
@@ -1011,23 +1070,14 @@ export default function FindAHouse() {
                 )}
               </div>
             )}
-            {/* Sort + filter toggle row */}
+            {/* Filter toggle row */}
             <div className="flex gap-2">
-              <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-                <SelectTrigger className="flex-1 h-9 text-xs gap-1.5">
-                  <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <SelectValue placeholder="Sort" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
               <Button
                 type="button"
                 variant={showFilters || activeFilterCount > 0 ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setShowFilters(s => !s)}
-                className="h-9 gap-1.5 shrink-0"
+                className="h-9 gap-1.5 w-full"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 Filters
@@ -1041,62 +1091,119 @@ export default function FindAHouse() {
 
             {/* Expandable filter panel */}
             {showFilters && (
-              <div className="space-y-3 pt-1">
-                {/* Verified + price cap */}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setVerifiedOnly(v => !v)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                      verifiedOnly
-                        ? 'bg-success text-success-foreground border-success'
-                        : 'bg-muted/60 text-muted-foreground border-border'
-                    }`}
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" /> Verified only
-                  </button>
-                  <Select value={maxDaily} onValueChange={setMaxDaily}>
-                    <SelectTrigger className="h-8 w-auto text-xs gap-1.5 rounded-full px-3">
-                      <SelectValue placeholder="Max daily" />
+              <div id="find-a-house-filters" className="space-y-4 pt-2">
+                {/* Daily rent */}
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily rent</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRICE_CHIPS.map(chip => {
+                      const active = (chip.min ?? undefined) === minPrice && (chip.max ?? undefined) === maxPrice;
+                      return (
+                        <button
+                          key={chip.label}
+                          type="button"
+                          onClick={() => { setMinPrice(chip.min); setMaxPrice(chip.max); }}
+                          aria-pressed={active}
+                          className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+                        >
+                          {chip.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      placeholder="Min UGX/day"
+                      value={minPrice ?? ''}
+                      onChange={e => setMinPrice(e.target.value ? Number(e.target.value) : undefined)}
+                      className="h-9 text-xs flex-1"
+                      aria-label="Minimum daily rate"
+                    />
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      placeholder="Max UGX/day"
+                      value={maxPrice ?? ''}
+                      onChange={e => setMaxPrice(e.target.value ? Number(e.target.value) : undefined)}
+                      className="h-9 text-xs flex-1"
+                      aria-label="Maximum daily rate"
+                    />
+                  </div>
+                </div>
+
+                {/* Rooms + Sort */}
+                <div className="flex gap-2">
+                  <Select value={String(minRooms)} onValueChange={v => setMinRooms(Number(v))}>
+                    <SelectTrigger className="flex-1 h-9 text-xs">
+                      <BedDouble className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                      <SelectValue placeholder="Any rooms" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Any price</SelectItem>
-                      <SelectItem value="5000">Under {formatUGX(5000)}/day</SelectItem>
-                      <SelectItem value="10000">Under {formatUGX(10000)}/day</SelectItem>
-                      <SelectItem value="20000">Under {formatUGX(20000)}/day</SelectItem>
-                      <SelectItem value="50000">Under {formatUGX(50000)}/day</SelectItem>
+                      <SelectItem value="0">Any rooms</SelectItem>
+                      <SelectItem value="1">1+ rooms</SelectItem>
+                      <SelectItem value="2">2+ rooms</SelectItem>
+                      <SelectItem value="3">3+ rooms</SelectItem>
+                      <SelectItem value="4">4+ rooms</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                    <SelectTrigger className="flex-1 h-9 text-xs">
+                      <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SORT_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                {/* Amenity chips */}
-                <div className="flex flex-wrap gap-2">
-                  {AMENITY_FILTERS.map(({ key, label, icon: Icon }) => {
-                    const active = activeAmenities.includes(key);
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => toggleAmenity(key)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                          active
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-muted/60 text-muted-foreground border-border'
-                        }`}
-                      >
-                        <Icon className="h-3.5 w-3.5" /> {label}
-                      </button>
-                    );
-                  })}
+
+                {/* Must have */}
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Must have</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {AMENITY_TOGGLES.map(({ key, label, Icon }) => {
+                      const active = amenities[key];
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => toggleAmenity(key)}
+                          aria-pressed={active}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                {activeFilterCount > 0 && (
+
+                {/* Clear + Apply */}
+                <div className="flex flex-col gap-2 pt-1">
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" /> Clear all filters
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={clearFilters}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowFilters(false)}
+                    className="w-full inline-flex items-center justify-center gap-1.5 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shadow-sm hover:bg-primary/90 active:scale-[0.99] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
-                    <X className="h-3.5 w-3.5" /> Clear all filters
+                    <SlidersHorizontal className="h-4 w-4" /> Apply filters
                   </button>
-                )}
+                </div>
               </div>
             )}
           </div>
