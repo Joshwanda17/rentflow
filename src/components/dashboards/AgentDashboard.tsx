@@ -1145,6 +1145,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* 2) Today's collected total — single most useful at-a-glance number */}
             {!isMerchant && <FieldCollectDailyTotals live />}
 
+            {/* 4) Live rating — today vs target + 7-day capacity tier */}
+            {!isMerchant && <AgentRatingCard agentId={user.id} />}
+
             {/* 2b) Earnings summary — available rewards + lifetime total */}
             {!isMerchant && (
               <>
@@ -1235,9 +1238,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <span className="text-xs font-medium text-warning shrink-0">Review →</span>
               </button>
             )}
-
-            {/* 4) Live rating — today vs target + 7-day capacity tier */}
-            {!isMerchant && <AgentRatingCard agentId={user.id} />}
 
             {/* 5) Secondary shortcuts — collected receipt helper + my listed houses */}
             {!isMerchant && (
