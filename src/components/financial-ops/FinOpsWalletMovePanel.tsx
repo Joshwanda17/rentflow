@@ -73,6 +73,10 @@ export function FinOpsWalletMovePanel() {
 
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  // Same-user Withdrawable → Float only: operator opt-in to fill an existing
+  // Float overdraft. Without this, the edge function refuses moves where the
+  // amount only fills (or partly fills) a negative Float shortfall.
+  const [acknowledgeOverdraft, setAcknowledgeOverdraft] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<MoveResult | null>(null);
@@ -184,6 +188,7 @@ export function FinOpsWalletMovePanel() {
     setHits([]);
     setTerm('');
     setPicking('source');
+    setAcknowledgeOverdraft(false);
   };
 
   const submit = async () => {
@@ -254,6 +259,10 @@ export function FinOpsWalletMovePanel() {
           target_user_id: source.id,
           amount: amountNum,
           reason: reason.trim(),
+          acknowledge_float_overdraft:
+            sameUserDir === 'withdrawable_to_float' && acknowledgeOverdraft
+              ? true
+              : undefined,
         },
         errorTitle: 'Move failed',
       });
@@ -657,6 +666,40 @@ export function FinOpsWalletMovePanel() {
                 className="mt-1"
               />
             </div>
+            {mode === 'same_user'
+              && sameUserDir === 'withdrawable_to_float'
+              && source.float_balance < 0 && (
+                <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 space-y-2">
+                  <div className="flex items-start gap-2 text-xs text-warning-foreground">
+                    <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        Float is overdrawn by {fmt(Math.abs(source.float_balance))}
+                      </p>
+                      <p className="text-muted-foreground mt-0.5">
+                        The first {fmt(Math.abs(source.float_balance))} of this move fills the
+                        overdraft. Visible Float after move:{' '}
+                        <span className="font-semibold text-foreground">
+                          {fmt(Math.max(0, source.float_balance + amountNum))}
+                        </span>
+                        .
+                      </p>
+                    </div>
+                  </div>
+                  <label className="flex items-start gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={acknowledgeOverdraft}
+                      onChange={(e) => setAcknowledgeOverdraft(e.target.checked)}
+                    />
+                    <span>
+                      I acknowledge Float is overdrawn and want to proceed. Post this move even if
+                      it only fills (or partly fills) the overdraft.
+                    </span>
+                  </label>
+                </div>
+              )}
             <Button onClick={() => setConfirmOpen(true)} disabled={!canSubmit} className="w-full gap-2">
               <ArrowRightLeft className="h-4 w-4" />
               {mode === 'user_to_user'
