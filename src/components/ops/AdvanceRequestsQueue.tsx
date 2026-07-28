@@ -31,6 +31,11 @@ import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AgentLocationBadge } from '@/components/ops/AgentLocationBadge';
 import {
+  useAgentDuplicateMap,
+  DuplicateAccountBadge,
+  DuplicateAccountAlert,
+} from '@/components/ops/DuplicateAccountAlert';
+import {
   AgentAdvanceEvaluationDialog,
   type PotentialInfo,
   scoreColor,
@@ -127,6 +132,11 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
   });
 
   const { data: potentialMap = {} } = useAgentPotentialMap();
+
+  // Fraud signal: does this agent have another account (same name / NIN / momo)?
+  const { data: duplicateMap = {} } = useAgentDuplicateMap(
+    (requests as any[]).map((r) => r.agent_id).filter(Boolean),
+  );
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, approve, principal, skip, reason }: { id: string; approve: boolean; principal?: number; skip?: boolean; reason?: string }) => {
@@ -389,6 +399,11 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                     <p className="text-sm font-bold truncate">{req.agent_full_name || 'Agent'}</p>
                     <p className="text-[10px] text-muted-foreground">{req.agent_phone || ''} • {format(new Date(req.created_at), 'MMM d, yyyy')}</p>
                     <AgentLocationBadge req={req} />
+                    {req.agent_id && (
+                      <div className="mt-1">
+                        <DuplicateAccountBadge dups={duplicateMap[req.agent_id]} />
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-base font-bold text-primary">{formatUGX(requested)}</p>
@@ -459,6 +474,10 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         onClose={() => setSelected(null)}
         footer={selected ? (
           <>
+            <DuplicateAccountAlert
+              dups={selected.agent_id ? duplicateMap[selected.agent_id] : undefined}
+              className="mb-3"
+            />
             <div>
               <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
                 Approved amount (UGX)
