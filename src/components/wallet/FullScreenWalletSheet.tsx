@@ -25,7 +25,6 @@ import { RequestMoneyDialog } from './RequestMoneyDialog';
 import { PendingRequestsDialog } from './PendingRequestsDialog';
 import { TransactionReceipt } from './TransactionReceipt';
 import { UserDepositRequests } from './UserDepositRequests';
-import { WithdrawRequestDialog } from './WithdrawRequestDialog';
 import { UserWithdrawalRequests } from './UserWithdrawalRequests';
 import { AnimatedBalance } from './AnimatedBalance';
 import { NfcCardSetupDialog } from './NfcCardSetupDialog';
@@ -47,7 +46,6 @@ import { format } from 'date-fns';
 import { EmptyHousePlacementBonusBanner } from '@/components/agent/EmptyHousePlacementBonusBanner';
 import { FloatBreakdownCard } from './FloatBreakdownCard';
 import { AgentMoneyMapCard } from './AgentMoneyMapCard';
-import { usePayoutsUiEnabled } from '@/hooks/usePayoutsUiEnabled';
 import { toast } from 'sonner';
 
 interface FullScreenWalletSheetProps {
@@ -78,8 +76,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [pendingOpen, setPendingOpen] = useState(false);
-  const [withdrawOpen, setWithdrawOpen] = useState(false);
-  const { enabled: payoutsUiEnabled } = usePayoutsUiEnabled();
   const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
