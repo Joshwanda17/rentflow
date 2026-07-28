@@ -41,6 +41,7 @@ import { format, subDays, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 // jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 // ── Role-based highlight config ──
 // Each role sees the categories that matter most to them surfaced first,
@@ -192,18 +193,17 @@ async function buildSubAgentEarnings(userId: string, entries: LedgerEntry[]): Pr
       .limit(300),
     supabase
       .from('general_ledger')
-      .select('id, amount, source_id, transaction_date, recipient_type, ledger_scope, wallet_bucket')
+      .select('id, amount, source_id, transaction_date, recipient_type, ledger_scope, wallet_bucket, classification, category, source_table, description, reference_id')
       .eq('user_id', userId)
       .eq('category', 'agent_commission')
       .eq('ledger_scope', 'wallet')
-      .neq('classification', 'admin_correction')
       .order('transaction_date', { ascending: false })
       .limit(800),
   ]);
 
   const overrides = overridesRes.data || [];
   const earnings = earningsRes.data || [];
-  const legs = (legsRes.data || []).map((l) => ({
+  const legs = (legsRes.data || []).filter(isCustomerWalletLedgerEntryVisible).map((l) => ({
     id: l.id as string,
     amount: Number(l.amount),
     source_id: l.source_id ? String(l.source_id) : null,
@@ -330,16 +330,11 @@ export function WalletStatement() {
 
     try {
       const [{ data: ledger, error }, { data: profile }, { data: referralEarnings }] = await Promise.all([
-        supabase
+        applyCustomerWalletLedgerFilters(supabase
           .from('general_ledger')
-          .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party')
+          .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, classification, source_table')
           .eq('user_id', user.id)
-          .eq('ledger_scope', 'wallet')
-          // Hide admin/CFO reconciliation legs (admin_correction + system_balance_correction)
-          // from end users — they are bookkeeping-only. Production-classified reversals must
-          // remain visible so the statement matches the headline balance.
-          .neq('classification', 'admin_correction')
-          .neq('category', 'system_balance_correction')
+          .eq('ledger_scope', 'wallet'))
           .order('transaction_date', { ascending: false })
           .limit(500),
         supabase.from('profiles').select('full_name').eq('id', user.id).single(),
@@ -353,7 +348,7 @@ export function WalletStatement() {
       if (error) throw error;
       setUserName(profile?.full_name || user.email || '');
 
-      const allEntries: LedgerEntry[] = (ledger || []).map(row => ({
+      const allEntries: LedgerEntry[] = (ledger || []).filter(isCustomerWalletLedgerEntryVisible).map(row => ({
         id: row.id,
         date: row.transaction_date,
         type: (row.direction === 'cash_in' ? 'credit' : 'debit') as 'credit' | 'debit',
