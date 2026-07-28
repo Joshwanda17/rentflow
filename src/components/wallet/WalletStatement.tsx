@@ -191,12 +191,12 @@ async function buildSubAgentEarnings(userId: string, entries: LedgerEntry[]): Pr
       .in('earning_type', SUBAGENT_EARNING_TYPES)
       .order('created_at', { ascending: false })
       .limit(300),
-    supabase
+    applyCustomerWalletLedgerFilters(supabase
       .from('general_ledger')
       .select('id, amount, source_id, transaction_date, recipient_type, ledger_scope, wallet_bucket, classification, category, source_table, description, reference_id')
       .eq('user_id', userId)
       .eq('category', 'agent_commission')
-      .eq('ledger_scope', 'wallet')
+      .eq('ledger_scope', 'wallet'))
       .order('transaction_date', { ascending: false })
       .limit(800),
   ]);
