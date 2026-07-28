@@ -40,6 +40,8 @@ type AttemptRow = {
   reason: string | null;
   actor_role: string | null;
   user_agent: string | null;
+  referrer?: string | null;
+  actor_user_id?: string | null;
   created_at: string;
 };
 
@@ -56,6 +58,21 @@ export function SignupSourceLogPanel() {
   const [blockIp, setBlockIp] = useState<string | null>(null);
   const [blockReason, setBlockReason] = useState('');
   const qc = useQueryClient();
+  const [detailRow, setDetailRow] = useState<AttemptRow | null>(null);
+
+  const detailProfile = useQuery({
+    queryKey: ['signup-attempt-profile', detailRow?.user_id],
+    enabled: !!detailRow?.user_id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .select('id, full_name, phone, email, role, kyc_level, created_at')
+        .eq('id', detailRow!.user_id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+  });
 
   const blockedIps = useQuery({
     queryKey: ['blocked-signup-ips'],
@@ -259,7 +276,11 @@ export function SignupSourceLogPanel() {
             </TableHeader>
             <TableBody>
               {(log.data ?? []).map((r) => (
-                <TableRow key={r.id}>
+                <TableRow
+                  key={r.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setDetailRow(r)}
+                >
                   <TableCell className="text-xs whitespace-nowrap">{format(new Date(r.created_at), 'MMM d, HH:mm')}</TableCell>
                   <TableCell className="font-mono text-xs">{r.path || '—'}</TableCell>
                   <TableCell className="text-xs">{r.utm_source || '—'}</TableCell>
@@ -276,7 +297,7 @@ export function SignupSourceLogPanel() {
                     {r.actor_role && <div className="text-[10px] text-muted-foreground mt-0.5">by {r.actor_role}</div>}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate">{r.reason || (r.user_id ? '✓ account created' : '')}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     {r.ip ? (
                       blockedSet.has(r.ip) ? (
                         <Button
@@ -353,6 +374,78 @@ export function SignupSourceLogPanel() {
         </Card>
       )}
 
+      <Dialog open={!!detailRow} onOpenChange={(o) => { if (!o) setDetailRow(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Signup attempt details</DialogTitle>
+            <DialogDescription>
+              {detailRow && format(new Date(detailRow.created_at), 'PPpp')} · <span className="font-mono">{detailRow?.path || '—'}</span>
+            </DialogDescription>
+          </DialogHeader>
+          {detailRow && (
+            <div className="space-y-4 text-sm">
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">Status</div>
+                <Badge className={STATUS_COLORS[detailRow.status] || 'bg-muted text-foreground'} variant="secondary">
+                  {detailRow.status}
+                </Badge>
+                {detailRow.reason && <div className="mt-1 text-muted-foreground">{detailRow.reason}</div>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Email entered" value={detailRow.email} mono />
+                <Field label="Phone entered" value={detailRow.phone} mono />
+                <Field label="IP" value={detailRow.ip} mono />
+                <Field label="Device fingerprint" value={detailRow.device_fp} mono />
+                <Field label="Actor role" value={detailRow.actor_role} />
+                <Field label="Linked user_id" value={detailRow.user_id} mono />
+                <Field label="UTM source" value={detailRow.utm_source} />
+                <Field label="UTM medium" value={detailRow.utm_medium} />
+                <Field label="UTM campaign" value={detailRow.utm_campaign} />
+                <Field label="Referrer" value={detailRow.referrer ?? null} />
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">User Agent</div>
+                <div className="font-mono text-xs break-all bg-muted/50 p-2 rounded">
+                  {detailRow.user_agent || '—'}
+                </div>
+              </div>
+
+              {detailRow.user_id && (
+                <div className="border-t pt-3">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase mb-2">Linked profile</div>
+                  {detailProfile.isLoading ? (
+                    <div className="text-xs text-muted-foreground">Loading…</div>
+                  ) : detailProfile.data ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Full name" value={detailProfile.data.full_name} />
+                      <Field label="Role" value={detailProfile.data.role} />
+                      <Field label="Profile phone" value={detailProfile.data.phone} mono />
+                      <Field label="Profile email" value={detailProfile.data.email} mono />
+                      <Field label="KYC level" value={detailProfile.data.kyc_level != null ? String(detailProfile.data.kyc_level) : null} />
+                      <Field
+                        label="Profile created"
+                        value={detailProfile.data.created_at ? format(new Date(detailProfile.data.created_at), 'PPpp') : null}
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Profile row not found (may have been deleted).</div>
+                  )}
+                </div>
+              )}
+
+              <div className="text-[10px] text-muted-foreground border-t pt-2">
+                Attempt id: <span className="font-mono">{detailRow.id}</span>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDetailRow(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!blockIp} onOpenChange={(o) => { if (!o) { setBlockIp(null); setBlockReason(''); } }}>
         <DialogContent>
           <DialogHeader>
@@ -387,3 +480,12 @@ export function SignupSourceLogPanel() {
 }
 
 export default SignupSourceLogPanel;
+
+function Field({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold text-muted-foreground uppercase mb-0.5">{label}</div>
+      <div className={mono ? 'font-mono text-xs break-all' : 'text-sm break-words'}>{value || '—'}</div>
+    </div>
+  );
+}
