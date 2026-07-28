@@ -101,7 +101,18 @@ Deno.serve(async (req) => {
       _end: endIso,
     });
     if (rpcErr) throw rpcErr;
-    const m = rpcData as Metrics;
+    // Normalize RPC output keys (deposits/payouts/closing_wallet_balance)
+    // into the storage/report shape used downstream.
+    const raw = rpcData as any;
+    const m: Metrics = {
+      period_start: raw.period_start,
+      period_end: raw.period_end,
+      total_deposited: Number(raw.total_deposited ?? 0),
+      total_paid_out: Number(raw.total_paid_out ?? 0),
+      closing_balance: Number(raw.closing_wallet_balance ?? raw.closing_balance ?? 0),
+      deposits_by_source: raw.deposits ?? raw.deposits_by_source ?? {},
+      payouts_by_channel: raw.payouts ?? raw.payouts_by_channel ?? {},
+    };
 
     const generatedAtLabel = eatNowLabel();
     const pdfBytes = await buildPdf({ dateStr, generatedAtLabel, m });
