@@ -878,9 +878,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 </h1>
                 <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
               </div>
-              <AiIdButton variant="compact" />
+              <div className="hidden sm:flex items-center gap-2">
+                <AiIdButton variant="compact" />
+                <AgentNotificationBell userId={user.id} />
+              </div>
             </div>
-            <div className="flex justify-end">
+            {/* Mobile: AI ID + bell sit below the avatar/name row */}
+            <div className="flex sm:hidden items-center justify-end gap-2">
+              <AiIdButton variant="compact" />
               <AgentNotificationBell userId={user.id} />
             </div>
           </div>
