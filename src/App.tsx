@@ -558,28 +558,28 @@ function AppRoutes() {
           <Route path="/cto/dashboard" element={<RoleGuard allowedRoles={['cto', 'super_admin']} requiredPermission="cto"><CTODashboardPage /></RoleGuard>} />
           <Route path="/ceo/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'cto']} requiredPermission="ceo"><CEODashboardPage /></RoleGuard>} />
           <Route path="/cfo/dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'cto']} requiredPermission="cfo"><CFODashboardPage /></RoleGuard>} />
-          <Route path="/cfo/investor-report" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto']}><InvestorReportPage /></RoleGuard>} />
-          <Route path="/cfo/money-flow-trace" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']}><MoneyFlowTracePage /></RoleGuard>} />
-          <Route path="/cfo/ledger/:id" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']}><LedgerEntryDetailPage /></RoleGuard>} />
+          <Route path="/cfo/investor-report" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto']} requiredPermission="cfo"><InvestorReportPage /></RoleGuard>} />
+          <Route path="/cfo/money-flow-trace" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']} requiredPermission="cfo"><MoneyFlowTracePage /></RoleGuard>} />
+          <Route path="/cfo/ledger/:id" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']} requiredPermission="cfo"><LedgerEntryDetailPage /></RoleGuard>} />
           <Route path="/ledger/:id" element={<RoleGuard allowedRoles={['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager', 'operations', 'employee']}><LedgerEntryDeepLinkPage /></RoleGuard>} />
-          <Route path="/cfo/phantom-drift/:userId" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'cto', 'manager']}><PhantomDriftDetailPage /></RoleGuard>} />
+          <Route path="/cfo/phantom-drift/:userId" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'cto', 'manager']} requiredPermission="cfo"><PhantomDriftDetailPage /></RoleGuard>} />
           <Route path="/coo/dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto']} requiredPermission="coo"><COODashboardPage /></RoleGuard>} />
           <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'cto']} requiredPermission="cmo"><CMODashboardPage /></RoleGuard>} />
           <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'cto']} requiredPermission="crm"><CRMDashboardPage /></RoleGuard>} />
           <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRDashboardPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRTasksPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/productivity" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRProductivityPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/recruitment" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRRecruitmentPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/metrics" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']}><HRMetricDefinitionsPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRTasksPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/productivity" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRProductivityPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/recruitment" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRRecruitmentPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/metrics" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRMetricDefinitionsPage /></RoleGuard>} />
           <Route path="/hr/profiles/:userId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HREmployeeProfilePage /></RoleGuard>} />
           <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'employee']}><AdminDashboardPage /></RoleGuard>} />
-          <Route path="/director/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']}><DirectorDashboardPage /></RoleGuard>} />
+          <Route path="/director/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']} requiredPermission="director"><DirectorDashboardPage /></RoleGuard>} />
           <Route path="/admin/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']} requiredPermission="company-ops"><AdminUsersPage /></RoleGuard>} />
           <Route path="/admin/access-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminAccessAuditPage /></RoleGuard>} />
           <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo']} requiredPermission="financial-ops"><AdminFinancialOpsPage /></RoleGuard>} />
-          <Route path="/admin/referrals" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'coo', 'cto']}><AdminReferralsPage /></RoleGuard>} />
-          <Route path="/admin/oauth-failures" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'ceo', 'coo', 'cto']}><AdminOAuthFailuresPage /></RoleGuard>} />
-          <Route path="/admin/recovery-sms-log" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'ceo', 'coo', 'cto']}><AdminRecoverySmsLogPage /></RoleGuard>} />
+          <Route path="/admin/referrals" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'coo', 'cto']} requiredPermission="financial-ops"><AdminReferralsPage /></RoleGuard>} />
+          <Route path="/admin/oauth-failures" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'ceo', 'coo', 'cto']} requiredPermission="cto"><AdminOAuthFailuresPage /></RoleGuard>} />
+          <Route path="/admin/recovery-sms-log" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'ceo', 'coo', 'cto']} requiredPermission="financial-ops"><AdminRecoverySmsLogPage /></RoleGuard>} />
           <Route path="/admin/archived-accounts" element={<RoleGuard allowedRoles={['super_admin', 'manager']}><AdminArchivedAccountsPage /></RoleGuard>} />
           <Route path="/admin/account-conflicts" element={<RoleGuard allowedRoles={['super_admin', 'manager']}><AdminAccountConflictsPage /></RoleGuard>} />
           <Route path="/admin/recommendation-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto', 'coo', 'operations']}><AgentRecommendationAuditPage /></RoleGuard>} />
@@ -608,10 +608,10 @@ function AppRoutes() {
           <Route path="/coo/pipeline-landlords" element={<PipelineLandlordsDetail />} />
           <Route path="/coo/rent-coverage" element={<RentCoverageDetail />} />
           {/* COO → Reports */}
-          <Route path="/coo/reports/partner-ops"   element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']}><COOPartnerOpsReport /></RoleGuard>} />
-          <Route path="/coo/reports/agent-ops"     element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']}><COOAgentOpsReport /></RoleGuard>} />
-          <Route path="/coo/reports/tenant-ops"    element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']}><COOTenantOpsReport /></RoleGuard>} />
-          <Route path="/coo/reports/financial-ops" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']}><COOFinancialOpsReport /></RoleGuard>} />
+          <Route path="/coo/reports/partner-ops"   element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']} requiredPermission="coo"><COOPartnerOpsReport /></RoleGuard>} />
+          <Route path="/coo/reports/agent-ops"     element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']} requiredPermission="coo"><COOAgentOpsReport /></RoleGuard>} />
+          <Route path="/coo/reports/tenant-ops"    element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']} requiredPermission="coo"><COOTenantOpsReport /></RoleGuard>} />
+          <Route path="/coo/reports/financial-ops" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']} requiredPermission="coo"><COOFinancialOpsReport /></RoleGuard>} />
           <Route path="/share" element={<Index />} />
           <Route path="/ai" element={<WelileAIPage />} />
           <Route path="/terms" element={<Terms />} />
