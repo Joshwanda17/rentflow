@@ -868,20 +868,16 @@ Deno.serve(async (req) => {
           const newNextChargeDate: string | null = null;
 
           // ── Notification ──
-          const repaymentNote = repaymentApplied > 0
-            ? ` UGX ${repaymentApplied.toLocaleString()} auto-deducted for rent (remaining: UGX ${newOutstanding.toLocaleString()}).`
-            : "";
-          const debtNote = debtCleared > 0
-            ? ` Debt of UGX ${debtCleared.toLocaleString()} cleared.`
-            : "";
-          const prepaidNote = daysPrepaid > 0
-            ? ` ${daysPrepaid} future day(s) pre-paid (UGX ${prepaidAmount.toLocaleString()}). Next charge: ${newNextChargeDate ? new Date(newNextChargeDate).toLocaleDateString() : 'N/A'}.`
-            : "";
+          // Auto-apply retired: notes below are always empty; kept as
+          // consts so the template strings compile unchanged.
+          const repaymentNote = "";
+          const debtNote = "";
+          const prepaidNote = "";
+          void newOutstanding; void newNextChargeDate;
 
-          let notifTitle = "Deposit Approved! 💰";
-          if (isFloatDeposit) notifTitle = "Float Deposit Approved! 🏘️";
-          else if (debtCleared > 0 || daysPrepaid > 0) notifTitle = "Deposit Approved & Auto-Applied! 💰";
-          else if (repaymentApplied > 0) notifTitle = "Deposit Approved & Rent Deducted! 💰";
+          const notifTitle = isFloatDeposit
+            ? "Float Deposit Approved! 🏘️"
+            : "Deposit Approved! 💰";
 
           await supabaseAdmin.from("notifications").insert({
             user_id: depositRequest.user_id,
