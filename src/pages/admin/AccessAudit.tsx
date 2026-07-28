@@ -146,13 +146,14 @@ export default function AccessAuditPage() {
     setLoading(true);
     setError(null);
     try {
-      const like = `%${term}%`;
+      // Prefix search via a database function rather than a client-built
+      // substring match. Two reasons: a leading-wildcard pattern cannot use
+      // an index and was hitting the statement timeout on this table, and
+      // prefix matching is the behaviour operators actually expect --
+      // typing "b" should surface everyone whose first OR last name starts
+      // with B.
       const { data: profiles, error: profErr } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, email')
-        .or(`full_name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
-        .order('full_name', { ascending: true })
-        .limit(50);
+        .rpc('search_profiles', { term });
       if (profErr) throw profErr;
       const ids = (profiles || []).map((p) => p.id);
       if (ids.length === 0) {
