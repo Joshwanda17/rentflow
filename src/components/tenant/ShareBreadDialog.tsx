@@ -19,6 +19,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { broadcastBreadPriceChange } from '@/hooks/useBreadReceiptPrice';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 export const WELILE_BREAD_PRICE = 6500;
 export const WELILE_BREAD_MAX_QTY = 50;
@@ -221,18 +222,16 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     let cancelled = false;
     (async () => {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
+      const { data } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
-        .select('id, amount, category, description, transaction_date')
+        .select('id, amount, category, description, transaction_date, classification, source_table, reference_id')
         .eq('user_id', user.id)
         .eq('direction', 'cash_in')
-        // Hide admin/CFO reconciliation legs only when both flags align.
-        .or('classification.neq.admin_correction,category.neq.system_balance_correction')
-        .gte('transaction_date', since)
+        .gte('transaction_date', since))
         .order('transaction_date', { ascending: false })
         .limit(3);
       if (cancelled) return;
-      const next = (data ?? []) as RecentCredit[];
+      const next = ((data ?? []) as RecentCredit[]).filter(isCustomerWalletLedgerEntryVisible);
       // Compare against the previous fetch by ledger-id signature. If the
       // exact same rows came back (rapid back-to-back refreshes around a
       // single top-up batch), skip the setState entirely.

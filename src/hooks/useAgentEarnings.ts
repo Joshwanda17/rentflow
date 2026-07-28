@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchOpsWallet } from '@/hooks/ops/useOpsDataLayer';
 import { useAuth } from './useAuth';
 import { getCachedDashboardData, cacheDashboardData } from '@/lib/offlineDataStorage';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 interface Earning {
   id: string;
@@ -209,14 +210,13 @@ export function useAgentEarnings() {
     // ledger, and source profiles in parallel. The ledger is the source of
     // truth — the legacy `agent_earnings` table is populated inconsistently.
     const [earningsRes, payoutsRes, walletRes, ledgerRes] = await Promise.all([
-      supabase
+      applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
-        .select('id, amount, category, description, created_at, linked_party')
+        .select('id, amount, category, description, created_at, linked_party, classification, source_table, reference_id')
         .eq('user_id', user.id)
         .eq('ledger_scope', 'wallet')
         .in('category', LEDGER_EARNING_CATEGORY_LIST)
-        .in('direction', ['credit', 'cash_in'])
-        .neq('classification', 'admin_correction')
+        .in('direction', ['credit', 'cash_in']))
         .order('created_at', { ascending: false })
         .limit(1000),
       supabase
@@ -242,7 +242,7 @@ export function useAgentEarnings() {
     }
 
     // Map ledger rows → the Earning shape the UI consumes.
-    const result: Earning[] = (earningsRes.data || []).map((r) => ({
+    const result: Earning[] = (earningsRes.data || []).filter(isCustomerWalletLedgerEntryVisible).map((r) => ({
       id: r.id,
       amount: Number(r.amount),
       earning_type: LEDGER_EARNING_CATEGORIES[r.category] || 'other',

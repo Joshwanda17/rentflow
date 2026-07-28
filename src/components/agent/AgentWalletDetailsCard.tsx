@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 interface AgentWalletDetailsCardProps {
   agentId?: string;
@@ -50,13 +51,11 @@ export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDet
     if (!agentId) return null;
     try {
       const [{ data: ledger, error }, { data: profile }] = await Promise.all([
-        supabase
+        applyCustomerWalletLedgerFilters(supabase
           .from('general_ledger')
-          .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party')
+          .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, classification, source_table')
           .eq('user_id', agentId)
-          .eq('ledger_scope', 'wallet')
-          .neq('classification', 'admin_correction')
-          .neq('category', 'system_balance_correction')
+          .eq('ledger_scope', 'wallet'))
           .order('transaction_date', { ascending: false })
           .limit(25),
         supabase.from('profiles').select('full_name').eq('id', agentId).single(),
@@ -64,7 +63,7 @@ export function AgentWalletDetailsCard({ agentId, onOpenWallet }: AgentWalletDet
 
       if (error) throw error;
 
-      const entries: LedgerEntry[] = (ledger || []).map(row => ({
+      const entries: LedgerEntry[] = (ledger || []).filter(isCustomerWalletLedgerEntryVisible).map(row => ({
         id: row.id,
         date: row.transaction_date,
         type: row.direction === 'cash_in' ? 'credit' : 'debit',

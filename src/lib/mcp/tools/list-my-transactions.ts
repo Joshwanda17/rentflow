@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from "@/lib/customerWalletHistory";
 
 function supabaseForUser(ctx: ToolContext) {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
@@ -27,17 +28,15 @@ export default defineTool({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
     const take = Math.min(Math.max(limit ?? 20, 1), 100);
-    // User-facing ledger filter (memory rule): exclude admin corrections.
-    const { data, error } = await supabaseForUser(ctx)
+    const { data, error } = await applyCustomerWalletLedgerFilters(supabaseForUser(ctx)
       .from("general_ledger")
-      .select("id, created_at, category, direction, amount, description, wallet_bucket")
+      .select("id, created_at, category, direction, amount, description, wallet_bucket, classification, source_table, reference_id")
       .eq("user_id", ctx.getUserId())
-      .neq("classification", "admin_correction")
-      .neq("category", "system_balance_correction")
+      .eq("ledger_scope", "wallet"))
       .order("created_at", { ascending: false })
       .limit(take);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    const rows = data ?? [];
+    const rows = (data ?? []).filter(isCustomerWalletLedgerEntryVisible);
     const summary = rows
       .map(
         (r) =>

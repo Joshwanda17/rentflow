@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { format, startOfDay, endOfDay, subDays } from 'date-fns';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 // Categories that move money into/out of the FLOAT bucket on the wallet leg.
 // Kept narrow + explicit so we never miscount commission/withdrawable entries.
@@ -118,23 +119,18 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
     const from = pageIndex * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    let rowsQ = supabase
+    let rowsQ = applyCustomerWalletLedgerFilters(supabase
       .from('general_ledger')
-      .select('id, transaction_date, category, direction, amount, reference_id, description')
+      .select('id, transaction_date, category, direction, amount, reference_id, description, classification, source_table')
       .eq('user_id', user.id)
       .eq('ledger_scope', 'wallet')
-      .in('category', ALL_CATS)
-      // User-facing ledger filter (per memory)
-      .neq('classification', 'admin_correction')
-      .neq('category', 'system_balance_correction');
-    let countQ = supabase
+      .in('category', ALL_CATS));
+    let countQ = applyCustomerWalletLedgerFilters(supabase
       .from('general_ledger')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('ledger_scope', 'wallet')
-      .in('category', ALL_CATS)
-      .neq('classification', 'admin_correction')
-      .neq('category', 'system_balance_correction');
+      .in('category', ALL_CATS));
 
     if (range.from) {
       rowsQ = rowsQ.gte('transaction_date', range.from);
@@ -154,7 +150,7 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
       console.error('[FloatBreakdownCard] load error', error);
       setEntries([]);
     } else {
-      setEntries((data ?? []) as Entry[]);
+      setEntries(((data ?? []) as Entry[]).filter(isCustomerWalletLedgerEntryVisible));
     }
 
     if (countError) {

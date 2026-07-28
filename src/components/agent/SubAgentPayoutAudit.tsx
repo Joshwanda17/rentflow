@@ -20,6 +20,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 /**
  * Agent payout audit: lists each sub-agent earning leg and links it to the
@@ -44,6 +45,9 @@ interface WalletLeg {
   source_id: string | null;
   transaction_date: string;
   description: string | null;
+  classification?: string | null;
+  source_table?: string | null;
+  reference_id?: string | null;
 }
 
 interface EarningLeg {
@@ -122,14 +126,12 @@ export function SubAgentPayoutAudit() {
         .eq('commission_role', 'recruiter')
         .order('earned_at', { ascending: false })
         .limit(200),
-      supabase
+      applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
-        .select('id, amount, category, ledger_scope, recipient_type, wallet_bucket, source_id, transaction_date, description')
+        .select('id, amount, category, ledger_scope, recipient_type, wallet_bucket, source_id, transaction_date, description, classification, source_table, reference_id')
         .eq('user_id', user.id)
         .in('category', ['agent_commission', 'agent_commission_earned'])
-        .eq('ledger_scope', 'wallet')
-        .neq('classification', 'admin_correction')
-        .neq('category', 'system_balance_correction')
+        .eq('ledger_scope', 'wallet'))
         .order('transaction_date', { ascending: false })
         .limit(500),
     ]);
@@ -137,7 +139,7 @@ export function SubAgentPayoutAudit() {
     const overrides = overridesRes.data || [];
     const earnings = earningsRes.data || [];
     const recruiterRows = recruiterRes.data || [];
-    const walletLegs: WalletLeg[] = (ledgerRes.data || []).map((l) => ({
+    const walletLegs: WalletLeg[] = (ledgerRes.data || []).filter(isCustomerWalletLedgerEntryVisible).map((l) => ({
       id: l.id,
       amount: Number(l.amount),
       category: l.category,

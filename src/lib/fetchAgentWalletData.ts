@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 export interface AgentLedgerEntry {
   id: string;
@@ -10,6 +11,9 @@ export interface AgentLedgerEntry {
   created_at: string;
   transaction_group_id: string | null;
   linked_party: string | null;
+  classification?: string | null;
+  source_table?: string | null;
+  reference_id?: string | null;
   tenant_name?: string;
   tenant_balance?: number;
 }
@@ -39,20 +43,18 @@ export async function fetchAgentWalletData(agentId: string): Promise<AgentWallet
   const [profileRes, walletRes, ledgerRes] = await Promise.all([
     supabase.from('profiles').select('full_name, phone').eq('id', agentId).maybeSingle(),
     supabase.from('wallets').select('balance').eq('user_id', agentId).maybeSingle(),
-    supabase
+    applyCustomerWalletLedgerFilters(supabase
       .from('general_ledger')
-      .select('id, user_id, amount, direction, category, description, created_at, transaction_group_id, linked_party')
+      .select('id, user_id, amount, direction, category, description, created_at, transaction_group_id, linked_party, classification, source_table, reference_id')
       .eq('user_id', agentId)
-      .eq('ledger_scope', 'wallet')
-      // Hide admin/CFO reconciliation legs only when both flags align.
-      .or('classification.neq.admin_correction,category.neq.system_balance_correction')
+      .eq('ledger_scope', 'wallet'))
       .order('created_at', { ascending: false }),
   ]);
 
   const agentName = profileRes.data?.full_name || 'Unknown Agent';
   const agentPhone = profileRes.data?.phone || '';
   const walletBalance = walletRes.data?.balance ?? 0;
-  const entries: AgentLedgerEntry[] = (ledgerRes.data || []) as AgentLedgerEntry[];
+  const entries: AgentLedgerEntry[] = ((ledgerRes.data || []) as AgentLedgerEntry[]).filter(isCustomerWalletLedgerEntryVisible);
 
   // Resolve tenant names from linked_party UUIDs
   const tenantIds = [...new Set(entries.map(e => e.linked_party).filter(Boolean))] as string[];

@@ -4,6 +4,7 @@ import { ArrowDownRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 interface ChargeEntry {
   id: string;
@@ -11,6 +12,9 @@ interface ChargeEntry {
   category: string;
   description: string | null;
   transaction_date: string;
+  classification?: string | null;
+  source_table?: string | null;
+  reference_id?: string | null;
 }
 
 const categoryLabel = (category: string): string => {
@@ -43,19 +47,17 @@ export function RecentAutoCharges() {
 
     const fetchCharges = async () => {
       const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
+      const { data } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
-        .select('id, amount, category, description, transaction_date')
+        .select('id, amount, category, description, transaction_date, classification, source_table, reference_id')
         .eq('user_id', user.id)
         .eq('direction', 'cash_out')
-        .gte('transaction_date', since)
-        // Hide admin/CFO reconciliation legs only when both flags align.
-        .or('classification.neq.admin_correction,category.neq.system_balance_correction')
+        .gte('transaction_date', since))
         .order('transaction_date', { ascending: false })
         .limit(5);
 
       if (data && data.length > 0) {
-        setCharges(data);
+        setCharges(data.filter(isCustomerWalletLedgerEntryVisible));
       }
     };
 

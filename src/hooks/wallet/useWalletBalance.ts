@@ -26,6 +26,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { trackRequest } from "@/lib/costMonitor";
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from "@/lib/customerWalletHistory";
 
 export interface WalletBalanceView {
   userId: string;
@@ -65,6 +66,8 @@ export interface WalletTxRow {
   reference_id: string | null;
   linked_party: string | null;
   source_table: string | null;
+  classification?: string | null;
+  source_id?: string | null;
 }
 
 /** How many recent transactions ship with the balance preview. */
@@ -72,21 +75,21 @@ export const WALLET_RECENT_TX_LIMIT = 10;
 
 /**
  * Base user-facing ledger query — mirrors the "user-facing ledger filter"
- * rule (hide admin_correction + system_balance_correction; wallet + bridge
+ * rule (hide finance-only corrections/reconciliations/backfills; wallet + bridge
  * scopes only). Reused by both the preview hook and the paginated hook so
  * the numbers never diverge.
  */
 function baseUserLedgerQuery(userId: string) {
-  return supabase
+  const query = supabase
     .from("general_ledger")
     .select(
-      "id, transaction_date, amount, direction, category, description, reference_id, linked_party, source_table",
+      "id, transaction_date, amount, direction, category, description, reference_id, linked_party, source_table, source_id, classification",
       { count: "exact" },
     )
     .eq("user_id", userId)
-    .in("ledger_scope", ["wallet", "bridge"])
-    .neq("classification", "admin_correction")
-    .neq("category", "system_balance_correction");
+    .in("ledger_scope", ["wallet", "bridge"]);
+
+  return applyCustomerWalletLedgerFilters(query);
 }
 
 export async function fetchRecentWalletTransactions(
@@ -98,7 +101,7 @@ export async function fetchRecentWalletTransactions(
     .order("transaction_date", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []) as WalletTxRow[];
+  return ((data ?? []) as WalletTxRow[]).filter(isCustomerWalletLedgerEntryVisible);
 }
 
 /** Shared pagination fetcher — used by `useWalletTransactions`. */
@@ -114,7 +117,8 @@ export async function fetchWalletTransactionsPage(
   if (opts.direction === "out") q = q.eq("direction", "cash_out");
   const { data, error, count } = await q.range(from, to);
   if (error) throw error;
-  return { rows: (data ?? []) as WalletTxRow[], total: count ?? 0 };
+  const rows = ((data ?? []) as WalletTxRow[]).filter(isCustomerWalletLedgerEntryVisible);
+  return { rows, total: count ?? rows.length };
 }
 
 /** Called by every wallet mutation to invalidate BOTH balance and preview. */

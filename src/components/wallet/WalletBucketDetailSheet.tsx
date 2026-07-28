@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 import {
   ArrowDownLeft, ArrowUpRight, HandCoins, Users, X, Loader2, Share2,
 } from 'lucide-react';
@@ -198,14 +199,11 @@ export function WalletBucketDetailSheet({
   const load = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
-    let q = supabase
+    let q = applyCustomerWalletLedgerFilters(supabase
       .from('general_ledger')
-      .select('id, transaction_date, category, direction, amount, description')
+      .select('id, transaction_date, category, direction, amount, description, classification, source_table, reference_id')
       .eq('user_id', user.id)
-      .eq('ledger_scope', 'wallet')
-      // User-facing ledger filter (per memory)
-      .neq('classification', 'admin_correction')
-      .neq('category', 'system_balance_correction')
+      .eq('ledger_scope', 'wallet'))
       .order('transaction_date', { ascending: false })
       .limit(100);
 
@@ -220,7 +218,7 @@ export function WalletBucketDetailSheet({
       console.error('[WalletBucketDetailSheet] load error', error);
       setEntries([]);
     } else {
-      setEntries((data ?? []) as Entry[]);
+      setEntries(((data ?? []) as Entry[]).filter(isCustomerWalletLedgerEntryVisible));
     }
     setLoading(false);
   }, [user?.id, bucket]);

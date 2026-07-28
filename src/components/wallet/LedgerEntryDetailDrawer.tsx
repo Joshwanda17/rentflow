@@ -8,6 +8,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 interface LedgerEntryDetailDrawerProps {
   entryId: string | null;
@@ -31,6 +32,7 @@ interface FullLedgerEntry {
   transaction_group_id: string | null;
   user_id: string | null;
   created_at: string;
+  classification?: string | null;
 }
 
 interface RelatedEntry {
@@ -41,6 +43,9 @@ interface RelatedEntry {
   description: string | null;
   transaction_date: string;
   user_id: string | null;
+  classification?: string | null;
+  source_table?: string | null;
+  reference_id?: string | null;
 }
 
 interface ProfileInfo {
@@ -99,10 +104,10 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
     setLoading(true);
 
     const fetchAll = async () => {
-      const { data: e } = await supabase
+      const { data: e } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
         .select('*')
-        .eq('id', entryId)
+        .eq('id', entryId))
         .single();
 
       if (!e) { setLoading(false); return; }
@@ -115,12 +120,10 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
           ? supabase.from('profiles').select('full_name, phone').eq('id', e.user_id).single()
           : Promise.resolve({ data: null }),
         e.transaction_group_id
-          ? supabase.from('general_ledger')
-              .select('id, amount, direction, category, description, transaction_date, user_id')
+          ? applyCustomerWalletLedgerFilters(supabase.from('general_ledger')
+              .select('id, amount, direction, category, description, transaction_date, user_id, classification, source_table, reference_id')
               .eq('transaction_group_id', e.transaction_group_id)
-              .neq('id', entryId)
-              // Hide admin/CFO reconciliation legs only when both flags align.
-              .or('classification.neq.admin_correction,category.neq.system_balance_correction')
+              .neq('id', entryId))
               .order('transaction_date', { ascending: false })
           : Promise.resolve({ data: [] }),
         e.linked_party && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.linked_party)
@@ -129,7 +132,7 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
       ]);
 
       setOwnerProfile(ownerRes.data as any);
-      setRelatedEntries((relatedRes.data || []) as RelatedEntry[]);
+      setRelatedEntries(((relatedRes.data || []) as RelatedEntry[]).filter(isCustomerWalletLedgerEntryVisible));
       setLinkedPartyProfile(linkedRes.data as any);
       setLoading(false);
     };
