@@ -14,7 +14,7 @@ import { AgentMyAdvancesCard } from '@/components/agent/AgentMyAdvancesCard';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLastWithdrawalCard';
 import { EarningsSummaryCard } from '@/components/agent/EarningsSummaryCard';
-import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCard';
+
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -1377,10 +1377,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </div>
             )}
 
-            <AgentWalletDetailsCard
-              agentId={user.id}
-              onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
-            />
+
             <AgentCompanyDebtCard onViewBreakdown={() => { hapticTap(); setTenantsSheetOpen(true); }} />
             <AgentMyAdvancesCard />
             <AgentRiskExposureCard />
