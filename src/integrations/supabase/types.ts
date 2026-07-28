@@ -20080,6 +20080,10 @@ export type Database = {
           granted_by: string | null
           id: string
           permitted_dashboard: string
+          reason: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
           user_id: string
         }
         Insert: {
@@ -20087,6 +20091,10 @@ export type Database = {
           granted_by?: string | null
           id?: string
           permitted_dashboard: string
+          reason?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
           user_id: string
         }
         Update: {
@@ -20094,6 +20102,10 @@ export type Database = {
           granted_by?: string | null
           id?: string
           permitted_dashboard?: string
+          reason?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
           user_id?: string
         }
         Relationships: []
