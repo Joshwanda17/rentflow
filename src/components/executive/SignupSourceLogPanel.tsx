@@ -480,3 +480,12 @@ export function SignupSourceLogPanel() {
 }
 
 export default SignupSourceLogPanel;
+
+function Field({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold text-muted-foreground uppercase mb-0.5">{label}</div>
+      <div className={mono ? 'font-mono text-xs break-all' : 'text-sm break-words'}>{value || '—'}</div>
+    </div>
+  );
+}
