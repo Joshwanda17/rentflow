@@ -5,27 +5,48 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Lock, ArrowLeft, Send, Clock, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
+import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { isStaffRole, isPublicRole } from '@/lib/roleConstants';
 import { useToast } from '@/hooks/use-toast';
 import PhoneVerificationGate from '@/components/auth/PhoneVerificationGate';
 import StalledLoaderWatchdog from '@/components/common/StalledLoaderWatchdog';
+import NotFound from '@/pages/NotFound';
 import { loginTelemetry as lt } from '@/lib/loginTelemetry';
 
 interface RoleGuardProps {
   allowedRoles: AppRole[];
   children: ReactNode;
   redirectTo?: string;
+  /**
+   * Dashboard key matching `staff_permissions.permitted_dashboard`.
+   *
+   * When set, the user must hold BOTH an allowed role AND a grant for this
+   * key. Denial renders the 404 page rather than an access-denied screen, so
+   * an ungranted route is indistinguishable from one that does not exist.
+   *
+   * When omitted, behaviour is unchanged: role check only, with the existing
+   * explanatory screen and "apply for access" flow.
+   */
+  requiredPermission?: string;
 }
 
-export default function RoleGuard({ allowedRoles, children, redirectTo = '/dashboard/tenant' }: RoleGuardProps) {
+export default function RoleGuard({
+  allowedRoles,
+  children,
+  redirectTo = '/dashboard/tenant',
+  requiredPermission,
+}: RoleGuardProps) {
   const { user, roles, loading } = useAuth();
+  const { hasPermission, loading: permsLoading } = useStaffPermissions();
   const loggedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { requests, requestRole, loading: reqLoading } = useRoleAccessRequests(user?.id);
   const [submitting, setSubmitting] = useState<AppRole | null>(null);
 
-  const hasAccess = roles.some(r => allowedRoles.includes(r));
+  const hasRoleAccess = roles.some((r) => allowedRoles.includes(r));
+  const hasGrant = !requiredPermission || hasPermission(requiredPermission);
+  const hasAccess = hasRoleAccess && hasGrant;
 
   // One-shot telemetry when the guard resolves: which path we ended on.
   useEffect(() => {
@@ -37,18 +58,24 @@ export default function RoleGuard({ allowedRoles, children, redirectTo = '/dashb
       lt.mark('guard.no_user_redirect', { path: window.location.pathname });
       return;
     }
-    lt.mark('guard.resolved', {
-      path: window.location.pathname,
-      allowedRoles,
-      userRoles: roles,
-      hasAccess,
-    }, hasAccess ? 'ok' : 'denied');
-  }, [loading, user?.id, hasAccess, roles.join(','), allowedRoles.join(',')]);
-
+    lt.mark(
+      'guard.resolved',
+      {
+        path: window.location.pathname,
+        allowedRoles,
+        requiredPermission,
+        userRoles: roles,
+        hasRoleAccess,
+        hasGrant,
+        hasAccess,
+      },
+      hasAccess ? 'ok' : 'denied',
+    );
+  }, [loading, user?.id, hasAccess, roles.join(','), allowedRoles.join(','), requiredPermission]);
 
   // Log unauthorized access attempts
   useEffect(() => {
-    if (loading || !user || hasAccess || loggedRef.current) return;
+    if (loading || permsLoading || !user || hasAccess || loggedRef.current) return;
     loggedRef.current = true;
 
     supabase.from('audit_logs').insert({
@@ -56,19 +83,31 @@ export default function RoleGuard({ allowedRoles, children, redirectTo = '/dashb
       action_type: 'unauthorized_access_attempt',
       metadata: {
         attempted_roles: allowedRoles,
+        required_permission: requiredPermission ?? null,
+        // Distinguishes "wrong role" from "right role, no grant" — the second
+        // is the case worth reviewing, because it is a member of staff probing
+        // a dashboard they were deliberately not given.
+        denied_by: !hasRoleAccess ? 'role' : 'grant',
         user_roles: roles,
         path: window.location.pathname,
         timestamp: new Date().toISOString(),
       },
     });
-  }, [loading, user, hasAccess, allowedRoles, roles]);
+  }, [loading, permsLoading, user, hasAccess, hasRoleAccess, allowedRoles, requiredPermission, roles]);
 
-  if (loading) {
+  if (loading || (requiredPermission && permsLoading)) {
     return <StalledLoaderWatchdog label="Signing you in\u2026" />;
   }
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Grant-gated route, access denied for any reason -> behave as if the route
+  // does not exist. No role names, no "request access" button, no signal that
+  // there is anything here to find.
+  if (requiredPermission && !hasAccess) {
+    return <NotFound />;
   }
 
   if (!hasAccess) {
