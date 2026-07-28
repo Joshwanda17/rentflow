@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowUpDown, BedDouble } from 'lucide-react';
 import { AgentContactBar } from '@/components/tenant/AgentContactBar';
 import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -44,6 +45,31 @@ const CATEGORIES = [
   { value: 'three_bedroom', label: '3 Bedrooms' },
   { value: 'studio', label: 'Studio' },
   { value: 'shop', label: 'Shop' },
+];
+
+// Daily-rate quick chips (UGX). Rent on Welile is quoted per day, so we express
+// price ranges as daily rates. Monthly equivalents are ~ daily × 30.
+const PRICE_CHIPS: { label: string; min?: number; max?: number }[] = [
+  { label: 'Any price' },
+  { label: 'Under 3k/day', max: 3000 },
+  { label: '3k – 5k/day', min: 3000, max: 5000 },
+  { label: '5k – 10k/day', min: 5000, max: 10000 },
+  { label: '10k – 20k/day', min: 10000, max: 20000 },
+  { label: '20k+/day', min: 20000 },
+];
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'price_asc', label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+] as const;
+
+const AMENITY_TOGGLES: { key: 'hasWater' | 'hasElectricity' | 'hasSecurity' | 'hasParking' | 'isFurnished'; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: 'hasWater', label: 'Water', Icon: Droplets },
+  { key: 'hasElectricity', label: 'Power', Icon: Zap },
+  { key: 'hasSecurity', label: 'Security', Icon: ShieldCheck },
+  { key: 'hasParking', label: 'Parking', Icon: Car },
+  { key: 'isFurnished', label: 'Furnished', Icon: Sofa },
 ];
 
 function HouseImageCarousel({ images, title, houseId }: { images: string[] | null; title: string; houseId: string }) {
