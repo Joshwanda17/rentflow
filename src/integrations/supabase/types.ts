@@ -27349,6 +27349,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_payroll_exempt_available: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       get_user_restricted_held: { Args: { p_user_id: string }; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
