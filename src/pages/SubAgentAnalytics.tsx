@@ -690,13 +690,13 @@ export default function SubAgentAnalytics() {
       // caller's sub-agents across all link types (rent request posting,
       // rent request assignment, direct referral, referrals table, managed).
       const { data: tenantProfiles } = await supabase.rpc('get_my_subagent_tenant_profiles');
-      (tenantProfiles || []).forEach((tp: any) => {
-        const subAgentId = tp.sub_agent_id as string;
+      (tenantProfiles || []).forEach((tp) => {
+        const subAgentId = tp.sub_agent_id;
         if (!subAgentId || !subAgentIdsSet.has(subAgentId)) return;
         const list = tenantsData[subAgentId] || (tenantsData[subAgentId] = []);
         if (!list.some((t) => t.id === tp.id)) {
           list.push({
-            id: tp.id as string,
+            id: tp.id,
             name: tp.full_name ?? 'Unnamed',
             phone: tp.phone ?? null,
             totalRepaid: 0,
