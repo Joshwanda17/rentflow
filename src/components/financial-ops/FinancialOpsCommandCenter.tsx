@@ -64,13 +64,14 @@ const AgentRequisitionForm = lz(() => import('./AgentRequisitionForm'), 'AgentRe
 const EmployeeRequisitionLinksPanel = lz(() => import('./EmployeeRequisitionLinksPanel'), 'EmployeeRequisitionLinksPanel');
 const EmployeeRequisitionQueuePanel = lz(() => import('./EmployeeRequisitionQueuePanel'), 'EmployeeRequisitionQueuePanel');
 const FinancialOpsPulseStrip = lz(() => import('./FinancialOpsPulseStrip'), 'FinancialOpsPulseStrip');
+const LiquidityForecastPanel = lz(() => import('./LiquidityForecastPanel'), 'LiquidityForecastPanel');
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
-  , Store, Archive, Activity, CheckCircle2, Sparkles, PanelLeftClose, PanelLeftOpen, Wallet
+  , Store, Archive, Activity, CheckCircle2, Sparkles, PanelLeftClose, PanelLeftOpen, Wallet, CalendarClock
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -90,7 +91,8 @@ type Tool =
   | 'merchant_agents' | 'merchant_float' | 'receipt_archive'
   | 'employee_requisition_links' | 'employee_requisition_queue'
   | 'bridge_health' | 'manual_float_credit'
-  | 'earnings_explainer';
+  | 'earnings_explainer'
+  | 'liquidity_forecast';
 // Extend Tool type via union above; add new tools:
 
 
@@ -104,6 +106,7 @@ type MoreAction =
   | { kind: 'view'; id: Exclude<View, 'home'>; label: string; desc: string; icon: typeof Gauge };
 
 const moreActions: MoreAction[] = [
+  { kind: 'tool', id: 'liquidity_forecast', label: 'Liquidity Forecast', desc: 'Withdrawable across all wallets today + ROI due per day for the next 7–60 days, so you can pre-fund before payouts.', icon: CalendarClock },
   { kind: 'tool', id: 'earnings_explainer', label: 'How Did They Earn?', desc: 'Plain-English breakdown of every UGX that landed in a user\u2019s wallet — grouped by source (commissions, deposits, ROI, payroll, corrections) with counts and samples.', icon: Sparkles },
   { kind: 'tool', id: 'bridge_health', label: 'Deposit Bridge Health', desc: 'Reliability of the queue between Financial Ops and the wallet ledger — pending, retries, DLQ, gap alerts', icon: Activity },
   { kind: 'tool', id: 'manual_float_credit', label: 'Manual Float Credit', desc: 'Credit an agent\u2019s float wallet from a MoMo SMS — TID, amount, date/time & depositor. TID is locked so late feeds cannot double-credit.', icon: Wallet },
@@ -330,6 +333,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'manual_float_credit' && <ManualFloatCreditPanel />}
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
         {activeTool === 'earnings_explainer' && <EarningsExplainer role="finops" />}
+        {activeTool === 'liquidity_forecast' && <LiquidityForecastPanel onOpenTool={(t) => setActiveTool(t as any)} />}
         {activeTool === 'withdrawal_notif_log' && <WithdrawalNotificationLogPanel />}
         {activeTool === 'sms_delivery_log' && <SmsDeliveryLogPanel />}
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
@@ -399,7 +403,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Wallets & Users',
       items: moreActions.filter(a => [
-        'user_statements','earnings_explainer','funded_tenants','float_to_withdrawable',
+        'liquidity_forecast','user_statements','earnings_explainer','funded_tenants','float_to_withdrawable',
         'momo_sms_template',
       ].includes(a.id as string)),
     },
