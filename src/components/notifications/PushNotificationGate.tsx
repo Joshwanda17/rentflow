@@ -25,6 +25,62 @@ import {
  * with an older VAPID key, unsubscribe, resubscribe with the current key, and
  * upsert the row in `push_subscriptions` so pushes resume automatically.
  */
+/**
+ * Reclaims the current device's push endpoint for `userId`. Any existing
+ * `push_subscriptions` row that ties the same endpoint to a different user is
+ * deleted first — otherwise a browser previously signed in as User A keeps
+ * receiving pushes meant for User A (withdrawal, house listing, etc.) after
+ * User B signs in.
+ */
+async function reclaimEndpointForUser(
+  userId: string,
+  endpoint: string,
+  p256dh: string,
+  auth: string,
+): Promise<void> {
+  try {
+    // Is the endpoint currently owned by someone else on this browser?
+    const { data: existing } = await supabase
+      .from("push_subscriptions")
+      .select("user_id")
+      .eq("endpoint", endpoint);
+    const ownedByOther =
+      Array.isArray(existing) && existing.some((r) => r.user_id !== userId);
+    const ownedBySelf =
+      Array.isArray(existing) && existing.some((r) => r.user_id === userId);
+
+    if (ownedByOther) {
+      // Wipe every row for this endpoint, then re-insert under the current user.
+      await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+      const { error } = await supabase.from("push_subscriptions").insert({
+        user_id: userId,
+        endpoint,
+        p256dh,
+        auth,
+      });
+      if (error) {
+        console.warn("[push] reclaim endpoint upsert failed:", error);
+      } else {
+        console.info("[push] reclaimed endpoint for current user");
+      }
+      return;
+    }
+
+    if (!ownedBySelf) {
+      // No row exists at all — insert one so pushes start flowing.
+      const { error } = await supabase.from("push_subscriptions").insert({
+        user_id: userId,
+        endpoint,
+        p256dh,
+        auth,
+      });
+      if (error) console.warn("[push] initial subscription insert failed:", error);
+    }
+  } catch (err) {
+    console.warn("[push] reclaimEndpointForUser failed:", err);
+  }
+}
+
 async function refreshSubscriptionIfVapidChanged(userId: string): Promise<void> {
   try {
     if (!isPushSupported()) return;
@@ -38,8 +94,18 @@ async function refreshSubscriptionIfVapidChanged(userId: string): Promise<void> 
     let subscription = await registration.pushManager.getSubscription();
     // Nothing to migrate if no subscription exists on this device.
     if (!subscription) return;
-    // Current key — nothing to do.
-    if (subscriptionUsesCurrentVapidKey(subscription)) return;
+    // Current key — VAPID rotation is a no-op, but we still need to make sure
+    // this device's endpoint is owned by the CURRENT user. Otherwise a browser
+    // previously signed in as someone else keeps getting their pushes.
+    if (subscriptionUsesCurrentVapidKey(subscription)) {
+      const json = subscription.toJSON();
+      const p256dh = json.keys?.p256dh ?? arrayBufferToBase64(subscription.getKey("p256dh"));
+      const auth = json.keys?.auth ?? arrayBufferToBase64(subscription.getKey("auth"));
+      if (p256dh && auth) {
+        await reclaimEndpointForUser(userId, subscription.endpoint, p256dh, auth);
+      }
+      return;
+    }
 
     const staleEndpoint = subscription.endpoint;
     try { await subscription.unsubscribe(); } catch { /* ignore */ }
