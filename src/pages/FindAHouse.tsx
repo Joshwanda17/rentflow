@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
-  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight,
+  SlidersHorizontal, X, Droplets, Zap, Car, Sofa, Loader2, ArrowRight,
+  ArrowUpDown, BedDouble,
   Map as MapIcon, List as ListIcon, Route, Footprints, ArrowLeft
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
@@ -83,24 +84,31 @@ export const REGION_LANDING_SLUGS: Record<string, string> = {
   western: 'Western',
 };
 
-type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
+type SortKey = 'newest' | 'price_asc' | 'price_desc' | 'nearest';
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
-  { value: 'newest', label: 'Newest first' },
   { value: 'nearest', label: 'Nearest first' },
 ];
 
-const AMENITY_FILTERS = [
-  { key: 'has_water', label: 'Water', icon: Droplets },
-  { key: 'has_electricity', label: 'Power', icon: Zap },
-  { key: 'has_security', label: 'Security', icon: Lock },
-  { key: 'has_parking', label: 'Parking', icon: Car },
-  { key: 'is_furnished', label: 'Furnished', icon: Sofa },
-] as const;
+const PRICE_CHIPS: { label: string; min?: number; max?: number }[] = [
+  { label: 'Any price' },
+  { label: 'Under 3k/day', max: 3000 },
+  { label: '3k – 5k/day', min: 3000, max: 5000 },
+  { label: '5k – 10k/day', min: 5000, max: 10000 },
+  { label: '10k – 20k/day', min: 10000, max: 20000 },
+  { label: '20k+/day', min: 20000 },
+];
 
-type AmenityKey = typeof AMENITY_FILTERS[number]['key'];
+const AMENITY_TOGGLES: { key: 'hasWater' | 'hasElectricity' | 'hasSecurity' | 'hasParking' | 'isFurnished'; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: 'hasWater', label: 'Water', Icon: Droplets },
+  { key: 'hasElectricity', label: 'Power', Icon: Zap },
+  { key: 'hasSecurity', label: 'Security', Icon: ShieldCheck },
+  { key: 'hasParking', label: 'Parking', Icon: Car },
+  { key: 'isFurnished', label: 'Furnished', Icon: Sofa },
+];
 
 function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }: { images: string[] | null; title: string; onImageClick?: (index: number) => void; layout?: 'vertical' | 'horizontal' }) {
   const [idx, setIdx] = useState(0);
