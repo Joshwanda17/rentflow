@@ -85,6 +85,7 @@ var get_my_wallet_default = defineTool2({
 import { createClient as createClient3 } from "npm:@supabase/supabase-js@2.89.0";
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z } from "npm:zod@^4.4.3";
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from "npm:@/lib/customerWalletHistory";
 function supabaseForUser3(ctx) {
   return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
@@ -104,9 +105,9 @@ var list_my_transactions_default = defineTool3({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
     const take = Math.min(Math.max(limit ?? 20, 1), 100);
-    const { data, error } = await supabaseForUser3(ctx).from("general_ledger").select("id, created_at, category, direction, amount, description, wallet_bucket").eq("user_id", ctx.getUserId()).neq("classification", "admin_correction").neq("category", "system_balance_correction").order("created_at", { ascending: false }).limit(take);
+    const { data, error } = await applyCustomerWalletLedgerFilters(supabaseForUser3(ctx).from("general_ledger").select("id, created_at, category, direction, amount, description, wallet_bucket, classification, source_table, reference_id").eq("user_id", ctx.getUserId()).eq("ledger_scope", "wallet")).order("created_at", { ascending: false }).limit(take);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    const rows = data ?? [];
+    const rows = (data ?? []).filter(isCustomerWalletLedgerEntryVisible);
     const summary = rows.map(
       (r) => `${new Date(r.created_at).toISOString().slice(0, 10)} \xB7 ${r.category} \xB7 ${r.direction} UGX ${Number(r.amount).toLocaleString()}`
     ).join("\n");
