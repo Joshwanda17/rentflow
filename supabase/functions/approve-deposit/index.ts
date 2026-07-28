@@ -511,21 +511,10 @@ Deno.serve(async (req) => {
       // the category. Wallet buckets are NEVER computed in the UI or written
       // directly — the routing trigger + apply_wallet_movement own that.
       const rawPurpose = (depositRequest.deposit_purpose || '').toString().trim().toLowerCase();
-      // ── STRICT PURPOSE-BASED ROUTING (2026-07-24) ───────────────────
-      // The user's explicit selection on the top-up screen is the SOLE
-      // source of truth for the destination wallet bucket. The backend
-      // MUST NOT infer routing from the payment provider, auto-approval
-      // flag, agent role, or any other signal.
-      //
-      //   operational_float       → float bucket        (company money)
-      //   personal_deposit        → withdrawable bucket (user money)
-      //   partnership_deposit /
-      //   personal_rent_repayment /
-      //   other                   → withdrawable bucket (legacy defaults)
-      //
-      // Missing / unknown purpose → HARD REJECT. Never silently default,
-      // because that is exactly how users' personal money ends up trapped
-      // in the float bucket.
+      // ── FLOAT-BY-DEFAULT ROUTING (2026-07-28) ───────────────────────
+      // Product decision: every incoming deposit routes to the FLOAT
+      // bucket by default. Only an explicit `personal_deposit` purpose
+      // routes to withdrawable. Missing/unknown purposes → float.
       const KNOWN_PURPOSES = new Set([
         'operational_float',
         'personal_deposit',
@@ -533,32 +522,13 @@ Deno.serve(async (req) => {
         'personal_rent_repayment',
         'other',
       ]);
-      if (!rawPurpose || !KNOWN_PURPOSES.has(rawPurpose)) {
-        const msg = !rawPurpose
-          ? `Deposit purpose is required for ${depositRequest.id}. Refusing to approve.`
-          : `Unknown deposit_purpose='${rawPurpose}' for ${depositRequest.id}. Refusing to approve.`;
-        console.error(`[approve-deposit] ${msg}`);
-        await supabaseAdmin.from('audit_logs').insert({
-          user_id: user.id,
-          action_type: 'approve_deposit_purpose_invalid',
-          table_name: 'deposit_requests',
-          record_id: depositRequest.id,
-          metadata: {
-            amount: depositRequest.amount,
-            target_user_id: depositRequest.user_id,
-            raw_purpose: rawPurpose || null,
-            reason: 'missing_or_unknown_deposit_purpose',
-          },
-        });
-        results.push({
-          id: depositRequest.id,
-          status: 'error',
-          amount: Number(depositRequest.amount),
-          user_id: depositRequest.user_id,
-        });
-        continue;
+      if (rawPurpose && !KNOWN_PURPOSES.has(rawPurpose)) {
+        console.warn(
+          `[approve-deposit] Unknown deposit_purpose='${rawPurpose}' for ${depositRequest.id}; defaulting to float.`,
+        );
       }
-      const isFloatDeposit = rawPurpose === 'operational_float';
+      // Float-by-default: only an explicit personal_deposit stays withdrawable.
+      const isFloatDeposit = rawPurpose !== 'personal_deposit';
       const depositCategory: 'agent_float_deposit' | 'wallet_deposit' =
         isFloatDeposit ? 'agent_float_deposit' : 'wallet_deposit';
       const depositBucket: 'float' | 'withdrawable' =
