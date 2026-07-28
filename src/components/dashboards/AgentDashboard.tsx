@@ -888,7 +888,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </div>
             </div>
             {/* Mobile: AI ID + bell sit below the avatar/name row */}
-            <div className="flex sm:hidden items-center justify-end gap-2">
+            <div className="flex sm:hidden items-center justify-start gap-2">
               <AiIdButton variant="compact" />
               <AgentNotificationBell userId={user.id} />
             </div>
