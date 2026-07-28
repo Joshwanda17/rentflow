@@ -27486,6 +27486,29 @@ export type Database = {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
       }
+      is_customer_wallet_history_visible:
+        | {
+            Args: {
+              p_category: string
+              p_classification: string
+              p_description: string
+              p_reference_id?: string
+              p_source_table: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_category: string
+              p_classification: string
+              p_description: string
+              p_reference_id?: string
+              p_source_id?: string
+              p_source_table: string
+              p_user_id: string
+            }
+            Returns: boolean
+          }
       is_financial_ops_staff: { Args: { p_user: string }; Returns: boolean }
       is_fraud_identifier_blocked: {
         Args: { p_type: string; p_value: string }
