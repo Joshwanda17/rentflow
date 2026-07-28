@@ -438,9 +438,14 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           .eq('status', 'available')
           .eq('verified', true)
           .eq('is_hidden', false)
-          .order('created_at', { ascending: false })
-          .order('id', { ascending: true })
           .range(st.offset, st.offset + wantLimit - 1);
+        if (options.sort === 'price_asc') {
+          query = query.order('daily_rate', { ascending: true }).order('id', { ascending: true });
+        } else if (options.sort === 'price_desc') {
+          query = query.order('daily_rate', { ascending: false }).order('id', { ascending: true });
+        } else {
+          query = query.order('created_at', { ascending: false }).order('id', { ascending: true });
+        }
         if (options.region) {
           // The location filter may be a broad region ("Central") OR a
           // city/district/village ("Kampala", "Wakiso"). Match any of the
@@ -460,6 +465,14 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         if (options.subCounty) query = query.eq('sub_county', options.subCounty);
         if (options.village) query = query.eq('village', options.village);
         if (options.category) query = query.eq('house_category', options.category);
+        if (options.minDailyRate) query = query.gte('daily_rate', options.minDailyRate);
+        if (options.maxDailyRate) query = query.lte('daily_rate', options.maxDailyRate);
+        if (options.minRooms) query = query.gte('number_of_rooms', options.minRooms);
+        if (options.hasWater) query = query.eq('has_water', true);
+        if (options.hasElectricity) query = query.eq('has_electricity', true);
+        if (options.hasSecurity) query = query.eq('has_security', true);
+        if (options.hasParking) query = query.eq('has_parking', true);
+        if (options.isFurnished) query = query.eq('is_furnished', true);
         const search = safeOrTerm(options.search);
         if (search) {
           query = query.or(
