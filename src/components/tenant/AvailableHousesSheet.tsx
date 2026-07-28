@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { Input } from '@/components/ui/input';
@@ -307,48 +306,44 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
-  // Responsive column count so the list fills wide screens instead of leaving
-  // huge empty white margins around a single narrow centred column. On phones
-  // it stays a single column; on tablets/desktops it flows into 2–3 columns.
-  // The sheet spans the full viewport width, so window width is a reliable proxy
-  // (and avoids racing the portal-mounted scroll container's ref).
-  const colsForWidth = (w: number) => (w >= 1024 ? 3 : w >= 640 ? 2 : 1);
-  const [columns, setColumns] = useState(() =>
-    typeof window !== 'undefined' ? colsForWidth(window.innerWidth) : 1,
-  );
-  useEffect(() => {
-    const compute = () => setColumns(colsForWidth(window.innerWidth));
-    compute();
-    window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
-  }, []);
-
   // Pagination diagnostics overlay — off by default. Enable in any environment:
   //   localStorage.setItem('welile-debug-pagination','1')
   const showPaginationDebug = (() => {
     try { return localStorage.getItem('welile-debug-pagination') === '1'; } catch { return false; }
   })();
 
-  // Virtualized rendering: we fetch EVERY matching listing (can be 10,000+), but
-  // only the cards in/near the viewport are ever mounted into the DOM, so the
-  // sheet stays fast on low-end phones regardless of dataset size.
-  const virtualizer = useVirtualizer({
-    count: filtered.length,
-    getScrollElement: () => resultsRef.current,
-    estimateSize: () => 280,
-    overscan: 4,
-    gap: 12,
-    lanes: columns,
-    getItemKey: (index) => filtered[index]?.id ?? index,
-  });
+  // Paginated rendering: 10 houses per page with numbered navigation.
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
 
-  // Reset scroll to the top when the result set changes (new filters / search)
-  // so the user always sees the most relevant (nearest) houses first.
+  // Reset to page 1 when the result set changes (new filters / search).
   useEffect(() => {
+    setCurrentPage(1);
     resultsRef.current?.scrollTo({ top: 0 });
-    virtualizer.scrollToOffset(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText]);
+
+  // Auto-fetch more rows from the server when the user gets within one page of
+  // the end of the currently-loaded set, so page navigation stays seamless.
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+    if (currentPage >= totalPages - 1) loadMore();
+  }, [currentPage, totalPages, hasMore, loadingMore, loadMore]);
+
+  // Clamp the current page if the dataset shrinks below it.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
+
+  const goToPage = (p: number) => {
+    const next = Math.min(Math.max(1, p), totalPages);
+    setCurrentPage(next);
+    resultsRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -613,38 +608,90 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   <div>firstPage={metrics.firstPageMs ?? '—'}ms · lastPage={metrics.lastPageMs ?? '—'}ms · total={metrics.totalMs}ms</div>
                 </div>
               )}
-              {/* Virtualized card list — only viewport cards are mounted. On wide
-                  screens cards flow into multiple columns (lanes) so the sheet
-                  fills the available width instead of leaving empty margins. */}
-              <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-                {virtualizer.getVirtualItems().map((vi) => {
-                  const listing = filtered[vi.index];
-                  if (!listing) return null;
-                  const laneWidth = 100 / columns;
-                  return (
-                    <div
-                      key={vi.key}
-                      data-index={vi.index}
-                      ref={virtualizer.measureElement}
-                      className="absolute top-0"
-                      style={{
-                        left: `${vi.lane * laneWidth}%`,
-                        width: `${laneWidth}%`,
-                        transform: `translateY(${vi.start}px)`,
-                      }}
-                    >
-                      <div className={columns > 1 ? (vi.lane === 0 ? 'pr-1.5' : vi.lane === columns - 1 ? 'pl-1.5' : 'px-1.5') : ''}>
-                        <HouseCard
-                          listing={listing}
-                          highlighted={vi.index === 0 && searchText.trim().length > 0}
-                          onOpen={(l) => { onOpenChange(false); navigate(`/house/${l.short_code || l.id}`); }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Paged list — 10 cards per page. Wide screens flow into a 2–3
+                  column grid so the sheet fills its width. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {pageItems.map((listing, i) => (
+                  <HouseCard
+                    key={listing.id}
+                    listing={listing}
+                    highlighted={i === 0 && currentPage === 1 && searchText.trim().length > 0}
+                    onOpen={(l) => { onOpenChange(false); navigate(`/house/${l.short_code || l.id}`); }}
+                  />
+                ))}
               </div>
               <div ref={sentinelRef} className="w-full" aria-hidden="true" />
+              {(() => {
+                // Compact page-number strip with ellipses around the current page.
+                const pages: (number | 'ellipsis')[] = [];
+                const push = (v: number | 'ellipsis') => pages.push(v);
+                const window = 1;
+                for (let p = 1; p <= totalPages; p++) {
+                  if (
+                    p === 1 ||
+                    p === totalPages ||
+                    (p >= currentPage - window && p <= currentPage + window)
+                  ) push(p);
+                  else if (pages[pages.length - 1] !== 'ellipsis') push('ellipsis');
+                }
+                const disabledPrev = currentPage <= 1;
+                const disabledNext = currentPage >= totalPages && !hasMore;
+                return (
+                  <div className="flex flex-col items-center gap-2 pt-4 pb-24 md:pb-4">
+                    <div className="flex items-center gap-1 flex-wrap justify-center">
+                      <button
+                        type="button"
+                        onClick={() => goToPage(currentPage - 1)}
+                        disabled={disabledPrev}
+                        aria-label="Previous page"
+                        className="inline-flex items-center gap-1 min-h-9 px-3 rounded-full border border-border bg-card text-sm font-semibold disabled:opacity-40 disabled:pointer-events-none active:scale-95 transition"
+                      >
+                        <ChevronLeft className="h-4 w-4" /> Prev
+                      </button>
+                      {pages.map((p, idx) =>
+                        p === 'ellipsis' ? (
+                          <span key={`e-${idx}`} className="px-2 text-muted-foreground text-sm">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => goToPage(p)}
+                            aria-current={p === currentPage ? 'page' : undefined}
+                            aria-label={`Page ${p}`}
+                            className={
+                              'min-h-9 min-w-9 px-3 rounded-full text-sm font-semibold active:scale-95 transition border ' +
+                              (p === currentPage
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-card text-foreground border-border hover:bg-muted')
+                            }
+                          >
+                            {p}
+                          </button>
+                        ),
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (currentPage >= totalPages && hasMore) {
+                            loadMore();
+                            setCurrentPage(currentPage + 1);
+                          } else {
+                            goToPage(currentPage + 1);
+                          }
+                        }}
+                        disabled={disabledNext}
+                        aria-label="Next page"
+                        className="inline-flex items-center gap-1 min-h-9 px-3 rounded-full border border-border bg-card text-sm font-semibold disabled:opacity-40 disabled:pointer-events-none active:scale-95 transition"
+                      >
+                        Next <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Page {currentPage} of {hasMore ? `${totalPages}+` : totalPages} · Showing {pageItems.length} of {listingCounts.verified.toLocaleString()} verified houses
+                    </p>
+                  </div>
+                );
+              })()}
               {loadingMore && (
                 <LoadMoreProgress
                   loadedCount={filtered.length}
@@ -653,20 +700,6 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   skeletonCount={2}
                   skeletonClassName="h-40 w-full rounded-2xl"
                 />
-              )}
-              {hasMore && !loadingMore && (
-                <div className="pt-2 pb-24 md:pb-4">
-                  <button
-                    type="button"
-                    onClick={loadMore}
-                    className="w-full min-h-12 rounded-full bg-primary text-primary-foreground font-bold shadow-lg active:scale-[0.98] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  >
-                    Load more houses
-                  </button>
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
-                    Showing {filtered.length.toLocaleString()} of {listingCounts.verified.toLocaleString()} verified houses
-                  </p>
-                </div>
               )}
             </>
           )}
