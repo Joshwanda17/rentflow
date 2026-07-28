@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { Input } from '@/components/ui/input';
@@ -307,48 +306,44 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
-  // Responsive column count so the list fills wide screens instead of leaving
-  // huge empty white margins around a single narrow centred column. On phones
-  // it stays a single column; on tablets/desktops it flows into 2–3 columns.
-  // The sheet spans the full viewport width, so window width is a reliable proxy
-  // (and avoids racing the portal-mounted scroll container's ref).
-  const colsForWidth = (w: number) => (w >= 1024 ? 3 : w >= 640 ? 2 : 1);
-  const [columns, setColumns] = useState(() =>
-    typeof window !== 'undefined' ? colsForWidth(window.innerWidth) : 1,
-  );
-  useEffect(() => {
-    const compute = () => setColumns(colsForWidth(window.innerWidth));
-    compute();
-    window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
-  }, []);
-
   // Pagination diagnostics overlay — off by default. Enable in any environment:
   //   localStorage.setItem('welile-debug-pagination','1')
   const showPaginationDebug = (() => {
     try { return localStorage.getItem('welile-debug-pagination') === '1'; } catch { return false; }
   })();
 
-  // Virtualized rendering: we fetch EVERY matching listing (can be 10,000+), but
-  // only the cards in/near the viewport are ever mounted into the DOM, so the
-  // sheet stays fast on low-end phones regardless of dataset size.
-  const virtualizer = useVirtualizer({
-    count: filtered.length,
-    getScrollElement: () => resultsRef.current,
-    estimateSize: () => 280,
-    overscan: 4,
-    gap: 12,
-    lanes: columns,
-    getItemKey: (index) => filtered[index]?.id ?? index,
-  });
+  // Paginated rendering: 10 houses per page with numbered navigation.
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
 
-  // Reset scroll to the top when the result set changes (new filters / search)
-  // so the user always sees the most relevant (nearest) houses first.
+  // Reset to page 1 when the result set changes (new filters / search).
   useEffect(() => {
+    setCurrentPage(1);
     resultsRef.current?.scrollTo({ top: 0 });
-    virtualizer.scrollToOffset(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText]);
+
+  // Auto-fetch more rows from the server when the user gets within one page of
+  // the end of the currently-loaded set, so page navigation stays seamless.
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+    if (currentPage >= totalPages - 1) loadMore();
+  }, [currentPage, totalPages, hasMore, loadingMore, loadMore]);
+
+  // Clamp the current page if the dataset shrinks below it.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
+
+  const goToPage = (p: number) => {
+    const next = Math.min(Math.max(1, p), totalPages);
+    setCurrentPage(next);
+    resultsRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
