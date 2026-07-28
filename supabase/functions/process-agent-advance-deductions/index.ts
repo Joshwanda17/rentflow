@@ -179,10 +179,17 @@ Deno.serve(async (req) => {
       const dailyInterestRate = Math.pow(1 + advanceMonthlyRate, 1 / 30) - 1;
 
       const openingBalance = Number(advance.outstanding_balance);
-      const interestAccrued = Math.round(openingBalance * dailyInterestRate);
-      const balanceAfterInterest = openingBalance + interestAccrued;
-
       const isOverdue = new Date() > new Date(advance.expires_at);
+
+      // POLICY: the outstanding balance is FIXED at principal + access_fee for the
+      // whole scheduled period (cycle_days). Missed installments do NOT grow the
+      // outstanding — they are simply carried forward as arrears and recovered later.
+      // Only once the scheduled period has fully elapsed and the advance is still
+      // not settled does a daily penalty start accruing on the remaining balance.
+      const interestAccrued = isOverdue
+        ? Math.round(openingBalance * dailyInterestRate)
+        : 0;
+      const balanceAfterInterest = openingBalance + interestAccrued;
 
       // STRICT: read withdrawable-only figure (Wallet Withdrawable Strict Rule).
       // Never read wallets.balance — that aggregate includes float/commission
@@ -312,7 +319,9 @@ Deno.serve(async (req) => {
               recipient_type: 'user',
               source_table: 'agent_advances',
               source_id: advance.id,
-              description: `Advance daily deduction - Interest: ${interestAccrued}`,
+              description: interestAccrued > 0
+                ? `Advance daily deduction - Overdue penalty: ${interestAccrued}`
+                : `Advance daily deduction`,
               currency: 'UGX',
               transaction_date: today,
               metadata: repaymentMeta,
