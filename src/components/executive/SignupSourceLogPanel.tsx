@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 type Breakdown = {
@@ -55,6 +56,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function SignupSourceLogPanel() {
   const [days, setDays] = useState<number>(7);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
   const [blockIp, setBlockIp] = useState<string | null>(null);
   const [blockReason, setBlockReason] = useState('');
   const qc = useQueryClient();
@@ -138,6 +140,13 @@ export function SignupSourceLogPanel() {
       return (data ?? []) as AttemptRow[];
     },
     staleTime: 30_000,
+  });
+
+  const filteredLog = (log.data ?? []).filter((r) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [r.email, r.phone, r.ip, r.device_fp, r.path, r.utm_source, r.utm_medium, r.utm_campaign, r.reason, r.status, r.actor_role, r.user_id, r.user_agent]
+      .some((v) => (v ?? '').toString().toLowerCase().includes(q));
   });
 
   const totals = (breakdown.data ?? []).reduce(
@@ -248,18 +257,30 @@ export function SignupSourceLogPanel() {
       <Card>
         <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Recent attempts</CardTitle>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="allowed">Allowed</SelectItem>
-              <SelectItem value="blocked_ip">Blocked (IP)</SelectItem>
-              <SelectItem value="blocked_device">Blocked (Device)</SelectItem>
-              <SelectItem value="blocked_verification">Blocked (OTP)</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, phone, email, IP, referrer…"
+              className="h-9 w-64"
+            />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="allowed">Allowed</SelectItem>
+                <SelectItem value="blocked_ip">Blocked (IP)</SelectItem>
+                <SelectItem value="blocked_device">Blocked (Device)</SelectItem>
+                <SelectItem value="blocked_verification">Blocked (OTP)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
+          <div className="text-xs text-muted-foreground mb-2">
+            Showing {filteredLog.length.toLocaleString()} of {(log.data ?? []).length.toLocaleString()} entries
+            {search && <> · filtered by "<span className="font-mono">{search}</span>"</>}
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -275,7 +296,7 @@ export function SignupSourceLogPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(log.data ?? []).map((r) => (
+              {filteredLog.map((r) => (
                 <TableRow
                   key={r.id}
                   className="cursor-pointer hover:bg-muted/50"
@@ -323,7 +344,7 @@ export function SignupSourceLogPanel() {
                   </TableCell>
                 </TableRow>
               ))}
-              {(!log.data || log.data.length === 0) && !log.isLoading && (
+              {filteredLog.length === 0 && !log.isLoading && (
                 <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">No entries.</TableCell></TableRow>
               )}
             </TableBody>
