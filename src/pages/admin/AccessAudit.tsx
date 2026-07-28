@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { DashboardGrants, DashboardGrantsProvider } from '@/components/admin/DashboardGrants';
 import type { AppRole } from '@/hooks/auth/types';
 
 const ASSIGNABLE_ROLES: AppRole[] = [
@@ -420,6 +421,7 @@ export default function AccessAuditPage() {
         )}
 
         <div className="space-y-3">
+          <DashboardGrantsProvider userIds={rows.map((r) => r.profile.id)}>
           {rows.map((r) => {
             const isSelf = !!actor && r.profile.id === actor.id;
             return (
@@ -436,12 +438,6 @@ export default function AccessAuditPage() {
                       </Badge>
                     )}
                   </CardTitle>
-                  {canGrant && !isSelf && (
-                    <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => openGrant(r)}>
-                      <KeyRound className="h-3.5 w-3.5" />
-                      Grant access
-                    </Button>
-                  )}
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   {isSelf && canGrant && (
@@ -467,36 +463,11 @@ export default function AccessAuditPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                      Staff dashboard permissions ({r.permissions.length})
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {r.permissions.length ? (
-                        r.permissions.map((p) => (
-                          <Badge
-                            key={p.id}
-                            variant="outline"
-                            className="border-primary/30 gap-1 pr-1"
-                          >
-                            {p.permitted_dashboard}
-                            {canGrant && !isSelf && (
-                              <button
-                                type="button"
-                                onClick={() => openRevoke(r, p)}
-                                aria-label={`Revoke ${p.permitted_dashboard}`}
-                                className="ml-0.5 rounded-sm p-0.5 hover:bg-destructive/15 hover:text-destructive transition-colors"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            )}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">none</span>
-                      )}
-                    </div>
-                  </div>
+                  <DashboardGrants
+                    userId={r.profile.id}
+                    actorId={actor?.id ?? null}
+                    disabled={!canGrant || isSelf}
+                  />
 
                   <div>
                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
@@ -530,6 +501,7 @@ export default function AccessAuditPage() {
               </Card>
             );
           })}
+          </DashboardGrantsProvider>
 
           {!loading && rows.length === 0 && debounced && (
             <div className="text-center text-sm text-muted-foreground py-8">
