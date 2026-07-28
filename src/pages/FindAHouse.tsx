@@ -927,7 +927,7 @@ export default function FindAHouse() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+                onClick={() => navigate('/dashboard/tenant')}
                 aria-label="Go back"
                 className="shrink-0 -ml-2 h-9 w-9"
               >
