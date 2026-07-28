@@ -238,6 +238,13 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [selectedVillage, setSelectedVillage] = useState('all');
   const [view, setView] = useState<'list' | 'map'>('list');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [minPrice, setMinPrice] = useState<number | undefined>(undefined);
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(undefined);
+  const [minRooms, setMinRooms] = useState<number>(0);
+  const [amenities, setAmenities] = useState<{
+    hasWater: boolean; hasElectricity: boolean; hasSecurity: boolean; hasParking: boolean; isFurnished: boolean;
+  }>({ hasWater: false, hasElectricity: false, hasSecurity: false, hasParking: false, isFurnished: false });
+  const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   // Bottom sentinel — when it scrolls into view we ask for the next page.
@@ -258,6 +265,15 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
     village: selectedVillage !== 'all' ? selectedVillage : undefined,
     search: searchText.trim() || undefined,
+    minDailyRate: minPrice,
+    maxDailyRate: maxPrice,
+    minRooms: minRooms || undefined,
+    hasWater: amenities.hasWater || undefined,
+    hasElectricity: amenities.hasElectricity || undefined,
+    hasSecurity: amenities.hasSecurity || undefined,
+    hasParking: amenities.hasParking || undefined,
+    isFurnished: amenities.isFurnished || undefined,
+    sort,
     // Page through EVERY matching listing — no fixed cap.
     paginate: true,
     // Load a large first page so the District / Sub-County / Village
@@ -277,6 +293,14 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     village: selectedVillage !== 'all' ? selectedVillage : undefined,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     search: searchText.trim() || undefined,
+    minDailyRate: minPrice,
+    maxDailyRate: maxPrice,
+    minRooms: minRooms || undefined,
+    hasWater: amenities.hasWater || undefined,
+    hasElectricity: amenities.hasElectricity || undefined,
+    hasSecurity: amenities.hasSecurity || undefined,
+    hasParking: amenities.hasParking || undefined,
+    isFurnished: amenities.isFurnished || undefined,
     enabled: open,
   });
 
