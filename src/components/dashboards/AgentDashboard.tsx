@@ -1116,7 +1116,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <AgentPriorityGrid
               agentId={user.id}
               restricted={isMerchant}
-              onOpenFieldCollect={() => { if (guardMerchant()) return; setFieldCollectOpen(true); }}
               onOpenNewTenant={() => { if (guardMerchant()) return; setRentRequestOpen(true); }}
               onOpenListHouse={() => {
                 if (guardMerchant()) return;
@@ -1645,9 +1644,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onViewManagedProperties={() => { setMenuOpen(false); setManagedPropertiesSheetOpen(true); }}
         onViewMyRentRequests={() => { setMenuOpen(false); setMyRentRequestsOpen(true); }}
         onTopUpTenant={() => {
-          // Disabled — see Pay Rent deactivation note above. Route agents to Field Collect.
+          // Disabled — Pay Rent / Collect Rent flow removed.
           setMenuOpen(false);
-          setFieldCollectOpen(true);
         }}
         onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
         onViewCreditAccess={() => { setMenuOpen(false); setCreditOpen(true); }}
@@ -1908,10 +1906,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         initialProfileTenantId={tenantProfileId}
       />
       </LazyModal>
-      <LazyModal when={fieldCollectOpen}>
-      <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
-      </LazyModal>
-      
       <LazyModal when={reconcileOpen}>
       <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
       </LazyModal>
