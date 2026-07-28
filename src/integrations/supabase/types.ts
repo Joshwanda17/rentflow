@@ -20080,7 +20080,6 @@ export type Database = {
           granted_by: string | null
           id: string
           permitted_dashboard: string
-          reason: string | null
           revoke_reason: string | null
           revoked_at: string | null
           revoked_by: string | null
@@ -20091,7 +20090,6 @@ export type Database = {
           granted_by?: string | null
           id?: string
           permitted_dashboard: string
-          reason?: string | null
           revoke_reason?: string | null
           revoked_at?: string | null
           revoked_by?: string | null
@@ -20102,7 +20100,6 @@ export type Database = {
           granted_by?: string | null
           id?: string
           permitted_dashboard?: string
-          reason?: string | null
           revoke_reason?: string | null
           revoked_at?: string | null
           revoked_by?: string | null
