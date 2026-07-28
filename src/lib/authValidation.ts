@@ -25,7 +25,23 @@ const DUMMY_NAME_WORDS = new Set([
   'unknown', 'none', 'null', 'undefined', 'na', 'nan', 'xxx', 'abc', 'abcd',
   'asdf', 'asdfg', 'asdfgh', 'qwerty', 'qwe', 'qwer', 'zxc', 'zxcv',
   'aaa', 'bbb', 'ccc', 'ddd', 'lorem', 'ipsum', 'anonymous', 'nobody',
+  'me', 'my', 'myself', 'self', 'client', 'customer', 'agent', 'tenant',
+  'landlord', 'supporter', 'welile', 'staff', 'employee', 'boss', 'ceo',
+  'hello', 'hi', 'hey', 'yo', 'yes', 'no', 'ok', 'okay', 'good', 'bad',
+  'foo', 'bar', 'baz', 'blah', 'blahblah', 'lol', 'lmao', 'wtf',
 ]);
+
+/** Wildcard regex patterns for junk names the signup form tends to receive. */
+const JUNK_NAME_PATTERNS: RegExp[] = [
+  /^[a-z]\.?\s+[a-z]\.?$/i,          // "j k", "a. b."
+  /(.)\1{2,}/,                        // any letter repeated 3+ times ("aaa", "hhhh")
+  /^(.{1,3})\1+$/i,                   // short pattern repeated: "abab", "xyxyxy"
+  /\b(test|demo|sample|fake|dummy|xxx|user|admin|welile)\b/i,
+  /\b(name|firstname|lastname|surname)\b/i,
+  /\b(asdf|qwerty|qwer|zxcv|hjkl|uiop)\b/i,
+  /^[^a-zA-Z]+$/,                     // no letters at all
+  /[0-9@#$%^&*_=+<>{}\[\]\\\/|~`"]/,  // digits or symbols anywhere
+];
 
 /**
  * Heuristic gibberish detector for a single name token.
@@ -54,6 +70,15 @@ const isGibberishToken = (token: string): boolean => {
   // Four or more consecutive consonants is unnatural for a real name
   // (allow common clusters by only flagging 4+, e.g. "dhfh", "shss").
   if (/[bcdfghjklmnpqrstvwxz]{4,}/.test(t)) return true;
+
+  // Sequential keyboard runs ("abcd", "1234"-like letter rows).
+  const KEYBOARD_RUNS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', 'abcdefghijklmnopqrstuvwxyz'];
+  for (const row of KEYBOARD_RUNS) {
+    for (let i = 0; i <= row.length - 4; i++) {
+      const run = row.slice(i, i + 4);
+      if (t.includes(run) || t.includes(run.split('').reverse().join(''))) return true;
+    }
+  }
 
   return false;
 };
@@ -94,6 +119,27 @@ export const validateFullName = (raw: string | null | undefined): FullNameValida
       trimmed,
       error: 'Please enter a real full name',
     };
+  }
+
+  // Wildcard sweep on the whole name for common junk signup patterns.
+  if (JUNK_NAME_PATTERNS.some((rx) => rx.test(trimmed))) {
+    return {
+      valid: false,
+      trimmed,
+      error: 'Name looks invalid — use letters only, no digits, symbols or filler text',
+    };
+  }
+
+  // Reject when both first and last names are identical (e.g. "John John").
+  if (parts.length >= 2) {
+    const normalized = parts.map((p) => p.toLowerCase().replace(/[^a-z]/g, ''));
+    if (new Set(normalized).size === 1) {
+      return {
+        valid: false,
+        trimmed,
+        error: 'First and last name cannot be the same',
+      };
+    }
   }
 
   return { valid: true, trimmed, error: null };
