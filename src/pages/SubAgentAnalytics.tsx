@@ -617,6 +617,25 @@ export default function SubAgentAnalytics() {
         .in('sub_agent_id', subAgentIds)
         .order('occurred_at', { ascending: false });
 
+      // Broader datasets used ONLY to power the "Monthly Earnings" chart so it
+      // reflects every UGX the parent has earned from their sub-agent network
+      // over time (any earning_type, plus every credited recruiter override —
+      // house listing, landlord verification, LC1 chairperson, etc).
+      const chartWindowStart = format(subMonths(new Date(), 5), 'yyyy-MM-01');
+      const [{ data: chartEarningsRaw }, { data: chartOverridesRaw }] = await Promise.all([
+        supabase
+          .from('agent_earnings')
+          .select('amount, created_at, earning_type')
+          .eq('agent_id', user.id)
+          .gte('created_at', chartWindowStart),
+        supabase
+          .from('recruiter_override_events')
+          .select('amount, occurred_at, status')
+          .eq('recruiter_id', user.id)
+          .in('status', ['credited', 'paid'])
+          .gte('occurred_at', chartWindowStart),
+      ]);
+
       // Map override earnings by house listing id (only successful/credited ones)
       const overrideByHouse: Record<string, number> = {};
       const houseOverrideBySubAgent: Record<string, number> = {};
