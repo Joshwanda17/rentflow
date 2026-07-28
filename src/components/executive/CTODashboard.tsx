@@ -21,6 +21,7 @@ import ExportUsersWithHashesCard from '@/components/cto/ExportUsersWithHashesCar
 import { CTOPasswordResetPanel } from '@/components/cto/CTOPasswordResetPanel';
 import PlatformControlsPanel from '@/components/cto/PlatformControlsPanel';
 import { CTOAgentFreezePanel } from '@/components/cto/CTOAgentFreezePanel';
+import { CTOKycLevelPanel } from '@/components/cto/CTOKycLevelPanel';
 import InviteMerchantAgentCard from '@/components/agent/InviteMerchantAgentCard';
 import MerchantInviteLinksManager from '@/components/agent/MerchantInviteLinksManager';
 import { SeoIndexMonitorPanel } from './SeoIndexMonitorPanel';
@@ -60,6 +61,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   }
   if (activeTab === 'agent-freeze') {
     return <CTOAgentFreezePanel />;
+  }
+  if (activeTab === 'kyc-level') {
+    return <CTOKycLevelPanel />;
   }
   if (activeTab === 'merchant-invites') {
     return <MerchantInviteLinksManager />;
