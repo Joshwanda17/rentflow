@@ -1,62 +1,32 @@
-## Daily Wallet Financial Summary Report
+## Diagnosis (verified against the live DB)
 
-### 1. Database (migration)
+The "Daily Active Users" chart on `/cmo/dashboard?section=user-analytics` peaks at 0–4 because `UserAnalyticsView.tsx` and `UserAnalyticsDrilldown.tsx` query the wrong column on `otp_login_audit`:
 
-New table `public.daily_wallet_reports`:
-- `report_date` (date, unique), `period_start`, `period_end` (timestamptz)
-- `deposits_by_source` (jsonb: cash / mtn / airtel / bank → {count, amount})
-- `payouts_by_channel` (jsonb: merchant_mtn / merchant_airtel / merchant_equity → {count, amount})
-- `total_deposited`, `total_paid_out`, `closing_balance` (numeric)
-- `pdf_path`, `xlsx_path` (text, in `finops-reports` storage bucket)
-- `generated_by` (text, default `system`), `generated_at`
-- RLS: read for FinOps roles (`cfo`, `financial_ops`, `super_admin`, `manager`); insert/update `service_role` only
+- Code selects `user_id` from `otp_login_audit`, but that column does not exist. Actual columns are `resolved_user_id` / `actual_user_id`. supabase-js silently returns rows with `user_id === undefined`, so every day's `Set<string>` stays empty → chart flatlines near zero, and every drilldown scope that reads OTP audit returns no users.
+- Even with the correct column, `otp_login_audit` only captured **95 successes / 62 distinct users** in the last 7 days — it logs OTP challenges, not general app activity. `login_phase_events` covers real sessions: **181,329 events / 650 distinct users** over the same window. That is the correct DAU source.
+- Signups (`profiles.created_at`) and Role distribution (`user_roles`) queries are already correct — leave them alone.
 
-New storage bucket `finops-reports` (private).
+## Changes
 
-### 2. Ledger source view
+### 1. `src/components/executive/UserAnalyticsView.tsx`
 
-Create SQL function `public.compute_wallet_report(_start timestamptz, _end timestamptz)` returning jsonb. Reads directly from `general_ledger` (never wallet cache):
-- Deposits: `direction='cash_in'`, `classification='production'`, `category IN ('deposit_cash','deposit_mtn','deposit_airtel','deposit_bank')` (mapped from actual production categories — verified before writing)
-- Payouts: `direction='cash_out'`, category matching merchant payout categories, sub-grouped by provider metadata / sub_category
-- Excludes admin_correction / system_balance_correction / test_dev
+- **Daily Active Users query**: switch from `otp_login_audit` to `login_phase_events`.
+  - `select('created_at, user_id')`, filter `user_id IS NOT NULL`, group distinct `user_id` per day. No `outcome` filter — presence of a session event = active user.
+  - Rename query key to `user-analytics-active-v2` so the stale broken cache is invalidated.
+- **Totals block**: keep OTP-based `loginAttempts` / `loginSuccess` (they legitimately measure the OTP funnel and drive the "Login Success" KPI), but also add a `dau` count query against `login_phase_events` (`count exact, head:true`, distinct not needed for the KPI — sum `activeSeries` still drives "Active User-Days"). No behavior change to Total Users / New Signups.
 
-I'll verify the exact production category strings from `general_ledger` before finalising the SQL.
+### 2. `src/components/executive/UserAnalyticsDrilldown.tsx`
 
-### 3. Edge function `generate-daily-wallet-report`
+- Fix `fetchUserIds`:
+  - Replace `otp_login_audit.select('user_id, outcome')` with `select('resolved_user_id, outcome')` and map from `resolved_user_id` (fallback to `actual_user_id` when null).
+  - For the `dau` scope specifically, source from `login_phase_events.select('user_id')` (not OTP audit) to match the chart. Keep `login_success` / `login_failed` on `otp_login_audit` since those are OTP-funnel scopes.
 
-- Accepts `{ date?: 'YYYY-MM-DD', period_start?, period_end?, email?: boolean }`
-- Computes report via RPC, upserts row in `daily_wallet_reports`
-- Renders PDF (pdf-lib) and XLSX (SheetJS via esm.sh) with UGX formatting + thousands separators, uploads to storage
-- When `email=true`, sends Mailgun email (existing connector) with PDF + XLSX attachments to the 3 recipients
-- Idempotent per `report_date`
+### 3. No schema, RPC, or business-logic changes
 
-### 4. Cron
+Read-only fixes to two frontend files. Ledger, RLS, wallet code untouched.
 
-`pg_cron` job at `0 21 * * *` UTC (= 00:00 EAT next day) → `net.http_post` to the edge function with `{ date: yesterday, email: true }`. Registered via `supabase--insert` (contains project URL + anon key).
+## Verification after build
 
-### 5. Frontend — FinOps Reports tab
-
-New route/component in FinOps hub: `Reports` tab.
-- Filter chips: Today / Yesterday / This Week / This Month / Custom (calendar range)
-- List of stored reports (search by date, filter)
-- Row actions: View, Download PDF, Download XLSX, Download CSV (client-generated), Regenerate (calls edge fn for that date)
-- Detail drawer showing all sections (header, deposit breakdown, payout breakdown, closing balance) computed via same RPC for live/custom ranges
-- All amounts via existing `formatUGX` helper; timestamp in EAT
-
-### 6. Files touched / added
-
-- `supabase/migrations/*` — table, RPC, RLS, storage bucket, GRANTs
-- `supabase/functions/generate-daily-wallet-report/index.ts`
-- `src/components/financial-ops/ReportsTab.tsx`
-- `src/components/financial-ops/DailyWalletReportDetail.tsx`
-- `src/hooks/useDailyWalletReport.ts`
-- Register tab inside existing FinOps hub component
-- `supabase--insert` call to schedule the cron
-
-### Verification
-
-Before writing the RPC I'll query `general_ledger` for the actual deposit/payout category strings in use for cash / MTN / Airtel / bank / merchant payouts so grouping matches production data. Cross-check the first computed report against a known day.
-
-### Note
-
-Follow-up (not in this plan) — if you want the report also visible to the CEO/COO dashboards, say so and I'll extend the RLS read list.
+- Re-open `/cmo/dashboard?section=user-analytics`. Last-7d "Daily Active Users" chart should now show meaningful daily distinct users (order of ~100–200/day given 650 distinct in 7d), and "Active User-Days" KPI reflects the sum.
+- Click the "Active User-Days" KPI → drilldown should list real users instead of an empty set.
+- "Login Success" KPI and signup chart remain unchanged.
