@@ -441,14 +441,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
         onSuccess={fetchAllPendingCounts}
       />
       <PendingRequestsDialog open={pendingOpen} onOpenChange={handlePendingClose} />
-      <WithdrawRequestDialog 
-        open={withdrawOpen} 
-        onOpenChange={setWithdrawOpen} 
-        // For agents: total = withdrawable + wallet/rent-collection float.
-        // Landlord Payout Float is a separate Pay Landlord pool and is not withdrawable.
-        walletBalance={isAgent ? (realWithdrawableBalance + visibleAgentFloatBalance) : (wallet?.balance || 0)}
-        onSuccess={refreshWallet}
-      />
       <TransactionReceipt 
         open={receiptOpen} 
         onOpenChange={setReceiptOpen} 
