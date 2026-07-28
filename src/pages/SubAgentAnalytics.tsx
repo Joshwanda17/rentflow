@@ -870,23 +870,15 @@ export default function SubAgentAnalytics() {
         const monthKey = format(monthDate, 'yyyy-MM');
         const monthLabel = format(monthDate, 'MMM');
 
-        const agentEarningsMonth = allEarnings
-          ?.filter(e => format(new Date(e.created_at), 'yyyy-MM') === monthKey)
-          .reduce((sum, e) => {
-            // Count sub-agent commissions and sub-agent referral bonuses only.
-            if (e.earning_type === 'subagent_commission') return sum + Number(e.amount);
-            if (e.earning_type === 'referral_bonus' && e.source_user_id && subAgentIdsSet.has(e.source_user_id)) {
-              return sum + Number(e.amount);
-            }
-            return sum;
-          }, 0) || 0;
+        // Chart aggregates EVERY earning the parent booked in the month
+        // (subagent commission, referral bonus, proxy investment commission,
+        // platform rewards, etc.) so the bars reflect real cash flow.
+        const agentEarningsMonth = (chartEarningsRaw || [])
+          .filter(e => e.created_at && format(new Date(e.created_at), 'yyyy-MM') === monthKey)
+          .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
-        const overrideMonth = (overrideRows || [])
-          .filter(o => {
-            if (!o.status || (o.status !== 'credited' && o.status !== 'paid')) return false;
-            const d = o.occurred_at ? new Date(o.occurred_at) : null;
-            return d && format(d, 'yyyy-MM') === monthKey;
-          })
+        const overrideMonth = (chartOverridesRaw || [])
+          .filter(o => o.occurred_at && format(new Date(o.occurred_at), 'yyyy-MM') === monthKey)
           .reduce((sum, o) => sum + Number(o.amount || 0), 0);
 
         const monthEarnings = agentEarningsMonth + overrideMonth;
