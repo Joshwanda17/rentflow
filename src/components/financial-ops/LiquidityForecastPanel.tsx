@@ -411,6 +411,100 @@ export function LiquidityForecastPanel({ onOpenTool }: LiquidityForecastPanelPro
         )}
       </div>
 
+      {/* Landlord Payout Float — obligations by day */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            <Home className="h-4 w-4 text-primary" /> Agent → Landlord payout float
+          </h3>
+          <span className="text-[11px] text-muted-foreground">Rent already collected, payout still owed to landlord</span>
+        </div>
+        {lpLoading ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading landlord payout float…
+          </div>
+        ) : lpByDate.length === 0 ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">
+            No landlord payouts scheduled in this window.
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {lpByDate.map((b) => {
+              const pct = Math.round((b.total / lpMaxDay) * 100);
+              const isOpen = lpExpandedDate === b.date;
+              const dayLabel = new Date(b.date).toLocaleDateString(undefined, {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              });
+              const isOverdue = new Date(b.date) < new Date(new Date().toISOString().slice(0, 10));
+              return (
+                <li key={b.date}>
+                  <button
+                    type="button"
+                    onClick={() => setLpExpandedDate(isOpen ? null : b.date)}
+                    className="w-full text-left px-4 py-3 hover:bg-muted/40 transition"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex items-center gap-2">
+                        {isOpen ? (
+                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                        <span className={cn('text-sm font-semibold', isOverdue && 'text-red-600')}>
+                          {dayLabel}{isOverdue ? ' (overdue)' : ''}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {b.count} payout{b.count === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold">{formatUGX(b.total)}</p>
+                    </div>
+                    <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn('h-full', isOverdue ? 'bg-red-500' : 'bg-primary')}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </button>
+                  {isOpen && (
+                    <div className="bg-muted/30 px-4 py-3 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="text-muted-foreground">
+                          <tr>
+                            <th className="text-left py-1 font-semibold">Landlord</th>
+                            <th className="text-left py-1 font-semibold">Phone</th>
+                            <th className="text-left py-1 font-semibold">Provider</th>
+                            <th className="text-left py-1 font-semibold">Status</th>
+                            <th className="text-right py-1 font-semibold">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {b.rows.map((r: any) => (
+                            <tr key={r.id} className="border-t border-border/60">
+                              <td className="py-1.5 truncate max-w-[180px]">{r.landlord_name || '—'}</td>
+                              <td className="py-1.5 font-mono text-[11px]">{r.landlord_phone || '—'}</td>
+                              <td className="py-1.5">{r.mobile_money_provider || '—'}</td>
+                              <td className="py-1.5">
+                                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                  {String(r.status).replace(/_/g, ' ')}
+                                </span>
+                              </td>
+                              <td className="py-1.5 text-right font-semibold">{formatUGX(Number(r.amount || 0))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
       {/* Control shortcuts */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-sm font-bold">Control withdrawable balances</h3>
