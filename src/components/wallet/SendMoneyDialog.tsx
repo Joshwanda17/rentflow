@@ -751,6 +751,26 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     </div>
                   </motion.div>
                 )}
+                {!transferLocked && perfLocked && (
+                  <motion.div
+                    variants={itemVariants}
+                    className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          Sending to other users is locked today
+                        </p>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Today's collection is <span className="font-semibold text-foreground">{(perfPct ?? 0).toFixed(1)}%</span> — you must be at least
+                          <span className="font-semibold text-foreground"> 20%</span> to move money out of your wallet.
+                          Collect from your tenants and this will unlock automatically.
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
                 {savedRecipients.length > 0 && (
                   <motion.div variants={itemVariants} className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
