@@ -305,8 +305,6 @@ export default function SubAgentAnalytics() {
       return next;
     });
   };
-  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
-  const [currentGoal, setCurrentGoal] = useState<TeamGoal | null>(null);
   const [currentMonthRegistrations, setCurrentMonthRegistrations] = useState(0);
   const [currentMonthEarnings, setCurrentMonthEarnings] = useState(0);
   const [totalEarningsFromSubAgents, setTotalEarningsFromSubAgents] = useState(0);
