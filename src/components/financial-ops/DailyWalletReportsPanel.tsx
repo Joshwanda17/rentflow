@@ -109,7 +109,7 @@ export function DailyWalletReportsPanel() {
         .lte('report_date', range.to)
         .order('report_date', { ascending: false });
       if (error) throw error;
-      return (data ?? []) as ReportRow[];
+      return ((data ?? []) as unknown) as ReportRow[];
     },
   });
 
@@ -123,7 +123,7 @@ export function DailyWalletReportsPanel() {
         _start: startIso, _end: endIso,
       });
       if (error) throw error;
-      return data as Metrics;
+      return (data as unknown) as Metrics;
     },
   });
 
