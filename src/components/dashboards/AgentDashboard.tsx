@@ -383,7 +383,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     const qs = params.toString();
     window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
   }, []);
-  const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
   const [duplicateCount, setDuplicateCount] = useState(0);
 
@@ -409,7 +408,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     tick();
     const iv = window.setInterval(tick, 5000);
     return () => { alive = false; window.clearInterval(iv); };
-  }, [user?.id, fieldCollectOpen, reconcileOpen]);
+  }, [user?.id, reconcileOpen]);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
   const [proxyHistoryOpen, setProxyHistoryOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
