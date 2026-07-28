@@ -375,7 +375,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   useEffect(() => {
     setCurrentPage(1);
     resultsRef.current?.scrollTo({ top: 0 });
-  }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText]);
+  }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText, minPrice, maxPrice, minRooms, amenities, sort]);
 
   // Auto-fetch more rows from the server when the user gets within one page of
   // the end of the currently-loaded set, so page navigation stays seamless.
@@ -421,13 +421,18 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </SheetTitle>
             <div className="flex items-center gap-2 shrink-0">
               {(() => {
+                const amenityCount = Object.values(amenities).filter(Boolean).length;
                 const activeCount =
                   (searchText.trim().length > 0 ? 1 : 0) +
                   (selectedRegion !== 'All Regions' ? 1 : 0) +
                   (selectedCategory !== 'all' ? 1 : 0) +
                   (selectedDistrict !== 'all' ? 1 : 0) +
                   (selectedSubCounty !== 'all' ? 1 : 0) +
-                  (selectedVillage !== 'all' ? 1 : 0);
+                  (selectedVillage !== 'all' ? 1 : 0) +
+                  (minPrice || maxPrice ? 1 : 0) +
+                  (minRooms > 0 ? 1 : 0) +
+                  amenityCount +
+                  (sort !== 'newest' ? 1 : 0);
                 return (
                   <button
                     type="button"
