@@ -55,8 +55,6 @@ import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } f
 import { AddSubAgentSearch } from '@/components/agent/AddSubAgentSearch';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { SetTeamGoalDialog } from '@/components/agent/SetTeamGoalDialog';
-import { TeamGoalProgress } from '@/components/agent/TeamGoalProgress';
 import { exportToCSV, exportToPDF, formatNumberForExport, formatDateForExport } from '@/lib/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 import { hapticTap } from '@/lib/haptics';
