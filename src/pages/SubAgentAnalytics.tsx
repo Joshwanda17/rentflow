@@ -1214,7 +1214,13 @@ export default function SubAgentAnalytics() {
                     <BarChart data={monthlyData}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                      <YAxis
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(v) =>
+                          v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K` : `${v}`
+                        }
+                        allowDecimals={false}
+                      />
                       <Tooltip 
                         formatter={(value: number) => [formatUGX(value), 'Earnings']}
                         contentStyle={{ 
