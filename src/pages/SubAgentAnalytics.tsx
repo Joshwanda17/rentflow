@@ -51,12 +51,10 @@ import {
 } from 'lucide-react';
 import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { AddSubAgentSearch } from '@/components/agent/AddSubAgentSearch';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { SetTeamGoalDialog } from '@/components/agent/SetTeamGoalDialog';
-import { TeamGoalProgress } from '@/components/agent/TeamGoalProgress';
 import { exportToCSV, exportToPDF, formatNumberForExport, formatDateForExport } from '@/lib/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 import { hapticTap } from '@/lib/haptics';
@@ -170,13 +168,6 @@ interface MonthlyData {
   subAgentsJoined: number;
 }
 
-interface TeamGoal {
-  id: string;
-  goal_week: string;
-  target_registrations: number;
-  target_earnings: number;
-  notes: string | null;
-}
 
 interface RecruiterSplit {
   trace_id: string;
@@ -314,10 +305,6 @@ export default function SubAgentAnalytics() {
       return next;
     });
   };
-  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
-  const [currentGoal, setCurrentGoal] = useState<TeamGoal | null>(null);
-  const [currentMonthRegistrations, setCurrentMonthRegistrations] = useState(0);
-  const [currentMonthEarnings, setCurrentMonthEarnings] = useState(0);
   const [totalEarningsFromSubAgents, setTotalEarningsFromSubAgents] = useState(0);
   const reportRef = useRef<HTMLDivElement>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
@@ -348,7 +335,6 @@ export default function SubAgentAnalytics() {
       navigate('/auth');
     } else if (user) {
       fetchSubAgentAnalytics();
-      fetchCurrentGoal();
     }
   }, [user, authLoading, navigate]);
 
@@ -546,26 +532,6 @@ export default function SubAgentAnalytics() {
     return () => observer.disconnect();
   }, [loading, subAgents.length]);
 
-  const fetchCurrentGoal = async () => {
-    if (!user) return;
-
-    try {
-      const currentWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-
-      const { data, error } = await supabase
-        .from('agent_team_goals')
-        .select('id, goal_week, target_registrations, target_earnings, notes')
-        .eq('agent_id', user.id)
-        .eq('goal_week', currentWeek)
-        .maybeSingle();
-
-      if (error) throw error;
-      setCurrentGoal(data ?? null);
-    } catch (error) {
-      console.error('Error fetching goal:', error);
-      setCurrentGoal(null);
-    }
-  };
 
   const fetchSubAgentAnalytics = async (opts?: { silent?: boolean }) => {
     if (!user) return;
@@ -872,20 +838,6 @@ export default function SubAgentAnalytics() {
       }
       setMonthlyData(last6Months);
 
-      // Weekly progress for the current team goal (Mon–Sun)
-      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-      const inThisWeek = (d: string) => {
-        const t = new Date(d);
-        return t >= weekStart && t <= weekEnd;
-      };
-      const thisWeekRegs = subAgentsData.filter(sa => inThisWeek(sa.created_at)).length;
-      const thisWeekEarnings = (allEarnings || [])
-        .filter(e => inThisWeek(e.created_at))
-        .reduce((sum, e) => sum + Number(e.amount), 0);
-      setCurrentMonthRegistrations(thisWeekRegs);
-      setCurrentMonthEarnings(thisWeekEarnings);
-
     } catch (error) {
       console.error('Error fetching sub-agent analytics:', error);
     } finally {
@@ -1151,15 +1103,6 @@ export default function SubAgentAnalytics() {
           </Card>
         ) : (
           <div ref={reportRef} className="space-y-4">
-            {/* Team Goal Progress */}
-            <TeamGoalProgress
-              goal={currentGoal}
-              currentRegistrations={currentMonthRegistrations}
-              currentEarnings={currentMonthEarnings}
-              onSetGoal={() => setGoalDialogOpen(true)}
-              onEditGoal={() => setGoalDialogOpen(true)}
-            />
-
             {/* Overview Stats */}
             <div id="subagent-overview" className="scroll-mt-28">
               <div className="grid grid-cols-3 gap-2.5">
@@ -2318,15 +2261,6 @@ export default function SubAgentAnalytics() {
         </SheetContent>
       </Sheet>
 
-      <SetTeamGoalDialog
-        open={goalDialogOpen}
-        onOpenChange={setGoalDialogOpen}
-        onSuccess={() => {
-          fetchCurrentGoal();
-          fetchSubAgentAnalytics();
-        }}
-        existingGoal={currentGoal}
-      />
       <FloatingActionButton
         actions={[
           {
