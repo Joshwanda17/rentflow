@@ -25574,6 +25574,10 @@ export type Database = {
           reason: string
         }[]
       }
+      cto_set_kyc_level: {
+        Args: { p_new_level: number; p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
       decrement_rent_requested: {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
