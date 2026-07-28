@@ -71,7 +71,7 @@ import {
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
   , Bell, HandCoins, MessageSquare
-  , Store, Archive, Activity, CheckCircle2, Sparkles, PanelLeftClose, PanelLeftOpen, Wallet
+  , Store, Archive, Activity, CheckCircle2, Sparkles, PanelLeftClose, PanelLeftOpen, Wallet, CalendarClock
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -333,6 +333,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'manual_float_credit' && <ManualFloatCreditPanel />}
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
         {activeTool === 'earnings_explainer' && <EarningsExplainer role="finops" />}
+        {activeTool === 'liquidity_forecast' && <LiquidityForecastPanel onOpenTool={(t) => setActiveTool(t as any)} />}
         {activeTool === 'withdrawal_notif_log' && <WithdrawalNotificationLogPanel />}
         {activeTool === 'sms_delivery_log' && <SmsDeliveryLogPanel />}
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
@@ -402,7 +403,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Wallets & Users',
       items: moreActions.filter(a => [
-        'user_statements','earnings_explainer','funded_tenants','float_to_withdrawable',
+        'liquidity_forecast','user_statements','earnings_explainer','funded_tenants','float_to_withdrawable',
         'momo_sms_template',
       ].includes(a.id as string)),
     },
