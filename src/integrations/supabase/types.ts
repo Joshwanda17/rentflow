@@ -27205,6 +27205,14 @@ export type Database = {
           utm_source: string
         }[]
       }
+      get_signup_totals_range: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
+      get_signup_trends: {
+        Args: { p_end: string; p_granularity?: string; p_start: string }
+        Returns: Json
+      }
       get_sms_broadcast_status: {
         Args: never
         Returns: {
