@@ -554,6 +554,7 @@ export default function SubAgentAnalytics() {
       }
 
       const subAgentIds = subAgentsData.map(sa => sa.sub_agent_id);
+      const subAgentIdsSet = new Set(subAgentIds);
 
       // Detect "switched" sub-agents (linked to another parent previously)
       const { data: otherParentLinks } = await supabase
@@ -575,12 +576,15 @@ export default function SubAgentAnalytics() {
         .select('user_id, balance, withdrawable_balance, float_balance, advance_balance, locked_balance')
         .in('user_id', subAgentIds);
 
-      // Fetch all earnings from sub-agent commissions
+      // Fetch all earnings attributable to sub-agents (commissions from their
+      // tenants + any referral bonus where the referred user is one of our
+      // sub-agents). This gives the parent agent a true "total earned over time"
+      // figure rather than only the current snapshot.
       const { data: allEarnings } = await supabase
         .from('agent_earnings')
         .select('*')
         .eq('agent_id', user.id)
-        .eq('earning_type', 'subagent_commission')
+        .in('earning_type', ['subagent_commission', 'referral_bonus'])
         .order('created_at', { ascending: false });
 
       // Fetch sub-agents' own earnings (platform rewards)
@@ -721,26 +725,58 @@ export default function SubAgentAnalytics() {
       let totalEarnings = 0;
       if (allEarnings) {
         for (const earning of allEarnings) {
-          // Find which sub-agent's tenant made this repayment
-          for (const subAgentId of subAgentIds) {
-            const tenants = tenantsData[subAgentId] || [];
-            const isTenantOfSubAgent = tenants.some(t => t.id === earning.source_user_id);
-            
-            if (isTenantOfSubAgent) {
-              earningsPerSubAgent[subAgentId] = (earningsPerSubAgent[subAgentId] || 0) + Number(earning.amount);
-              totalEarnings += Number(earning.amount);
+          const amount = Number(earning.amount || 0);
+          const monthKey = format(new Date(earning.created_at), 'yyyy-MM');
 
-              const monthKey = format(new Date(earning.created_at), 'yyyy-MM');
-              if (!monthlyEarningsPerSubAgent[subAgentId]) {
-                monthlyEarningsPerSubAgent[subAgentId] = {};
+          if (earning.earning_type === 'subagent_commission') {
+            // Sub-agent commission is always an earning from the sub-agent
+            // team, even if we cannot map the tenant to a current rent request.
+            totalEarnings += amount;
+
+            // Try to attribute it to the specific sub-agent whose tenant made
+            // the repayment.
+            for (const subAgentId of subAgentIds) {
+              const tenants = tenantsData[subAgentId] || [];
+              const isTenantOfSubAgent = tenants.some(t => t.id === earning.source_user_id);
+              if (isTenantOfSubAgent) {
+                earningsPerSubAgent[subAgentId] = (earningsPerSubAgent[subAgentId] || 0) + amount;
+                monthlyEarningsPerSubAgent[subAgentId] = monthlyEarningsPerSubAgent[subAgentId] || {};
+                monthlyEarningsPerSubAgent[subAgentId][monthKey] =
+                  (monthlyEarningsPerSubAgent[subAgentId][monthKey] || 0) + amount;
+                break;
               }
-              monthlyEarningsPerSubAgent[subAgentId][monthKey] = 
-                (monthlyEarningsPerSubAgent[subAgentId][monthKey] || 0) + Number(earning.amount);
-              break;
             }
+          } else if (
+            earning.earning_type === 'referral_bonus' &&
+            earning.source_user_id &&
+            subAgentIdsSet.has(earning.source_user_id)
+          ) {
+            // Referral bonus earned because this parent referred a user who
+            // became one of their sub-agents.
+            const subAgentId = earning.source_user_id;
+            totalEarnings += amount;
+            earningsPerSubAgent[subAgentId] = (earningsPerSubAgent[subAgentId] || 0) + amount;
+            monthlyEarningsPerSubAgent[subAgentId] = monthlyEarningsPerSubAgent[subAgentId] || {};
+            monthlyEarningsPerSubAgent[subAgentId][monthKey] =
+              (monthlyEarningsPerSubAgent[subAgentId][monthKey] || 0) + amount;
           }
         }
       }
+
+      // Add recruiter override earnings (e.g. UGX 3,000 when a sub-agent's
+      // house listing / landlord / LC1 chairperson is verified).
+      (overrideRows || []).forEach(o => {
+        if (!o.status || (o.status !== 'credited' && o.status !== 'paid')) return;
+        const amt = Number(o.amount || 0);
+        totalEarnings += amt;
+        if (o.sub_agent_id) {
+          earningsPerSubAgent[o.sub_agent_id] = (earningsPerSubAgent[o.sub_agent_id] || 0) + amt;
+          const monthKey = format(new Date(o.occurred_at), 'yyyy-MM');
+          monthlyEarningsPerSubAgent[o.sub_agent_id] = monthlyEarningsPerSubAgent[o.sub_agent_id] || {};
+          monthlyEarningsPerSubAgent[o.sub_agent_id][monthKey] =
+            (monthlyEarningsPerSubAgent[o.sub_agent_id][monthKey] || 0) + amt;
+        }
+      });
 
       // Pre-compute aggregates from batched queries
       const platformRewardsPerSubAgent: Record<string, number> = {};
@@ -817,9 +853,26 @@ export default function SubAgentAnalytics() {
         const monthKey = format(monthDate, 'yyyy-MM');
         const monthLabel = format(monthDate, 'MMM');
 
-        const monthEarnings = allEarnings
+        const agentEarningsMonth = allEarnings
           ?.filter(e => format(new Date(e.created_at), 'yyyy-MM') === monthKey)
-          .reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+          .reduce((sum, e) => {
+            // Count sub-agent commissions and sub-agent referral bonuses only.
+            if (e.earning_type === 'subagent_commission') return sum + Number(e.amount);
+            if (e.earning_type === 'referral_bonus' && e.source_user_id && subAgentIdsSet.has(e.source_user_id)) {
+              return sum + Number(e.amount);
+            }
+            return sum;
+          }, 0) || 0;
+
+        const overrideMonth = (overrideRows || [])
+          .filter(o => {
+            if (!o.status || (o.status !== 'credited' && o.status !== 'paid')) return false;
+            const d = o.occurred_at ? new Date(o.occurred_at) : null;
+            return d && format(d, 'yyyy-MM') === monthKey;
+          })
+          .reduce((sum, o) => sum + Number(o.amount || 0), 0);
+
+        const monthEarnings = agentEarningsMonth + overrideMonth;
 
         const subAgentsJoined = subAgentsData.filter(sa => 
           format(new Date(sa.created_at), 'yyyy-MM') === monthKey
