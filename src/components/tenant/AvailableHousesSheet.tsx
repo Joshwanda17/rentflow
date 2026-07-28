@@ -566,6 +566,98 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             )}
           </div>
 
+          {/* Price range (daily rate) — quick chips + custom min/max */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily rent</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PRICE_CHIPS.map(chip => {
+                const active = (chip.min || undefined) === minPrice && (chip.max || undefined) === maxPrice;
+                return (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => { setMinPrice(chip.min); setMaxPrice(chip.max); }}
+                    className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                placeholder="Min UGX/day"
+                value={minPrice ?? ''}
+                onChange={e => setMinPrice(e.target.value ? Number(e.target.value) : undefined)}
+                className="h-9 text-xs flex-1"
+                aria-label="Minimum daily rate"
+              />
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                placeholder="Max UGX/day"
+                value={maxPrice ?? ''}
+                onChange={e => setMaxPrice(e.target.value ? Number(e.target.value) : undefined)}
+                className="h-9 text-xs flex-1"
+                aria-label="Maximum daily rate"
+              />
+            </div>
+          </div>
+
+          {/* Rooms + Sort */}
+          <div className="flex gap-2">
+            <Select value={String(minRooms)} onValueChange={v => setMinRooms(Number(v))}>
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <BedDouble className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Any rooms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Any rooms</SelectItem>
+                <SelectItem value="1">1+ rooms</SelectItem>
+                <SelectItem value="2">2+ rooms</SelectItem>
+                <SelectItem value="3">3+ rooms</SelectItem>
+                <SelectItem value="4">4+ rooms</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Amenity toggles */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Must have</p>
+            <div className="flex flex-wrap gap-1.5">
+              {AMENITY_TOGGLES.map(({ key, label, Icon }) => {
+                const active = amenities[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setAmenities(a => ({ ...a, [key]: !a[key] }))}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Exact GPS-captured location filters (from the agent's listing).
               Only shown when houses expose these fields, cascading region →
               district → sub-county → village so tenants can drill to a precise area. */}
