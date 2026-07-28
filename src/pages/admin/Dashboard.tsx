@@ -155,7 +155,7 @@ export default function AdminDashboardPage() {
           <p className="text-sm text-muted-foreground mt-1">Open any executive or operations dashboard you have access to</p>
         </div>
 
-        {(role === 'ceo' || role === 'manager' || role === 'super_admin') && (
+        {hasPermission('director') && (
           <button
             onClick={() => navigate('/director/dashboard')}
             className={cn(
@@ -234,16 +234,12 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {(role === 'manager' || role === 'cto' || role === 'cfo' || role === 'ceo' || role === 'super_admin') && (
+        {(hasPermission('cto') || hasPermission('cfo')) && (
           <div className="space-y-4">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">System</p>
-            {(role === 'manager' || role === 'cto') && <RunBackupNowButton />}
-            {(role === 'manager' || role === 'cto' || role === 'ceo' || role === 'super_admin') && (
-              <RunGscVerifyButton />
-            )}
-            {(role === 'manager' || role === 'cfo' || role === 'ceo' || role === 'super_admin') && (
-              <RentAccessLimitParamsPanel />
-            )}
+            {hasPermission('cto') && <RunBackupNowButton />}
+            {hasPermission('cto') && <RunGscVerifyButton />}
+            {hasPermission('cfo') && <RentAccessLimitParamsPanel />}
           </div>
         )}
       </div>
