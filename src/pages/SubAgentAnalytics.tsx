@@ -858,7 +858,10 @@ export default function SubAgentAnalytics() {
 
       // Filter out sub-agents whose auth/profile has been deleted so the UI
       // never shows "Unknown" placeholder cards with stale zeroed data.
-      const liveSubAgents = enrichedSubAgents.filter(sa => !!sa.profile);
+      const liveSubAgents = enrichedSubAgents.filter(sa => {
+        const name = sa.profile?.full_name?.trim() || '';
+        return !!sa.profile && name.length > 0 && name.toLowerCase() !== 'unknown';
+      });
       setSubAgents(liveSubAgents);
       setTotalEarningsFromSubAgents(totalEarnings);
 
@@ -910,7 +913,7 @@ export default function SubAgentAnalytics() {
     }
   };
 
-  const handleResendInvite = async (subAgent: SubAgent) => {
+    const handleResendInvite = async (subAgent: SubAgent) => {
     setResendingId(subAgent.sub_agent_id);
     try {
       const { error } = await invokeEdgeFunction('add-existing-subagent', {
@@ -1095,7 +1098,7 @@ export default function SubAgentAnalytics() {
     name: sa.profile?.full_name?.split(' ')[0] || 'Unknown',
     value: sa.totalEarnings,
     color: COLORS[idx % COLORS.length],
-  })).filter(d => d.value > 0);
+  })).filter(d => d.value > 0 && d.name !== 'Unknown');
 
   return (
     <div className="min-h-screen bg-background pb-[calc(6rem+_env(safe-area-inset-bottom,0px))]">
