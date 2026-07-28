@@ -1,7 +1,7 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { CEODashboard } from '@/components/executive/CEODashboard';
 import { CTODashboard } from '@/components/executive/CTODashboard';
 import { CMODashboard } from '@/components/executive/CMODashboard';
@@ -12,6 +12,30 @@ import { PartnersOpsDashboard } from '@/components/executive/PartnersOpsDashboar
 import { CRMDashboard } from '@/components/executive/CRMDashboard';
 import { LocationManager } from '@/components/ops/LocationManager';
 import { MissionBanner } from '@/components/mission/MissionBanner';
+import { useStaffPermissions } from '@/hooks/useStaffPermissions';
+import NotFound from '@/pages/NotFound';
+
+/**
+ * Every tab must declare the `staff_permissions.permitted_dashboard` key that
+ * unlocks it. A tab with no entry here is unreachable by design — add the key
+ * deliberately rather than leaving it undefined.
+ *
+ * NOTE the deliberate asymmetry: the tab slug is `partners-ops` (plural) but
+ * the granted key is `partner-ops` (singular), because that is what is already
+ * in the database and on the Access Panel card. Do not "tidy" one without
+ * migrating the other.
+ */
+const TAB_PERMISSION: Record<string, string> = {
+  ceo: 'ceo',
+  cto: 'cto',
+  cmo: 'cmo',
+  crm: 'crm',
+  'agent-ops': 'agent-ops',
+  'tenant-ops': 'tenant-ops',
+  'landlord-ops': 'landlord-ops',
+  'partners-ops': 'partner-ops',
+  locations: 'company-ops',
+};
 
 const dashboards: Record<string, { title: string; component: React.FC; missionRole?: string }> = {
   ceo: { title: 'CEO Dashboard', component: CEODashboard, missionRole: 'ceo' },
@@ -28,8 +52,30 @@ const dashboards: Record<string, { title: string; component: React.FC; missionRo
 export default function ExecutiveHub() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'ceo';
-  const current = dashboards[tab] || dashboards.ceo;
+  const { hasPermission, loading } = useStaffPermissions();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const requestedTab = searchParams.get('tab');
+
+  // Previously this defaulted to `ceo` and fell back to `ceo` for any unknown
+  // slug, which meant a bare visit to /executive-hub opened the CEO dashboard
+  // for anyone the route guard admitted. Now: no tab means the first tab the
+  // user actually holds, and an unknown or ungranted tab is a 404.
+  const grantedTabs = Object.keys(dashboards).filter((t) => hasPermission(TAB_PERMISSION[t]));
+  const tab = requestedTab ?? grantedTabs[0];
+
+  if (!tab || !dashboards[tab] || !hasPermission(TAB_PERMISSION[tab])) {
+    return <NotFound />;
+  }
+
+  const current = dashboards[tab];
   const DashboardComponent = current.component;
   const fullWidth = tab === 'agent-ops';
 
@@ -42,7 +88,7 @@ export default function ExecutiveHub() {
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-bold truncate">{current.title}</h1>
-            <p className="text-xs text-muted-foreground">Executive & Operations Hub</p>
+            <p className="text-xs text-muted-foreground">Executive &amp; Operations Hub</p>
           </div>
           <Button
             variant="outline"
