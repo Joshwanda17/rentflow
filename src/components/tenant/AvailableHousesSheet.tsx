@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon } from 'lucide-react';
+import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { AgentContactBar } from '@/components/tenant/AgentContactBar';
 import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
