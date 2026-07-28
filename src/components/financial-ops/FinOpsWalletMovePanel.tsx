@@ -73,6 +73,10 @@ export function FinOpsWalletMovePanel() {
 
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  // Same-user Withdrawable → Float only: operator opt-in to fill an existing
+  // Float overdraft. Without this, the edge function refuses moves where the
+  // amount only fills (or partly fills) a negative Float shortfall.
+  const [acknowledgeOverdraft, setAcknowledgeOverdraft] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<MoveResult | null>(null);
@@ -184,6 +188,7 @@ export function FinOpsWalletMovePanel() {
     setHits([]);
     setTerm('');
     setPicking('source');
+    setAcknowledgeOverdraft(false);
   };
 
   const submit = async () => {
