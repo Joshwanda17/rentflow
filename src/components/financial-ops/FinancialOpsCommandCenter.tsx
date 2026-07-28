@@ -337,6 +337,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
         {activeTool === 'earnings_explainer' && <EarningsExplainer role="finops" />}
         {activeTool === 'liquidity_forecast' && <LiquidityForecastPanel onOpenTool={(t) => setActiveTool(t as any)} />}
+        {activeTool === 'reports' && <DailyWalletReportsPanel />}
         {activeTool === 'withdrawal_notif_log' && <WithdrawalNotificationLogPanel />}
         {activeTool === 'sms_delivery_log' && <SmsDeliveryLogPanel />}
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
@@ -413,7 +414,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Ledger & Audit',
       items: moreActions.filter(a => [
-        'ledgers','audit','topup_audit','sms_delivery_log',
+        'ledgers','audit','topup_audit','sms_delivery_log','reports',
       ].includes(a.id as string)),
     },
     {
