@@ -856,7 +856,10 @@ export default function SubAgentAnalytics() {
         };
       });
 
-      setSubAgents(enrichedSubAgents);
+      // Filter out sub-agents whose auth/profile has been deleted so the UI
+      // never shows "Unknown" placeholder cards with stale zeroed data.
+      const liveSubAgents = enrichedSubAgents.filter(sa => !!sa.profile);
+      setSubAgents(liveSubAgents);
       setTotalEarningsFromSubAgents(totalEarnings);
 
       // Build monthly overview data (last 6 months)
