@@ -26093,6 +26093,14 @@ export type Database = {
           phone: string
         }[]
       }
+      get_agent_duplicate_accounts: {
+        Args: { _agent_ids: string[] }
+        Returns: {
+          agent_id: string
+          duplicate_count: number
+          duplicates: Json
+        }[]
+      }
       get_agent_earned_vouch_in_range: {
         Args: { p_ai_id: string; p_end_at?: string; p_start_at?: string }
         Returns: Json
