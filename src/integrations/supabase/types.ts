@@ -26565,6 +26565,22 @@ export type Database = {
           verified: number
         }[]
       }
+      get_daily_active_users: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          active: number
+          day: string
+        }[]
+      }
+      get_daily_signups: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          day: string
+          organic: number
+          referred: number
+          signups: number
+        }[]
+      }
       get_deposit_bridge_health: { Args: never; Returns: Json }
       get_deposit_bridge_metrics: { Args: never; Returns: Json }
       get_deposits_paginated: {
@@ -27421,6 +27437,13 @@ export type Database = {
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_user_role_distribution: {
+        Args: never
+        Returns: {
+          count: number
+          role: string
+        }[]
       }
       get_user_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_user_wallet_holds: {
