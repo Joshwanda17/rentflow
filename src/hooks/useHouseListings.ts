@@ -186,6 +186,20 @@ interface UseNearbyHousesOptions {
   search?: string;
   limit?: number;
   enabled?: boolean;
+  /** Cap on daily_rate (UGX). Applied as `daily_rate <= maxDailyRate`. */
+  maxDailyRate?: number;
+  /** Floor on daily_rate (UGX). Applied as `daily_rate >= minDailyRate`. */
+  minDailyRate?: number;
+  /** Minimum number of rooms. Applied as `number_of_rooms >= minRooms`. */
+  minRooms?: number;
+  /** Amenity toggles — when true, only match rows with that boolean = true. */
+  hasWater?: boolean;
+  hasElectricity?: boolean;
+  hasSecurity?: boolean;
+  hasParking?: boolean;
+  isFurnished?: boolean;
+  /** Sort order for the fallback (non-GPS) query. */
+  sort?: 'newest' | 'price_asc' | 'price_desc';
   /**
    * When true, fetch EVERY matching listing by paging through the source
    * instead of relying on a single fixed cap. Results stream in page-by-page,
@@ -235,6 +249,15 @@ function nearbyCacheKey(o: UseNearbyHousesOptions, paginate: boolean, pageSize: 
     o.search || '',
     paginate ? 1 : 0,
     pageSize,
+    o.minDailyRate || 0,
+    o.maxDailyRate || 0,
+    o.minRooms || 0,
+    o.hasWater ? 'w' : '',
+    o.hasElectricity ? 'e' : '',
+    o.hasSecurity ? 's' : '',
+    o.hasParking ? 'p' : '',
+    o.isFurnished ? 'f' : '',
+    o.sort || '',
   ].join('|');
 }
 
