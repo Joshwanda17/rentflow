@@ -554,6 +554,7 @@ export default function SubAgentAnalytics() {
       }
 
       const subAgentIds = subAgentsData.map(sa => sa.sub_agent_id);
+      const subAgentIdsSet = new Set(subAgentIds);
 
       // Detect "switched" sub-agents (linked to another parent previously)
       const { data: otherParentLinks } = await supabase
@@ -575,12 +576,15 @@ export default function SubAgentAnalytics() {
         .select('user_id, balance, withdrawable_balance, float_balance, advance_balance, locked_balance')
         .in('user_id', subAgentIds);
 
-      // Fetch all earnings from sub-agent commissions
+      // Fetch all earnings attributable to sub-agents (commissions from their
+      // tenants + any referral bonus where the referred user is one of our
+      // sub-agents). This gives the parent agent a true "total earned over time"
+      // figure rather than only the current snapshot.
       const { data: allEarnings } = await supabase
         .from('agent_earnings')
         .select('*')
         .eq('agent_id', user.id)
-        .eq('earning_type', 'subagent_commission')
+        .in('earning_type', ['subagent_commission', 'referral_bonus'])
         .order('created_at', { ascending: false });
 
       // Fetch sub-agents' own earnings (platform rewards)
