@@ -580,6 +580,15 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     options.subCounty,
     options.village,
     options.search,
+    options.minDailyRate,
+    options.maxDailyRate,
+    options.minRooms,
+    options.hasWater,
+    options.hasElectricity,
+    options.hasSecurity,
+    options.hasParking,
+    options.isFurnished,
+    options.sort,
     paginate,
     pageSize,
     maxResults,
@@ -665,7 +674,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setMetrics({ ...metricsRef.current });
     pgLog('refresh', { filterKey: key });
     fetchPage(runId, true);
-  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, options.district, options.subCounty, options.village, options.search, paginate, pageSize]);
+  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, options.district, options.subCounty, options.village, options.search, options.minDailyRate, options.maxDailyRate, options.minRooms, options.hasWater, options.hasElectricity, options.hasSecurity, options.hasParking, options.isFurnished, options.sort, paginate, pageSize]);
 
   return { listings, loading, loadingMore, hasMore, loadMore, error, refresh, metrics };
 }
