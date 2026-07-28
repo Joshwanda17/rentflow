@@ -1,28 +1,62 @@
-## Goal
-Make the onboarding flow at `/welcome` (Landing.tsx) send users to `/auth` when they tap **Skip** or the **Next** button on the final slide, instead of landing on the role-picker view.
+## Daily Wallet Financial Summary Report
 
-## Changes (single file: `src/pages/Landing.tsx`)
+### 1. Database (migration)
 
-1. **Skip button** (top-right of slides):
-   - Currently sets `step = 4` (role picker) and marks `welile_onboarding_seen`.
-   - Change: still persist `welile_onboarding_seen=true`, then `navigate('/auth')`.
+New table `public.daily_wallet_reports`:
+- `report_date` (date, unique), `period_start`, `period_end` (timestamptz)
+- `deposits_by_source` (jsonb: cash / mtn / airtel / bank → {count, amount})
+- `payouts_by_channel` (jsonb: merchant_mtn / merchant_airtel / merchant_equity → {count, amount})
+- `total_deposited`, `total_paid_out`, `closing_balance` (numeric)
+- `pdf_path`, `xlsx_path` (text, in `finops-reports` storage bucket)
+- `generated_by` (text, default `system`), `generated_at`
+- RLS: read for FinOps roles (`cfo`, `financial_ops`, `super_admin`, `manager`); insert/update `service_role` only
 
-2. **Next button on the final slide (Landlord, step 3)**:
-   - Currently advances `step` to `4` (picker).
-   - Change: relabel to "Get started" (or keep "Next"), persist `welile_onboarding_seen=true`, then `navigate('/auth')`.
-   - Intermediate slides (steps 0–2) keep advancing to the next slide as today.
+New storage bucket `finops-reports` (private).
 
-3. **Returning-visitor behaviour**:
-   - Since the picker view is no longer the destination, initialize returning users (`welile_onboarding_seen` truthy) directly to `/auth` via a `useEffect` redirect — OR keep the picker as the "already onboarded" landing and only bypass it from Skip/final-Next. Recommendation: **redirect returning visitors straight to `/auth`** so `/welcome` is purely first-run onboarding. "Replay intro" link is removed since there's no picker view to host it.
+### 2. Ledger source view
 
-4. **Role picker view (step 4)**:
-   - No longer reachable from onboarding. Two options:
-     - **(a) Remove it entirely** — simpler, `/welcome` is 4 slides only.
-     - **(b) Keep it as dead code** — not recommended.
-   - Recommendation: **(a) remove** the picker branch, `PublicHousesPreview`, trust signals, and Sign-in footer from this page. Auth page already handles role selection via `?role=` query param if needed later.
+Create SQL function `public.compute_wallet_report(_start timestamptz, _end timestamptz)` returning jsonb. Reads directly from `general_ledger` (never wallet cache):
+- Deposits: `direction='cash_in'`, `classification='production'`, `category IN ('deposit_cash','deposit_mtn','deposit_airtel','deposit_bank')` (mapped from actual production categories — verified before writing)
+- Payouts: `direction='cash_out'`, category matching merchant payout categories, sub-grouped by provider metadata / sub_category
+- Excludes admin_correction / system_balance_correction / test_dev
 
-## Open question
-Do you want the **Next** on each slide to also pass the current role as `/auth?role=<role>` (so the auth screen pre-selects it), or just a plain `/auth`?
+I'll verify the exact production category strings from `general_ledger` before finalising the SQL.
 
-## Out of scope
-- Auth page itself, routing config, role logic.
+### 3. Edge function `generate-daily-wallet-report`
+
+- Accepts `{ date?: 'YYYY-MM-DD', period_start?, period_end?, email?: boolean }`
+- Computes report via RPC, upserts row in `daily_wallet_reports`
+- Renders PDF (pdf-lib) and XLSX (SheetJS via esm.sh) with UGX formatting + thousands separators, uploads to storage
+- When `email=true`, sends Mailgun email (existing connector) with PDF + XLSX attachments to the 3 recipients
+- Idempotent per `report_date`
+
+### 4. Cron
+
+`pg_cron` job at `0 21 * * *` UTC (= 00:00 EAT next day) → `net.http_post` to the edge function with `{ date: yesterday, email: true }`. Registered via `supabase--insert` (contains project URL + anon key).
+
+### 5. Frontend — FinOps Reports tab
+
+New route/component in FinOps hub: `Reports` tab.
+- Filter chips: Today / Yesterday / This Week / This Month / Custom (calendar range)
+- List of stored reports (search by date, filter)
+- Row actions: View, Download PDF, Download XLSX, Download CSV (client-generated), Regenerate (calls edge fn for that date)
+- Detail drawer showing all sections (header, deposit breakdown, payout breakdown, closing balance) computed via same RPC for live/custom ranges
+- All amounts via existing `formatUGX` helper; timestamp in EAT
+
+### 6. Files touched / added
+
+- `supabase/migrations/*` — table, RPC, RLS, storage bucket, GRANTs
+- `supabase/functions/generate-daily-wallet-report/index.ts`
+- `src/components/financial-ops/ReportsTab.tsx`
+- `src/components/financial-ops/DailyWalletReportDetail.tsx`
+- `src/hooks/useDailyWalletReport.ts`
+- Register tab inside existing FinOps hub component
+- `supabase--insert` call to schedule the cron
+
+### Verification
+
+Before writing the RPC I'll query `general_ledger` for the actual deposit/payout category strings in use for cash / MTN / Airtel / bank / merchant payouts so grouping matches production data. Cross-check the first computed report against a known day.
+
+### Note
+
+Follow-up (not in this plan) — if you want the report also visible to the CEO/COO dashboards, say so and I'll extend the RLS read list.
