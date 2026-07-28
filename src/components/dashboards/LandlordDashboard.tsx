@@ -21,7 +21,6 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
 import { LandlordMenuDrawer } from '@/components/landlord/LandlordMenuDrawer';
 import RegisterPropertyDialog from '@/components/landlord/RegisterPropertyDialog';
-import LandlordAddTenantDialog from '@/components/landlord/LandlordAddTenantDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
@@ -55,7 +54,6 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
   const { stats: landlordStats, loading: statsLoading, refreshStats } = useLandlordStats(user.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [registerPropertyOpen, setRegisterPropertyOpen] = useState(false);
-  const [addTenantOpen, setAddTenantOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
   const [showListedHouses, setShowListedHouses] = useState(false);
@@ -156,7 +154,6 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       <LandlordMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
-        onAddTenant={() => setAddTenantOpen(true)}
         onViewListedHouses={() => { setMenuOpen(false); setShowListedHouses(true); }}
       />
 
@@ -164,10 +161,6 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       <RegisterPropertyDialog
         open={registerPropertyOpen}
         onOpenChange={setRegisterPropertyOpen}
-      />
-      <LandlordAddTenantDialog
-        open={addTenantOpen}
-        onOpenChange={setAddTenantOpen}
       />
       <AvailableHousesSheet open={showListedHouses} onOpenChange={setShowListedHouses} />
 
