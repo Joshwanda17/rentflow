@@ -111,13 +111,19 @@ export function FinOpsWalletMovePanel() {
     }
     setSearching(true);
     try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`)
-        .limit(15);
+      // Indexed server-side search — plain ilike on profiles times out at
+      // our user volume.
+      const { data: rpcRows, error } = await supabase.rpc('search_users_fast', {
+        p_query: q,
+        p_limit: 15,
+      });
       if (error) throw error;
-      const ids = (profiles || []).map((p) => p.id);
+      const profiles = ((rpcRows as any[]) || []).map((r) => ({
+        id: r.id as string,
+        full_name: r.full_name as string | null,
+        phone: r.phone as string | null,
+      }));
+      const ids = profiles.map((p) => p.id);
       const bal: Record<string, { w: number; f: number; t: number }> = {};
       if (ids.length) {
         const { data: wallets } = await supabase
@@ -133,7 +139,7 @@ export function FinOpsWalletMovePanel() {
         }
       }
       setHits(
-        (profiles || []).map((p) => ({
+        profiles.map((p) => ({
           id: p.id,
           full_name: p.full_name,
           phone: p.phone,
