@@ -259,6 +259,10 @@ export function FinOpsWalletMovePanel() {
           target_user_id: source.id,
           amount: amountNum,
           reason: reason.trim(),
+          acknowledge_float_overdraft:
+            sameUserDir === 'withdrawable_to_float' && acknowledgeOverdraft
+              ? true
+              : undefined,
         },
         errorTitle: 'Move failed',
       });
