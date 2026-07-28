@@ -168,13 +168,6 @@ interface MonthlyData {
   subAgentsJoined: number;
 }
 
-interface TeamGoal {
-  id: string;
-  goal_week: string;
-  target_registrations: number;
-  target_earnings: number;
-  notes: string | null;
-}
 
 interface RecruiterSplit {
   trace_id: string;
@@ -346,7 +339,6 @@ export default function SubAgentAnalytics() {
       navigate('/auth');
     } else if (user) {
       fetchSubAgentAnalytics();
-      fetchCurrentGoal();
     }
   }, [user, authLoading, navigate]);
 
@@ -544,26 +536,6 @@ export default function SubAgentAnalytics() {
     return () => observer.disconnect();
   }, [loading, subAgents.length]);
 
-  const fetchCurrentGoal = async () => {
-    if (!user) return;
-
-    try {
-      const currentWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-
-      const { data, error } = await supabase
-        .from('agent_team_goals')
-        .select('id, goal_week, target_registrations, target_earnings, notes')
-        .eq('agent_id', user.id)
-        .eq('goal_week', currentWeek)
-        .maybeSingle();
-
-      if (error) throw error;
-      setCurrentGoal(data ?? null);
-    } catch (error) {
-      console.error('Error fetching goal:', error);
-      setCurrentGoal(null);
-    }
-  };
 
   const fetchSubAgentAnalytics = async (opts?: { silent?: boolean }) => {
     if (!user) return;
@@ -1149,15 +1121,6 @@ export default function SubAgentAnalytics() {
           </Card>
         ) : (
           <div ref={reportRef} className="space-y-4">
-            {/* Team Goal Progress */}
-            <TeamGoalProgress
-              goal={currentGoal}
-              currentRegistrations={currentMonthRegistrations}
-              currentEarnings={currentMonthEarnings}
-              onSetGoal={() => setGoalDialogOpen(true)}
-              onEditGoal={() => setGoalDialogOpen(true)}
-            />
-
             {/* Overview Stats */}
             <div id="subagent-overview" className="scroll-mt-28">
               <div className="grid grid-cols-3 gap-2.5">
@@ -2316,15 +2279,6 @@ export default function SubAgentAnalytics() {
         </SheetContent>
       </Sheet>
 
-      <SetTeamGoalDialog
-        open={goalDialogOpen}
-        onOpenChange={setGoalDialogOpen}
-        onSuccess={() => {
-          fetchCurrentGoal();
-          fetchSubAgentAnalytics();
-        }}
-        existingGoal={currentGoal}
-      />
       <FloatingActionButton
         actions={[
           {
