@@ -58,12 +58,16 @@ const DEPOSIT_LABEL: Record<string, string> = {
   mtn: 'MTN Mobile Money Deposits',
   airtel: 'Airtel Money Deposits',
   bank: 'Bank Deposits',
+  cfo_direct_credit: 'CFO Direct Credit',
+  gmail_auto_credit: 'Gmail Auto-Credit',
+  manual_recovery: 'Manual Recovery',
+  ledger_adjustment: 'Ledger Adjustment',
   other: 'Other',
 };
 const PAYOUT_LABEL: Record<string, string> = {
   merchant_mtn: 'Merchant Agent MTN',
   merchant_airtel: 'Merchant Agent Airtel',
-  merchant_equity: 'Merchant Agent Equity Bank Account',
+  merchant_equity_bank: 'Merchant Agent Equity Bank Account',
   other: 'Other',
 };
 
