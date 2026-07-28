@@ -169,7 +169,6 @@ const LandlordPayoutOtpAuditSheet = lazy(() => import('@/components/agent/Landlo
 const FloatTransactionHistory = lazy(() => import('@/components/agent/FloatTransactionHistory').then(m => ({ default: m.FloatTransactionHistory })));
 const AgentMyRentRequestsSheet = lazy(() => import('@/components/agent/AgentMyRentRequestsSheet').then(m => ({ default: m.AgentMyRentRequestsSheet })));
 const AgentTenantsSheet = lazy(() => import('@/components/agent/AgentTenantsSheet').then(m => ({ default: m.AgentTenantsSheet })));
-const FieldCollectDialog = lazy(() => import('@/components/agent/FieldCollectDialog').then(m => ({ default: m.FieldCollectDialog })));
 const FieldCollectReconciliationSheet = lazy(() => import('@/components/agent/FieldCollectReconciliationSheet').then(m => ({ default: m.FieldCollectReconciliationSheet })));
 const AgentManagedUsersSheet = lazy(() => import('@/components/agent/AgentManagedUsersSheet').then(m => ({ default: m.AgentManagedUsersSheet })));
 const AgentTopUpTenantDialog = lazy(() => import('@/components/agent/AgentTopUpTenantDialog').then(m => ({ default: m.AgentTopUpTenantDialog })));
