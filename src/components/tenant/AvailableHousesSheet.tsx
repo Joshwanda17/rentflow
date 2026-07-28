@@ -708,6 +708,17 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           )}
           </div>
           )}
+          {filtersOpen && (
+            <div className="sticky bottom-0 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                className="w-full inline-flex items-center justify-center gap-1.5 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shadow-sm hover:bg-primary/90 active:scale-[0.99] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <SlidersHorizontal className="h-4 w-4" /> Apply filters
+              </button>
+            </div>
+          )}
         </SheetHeader>
 
         {view === 'map' ? (
