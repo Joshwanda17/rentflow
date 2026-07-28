@@ -540,7 +540,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 ))}
               </SelectContent>
             </Select>
-            {(searchText.trim().length > 0 || selectedRegion !== 'All Regions' || selectedCategory !== 'all' || selectedDistrict !== 'all' || selectedSubCounty !== 'all' || selectedVillage !== 'all') && (
+            {(searchText.trim().length > 0 || selectedRegion !== 'All Regions' || selectedCategory !== 'all' || selectedDistrict !== 'all' || selectedSubCounty !== 'all' || selectedVillage !== 'all' || minPrice || maxPrice || minRooms > 0 || Object.values(amenities).some(Boolean) || sort !== 'newest') && (
               <button
                 type="button"
                 onClick={() => {
@@ -550,6 +550,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   setSelectedDistrict('all');
                   setSelectedSubCounty('all');
                   setSelectedVillage('all');
+                  setMinPrice(undefined);
+                  setMaxPrice(undefined);
+                  setMinRooms(0);
+                  setAmenities({ hasWater: false, hasElectricity: false, hasSecurity: false, hasParking: false, isFurnished: false });
+                  setSort('newest');
                   // Keep keyboard focus usable by returning it to the primary control.
                   requestAnimationFrame(() => searchInputRef.current?.focus());
                 }}
