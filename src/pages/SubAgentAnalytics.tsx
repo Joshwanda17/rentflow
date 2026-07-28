@@ -51,7 +51,7 @@ import {
 } from 'lucide-react';
 import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { AddSubAgentSearch } from '@/components/agent/AddSubAgentSearch';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
