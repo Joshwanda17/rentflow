@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
 import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
+import { CFOInitiateAdvanceDialog } from '@/components/cfo/CFOInitiateAdvanceDialog';
 import { RecordAdvancePaymentDialog } from '@/components/cfo/RecordAdvancePaymentDialog';
 import { CancelAdvanceDialog } from '@/components/cfo/CancelAdvanceDialog';
 import { DailyRecoveryRateCard } from '@/components/cfo/DailyRecoveryRateCard';
@@ -437,7 +438,7 @@ export function CFOAdvancesManager() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <IssueAdvanceSheet open={issueOpen} onOpenChange={setIssueOpen} onSuccess={refetch} />
+      <CFOInitiateAdvanceDialog open={issueOpen} onOpenChange={setIssueOpen} onSuccess={refetch} />
       <IssueAdvanceSheet
         open={renewOpen}
         onOpenChange={(open) => { setRenewOpen(open); if (!open) setRenewAgentId(null); }}
