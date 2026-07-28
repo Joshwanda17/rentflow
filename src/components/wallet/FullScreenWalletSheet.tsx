@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   Send, Plus, HandCoins, 
-  Bell, TrendingUp, ArrowDownToLine,
+  Bell, TrendingUp,
   X, Calendar, ChevronRight,
   ChevronDown, FileDown, CreditCard,
   SlidersHorizontal
@@ -25,7 +25,6 @@ import { RequestMoneyDialog } from './RequestMoneyDialog';
 import { PendingRequestsDialog } from './PendingRequestsDialog';
 import { TransactionReceipt } from './TransactionReceipt';
 import { UserDepositRequests } from './UserDepositRequests';
-import { WithdrawRequestDialog } from './WithdrawRequestDialog';
 import { UserWithdrawalRequests } from './UserWithdrawalRequests';
 import { AnimatedBalance } from './AnimatedBalance';
 import { NfcCardSetupDialog } from './NfcCardSetupDialog';
@@ -47,8 +46,7 @@ import { format } from 'date-fns';
 import { EmptyHousePlacementBonusBanner } from '@/components/agent/EmptyHousePlacementBonusBanner';
 import { FloatBreakdownCard } from './FloatBreakdownCard';
 import { AgentMoneyMapCard } from './AgentMoneyMapCard';
-import { usePayoutsUiEnabled } from '@/hooks/usePayoutsUiEnabled';
-import { toast } from 'sonner';
+
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -78,8 +76,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [pendingOpen, setPendingOpen] = useState(false);
-  const [withdrawOpen, setWithdrawOpen] = useState(false);
-  const { enabled: payoutsUiEnabled } = usePayoutsUiEnabled();
   const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
@@ -264,31 +260,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
                 </CardContent>
               </Card>
 
-              {/* Withdraw card */}
-              <Card 
-                className={`border-border/50 shadow-sm transition-all ${payoutsUiEnabled ? 'cursor-pointer active:scale-[0.98]' : 'opacity-50 cursor-not-allowed'}`}
-                onClick={() => {
-                  hapticTap();
-                  if (!payoutsUiEnabled) {
-                    toast.info('Withdrawals are temporarily disabled. Please check back soon.');
-                    return;
-                  }
-                  setWithdrawOpen(true);
-                }}
-              >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center shrink-0">
-                    <ArrowDownToLine className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-foreground">Withdraw</p>
-                    <p className="text-xs text-muted-foreground">
-                      {payoutsUiEnabled ? 'Cash out to mobile money' : 'Temporarily disabled'}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
-                </CardContent>
-              </Card>
 
               {/* Setup Card (NFC) */}
               <Card
@@ -470,14 +441,6 @@ export function FullScreenWalletSheet({ open, onOpenChange, scrollTarget }: Full
         onSuccess={fetchAllPendingCounts}
       />
       <PendingRequestsDialog open={pendingOpen} onOpenChange={handlePendingClose} />
-      <WithdrawRequestDialog 
-        open={withdrawOpen} 
-        onOpenChange={setWithdrawOpen} 
-        // For agents: total = withdrawable + wallet/rent-collection float.
-        // Landlord Payout Float is a separate Pay Landlord pool and is not withdrawable.
-        walletBalance={isAgent ? (realWithdrawableBalance + visibleAgentFloatBalance) : (wallet?.balance || 0)}
-        onSuccess={refreshWallet}
-      />
       <TransactionReceipt 
         open={receiptOpen} 
         onOpenChange={setReceiptOpen} 
