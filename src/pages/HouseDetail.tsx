@@ -520,8 +520,8 @@ export default function HouseDetail() {
           {/* Floating top controls */}
           <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-4 pt-safe-top py-3">
             <button
-              onClick={() => (cameFromFilteredList || fromFunder ? goToFilteredList() : navigate(-1))}
-              aria-label={cameFromFilteredList ? 'Back to search results' : 'Go back'}
+              onClick={goToFilteredList}
+              aria-label={cameFromFilteredList ? 'Back to search results' : 'Back to house listings'}
               className="bg-background/80 backdrop-blur-sm text-foreground rounded-full p-2.5 shadow-lg active:scale-95 transition-transform">
               <ArrowLeft className="h-5 w-5" />
             </button>
