@@ -771,7 +771,7 @@ export default function SubAgentAnalytics() {
         totalEarnings += amt;
         if (o.sub_agent_id) {
           earningsPerSubAgent[o.sub_agent_id] = (earningsPerSubAgent[o.sub_agent_id] || 0) + amt;
-          const monthKey = format(new Date(o.occurred_at || o.created_at), 'yyyy-MM');
+          const monthKey = format(new Date(o.occurred_at), 'yyyy-MM');
           monthlyEarningsPerSubAgent[o.sub_agent_id] = monthlyEarningsPerSubAgent[o.sub_agent_id] || {};
           monthlyEarningsPerSubAgent[o.sub_agent_id][monthKey] =
             (monthlyEarningsPerSubAgent[o.sub_agent_id][monthKey] || 0) + amt;
