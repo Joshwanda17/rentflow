@@ -715,6 +715,15 @@ export interface HouseListingCountOptions {
   category?: string;
   /** Cap on daily_rate. */
   maxDailyRate?: number;
+  /** Floor on daily_rate. */
+  minDailyRate?: number;
+  /** Minimum rooms. */
+  minRooms?: number;
+  hasWater?: boolean;
+  hasElectricity?: boolean;
+  hasSecurity?: boolean;
+  hasParking?: boolean;
+  isFurnished?: boolean;
   /** Free-text search term (matches title/region/district/address). */
   search?: string;
   enabled?: boolean;
@@ -748,6 +757,13 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
     village,
     category,
     maxDailyRate,
+    minDailyRate,
+    minRooms,
+    hasWater,
+    hasElectricity,
+    hasSecurity,
+    hasParking,
+    isFurnished,
     search,
     enabled = true,
   } = options;
@@ -791,6 +807,13 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
       if (village && village !== 'all') q = q.eq('village', village);
       if (category && category !== 'all') q = q.eq('house_category', category);
       if (maxDailyRate) q = q.lte('daily_rate', maxDailyRate);
+      if (minDailyRate) q = q.gte('daily_rate', minDailyRate);
+      if (minRooms) q = q.gte('number_of_rooms', minRooms);
+      if (hasWater) q = q.eq('has_water', true);
+      if (hasElectricity) q = q.eq('has_electricity', true);
+      if (hasSecurity) q = q.eq('has_security', true);
+      if (hasParking) q = q.eq('has_parking', true);
+      if (isFurnished) q = q.eq('is_furnished', true);
       const s = search && search.trim() ? escapeOr(search) : '';
       if (s) {
         q = q.or(
@@ -824,7 +847,7 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
     return () => {
       cancelled = true;
     };
-  }, [region, district, subCounty, village, category, maxDailyRate, search, enabled]);
+  }, [region, district, subCounty, village, category, maxDailyRate, minDailyRate, minRooms, hasWater, hasElectricity, hasSecurity, hasParking, isFurnished, search, enabled]);
 
   return {
     verified: counts.verified,
