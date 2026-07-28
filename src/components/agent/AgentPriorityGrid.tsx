@@ -1,10 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
-import { ArrowRight, CloudUpload, WifiOff, UserPlus, HandCoins, Home as HomeIcon, Sparkles } from 'lucide-react';
+import { ArrowRight, UserPlus, Home as HomeIcon, Sparkles } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { getEntries, getQueuedEntries } from '@/lib/fieldCollectStore';
 
 /**
  * Agent dashboard priority grid — 3 large, finger-friendly tiles.
@@ -20,7 +18,6 @@ import { getEntries, getQueuedEntries } from '@/lib/fieldCollectStore';
 
 interface Props {
   agentId: string;
-  onOpenFieldCollect: () => void;
   onOpenNewTenant: () => void;
   onOpenListHouse: () => void;
   /**
@@ -29,79 +26,11 @@ interface Props {
   restricted?: boolean;
 }
 
-export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant, onOpenListHouse, restricted = false }: Props) {
+export function AgentPriorityGrid({ onOpenNewTenant, onOpenListHouse, restricted = false }: Props) {
   useProfile(); // keep hook to preserve profile prefetch behaviour
-
-  // Field Collect live state (mirrors FieldCollectCard logic)
-  const [collectedToday, setCollectedToday] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [online, setOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
-
-  const refresh = useCallback(async () => {
-    if (!agentId) return;
-    try {
-      const [all, queued] = await Promise.all([
-        getEntries(agentId),
-        getQueuedEntries(agentId),
-      ]);
-      // Today (local midnight)
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const todayMs = startOfDay.getTime();
-      const today = all.filter(e => e.capturedAt >= todayMs);
-      setCollectedToday(today.reduce((s, e) => s + Number(e.amount || 0), 0));
-      setPendingCount(queued.length);
-    } catch {
-      /* ignore */
-    }
-  }, [agentId]);
-
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 5000);
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener('online', on);
-    window.addEventListener('offline', off);
-    return () => {
-      clearInterval(t);
-      window.removeEventListener('online', on);
-      window.removeEventListener('offline', off);
-    };
-  }, [refresh]);
-
-  const fieldCollectActive = collectedToday > 0 || pendingCount > 0;
-  const fieldCollectAttention = !online || pendingCount > 0;
 
   return (
     <div className="grid grid-cols-2 gap-2.5">
-      {/* 1. Collect Rent — biggest daily action (hidden for Merchant Agents) */}
-      {!restricted && (
-      <PriorityTile
-        onClick={() => { hapticTap(); onOpenFieldCollect(); }}
-        icon={<HandCoins className="h-6 w-6" strokeWidth={2.2} />}
-        iconBg="bg-[hsl(var(--chart-1))] text-white"
-        label="Collect Rent"
-        valueLabel={fieldCollectActive ? formatUGX(collectedToday) : 'No cash yet'}
-        sub={
-          fieldCollectAttention
-            ? !online
-              ? 'Offline · saved locally'
-              : `${pendingCount} to send`
-            : fieldCollectActive
-              ? `${collectedToday > 0 ? 'Today' : ' '}`
-              : 'Tap to record first payment'
-        }
-        statusIcon={
-          fieldCollectAttention
-            ? !online
-              ? <WifiOff className="h-3 w-3" />
-              : <CloudUpload className="h-3 w-3" />
-            : null
-        }
-      />
-      )}
-
       {/* 3. Add Tenant — rent request (hidden for Merchant Agents) */}
       {!restricted && (
       <PriorityTile

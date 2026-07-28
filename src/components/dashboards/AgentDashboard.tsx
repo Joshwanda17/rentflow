@@ -169,7 +169,6 @@ const LandlordPayoutOtpAuditSheet = lazy(() => import('@/components/agent/Landlo
 const FloatTransactionHistory = lazy(() => import('@/components/agent/FloatTransactionHistory').then(m => ({ default: m.FloatTransactionHistory })));
 const AgentMyRentRequestsSheet = lazy(() => import('@/components/agent/AgentMyRentRequestsSheet').then(m => ({ default: m.AgentMyRentRequestsSheet })));
 const AgentTenantsSheet = lazy(() => import('@/components/agent/AgentTenantsSheet').then(m => ({ default: m.AgentTenantsSheet })));
-const FieldCollectDialog = lazy(() => import('@/components/agent/FieldCollectDialog').then(m => ({ default: m.FieldCollectDialog })));
 const FieldCollectReconciliationSheet = lazy(() => import('@/components/agent/FieldCollectReconciliationSheet').then(m => ({ default: m.FieldCollectReconciliationSheet })));
 const AgentManagedUsersSheet = lazy(() => import('@/components/agent/AgentManagedUsersSheet').then(m => ({ default: m.AgentManagedUsersSheet })));
 const AgentTopUpTenantDialog = lazy(() => import('@/components/agent/AgentTopUpTenantDialog').then(m => ({ default: m.AgentTopUpTenantDialog })));
@@ -384,7 +383,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     const qs = params.toString();
     window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
   }, []);
-  const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
   const [duplicateCount, setDuplicateCount] = useState(0);
 
@@ -410,7 +408,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     tick();
     const iv = window.setInterval(tick, 5000);
     return () => { alive = false; window.clearInterval(iv); };
-  }, [user?.id, fieldCollectOpen, reconcileOpen]);
+  }, [user?.id, reconcileOpen]);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
   const [proxyHistoryOpen, setProxyHistoryOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -1116,7 +1114,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <AgentPriorityGrid
               agentId={user.id}
               restricted={isMerchant}
-              onOpenFieldCollect={() => { if (guardMerchant()) return; setFieldCollectOpen(true); }}
               onOpenNewTenant={() => { if (guardMerchant()) return; setRentRequestOpen(true); }}
               onOpenListHouse={() => {
                 if (guardMerchant()) return;
@@ -1645,9 +1642,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onViewManagedProperties={() => { setMenuOpen(false); setManagedPropertiesSheetOpen(true); }}
         onViewMyRentRequests={() => { setMenuOpen(false); setMyRentRequestsOpen(true); }}
         onTopUpTenant={() => {
-          // Disabled — see Pay Rent deactivation note above. Route agents to Field Collect.
+          // Disabled — Pay Rent / Collect Rent flow removed.
           setMenuOpen(false);
-          setFieldCollectOpen(true);
         }}
         onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
         onViewCreditAccess={() => { setMenuOpen(false); setCreditOpen(true); }}
@@ -1908,10 +1904,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         initialProfileTenantId={tenantProfileId}
       />
       </LazyModal>
-      <LazyModal when={fieldCollectOpen}>
-      <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
-      </LazyModal>
-      
       <LazyModal when={reconcileOpen}>
       <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
       </LazyModal>
