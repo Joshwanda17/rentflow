@@ -98,19 +98,13 @@ export function FloatToWithdrawablePanel() {
     setSearching(true);
     setSelected(null);
     try {
-      // Use the indexed server-side search RPC — a plain ilike on the
-      // profiles table times out on our user volume.
-      const { data: rpcRows, error } = await supabase.rpc('search_users_fast', {
-        p_query: q,
-        p_limit: 15,
-      });
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(15);
       if (error) throw error;
-      const profiles = ((rpcRows as any[]) || []).map((r) => ({
-        id: r.id as string,
-        full_name: r.full_name as string | null,
-        phone: r.phone as string | null,
-      }));
-      const ids = profiles.map((p) => p.id);
+      const ids = (profiles || []).map((p) => p.id);
       const balances: Record<string, { f: number; w: number }> = {};
       if (ids.length) {
         const { data: wallets } = await supabase
@@ -125,7 +119,7 @@ export function FloatToWithdrawablePanel() {
         }
       }
       setHits(
-        profiles.map((p) => ({
+        (profiles || []).map((p) => ({
           id: p.id,
           full_name: p.full_name,
           phone: p.phone,
