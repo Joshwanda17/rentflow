@@ -617,6 +617,25 @@ export default function SubAgentAnalytics() {
         .in('sub_agent_id', subAgentIds)
         .order('occurred_at', { ascending: false });
 
+      // Broader datasets used ONLY to power the "Monthly Earnings" chart so it
+      // reflects every UGX the parent has earned from their sub-agent network
+      // over time (any earning_type, plus every credited recruiter override —
+      // house listing, landlord verification, LC1 chairperson, etc).
+      const chartWindowStart = format(subMonths(new Date(), 5), 'yyyy-MM-01');
+      const [{ data: chartEarningsRaw }, { data: chartOverridesRaw }] = await Promise.all([
+        supabase
+          .from('agent_earnings')
+          .select('amount, created_at, earning_type')
+          .eq('agent_id', user.id)
+          .gte('created_at', chartWindowStart),
+        supabase
+          .from('recruiter_override_events')
+          .select('amount, occurred_at, status')
+          .eq('recruiter_id', user.id)
+          .in('status', ['credited', 'paid'])
+          .gte('occurred_at', chartWindowStart),
+      ]);
+
       // Map override earnings by house listing id (only successful/credited ones)
       const overrideByHouse: Record<string, number> = {};
       const houseOverrideBySubAgent: Record<string, number> = {};
@@ -851,23 +870,15 @@ export default function SubAgentAnalytics() {
         const monthKey = format(monthDate, 'yyyy-MM');
         const monthLabel = format(monthDate, 'MMM');
 
-        const agentEarningsMonth = allEarnings
-          ?.filter(e => format(new Date(e.created_at), 'yyyy-MM') === monthKey)
-          .reduce((sum, e) => {
-            // Count sub-agent commissions and sub-agent referral bonuses only.
-            if (e.earning_type === 'subagent_commission') return sum + Number(e.amount);
-            if (e.earning_type === 'referral_bonus' && e.source_user_id && subAgentIdsSet.has(e.source_user_id)) {
-              return sum + Number(e.amount);
-            }
-            return sum;
-          }, 0) || 0;
+        // Chart aggregates EVERY earning the parent booked in the month
+        // (subagent commission, referral bonus, proxy investment commission,
+        // platform rewards, etc.) so the bars reflect real cash flow.
+        const agentEarningsMonth = (chartEarningsRaw || [])
+          .filter(e => e.created_at && format(new Date(e.created_at), 'yyyy-MM') === monthKey)
+          .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
-        const overrideMonth = (overrideRows || [])
-          .filter(o => {
-            if (!o.status || (o.status !== 'credited' && o.status !== 'paid')) return false;
-            const d = o.occurred_at ? new Date(o.occurred_at) : null;
-            return d && format(d, 'yyyy-MM') === monthKey;
-          })
+        const overrideMonth = (chartOverridesRaw || [])
+          .filter(o => o.occurred_at && format(new Date(o.occurred_at), 'yyyy-MM') === monthKey)
           .reduce((sum, o) => sum + Number(o.amount || 0), 0);
 
         const monthEarnings = agentEarningsMonth + overrideMonth;
@@ -1203,7 +1214,13 @@ export default function SubAgentAnalytics() {
                     <BarChart data={monthlyData}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                      <YAxis
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(v) =>
+                          v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K` : `${v}`
+                        }
+                        allowDecimals={false}
+                      />
                       <Tooltip 
                         formatter={(value: number) => [formatUGX(value), 'Earnings']}
                         contentStyle={{ 
