@@ -17,9 +17,9 @@ interface Metrics {
   period_end: string;
   total_deposited: number;
   total_paid_out: number;
-  closing_balance: number;
-  deposits_by_source: Record<string, { count: number; amount: number }>;
-  payouts_by_channel: Record<string, { count: number; amount: number }>;
+  closing_wallet_balance: number;
+  deposits: Record<string, { count: number; amount: number }>;
+  payouts: Record<string, { count: number; amount: number }>;
 }
 
 interface ReportRow {
@@ -28,8 +28,8 @@ interface ReportRow {
   total_deposited: number;
   total_paid_out: number;
   closing_balance: number;
-  deposits_by_source: Metrics['deposits_by_source'];
-  payouts_by_channel: Metrics['payouts_by_channel'];
+  deposits_by_source: Metrics['deposits'];
+  payouts_by_channel: Metrics['payouts'];
   pdf_path: string | null;
   xlsx_path: string | null;
   generated_at: string;
@@ -37,12 +37,16 @@ interface ReportRow {
 }
 
 const DEPOSIT_LABEL: Record<string, string> = {
-  cash: 'Cash', mtn: 'MTN Mobile Money', airtel: 'Airtel Money',
-  bank: 'Bank', other: 'Other',
+  cash: 'Cash', mtn: 'MTN Mobile Money', airtel: 'Airtel Money', bank: 'Bank',
+  cfo_direct_credit: 'CFO Direct Credit',
+  gmail_auto_credit: 'Gmail Auto-Credit',
+  manual_recovery: 'Manual Recovery',
+  ledger_adjustment: 'Ledger Adjustment',
+  other: 'Other',
 };
 const PAYOUT_LABEL: Record<string, string> = {
   merchant_mtn: 'Merchant MTN', merchant_airtel: 'Merchant Airtel',
-  merchant_equity: 'Merchant Equity Bank', other: 'Other',
+  merchant_equity_bank: 'Merchant Equity Bank', other: 'Other',
 };
 
 function eatDayToUtcRange(dateStr: string) {
@@ -239,11 +243,11 @@ export function DailyWalletReportsPanel() {
               <div className="grid gap-3 sm:grid-cols-3">
                 <Metric label="Total Amount Deposited" value={formatUGX(agg.total_deposited)} />
                 <Metric label="Total Amount Paid Out" value={formatUGX(agg.total_paid_out)} />
-                <Metric label="Closing Wallet Balance" value={formatUGX(agg.closing_balance)} highlight />
+                <Metric label="Closing Wallet Balance" value={formatUGX(agg.closing_wallet_balance)} highlight />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <BreakdownTable title="Deposits by source" labels={DEPOSIT_LABEL} data={agg.deposits_by_source} />
-                <BreakdownTable title="Payouts by channel" labels={PAYOUT_LABEL} data={agg.payouts_by_channel} />
+                <BreakdownTable title="Deposits by source" labels={DEPOSIT_LABEL} data={agg.deposits} />
+                <BreakdownTable title="Payouts by channel" labels={PAYOUT_LABEL} data={agg.payouts} />
               </div>
             </div>
           ) : (
