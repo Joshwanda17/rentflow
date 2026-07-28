@@ -37,6 +37,7 @@ export function useAgentBalances(agentId?: string) {
     gcTime: 60_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    retry: 0,
     queryFn: async (): Promise<number> => {
       trackRequest('db', 'agent-commission-net');
       const { data, error } = await supabase
@@ -51,7 +52,8 @@ export function useAgentBalances(agentId?: string) {
           'agent_commission_withdrawal',
           'agent_commission_used_for_rent',
           'partner_commission',
-        ]);
+        ])
+        .limit(5000);
       if (error) throw error;
       // Net cash_in vs cash_out per row — see SSENKAALI PIUS 2026-04-27
       // note in git blame for background.
