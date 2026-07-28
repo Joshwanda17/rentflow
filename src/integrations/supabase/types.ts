@@ -28660,6 +28660,15 @@ export type Database = {
           ward: string
         }[]
       }
+      search_profiles: {
+        Args: { term: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       search_supporters: {
         Args: { result_limit?: number; search_term: string }
         Returns: {
