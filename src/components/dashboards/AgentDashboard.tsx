@@ -1348,7 +1348,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                       key={c.key}
                       onClick={c.onClick}
                       className={cn(
-                        'flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 ring-1',
+                        'flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 ring-1 w-full col-span-2',
                         c.ring,
                         'active:scale-[0.97] transition-all touch-manipulation text-left min-h-[112px]',
                       )}
