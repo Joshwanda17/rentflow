@@ -212,6 +212,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [selectedSubCounty, setSelectedSubCounty] = useState('all');
   const [selectedVillage, setSelectedVillage] = useState('all');
   const [view, setView] = useState<'list' | 'map'>('list');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   // Bottom sentinel — when it scrolls into view we ask for the next page.
