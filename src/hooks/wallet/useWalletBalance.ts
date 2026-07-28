@@ -80,14 +80,16 @@ export const WALLET_RECENT_TX_LIMIT = 10;
  * the numbers never diverge.
  */
 function baseUserLedgerQuery(userId: string) {
-  return applyCustomerWalletLedgerFilters(supabase
+  const query = supabase
     .from("general_ledger")
     .select(
       "id, transaction_date, amount, direction, category, description, reference_id, linked_party, source_table, source_id, classification",
       { count: "exact" },
     )
     .eq("user_id", userId)
-    .in("ledger_scope", ["wallet", "bridge"]));
+    .in("ledger_scope", ["wallet", "bridge"]);
+
+  return applyCustomerWalletLedgerFilters(query);
 }
 
 export async function fetchRecentWalletTransactions(

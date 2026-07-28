@@ -1,8 +1,3 @@
-type LedgerFilterBuilder = {
-  neq: (column: string, value: unknown) => LedgerFilterBuilder;
-  not: (column: string, operator: string, value: unknown) => LedgerFilterBuilder;
-};
-
 type CustomerWalletLedgerRow = {
   classification?: string | null;
   category?: string | null;
@@ -69,10 +64,8 @@ export function isCustomerWalletLedgerEntryVisible(row: CustomerWalletLedgerRow)
   return true;
 }
 
-export function applyCustomerWalletLedgerFilters(query: LedgerFilterBuilder): LedgerFilterBuilder {
-  const next = query
+export function applyCustomerWalletLedgerFilters(query: any): any {
+  return query
     .neq('classification', 'admin_correction')
     .not('category', 'in', `(${INTERNAL_CATEGORIES.join(',')})`);
-
-  return next;
 }
