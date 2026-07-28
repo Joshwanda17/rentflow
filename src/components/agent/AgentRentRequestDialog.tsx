@@ -2812,6 +2812,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           agent_guarantor_consent: true,
           agent_guarantor_consent_at: new Date().toISOString(),
           agent_guarantor_consent_version: 'v1',
+          tenant_photo_url: preInsertTenantPhotoUrl,
           ...(isOutstanding ? {
             registration_type: 'outstanding_balance',
             initial_outstanding_balance: amount,
