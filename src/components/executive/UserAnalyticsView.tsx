@@ -79,22 +79,26 @@ export function UserAnalyticsView() {
 
   // Daily signups
   const { data: signupSeries, isLoading: loadingSignups } = useQuery({
-    queryKey: ['user-analytics-signups', preset, customStart, customEnd],
+    queryKey: ['user-analytics-signups-v2', preset, customStart, customEnd],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('created_at, referrer_id')
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString());
+      // Server-side aggregation — client fetch was capped at 1,000 rows and
+      // silently truncated multi-thousand-signup ranges.
+      const { data, error } = await supabase.rpc('get_daily_signups', {
+        p_start: start.toISOString(),
+        p_end: end.toISOString(),
+      });
+      if (error) throw error;
       const map = new Map<string, { signups: number; referred: number; organic: number }>();
       days.forEach((d) => map.set(format(d, 'yyyy-MM-dd'), { signups: 0, referred: 0, organic: 0 }));
       (data || []).forEach((r: any) => {
-        const k = format(new Date(r.created_at), 'yyyy-MM-dd');
-        const row = map.get(k);
-        if (!row) return;
-        row.signups += 1;
-        if (r.referrer_id) row.referred += 1;
-        else row.organic += 1;
+        const k = format(new Date(r.day), 'yyyy-MM-dd');
+        if (map.has(k)) {
+          map.set(k, {
+            signups: Number(r.signups) || 0,
+            referred: Number(r.referred) || 0,
+            organic: Number(r.organic) || 0,
+          });
+        }
       });
       return Array.from(map.entries()).map(([k, v]) => ({ date: format(new Date(k), 'MMM d'), ...v }));
     },
@@ -103,24 +107,22 @@ export function UserAnalyticsView() {
 
   // Daily active users (distinct successful logins)
   const { data: activeSeries, isLoading: loadingActive } = useQuery({
-    queryKey: ['user-analytics-active-v2', preset, customStart, customEnd],
+    queryKey: ['user-analytics-active-v3', preset, customStart, customEnd],
     queryFn: async () => {
-      // Source: login_phase_events — real session activity across the app.
-      // otp_login_audit only captures OTP challenges, dramatically undercounting DAU.
-      const { data } = await supabase
-        .from('login_phase_events')
-        .select('created_at, user_id')
-        .not('user_id', 'is', null)
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
-        .limit(200000);
-      const map = new Map<string, Set<string>>();
-      days.forEach((d) => map.set(format(d, 'yyyy-MM-dd'), new Set()));
-      (data || []).forEach((r: any) => {
-        const k = format(new Date(r.created_at), 'yyyy-MM-dd');
-        if (r.user_id) map.get(k)?.add(r.user_id);
+      // Server-side DISTINCT — pulling 200k rows client-side was slow and
+      // still risked truncation on high-traffic days.
+      const { data, error } = await supabase.rpc('get_daily_active_users', {
+        p_start: start.toISOString(),
+        p_end: end.toISOString(),
       });
-      return Array.from(map.entries()).map(([k, s]) => ({ date: format(new Date(k), 'MMM d'), active: s.size }));
+      if (error) throw error;
+      const map = new Map<string, number>();
+      days.forEach((d) => map.set(format(d, 'yyyy-MM-dd'), 0));
+      (data || []).forEach((r: any) => {
+        const k = format(new Date(r.day), 'yyyy-MM-dd');
+        if (map.has(k)) map.set(k, Number(r.active) || 0);
+      });
+      return Array.from(map.entries()).map(([k, v]) => ({ date: format(new Date(k), 'MMM d'), active: v }));
     },
     staleTime: 300000,
   });
@@ -151,13 +153,14 @@ export function UserAnalyticsView() {
 
   // Role distribution snapshot
   const { data: roleDist } = useQuery({
-    queryKey: ['user-analytics-roles'],
+    queryKey: ['user-analytics-roles-v2'],
     queryFn: async () => {
-      const { data } = await supabase.from('user_roles').select('role');
-      const counts: Record<string, number> = {};
-      (data || []).forEach((r: any) => { counts[r.role] = (counts[r.role] || 0) + 1; });
-      return Object.entries(counts)
-        .map(([role, count]) => ({ role, count }))
+      // The bare `.select('role')` was capped at 1,000 rows, so a platform
+      // with 200k+ role rows reported only a few hundred per role.
+      const { data, error } = await supabase.rpc('get_user_role_distribution');
+      if (error) throw error;
+      return (data || [])
+        .map((r: any) => ({ role: r.role as string, count: Number(r.count) || 0 }))
         .sort((a, b) => b.count - a.count);
     },
     staleTime: 600000,
