@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowUpDown, BedDouble } from 'lucide-react';
 import { AgentContactBar } from '@/components/tenant/AgentContactBar';
 import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -44,6 +45,31 @@ const CATEGORIES = [
   { value: 'three_bedroom', label: '3 Bedrooms' },
   { value: 'studio', label: 'Studio' },
   { value: 'shop', label: 'Shop' },
+];
+
+// Daily-rate quick chips (UGX). Rent on Welile is quoted per day, so we express
+// price ranges as daily rates. Monthly equivalents are ~ daily × 30.
+const PRICE_CHIPS: { label: string; min?: number; max?: number }[] = [
+  { label: 'Any price' },
+  { label: 'Under 3k/day', max: 3000 },
+  { label: '3k – 5k/day', min: 3000, max: 5000 },
+  { label: '5k – 10k/day', min: 5000, max: 10000 },
+  { label: '10k – 20k/day', min: 10000, max: 20000 },
+  { label: '20k+/day', min: 20000 },
+];
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'price_asc', label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+] as const;
+
+const AMENITY_TOGGLES: { key: 'hasWater' | 'hasElectricity' | 'hasSecurity' | 'hasParking' | 'isFurnished'; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: 'hasWater', label: 'Water', Icon: Droplets },
+  { key: 'hasElectricity', label: 'Power', Icon: Zap },
+  { key: 'hasSecurity', label: 'Security', Icon: ShieldCheck },
+  { key: 'hasParking', label: 'Parking', Icon: Car },
+  { key: 'isFurnished', label: 'Furnished', Icon: Sofa },
 ];
 
 function HouseImageCarousel({ images, title, houseId }: { images: string[] | null; title: string; houseId: string }) {
@@ -212,6 +238,13 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [selectedVillage, setSelectedVillage] = useState('all');
   const [view, setView] = useState<'list' | 'map'>('list');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [minPrice, setMinPrice] = useState<number | undefined>(undefined);
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(undefined);
+  const [minRooms, setMinRooms] = useState<number>(0);
+  const [amenities, setAmenities] = useState<{
+    hasWater: boolean; hasElectricity: boolean; hasSecurity: boolean; hasParking: boolean; isFurnished: boolean;
+  }>({ hasWater: false, hasElectricity: false, hasSecurity: false, hasParking: false, isFurnished: false });
+  const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   // Bottom sentinel — when it scrolls into view we ask for the next page.
@@ -232,6 +265,15 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     subCounty: selectedSubCounty !== 'all' ? selectedSubCounty : undefined,
     village: selectedVillage !== 'all' ? selectedVillage : undefined,
     search: searchText.trim() || undefined,
+    minDailyRate: minPrice,
+    maxDailyRate: maxPrice,
+    minRooms: minRooms || undefined,
+    hasWater: amenities.hasWater || undefined,
+    hasElectricity: amenities.hasElectricity || undefined,
+    hasSecurity: amenities.hasSecurity || undefined,
+    hasParking: amenities.hasParking || undefined,
+    isFurnished: amenities.isFurnished || undefined,
+    sort,
     // Page through EVERY matching listing — no fixed cap.
     paginate: true,
     // Load a large first page so the District / Sub-County / Village
@@ -251,6 +293,14 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     village: selectedVillage !== 'all' ? selectedVillage : undefined,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     search: searchText.trim() || undefined,
+    minDailyRate: minPrice,
+    maxDailyRate: maxPrice,
+    minRooms: minRooms || undefined,
+    hasWater: amenities.hasWater || undefined,
+    hasElectricity: amenities.hasElectricity || undefined,
+    hasSecurity: amenities.hasSecurity || undefined,
+    hasParking: amenities.hasParking || undefined,
+    isFurnished: amenities.isFurnished || undefined,
     enabled: open,
   });
 
@@ -325,7 +375,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   useEffect(() => {
     setCurrentPage(1);
     resultsRef.current?.scrollTo({ top: 0 });
-  }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText]);
+  }, [selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage, searchText, minPrice, maxPrice, minRooms, amenities, sort]);
 
   // Auto-fetch more rows from the server when the user gets within one page of
   // the end of the currently-loaded set, so page navigation stays seamless.
@@ -371,13 +421,18 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </SheetTitle>
             <div className="flex items-center gap-2 shrink-0">
               {(() => {
+                const amenityCount = Object.values(amenities).filter(Boolean).length;
                 const activeCount =
                   (searchText.trim().length > 0 ? 1 : 0) +
                   (selectedRegion !== 'All Regions' ? 1 : 0) +
                   (selectedCategory !== 'all' ? 1 : 0) +
                   (selectedDistrict !== 'all' ? 1 : 0) +
                   (selectedSubCounty !== 'all' ? 1 : 0) +
-                  (selectedVillage !== 'all' ? 1 : 0);
+                  (selectedVillage !== 'all' ? 1 : 0) +
+                  (minPrice || maxPrice ? 1 : 0) +
+                  (minRooms > 0 ? 1 : 0) +
+                  amenityCount +
+                  (sort !== 'newest' ? 1 : 0);
                 return (
                   <button
                     type="button"
@@ -485,7 +540,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 ))}
               </SelectContent>
             </Select>
-            {(searchText.trim().length > 0 || selectedRegion !== 'All Regions' || selectedCategory !== 'all' || selectedDistrict !== 'all' || selectedSubCounty !== 'all' || selectedVillage !== 'all') && (
+            {(searchText.trim().length > 0 || selectedRegion !== 'All Regions' || selectedCategory !== 'all' || selectedDistrict !== 'all' || selectedSubCounty !== 'all' || selectedVillage !== 'all' || minPrice || maxPrice || minRooms > 0 || Object.values(amenities).some(Boolean) || sort !== 'newest') && (
               <button
                 type="button"
                 onClick={() => {
@@ -495,6 +550,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                   setSelectedDistrict('all');
                   setSelectedSubCounty('all');
                   setSelectedVillage('all');
+                  setMinPrice(undefined);
+                  setMaxPrice(undefined);
+                  setMinRooms(0);
+                  setAmenities({ hasWater: false, hasElectricity: false, hasSecurity: false, hasParking: false, isFurnished: false });
+                  setSort('newest');
                   // Keep keyboard focus usable by returning it to the primary control.
                   requestAnimationFrame(() => searchInputRef.current?.focus());
                 }}
@@ -504,6 +564,98 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 <X className="h-3.5 w-3.5" /> Clear
               </button>
             )}
+          </div>
+
+          {/* Price range (daily rate) — quick chips + custom min/max */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily rent</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PRICE_CHIPS.map(chip => {
+                const active = (chip.min || undefined) === minPrice && (chip.max || undefined) === maxPrice;
+                return (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => { setMinPrice(chip.min); setMaxPrice(chip.max); }}
+                    className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                placeholder="Min UGX/day"
+                value={minPrice ?? ''}
+                onChange={e => setMinPrice(e.target.value ? Number(e.target.value) : undefined)}
+                className="h-9 text-xs flex-1"
+                aria-label="Minimum daily rate"
+              />
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                placeholder="Max UGX/day"
+                value={maxPrice ?? ''}
+                onChange={e => setMaxPrice(e.target.value ? Number(e.target.value) : undefined)}
+                className="h-9 text-xs flex-1"
+                aria-label="Maximum daily rate"
+              />
+            </div>
+          </div>
+
+          {/* Rooms + Sort */}
+          <div className="flex gap-2">
+            <Select value={String(minRooms)} onValueChange={v => setMinRooms(Number(v))}>
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <BedDouble className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Any rooms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Any rooms</SelectItem>
+                <SelectItem value="1">1+ rooms</SelectItem>
+                <SelectItem value="2">2+ rooms</SelectItem>
+                <SelectItem value="3">3+ rooms</SelectItem>
+                <SelectItem value="4">4+ rooms</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Amenity toggles */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Must have</p>
+            <div className="flex flex-wrap gap-1.5">
+              {AMENITY_TOGGLES.map(({ key, label, Icon }) => {
+                const active = amenities[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setAmenities(a => ({ ...a, [key]: !a[key] }))}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Exact GPS-captured location filters (from the agent's listing).

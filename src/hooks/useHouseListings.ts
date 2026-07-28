@@ -186,6 +186,20 @@ interface UseNearbyHousesOptions {
   search?: string;
   limit?: number;
   enabled?: boolean;
+  /** Cap on daily_rate (UGX). Applied as `daily_rate <= maxDailyRate`. */
+  maxDailyRate?: number;
+  /** Floor on daily_rate (UGX). Applied as `daily_rate >= minDailyRate`. */
+  minDailyRate?: number;
+  /** Minimum number of rooms. Applied as `number_of_rooms >= minRooms`. */
+  minRooms?: number;
+  /** Amenity toggles — when true, only match rows with that boolean = true. */
+  hasWater?: boolean;
+  hasElectricity?: boolean;
+  hasSecurity?: boolean;
+  hasParking?: boolean;
+  isFurnished?: boolean;
+  /** Sort order for the fallback (non-GPS) query. */
+  sort?: 'newest' | 'price_asc' | 'price_desc';
   /**
    * When true, fetch EVERY matching listing by paging through the source
    * instead of relying on a single fixed cap. Results stream in page-by-page,
@@ -235,6 +249,15 @@ function nearbyCacheKey(o: UseNearbyHousesOptions, paginate: boolean, pageSize: 
     o.search || '',
     paginate ? 1 : 0,
     pageSize,
+    o.minDailyRate || 0,
+    o.maxDailyRate || 0,
+    o.minRooms || 0,
+    o.hasWater ? 'w' : '',
+    o.hasElectricity ? 'e' : '',
+    o.hasSecurity ? 's' : '',
+    o.hasParking ? 'p' : '',
+    o.isFurnished ? 'f' : '',
+    o.sort || '',
   ].join('|');
 }
 
@@ -415,9 +438,14 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           .eq('status', 'available')
           .eq('verified', true)
           .eq('is_hidden', false)
-          .order('created_at', { ascending: false })
-          .order('id', { ascending: true })
           .range(st.offset, st.offset + wantLimit - 1);
+        if (options.sort === 'price_asc') {
+          query = query.order('daily_rate', { ascending: true }).order('id', { ascending: true });
+        } else if (options.sort === 'price_desc') {
+          query = query.order('daily_rate', { ascending: false }).order('id', { ascending: true });
+        } else {
+          query = query.order('created_at', { ascending: false }).order('id', { ascending: true });
+        }
         if (options.region) {
           // The location filter may be a broad region ("Central") OR a
           // city/district/village ("Kampala", "Wakiso"). Match any of the
@@ -437,6 +465,14 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         if (options.subCounty) query = query.eq('sub_county', options.subCounty);
         if (options.village) query = query.eq('village', options.village);
         if (options.category) query = query.eq('house_category', options.category);
+        if (options.minDailyRate) query = query.gte('daily_rate', options.minDailyRate);
+        if (options.maxDailyRate) query = query.lte('daily_rate', options.maxDailyRate);
+        if (options.minRooms) query = query.gte('number_of_rooms', options.minRooms);
+        if (options.hasWater) query = query.eq('has_water', true);
+        if (options.hasElectricity) query = query.eq('has_electricity', true);
+        if (options.hasSecurity) query = query.eq('has_security', true);
+        if (options.hasParking) query = query.eq('has_parking', true);
+        if (options.isFurnished) query = query.eq('is_furnished', true);
         const search = safeOrTerm(options.search);
         if (search) {
           query = query.or(
@@ -544,6 +580,15 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     options.subCounty,
     options.village,
     options.search,
+    options.minDailyRate,
+    options.maxDailyRate,
+    options.minRooms,
+    options.hasWater,
+    options.hasElectricity,
+    options.hasSecurity,
+    options.hasParking,
+    options.isFurnished,
+    options.sort,
     paginate,
     pageSize,
     maxResults,
@@ -629,7 +674,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setMetrics({ ...metricsRef.current });
     pgLog('refresh', { filterKey: key });
     fetchPage(runId, true);
-  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, options.district, options.subCounty, options.village, options.search, paginate, pageSize]);
+  }, [fetchPage, options.latitude, options.longitude, options.radiusKm, options.category, options.region, options.district, options.subCounty, options.village, options.search, options.minDailyRate, options.maxDailyRate, options.minRooms, options.hasWater, options.hasElectricity, options.hasSecurity, options.hasParking, options.isFurnished, options.sort, paginate, pageSize]);
 
   return { listings, loading, loadingMore, hasMore, loadMore, error, refresh, metrics };
 }
@@ -670,6 +715,15 @@ export interface HouseListingCountOptions {
   category?: string;
   /** Cap on daily_rate. */
   maxDailyRate?: number;
+  /** Floor on daily_rate. */
+  minDailyRate?: number;
+  /** Minimum rooms. */
+  minRooms?: number;
+  hasWater?: boolean;
+  hasElectricity?: boolean;
+  hasSecurity?: boolean;
+  hasParking?: boolean;
+  isFurnished?: boolean;
   /** Free-text search term (matches title/region/district/address). */
   search?: string;
   enabled?: boolean;
@@ -703,6 +757,13 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
     village,
     category,
     maxDailyRate,
+    minDailyRate,
+    minRooms,
+    hasWater,
+    hasElectricity,
+    hasSecurity,
+    hasParking,
+    isFurnished,
     search,
     enabled = true,
   } = options;
@@ -746,6 +807,13 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
       if (village && village !== 'all') q = q.eq('village', village);
       if (category && category !== 'all') q = q.eq('house_category', category);
       if (maxDailyRate) q = q.lte('daily_rate', maxDailyRate);
+      if (minDailyRate) q = q.gte('daily_rate', minDailyRate);
+      if (minRooms) q = q.gte('number_of_rooms', minRooms);
+      if (hasWater) q = q.eq('has_water', true);
+      if (hasElectricity) q = q.eq('has_electricity', true);
+      if (hasSecurity) q = q.eq('has_security', true);
+      if (hasParking) q = q.eq('has_parking', true);
+      if (isFurnished) q = q.eq('is_furnished', true);
       const s = search && search.trim() ? escapeOr(search) : '';
       if (s) {
         q = q.or(
@@ -779,7 +847,7 @@ export function useHouseListingCount(options: HouseListingCountOptions): HouseLi
     return () => {
       cancelled = true;
     };
-  }, [region, district, subCounty, village, category, maxDailyRate, search, enabled]);
+  }, [region, district, subCounty, village, category, maxDailyRate, minDailyRate, minRooms, hasWater, hasElectricity, hasSecurity, hasParking, isFurnished, search, enabled]);
 
   return {
     verified: counts.verified,
