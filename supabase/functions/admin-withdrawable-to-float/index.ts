@@ -166,6 +166,59 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── If acknowledged, first fill the overdraft with a balanced ──────────
+    // admin_correction so the requested move lands as VISIBLE float.
+    //   • wallet leg: cash_in  wallet_bucket='float'  (admin_correction / system_balance_correction)
+    //   • platform leg: cash_out (admin_correction / system_balance_correction)
+    // This is hidden from customer-facing wallet history per the
+    // user-facing-ledger-filter rule, but zeros the float overdraft so the
+    // subsequent reclass posts on top of a clean base.
+    let overdraftFillRef: string | null = null;
+    let overdraftFilled = 0;
+    if (floatNet !== null && floatNet < 0 && acknowledgeOverdraft) {
+      overdraftFilled = Math.abs(floatNet);
+      overdraftFillRef = `FLTFILL-${crypto.randomUUID()}`;
+      const fillNow = new Date().toISOString();
+      const { error: fillErr } = await adminClient.rpc("create_ledger_transaction", {
+        entries: [
+          {
+            user_id: targetUserId,
+            amount: overdraftFilled,
+            direction: "cash_in",
+            category: "system_balance_correction",
+            ledger_scope: "wallet",
+            recipient_type: "operational_wallet",
+            wallet_bucket: "float",
+            routing_source: "admin_withdrawable_to_float_overdraft_fill",
+            source_table: "admin_withdrawable_to_float",
+            reference_id: overdraftFillRef,
+            classification: "admin_correction",
+            currency: "UGX",
+            transaction_date: fillNow,
+            description: `Overdraft fill: zero float overdraft of UGX ${overdraftFilled.toLocaleString()} before reclass. ${reason}`,
+          },
+          {
+            user_id: null,
+            amount: overdraftFilled,
+            direction: "cash_out",
+            category: "system_balance_correction",
+            ledger_scope: "platform",
+            routing_source: "admin_withdrawable_to_float_overdraft_fill",
+            source_table: "admin_withdrawable_to_float",
+            reference_id: overdraftFillRef,
+            classification: "admin_correction",
+            currency: "UGX",
+            transaction_date: fillNow,
+            linked_party: targetUserId,
+            solvency_bypass_reason: "admin_correction_seed",
+            description: `Overdraft fill: platform absorbs UGX ${overdraftFilled.toLocaleString()} to clear float overdraft for user ${targetUserId}. ${reason}`,
+          },
+        ],
+        skip_balance_check: true,
+      });
+      if (fillErr) return json({ error: `Overdraft fill failed: ${fillErr.message}` }, 500);
+    }
+
     const { data: targetProfile } = await adminClient
       .from("profiles")
       .select("full_name")
@@ -247,6 +300,9 @@ Deno.serve(async (req) => {
         float_before: floatBefore,
         withdrawable_before: withdrawableBefore,
         caller_roles: callerRoles,
+        overdraft_fill_reference_id: overdraftFillRef,
+        overdraft_filled: overdraftFilled,
+        float_net_before: floatNet,
       },
     });
 
@@ -327,6 +383,8 @@ Deno.serve(async (req) => {
       withdrawable_before: withdrawableBefore,
       float_after: floatAfter,
       withdrawable_after: withdrawableAfter,
+      overdraft_filled: overdraftFilled,
+      overdraft_fill_reference_id: overdraftFillRef,
       message: `Moved UGX ${amount.toLocaleString()} from Withdrawable to Float for ${targetName}.`,
     });
   } catch (err) {
