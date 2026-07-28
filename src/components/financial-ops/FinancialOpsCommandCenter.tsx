@@ -65,6 +65,7 @@ const EmployeeRequisitionLinksPanel = lz(() => import('./EmployeeRequisitionLink
 const EmployeeRequisitionQueuePanel = lz(() => import('./EmployeeRequisitionQueuePanel'), 'EmployeeRequisitionQueuePanel');
 const FinancialOpsPulseStrip = lz(() => import('./FinancialOpsPulseStrip'), 'FinancialOpsPulseStrip');
 const LiquidityForecastPanel = lz(() => import('./LiquidityForecastPanel'), 'LiquidityForecastPanel');
+const DailyWalletReportsPanel = lz(() => import('./DailyWalletReportsPanel'), 'DailyWalletReportsPanel');
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
@@ -92,7 +93,8 @@ type Tool =
   | 'employee_requisition_links' | 'employee_requisition_queue'
   | 'bridge_health' | 'manual_float_credit'
   | 'earnings_explainer'
-  | 'liquidity_forecast';
+  | 'liquidity_forecast'
+  | 'reports';
 // Extend Tool type via union above; add new tools:
 
 
@@ -107,6 +109,7 @@ type MoreAction =
 
 const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'liquidity_forecast', label: 'Liquidity Forecast', desc: 'Withdrawable across all wallets today + ROI due per day for the next 7–60 days, so you can pre-fund before payouts.', icon: CalendarClock },
+  { kind: 'tool', id: 'reports', label: 'Reports', desc: 'Daily Wallet Financial Summary Reports — auto-generated at 00:00 EAT from the ledger. View, filter, regenerate & download PDF/Excel/CSV.', icon: FileText },
   { kind: 'tool', id: 'earnings_explainer', label: 'How Did They Earn?', desc: 'Plain-English breakdown of every UGX that landed in a user\u2019s wallet — grouped by source (commissions, deposits, ROI, payroll, corrections) with counts and samples.', icon: Sparkles },
   { kind: 'tool', id: 'bridge_health', label: 'Deposit Bridge Health', desc: 'Reliability of the queue between Financial Ops and the wallet ledger — pending, retries, DLQ, gap alerts', icon: Activity },
   { kind: 'tool', id: 'manual_float_credit', label: 'Manual Float Credit', desc: 'Credit an agent\u2019s float wallet from a MoMo SMS — TID, amount, date/time & depositor. TID is locked so late feeds cannot double-credit.', icon: Wallet },
