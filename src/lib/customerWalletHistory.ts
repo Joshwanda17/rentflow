@@ -69,10 +69,10 @@ export function isCustomerWalletLedgerEntryVisible(row: CustomerWalletLedgerRow)
   return true;
 }
 
-export function applyCustomerWalletLedgerFilters<T extends LedgerFilterBuilder>(query: T): T {
+export function applyCustomerWalletLedgerFilters(query: LedgerFilterBuilder): LedgerFilterBuilder {
   const next = query
     .neq('classification', 'admin_correction')
     .not('category', 'in', `(${INTERNAL_CATEGORIES.join(',')})`);
 
-  return next as T;
+  return next;
 }
