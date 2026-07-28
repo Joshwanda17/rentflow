@@ -581,12 +581,31 @@ export default function FindAHouse() {
     return !!(r && REGIONS.includes(r));
   });
   const [copied, setCopied] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'price_asc');
-  const [verifiedOnly, setVerifiedOnly] = useState(() => searchParams.get('verified') === '1');
-  const [maxDaily, setMaxDaily] = useState<string>(() => searchParams.get('max') || 'all');
-  const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>(
-    () => (searchParams.get('amenities')?.split(',').filter(Boolean) as AmenityKey[]) || []
-  );
+  const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'newest');
+  const [minPrice, setMinPrice] = useState<number | undefined>(() => {
+    const v = searchParams.get('min');
+    return v ? Number(v) : undefined;
+  });
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(() => {
+    const v = searchParams.get('max');
+    return v ? Number(v) : undefined;
+  });
+  const [minRooms, setMinRooms] = useState<number>(() => {
+    const v = searchParams.get('rooms');
+    return v ? Number(v) : 0;
+  });
+  const [amenities, setAmenities] = useState<{
+    hasWater: boolean; hasElectricity: boolean; hasSecurity: boolean; hasParking: boolean; isFurnished: boolean;
+  }>(() => {
+    const list = searchParams.get('amenities')?.split(',').filter(Boolean) || [];
+    return {
+      hasWater: list.includes('hasWater'),
+      hasElectricity: list.includes('hasElectricity'),
+      hasSecurity: list.includes('hasSecurity'),
+      hasParking: list.includes('hasParking'),
+      isFurnished: list.includes('isFurnished'),
+    };
+  });
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
   const [showMap, setShowMap] = useState(false);
@@ -605,12 +624,14 @@ export default function FindAHouse() {
     if (selectedSubCounty !== 'all') p.set('subcounty', selectedSubCounty);
     if (selectedVillage !== 'all') p.set('village', selectedVillage);
     if (selectedCategory !== 'all') p.set('category', selectedCategory);
-    if (sortKey !== 'price_asc') p.set('sort', sortKey);
-    if (verifiedOnly) p.set('verified', '1');
-    if (maxDaily !== 'all') p.set('max', maxDaily);
-    if (activeAmenities.length) p.set('amenities', activeAmenities.join(','));
+    if (sortKey !== 'newest') p.set('sort', sortKey);
+    if (minPrice) p.set('min', String(minPrice));
+    if (maxPrice) p.set('max', String(maxPrice));
+    if (minRooms > 0) p.set('rooms', String(minRooms));
+    const activeAmenityKeys = Object.entries(amenities).filter(([, v]) => v).map(([k]) => k);
+    if (activeAmenityKeys.length) p.set('amenities', activeAmenityKeys.join(','));
     return p.toString();
-  }, [searchText, selectedRegion, selectedDistrict, selectedSubCounty, selectedVillage, selectedCategory, sortKey, verifiedOnly, maxDaily, activeAmenities]);
+  }, [searchText, selectedRegion, selectedDistrict, selectedSubCounty, selectedVillage, selectedCategory, sortKey, minPrice, maxPrice, minRooms, amenities]);
 
   const openDetails = useCallback((listing: HouseListing) => {
     navigate(`/house/${listing.short_code || listing.id}`, {
@@ -628,19 +649,22 @@ export default function FindAHouse() {
   const effectiveLat = hasSharedLocation ? sharedLat : geo.latitude;
   const effectiveLng = hasSharedLocation ? sharedLng : geo.longitude;
 
-  const toggleAmenity = (key: AmenityKey) =>
-    setActiveAmenities(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
+  const toggleAmenity = (key: keyof typeof amenities) => {
+    setAmenities(a => ({ ...a, [key]: !a[key] }));
+  };
 
   const clearFilters = () => {
-    setVerifiedOnly(false);
-    setMaxDaily('all');
-    setActiveAmenities([]);
+    setSearchText('');
+    setSelectedRegion('All Regions');
     setSelectedCategory('all');
     setSelectedDistrict('all');
     setSelectedSubCounty('all');
     setSelectedVillage('all');
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setMinRooms(0);
+    setAmenities({ hasWater: false, hasElectricity: false, hasSecurity: false, hasParking: false, isFurnished: false });
+    setSortKey('newest');
   };
 
   // Selecting a broader area resets the narrower ones so we never keep a stale
