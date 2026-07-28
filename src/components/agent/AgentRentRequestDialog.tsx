@@ -2790,6 +2790,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         return;
       }
 
+      // Upload the tenant passport photo BEFORE inserting the rent request.
+      // The DB trigger `enforce_rent_request_tenant_photo` blocks inserts where
+      // `tenant_photo_url` is null/empty, so we can't defer the upload to after
+      // the insert as we used to.
+      let preInsertTenantPhotoUrl: string | null = null;
+      if (tenantPhoto) {
+        const tempId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+          ? crypto.randomUUID()
+          : `pre_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        preInsertTenantPhotoUrl = await uploadTenantPhoto(tempId, tenantId);
+        if (!preInsertTenantPhotoUrl) {
+          const msg = "Couldn't upload the tenant's passport photo. Check your connection and try again.";
+          setSubmissionError(msg);
+          toast.error('Photo upload failed', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          return;
+        }
+      }
+
       const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
