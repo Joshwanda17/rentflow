@@ -842,39 +842,45 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Profile + Name + AI ID */}
         {profileLoading && !profile ? (
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-11 w-11 rounded-full shrink-0" />
-            <div className="flex-1 min-w-0 space-y-2">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-3 w-24" />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-11 w-11 rounded-full shrink-0" />
+              <div className="flex-1 min-w-0 space-y-2">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded-lg" />
             </div>
-            <Skeleton className="h-8 w-8 rounded-lg" />
-            <Skeleton className="h-8 w-8 rounded-lg" />
+            <div className="flex justify-end">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+            </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => { hapticTap(); navigate('/settings'); }}
-              aria-label="Open profile and settings"
-              title="Profile & settings"
-              className="shrink-0 rounded-full touch-manipulation active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
-              <span className="sr-only">{profile?.full_name ? `${profile.full_name} — profile and settings` : 'Profile and settings'}</span>
-            </button>
-            <div className="flex-1 min-w-0">
-              <h1 className="font-bold text-xl leading-tight flex items-center gap-1.5 flex-wrap">
-                <span className="break-words">{profile?.full_name || 'Agent'}</span>
-                {profile?.verified && (
-                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
-                )}
-              </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => { hapticTap(); navigate('/settings'); }}
+                aria-label="Open profile and settings"
+                title="Profile & settings"
+                className="shrink-0 rounded-full touch-manipulation active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+                <span className="sr-only">{profile?.full_name ? `${profile.full_name} — profile and settings` : 'Profile and settings'}</span>
+              </button>
+              <div className="flex-1 min-w-0">
+                <h1 className="font-bold text-xl leading-tight flex items-center gap-1.5 flex-wrap">
+                  <span className="break-words">{profile?.full_name || 'Agent'}</span>
+                  {profile?.verified && (
+                    <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                  )}
+                </h1>
+                <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
+              </div>
+              <AiIdButton variant="compact" />
             </div>
-            <AiIdButton variant="compact" />
-            <div className="ml-auto">
+            <div className="flex justify-end">
               <AgentNotificationBell userId={user.id} />
             </div>
           </div>
