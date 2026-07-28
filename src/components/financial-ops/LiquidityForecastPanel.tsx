@@ -2,8 +2,13 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { CalendarClock, Wallet, TrendingDown, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { CalendarClock, Wallet, TrendingDown, ChevronDown, ChevronRight, Loader2, CalendarIcon, Home, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 
 /**
  * Liquidity Forecast — a FinOps-only view showing:
@@ -28,6 +33,30 @@ type Horizon = (typeof HORIZONS)[number];
 export function LiquidityForecastPanel({ onOpenTool }: LiquidityForecastPanelProps) {
   const [horizon, setHorizon] = useState<Horizon>(14);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+  // Effective window: custom range overrides horizon.
+  const window = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (dateRange?.from) {
+      const from = new Date(dateRange.from);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(dateRange.to ?? dateRange.from);
+      to.setHours(23, 59, 59, 999);
+      return { from, to, custom: true as const };
+    }
+    const to = new Date(today);
+    to.setDate(to.getDate() + horizon);
+    to.setHours(23, 59, 59, 999);
+    return { from: today, to, custom: false as const };
+  }, [dateRange, horizon]);
+
+  const fromDateStr = window.from.toISOString().slice(0, 10);
+  const toDateStr = window.to.toISOString().slice(0, 10);
+  const windowLabel = window.custom
+    ? `${format(window.from, 'MMM d')} → ${format(window.to, 'MMM d')}`
+    : `next ${horizon}d`;
 
   // Total withdrawable currently parked across all wallets.
   const { data: withdrawableTotals } = useQuery({
@@ -61,19 +90,16 @@ export function LiquidityForecastPanel({ onOpenTool }: LiquidityForecastPanelPro
 
   // Upcoming ROI by date (active portfolios with a next_roi_date within horizon).
   const { data: roiRows, isLoading: roiLoading } = useQuery({
-    queryKey: ['finops-liquidity-roi', horizon],
+    queryKey: ['finops-liquidity-roi', fromDateStr, toDateStr],
     staleTime: 60_000,
     queryFn: async () => {
-      const today = new Date();
-      const end = new Date();
-      end.setDate(end.getDate() + horizon);
       const { data, error } = await supabase
         .from('investor_portfolios')
         .select('id, portfolio_code, account_name, investor_id, investment_amount, roi_percentage, roi_mode, next_roi_date, auto_reinvest, payment_method, mobile_money_number')
         .eq('status', 'active')
         .not('next_roi_date', 'is', null)
-        .gte('next_roi_date', today.toISOString().slice(0, 10))
-        .lte('next_roi_date', end.toISOString().slice(0, 10))
+        .gte('next_roi_date', fromDateStr)
+        .lte('next_roi_date', toDateStr)
         .order('next_roi_date', { ascending: true })
         .limit(2000);
       if (error) throw error;
@@ -81,6 +107,43 @@ export function LiquidityForecastPanel({ onOpenTool }: LiquidityForecastPanelPro
         const gross = Math.round(Number(r.investment_amount || 0) * Number(r.roi_percentage || 0) / 100);
         return { ...r, roi_amount: gross };
       });
+    },
+  });
+
+  // Agent → Landlord payout float obligations (rent already collected, payout still owed).
+  // We use `sla_deadline` as the expected outflow date and include statuses that still
+  // represent money the pool must ship out.
+  const PENDING_LP_STATUSES = ['pending_merchant_payout', 'awaiting_agent_receipt', 'failed', 'pending', 'queued'];
+  const { data: lpRows, isLoading: lpLoading } = useQuery({
+    queryKey: ['finops-liquidity-landlord-payouts', fromDateStr, toDateStr],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('landlord_payouts')
+        .select('id, landlord_name, landlord_phone, amount, status, sla_deadline, mobile_money_provider, created_at')
+        .in('status', PENDING_LP_STATUSES)
+        .gte('sla_deadline', new Date(fromDateStr).toISOString())
+        .lte('sla_deadline', new Date(new Date(toDateStr).getTime() + 86_400_000).toISOString())
+        .order('sla_deadline', { ascending: true })
+        .limit(2000);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Overdue pool of landlord payouts already past SLA — always shown so it can't be hidden by the filter.
+  const { data: lpOverdue } = useQuery({
+    queryKey: ['finops-liquidity-landlord-payouts-overdue'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('landlord_payouts')
+        .select('amount, status')
+        .in('status', PENDING_LP_STATUSES)
+        .lt('sla_deadline', new Date().toISOString());
+      if (error) throw error;
+      const total = (data || []).reduce((s, r: any) => s + Number(r.amount || 0), 0);
+      return { total, count: (data || []).length };
     },
   });
 
@@ -109,6 +172,23 @@ export function LiquidityForecastPanel({ onOpenTool }: LiquidityForecastPanelPro
 
   const maxDay = Math.max(1, ...byDate.map((b) => b.total));
 
+  // Landlord payout float grouped by day (using sla_deadline date).
+  const lpByDate = useMemo(() => {
+    const map = new Map<string, { date: string; total: number; count: number; rows: any[] }>();
+    (lpRows || []).forEach((r: any) => {
+      const d = String(r.sla_deadline).slice(0, 10);
+      if (!map.has(d)) map.set(d, { date: d, total: 0, count: 0, rows: [] });
+      const b = map.get(d)!;
+      b.total += Number(r.amount || 0);
+      b.count += 1;
+      b.rows.push(r);
+    });
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [lpRows]);
+  const lpTotal = useMemo(() => lpByDate.reduce((s, b) => s + b.total, 0), [lpByDate]);
+  const lpMaxDay = Math.max(1, ...lpByDate.map((b) => b.total));
+  const [lpExpandedDate, setLpExpandedDate] = useState<string | null>(null);
+
   return (
     <div className="space-y-6">
       <div>
@@ -123,7 +203,7 @@ export function LiquidityForecastPanel({ onOpenTool }: LiquidityForecastPanelPro
       </div>
 
       {/* Top strip — three numbers that matter today. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Wallet className="h-3.5 w-3.5" /> Withdrawable in wallets
@@ -144,32 +224,89 @@ export function LiquidityForecastPanel({ onOpenTool }: LiquidityForecastPanelPro
         </div>
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <CalendarClock className="h-3.5 w-3.5" /> ROI due (next {horizon}d)
+            <CalendarClock className="h-3.5 w-3.5" /> ROI due ({windowLabel})
           </div>
           <p className="mt-2 text-xl font-bold">{formatUGX(totals.cashout)}</p>
           <p className="text-[11px] text-muted-foreground">
             + {formatUGX(totals.reinvest)} auto-reinvest (no cash-out)
           </p>
         </div>
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Home className="h-3.5 w-3.5" /> Landlord payout float ({windowLabel})
+          </div>
+          <p className="mt-2 text-xl font-bold">{formatUGX(lpTotal)}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {(lpRows || []).length} payouts due
+            {lpOverdue && lpOverdue.count > 0 && (
+              <> · <span className="text-red-600 font-semibold">{formatUGX(lpOverdue.total)} overdue</span></>
+            )}
+          </p>
+        </div>
       </div>
 
-      {/* Horizon selector */}
-      <div className="flex items-center gap-2">
+      {/* Horizon + calendar date-range filter */}
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Horizon</span>
         <div className="flex gap-1">
           {HORIZONS.map((h) => (
             <button
               key={h}
-              onClick={() => setHorizon(h)}
+              onClick={() => {
+                setHorizon(h);
+                setDateRange(undefined);
+              }}
               className={cn(
                 'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
-                horizon === h ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/70',
+                !dateRange && horizon === h
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-foreground hover:bg-muted/70',
               )}
             >
               {h}d
             </button>
           ))}
         </div>
+        <span className="text-xs text-muted-foreground">or</span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                'h-8 text-xs font-semibold',
+                dateRange && 'border-primary text-primary',
+              )}
+            >
+              <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+              {dateRange?.from
+                ? dateRange.to
+                  ? `${format(dateRange.from, 'MMM d')} → ${format(dateRange.to, 'MMM d')}`
+                  : format(dateRange.from, 'MMM d, yyyy')
+                : 'Pick date range'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={2}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
+        {dateRange && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => setDateRange(undefined)}
+          >
+            <X className="mr-1 h-3 w-3" /> Clear
+          </Button>
+        )}
       </div>
 
       {/* Per-day list with bar */}
@@ -261,6 +398,100 @@ export function LiquidityForecastPanel({ onOpenTool }: LiquidityForecastPanelPro
                                   </span>
                                 )}
                               </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* Landlord Payout Float — obligations by day */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            <Home className="h-4 w-4 text-primary" /> Agent → Landlord payout float
+          </h3>
+          <span className="text-[11px] text-muted-foreground">Rent already collected, payout still owed to landlord</span>
+        </div>
+        {lpLoading ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading landlord payout float…
+          </div>
+        ) : lpByDate.length === 0 ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">
+            No landlord payouts scheduled in this window.
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {lpByDate.map((b) => {
+              const pct = Math.round((b.total / lpMaxDay) * 100);
+              const isOpen = lpExpandedDate === b.date;
+              const dayLabel = new Date(b.date).toLocaleDateString(undefined, {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              });
+              const isOverdue = new Date(b.date) < new Date(new Date().toISOString().slice(0, 10));
+              return (
+                <li key={b.date}>
+                  <button
+                    type="button"
+                    onClick={() => setLpExpandedDate(isOpen ? null : b.date)}
+                    className="w-full text-left px-4 py-3 hover:bg-muted/40 transition"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex items-center gap-2">
+                        {isOpen ? (
+                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                        <span className={cn('text-sm font-semibold', isOverdue && 'text-red-600')}>
+                          {dayLabel}{isOverdue ? ' (overdue)' : ''}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {b.count} payout{b.count === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold">{formatUGX(b.total)}</p>
+                    </div>
+                    <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn('h-full', isOverdue ? 'bg-red-500' : 'bg-primary')}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </button>
+                  {isOpen && (
+                    <div className="bg-muted/30 px-4 py-3 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="text-muted-foreground">
+                          <tr>
+                            <th className="text-left py-1 font-semibold">Landlord</th>
+                            <th className="text-left py-1 font-semibold">Phone</th>
+                            <th className="text-left py-1 font-semibold">Provider</th>
+                            <th className="text-left py-1 font-semibold">Status</th>
+                            <th className="text-right py-1 font-semibold">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {b.rows.map((r: any) => (
+                            <tr key={r.id} className="border-t border-border/60">
+                              <td className="py-1.5 truncate max-w-[180px]">{r.landlord_name || '—'}</td>
+                              <td className="py-1.5 font-mono text-[11px]">{r.landlord_phone || '—'}</td>
+                              <td className="py-1.5">{r.mobile_money_provider || '—'}</td>
+                              <td className="py-1.5">
+                                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                  {String(r.status).replace(/_/g, ' ')}
+                                </span>
+                              </td>
+                              <td className="py-1.5 text-right font-semibold">{formatUGX(Number(r.amount || 0))}</td>
                             </tr>
                           ))}
                         </tbody>
