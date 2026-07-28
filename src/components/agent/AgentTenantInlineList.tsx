@@ -28,6 +28,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'owing'>('all');
   const [activeTenantIds, setActiveTenantIds] = useState<Set<string>>(new Set());
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  const [tenantAvatars, setTenantAvatars] = useState<Record<string, string>>({});
+  const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const fetchSeqRef = useRef(0);
   const PAGE_SIZE = 20;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -67,6 +69,24 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       });
       setTenantBalances(balances);
       setActiveTenantIds(activeIds);
+
+      // Fetch passport / avatar photos for the tenant list (fallback to initials on missing/broken).
+      const ids = tenantList.map((t) => t.id);
+      if (ids.length > 0) {
+        const { data: photoRows } = await supabase
+          .from('profiles')
+          .select('id, avatar_url')
+          .in('id', ids);
+        if (seq === fetchSeqRef.current) {
+          const map: Record<string, string> = {};
+          (photoRows || []).forEach((r: any) => {
+            if (r?.avatar_url) map[r.id] = r.avatar_url as string;
+          });
+          setTenantAvatars(map);
+        }
+      } else {
+        setTenantAvatars({});
+      }
     } catch (err) {
       console.error('Failed to fetch inline tenants:', err);
     } finally {
