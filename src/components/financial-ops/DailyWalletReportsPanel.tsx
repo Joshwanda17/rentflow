@@ -59,7 +59,10 @@ function todayEat(): string {
   return d.toISOString().slice(0, 10);
 }
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(`${dateStr}T00:00:00.000+03:00`);
+  // Treat YYYY-MM-DD as a calendar date, not as an instant in EAT.
+  // Creating it at 00:00+03:00 converts to the prior UTC date, which made
+  // "Yesterday" jump two calendar days back in this panel.
+  const d = new Date(`${dateStr}T12:00:00.000Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
