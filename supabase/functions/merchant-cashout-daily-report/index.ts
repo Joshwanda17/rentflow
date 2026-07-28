@@ -1,6 +1,7 @@
 // Daily report of INDIVIDUAL merchant (cash-out) agent payouts.
 //
-// Scheduled at 22:00 EAT (19:00 UTC) via pg_cron. Figures come straight from
+// Scheduled at 00:00 EAT (21:00 UTC) via pg_cron for the completed previous
+// EAT day. Figures come straight from
 // the immutable general_ledger through the SECURITY DEFINER RPC
 // `generate_merchant_cashout_daily_report`, so totals are accurate and match
 // what merchants actually settled during the day.
@@ -68,10 +69,14 @@ async function ensureUnsubscribeToken(
   return (stored?.token as string) || token;
 }
 
-// Current calendar date in East Africa Time (UTC+3, no DST).
-function eatToday(): string {
-  const eat = new Date(Date.now() + 3 * 60 * 60 * 1000);
+// Calendar date in East Africa Time (UTC+3, no DST), offset by whole days.
+function eatDate(daysOffset = 0): string {
+  const eat = new Date(Date.now() + (3 * 60 * 60 + daysOffset * 24 * 60 * 60) * 1000);
   return eat.toISOString().slice(0, 10);
+}
+
+function defaultReportDate(): string {
+  return eatDate(-1);
 }
 
 function esc(s: unknown): string {
@@ -328,8 +333,9 @@ Deno.serve(async (req) => {
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Resolve target date (default: today in EAT). Allow override + force.
-    let targetDate = eatToday();
+    // Resolve target date (default: the completed previous EAT day).
+    // Manual POST requests can still override the date for backfills/regeneration.
+    let targetDate = defaultReportDate();
     let force = false;
     let recipientsOverride: string[] | null = null;
     if (req.method === "POST") {
