@@ -29,11 +29,15 @@ export function EarnedSinceLastWithdrawalCard() {
     enabled: !!user?.id,
     staleTime: 30_000,
     queryFn: async () => {
+      if (!user?.id) {
+        return { earned: 0, count: 0, since: null as string | null, lastAmount: 0 };
+      }
+
       // Most recent wallet_withdrawal for this agent
       const { data: lastWd } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
         .select('created_at, amount, classification, category, source_table, description, reference_id')
-        .eq('user_id', user!.id)
+        .eq('user_id', user.id)
         .eq('ledger_scope', 'wallet')
         .eq('category', 'wallet_withdrawal')
         .eq('direction', 'cash_out'))
@@ -49,7 +53,7 @@ export function EarnedSinceLastWithdrawalCard() {
       const { data: rows } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
         .select('amount, description, created_at, classification, category, source_table, reference_id')
-        .eq('user_id', user!.id)
+        .eq('user_id', user.id)
         .eq('ledger_scope', 'wallet')
         .eq('direction', 'cash_in')
         .in('category', EARN_CATEGORIES)
