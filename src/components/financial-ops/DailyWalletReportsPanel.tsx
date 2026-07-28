@@ -28,8 +28,8 @@ interface ReportRow {
   total_deposited: number;
   total_paid_out: number;
   closing_balance: number;
-  deposits_by_source: Metrics['deposits_by_source'];
-  payouts_by_channel: Metrics['payouts_by_channel'];
+  deposits_by_source: Metrics['deposits'];
+  payouts_by_channel: Metrics['payouts'];
   pdf_path: string | null;
   xlsx_path: string | null;
   generated_at: string;
