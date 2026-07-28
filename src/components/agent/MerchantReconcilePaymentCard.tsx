@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { RefreshCw, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Loader2, CheckCircle2, AlertTriangle, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -50,6 +50,23 @@ export function MerchantReconcilePaymentCard({ agentId, cashoutAgentId, onDone }
 
   const phoneKey = last9(phone) ?? '';
   const tidNorm = normalizeMomoTid(tid);
+
+  // Merchant float balance — reconciliation still debits the merchant's
+  // Welile float bucket (the cash they physically dispensed to the recipient),
+  // so surface the current float and block submissions that would overdraw it.
+  const { data: merchantFloat = 0 } = useQuery({
+    queryKey: ['merchant-reconcile-float', agentId],
+    enabled: !!agentId,
+    staleTime: 15_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('wallets')
+        .select('float_balance')
+        .eq('user_id', agentId)
+        .maybeSingle();
+      return Number((data as any)?.float_balance ?? 0);
+    },
+  });
 
   // Resolve the phone → profile, then list this recipient's in-flight
   // withdrawal requests with no TID yet. Only enabled once we have a plausible
@@ -102,10 +119,14 @@ export function MerchantReconcilePaymentCard({ agentId, cashoutAgentId, onDone }
     [candidates, selectedId],
   );
 
+  const chosenAmount = Number(chosen?.amount ?? 0);
+  const insufficientFloat = !!chosen && chosenAmount > merchantFloat;
+
   const canSubmit =
     !!chosen &&
     tidNorm.length >= 6 &&
     !tidConflict &&
+    !insufficientFloat &&
     !submitting;
 
   const handleSubmit = async () => {
@@ -119,6 +140,10 @@ export function MerchantReconcilePaymentCard({ agentId, cashoutAgentId, onDone }
     }
     if (tidConflict) {
       toast.error('That TID is already recorded on another withdrawal.');
+      return;
+    }
+    if (insufficientFloat) {
+      toast.error('Not enough merchant float to cover this reconciliation.');
       return;
     }
     setSubmitting(true);
@@ -276,6 +301,40 @@ export function MerchantReconcilePaymentCard({ agentId, cashoutAgentId, onDone }
             </p>
           )}
         </label>
+
+        {/* Merchant float disclosure — reconciliation debits the merchant's
+            Welile float for the exact payout amount, matching the standard
+            payout flow. Make that visible so the operator knows before submit. */}
+        <div
+          className={cn(
+            'flex items-start gap-2 rounded-2xl border p-3 text-[11px]',
+            insufficientFloat
+              ? 'border-destructive/40 bg-destructive/5 text-destructive'
+              : 'border-border/60 bg-muted/30 text-muted-foreground',
+          )}
+        >
+          <Wallet className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <div className="space-y-0.5">
+            <p className="font-semibold">
+              Your float: {formatUGX(merchantFloat)}
+            </p>
+            {chosen ? (
+              insufficientFloat ? (
+                <p>
+                  Reconciling will try to deduct {formatUGX(chosenAmount)} from your float —
+                  not enough. Ask the CFO/treasury to top up before reconciling.
+                </p>
+              ) : (
+                <p>
+                  Reconciling will deduct {formatUGX(chosenAmount)} from your float
+                  (the cash you already dispensed). Float after: {formatUGX(merchantFloat - chosenAmount)}.
+                </p>
+              )
+            ) : (
+              <p>Pick a withdrawal above to see the float that will be deducted.</p>
+            )}
+          </div>
+        </div>
 
         <motion.button
           type="button"
