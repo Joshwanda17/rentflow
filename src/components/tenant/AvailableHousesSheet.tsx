@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon } from 'lucide-react';
+import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { AgentContactBar } from '@/components/tenant/AgentContactBar';
 import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -212,6 +212,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [selectedSubCounty, setSelectedSubCounty] = useState('all');
   const [selectedVillage, setSelectedVillage] = useState('all');
   const [view, setView] = useState<'list' | 'map'>('list');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   // Bottom sentinel — when it scrolls into view we ask for the next page.
@@ -373,7 +374,35 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 ? `Houses in ${selectedRegion}`
                 : 'Available Houses'}
             </SheetTitle>
-            <div className="flex items-center rounded-full border border-border bg-muted/40 p-0.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
+              {(() => {
+                const activeCount =
+                  (searchText.trim().length > 0 ? 1 : 0) +
+                  (selectedRegion !== 'All Regions' ? 1 : 0) +
+                  (selectedCategory !== 'all' ? 1 : 0) +
+                  (selectedDistrict !== 'all' ? 1 : 0) +
+                  (selectedSubCounty !== 'all' ? 1 : 0) +
+                  (selectedVillage !== 'all' ? 1 : 0);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen(o => !o)}
+                    aria-expanded={filtersOpen}
+                    aria-controls="available-houses-filters"
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition"
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    Filters
+                    {activeCount > 0 && (
+                      <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                        {activeCount}
+                      </span>
+                    )}
+                    {filtersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                );
+              })()}
+              <div className="flex items-center rounded-full border border-border bg-muted/40 p-0.5">
               <button
                 type="button"
                 onClick={() => setView('list')}
@@ -390,6 +419,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               >
                 <MapIcon className="h-3.5 w-3.5" /> Map
               </button>
+              </div>
             </div>
           </div>
 
@@ -401,6 +431,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             region={selectedRegion !== 'All Regions' ? selectedRegion : undefined}
           />
 
+          {filtersOpen && (
+          <div id="available-houses-filters" className="space-y-3">
           <form
             role="search"
             onSubmit={(e) => {
@@ -526,6 +558,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 </SelectContent>
               </Select>
             </div>
+          )}
+          </div>
           )}
         </SheetHeader>
 
