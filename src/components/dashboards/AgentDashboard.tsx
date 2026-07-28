@@ -874,7 +874,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
             </div>
             <AiIdButton variant="compact" />
-            <AgentNotificationBell userId={user.id} />
+            <div className="ml-auto">
+              <AgentNotificationBell userId={user.id} />
+            </div>
           </div>
         )}
 
