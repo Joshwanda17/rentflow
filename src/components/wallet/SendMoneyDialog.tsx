@@ -79,6 +79,11 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [recipientSearch, setRecipientSearch] = useState('');
   const [approvedDepositCount, setApprovedDepositCount] = useState<number | null>(null);
   const MIN_APPROVED_DEPOSITS = 10;
+  // Agent daily-collection performance gate (mirrors WithdrawFlow). When an
+  // agent has active tenants and today's collection ratio < 20%, sending
+  // money to another user is blocked — same rule as withdrawals.
+  const [perfLocked, setPerfLocked] = useState(false);
+  const [perfPct, setPerfPct] = useState<number | null>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   type RecipientMatch = {
@@ -123,6 +128,46 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
         return;
       }
       setApprovedDepositCount(count ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [open, user?.id]);
+
+  // Agent performance gate — locks transfers when today's collection ratio
+  // is under 20% (matches server-side wallet-transfer + withdrawal trigger).
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const [{ data: rolesRows }, { data: cashoutRow }, { data: proxyRow }, { data: gateOff }] = await Promise.all([
+        supabase.from('user_roles').select('role').eq('user_id', user.id),
+        supabase.from('cashout_agents').select('agent_id').eq('agent_id', user.id).eq('is_active', true).maybeSingle(),
+        (supabase as any).from('proxy_agent_assignments').select('agent_id').eq('agent_id', user.id).eq('is_active', true).maybeSingle(),
+        supabase.rpc('is_agent_perf_gate_disabled' as never),
+      ]);
+      if (cancelled) return;
+      const roles = (rolesRows ?? []).map((r: any) => r.role as string);
+      const isAgent = roles.includes('agent') || roles.includes('senior_agent');
+      const isMerchant = !!cashoutRow;
+      const isProxy = !!proxyRow;
+      if (!isAgent || isMerchant || isProxy || gateOff) {
+        setPerfLocked(false);
+        setPerfPct(null);
+        return;
+      }
+      const { data: perf } = await (supabase as any)
+        .from('v_agent_daily_eligibility')
+        .select('active_count, expected_daily, today_pct')
+        .eq('agent_id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!perf || Number(perf.active_count) <= 0 || Number(perf.expected_daily) <= 0) {
+        setPerfLocked(false);
+        setPerfPct(null);
+        return;
+      }
+      const pct = Number(perf.today_pct ?? 0) * 100;
+      setPerfPct(pct);
+      setPerfLocked(pct < 20);
     })();
     return () => { cancelled = true; };
   }, [open, user?.id]);
@@ -378,6 +423,9 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   // Returned string is shown inline; null means the button is enabled.
   const getDisabledReason = (): string | null => {
     if (loading) return 'Sending… please wait.';
+    if (perfLocked) {
+      return `Transfers disabled: today's collection is ${(perfPct ?? 0).toFixed(1)}% (min 20%). Collect from your tenants first.`;
+    }
     if (transferLocked) {
       return `Sending to another user unlocks after ${MIN_APPROVED_DEPOSITS} approved deposits (${depositsCompleted}/${MIN_APPROVED_DEPOSITS}).`;
     }
@@ -698,6 +746,26 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                           {depositsRemaining > 0 && (
                             <> — {depositsRemaining} more to go</>
                           )}. You can still deposit, withdraw, pay rent and pay merchants normally.
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                {!transferLocked && perfLocked && (
+                  <motion.div
+                    variants={itemVariants}
+                    className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          Sending to other users is locked today
+                        </p>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Today's collection is <span className="font-semibold text-foreground">{(perfPct ?? 0).toFixed(1)}%</span> — you must be at least
+                          <span className="font-semibold text-foreground"> 20%</span> to move money out of your wallet.
+                          Collect from your tenants and this will unlock automatically.
                         </p>
                       </div>
                     </div>

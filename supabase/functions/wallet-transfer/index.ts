@@ -216,6 +216,46 @@ Deno.serve(async (req) => {
       );
     }
 
+    // === Agent daily-collection performance gate ===
+    // Mirrors the withdrawal trigger `enforce_agent_perf_withdrawal`: an agent
+    // with active tenants whose today's collection ratio is under 20% may not
+    // move money out of their wallet — including wallet-to-wallet transfers.
+    // Merchant / proxy / cashout agent debits are exempt (matches withdraw).
+    try {
+      const { data: gateDisabled } = await adminClient.rpc('is_agent_perf_gate_disabled' as never);
+      if (!gateDisabled) {
+        const [{ data: rolesRows }, { data: cashoutRow }, { data: proxyRow }] = await Promise.all([
+          adminClient.from('user_roles').select('role').eq('user_id', senderId),
+          adminClient.from('cashout_agents').select('agent_id').eq('agent_id', senderId).eq('is_active', true).maybeSingle(),
+          adminClient.from('proxy_agent_assignments').select('agent_id').eq('agent_id', senderId).eq('is_active', true).maybeSingle(),
+        ]);
+        const roles = (rolesRows ?? []).map((r: { role: string }) => r.role);
+        const isAgent = roles.includes('agent') || roles.includes('senior_agent');
+        const isMerchant = !!cashoutRow;
+        const isProxy = !!proxyRow;
+        if (isAgent && !isMerchant && !isProxy) {
+          const { data: perf } = await adminClient
+            .from('v_agent_daily_eligibility')
+            .select('active_count, expected_daily, today_pct')
+            .eq('agent_id', senderId)
+            .maybeSingle();
+          if (perf && Number(perf.active_count) > 0 && Number(perf.expected_daily) > 0) {
+            const pct = Number(perf.today_pct ?? 0) * 100;
+            if (pct < 20) {
+              return new Response(
+                JSON.stringify({
+                  error: `Transfers disabled: today's collection performance is ${pct.toFixed(1)}% (min 20%). Collect from your tenants first.`,
+                }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[wallet-transfer] perf gate check failed (allowing):', e);
+    }
+
     const safeDescription = typeof description === 'string' ? description.trim().slice(0, 500) : 'Wallet transfer';
 
     // === Canonical descriptions per transfer kind ===
