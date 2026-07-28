@@ -45,17 +45,36 @@ async function fetchUserIds(scope: DrilldownScope): Promise<string[] | null> {
     return Array.from(new Set((data || []).map((r: any) => r.user_id).filter(Boolean)));
   }
 
-  // otp_login_audit-based scopes
+  // DAU drilldown sources from login_phase_events to match the chart.
+  if (scope.kind === 'dau') {
+    const { data } = await supabase
+      .from('login_phase_events')
+      .select('user_id')
+      .not('user_id', 'is', null)
+      .gte('created_at', scope.start)
+      .lte('created_at', scope.end)
+      .limit(200000);
+    return Array.from(new Set((data || []).map((r: any) => r.user_id).filter(Boolean)));
+  }
+
+  // Login funnel scopes stay on otp_login_audit (OTP challenge audit).
+  // Column is resolved_user_id (falls back to actual_user_id).
   let q = supabase
     .from('otp_login_audit')
-    .select('user_id, outcome')
+    .select('resolved_user_id, actual_user_id, outcome')
     .gte('created_at', scope.start)
     .lte('created_at', scope.end)
     .limit(50000);
-  if (scope.kind === 'login_success' || scope.kind === 'dau') q = q.eq('outcome', 'success');
+  if (scope.kind === 'login_success') q = q.eq('outcome', 'success');
   if (scope.kind === 'login_failed') q = q.neq('outcome', 'success');
   const { data } = await q;
-  return Array.from(new Set((data || []).map((r: any) => r.user_id).filter(Boolean)));
+  return Array.from(
+    new Set(
+      (data || [])
+        .map((r: any) => r.resolved_user_id || r.actual_user_id)
+        .filter(Boolean),
+    ),
+  );
 }
 
 export function UserAnalyticsDrilldown({

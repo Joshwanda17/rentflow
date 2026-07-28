@@ -103,14 +103,17 @@ export function UserAnalyticsView() {
 
   // Daily active users (distinct successful logins)
   const { data: activeSeries, isLoading: loadingActive } = useQuery({
-    queryKey: ['user-analytics-active', preset, customStart, customEnd],
+    queryKey: ['user-analytics-active-v2', preset, customStart, customEnd],
     queryFn: async () => {
+      // Source: login_phase_events — real session activity across the app.
+      // otp_login_audit only captures OTP challenges, dramatically undercounting DAU.
       const { data } = await supabase
-        .from('otp_login_audit')
-        .select('created_at, user_id, outcome')
-        .eq('outcome', 'success')
+        .from('login_phase_events')
+        .select('created_at, user_id')
+        .not('user_id', 'is', null)
         .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString());
+        .lte('created_at', end.toISOString())
+        .limit(200000);
       const map = new Map<string, Set<string>>();
       days.forEach((d) => map.set(format(d, 'yyyy-MM-dd'), new Set()));
       (data || []).forEach((r: any) => {
