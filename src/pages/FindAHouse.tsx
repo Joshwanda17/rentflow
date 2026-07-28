@@ -1091,62 +1091,119 @@ export default function FindAHouse() {
 
             {/* Expandable filter panel */}
             {showFilters && (
-              <div className="space-y-3 pt-1">
-                {/* Verified + price cap */}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setVerifiedOnly(v => !v)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                      verifiedOnly
-                        ? 'bg-success text-success-foreground border-success'
-                        : 'bg-muted/60 text-muted-foreground border-border'
-                    }`}
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" /> Verified only
-                  </button>
-                  <Select value={maxDaily} onValueChange={setMaxDaily}>
-                    <SelectTrigger className="h-8 w-auto text-xs gap-1.5 rounded-full px-3">
-                      <SelectValue placeholder="Max daily" />
+              <div id="find-a-house-filters" className="space-y-4 pt-2">
+                {/* Daily rent */}
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily rent</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRICE_CHIPS.map(chip => {
+                      const active = (chip.min ?? undefined) === minPrice && (chip.max ?? undefined) === maxPrice;
+                      return (
+                        <button
+                          key={chip.label}
+                          type="button"
+                          onClick={() => { setMinPrice(chip.min); setMaxPrice(chip.max); }}
+                          aria-pressed={active}
+                          className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+                        >
+                          {chip.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      placeholder="Min UGX/day"
+                      value={minPrice ?? ''}
+                      onChange={e => setMinPrice(e.target.value ? Number(e.target.value) : undefined)}
+                      className="h-9 text-xs flex-1"
+                      aria-label="Minimum daily rate"
+                    />
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      placeholder="Max UGX/day"
+                      value={maxPrice ?? ''}
+                      onChange={e => setMaxPrice(e.target.value ? Number(e.target.value) : undefined)}
+                      className="h-9 text-xs flex-1"
+                      aria-label="Maximum daily rate"
+                    />
+                  </div>
+                </div>
+
+                {/* Rooms + Sort */}
+                <div className="flex gap-2">
+                  <Select value={String(minRooms)} onValueChange={v => setMinRooms(Number(v))}>
+                    <SelectTrigger className="flex-1 h-9 text-xs">
+                      <BedDouble className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                      <SelectValue placeholder="Any rooms" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Any price</SelectItem>
-                      <SelectItem value="5000">Under {formatUGX(5000)}/day</SelectItem>
-                      <SelectItem value="10000">Under {formatUGX(10000)}/day</SelectItem>
-                      <SelectItem value="20000">Under {formatUGX(20000)}/day</SelectItem>
-                      <SelectItem value="50000">Under {formatUGX(50000)}/day</SelectItem>
+                      <SelectItem value="0">Any rooms</SelectItem>
+                      <SelectItem value="1">1+ rooms</SelectItem>
+                      <SelectItem value="2">2+ rooms</SelectItem>
+                      <SelectItem value="3">3+ rooms</SelectItem>
+                      <SelectItem value="4">4+ rooms</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                    <SelectTrigger className="flex-1 h-9 text-xs">
+                      <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SORT_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                {/* Amenity chips */}
-                <div className="flex flex-wrap gap-2">
-                  {AMENITY_FILTERS.map(({ key, label, icon: Icon }) => {
-                    const active = activeAmenities.includes(key);
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => toggleAmenity(key)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                          active
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-muted/60 text-muted-foreground border-border'
-                        }`}
-                      >
-                        <Icon className="h-3.5 w-3.5" /> {label}
-                      </button>
-                    );
-                  })}
+
+                {/* Must have */}
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Must have</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {AMENITY_TOGGLES.map(({ key, label, Icon }) => {
+                      const active = amenities[key];
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => toggleAmenity(key)}
+                          aria-pressed={active}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-medium transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                {activeFilterCount > 0 && (
+
+                {/* Clear + Apply */}
+                <div className="flex flex-col gap-2 pt-1">
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" /> Clear all filters
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={clearFilters}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowFilters(false)}
+                    className="w-full inline-flex items-center justify-center gap-1.5 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shadow-sm hover:bg-primary/90 active:scale-[0.99] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
-                    <X className="h-3.5 w-3.5" /> Clear all filters
+                    <SlidersHorizontal className="h-4 w-4" /> Apply filters
                   </button>
-                )}
+                </div>
               </div>
             )}
           </div>
