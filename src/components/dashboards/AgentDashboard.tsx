@@ -849,9 +849,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <Skeleton className="h-5 w-40" />
                 <Skeleton className="h-3 w-24" />
               </div>
-              <Skeleton className="h-8 w-8 rounded-lg" />
+              <div className="hidden sm:flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded-lg" />
+                <Skeleton className="h-8 w-8 rounded-lg" />
+              </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex sm:hidden justify-end gap-2">
+              <Skeleton className="h-8 w-8 rounded-lg" />
               <Skeleton className="h-8 w-8 rounded-lg" />
             </div>
           </div>
@@ -878,9 +882,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 </h1>
                 <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
               </div>
-              <AiIdButton variant="compact" />
+              <div className="hidden sm:flex items-center gap-2">
+                <AiIdButton variant="compact" />
+                <AgentNotificationBell userId={user.id} />
+              </div>
             </div>
-            <div className="flex justify-end">
+            {/* Mobile: AI ID + bell sit below the avatar/name row */}
+            <div className="flex sm:hidden items-center justify-end gap-2">
+              <AiIdButton variant="compact" />
               <AgentNotificationBell userId={user.id} />
             </div>
           </div>
