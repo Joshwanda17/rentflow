@@ -2790,6 +2790,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         return;
       }
 
+      // Upload the tenant passport photo BEFORE inserting the rent request.
+      // The DB trigger `enforce_rent_request_tenant_photo` blocks inserts where
+      // `tenant_photo_url` is null/empty, so we can't defer the upload to after
+      // the insert as we used to.
+      let preInsertTenantPhotoUrl: string | null = null;
+      if (tenantPhoto) {
+        const tempId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+          ? crypto.randomUUID()
+          : `pre_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        preInsertTenantPhotoUrl = await uploadTenantPhoto(tempId, tenantId);
+        if (!preInsertTenantPhotoUrl) {
+          const msg = "Couldn't upload the tenant's passport photo. Check your connection and try again.";
+          setSubmissionError(msg);
+          toast.error('Photo upload failed', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          return;
+        }
+      }
+
       const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
@@ -2812,6 +2833,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           agent_guarantor_consent: true,
           agent_guarantor_consent_at: new Date().toISOString(),
           agent_guarantor_consent_version: 'v1',
+          tenant_photo_url: preInsertTenantPhotoUrl,
           ...(isOutstanding ? {
             registration_type: 'outstanding_balance',
             initial_outstanding_balance: amount,
@@ -2896,16 +2918,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
-      // Upload tenant passport photo (required)
-      if (tenantPhoto && rentReq?.id) {
-        const tenantPhotoUrl = await uploadTenantPhoto(rentReq.id, tenantId);
-        if (tenantPhotoUrl) {
-          await supabase
-            .from('rent_requests')
-            .update({ tenant_photo_url: tenantPhotoUrl } as any)
-            .eq('id', rentReq.id);
-        }
-      }
+      // Tenant passport photo already uploaded + stamped on the row above,
+      // before the insert, to satisfy the DB tenant-photo enforcement trigger.
 
       // Build activation link if tenant is new
       if (!tenantResult.existing && tenantResult.activation_token) {
