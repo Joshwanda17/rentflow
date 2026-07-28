@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -6,11 +6,6 @@ import {
   startOfDay,
   endOfDay,
   subDays,
-  startOfWeek,
-  startOfMonth,
-  eachDayOfInterval,
-  eachWeekOfInterval,
-  eachMonthOfInterval,
   differenceInCalendarDays,
 } from 'date-fns';
 import {
@@ -38,13 +33,20 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 type RangePreset = 'last_7' | 'last_30' | 'last_90' | 'last_180' | 'custom';
 type Granularity = 'day' | 'week' | 'month';
 
-interface ProfileRow {
-  id: string;
-  full_name: string | null;
-  phone: string | null;
-  created_at: string;
-  referrer_id: string | null;
-  signup_source: string | null;
+interface TrendsRPC {
+  totals: { total: number; referred: number };
+  buckets: { bucket: string; total: number; referred: number; organic: number }[];
+  dow: { d: number; c: number }[];
+  source_mix: { name: string; value: number }[];
+  top_days: { day: string; c: number }[];
+  recent: {
+    id: string;
+    full_name: string | null;
+    phone: string | null;
+    created_at: string;
+    referrer_id: string | null;
+    signup_source: string | null;
+  }[];
 }
 
 function rangeBounds(preset: RangePreset, cs: string, ce: string) {
@@ -79,151 +81,70 @@ export function SignupTrendsView() {
   const prevStart = new Date(start.getTime() - spanDays * 86400000);
   const prevEnd = new Date(start.getTime() - 1);
 
-  // Row cap for chart/table sampling. KPIs are computed from exact server counts
-  // (see queries below) so they remain correct even if this cap is hit.
-  const ROW_CAP = 60000;
-
-  // Signups in current range
-  const { data: current, isLoading } = useQuery({
-    queryKey: ['signup-trends-current', start.toISOString(), end.toISOString()],
+  // Single server-side aggregation RPC — no client-side row pagination.
+  const { data: trends, isLoading } = useQuery({
+    queryKey: ['signup-trends-rpc', start.toISOString(), end.toISOString(), granularity],
     staleTime: 5 * 60 * 1000,
-    queryFn: async (): Promise<ProfileRow[]> => {
-      const rows: ProfileRow[] = [];
-      const pageSize = 1000;
-      let offset = 0;
-      while (offset < ROW_CAP) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, created_at, referrer_id, signup_source')
-          .gte('created_at', start.toISOString())
-          .lte('created_at', end.toISOString())
-          .order('created_at', { ascending: false })
-          .range(offset, offset + pageSize - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        rows.push(...(data as ProfileRow[]));
-        if (data.length < pageSize) break;
-        offset += pageSize;
-      }
-      return rows;
-    },
-  });
-
-  // Exact server-side counts drive the KPI cards (independent of the row cap).
-  const { data: totals } = useQuery({
-    queryKey: ['signup-trends-totals', start.toISOString(), end.toISOString()],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const [totalRes, referredRes] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', start.toISOString())
-          .lte('created_at', end.toISOString()),
-        supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', start.toISOString())
-          .lte('created_at', end.toISOString())
-          .not('referrer_id', 'is', null),
-      ]);
-      return {
-        total: totalRes.count || 0,
-        referred: referredRes.count || 0,
-      };
+    queryFn: async (): Promise<TrendsRPC> => {
+      const { data, error } = await supabase.rpc('get_signup_trends', {
+        p_start: start.toISOString(),
+        p_end: end.toISOString(),
+        p_granularity: granularity,
+      });
+      if (error) throw error;
+      return data as unknown as TrendsRPC;
     },
   });
 
   const { data: prevCount } = useQuery({
-    queryKey: ['signup-trends-prev-count', prevStart.toISOString(), prevEnd.toISOString()],
+    queryKey: ['signup-trends-prev-total', prevStart.toISOString(), prevEnd.toISOString()],
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { count } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', prevStart.toISOString())
-        .lte('created_at', prevEnd.toISOString());
-      return count || 0;
+    queryFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc('get_signup_totals_range', {
+        p_start: prevStart.toISOString(),
+        p_end: prevEnd.toISOString(),
+      });
+      if (error) throw error;
+      return (data as { total?: number } | null)?.total ?? 0;
     },
   });
 
-  const rows = current || [];
-  const totalSignups = totals?.total ?? 0;
-  const referred = totals?.referred ?? 0;
+  const totalSignups = trends?.totals?.total ?? 0;
+  const referred = trends?.totals?.referred ?? 0;
   const organic = Math.max(0, totalSignups - referred);
-  const sampleTruncated = totalSignups > rows.length;
   const referralShare = totalSignups > 0 ? Math.round((referred / totalSignups) * 100) : 0;
   const growthPct = (prevCount || 0) > 0 ? Math.round(((totalSignups - (prevCount || 0)) / (prevCount || 0)) * 100) : 0;
   const avgPerDay = spanDays > 0 ? Math.round(totalSignups / spanDays) : 0;
 
-  // Trend buckets
-  const trend = useMemo(() => {
-    const buckets: Record<string, { key: string; label: string; total: number; referred: number; organic: number }> = {};
-    const seed = (d: Date, label: string) => {
-      const key = d.toISOString();
-      if (!buckets[key]) buckets[key] = { key, label, total: 0, referred: 0, organic: 0 };
-      return buckets[key];
-    };
-    if (granularity === 'day') {
-      eachDayOfInterval({ start, end }).forEach((d) => seed(startOfDay(d), format(d, 'MMM d')));
-    } else if (granularity === 'week') {
-      eachWeekOfInterval({ start, end }).forEach((d) => seed(startOfWeek(d), format(d, 'MMM d')));
-    } else {
-      eachMonthOfInterval({ start, end }).forEach((d) => seed(startOfMonth(d), format(d, 'MMM yyyy')));
-    }
-    for (const r of rows) {
-      const d = new Date(r.created_at);
-      const bucketDate =
-        granularity === 'day' ? startOfDay(d) : granularity === 'week' ? startOfWeek(d) : startOfMonth(d);
-      const key = bucketDate.toISOString();
-      const label =
-        granularity === 'day'
-          ? format(bucketDate, 'MMM d')
-          : granularity === 'week'
-          ? format(bucketDate, 'MMM d')
-          : format(bucketDate, 'MMM yyyy');
-      const b = buckets[key] || seed(bucketDate, label);
-      b.total += 1;
-      if (r.referrer_id) b.referred += 1;
-      else b.organic += 1;
-    }
-    return Object.values(buckets).sort((a, b) => a.key.localeCompare(b.key));
-  }, [rows, granularity, start, end]);
+  const labelFor = (iso: string) => {
+    const d = new Date(iso);
+    if (granularity === 'month') return format(d, 'MMM yyyy');
+    return format(d, 'MMM d');
+  };
 
-  // Day-of-week distribution
-  const dow = useMemo(() => {
+  const trend = (trends?.buckets ?? []).map((b) => ({
+    key: b.bucket,
+    label: labelFor(b.bucket),
+    total: b.total,
+    referred: b.referred,
+    organic: b.organic,
+  }));
+
+  const dow = (() => {
     const counts = Array(7).fill(0);
-    for (const r of rows) counts[new Date(r.created_at).getDay()] += 1;
+    for (const r of trends?.dow ?? []) counts[r.d] = r.c;
     return counts.map((v, i) => ({ day: DOW_LABELS[i], signups: v }));
-  }, [rows]);
+  })();
 
-  // Source pie
-  const sourceMix = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of rows) {
-      const key = (r.signup_source || (r.referrer_id ? 'referral' : 'direct')).toLowerCase();
-      map.set(key, (map.get(key) || 0) + 1);
-    }
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-  }, [rows]);
+  const sourceMix = (trends?.source_mix ?? []).map((s) => ({ name: s.name, value: s.value }));
 
-  // Top days
-  const topDays = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of rows) {
-      const k = format(new Date(r.created_at), 'yyyy-MM-dd');
-      map.set(k, (map.get(k) || 0) + 1);
-    }
-    return Array.from(map.entries())
-      .map(([date, signups]) => ({ date, signups, label: format(new Date(date), 'EEE, MMM d') }))
-      .sort((a, b) => b.signups - a.signups)
-      .slice(0, 10);
-  }, [rows]);
+  const topDays = (trends?.top_days ?? []).map((t) => ({
+    date: t.day,
+    signups: t.c,
+    label: format(new Date(t.day), 'EEE, MMM d'),
+  }));
 
-  const recent = rows.slice(0, 25).map((r) => ({
+  const recent = (trends?.recent ?? []).map((r) => ({
     id: r.id,
     when: format(new Date(r.created_at), 'MMM d, HH:mm'),
     name: r.full_name || '—',
@@ -351,11 +272,6 @@ export function SignupTrendsView() {
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
         <div className="flex items-center justify-between mb-3 gap-2">
           <h3 className="text-sm font-semibold">Signups over time</h3>
-          {sampleTruncated && (
-            <span className="text-[10px] text-amber-600 dark:text-amber-400">
-              Chart sample: {rows.length.toLocaleString()} / {totalSignups.toLocaleString()} rows
-            </span>
-          )}
         </div>
         {trend.length === 0 ? (
           <p className="text-xs text-muted-foreground py-12 text-center">No signups in this range.</p>
