@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { HandCoins, ArrowUpRight, ArrowDownLeft, TrendingUp, History } from 'lucide-react';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 interface ProxyTransaction {
   id: string;
@@ -17,6 +18,8 @@ interface ProxyTransaction {
   reference_id: string | null;
   linked_party: string | null;
   transaction_date: string;
+  classification?: string | null;
+  source_table?: string | null;
 }
 
 interface ProxyInvestmentHistorySheetProps {
@@ -39,16 +42,16 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      const { data, error } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
-        .select('id, amount, direction, category, description, reference_id, linked_party, transaction_date')
+        .select('id, amount, direction, category, description, reference_id, linked_party, transaction_date, classification, source_table')
         .eq('user_id', user.id)
-        .in('category', ['agent_proxy_investment', 'proxy_investment_commission', 'angel_pool_commission'])
+        .in('category', ['agent_proxy_investment', 'proxy_investment_commission', 'angel_pool_commission']))
         .order('transaction_date', { ascending: false })
         .limit(50);
 
       if (error) throw error;
-      setTransactions(data || []);
+      setTransactions((data || []).filter(isCustomerWalletLedgerEntryVisible));
     } catch (err) {
       console.error('Error fetching proxy investment history:', err);
     } finally {

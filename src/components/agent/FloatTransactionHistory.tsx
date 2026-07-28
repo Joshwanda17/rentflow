@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { ArrowDownLeft, ArrowUpRight, History, Users, Wallet, FileText, Undo2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ReverseAllocationDialog } from './ReverseAllocationDialog';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 interface Props {
   open: boolean;
@@ -65,11 +66,11 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
           .eq('agent_id', user.id)
           .order('created_at', { ascending: false })
           .limit(300),
-        supabase
+        applyCustomerWalletLedgerFilters(supabase
           .from('general_ledger')
-          .select('id, amount, description, direction, created_at, category, linked_party')
+          .select('id, amount, description, direction, created_at, category, linked_party, classification, source_table, reference_id')
           .eq('user_id', user.id)
-          .eq('ledger_scope', 'wallet')
+          .eq('ledger_scope', 'wallet'))
           .order('created_at', { ascending: false })
           .limit(300),
       ]);
@@ -77,7 +78,7 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
       // Resolve tenant names for allocations
       const tenantIds = Array.from(new Set([
         ...(allocations || []).map(a => a.tenant_id).filter(Boolean),
-        ...(ledger || []).map(l => l.linked_party).filter(Boolean),
+        ...(ledger || []).filter(isCustomerWalletLedgerEntryVisible).map(l => l.linked_party).filter(Boolean),
       ])) as string[];
       const tenantMap: Record<string, string> = {};
       if (tenantIds.length > 0) {
@@ -140,7 +141,7 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
 
       // Add ledger entries that aren't already represented (commissions, fees, transfers)
       const seenCats = new Set(['rent_float_funding', 'agent_float_used_for_rent']);
-      (ledger || []).forEach(l => {
+      (ledger || []).filter(isCustomerWalletLedgerEntryVisible).forEach(l => {
         const isCovered = seenCats.has(l.category) || l.category === 'rent_disbursement';
         if (!isCovered) {
           const isCredit = l.direction === 'credit' || l.direction === 'cash_in';

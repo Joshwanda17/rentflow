@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Sparkles, ArrowDownToLine } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
 
 const EARN_CATEGORIES = [
   'agent_commission_earned',
@@ -29,13 +30,13 @@ export function EarnedSinceLastWithdrawalCard() {
     staleTime: 30_000,
     queryFn: async () => {
       // Most recent wallet_withdrawal for this agent
-      const { data: lastWd } = await supabase
+      const { data: lastWd } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
-        .select('created_at, amount')
+        .select('created_at, amount, classification, category, source_table, description, reference_id')
         .eq('user_id', user!.id)
         .eq('ledger_scope', 'wallet')
         .eq('category', 'wallet_withdrawal')
-        .eq('direction', 'cash_out')
+        .eq('direction', 'cash_out'))
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -45,17 +46,17 @@ export function EarnedSinceLastWithdrawalCard() {
       }
 
       // Commission/earning credits strictly after that withdrawal
-      const { data: rows } = await supabase
+      const { data: rows } = await applyCustomerWalletLedgerFilters(supabase
         .from('general_ledger')
-        .select('amount, description, created_at')
+        .select('amount, description, created_at, classification, category, source_table, reference_id')
         .eq('user_id', user!.id)
         .eq('ledger_scope', 'wallet')
         .eq('direction', 'cash_in')
         .in('category', EARN_CATEGORIES)
-        .gt('created_at', lastWd.created_at);
+        .gt('created_at', lastWd.created_at));
 
       // Exclude reconciliation / back-fill / opening-equity entries
-      const real = (rows || []).filter((r: any) => {
+      const real = (rows || []).filter(isCustomerWalletLedgerEntryVisible).filter((r: any) => {
         const d = (r.description || '').toLowerCase();
         return !d.includes('phantom') && !d.includes('back-fill') && !d.includes('backfill') && !d.includes('opening equity');
       });
