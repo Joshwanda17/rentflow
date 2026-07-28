@@ -97,6 +97,9 @@ export function DailyWalletReportsPanel() {
   const [customFrom, setCustomFrom] = useState<string>(addDays(today, -6));
   const [customTo, setCustomTo] = useState<string>(today);
   const [search, setSearch] = useState('');
+  // Explicit date picker for the "Generate report" action so operators can
+  // regenerate any historical day without touching the range preset above.
+  const [generateDate, setGenerateDate] = useState<string>(addDays(today, -1));
 
   const range = useMemo(
     () => presetRange(preset, customFrom, customTo),
@@ -277,12 +280,25 @@ export function DailyWalletReportsPanel() {
           ) : filtered.length === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center">
               No reports in this range yet.
-              <div className="mt-3">
-                <Button size="sm" onClick={() => regenerate.mutate(range.to)}
-                  disabled={regenerate.isPending}>
+              <div className="mt-3 flex flex-wrap gap-2 items-end justify-center">
+                <div className="space-y-1 text-left">
+                  <Label className="text-xs">Pick date (EAT)</Label>
+                  <Input
+                    type="date"
+                    value={generateDate}
+                    max={today}
+                    onChange={(e) => setGenerateDate(e.target.value)}
+                    className="w-[170px]"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => regenerate.mutate(generateDate)}
+                  disabled={regenerate.isPending || !generateDate}
+                >
                   {regenerate.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                     : <RefreshCw className="h-4 w-4 mr-1" />}
-                  Generate report for {range.to}
+                  Generate report for {generateDate}
                 </Button>
               </div>
             </div>
