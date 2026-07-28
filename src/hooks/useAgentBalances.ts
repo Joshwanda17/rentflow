@@ -80,7 +80,13 @@ export function useAgentBalances(agentId?: string) {
     totalBalance: w.withdrawable + w.floatBalance,
   };
 
-  const isLoading = w.isLoading || commissionLoading;
+  // NOTE: `isLoading` reflects ONLY the wallet-view fetch (withdrawable /
+  // float / advance). The commission split query can be slow for high-volume
+  // agents and must NEVER gate the "Pay from Wallet Float" button —
+  // otherwise agents see "Loading float…" indefinitely even after their
+  // float balance has arrived.
+  const isLoading = w.isLoading;
+  const isCommissionLoading = commissionLoading;
   const error = w.error ?? commissionError ?? null;
   const refetch = async () => {
     await Promise.all([w.refetch(), refetchCommission()]);
@@ -95,6 +101,7 @@ export function useAgentBalances(agentId?: string) {
     pendingHolds: data.pendingHolds,
     totalBalance: data.totalBalance,
     isLoading,
+    isCommissionLoading,
     error,
     refetch,
   };
