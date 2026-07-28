@@ -28,6 +28,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'owing'>('all');
   const [activeTenantIds, setActiveTenantIds] = useState<Set<string>>(new Set());
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  const [tenantAvatars, setTenantAvatars] = useState<Record<string, string>>({});
+  const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const fetchSeqRef = useRef(0);
   const PAGE_SIZE = 20;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -67,6 +69,24 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       });
       setTenantBalances(balances);
       setActiveTenantIds(activeIds);
+
+      // Fetch passport / avatar photos for the tenant list (fallback to initials on missing/broken).
+      const ids = tenantList.map((t) => t.id);
+      if (ids.length > 0) {
+        const { data: photoRows } = await supabase
+          .from('profiles')
+          .select('id, avatar_url')
+          .in('id', ids);
+        if (seq === fetchSeqRef.current) {
+          const map: Record<string, string> = {};
+          (photoRows || []).forEach((r: any) => {
+            if (r?.avatar_url) map[r.id] = r.avatar_url as string;
+          });
+          setTenantAvatars(map);
+        }
+      } else {
+        setTenantAvatars({});
+      }
     } catch (err) {
       console.error('Failed to fetch inline tenants:', err);
     } finally {
@@ -258,6 +278,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
             const balance = tenantBalances[tenant.id] || 0;
             const hasDebt = balance > 0;
             const initial = (tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase();
+            const photoUrl = tenantAvatars[tenant.id];
+            const showPhoto = !!photoUrl && !failedAvatars.has(tenant.id);
             return (
               <button
                 key={tenant.id}
@@ -268,9 +290,26 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
                 <div
                   className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
                     hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
-                  }`}
+                  } overflow-hidden`}
                 >
-                  {initial}
+                  {showPhoto ? (
+                    <img
+                      src={photoUrl}
+                      alt={tenant.full_name || 'Tenant'}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={() =>
+                        setFailedAvatars((prev) => {
+                          if (prev.has(tenant.id)) return prev;
+                          const next = new Set(prev);
+                          next.add(tenant.id);
+                          return next;
+                        })
+                      }
+                    />
+                  ) : (
+                    initial
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-lg truncate">
