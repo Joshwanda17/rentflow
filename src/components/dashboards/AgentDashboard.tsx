@@ -881,9 +881,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   )}
                 </h1>
                 <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
+                <div className="mt-1.5">
+                  <AiIdButton variant="compact" />
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <AiIdButton variant="compact" />
                 <AgentNotificationBell userId={user.id} />
               </div>
             </div>
