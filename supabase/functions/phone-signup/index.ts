@@ -70,6 +70,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Reject early if this phone is already tied to an existing profile —
+    // otherwise `createUser` succeeds against a different synthetic email and
+    // the `handle_new_user` trigger later fails on the profiles.phone unique
+    // constraint, leaving an orphan auth.users row and a confused UX.
+    const { data: existingProfile } = await adminClient
+      .from("profiles")
+      .select("id")
+      .or(`phone.ilike.%${phoneKey},phone.eq.${rawPhone}`)
+      .limit(1)
+      .maybeSingle();
+    if (existingProfile?.id) {
+      return new Response(
+        JSON.stringify({ error: "This phone number is already registered. Please sign in instead." }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Build metadata identical to the client signUp path so the `handle_new_user`
     // trigger creates the profile / referral / sub-agent links exactly the same.
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
