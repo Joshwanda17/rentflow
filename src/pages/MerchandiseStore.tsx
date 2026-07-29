@@ -69,6 +69,7 @@ export default function MerchandiseStore() {
   const [bikeAmount, setBikeAmount] = useState('');
   const [orderingBike, setOrderingBike] = useState(false);
   const [catalogPage, setCatalogPage] = useState(1);
+  const [shareItem, setShareItem] = useState<CatalogItem | null>(null);
   const { withdrawableBalance } = useAgentBalances(user?.id);
   const availableWallet = Math.max(0, withdrawableBalance);
 
