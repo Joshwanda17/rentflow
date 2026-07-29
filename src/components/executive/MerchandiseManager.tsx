@@ -330,6 +330,8 @@ export function MerchandiseManager() {
     queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
   };
 
+  const [rejectTarget, setRejectTarget] = useState<Sale | null>(null);
+
   // Pagination
   const catalogPage = usePagination(catalog);
   const salesPage = usePagination(filteredSales);
