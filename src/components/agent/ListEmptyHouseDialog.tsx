@@ -1572,9 +1572,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
               <DialogTitle className="text-xl">House listed!</DialogTitle>
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">UGX 1,000</span> is on its way to your wallet now.
-                You earn <span className="font-semibold text-foreground">UGX 4,000</span> more once Landlord Ops verifies
-                this house — <span className="font-semibold text-foreground">UGX 5,000</span> in total.
+                You'll earn <span className="font-semibold text-foreground">UGX 2,000</span> once Landlord Ops
+                verifies this house, plus <span className="font-semibold text-foreground">UGX 5,000</span> when
+                a tenant is placed here.
               </p>
             </div>
 
