@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, TrendingUp, Activity } from 'lucide-react';
-import { formatUGX } from '@/lib/currency';
+import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import {
   ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid,
   Tooltip, ComposedChart, Line, Bar, Legend,
