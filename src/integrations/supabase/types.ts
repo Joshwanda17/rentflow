@@ -21211,6 +21211,79 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_idle_states: {
+        Row: {
+          agent_id: string
+          at_risk_at: string | null
+          cadence: string
+          created_at: string
+          days_idle: number
+          last_collection_at: string | null
+          reassign_ready_at: string | null
+          rent_request_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          state: string
+          tenant_id: string
+          updated_at: string
+          warned_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          at_risk_at?: string | null
+          cadence?: string
+          created_at?: string
+          days_idle?: number
+          last_collection_at?: string | null
+          reassign_ready_at?: string | null
+          rent_request_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          state?: string
+          tenant_id: string
+          updated_at?: string
+          warned_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          at_risk_at?: string | null
+          cadence?: string
+          created_at?: string
+          days_idle?: number
+          last_collection_at?: string | null
+          reassign_ready_at?: string | null
+          rent_request_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          state?: string
+          tenant_id?: string
+          updated_at?: string
+          warned_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_idle_states_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: true
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_idle_states_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: true
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_idle_states_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+        ]
+      }
       tenant_inactive_reviews: {
         Row: {
           acknowledged_at: string | null
@@ -21435,6 +21508,64 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tenant_reassignment_audit: {
+        Row: {
+          actor_id: string
+          created_at: string
+          days_idle: number | null
+          id: string
+          new_agent_id: string
+          old_agent_id: string
+          reason: string
+          rent_request_id: string
+          tenant_id: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          days_idle?: number | null
+          id?: string
+          new_agent_id: string
+          old_agent_id: string
+          reason: string
+          rent_request_id: string
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          days_idle?: number | null
+          id?: string
+          new_agent_id?: string
+          old_agent_id?: string
+          reason?: string
+          rent_request_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_reassignment_audit_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_reassignment_audit_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_reassignment_audit_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+        ]
       }
       tenant_replacements: {
         Row: {
@@ -24737,6 +24868,14 @@ export type Database = {
         Returns: {
           agent_id: string
         }[]
+      }
+      agent_ops_reassign_idle_tenant: {
+        Args: {
+          p_new_agent_id: string
+          p_reason: string
+          p_rent_request_id: string
+        }
+        Returns: Json
       }
       agent_order_merchandise: {
         Args: { p_catalog_id: string; p_quantity: number }
@@ -28449,6 +28588,7 @@ export type Database = {
       refresh_financial_summaries: { Args: never; Returns: undefined }
       refresh_house_location_rollup: { Args: never; Returns: undefined }
       refresh_mv_ops_daily_summary: { Args: never; Returns: undefined }
+      refresh_tenant_idle_states: { Args: never; Returns: number }
       refresh_wallet_projection_for: {
         Args: { p_user_id: string }
         Returns: undefined

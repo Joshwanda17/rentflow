@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
-import { LockedTenantTransferPanel } from './LockedTenantTransferPanel';
+import { IdleTenantsPanel } from './IdleTenantsPanel';
 import { AgentTenantConnector } from './AgentTenantConnector';
 import { AgentOpsPipelineHub } from './AgentOpsPipelineHub';
 import { AgentDirectory } from './AgentDirectory';
@@ -105,7 +105,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'earnings', icon: Banknote, label: 'Earnings', color: 'bg-green-500' },
   { key: 'alerts', icon: Bell, label: 'Alerts', color: 'bg-slate-500' },
   { key: 'transfers', icon: ArrowLeftRight, label: 'Transfers', color: 'bg-cyan-600' },
-  { key: 'locked-transfers', icon: Lock, label: 'Locked → Area Transfer', color: 'bg-rose-600', priority: true },
+  { key: 'locked-transfers', icon: Lock, label: 'Idle Tenants', color: 'bg-rose-600', priority: true },
   { key: 'advance-requests', icon: Banknote, label: 'Advances', color: 'bg-purple-600', priority: true },
   { key: 'active-advances', icon: Activity, label: 'Active Advances', color: 'bg-purple-500', priority: true },
   { key: 'brief', icon: DollarSign, label: 'Daily Brief', color: 'bg-rose-500' },
@@ -265,7 +265,7 @@ export function AgentOpsDashboard() {
       );
       case 'locked-transfers': return (
         <div className="rounded-2xl border border-border bg-card p-3">
-          <LockedTenantTransferPanel />
+          <IdleTenantsPanel />
         </div>
       );
       case 'leaderboard': return <AgentLeaderboardPanel />;
