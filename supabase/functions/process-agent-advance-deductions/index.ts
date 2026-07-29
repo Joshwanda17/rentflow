@@ -73,6 +73,15 @@ Deno.serve(async (req) => {
       } catch (_e) { /* SMS failure never blocks deductions */ }
     };
 
+    const periodDaysFor = (freq: string | null | undefined): number => {
+      switch (String(freq || 'daily').toLowerCase()) {
+        case 'weekly': return 7;
+        case 'biweekly': return 14;
+        case 'monthly': return 30;
+        default: return 1;
+      }
+    };
+
     for (const advance of advances) {
       const issuedAtEAT = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Africa/Kampala',
@@ -129,27 +138,51 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Repayment-frequency gate: weekly / bi-weekly / monthly advances are only
+      // swept on their due day. Daily advances are due every day.
+      const advPeriodDays = periodDaysFor(advance.repayment_frequency);
+      const issuedMs = new Date(issuedAtEAT + 'T00:00:00Z').getTime();
+      const todayMs = new Date(todayEAT + 'T00:00:00Z').getTime();
+      const daysSinceIssue = Math.max(1, Math.floor((todayMs - issuedMs) / 86400000));
+      if (advPeriodDays > 1 && daysSinceIssue % advPeriodDays !== 0) {
+        await supabase.from('agent_advance_ledger').insert({
+          advance_id: advance.id,
+          date: today,
+          opening_balance: Number(advance.outstanding_balance),
+          interest_accrued: 0,
+          amount_deducted: 0,
+          closing_balance: Number(advance.outstanding_balance),
+          deduction_status: 'not_due',
+        });
+        skipped.push(advance.id);
+        continue;
+      }
+      // Amount due per repayment period.
+      const periodsInCycle = Math.max(
+        1,
+        Math.ceil((Number(advance.cycle_days) || 30) / advPeriodDays),
+      );
+      const totalPayableSchedule =
+        Number(advance.principal) + Number(advance.access_fee || 0);
+      const scheduledInstallment = Math.max(
+        0,
+        Number(advance.installment_amount) > 0
+          ? Number(advance.installment_amount)
+          : Math.ceil(totalPayableSchedule / periodsInCycle),
+      );
+
       // Ahead-of-schedule check: if the agent has already paid down more than
       // the cumulative expected-to-date, skip today's deduction. They still
       // appear on the daily report with status "ahead" (idempotency row).
       {
-        const cycleDaysAhead = Number(advance.cycle_days) || 30;
-        const totalPayableAhead =
-          Number(advance.principal) + Number(advance.access_fee || 0);
-        const scheduledDailyAhead =
-          cycleDaysAhead > 0 ? Math.round(totalPayableAhead / cycleDaysAhead) : 0;
-        const issuedDate = new Date(issuedAtEAT + 'T00:00:00Z').getTime();
-        const todayDate = new Date(todayEAT + 'T00:00:00Z').getTime();
-        const daysElapsed = Math.max(
+        const totalPayableAhead = totalPayableSchedule;
+        const periodsElapsed = Math.max(
           1,
-          Math.min(
-            cycleDaysAhead,
-            Math.floor((todayDate - issuedDate) / 86400000) + 1,
-          ),
+          Math.min(periodsInCycle, Math.floor(daysSinceIssue / advPeriodDays)),
         );
         const expectedToDate = Math.min(
           totalPayableAhead,
-          scheduledDailyAhead * daysElapsed,
+          scheduledInstallment * periodsElapsed,
         );
         const paidToDate = Math.max(
           0,
@@ -217,11 +250,7 @@ Deno.serve(async (req) => {
       // Cap daily deduction at scheduled installment + any accrued arrears.
       // Never scoop the agent's whole withdrawable in a single day — the
       // schedule is `principal + access_fee` spread over cycle_days.
-      const cycleDaysCap = Number(advance.cycle_days) || 30;
-      const totalPayableCap =
-        Number(advance.principal) + Number(advance.access_fee || 0);
-      const scheduledDailyCap =
-        cycleDaysCap > 0 ? Math.round(totalPayableCap / cycleDaysCap) : 0;
+      const scheduledDailyCap = scheduledInstallment;
       const arrearsCap = Math.max(0, Number(advance.arrears_balance || 0));
       const dailyCap = Math.max(0, scheduledDailyCap + arrearsCap);
 
@@ -260,8 +289,7 @@ Deno.serve(async (req) => {
       // recovery trigger can claw them back from the agent's NEXT earning before it
       // becomes withdrawable. Meeting/exceeding today's installment pays arrears down;
       // missing it grows arrears. Arrears can never exceed what is still owed.
-      const cycleDays = Number(advance.cycle_days) || 30;
-      const scheduledDaily = cycleDays > 0 ? Math.round(totalPayable / cycleDays) : 0;
+      const scheduledDaily = scheduledInstallment;
       const currentArrears = Number(advance.arrears_balance || 0);
       let newArrears: number;
       if (amountDeducted >= scheduledDaily) {
