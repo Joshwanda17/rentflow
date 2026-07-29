@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { hapticTap, hapticSuccess, hapticError } from '@/lib/haptics';
 import { useAuth } from '@/hooks/useAuth';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
 import {
   Popover,
   PopoverContent,
@@ -270,6 +271,7 @@ export function InlineRoleToggle({
   onRolesUpdated
 }: InlineRoleToggleProps) {
   const { user } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [loadingRole, setLoadingRole] = useState<string | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [localRoles, setLocalRoles] = useState<string[]>(currentRoles);
@@ -497,7 +499,7 @@ export function InlineRoleToggle({
                   <button
                     key={role.value}
                     onClick={(e) => handleAddRoleClick(role.value, e)}
-                    disabled={loadingRole === role.value}
+                    disabled={loadingRole === role.value || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(role.value))}
                     className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted active:scale-[0.98] transition-all text-left touch-manipulation"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
@@ -557,7 +559,7 @@ export function InlineRoleToggle({
                 e.stopPropagation();
                 handleConfirm();
               }}
-              disabled={loadingRole !== null}
+              disabled={loadingRole !== null || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(confirmDialog.role!))}
               className={`h-14 text-base font-semibold ${confirmDialog.action === 'remove' ? 'bg-destructive hover:bg-destructive/90' : ''}`}
             >
               {loadingRole ? (
