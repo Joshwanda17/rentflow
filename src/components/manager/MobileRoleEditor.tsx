@@ -313,9 +313,10 @@ export function MobileRoleEditor({
                             variant="destructive"
                             size="icon"
                             onClick={() => handleRemoveRole(role.value)}
-                            disabled={isLoading || roles.length <= 1}
+                            disabled={isLoading || roles.length <= 1 || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(role.value))}
                             className="h-12 w-12 rounded-xl"
                           >
+
                             {isLoading ? (
                               <Loader2 className="h-5 w-5 animate-spin" />
                             ) : (
