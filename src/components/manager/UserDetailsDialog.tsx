@@ -2487,7 +2487,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                         <Button variant="ghost" size="sm" onClick={() => handleToggleRoleEnabled(role.value)} disabled={togglingRole === role.value || (!canDisable && isEnabled) || (!canEdit && role.category !== 'standard')} className={`h-8 px-3 ${isEnabled ? 'text-success hover:bg-success/10' : 'text-muted-foreground hover:bg-muted'}`}>
                                           {togglingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : isEnabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
                                         </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveRole(role.value)} disabled={removingRole === role.value || userRoles.length <= 1} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0">
+                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveRole(role.value)} disabled={removingRole === role.value || userRoles.length <= 1 || (!canEdit && role.category !== 'standard')} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0">
                                           {removingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                         </Button>
                                       </>
