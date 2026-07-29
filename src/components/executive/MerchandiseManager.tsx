@@ -1392,3 +1392,108 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
     </Dialog>
   );
 }
+// ---------- Reject purchase request dialog ----------
+function RejectPurchaseDialog({
+  sale, onClose, onDone,
+}: {
+  sale: Sale | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const open = !!sale;
+  const reasonTrim = reason.trim();
+  const canSubmit = !!sale && reasonTrim.length >= 10 && !submitting;
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v && !submitting) {
+      setReason('');
+      onClose();
+    }
+  };
+
+  const submit = async () => {
+    if (!sale) return;
+    setSubmitting(true);
+    const { data, error } = await db.rpc('reject_merchandise_purchase', {
+      p_sale_id: sale.id,
+      p_reason: reasonTrim,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const refunded = Number((data as any)?.refunded || 0);
+    const already = (data as any)?.already_rejected;
+    if (already) {
+      toast.message('This order was already rejected.');
+    } else if (refunded > 0) {
+      toast.success(`Rejected. Refunded ${formatUGX(refunded)} to the agent's wallet.`);
+    } else {
+      toast.success('Order rejected. Nothing was refunded (no money had been debited).');
+    }
+    setReason('');
+    onDone();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reject purchase request</DialogTitle>
+        </DialogHeader>
+        {sale && (
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 space-y-1">
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Agent</span>
+                <span className="font-medium text-right">{sale.client_name || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Item</span>
+                <span className="font-medium text-right">{sale.item_name} × {sale.quantity}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Amount to refund</span>
+                <span className="font-semibold text-right">{formatUGX(Number(sale.total_revenue))}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The agent's wallet will be credited back for what they already paid
+              (instant purchase) or for what has already been swept via the recovery
+              plan. Any remaining recovery plan is cancelled.
+            </p>
+            <div>
+              <Label className="text-xs">Reason (visible in the audit log)</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Why are you rejecting this order? (min 10 characters)"
+                className="mt-1 min-h-[90px]"
+                disabled={submitting}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {reasonTrim.length}/10 characters minimum
+              </p>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={submit}
+            disabled={!canSubmit}
+          >
+            {submitting ? 'Rejecting…' : 'Reject & refund'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
