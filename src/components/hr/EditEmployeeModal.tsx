@@ -134,6 +134,9 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
           </div>
 
           <div className="space-y-2">
+            {!canEdit && (
+              <p className="text-xs text-muted-foreground">Only access administrators can change staff roles.</p>
+            )}
             <Label className="text-xs font-medium">Current Roles</Label>
             <div className="flex flex-wrap gap-1.5">
               {currentRoles.map(role => (
