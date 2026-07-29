@@ -1,10 +1,16 @@
 // Scans active tenancies and warns agents (via web push) when they have not
 // collected rent or made a float allocation for a tenant.
 //
-// Thresholds depend on the tenant's repayment frequency (from
-// subscription_charges.frequency):
+// Thresholds depend on the tenant's repayment cadence:
 //   - daily   → warn at >= 5 idle days, lock at >= 8 idle days (>7).
 //   - weekly  → warn at >= 10 idle days, lock at >= 15 idle days (>2 weeks).
+// Cadence detection (in order):
+//   1. subscription_charges.frequency (if a row exists for the rent_request)
+//   2. median gap between the last up-to-5 agent_collections rows
+//      (median gap >= 4 days → weekly, else daily)
+//   3. If cadence cannot be determined (no subscription row AND fewer than
+//      2 historical collections) we WARN but DO NOT LOCK — locking on an
+//      unknown schedule is what the daily/weekly gate hiccup was doing.
 // Tenants with any collection inside the grace window are considered active
 // and are NEVER locked.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
@@ -76,23 +82,41 @@ serve(async (req) => {
       const agentId = row.agent_id || row.assigned_agent_id;
       if (!agentId || !row.tenant_id) continue;
 
-      const frequency = freqByRr.get(row.id) || "daily";
-      const isWeekly = frequency === "weekly";
-      const WARN_AFTER_DAYS = isWeekly ? WEEKLY_WARN_AFTER_DAYS : DAILY_WARN_AFTER_DAYS;
-      const REASSIGN_AT_DAYS = isWeekly ? WEEKLY_REASSIGN_AT_DAYS : DAILY_REASSIGN_AT_DAYS;
-
-      // Last collection or allocation by this agent for this tenant.
-      const { data: lastCol } = await supabase
+      const subFreq = freqByRr.get(row.id);
+      // Pull recent collections once — used both to derive lastCol and cadence.
+      const { data: recentCols } = await supabase
         .from("agent_collections")
         .select("created_at")
         .eq("agent_id", agentId)
         .eq("tenant_id", row.tenant_id)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(5);
 
-      const anchorIso: string =
-        lastCol?.created_at || row.funded_at || row.created_at;
+      let frequency: string;
+      let cadenceKnown = true;
+      if (subFreq) {
+        frequency = subFreq;
+      } else if ((recentCols?.length ?? 0) >= 2) {
+        // Median gap in days between consecutive collections.
+        const times = (recentCols ?? []).map((r: any) => new Date(r.created_at).getTime());
+        const gaps: number[] = [];
+        for (let i = 0; i < times.length - 1; i++) {
+          gaps.push((times[i] - times[i + 1]) / 86_400_000);
+        }
+        gaps.sort((a, b) => a - b);
+        const median = gaps[Math.floor(gaps.length / 2)];
+        frequency = median >= 4 ? "weekly" : "daily";
+      } else {
+        // Unknown cadence — warn only, never lock.
+        frequency = "weekly";
+        cadenceKnown = false;
+      }
+      const isWeekly = frequency === "weekly";
+      const WARN_AFTER_DAYS = isWeekly ? WEEKLY_WARN_AFTER_DAYS : DAILY_WARN_AFTER_DAYS;
+      const REASSIGN_AT_DAYS = isWeekly ? WEEKLY_REASSIGN_AT_DAYS : DAILY_REASSIGN_AT_DAYS;
+
+      const lastColIso = recentCols?.[0]?.created_at;
+      const anchorIso: string = lastColIso || row.funded_at || row.created_at;
       if (!anchorIso) continue;
 
       const daysSince = Math.floor((now - new Date(anchorIso).getTime()) / 86_400_000);
@@ -103,7 +127,7 @@ serve(async (req) => {
       const tenantName = nameById.get(row.tenant_id) || "your tenant";
 
       // Grace exceeded: lock the tenant from this agent so Agent Ops can reassign.
-      if (daysSince >= REASSIGN_AT_DAYS) {
+      if (cadenceKnown && daysSince >= REASSIGN_AT_DAYS) {
         const { error: lockErr } = await supabase
           .from("rent_requests")
           .update({
