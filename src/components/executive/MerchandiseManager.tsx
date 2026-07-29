@@ -630,7 +630,7 @@ export function MerchandiseManager() {
               </thead>
               <tbody>
                 {salesPage.slice.map((s) => (
-                  <tr key={s.id} className="border-b border-border/40">
+                  <tr key={s.id} className={`border-b border-border/40 ${s.order_status === 'rejected' ? 'opacity-60' : ''}`}>
                     <td className="py-2 pr-3 whitespace-nowrap">{format(new Date(s.sale_date), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">{s.item_name}</td>
                     <td className="py-2 px-3 text-right">{s.quantity}</td>
@@ -638,24 +638,45 @@ export function MerchandiseManager() {
                     <td className="py-2 px-3">{s.client_name || '—'}</td>
                     <td className="py-2 px-3"><StatusBadge status={s.payment_status} /></td>
                     <td className="py-2 px-3">
-                      <Select
-                        value={s.order_status || 'submitted'}
-                        onValueChange={(v) => updateOrderStatus(s.id, v as OrderStatus)}
-                      >
-                        <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="submitted">Submitted</SelectItem>
-                          <SelectItem value="processing">Processing</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="failed">Failed</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {s.order_status === 'rejected' ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+                          title={s.rejection_reason ? `Reason: ${s.rejection_reason}` : 'Rejected'}
+                        >
+                          Rejected
+                        </span>
+                      ) : (
+                        <Select
+                          value={s.order_status || 'submitted'}
+                          onValueChange={(v) => updateOrderStatus(s.id, v as OrderStatus)}
+                        >
+                          <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="submitted">Submitted</SelectItem>
+                            <SelectItem value="processing">Processing</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="failed">Failed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </td>
                     <td className="py-2 px-3 text-right">{Number(s.amount_outstanding) > 0 ? formatUGX(Number(s.amount_outstanding)) : '—'}</td>
                     <td className="py-2 pl-3 text-right">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteSale(s.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {(s.order_status === 'submitted' || s.order_status === 'processing' || !s.order_status) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
+                            onClick={() => setRejectTarget(s)}
+                          >
+                            Reject
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteSale(s.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -665,6 +686,12 @@ export function MerchandiseManager() {
           </div>
         )}
       </Section>
+
+      <RejectPurchaseDialog
+        sale={rejectTarget}
+        onClose={() => setRejectTarget(null)}
+        onDone={() => { setRejectTarget(null); refresh(); }}
+      />
 
       {/* Recent purchases */}
       <Section title="Purchase History" icon={Package}>
