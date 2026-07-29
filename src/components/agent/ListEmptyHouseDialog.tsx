@@ -1504,7 +1504,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => { if (!successListing) e.preventDefault(); }}
-        className={`w-[calc(100vw-1rem)] sm:max-w-md overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl p-4 sm:p-6 ${successListing ? 'max-h-[92vh]' : 'h-[92vh] h-[92dvh] max-h-[92vh] max-h-[92dvh]'}`}
+        className={`w-[calc(100vw-1rem)] sm:max-w-md !overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl p-4 sm:p-6 max-h-[92vh] max-h-[92dvh]`}
       >
         {listingBlock?.blocked ? (
           (() => {
