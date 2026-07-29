@@ -637,7 +637,7 @@ function CapacityRow({
     ? 'No active rents yet'
     : isAllowed
       ? `Collected ${todayPct}% of today's target`
-      : `Need at least 50% — at ${todayPct}% so far`;
+      : `Need at least 20% — at ${todayPct}% so far`;
 
   return (
     <li className="rounded-xl border border-border bg-background overflow-hidden">
