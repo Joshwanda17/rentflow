@@ -36,6 +36,7 @@ export default function BulkRemoveRoleDialog({
   onSuccess
 }: BulkRemoveRoleDialogProps) {
   const { user } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [selectedRole, setSelectedRole] = useState<AppRole>('tenant');
   const [removing, setRemoving] = useState(false);
   const [progress, setProgress] = useState(0);
