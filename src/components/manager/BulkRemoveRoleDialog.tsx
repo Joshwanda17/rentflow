@@ -222,10 +222,15 @@ export default function BulkRemoveRoleDialog({
         )}
 
         <DialogFooter className="gap-2 sm:gap-0">
+          {!canEdit && (
+            <p className="w-full text-xs text-muted-foreground">
+              Only access administrators can bulk remove internal and executive roles.
+            </p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={removing}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleRemove} disabled={removing}>
+          <Button variant="destructive" onClick={handleRemove} disabled={removing || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(selectedRole))}>
             {removing ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
