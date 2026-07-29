@@ -90,13 +90,8 @@ export default function MerchantRegister() {
     setSubmitting(true);
     try {
       // Uniqueness pre-check for phone (best-effort — server enforces authoritatively).
-      const last9 = cleanedPhone.replace(/\D/g, '').slice(-9);
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('id')
-        .ilike('phone', `%${last9}`)
-        .maybeSingle();
-      if (existing?.id) {
+      const { data: available } = await supabase.rpc('is_phone_available', { p_phone: cleanedPhone });
+      if (available === false) {
         toast.error('This phone number is already registered. Please sign in instead.');
         setSubmitting(false);
         return;
