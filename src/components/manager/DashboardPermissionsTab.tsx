@@ -228,7 +228,13 @@ export default function DashboardPermissionsTab({ userId }: DashboardPermissions
         onChange={(e) => setReason(e.target.value)}
         placeholder="Reason for this change (recorded against the grant)"
         className="h-9 text-xs"
+        disabled={!canEdit}
       />
+      {!canEdit && (
+        <p className="text-xs text-muted-foreground">
+          You can view dashboard access here. Only access administrators can change it.
+        </p>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {DASHBOARDS.map((d) => (
           <div key={d.key} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
@@ -238,6 +244,7 @@ export default function DashboardPermissionsTab({ userId }: DashboardPermissions
               <Checkbox
                 checked={!!granted[d.key]}
                 onCheckedChange={(checked) => toggle(d.key, !!checked)}
+                disabled={toggling === d.key || !canEdit}
               />
             )}
             <Label className="text-sm cursor-pointer">{d.label}</Label>
