@@ -48,6 +48,7 @@ import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManage
 import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 import { CFOAdvancesManager } from '@/components/cfo/CFOAdvancesManager';
 import { CFOAdvanceRequestPayments } from '@/components/cfo/CFOAdvanceRequestPayments';
+import { AdvancesAnalyticsView } from '@/components/advances/AdvancesAnalyticsView';
 import { DisbursedAdvancesRegister } from '@/components/cfo/DisbursedAdvancesRegister';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
@@ -306,6 +307,8 @@ export default function CFODashboardPage() {
             <CFOUnfundingApprovals />
           </div>
         );
+      case 'advances-analytics':
+        return <AdvancesAnalyticsView context="cfo" />;
       case 'advances':
         return (
           <div className="space-y-6">
