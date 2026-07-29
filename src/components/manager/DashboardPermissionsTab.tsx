@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, ShieldCheck, Compass, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type ForcedRole = 'tenant' | 'agent' | 'landlord' | 'supporter';
 const DEFAULT_ROLE_OPTIONS: { value: ForcedRole; label: string; emoji: string }[] = [
@@ -22,6 +23,7 @@ const DASHBOARDS = [
   { key: 'coo', label: 'COO Dashboard' },
   { key: 'cmo', label: 'CMO Dashboard' },
   { key: 'crm', label: 'CRM Dashboard' },
+  { key: 'director', label: 'Director Dashboard' },
   { key: 'financial-ops', label: 'Financial Ops' },
   { key: 'company-ops', label: 'Company Staff' },
   { key: 'agent-ops', label: 'Agent Ops' },
@@ -29,6 +31,7 @@ const DASHBOARDS = [
   { key: 'landlord-ops', label: 'Landlord Ops' },
   { key: 'partner-ops', label: 'Partner Ops' },
   { key: 'hr', label: 'HR Dashboard' },
+  { key: 'kyc', label: 'KYC Console' },
 ];
 
 interface DashboardPermissionsTabProps {
@@ -37,7 +40,8 @@ interface DashboardPermissionsTabProps {
 
 export default function DashboardPermissionsTab({ userId }: DashboardPermissionsTabProps) {
   const { user } = useAuth();
-  const [granted, setGranted] = useState<Set<string>>(new Set());
+  const [granted, setGranted] = useState<Record<string, string>>({});
+  const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
   const [forcedRole, setForcedRole] = useState<ForcedRole | null>(null);
@@ -45,11 +49,17 @@ export default function DashboardPermissionsTab({ userId }: DashboardPermissions
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('staff_permissions')
-        .select('permitted_dashboard')
-        .eq('user_id', userId);
-      setGranted(new Set((data || []).map((p: any) => p.permitted_dashboard)));
+        .select('id, permitted_dashboard')
+        .eq('user_id', userId)
+        .is('revoked_at', null);
+      if (error) {
+        toast.error(error.message);
+      }
+      const map: Record<string, string> = {};
+      (data || []).forEach((p: any) => { map[p.permitted_dashboard] = p.id; });
+      setGranted(map);
       const { data: prof } = await supabase
         .from('profiles')
         .select('forced_default_role')
@@ -95,44 +105,58 @@ export default function DashboardPermissionsTab({ userId }: DashboardPermissions
 
     try {
       if (checked) {
-        await supabase.from('staff_permissions').insert({
-          user_id: userId,
-          permitted_dashboard: dashboard,
-          granted_by: user.id,
-        } as any);
+        const { data: inserted, error: insertError } = await supabase
+          .from('staff_permissions')
+          .insert({
+            user_id: userId,
+            permitted_dashboard: dashboard,
+            granted_by: user.id,
+          } as any)
+          .select('id')
+          .single();
+        if (insertError) throw insertError;
 
         await supabase.from('audit_logs').insert({
           user_id: user.id,
           action_type: 'permission_granted',
+          table_name: 'staff_permissions',
           record_id: userId,
-          metadata: { dashboard, granted_to: userId },
+          metadata: { dashboard, granted_to: userId, reason: reason.trim() },
         });
 
-        setGranted(prev => new Set([...prev, dashboard]));
+        setGranted(prev => ({ ...prev, [dashboard]: (inserted as any).id }));
         toast.success(`Access granted: ${dashboard}`);
       } else {
-        await supabase
+        const rowId = granted[dashboard];
+        if (!rowId) throw new Error('No active grant found to revoke. Reopen this tab and try again.');
+        const { error: revokeError } = await supabase
           .from('staff_permissions')
-          .delete()
-          .eq('user_id', userId)
-          .eq('permitted_dashboard', dashboard);
+          .update({
+            revoked_at: new Date().toISOString(),
+            revoked_by: user.id,
+            revoke_reason: reason.trim() || null,
+          } as any)
+          .eq('id', rowId);
+        if (revokeError) throw revokeError;
 
         await supabase.from('audit_logs').insert({
           user_id: user.id,
           action_type: 'permission_revoked',
+          table_name: 'staff_permissions',
           record_id: userId,
-          metadata: { dashboard, revoked_from: userId },
+          metadata: { dashboard, revoked_from: userId, reason: reason.trim() },
         });
 
         setGranted(prev => {
-          const next = new Set(prev);
-          next.delete(dashboard);
+          const next = { ...prev };
+          delete next[dashboard];
           return next;
         });
+        setReason('');
         toast.success(`Access revoked: ${dashboard}`);
       }
-    } catch {
-      toast.error('Failed to update permission');
+    } catch (e: any) {
+      toast.error(e?.message || 'The database refused the change.');
     } finally {
       setToggling(null);
     }
@@ -197,6 +221,12 @@ export default function DashboardPermissionsTab({ userId }: DashboardPermissions
       <p className="text-xs text-muted-foreground">
         Select which dashboards this staff member can access. Changes are logged for auditing.
       </p>
+      <Input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Reason for this change (recorded against the grant)"
+        className="h-9 text-xs"
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {DASHBOARDS.map((d) => (
           <div key={d.key} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
@@ -204,7 +234,7 @@ export default function DashboardPermissionsTab({ userId }: DashboardPermissions
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
               <Checkbox
-                checked={granted.has(d.key)}
+                checked={!!granted[d.key]}
                 onCheckedChange={(checked) => toggle(d.key, !!checked)}
               />
             )}
