@@ -677,6 +677,21 @@ function FinOpsHome({
         </div>
       </div>
 
+      {/* Cash Deposit Codes — time-sensitive quick action (top priority: codes expire in 2 min) */}
+      <button
+        onClick={() => onOpenTool('cash_codes')}
+        className="w-full flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+      >
+        <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+          <KeyRound className="h-5 w-5 text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm">Cash Deposit Codes</p>
+          <p className="text-xs text-muted-foreground">Read pending codes back to depositors — codes expire in 2 min.</p>
+        </div>
+        <ChevronDown className="h-4 w-4 text-muted-foreground rotate-[-90deg]" />
+      </button>
+
       {/* Hero + Ledger Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 min-w-0">
@@ -800,21 +815,6 @@ function FinOpsHome({
         <QuickTile icon={ArrowRightLeft} label="Cash-Out Timeline" desc="Agent settlement flow." onClick={() => onOpenTool('cashout_settlement')} />
         <QuickTile icon={MoreHorizontal} label="Explore Tools" desc="Audit & review logs." onClick={onOpenMore} />
       </div>
-
-      {/* Cash Deposit Codes — time-sensitive quick action */}
-      <button
-        onClick={() => onOpenTool('cash_codes')}
-        className="w-full flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-      >
-        <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-          <KeyRound className="h-5 w-5 text-amber-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm">Cash Deposit Codes</p>
-          <p className="text-xs text-muted-foreground">Read pending codes back to depositors — codes expire in 2 min.</p>
-        </div>
-        <ChevronDown className="h-4 w-4 text-muted-foreground rotate-[-90deg]" />
-      </button>
 
       {/* "More" Sheet */}
       <Sheet open={moreSheet} onOpenChange={setMoreSheet}>
