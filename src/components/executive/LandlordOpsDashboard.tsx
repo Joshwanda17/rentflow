@@ -1705,12 +1705,28 @@ export function LandlordOpsDashboard() {
     const titleById = new Map(selected.map(h => [h.id, h.title] as const));
     let results: Array<{ id: string; title: string; ok: boolean; error?: string }>;
     try {
-      const { data, error } = await supabase.rpc('bulk_reject_house_listings', {
-        p_listing_ids: ids,
-        p_reason: trimmed,
-      });
-      if (error) throw error;
-      const rows = ((data ?? []) as Array<{ id: string; ok: boolean; error: string | null }>);
+      // Chunk + run in parallel so 100+ selections do not blow past the
+      // PostgREST statement timeout. Each chunk still runs atomically inside
+      // the RPC (per-listing rejection + UGX 4,000 ledger penalty stay together).
+      const CHUNK = 20;
+      const chunks: string[][] = [];
+      for (let i = 0; i < ids.length; i += CHUNK) chunks.push(ids.slice(i, i + CHUNK));
+      const settled = await Promise.all(chunks.map(chunk =>
+        supabase.rpc('bulk_reject_house_listings', { p_listing_ids: chunk, p_reason: trimmed })
+          .then(res => ({ chunk, res }))
+      ));
+      const rows: Array<{ id: string; ok: boolean; error: string | null }> = [];
+      for (const { chunk, res } of settled) {
+        if (res.error) {
+          // Whole chunk failed — mark each id in the chunk as failed with the RPC error.
+          const msg = res.error.message || 'RPC failed';
+          chunk.forEach(id => rows.push({ id, ok: false, error: msg }));
+        } else {
+          for (const r of (res.data ?? []) as Array<{ id: string; ok: boolean; error: string | null }>) {
+            rows.push(r);
+          }
+        }
+      }
       const byId = new Map(rows.map(r => [r.id, r] as const));
       const rejectedIds = new Set(rows.filter(r => r.ok).map(r => r.id));
       results = ids.map(id => {
@@ -1725,6 +1741,8 @@ export function LandlordOpsDashboard() {
       });
       queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
         Array.isArray(old) ? old.map(l => rejectedIds.has(l.id) ? { ...l, status: 'rejected' } : l) : old);
+      queryClient.setQueryData<any[]>(['exec-house-listings-pending'], (old) =>
+        Array.isArray(old) ? old.filter(l => !rejectedIds.has(l.id)) : old);
       // Web-push only (no SMS) — fire-and-forget per rejected listing.
       rejectedIds.forEach(id => {
         invokeEdgeFunction('notify-listing-rejected', {
