@@ -238,7 +238,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Real money movement: wallet → platform. sync_wallet_from_ledger deducts the wallet.
+      // Real money movement: wallet → platform. Balanced double-entry: wallet cash_out + platform cash_in.
+      // Wallet cache is refreshed immediately below via repair_wallet_cache_for_user so the partner
+      // sees the new balance without waiting for the reconcile-wallets-from-pivot cron.
       const { error: debitErr } = await supabase.rpc("create_ledger_transaction", {
         entries: [
           {
@@ -273,6 +275,15 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "Failed to debit partner wallet. No changes were made." }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // Immediate wallet cache repair — pulls strict ledger truth into wallets.* so the UI sees
+      // the debit right after approval instead of waiting for the 10-minute reconciliation cron.
+      const { error: repairErr } = await supabase.rpc("repair_wallet_cache_for_user", {
+        p_user_id: walletUserId,
+      });
+      if (repairErr) {
+        console.warn("[approve-portfolio-topup] wallet cache repair failed (safe — cron will reconcile):", repairErr);
       }
     }
 
