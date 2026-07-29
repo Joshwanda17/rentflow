@@ -7,6 +7,7 @@ import {
   Calendar,
   Loader2,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useWalletTransactions,
@@ -119,13 +120,21 @@ export function WalletLedgerStatement() {
     isFetching,
     next,
     setDirection,
+    error,
+    refetch,
   } = useWalletTransactions(user?.id, { pageSize: PAGE_SIZE, direction });
 
-  // Push each newly-loaded page into the accumulated view. Reset when the
-  // filter changes (page resets to 0 inside the hook via setDirection).
+  // Push each newly-loaded page into the accumulated view. Reset ONLY when
+  // the filter actually changes — not on every render/mount, which would
+  // blank the list and race the initial page-0 fetch (causing a stuck
+  // spinner when the data has already arrived).
+  const prevDirectionRef = useRef<WalletTxDirection>(direction);
   useEffect(() => {
-    setDirection(direction);
-    setAccumulated([]);
+    if (prevDirectionRef.current !== direction) {
+      prevDirectionRef.current = direction;
+      setDirection(direction);
+      setAccumulated([]);
+    }
   }, [direction, setDirection]);
 
   useEffect(() => {
@@ -216,7 +225,19 @@ export function WalletLedgerStatement() {
             </div>
           </div>
 
-          {loading ? (
+          {error ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+              <p className="text-sm font-semibold text-destructive">
+                Couldn't load your wallet statement
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                {(error as Error)?.message || 'Please check your connection and try again.'}
+              </p>
+              <Button size="sm" variant="outline" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </div>
+          ) : (loading || isFetching) && accumulated.length === 0 && !!user?.id ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
