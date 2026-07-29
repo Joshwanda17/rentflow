@@ -130,6 +130,35 @@ export default function MerchandiseStore() {
     return item.image_url || null;
   };
 
+  const buildShare = (item: CatalogItem) => {
+    const url = `${window.location.origin}/merchandise?item=${item.id}`;
+    const text = `Check out ${item.item_name} — ${formatUGX(Number(item.unit_price))} on Welile Merchandise.`;
+    return { url, text, full: `${text} ${url}` };
+  };
+
+  const handleShare = async (item: CatalogItem) => {
+    const { url, text, full } = buildShare(item);
+    if (typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: item.item_name, text, url });
+        return;
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+      }
+    }
+    setShareItem(item);
+  };
+
+  const copyShareLink = async (item: CatalogItem) => {
+    const { full } = buildShare(item);
+    try {
+      await navigator.clipboard.writeText(full);
+      toast.success('Link copied');
+    } catch {
+      toast.error('Could not copy');
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(catalog.length / PAGE_SIZE));
   const safePage = Math.min(catalogPage, totalPages);
   const catalogSlice = catalog.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
