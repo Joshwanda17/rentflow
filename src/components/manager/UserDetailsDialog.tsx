@@ -575,6 +575,28 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     }
   };
 
+  const logRoleAudit = async (role: AppRole, enabled: boolean) => {
+    if (!user) return;
+    try {
+      const trimmed = roleChangeReason.trim();
+      await supabase.from('audit_logs').insert({
+        user_id: actingUser?.id ?? null,
+        table_name: 'user_roles',
+        record_id: user.id,
+        action_type: enabled ? 'staff_role_enabled' : 'staff_role_disabled',
+        metadata: {
+          target_user_id: user.id,
+          role,
+          enabled,
+          reason: trimmed || null,
+          surface: '/platform-users',
+        },
+      } as any);
+    } catch (auditError) {
+      console.error('Role audit log failed (role change still applied):', auditError);
+    }
+  };
+
   const handleAddRole = async (role: AppRole) => {
     if (!user) return;
     setAddingRole(role);
@@ -592,12 +614,15 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         }
       } else {
         setUserRoles(prev => [...prev, role]);
+        setRoleEnabledStatus(prev => ({ ...prev, [role]: true }));
+        await logRoleAudit(role, true);
         toast.success(`Added "${role}" role to ${user.full_name}`);
+        setRoleChangeReason('');
         onRolesUpdated?.();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding role:', error);
-      toast.error('Failed to add role');
+      toast.error(error?.message || 'The database refused the change.');
     } finally {
       setAddingRole(null);
     }
@@ -606,7 +631,8 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const handleRemoveRole = async (role: AppRole) => {
     if (!user) return;
     
-    if (userRoles.length <= 1) {
+    const activeRolesCount = userRoles.filter(r => roleEnabledStatus[r] !== false).length;
+    if (activeRolesCount <= 1) {
       toast.error('User must have at least one role');
       return;
     }
@@ -622,12 +648,14 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       
       if (error) throw error;
       
-      setUserRoles(prev => prev.filter(r => r !== role));
+      setRoleEnabledStatus(prev => ({ ...prev, [role]: false }));
+      await logRoleAudit(role, false);
       toast.success(`Removed "${role}" role from ${user.full_name}`);
+      setRoleChangeReason('');
       onRolesUpdated?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error removing role:', error);
-      toast.error('Failed to remove role');
+      toast.error(error?.message || 'The database refused the change.');
     } finally {
       setRemovingRole(null);
     }
@@ -658,14 +686,16 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       if (error) throw error;
       
       setRoleEnabledStatus(prev => ({ ...prev, [role]: newEnabled }));
+      await logRoleAudit(role, newEnabled);
       toast.success(newEnabled 
         ? `Enabled "${role}" dashboard for ${user.full_name}` 
         : `Disabled "${role}" dashboard for ${user.full_name}`
       );
+      setRoleChangeReason('');
       onRolesUpdated?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling role:', error);
-      toast.error('Failed to update dashboard access');
+      toast.error(error?.message || 'The database refused the change.');
     } finally {
       setTogglingRole(null);
     }
