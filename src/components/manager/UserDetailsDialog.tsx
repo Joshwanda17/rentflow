@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
 import DashboardPermissionsTab from './DashboardPermissionsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -139,6 +140,7 @@ interface UserDetailsDialogProps {
 export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated, onUserDeleted, onUserUpdated }: UserDetailsDialogProps) {
   const isMobile = useIsMobile();
   const { user: actingUser } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [investmentAccounts, setInvestmentAccounts] = useState<InvestmentAccount[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
@@ -1906,6 +1908,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     className="h-10 text-sm"
                   />
                   {/* All Roles - Unified List */}
+                  {!canEdit && (
+                    <p className="text-sm text-muted-foreground">You can change standard roles here. Only access administrators can change internal and executive roles.</p>
+                  )}
                   {(['standard', 'internal', 'executive'] as const).map(category => {
                     const categoryRoles = allRoles.filter(r => r.category === category);
                     const categoryLabel = category === 'standard' ? 'Standard Roles' : category === 'internal' ? 'Internal Roles' : 'Executive Roles';
@@ -1953,7 +1958,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                             variant={isEnabled ? "default" : "outline"}
                                             size="sm"
                                             onClick={() => handleToggleRoleEnabled(role.value)}
-                                            disabled={togglingRole === role.value || (!canDisable && isEnabled)}
+                                            disabled={togglingRole === role.value || (!canDisable && isEnabled) || (!canEdit && role.category !== 'standard')}
                                             className={`h-9 w-9 p-0 rounded-lg ${isEnabled ? 'bg-success hover:bg-success/90' : ''}`}
                                           >
                                             {togglingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : isEnabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
@@ -1962,7 +1967,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                             variant="destructive"
                                             size="sm"
                                             onClick={() => handleRemoveRole(role.value)}
-                                            disabled={removingRole === role.value || userRoles.length <= 1}
+                                            disabled={removingRole === role.value || userRoles.length <= 1 || (!canEdit && role.category !== 'standard')}
                                             className="h-9 w-9 p-0 rounded-lg"
                                           >
                                             {removingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -1973,7 +1978,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                           variant="outline"
                                           size="sm"
                                           onClick={() => handleAddRole(role.value)}
-                                          disabled={addingRole === role.value}
+                                          disabled={addingRole === role.value || (!canEdit && role.category !== 'standard')}
                                           className="h-9 px-3 rounded-lg border-success/40 text-success hover:bg-success/10"
                                         >
                                           {addingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Add</>}
@@ -2435,6 +2440,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                   className="h-9 text-sm"
                 />
                 {/* All Roles - Unified List by Category */}
+                {!canEdit && (
+                  <p className="text-sm text-muted-foreground">You can change standard roles here. Only access administrators can change internal and executive roles.</p>
+                )}
                 {(['standard', 'internal', 'executive'] as const).map(category => {
                   const categoryRoles = allRoles.filter(r => r.category === category);
                   const categoryLabel = category === 'standard' ? 'Standard Roles' : category === 'internal' ? 'Internal Roles' : 'Executive Roles';
@@ -2476,15 +2484,15 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                   <div className="flex items-center gap-2 shrink-0">
                                     {isAssigned ? (
                                       <>
-                                        <Button variant="ghost" size="sm" onClick={() => handleToggleRoleEnabled(role.value)} disabled={togglingRole === role.value || (!canDisable && isEnabled)} className={`h-8 px-3 ${isEnabled ? 'text-success hover:bg-success/10' : 'text-muted-foreground hover:bg-muted'}`}>
+                                        <Button variant="ghost" size="sm" onClick={() => handleToggleRoleEnabled(role.value)} disabled={togglingRole === role.value || (!canDisable && isEnabled) || (!canEdit && role.category !== 'standard')} className={`h-8 px-3 ${isEnabled ? 'text-success hover:bg-success/10' : 'text-muted-foreground hover:bg-muted'}`}>
                                           {togglingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : isEnabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
                                         </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveRole(role.value)} disabled={removingRole === role.value || userRoles.length <= 1} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0">
+                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveRole(role.value)} disabled={removingRole === role.value || userRoles.length <= 1 || (!canEdit && role.category !== 'standard')} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0">
                                           {removingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                         </Button>
                                       </>
                                     ) : (
-                                      <Button variant="ghost" size="sm" onClick={() => handleAddRole(role.value)} disabled={addingRole === role.value} className="text-success hover:text-success hover:bg-success/10">
+                                      <Button variant="ghost" size="sm" onClick={() => handleAddRole(role.value)} disabled={addingRole === role.value || (!canEdit && role.category !== 'standard')} className="text-success hover:text-success hover:bg-success/10">
                                         {addingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Add</>}
                                       </Button>
                                     )}
