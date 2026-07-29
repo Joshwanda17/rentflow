@@ -234,10 +234,15 @@ export default function BulkAssignRoleDialog({
         )}
 
         <DialogFooter className="gap-2 sm:gap-0">
+          {!canEdit && (
+            <p className="w-full text-xs text-muted-foreground">
+              Only access administrators can bulk assign internal and executive roles.
+            </p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={assigning}>
             Cancel
           </Button>
-          <Button onClick={handleAssign} disabled={assigning}>
+          <Button onClick={handleAssign} disabled={assigning || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(selectedRole))}>
             {assigning ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
