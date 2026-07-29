@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
 import DashboardPermissionsTab from './DashboardPermissionsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
