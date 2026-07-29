@@ -157,6 +157,7 @@ export type Database = {
           reason: string
           registration_fee: number
           rejection_reason: string | null
+          repayment_frequency: string
           reviewed_by_agent_ops: string | null
           reviewed_by_landlord_ops: string | null
           reviewed_by_tenant_ops: string | null
@@ -191,6 +192,7 @@ export type Database = {
           reason?: string
           registration_fee?: number
           rejection_reason?: string | null
+          repayment_frequency?: string
           reviewed_by_agent_ops?: string | null
           reviewed_by_landlord_ops?: string | null
           reviewed_by_tenant_ops?: string | null
@@ -225,6 +227,7 @@ export type Database = {
           reason?: string
           registration_fee?: number
           rejection_reason?: string | null
+          repayment_frequency?: string
           reviewed_by_agent_ops?: string | null
           reviewed_by_landlord_ops?: string | null
           reviewed_by_tenant_ops?: string | null
@@ -625,6 +628,7 @@ export type Database = {
           daily_rate: number
           expires_at: string
           id: string
+          installment_amount: number | null
           issued_at: string
           issued_by: string
           monthly_rate: number
@@ -633,6 +637,7 @@ export type Database = {
           prepaid_installments_remaining: number
           principal: number
           registration_fee: number | null
+          repayment_frequency: string
           status: string
           updated_at: string
         }
@@ -652,6 +657,7 @@ export type Database = {
           daily_rate?: number
           expires_at?: string
           id?: string
+          installment_amount?: number | null
           issued_at?: string
           issued_by: string
           monthly_rate?: number
@@ -660,6 +666,7 @@ export type Database = {
           prepaid_installments_remaining?: number
           principal?: number
           registration_fee?: number | null
+          repayment_frequency?: string
           status?: string
           updated_at?: string
         }
@@ -679,6 +686,7 @@ export type Database = {
           daily_rate?: number
           expires_at?: string
           id?: string
+          installment_amount?: number | null
           issued_at?: string
           issued_by?: string
           monthly_rate?: number
@@ -687,6 +695,7 @@ export type Database = {
           prepaid_installments_remaining?: number
           principal?: number
           registration_fee?: number | null
+          repayment_frequency?: string
           status?: string
           updated_at?: string
         }
@@ -24686,6 +24695,7 @@ export type Database = {
         Args: { p_sub_agent_id: string }
         Returns: undefined
       }
+      advance_period_days: { Args: { _frequency: string }; Returns: number }
       agent_allocate_tenant_payment: {
         Args: {
           p_agent_id: string
@@ -28904,6 +28914,16 @@ export type Database = {
         Returns: Json
       }
       unblock_signup_ip: { Args: { p_ip: string }; Returns: boolean }
+      update_agent_advance_terms: {
+        Args: {
+          p_advance_id: string
+          p_cycle_days: number
+          p_monthly_rate: number
+          p_reason: string
+          p_repayment_frequency: string
+        }
+        Returns: Json
+      }
       update_agent_collection_streak: {
         Args: { p_agent_id: string }
         Returns: undefined

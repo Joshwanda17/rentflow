@@ -11,7 +11,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, ShieldAlert, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { formatUGX, calculateAccessFee, calculateRegistrationFee } from '@/lib/agentAdvanceCalculations';
+import {
+  formatUGX,
+  calculateAccessFee,
+  calculateRegistrationFee,
+  installmentCount,
+  frequencyLabel,
+  REPAYMENT_FREQUENCIES,
+  type RepaymentFrequency,
+} from '@/lib/agentAdvanceCalculations';
 import { disburseAgentAdvanceRequest } from '@/lib/disburseAgentAdvance';
 import { DuplicateAccountAlert, useAgentDuplicateMap } from '@/components/ops/DuplicateAccountAlert';
 
@@ -22,11 +30,12 @@ const STEP = 1_000;
 const MIN_REASON = 15;
 
 const RATE_OPTIONS = [
-  { label: '33% / month (standard)', value: '0.33' },
-  { label: '28% / month', value: '0.28' },
-  { label: '25% / month', value: '0.25' },
+  { label: '33% / month (standard)', value: '33' },
+  { label: '28% / month', value: '28' },
+  { label: '25% / month', value: '25' },
+  { label: 'Custom rate…', value: 'custom' },
 ];
-const CYCLE_OPTIONS = ['30', '60', '90'];
+const CYCLE_OPTIONS = ['7', '14', '30', '60', '90'];
 
 interface Props {
   open: boolean;
@@ -39,7 +48,9 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
   const [agent, setAgent] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const [amount, setAmount] = useState('');
   const [cycleDays, setCycleDays] = useState('30');
-  const [rate, setRate] = useState('0.33');
+  const [ratePreset, setRatePreset] = useState('33');
+  const [customRate, setCustomRate] = useState('33');
+  const [frequency, setFrequency] = useState<RepaymentFrequency>('daily');
   const [reason, setReason] = useState('');
   const [confirmAmount, setConfirmAmount] = useState('');
   const [ackRisk, setAckRisk] = useState(false);
@@ -47,7 +58,8 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
   const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
-    setAgent(null); setAmount(''); setCycleDays('30'); setRate('0.33');
+    setAgent(null); setAmount(''); setCycleDays('30');
+    setRatePreset('33'); setCustomRate('33'); setFrequency('daily');
     setReason(''); setConfirmAmount(''); setAckRisk(false); setOverrideLimit(false);
   };
 
@@ -102,11 +114,14 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
 
   const principal = Number(String(amount).replace(/[^0-9]/g, '')) || 0;
   const days = Number(cycleDays);
-  const monthlyRate = Number(rate);
+  const ratePct = ratePreset === 'custom' ? Number(customRate) : Number(ratePreset);
+  const rateValid = Number.isFinite(ratePct) && ratePct >= 0 && ratePct <= 100;
+  const monthlyRate = rateValid ? ratePct / 100 : 0;
   const accessFee = principal > 0 ? calculateAccessFee(principal, days, monthlyRate) : 0;
   const registrationFee = principal > 0 ? calculateRegistrationFee(principal) : 0;
   const totalPayable = principal + accessFee + registrationFee;
-  const daily = principal > 0 ? Math.ceil(totalPayable / days) : 0;
+  const installments = installmentCount(days, frequency);
+  const installment = principal > 0 ? Math.ceil(totalPayable / installments) : 0;
 
   const overLimit = limit !== null && principal > limit;
 
@@ -126,6 +141,7 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
     !checking &&
     blockers.length === 0 &&
     amountErrors.length === 0 &&
+    rateValid &&
     reason.trim().length >= MIN_REASON &&
     ackRisk &&
     (!overLimit || overrideLimit) &&
@@ -147,7 +163,8 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
           access_fee: accessFee,
           registration_fee: registrationFee,
           total_payable: totalPayable,
-          daily_payment: daily,
+          daily_payment: installment,
+          repayment_frequency: frequency,
           reason: `[CFO-initiated] ${reason.trim()}`,
           status: 'cfo_approved',
           cfo_approved_by: user.id,
@@ -164,6 +181,7 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
         principal,
         cycleDays: days,
         monthlyRate,
+        repaymentFrequency: frequency,
         notes: `CFO-initiated advance · ${reason.trim()}`,
       });
 
@@ -178,6 +196,8 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
           principal,
           cycle_days: days,
           monthly_rate: monthlyRate,
+          repayment_frequency: frequency,
+          installment_amount: installment,
           total_payable: totalPayable,
           reason: reason.trim(),
           over_limit: overLimit,
@@ -270,10 +290,34 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
             </div>
             <div>
               <Label>Access fee rate</Label>
-              <Select value={rate} onValueChange={setRate}>
+              <Select value={ratePreset} onValueChange={setRatePreset}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {RATE_OPTIONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {ratePreset === 'custom' && (
+              <div>
+                <Label>Custom rate (% / month)</Label>
+                <Input
+                  inputMode="decimal"
+                  value={customRate}
+                  onChange={(e) => setCustomRate(e.target.value.replace(/[^0-9.]/g, ''))}
+                  placeholder="e.g. 18.5"
+                  className="mt-1"
+                />
+                {!rateValid && <p className="text-[11px] text-destructive mt-1">Enter a rate between 0 and 100.</p>}
+              </div>
+            )}
+            <div className={ratePreset === 'custom' ? '' : 'col-span-2'}>
+              <Label>Repayment frequency</Label>
+              <Select value={frequency} onValueChange={(v) => setFrequency(v as RepaymentFrequency)}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {REPAYMENT_FREQUENCIES.map((f) => (
+                    <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -285,7 +329,10 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
               <div className="flex justify-between"><span className="text-muted-foreground">Access fee</span><span className="font-semibold">{formatUGX(accessFee)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Registration fee</span><span className="font-semibold">{formatUGX(registrationFee)}</span></div>
               <div className="flex justify-between border-t pt-1"><span className="text-muted-foreground">Total repayable</span><span className="font-bold">{formatUGX(totalPayable)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Daily deduction</span><span className="font-semibold">{formatUGX(daily)}</span></div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{frequencyLabel(frequency)} deduction</span>
+                <span className="font-semibold">{formatUGX(installment)} × {installments}</span>
+              </div>
             </div>
           )}
 

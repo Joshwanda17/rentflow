@@ -7,6 +7,47 @@ export const MONTHLY_RATE = 0.33;
 export const REPAYMENT_PERIODS = [7, 14, 30, 60, 90] as const;
 export type RepaymentPeriod = (typeof REPAYMENT_PERIODS)[number];
 
+/** How often the agent repays. `daily` is the default flow. */
+export type RepaymentFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly';
+
+export const REPAYMENT_FREQUENCIES: { value: RepaymentFrequency; label: string; days: number }[] = [
+  { value: 'daily', label: 'Daily (default)', days: 1 },
+  { value: 'weekly', label: 'Weekly', days: 7 },
+  { value: 'biweekly', label: 'Bi-Weekly', days: 14 },
+  { value: 'monthly', label: 'Monthly', days: 30 },
+];
+
+/** Days in one repayment period. Mirrors the SQL `advance_period_days`. */
+export function periodDays(frequency: RepaymentFrequency = 'daily'): number {
+  return REPAYMENT_FREQUENCIES.find((f) => f.value === frequency)?.days ?? 1;
+}
+
+export function frequencyLabel(frequency?: string | null): string {
+  switch ((frequency || 'daily').toLowerCase()) {
+    case 'weekly': return 'Weekly';
+    case 'biweekly': return 'Bi-Weekly';
+    case 'monthly': return 'Monthly';
+    default: return 'Daily';
+  }
+}
+
+/** Number of installments across the whole cycle for a given frequency. */
+export function installmentCount(days: number, frequency: RepaymentFrequency = 'daily'): number {
+  return Math.max(1, Math.ceil(days / periodDays(frequency)));
+}
+
+/** Amount due per repayment period (total ÷ installments). */
+export function calculateInstallment(
+  principal: number,
+  days: number,
+  monthlyRate: number = MONTHLY_RATE,
+  frequency: RepaymentFrequency = 'daily',
+): number {
+  return Math.ceil(
+    calculateTotalPayable(principal, days, monthlyRate) / installmentCount(days, frequency),
+  );
+}
+
 export interface DayProjection {
   day: number;
   openingBalance: number;

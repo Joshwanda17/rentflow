@@ -5,20 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Search, Pencil, Info } from 'lucide-react';
+import { Loader2, Search, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
-import {
-  calculateAccessFee,
-  calculateRegistrationFee,
-  calculateDailyPayment,
-  formatUGX,
-  REPAYMENT_PERIODS,
-} from '@/lib/agentAdvanceCalculations';
+import { formatUGX, frequencyLabel } from '@/lib/agentAdvanceCalculations';
+import { EditAdvanceTermsDialog } from '@/components/advances/EditAdvanceTermsDialog';
 
 type Row = {
   id: string;
@@ -31,6 +23,8 @@ type Row = {
   daily_installment: number;
   monthly_rate: number;
   cycle_days: number;
+  repayment_frequency?: string | null;
+  installment_amount?: number | null;
   status: string;
   issued_at: string;
   expires_at: string;
@@ -58,7 +52,7 @@ export function ActiveAdvancesPanel() {
     queryFn: async (): Promise<Row[]> => {
       let q = supabase
         .from('agent_advances')
-        .select('id, agent_id, principal, access_fee, registration_fee, outstanding_balance, arrears_balance, daily_installment, monthly_rate, cycle_days, status, issued_at, expires_at')
+        .select('id, agent_id, principal, access_fee, registration_fee, outstanding_balance, arrears_balance, daily_installment, monthly_rate, cycle_days, repayment_frequency, installment_amount, status, issued_at, expires_at')
         .order('issued_at', { ascending: false })
         .limit(500);
       if (statusFilter !== 'all') {
@@ -186,7 +180,9 @@ export function ActiveAdvancesPanel() {
                         <div className="font-semibold">{formatUGX(outstanding)}</div>
                         <div className="text-[11px] text-emerald-600">Repaid {formatUGX(repaid)} · {pct}%</div>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatUGX(r.daily_installment)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatUGX(Number(r.installment_amount ?? r.daily_installment ?? 0))}
+                        <div className="text-[11px] text-muted-foreground">{frequencyLabel(r.repayment_frequency)}</div>
+                      </TableCell>
                       <TableCell className="text-center">{r.cycle_days}d</TableCell>
                       <TableCell className="text-xs">{r.issued_at ? format(new Date(r.issued_at), 'dd MMM yy') : '—'}</TableCell>
                       <TableCell className="text-xs">{r.expires_at ? format(new Date(r.expires_at), 'dd MMM yy') : '—'}</TableCell>
@@ -217,9 +213,10 @@ export function ActiveAdvancesPanel() {
         </CardContent>
       </Card>
 
-      <EditAdvanceDialog
-        advance={editing}
-        onClose={() => setEditing(null)}
+      <EditAdvanceTermsDialog
+        advance={editing ? { ...editing, agent_name: editing.agent_name } : null}
+        open={!!editing}
+        onOpenChange={(o) => { if (!o) setEditing(null); }}
         onSaved={() => {
           qc.invalidateQueries({ queryKey: ['active-advances'] });
           setEditing(null);
@@ -239,169 +236,11 @@ function StatCard({ label, value, tone }: { label: string; value: string; tone?:
   );
 }
 
-function EditAdvanceDialog({
-  advance,
-  onClose,
-  onSaved,
-}: {
-  advance: Row | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [days, setDays] = useState<number>(advance?.cycle_days ?? 30);
-  const [reprice, setReprice] = useState<boolean>(true);
-  const [saving, setSaving] = useState(false);
-
-  // Reset when advance changes
-  useMemo(() => {
-    if (advance) {
-      setDays(advance.cycle_days || 30);
-      setReprice(true);
-    }
-  }, [advance?.id]);
-
-  if (!advance) return null;
-
-  const principal = Number(advance.principal || 0);
-  const rate = Number(advance.monthly_rate || 0.33);
-  const regFee = Number(advance.registration_fee || calculateRegistrationFee(principal));
-  const oldAccessFee = Number(advance.access_fee || 0);
-  const oldTotalPayable = principal + oldAccessFee + regFee;
-  const alreadyPaid = Math.max(0, oldTotalPayable - Number(advance.outstanding_balance || 0));
-
-  const newAccessFee = reprice ? calculateAccessFee(principal, days, rate) : oldAccessFee;
-  const newTotalPayable = principal + newAccessFee + regFee;
-  const newOutstanding = Math.max(0, newTotalPayable - alreadyPaid);
-  const newDaily = days > 0 ? Math.ceil(newOutstanding / days) : 0;
-  const freshDaily = calculateDailyPayment(principal, days, rate);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const issued = advance.issued_at ? new Date(advance.issued_at) : new Date();
-      const newExpires = new Date(issued.getTime() + days * 86400_000).toISOString();
-      const { error } = await supabase
-        .from('agent_advances')
-        .update({
-          cycle_days: days,
-          expires_at: newExpires,
-          access_fee: newAccessFee,
-          outstanding_balance: newOutstanding,
-          daily_installment: newDaily,
-        })
-        .eq('id', advance.id);
-      if (error) throw error;
-      toast.success(`Advance updated — ${days} days at ${formatUGX(newDaily)}/day`);
-      onSaved();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to update advance');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={!!advance} onOpenChange={o => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit Advance — {advance.agent_name}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <Field label="Principal" value={formatUGX(principal)} />
-            <Field label="Monthly Rate" value={`${(rate * 100).toFixed(0)}%`} />
-            <Field label="Current Access Fee" value={formatUGX(oldAccessFee)} />
-            <Field label="Registration Fee" value={formatUGX(regFee)} />
-            <Field label="Already Paid" value={formatUGX(alreadyPaid)} />
-            <Field label="Current Outstanding" value={formatUGX(Number(advance.outstanding_balance))} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Repayment Period (days)</Label>
-            <div className="flex items-center gap-2 flex-wrap">
-              {REPAYMENT_PERIODS.map(p => (
-                <Button
-                  key={p}
-                  type="button"
-                  size="sm"
-                  variant={days === p ? 'default' : 'outline'}
-                  onClick={() => setDays(p)}
-                >
-                  {p}d
-                </Button>
-              ))}
-              <Input
-                type="number"
-                min={1}
-                max={365}
-                value={days}
-                onChange={e => setDays(Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
-                className="w-24"
-              />
-            </div>
-          </div>
-
-          <label className="flex items-start gap-2 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={reprice}
-              onChange={e => setReprice(e.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              <span className="font-medium">Reprice access fee for new period</span>
-              <span className="block text-xs text-muted-foreground">
-                Recomputes fee at {(rate * 100).toFixed(0)}%/month compounded for {days} days. Uncheck to keep the originally
-                capitalized fee and just compress the schedule.
-              </span>
-            </span>
-          </label>
-
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-wider">
-              <Info className="h-3.5 w-3.5" /> Recalculation preview
-            </div>
-            <PreviewRow label="New Access Fee" value={formatUGX(newAccessFee)} />
-            <PreviewRow label="New Total Payable" value={formatUGX(newTotalPayable)} />
-            <PreviewRow label="Outstanding to Collect" value={formatUGX(newOutstanding)} bold />
-            <PreviewRow label={`Daily × ${days} days`} value={`${formatUGX(newDaily)} / day`} bold />
-            {reprice && (
-              <PreviewRow
-                label={`(Fresh advance daily for reference)`}
-                value={formatUGX(freshDaily)}
-                muted
-              />
-            )}
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || days < 1}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Save & Recalculate
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="font-medium tabular-nums">{value}</p>
-    </div>
-  );
-}
-
-function PreviewRow({ label, value, bold, muted }: { label: string; value: string; bold?: boolean; muted?: boolean }) {
-  return (
-    <div className={`flex items-center justify-between text-sm ${muted ? 'text-muted-foreground text-xs' : ''}`}>
-      <span>{label}</span>
-      <span className={`tabular-nums ${bold ? 'font-bold' : ''}`}>{value}</span>
     </div>
   );
 }

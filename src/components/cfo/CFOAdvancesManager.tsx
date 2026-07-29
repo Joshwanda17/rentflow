@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator, Receipt, Trash2, RefreshCw, Download, FileText, Ban } from 'lucide-react';
+import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator, Receipt, Trash2, RefreshCw, Download, FileText, Ban, Pencil } from 'lucide-react';
 import { exportAdvanceStatements, exportConsolidatedPayments } from '@/lib/agentAdvancePdfExport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
 import { CFOInitiateAdvanceDialog } from '@/components/cfo/CFOInitiateAdvanceDialog';
 import { RecordAdvancePaymentDialog } from '@/components/cfo/RecordAdvancePaymentDialog';
 import { CancelAdvanceDialog } from '@/components/cfo/CancelAdvanceDialog';
+import { EditAdvanceTermsDialog } from '@/components/advances/EditAdvanceTermsDialog';
 import { DailyRecoveryRateCard } from '@/components/cfo/DailyRecoveryRateCard';
 import { differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
@@ -49,6 +50,7 @@ export function CFOAdvancesManager() {
   const [exporting, setExporting] = useState(false);
   const [exportingPayments, setExportingPayments] = useState(false);
   const [paymentAdvance, setPaymentAdvance] = useState<any | null>(null);
+  const [termsAdvance, setTermsAdvance] = useState<any | null>(null);
   const [cancelAdvance, setCancelAdvance] = useState<any | null>(null);
 
   const handleExportPayments = async () => {
@@ -405,6 +407,14 @@ export function CFOAdvancesManager() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="gap-1"
+                            onClick={() => setTermsAdvance(adv)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Edit terms
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
                             className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
                             onClick={() => setCancelAdvance(adv)}
                           >
@@ -458,6 +468,13 @@ export function CFOAdvancesManager() {
         open={!!cancelAdvance}
         onOpenChange={(o) => { if (!o) setCancelAdvance(null); }}
         onSuccess={() => { refetch(); setCancelAdvance(null); }}
+      />
+
+      <EditAdvanceTermsDialog
+        advance={termsAdvance ? { ...termsAdvance, agent_name: termsAdvance.profiles?.full_name } : null}
+        open={!!termsAdvance}
+        onOpenChange={(o) => { if (!o) setTermsAdvance(null); }}
+        onSaved={() => { refetch(); setTermsAdvance(null); }}
       />
     </div>
   );
