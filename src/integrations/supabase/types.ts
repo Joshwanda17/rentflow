@@ -29503,6 +29503,7 @@ export type Database = {
         | "agent_ops"
         | "financial_ops"
         | "partner_ops"
+        | "access_admin"
       automation_action_type:
         | "send_notification"
         | "send_push"
@@ -29815,6 +29816,7 @@ export const Constants = {
         "agent_ops",
         "financial_ops",
         "partner_ops",
+        "access_admin",
       ],
       automation_action_type: [
         "send_notification",
