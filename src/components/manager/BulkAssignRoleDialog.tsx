@@ -45,6 +45,7 @@ export default function BulkAssignRoleDialog({
   onSuccess
 }: BulkAssignRoleDialogProps) {
   const { user } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [selectedRole, setSelectedRole] = useState<AppRole>('tenant');
   const [assigning, setAssigning] = useState(false);
   const [progress, setProgress] = useState(0);
