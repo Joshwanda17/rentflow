@@ -47,7 +47,9 @@ export function MobileRoleEditor({
   onRolesUpdated 
 }: MobileRoleEditorProps) {
   const { user } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [open, setOpen] = useState(false);
+
   const [roles, setRoles] = useState<string[]>(currentRoles);
   const [enabledStatus, setEnabledStatus] = useState<Record<string, boolean>>(roleEnabledStatus);
   const [loading, setLoading] = useState<string | null>(null);
