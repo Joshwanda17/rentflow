@@ -2492,7 +2492,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                         </Button>
                                       </>
                                     ) : (
-                                      <Button variant="ghost" size="sm" onClick={() => handleAddRole(role.value)} disabled={addingRole === role.value} className="text-success hover:text-success hover:bg-success/10">
+                                      <Button variant="ghost" size="sm" onClick={() => handleAddRole(role.value)} disabled={addingRole === role.value || (!canEdit && role.category !== 'standard')} className="text-success hover:text-success hover:bg-success/10">
                                         {addingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Add</>}
                                       </Button>
                                     )}
