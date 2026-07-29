@@ -993,7 +993,6 @@ export default function WithdrawFlow({
             {isPerfLocked && (
               <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">🚫</span>
                   <h4 className="font-bold text-destructive">Withdrawals temporarily disabled</h4>
                 </div>
                 <p className="text-sm text-destructive/90">
