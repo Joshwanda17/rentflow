@@ -60,9 +60,13 @@ interface Sale {
   notes: string | null;
   created_at: string;
   order_status?: OrderStatus;
+  rejection_reason?: string | null;
+  rejected_by?: string | null;
+  rejected_at?: string | null;
+  customer_id?: string | null;
 }
 
-type OrderStatus = 'submitted' | 'processing' | 'completed' | 'failed';
+type OrderStatus = 'submitted' | 'processing' | 'completed' | 'failed' | 'rejected';
 
 interface RecoveryPlan {
   id: string;
@@ -325,6 +329,8 @@ export function MerchandiseManager() {
     toast.success('Order status updated');
     queryClient.invalidateQueries({ queryKey: ['merchandise-sales'] });
   };
+
+  const [rejectTarget, setRejectTarget] = useState<Sale | null>(null);
 
   // Pagination
   const catalogPage = usePagination(catalog);
@@ -624,7 +630,7 @@ export function MerchandiseManager() {
               </thead>
               <tbody>
                 {salesPage.slice.map((s) => (
-                  <tr key={s.id} className="border-b border-border/40">
+                  <tr key={s.id} className={`border-b border-border/40 ${s.order_status === 'rejected' ? 'opacity-60' : ''}`}>
                     <td className="py-2 pr-3 whitespace-nowrap">{format(new Date(s.sale_date), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">{s.item_name}</td>
                     <td className="py-2 px-3 text-right">{s.quantity}</td>
@@ -632,24 +638,45 @@ export function MerchandiseManager() {
                     <td className="py-2 px-3">{s.client_name || '—'}</td>
                     <td className="py-2 px-3"><StatusBadge status={s.payment_status} /></td>
                     <td className="py-2 px-3">
-                      <Select
-                        value={s.order_status || 'submitted'}
-                        onValueChange={(v) => updateOrderStatus(s.id, v as OrderStatus)}
-                      >
-                        <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="submitted">Submitted</SelectItem>
-                          <SelectItem value="processing">Processing</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="failed">Failed</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {s.order_status === 'rejected' ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+                          title={s.rejection_reason ? `Reason: ${s.rejection_reason}` : 'Rejected'}
+                        >
+                          Rejected
+                        </span>
+                      ) : (
+                        <Select
+                          value={s.order_status || 'submitted'}
+                          onValueChange={(v) => updateOrderStatus(s.id, v as OrderStatus)}
+                        >
+                          <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="submitted">Submitted</SelectItem>
+                            <SelectItem value="processing">Processing</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="failed">Failed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </td>
                     <td className="py-2 px-3 text-right">{Number(s.amount_outstanding) > 0 ? formatUGX(Number(s.amount_outstanding)) : '—'}</td>
                     <td className="py-2 pl-3 text-right">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteSale(s.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {(s.order_status === 'submitted' || s.order_status === 'processing' || !s.order_status) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
+                            onClick={() => setRejectTarget(s)}
+                          >
+                            Reject
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteSale(s.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -659,6 +686,12 @@ export function MerchandiseManager() {
           </div>
         )}
       </Section>
+
+      <RejectPurchaseDialog
+        sale={rejectTarget}
+        onClose={() => setRejectTarget(null)}
+        onDone={() => { setRejectTarget(null); refresh(); }}
+      />
 
       {/* Recent purchases */}
       <Section title="Purchase History" icon={Package}>
@@ -1354,6 +1387,111 @@ function AddCatalogItemDialog({ userId, onSaved }: { userId?: string; onSaved: (
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
           <Button onClick={save} disabled={saving || uploading}>{saving ? 'Saving…' : 'Add Item'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+// ---------- Reject purchase request dialog ----------
+function RejectPurchaseDialog({
+  sale, onClose, onDone,
+}: {
+  sale: Sale | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const open = !!sale;
+  const reasonTrim = reason.trim();
+  const canSubmit = !!sale && reasonTrim.length >= 10 && !submitting;
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v && !submitting) {
+      setReason('');
+      onClose();
+    }
+  };
+
+  const submit = async () => {
+    if (!sale) return;
+    setSubmitting(true);
+    const { data, error } = await db.rpc('reject_merchandise_purchase', {
+      p_sale_id: sale.id,
+      p_reason: reasonTrim,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const refunded = Number((data as any)?.refunded || 0);
+    const already = (data as any)?.already_rejected;
+    if (already) {
+      toast.message('This order was already rejected.');
+    } else if (refunded > 0) {
+      toast.success(`Rejected. Refunded ${formatUGX(refunded)} to the agent's wallet.`);
+    } else {
+      toast.success('Order rejected. Nothing was refunded (no money had been debited).');
+    }
+    setReason('');
+    onDone();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reject purchase request</DialogTitle>
+        </DialogHeader>
+        {sale && (
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 space-y-1">
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Agent</span>
+                <span className="font-medium text-right">{sale.client_name || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Item</span>
+                <span className="font-medium text-right">{sale.item_name} × {sale.quantity}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Amount to refund</span>
+                <span className="font-semibold text-right">{formatUGX(Number(sale.total_revenue))}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The agent's wallet will be credited back for what they already paid
+              (instant purchase) or for what has already been swept via the recovery
+              plan. Any remaining recovery plan is cancelled.
+            </p>
+            <div>
+              <Label className="text-xs">Reason (visible in the audit log)</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Why are you rejecting this order? (min 10 characters)"
+                className="mt-1 min-h-[90px]"
+                disabled={submitting}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {reasonTrim.length}/10 characters minimum
+              </p>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={submit}
+            disabled={!canSubmit}
+          >
+            {submitting ? 'Rejecting…' : 'Reject & refund'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
