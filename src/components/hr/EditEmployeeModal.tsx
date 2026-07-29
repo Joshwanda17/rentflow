@@ -139,7 +139,7 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
               {currentRoles.map(role => (
                 <Badge key={role} variant="secondary" className="text-xs capitalize gap-1 pr-1">
                   {role.replace('_', ' ')}
-                  <button onClick={() => handleRemoveRole(role)} className="ml-0.5 hover:text-destructive" disabled={saving}>
+                  <button onClick={() => handleRemoveRole(role)} className="ml-0.5 hover:text-destructive" disabled={saving || !canEdit}>
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
