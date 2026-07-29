@@ -329,9 +329,10 @@ export function MobileRoleEditor({
                         <Button
                           variant="default"
                           onClick={() => handleAddRole(role.value)}
-                          disabled={isLoading}
+                          disabled={isLoading || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(role.value))}
                           className="h-12 px-5 rounded-xl gap-2 bg-success hover:bg-success/90 text-success-foreground"
                         >
+
                           {isLoading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
