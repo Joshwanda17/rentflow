@@ -126,19 +126,7 @@ serve(async (req) => {
       const daysLeft = Math.max(0, REASSIGN_AT_DAYS - daysSince);
       const tenantName = nameById.get(row.tenant_id) || "your tenant";
 
-      // Grace exceeded: lock the tenant from this agent so Agent Ops can reassign.
-      if (cadenceKnown && daysSince >= REASSIGN_AT_DAYS) {
-        const { error: lockErr } = await supabase
-          .from("rent_requests")
-          .update({
-            collection_locked_at: new Date().toISOString(),
-            collection_locked_reason: `No collection for ${daysSince} days (${frequency} grace period exceeded)`,
-            collection_lock_days: daysSince,
-          })
-          .eq("id", row.id)
-          .is("collection_locked_at", null);
-        if (!lockErr) locked++;
-      }
+      // Collection lock feature retired — warnings only, never lock the tenant.
 
       const idleLabel = isWeekly
         ? `${Math.floor(daysSince / 7)} week${Math.floor(daysSince / 7) === 1 ? "" : "s"}`
