@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import DashboardPermissionsTab from './DashboardPermissionsTab';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
   Dialog,
@@ -136,6 +137,7 @@ interface UserDetailsDialogProps {
 
 export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated, onUserDeleted, onUserUpdated }: UserDetailsDialogProps) {
   const isMobile = useIsMobile();
+  const { user: actingUser } = useAuth();
   const [investmentAccounts, setInvestmentAccounts] = useState<InvestmentAccount[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
@@ -152,6 +154,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [addingRole, setAddingRole] = useState<AppRole | null>(null);
   const [removingRole, setRemovingRole] = useState<string | null>(null);
   const [togglingRole, setTogglingRole] = useState<string | null>(null);
+  const [roleChangeReason, setRoleChangeReason] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   
   // Edit profile state
