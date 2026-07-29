@@ -41,6 +41,7 @@ interface DashboardPermissionsTabProps {
 
 export default function DashboardPermissionsTab({ userId }: DashboardPermissionsTabProps) {
   const { user } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [granted, setGranted] = useState<Record<string, string>>({});
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(true);
