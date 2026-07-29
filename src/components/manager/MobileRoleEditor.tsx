@@ -18,6 +18,8 @@ import { UserCog, Loader2, Plus, X, ShieldAlert, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { useAuth } from '@/hooks/useAuth';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
+
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
