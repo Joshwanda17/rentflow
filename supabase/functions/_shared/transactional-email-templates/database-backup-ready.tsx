@@ -12,6 +12,9 @@ interface DatabaseBackupReadyProps {
   rowCount?: number
   generatedAt?: string
   expiresInHours?: number
+  actorName?: string
+  actorTimestamp?: string
+  actorUserAgent?: string
 }
 
 export function DatabaseBackupReadyEmail({
@@ -22,6 +25,9 @@ export function DatabaseBackupReadyEmail({
   rowCount = 0,
   generatedAt = new Date().toISOString(),
   expiresInHours = 168,
+  actorName = 'System (scheduled cron)',
+  actorTimestamp = new Date().toISOString(),
+  actorUserAgent = 'n/a',
 }: DatabaseBackupReadyProps) {
   return (
     <Html>
@@ -48,6 +54,12 @@ export function DatabaseBackupReadyEmail({
             <Text style={infoValue}>{generatedAt}</Text>
             <Text style={infoLabel}>Link expires in</Text>
             <Text style={infoValue}>{expiresInHours} hours</Text>
+            <Text style={infoLabel}>Triggered by</Text>
+            <Text style={infoValue}>{actorName}</Text>
+            <Text style={infoLabel}>Triggered at</Text>
+            <Text style={infoValue}>{actorTimestamp}</Text>
+            <Text style={infoLabel}>User agent</Text>
+            <Text style={infoValue}>{actorUserAgent}</Text>
           </Section>
           <Hr style={hr} />
           <Text style={footer}>
