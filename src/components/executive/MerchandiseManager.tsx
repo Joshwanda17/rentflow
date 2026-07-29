@@ -60,9 +60,13 @@ interface Sale {
   notes: string | null;
   created_at: string;
   order_status?: OrderStatus;
+  rejection_reason?: string | null;
+  rejected_by?: string | null;
+  rejected_at?: string | null;
+  customer_id?: string | null;
 }
 
-type OrderStatus = 'submitted' | 'processing' | 'completed' | 'failed';
+type OrderStatus = 'submitted' | 'processing' | 'completed' | 'failed' | 'rejected';
 
 interface RecoveryPlan {
   id: string;
