@@ -26056,6 +26056,34 @@ export type Database = {
         Args: { p_campaign_id?: string; p_from?: string; p_to?: string }
         Returns: Json
       }
+      get_advance_activity_monthly_trend: {
+        Args: { p_months?: number }
+        Returns: {
+          active_agents: number
+          advance_principal: number
+          advance_requests: number
+          collections_amount: number
+          collections_count: number
+          month_start: string
+        }[]
+      }
+      get_agent_advance_activity_correlation: {
+        Args: { p_days?: number }
+        Returns: {
+          activity_score: number
+          advance_count: number
+          advance_principal: number
+          agent_id: string
+          approved_count: number
+          collections_amount: number
+          collections_count: number
+          full_name: string
+          listings_count: number
+          subagents_count: number
+          tenants_count: number
+          visits_count: number
+        }[]
+      }
       get_agent_advance_limits: {
         Args: { _limit?: number; _offset?: number; _search?: string }
         Returns: {
