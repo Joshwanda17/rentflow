@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
   const [department, setDepartment] = useState(employee.staffProfile?.department || '');
   const [newRole, setNewRole] = useState('');
   const [saving, setSaving] = useState(false);
+  const { canEdit } = useCanEditAccess();
 
   const currentRoles = employee.roles;
 
@@ -132,12 +134,15 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
           </div>
 
           <div className="space-y-2">
+            {!canEdit && (
+              <p className="text-xs text-muted-foreground">Only access administrators can change staff roles.</p>
+            )}
             <Label className="text-xs font-medium">Current Roles</Label>
             <div className="flex flex-wrap gap-1.5">
               {currentRoles.map(role => (
                 <Badge key={role} variant="secondary" className="text-xs capitalize gap-1 pr-1">
                   {role.replace('_', ' ')}
-                  <button onClick={() => handleRemoveRole(role)} className="ml-0.5 hover:text-destructive" disabled={saving}>
+                  <button onClick={() => handleRemoveRole(role)} className="ml-0.5 hover:text-destructive" disabled={saving || !canEdit}>
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -157,7 +162,7 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
                   ))}
                 </SelectContent>
               </Select>
-              <Button size="sm" onClick={handleAddRole} disabled={!newRole || saving} className="h-9">
+              <Button size="sm" onClick={handleAddRole} disabled={!newRole || saving || !canEdit} className="h-9">
                 Add
               </Button>
             </div>
