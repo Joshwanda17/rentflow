@@ -548,14 +548,14 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
+        {content}
         {!activeTool && view === 'home' && (
-          <div className="mb-4 space-y-4">
+          <div className="mt-6 space-y-4">
             <MomoFeedSilenceAlert />
             <IftttDiagnosticsPanel />
             <MerchantPhoneChecklist />
           </div>
         )}
-        {content}
       </div>
     </div>
   );
