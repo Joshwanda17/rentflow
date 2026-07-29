@@ -75,6 +75,57 @@ Deno.serve(async (req) => {
 
     const now = new Date().toISOString()
 
+    // Create the live per-request allocation BEFORE mutating balances. The
+    // table has a unique live-allocation guard, so duplicate/batched clicks fail
+    // here and cannot inflate an agent's landlord float again.
+    const { data: existingAllocation } = await serviceClient
+      .from('agent_landlord_float_allocations')
+      .select('id, agent_id, status')
+      .eq('rent_request_id', rent_request_id)
+      .eq('source', 'cfo_disbursement')
+      .in('status', ['open', 'partially_paid'])
+      .maybeSingle()
+
+    if (existingAllocation) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          already_funded: true,
+          error: 'This rent request already has live landlord float allocated. Refusing to re-fund.',
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { data: allocation, error: allocationInsertErr } = await serviceClient
+      .from('agent_landlord_float_allocations')
+      .insert({
+        agent_id: bonusAgentId,
+        tenant_id: request.tenant_id,
+        rent_request_id,
+        landlord_id: request.landlord_id,
+        landlord_name: landlord?.name || 'Unknown Landlord',
+        landlord_phone: landlord?.mobile_money_number || landlord?.phone || null,
+        allocated_amount: request.rent_amount,
+        source: 'cfo_disbursement',
+      })
+      .select('id')
+      .single()
+
+    if (allocationInsertErr) {
+      if (allocationInsertErr.code === '23505') {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            already_funded: true,
+            error: 'This rent request already has live landlord float allocated. Refusing to re-fund.',
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+      throw new Error(`Failed to create landlord float allocation: ${allocationInsertErr.message}`)
+    }
+
     // ============================================================
     // FUND AGENT'S LANDLORD FLOAT (no TID required at this stage)
     // ============================================================
@@ -94,7 +145,15 @@ Deno.serve(async (req) => {
         })
         .eq('id', existingFloat.id)
 
-      if (floatErr) throw new Error(`Failed to update agent float: ${floatErr.message}`)
+      if (floatErr) {
+        if (allocation?.id) {
+          await serviceClient
+            .from('agent_landlord_float_allocations')
+            .update({ status: 'cancelled', updated_at: now })
+            .eq('id', allocation.id)
+        }
+        throw new Error(`Failed to update agent float: ${floatErr.message}`)
+      }
     } else {
       const { error: insertErr } = await serviceClient
         .from('agent_landlord_float')
@@ -105,27 +164,15 @@ Deno.serve(async (req) => {
           total_paid_out: 0,
         })
 
-      if (insertErr) throw new Error(`Failed to create agent float: ${insertErr.message}`)
-    }
-
-    // ============================================================
-    // Phase 1: create per-tenant allocation row (idempotent RPC)
-    // ============================================================
-    try {
-      const { error: allocErr } = await serviceClient.rpc(
-        'create_landlord_float_allocation' as any,
-        {
-          p_agent_id: bonusAgentId,
-          p_rent_request_id: rent_request_id,
-          p_amount: request.rent_amount,
-          p_source: 'cfo_disbursement',
-        },
-      )
-      if (allocErr) {
-        console.warn('[fund-float] allocation RPC failed (non-fatal):', allocErr.message)
+      if (insertErr) {
+        if (allocation?.id) {
+          await serviceClient
+            .from('agent_landlord_float_allocations')
+            .update({ status: 'cancelled', updated_at: now })
+            .eq('id', allocation.id)
+        }
+        throw new Error(`Failed to create agent float: ${insertErr.message}`)
       }
-    } catch (e) {
-      console.warn('[fund-float] allocation RPC threw (non-fatal):', e)
     }
 
     // Update rent request status to 'funded'
@@ -183,6 +230,7 @@ Deno.serve(async (req) => {
           transaction_date: now,
         },
       ],
+      idempotency_key: `fund-agent-landlord-float:${rent_request_id}:float`,
     });
 
     // ============================================================
@@ -226,6 +274,7 @@ Deno.serve(async (req) => {
           transaction_date: now,
         },
       ],
+      idempotency_key: `fund-agent-landlord-float:${rent_request_id}:bonus`,
     })
 
     if (!ledgerErr) {
