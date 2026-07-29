@@ -140,6 +140,7 @@ interface UserDetailsDialogProps {
 export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated, onUserDeleted, onUserUpdated }: UserDetailsDialogProps) {
   const isMobile = useIsMobile();
   const { user: actingUser } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [investmentAccounts, setInvestmentAccounts] = useState<InvestmentAccount[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
