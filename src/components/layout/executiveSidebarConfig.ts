@@ -73,6 +73,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
     {
       title: 'Advances',
       items: [
+        { label: 'Advances Overview', icon: BarChart3, id: 'advances-analytics' },
         { label: 'Advance Requests', icon: HandCoins, id: 'advances' },
         { label: 'Disbursed & Repayments', icon: Banknote, id: 'advances-disbursed' },
       ],
