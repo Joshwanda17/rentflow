@@ -205,37 +205,9 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       });
       if (rpcErr) throw rpcErr;
 
-      // 4. Record registration fee revenue
-      if (registrationFee > 0) {
-        await supabase.rpc('create_ledger_transaction', {
-          entries: [
-            {
-              user_id: req.agent_id,
-              ledger_scope: 'platform',
-              direction: 'cash_in',
-              amount: registrationFee,
-              category: 'registration_fee_collected',
-              source_table: 'agent_advance_requests',
-              source_id: req.id,
-              description: `Registration fee for agent advance`,
-              currency: 'UGX',
-              transaction_date: new Date().toISOString(),
-            },
-            {
-              user_id: req.agent_id,
-              ledger_scope: 'wallet',
-              direction: 'cash_out',
-              amount: registrationFee,
-              category: 'registration_fee_collected',
-              source_table: 'agent_advance_requests',
-              source_id: req.id,
-              description: `Registration fee deducted`,
-              currency: 'UGX',
-              transaction_date: new Date().toISOString(),
-            },
-          ],
-        });
-      }
+      // 4. Registration fee is already included in `total_payable` and is recovered
+      //    through the repayment schedule — it must NOT be debited from the wallet
+      //    at disbursement (that double-charged the agent and zeroed small advances).
 
       // 5. Notify the agent by SMS that the advance was disbursed (fire-and-forget).
       supabase.functions.invoke('notify-agent-advance-disbursed', {
@@ -435,37 +407,8 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
       });
       if (rpcErr) throw rpcErr;
 
-      // 4. Record registration fee revenue.
-      if (registrationFee > 0) {
-        await supabase.rpc('create_ledger_transaction', {
-          entries: [
-            {
-              user_id: req.agent_id,
-              ledger_scope: 'platform',
-              direction: 'cash_in',
-              amount: registrationFee,
-              category: 'registration_fee_collected',
-              source_table: 'agent_advance_requests',
-              source_id: req.id,
-              description: `Registration fee for agent advance`,
-              currency: 'UGX',
-              transaction_date: nowIso,
-            },
-            {
-              user_id: req.agent_id,
-              ledger_scope: 'wallet',
-              direction: 'cash_out',
-              amount: registrationFee,
-              category: 'registration_fee_collected',
-              source_table: 'agent_advance_requests',
-              source_id: req.id,
-              description: `Registration fee deducted`,
-              currency: 'UGX',
-              transaction_date: nowIso,
-            },
-          ],
-        });
-      }
+      // 4. Registration fee stays inside `total_payable` (recovered via repayments).
+      //    No upfront wallet debit — see disburseAgentAdvance.ts.
 
       // 5. Notify the agent by SMS (fire-and-forget).
       supabase.functions.invoke('notify-agent-advance-disbursed', {
