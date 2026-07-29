@@ -299,9 +299,10 @@ export function MobileRoleEditor({
                             <Switch
                               checked={isEnabled}
                               onCheckedChange={() => handleToggleEnabled(role.value)}
-                              disabled={isLoading}
+                              disabled={isLoading || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(role.value))}
                               className="scale-125"
                             />
+
                             <span className="text-[10px] text-muted-foreground">
                               {isEnabled ? 'On' : 'Off'}
                             </span>
