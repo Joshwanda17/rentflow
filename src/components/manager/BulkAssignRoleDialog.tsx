@@ -7,6 +7,7 @@ import { UserCog, Loader2, ShieldCheck, ClipboardList } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
 import { Progress } from '@/components/ui/progress';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
@@ -44,6 +45,7 @@ export default function BulkAssignRoleDialog({
   onSuccess
 }: BulkAssignRoleDialogProps) {
   const { user } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [selectedRole, setSelectedRole] = useState<AppRole>('tenant');
   const [assigning, setAssigning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -232,10 +234,15 @@ export default function BulkAssignRoleDialog({
         )}
 
         <DialogFooter className="gap-2 sm:gap-0">
+          {!canEdit && (
+            <p className="w-full text-xs text-muted-foreground">
+              Only access administrators can bulk assign internal and executive roles.
+            </p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={assigning}>
             Cancel
           </Button>
-          <Button onClick={handleAssign} disabled={assigning}>
+          <Button onClick={handleAssign} disabled={assigning || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(selectedRole))}>
             {assigning ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
