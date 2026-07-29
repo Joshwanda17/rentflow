@@ -159,7 +159,7 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
                   ))}
                 </SelectContent>
               </Select>
-              <Button size="sm" onClick={handleAddRole} disabled={!newRole || saving} className="h-9">
+              <Button size="sm" onClick={handleAddRole} disabled={!newRole || saving || !canEdit} className="h-9">
                 Add
               </Button>
             </div>
