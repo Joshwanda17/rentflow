@@ -58,6 +58,31 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Resolve actor (user who triggered the backup) for the notification email.
+  let actorName = "System (scheduled cron)";
+  const actorUserAgent = req.headers.get("user-agent") || "n/a";
+  const actorTimestamp = new Date().toISOString();
+  try {
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (token) {
+      const { data: userData } = await supabase.auth.getUser(token);
+      const uid = userData?.user?.id;
+      if (uid) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email, phone_number")
+          .eq("id", uid)
+          .maybeSingle();
+        actorName = profile?.full_name
+          || profile?.email
+          || profile?.phone_number
+          || userData.user.email
+          || uid;
+      }
+    }
+  } catch (_) { /* fall back to system actor */ }
+
   const startedAt = new Date();
   const stamp = startedAt.toISOString().replace(/[:.]/g, "-");
   const fileName = `welile_export_${stamp}.csv`;
@@ -192,6 +217,9 @@ Deno.serve(async (req) => {
               rowCount: totalRows,
               generatedAt: startedAt.toISOString(),
               expiresInHours: 168,
+            actorName,
+            actorTimestamp,
+            actorUserAgent,
             },
           },
         });
