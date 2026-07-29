@@ -55,8 +55,8 @@ interface Metrics {
 
 const DEPOSIT_LABEL: Record<string, string> = {
   cash: 'Cash Deposits',
-  mtn: 'MTN Mobile Money Deposits',
-  airtel: 'Airtel Money Deposits',
+  mtn: 'MTN via Gmail',
+  airtel: 'Airtel via Gmail',
   bank: 'Bank Deposits',
   cfo_direct_credit: 'CFO Direct Credit',
   gmail_auto_credit: 'Gmail Auto-Credit',
