@@ -677,7 +677,36 @@ function FinOpsHome({
         </div>
       </div>
 
-      {/* Cash Deposit Codes — time-sensitive quick action (top priority: codes expire in 2 min) */}
+      {/* Wallet Breakdown — highest priority overview */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setWalletBreakdownOpen(!walletBreakdownOpen)}
+          className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight">Wallet Breakdown</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Search every wallet by name, phone, or balance range.
+            </p>
+          </div>
+          {walletBreakdownOpen ? (
+            <ChevronUp className="h-5 w-5 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
+          )}
+        </button>
+        {walletBreakdownOpen && (
+          <div className="px-4 pb-4 border-t border-border">
+            <WalletBreakdownReadOnly
+              focusBucket={focusBucket}
+              onClearFocus={onClearFocus}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Cash Deposit Codes — time-sensitive quick action (codes expire in 2 min) */}
       <button
         onClick={() => onOpenTool('cash_codes')}
         className="w-full flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
@@ -764,35 +793,6 @@ function FinOpsHome({
           title="Merchant Claims"
           desc="Operational settlements for cash-out agents."
         />
-      </div>
-
-      {/* Wallet Breakdown */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setWalletBreakdownOpen(!walletBreakdownOpen)}
-          className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base sm:text-lg font-bold tracking-tight">Wallet Breakdown</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Search every wallet by name, phone, or balance range.
-            </p>
-          </div>
-          {walletBreakdownOpen ? (
-            <ChevronUp className="h-5 w-5 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
-          )}
-        </button>
-        {walletBreakdownOpen && (
-          <div className="px-4 pb-4 border-t border-border">
-            <WalletBreakdownReadOnly
-              focusBucket={focusBucket}
-              onClearFocus={onClearFocus}
-            />
-          </div>
-        )}
       </div>
 
       {/* Pulse strip — dense KPI row (kept for operators) */}
