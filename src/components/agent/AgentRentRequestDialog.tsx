@@ -12,7 +12,9 @@ import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { listingHasRealPhoto } from '@/hooks/useHouseListings';
 import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
-import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
+import { TenantDuplicateNotice } from '@/components/agent/TenantDuplicateNotice';
+import { useTenantDuplicateCheck, type TenantDuplicateMatch } from '@/hooks/useTenantDuplicateCheck';
+
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { useListingDaytimeGuard } from '@/hooks/useListingDaytimeGuard';
@@ -677,10 +679,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<string>('');
   
-  // Live fraud guard: detect whether the tenant phone the agent is typing is
-  // already registered on the platform, and reveal the owner's name.
-  const { match: existingTenantByPhone, checking: checkingTenantPhone } =
-    useExistingTenantByPhone(tenantPhone);
+  // Live fraud guard: detect whether the tenant name, phone or national ID the
+  // agent is typing is already registered on the platform, and reveal the owner
+  // so the agent cannot create a duplicate.
+  const {
+    nameMatch: existingTenantByName,
+    phoneMatch: existingTenantByPhone,
+    nationalIdMatch: existingTenantByNationalId,
+    checkingName: checkingTenantName,
+    checkingPhone: checkingTenantPhone,
+    checkingNationalId: checkingTenantNationalId,
+  } = useTenantDuplicateCheck(tenantName, tenantPhone, tenantNationalId);
+
 
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
@@ -2074,17 +2084,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   // When the live phone check reveals an existing user, let the agent re-use
   // that record instead of creating a duplicate (fraud guard).
-  const useExistingTenantMatch = useCallback((m: ExistingTenantMatch) => {
+  const useExistingTenantMatch = useCallback((m: TenantDuplicateMatch) => {
     if (m.full_name) setTenantName(formatNameInput(m.full_name));
     if (m.phone) setTenantPhone(formatPhoneInput(m.phone));
     if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
     toast.success(`Using ${m.full_name || 'existing tenant'}'s record`);
   }, []);
 
+
   // Renew an already-registered tenant: pull their details, switch to the
   // outstanding-balance flow and prefill the balance they still owe so the
   // agent continues the existing tenancy instead of creating a duplicate.
-  const renewExistingTenant = useCallback(async (m: ExistingTenantMatch) => {
+  const renewExistingTenant = useCallback(async (m: TenantDuplicateMatch) => {
+
     if (m.full_name) setTenantName(formatNameInput(m.full_name));
     if (m.phone) setTenantPhone(formatPhoneInput(m.phone));
     if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
@@ -3612,9 +3624,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           required
                         />
                         <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
+                        <TenantDuplicateNotice
+                          match={existingTenantByName}
+                          checking={checkingTenantName}
+                          field="name"
+                          onUse={useExistingTenantMatch}
+                        />
                       </div>
                       <div className="space-y-1">
                         <Label >Tenant Phone *</Label>
+
                         <p className="text-xs text-muted-foreground leading-snug">The number they answer calls on.</p>
                         <p className="text-[11px] text-muted-foreground">e.g. 0783 123 456</p>
                         <Input
@@ -4107,9 +4126,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                     <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
+                    <TenantDuplicateNotice
+                      match={existingTenantByName}
+                      checking={checkingTenantName}
+                      field="name"
+                      onUse={useExistingTenantMatch}
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" >Phone *</Label>
+
                     <p className="text-xs text-muted-foreground leading-snug">The number they answer calls on.</p>
                         <p className="text-[11px] text-muted-foreground">e.g. 0783 123 456</p>
                     <Input
@@ -4147,9 +4173,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     required
                   />
                   <FieldError message={vNationalId(tenantNationalId) || getFieldError('tenantNationalId')} />
+                  <TenantDuplicateNotice
+                    match={existingTenantByNationalId}
+                    checking={checkingTenantNationalId}
+                    field="national ID"
+                    onUse={useExistingTenantMatch}
+                  />
                 </div>
 
                 <div className="space-y-1">
+
                   <Label >Preferred Language *</Label>
                   <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
                       <p className="text-[11px] text-muted-foreground">e.g. Luganda</p>
