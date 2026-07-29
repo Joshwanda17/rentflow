@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -46,6 +47,7 @@ export default function AddRoleDialog({ availableRoles, onAddRole }: AddRoleDial
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { canEdit } = useCanEditAccess();
 
   const missingRoles = allRoles.filter(r => !availableRoles.includes(r.value));
 
@@ -148,18 +150,23 @@ export default function AddRoleDialog({ availableRoles, onAddRole }: AddRoleDial
               <Button variant="outline" onClick={() => setShowCodeInput(false)}>
                 Back
               </Button>
-              <Button onClick={confirmManagerAccess} disabled={isLoading} className="flex-1">
+              <Button onClick={confirmManagerAccess} disabled={isLoading || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(selectedRole))} className="flex-1">
                 {isLoading ? 'Adding...' : 'Verify & Add Role'}
               </Button>
             </div>
           </div>
         ) : (
           <div className="space-y-3 pt-4">
+            {!canEdit && (
+              <p className="text-sm text-muted-foreground">
+                You can add standard roles here. Only access administrators can add internal and executive roles.
+              </p>
+            )}
             {missingRoles.map((role) => (
               <button
                 key={role.value}
                 onClick={() => handleRoleSelect(role.value)}
-                disabled={isLoading}
+                disabled={isLoading || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(role.value))}
                 className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left"
               >
                 <div className="p-2 rounded-lg bg-secondary">
