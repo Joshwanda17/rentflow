@@ -365,9 +365,20 @@ export default function MerchandiseStore() {
                       <p className="text-[11px] text-muted-foreground line-clamp-2">{item.description}</p>
                     )}
                     <p className="text-sm font-bold text-primary">{formatUGX(Number(item.unit_price))}</p>
-                    <Button size="sm" className="w-full h-8 text-xs gap-1" onClick={() => { setSelected(item); setQuantity('1'); }}>
-                      <ShoppingBag className="h-3.5 w-3.5" /> Buy
-                    </Button>
+                    <div className="flex gap-1.5">
+                      <Button size="sm" className="flex-1 h-8 text-xs gap-1" onClick={() => { setSelected(item); setQuantity('1'); }}>
+                        <ShoppingBag className="h-3.5 w-3.5" /> Buy
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 w-8 p-0 shrink-0"
+                        aria-label={`Share ${item.item_name}`}
+                        onClick={() => handleShare(item)}
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
                 );
