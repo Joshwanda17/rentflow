@@ -13393,6 +13393,9 @@ export type Database = {
           order_status: string
           payment_status: string
           quantity: number
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           sale_date: string
           total_revenue: number
           tracking_reference: string | null
@@ -13414,6 +13417,9 @@ export type Database = {
           order_status?: string
           payment_status?: string
           quantity: number
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           sale_date?: string
           total_revenue: number
           tracking_reference?: string | null
@@ -13435,6 +13441,9 @@ export type Database = {
           order_status?: string
           payment_status?: string
           quantity?: number
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           sale_date?: string
           total_revenue?: number
           tracking_reference?: string | null
@@ -28605,6 +28614,10 @@ export type Database = {
       }
       reject_house_listing: {
         Args: { p_listing_id: string; p_reason: string }
+        Returns: Json
+      }
+      reject_merchandise_purchase: {
+        Args: { p_reason: string; p_sale_id: string }
         Returns: Json
       }
       reject_self_registered_funder: {
