@@ -27835,6 +27835,10 @@ export type Database = {
         Args: { _agent_id: string; _beneficiary_id: string }
         Returns: boolean
       }
+      is_public_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
       is_sub_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_supporter:
         | { Args: never; Returns: boolean }
