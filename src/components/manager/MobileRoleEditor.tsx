@@ -248,7 +248,13 @@ export function MobileRoleEditor({
           </SheetHeader>
           
           <div className="space-y-3 overflow-y-auto pb-8" style={{ maxHeight: 'calc(85vh - 100px)' }}>
+            {!canEdit && (
+              <p className="text-sm text-muted-foreground text-center">
+                Only access administrators can change internal roles.
+              </p>
+            )}
             {allRoles.map((role) => {
+
               const hasRole = roles.includes(role.value);
               const isEnabled = enabledStatus[role.value] ?? true;
               const isLoading = loading === role.value || loading === `toggle-${role.value}`;
