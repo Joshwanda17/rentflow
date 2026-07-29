@@ -74,11 +74,21 @@ Deno.serve(async (req) => {
     };
 
     const periodDaysFor = (freq: string | null | undefined): number => {
-      switch (String(freq || 'daily').toLowerCase()) {
+      const f = String(freq || 'daily').toLowerCase().replace(/[\s_-]/g, '');
+      switch (f) {
         case 'weekly': return 7;
-        case 'biweekly': return 14;
+        case 'biweekly':
+        case 'fortnightly': return 14;
         case 'monthly': return 30;
         default: return 1;
+      }
+    };
+    const freqLabel = (freq: string | null | undefined): string => {
+      switch (periodDaysFor(freq)) {
+        case 7: return 'weekly';
+        case 14: return 'bi-weekly';
+        case 30: return 'monthly';
+        default: return 'daily';
       }
     };
 
@@ -140,11 +150,33 @@ Deno.serve(async (req) => {
 
       // Repayment-frequency gate: weekly / bi-weekly / monthly advances are only
       // swept on their due day. Daily advances are due every day.
+      // The due-day anchor is the LAST successful deduction (falling back to the
+      // issue date). Anchoring on the last collection — instead of a modulo of
+      // days-since-issue — keeps the schedule self-correcting when a cron run is
+      // missed or when the terms/frequency are edited mid-advance.
       const advPeriodDays = periodDaysFor(advance.repayment_frequency);
+      const advFreqLabel = freqLabel(advance.repayment_frequency);
       const issuedMs = new Date(issuedAtEAT + 'T00:00:00Z').getTime();
       const todayMs = new Date(todayEAT + 'T00:00:00Z').getTime();
       const daysSinceIssue = Math.max(1, Math.floor((todayMs - issuedMs) / 86400000));
-      if (advPeriodDays > 1 && daysSinceIssue % advPeriodDays !== 0) {
+
+      let daysSinceAnchor = daysSinceIssue;
+      if (advPeriodDays > 1) {
+        const { data: lastPaid } = await supabase
+          .from('agent_advance_ledger')
+          .select('date')
+          .eq('advance_id', advance.id)
+          .gt('amount_deducted', 0)
+          .order('date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastPaid?.date) {
+          const lastMs = new Date(String(lastPaid.date) + 'T00:00:00Z').getTime();
+          daysSinceAnchor = Math.max(0, Math.floor((todayMs - lastMs) / 86400000));
+        }
+      }
+
+      if (advPeriodDays > 1 && daysSinceAnchor < advPeriodDays) {
         await supabase.from('agent_advance_ledger').insert({
           advance_id: advance.id,
           date: today,
@@ -200,7 +232,7 @@ Deno.serve(async (req) => {
           });
           await notifyAgent(
             advance.agent_id,
-            `WELILE: You are ahead on your advance repayment — no deduction today. Outstanding ${fmtUGX(advance.outstanding_balance)}.`,
+            `WELILE: You are ahead on your ${advFreqLabel} advance repayment — no deduction today. Outstanding ${fmtUGX(advance.outstanding_balance)}.`,
             'advance_ahead_skip',
           );
           skipped.push(advance.id);
@@ -247,9 +279,10 @@ Deno.serve(async (req) => {
         },
       }).then(() => {}, () => {});
 
-      // Cap daily deduction at scheduled installment + any accrued arrears.
-      // Never scoop the agent's whole withdrawable in a single day — the
-      // schedule is `principal + access_fee` spread over cycle_days.
+      // Cap each sweep at the scheduled installment for the advance's repayment
+      // frequency, plus any accrued arrears. Never scoop the agent's whole
+      // withdrawable — the schedule is `principal + access_fee` spread over
+      // cycle_days at the selected frequency.
       const scheduledDailyCap = scheduledInstallment;
       const arrearsCap = Math.max(0, Number(advance.arrears_balance || 0));
       const dailyCap = Math.max(0, scheduledDailyCap + arrearsCap);
@@ -323,7 +356,7 @@ Deno.serve(async (req) => {
         // will be recovered automatically from their next earnings.
         await notifyAgent(
           advance.agent_id,
-          `WELILE: Today's advance repayment could not be collected (low wallet balance). Outstanding ${fmtUGX(closingBalance)}. It will be auto-recovered from your next earnings. Top up to avoid arrears.`,
+          `WELILE: Your ${advFreqLabel} advance repayment could not be collected today (low wallet balance). Outstanding ${fmtUGX(closingBalance)}. It will be auto-recovered from your next earnings. Top up to avoid arrears.`,
           'advance_deduction_missed',
         );
       } else {
@@ -348,8 +381,8 @@ Deno.serve(async (req) => {
               source_table: 'agent_advances',
               source_id: advance.id,
               description: interestAccrued > 0
-                ? `Advance daily deduction - Overdue penalty: ${interestAccrued}`
-                : `Advance daily deduction`,
+                ? `Advance ${advFreqLabel} deduction - Overdue penalty: ${interestAccrued}`
+                : `Advance ${advFreqLabel} deduction`,
               currency: 'UGX',
               transaction_date: today,
               metadata: repaymentMeta,
@@ -384,7 +417,7 @@ Deno.serve(async (req) => {
           // Notify the agent where the money went (also visible in transactions).
           await notifyAgent(
             advance.agent_id,
-            `WELILE: ${fmtUGX(amountDeducted)} was deducted from your wallet today towards your advance. Remaining balance ${fmtUGX(closingBalance)}. See your transactions for details.`,
+            `WELILE: ${fmtUGX(amountDeducted)} was deducted from your wallet today towards your ${advFreqLabel} advance installment. Remaining balance ${fmtUGX(closingBalance)}. See your transactions for details.`,
             'advance_deduction_success',
           );
         }
