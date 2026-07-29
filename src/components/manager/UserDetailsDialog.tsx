@@ -1967,7 +1967,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                             variant="destructive"
                                             size="sm"
                                             onClick={() => handleRemoveRole(role.value)}
-                                            disabled={removingRole === role.value || userRoles.length <= 1}
+                                            disabled={removingRole === role.value || userRoles.length <= 1 || (!canEdit && role.category !== 'standard')}
                                             className="h-9 w-9 p-0 rounded-lg"
                                           >
                                             {removingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
