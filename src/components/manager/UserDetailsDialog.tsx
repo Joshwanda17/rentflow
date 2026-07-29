@@ -1958,7 +1958,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                             variant={isEnabled ? "default" : "outline"}
                                             size="sm"
                                             onClick={() => handleToggleRoleEnabled(role.value)}
-                                            disabled={togglingRole === role.value || (!canDisable && isEnabled)}
+                                            disabled={togglingRole === role.value || (!canDisable && isEnabled) || (!canEdit && role.category !== 'standard')}
                                             className={`h-9 w-9 p-0 rounded-lg ${isEnabled ? 'bg-success hover:bg-success/90' : ''}`}
                                           >
                                             {togglingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : isEnabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
