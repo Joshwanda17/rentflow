@@ -7,6 +7,7 @@ import { UserCog, Loader2, ShieldCheck, ClipboardList } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
 import { Progress } from '@/components/ui/progress';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
