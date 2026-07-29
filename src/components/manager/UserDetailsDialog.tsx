@@ -1908,6 +1908,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     className="h-10 text-sm"
                   />
                   {/* All Roles - Unified List */}
+                  {!canEdit && (
+                    <p className="text-sm text-muted-foreground">You can change standard roles here. Only access administrators can change internal and executive roles.</p>
+                  )}
                   {(['standard', 'internal', 'executive'] as const).map(category => {
                     const categoryRoles = allRoles.filter(r => r.category === category);
                     const categoryLabel = category === 'standard' ? 'Standard Roles' : category === 'internal' ? 'Internal Roles' : 'Executive Roles';
