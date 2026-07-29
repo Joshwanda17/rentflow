@@ -53,7 +53,7 @@ interface UserWithRating {
   last_active_at: string | null;
 }
 
-type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'active' | 'inactive' | 'pending_invites';
+type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'super_admin' | 'active' | 'inactive' | 'pending_invites';
 type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high' | 'rating_low' | 'last_active' | 'least_active';
 type VerificationFilter = 'all' | 'verified' | 'pending';
 
@@ -237,6 +237,30 @@ Just click the link and enter your password to get started!`;
     }
   }, [roleFilter]);
 
+  // Keep Super Admin list/count live as access is granted or revoked
+  useEffect(() => {
+    const channel = supabase
+      .channel('user-management-super-admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles', filter: 'role=eq.super_admin' }, () => {
+        fetchTotalCount();
+        if (roleFilter === 'super_admin') fetchUsersPage(0);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [roleFilter]);
+
+  // Fallback refresh while viewing the Super Admin tab
+  useEffect(() => {
+    if (roleFilter !== 'super_admin') return;
+    fetchTotalCount();
+    const interval = setInterval(() => {
+      fetchTotalCount();
+      fetchUsersPage(0);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [roleFilter]);
+
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -275,6 +299,7 @@ Just click the link and enter your password to get started!`;
       supporter: countsRow.supporter_count || 0,
       landlord: countsRow.landlord_count || 0,
       manager: countsRow.manager_count || 0,
+      super_admin: (countsRow as any).super_admin_count || 0,
     });
   };
 
@@ -440,6 +465,7 @@ Just click the link and enter your password to get started!`;
     { value: 'supporter', label: 'Supporters', count: roleCounts['supporter'] || 0 },
     { value: 'landlord', label: 'Landlords', count: roleCounts['landlord'] || 0 },
     { value: 'manager', label: 'Managers', count: roleCounts['manager'] || 0 },
+    { value: 'super_admin', label: 'SuperAdmin', count: roleCounts['super_admin'] || 0 },
   ];
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);

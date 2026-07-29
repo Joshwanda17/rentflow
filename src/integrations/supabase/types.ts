@@ -27230,6 +27230,7 @@ export type Database = {
           inactive_users: number
           landlord_count: number
           manager_count: number
+          super_admin_count: number
           supporter_count: number
           tenant_count: number
           total_users: number
