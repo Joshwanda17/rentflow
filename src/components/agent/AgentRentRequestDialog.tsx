@@ -3557,67 +3557,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                                 : 'Landlord verified — you can post (LC1 verified before approval)')
                             : 'Landlord must be verified to post'}
                         </p>
-                        {/* Step-by-step roadmap from listing the house to posting,
-                            so the agent always knows exactly what's left to do. */}
-                        {(() => {
-                          const bothRegistered =
-                            landlordState !== 'missing' && landlordState !== 'idle' &&
-                            lc1State !== 'missing' && lc1State !== 'idle';
-                          type StepState = 'done' | 'current' | 'todo';
-                          const steps: { label: string; hint: string; state: StepState }[] = [];
-                          // 1. List the house → registers landlord + LC1
-                          const s1: StepState = bothRegistered ? 'done' : 'current';
-                          steps.push({
-                            label: 'List the house',
-                            hint: bothRegistered ? 'Landlord & LC1 registered' : 'Registers the landlord & LC1',
-                            state: s1,
-                          });
-                          // 2. Landlord verified
-                          const s2: StepState = landlordState === 'ok' ? 'done' : bothRegistered ? 'current' : 'todo';
-                          steps.push({
-                            label: 'Landlord verified',
-                            hint: landlordState === 'ok' ? 'Verified' : landlordState === 'unverified' ? 'Awaiting verification' : 'Pending registration',
-                            state: s2,
-                          });
-                          // 3. LC1 chairperson verified
-                          const s3: StepState = lc1State === 'ok' ? 'done' : bothRegistered ? 'current' : 'todo';
-                          steps.push({
-                            label: 'LC1 chairperson verified',
-                            hint: lc1State === 'ok' ? 'Verified' : 'Needed before approval (not for posting)',
-                            state: s3,
-                          });
-                          // 4. Post the rent request
-                          steps.push({
-                            label: 'Post the rent request',
-                            hint: canPost ? 'Ready to post' : 'Unlocks once the landlord is verified',
-                            state: canPost ? 'current' : 'todo',
-                          });
-                          return (
-                            <ol className="space-y-2 pt-1">
-                              {steps.map((st, i) => (
-                                <li key={st.label} className="flex items-start gap-2.5">
-                                  <span
-                                    className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                                      st.state === 'done'
-                                        ? 'bg-success text-success-foreground'
-                                        : st.state === 'current'
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-muted text-muted-foreground'
-                                    }`}
-                                  >
-                                    {st.state === 'done' ? <CheckCircle2 className="h-3.5 w-3.5" /> : i + 1}
-                                  </span>
-                                  <div className="min-w-0 flex-1 leading-tight">
-                                    <p className={`text-xs font-semibold ${st.state === 'todo' ? 'text-muted-foreground' : 'text-foreground'}`}>
-                                      {st.label}
-                                    </p>
-                                    <p className="text-[11px] text-muted-foreground">{st.hint}</p>
-                                  </div>
-                                </li>
-                              ))}
-                            </ol>
-                          );
-                        })()}
                         {statusRow('Landlord', landlordState as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
                         {statusRow('LC1 chairperson', lc1State as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
                        {(landlordState === 'missing' || lc1State === 'missing' || landlordState === 'unverified' || lc1State === 'unverified') && (
