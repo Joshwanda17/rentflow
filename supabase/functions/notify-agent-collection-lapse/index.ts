@@ -1,8 +1,12 @@
 // Scans active tenancies and warns agents (via web push) when they have not
-// collected rent or made a float allocation for a tenant in >= 5 days. If the
-// idle gap exceeds 7 days (i.e. 8+), the tenant is locked so Agent Ops can
-// reassign them to an active agent. Tenants with any collection inside the
-// last 7 days are considered active and are NEVER locked.
+// collected rent or made a float allocation for a tenant.
+//
+// Thresholds depend on the tenant's repayment frequency (from
+// subscription_charges.frequency):
+//   - daily   → warn at >= 5 idle days, lock at >= 8 idle days (>7).
+//   - weekly  → warn at >= 10 idle days, lock at >= 15 idle days (>2 weeks).
+// Tenants with any collection inside the grace window are considered active
+// and are NEVER locked.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
@@ -11,8 +15,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const WARN_AFTER_DAYS = 5;
-const REASSIGN_AT_DAYS = 8; // strictly > 7 days idle
+const DAILY_WARN_AFTER_DAYS = 5;
+const DAILY_REASSIGN_AT_DAYS = 8; // strictly > 7 days idle
+const WEEKLY_WARN_AFTER_DAYS = 10;
+const WEEKLY_REASSIGN_AT_DAYS = 15; // strictly > 2 weeks idle
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -49,9 +55,31 @@ serve(async (req) => {
       (profs ?? []).forEach((p: any) => nameById.set(p.id, p.full_name || "your tenant"));
     }
 
+    // Cache subscription frequency per rent_request_id (active subs only).
+    const rrIds = rows.map((r: any) => r.id).filter(Boolean);
+    const freqByRr = new Map<string, string>();
+    if (rrIds.length) {
+      const { data: subs } = await supabase
+        .from("subscription_charges")
+        .select("rent_request_id, frequency, status")
+        .in("rent_request_id", rrIds);
+      (subs ?? []).forEach((s: any) => {
+        if (!s.rent_request_id) return;
+        // Prefer active rows; otherwise keep first seen.
+        if (!freqByRr.has(s.rent_request_id) || s.status === "active") {
+          freqByRr.set(s.rent_request_id, (s.frequency || "daily").toLowerCase());
+        }
+      });
+    }
+
     for (const row of rows as any[]) {
       const agentId = row.agent_id || row.assigned_agent_id;
       if (!agentId || !row.tenant_id) continue;
+
+      const frequency = freqByRr.get(row.id) || "daily";
+      const isWeekly = frequency === "weekly";
+      const WARN_AFTER_DAYS = isWeekly ? WEEKLY_WARN_AFTER_DAYS : DAILY_WARN_AFTER_DAYS;
+      const REASSIGN_AT_DAYS = isWeekly ? WEEKLY_REASSIGN_AT_DAYS : DAILY_REASSIGN_AT_DAYS;
 
       // Last collection or allocation by this agent for this tenant.
       const { data: lastCol } = await supabase
@@ -74,13 +102,13 @@ serve(async (req) => {
       const daysLeft = Math.max(0, REASSIGN_AT_DAYS - daysSince);
       const tenantName = nameById.get(row.tenant_id) || "your tenant";
 
-      // Day 5+: lock the tenant from this agent so Agent Ops can reassign.
+      // Grace exceeded: lock the tenant from this agent so Agent Ops can reassign.
       if (daysSince >= REASSIGN_AT_DAYS) {
         const { error: lockErr } = await supabase
           .from("rent_requests")
           .update({
             collection_locked_at: new Date().toISOString(),
-            collection_locked_reason: `No collection for ${daysSince} days (grace period exceeded)`,
+            collection_locked_reason: `No collection for ${daysSince} days (${frequency} grace period exceeded)`,
             collection_lock_days: daysSince,
           })
           .eq("id", row.id)
@@ -88,12 +116,19 @@ serve(async (req) => {
         if (!lockErr) locked++;
       }
 
+      const idleLabel = isWeekly
+        ? `${Math.floor(daysSince / 7)} week${Math.floor(daysSince / 7) === 1 ? "" : "s"}`
+        : `${daysSince} days`;
+      const leftLabel = isWeekly
+        ? `${Math.ceil(daysLeft / 7)} week${Math.ceil(daysLeft / 7) === 1 ? "" : "s"}`
+        : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+
       const title = daysLeft > 0
         ? `Collect rent for ${tenantName}`
         : `${tenantName} locked — pending reassignment`;
       const body = daysLeft > 0
-        ? `It's been ${daysSince} days since you last collected rent for ${tenantName}. Your tenant will be transferred to an active agent in ${daysLeft} day${daysLeft === 1 ? "" : "s"}. Collect rent to keep the tenant.`
-        : `It's been ${daysSince} days without a rent collection for ${tenantName}. You can no longer collect for this tenant — Agent Ops will transfer them to an active agent.`;
+        ? `It's been ${idleLabel} since you last collected rent for ${tenantName} (${frequency} schedule). Your tenant will be transferred to an active agent in ${leftLabel}. Collect rent to keep the tenant.`
+        : `It's been ${idleLabel} without a rent collection for ${tenantName} (${frequency} schedule). You can no longer collect for this tenant — Agent Ops will transfer them to an active agent.`;
 
       // Fire web push.
       await supabase.functions.invoke("send-push-notification", {
