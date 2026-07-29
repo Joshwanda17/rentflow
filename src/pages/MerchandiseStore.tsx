@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone, Bike, AlertCircle,
+  ArrowLeft, ShoppingBag, Package, Wallet, CheckCircle2, Repeat, Info, Smartphone, Bike, AlertCircle, Share2,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -69,6 +69,7 @@ export default function MerchandiseStore() {
   const [bikeAmount, setBikeAmount] = useState('');
   const [orderingBike, setOrderingBike] = useState(false);
   const [catalogPage, setCatalogPage] = useState(1);
+  const [shareItem, setShareItem] = useState<CatalogItem | null>(null);
   const { withdrawableBalance } = useAgentBalances(user?.id);
   const availableWallet = Math.max(0, withdrawableBalance);
 
@@ -127,6 +128,35 @@ export default function MerchandiseStore() {
     if (!item) return null;
     if (item.image_urls && item.image_urls.length > 0) return item.image_urls[0];
     return item.image_url || null;
+  };
+
+  const buildShare = (item: CatalogItem) => {
+    const url = `${window.location.origin}/merchandise?item=${item.id}`;
+    const text = `Check out ${item.item_name} — ${formatUGX(Number(item.unit_price))} on Welile Merchandise.`;
+    return { url, text, full: `${text} ${url}` };
+  };
+
+  const handleShare = async (item: CatalogItem) => {
+    const { url, text, full } = buildShare(item);
+    if (typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: item.item_name, text, url });
+        return;
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+      }
+    }
+    setShareItem(item);
+  };
+
+  const copyShareLink = async (item: CatalogItem) => {
+    const { full } = buildShare(item);
+    try {
+      await navigator.clipboard.writeText(full);
+      toast.success('Link copied');
+    } catch {
+      toast.error('Could not copy');
+    }
   };
 
   const totalPages = Math.max(1, Math.ceil(catalog.length / PAGE_SIZE));
@@ -335,9 +365,20 @@ export default function MerchandiseStore() {
                       <p className="text-[11px] text-muted-foreground line-clamp-2">{item.description}</p>
                     )}
                     <p className="text-sm font-bold text-primary">{formatUGX(Number(item.unit_price))}</p>
-                    <Button size="sm" className="w-full h-8 text-xs gap-1" onClick={() => { setSelected(item); setQuantity('1'); }}>
-                      <ShoppingBag className="h-3.5 w-3.5" /> Buy
-                    </Button>
+                    <div className="flex gap-1.5">
+                      <Button size="sm" className="flex-1 h-8 text-xs gap-1" onClick={() => { setSelected(item); setQuantity('1'); }}>
+                        <ShoppingBag className="h-3.5 w-3.5" /> Buy
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 w-8 p-0 shrink-0"
+                        aria-label={`Share ${item.item_name}`}
+                        onClick={() => handleShare(item)}
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
                 );
@@ -575,6 +616,52 @@ export default function MerchandiseStore() {
               {orderingBike ? 'Ordering…' : 'Confirm order'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share fallback dialog */}
+      <Dialog open={!!shareItem} onOpenChange={(o) => { if (!o) setShareItem(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-4 w-4 text-primary" /> Share {shareItem?.item_name}
+            </DialogTitle>
+          </DialogHeader>
+          {shareItem && (() => {
+            const { url, text, full } = buildShare(shareItem);
+            const enc = encodeURIComponent;
+            const targets: { label: string; href: string; className: string }[] = [
+              { label: 'WhatsApp', href: `https://wa.me/?text=${enc(full)}`, className: 'bg-emerald-500 hover:bg-emerald-600 text-white' },
+              { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc(text)}`, className: 'bg-blue-600 hover:bg-blue-700 text-white' },
+              { label: 'X (Twitter)', href: `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(url)}`, className: 'bg-black hover:bg-neutral-800 text-white' },
+              { label: 'Telegram', href: `https://t.me/share/url?url=${enc(url)}&text=${enc(text)}`, className: 'bg-sky-500 hover:bg-sky-600 text-white' },
+              { label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}`, className: 'bg-[#0A66C2] hover:bg-[#004182] text-white' },
+              { label: 'Email', href: `mailto:?subject=${enc(shareItem.item_name)}&body=${enc(full)}`, className: 'bg-muted hover:bg-muted/80 text-foreground' },
+            ];
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {targets.map((t) => (
+                    <a
+                      key={t.label}
+                      href={t.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`h-9 rounded-md text-xs font-semibold inline-flex items-center justify-center ${t.className}`}
+                    >
+                      {t.label}
+                    </a>
+                  ))}
+                </div>
+                <div className="rounded-md border bg-muted/40 px-2.5 py-2 text-[11px] break-all">
+                  {url}
+                </div>
+                <Button size="sm" variant="outline" className="w-full h-8 text-xs" onClick={() => copyShareLink(shareItem)}>
+                  Copy link
+                </Button>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
