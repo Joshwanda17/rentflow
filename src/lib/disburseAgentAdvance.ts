@@ -1,5 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
-import { calculateAccessFee, calculateRegistrationFee } from '@/lib/agentAdvanceCalculations';
+import {
+  calculateAccessFee,
+  calculateRegistrationFee,
+  installmentCount,
+  type RepaymentFrequency,
+} from '@/lib/agentAdvanceCalculations';
 
 /**
  * Disburse an agent advance to the agent's wallet. Mirrors the CFO
@@ -18,6 +23,7 @@ export async function disburseAgentAdvanceRequest(opts: {
   principal?: number;
   cycleDays?: number;
   monthlyRate?: number;
+  repaymentFrequency?: RepaymentFrequency;
   notes?: string | null;
   skipReason?: string | null;
 }) {
@@ -25,6 +31,8 @@ export async function disburseAgentAdvanceRequest(opts: {
   const principal = Number(opts.principal ?? req.principal);
   const cycleDays = Number(opts.cycleDays ?? req.cycle_days);
   const monthlyRate = Number(opts.monthlyRate ?? req.monthly_rate);
+  const repaymentFrequency: RepaymentFrequency =
+    (opts.repaymentFrequency ?? req.repayment_frequency ?? 'daily') as RepaymentFrequency;
   if (!Number.isFinite(principal) || principal <= 0) throw new Error('Principal must be greater than zero');
   if (principal < 10000) throw new Error('Principal must be at least UGX 10,000 — advances below this are not permitted.');
   if (!Number.isFinite(cycleDays) || cycleDays <= 0) throw new Error('Cycle days must be greater than zero');
@@ -32,7 +40,9 @@ export async function disburseAgentAdvanceRequest(opts: {
   const registrationFee = calculateRegistrationFee(principal);
   const accessFee = calculateAccessFee(principal, cycleDays, monthlyRate);
   const totalPayable = principal + accessFee + registrationFee;
-  const daily = Math.ceil(totalPayable / cycleDays);
+  const installments = installmentCount(cycleDays, repaymentFrequency);
+  const installment = Math.ceil(totalPayable / installments);
+  const daily = installment;
   const nowIso = new Date().toISOString();
   const combinedNotes = [opts.notes || null, opts.skipReason ? `[CFO skipped by Agent Ops] ${opts.skipReason}` : null]
     .filter(Boolean)
@@ -56,6 +66,7 @@ export async function disburseAgentAdvanceRequest(opts: {
       total_payable: totalPayable,
       daily_payment: daily,
       monthly_rate: monthlyRate,
+      repayment_frequency: repaymentFrequency,
     })
     .eq('id', req.id)
     .in('status', ['pending', 'agent_ops_approved', 'cfo_approved'])
@@ -80,8 +91,10 @@ export async function disburseAgentAdvanceRequest(opts: {
     access_fee_collected: 0,
     access_fee_status: 'unpaid',
     status: 'active',
+    repayment_frequency: repaymentFrequency,
+    installment_amount: installment,
     expires_at: expiresAt.toISOString(),
-  });
+  } as any);
   if (advErr) throw advErr;
 
   // 3. Credit agent wallet via ledger RPC.
@@ -154,5 +167,8 @@ export async function disburseAgentAdvanceRequest(opts: {
     body: { agent_id: req.agent_id, amount: principal, request_id: req.id },
   }).catch((e) => console.error('advance disbursement SMS failed', e));
 
-  return { principal, cycleDays, monthlyRate, accessFee, registrationFee, totalPayable, daily };
+  return {
+    principal, cycleDays, monthlyRate, accessFee, registrationFee,
+    totalPayable, daily, installment, installments, repaymentFrequency,
+  };
 }
