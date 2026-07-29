@@ -405,6 +405,14 @@ export function CFOAdvancesManager() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="gap-1"
+                            onClick={() => setTermsAdvance(adv)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Edit terms
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
                             className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
                             onClick={() => setCancelAdvance(adv)}
                           >
