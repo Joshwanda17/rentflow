@@ -74,11 +74,21 @@ Deno.serve(async (req) => {
     };
 
     const periodDaysFor = (freq: string | null | undefined): number => {
-      switch (String(freq || 'daily').toLowerCase()) {
+      const f = String(freq || 'daily').toLowerCase().replace(/[\s_-]/g, '');
+      switch (f) {
         case 'weekly': return 7;
-        case 'biweekly': return 14;
+        case 'biweekly':
+        case 'fortnightly': return 14;
         case 'monthly': return 30;
         default: return 1;
+      }
+    };
+    const freqLabel = (freq: string | null | undefined): string => {
+      switch (periodDaysFor(freq)) {
+        case 7: return 'weekly';
+        case 14: return 'bi-weekly';
+        case 30: return 'monthly';
+        default: return 'daily';
       }
     };
 
@@ -140,11 +150,33 @@ Deno.serve(async (req) => {
 
       // Repayment-frequency gate: weekly / bi-weekly / monthly advances are only
       // swept on their due day. Daily advances are due every day.
+      // The due-day anchor is the LAST successful deduction (falling back to the
+      // issue date). Anchoring on the last collection — instead of a modulo of
+      // days-since-issue — keeps the schedule self-correcting when a cron run is
+      // missed or when the terms/frequency are edited mid-advance.
       const advPeriodDays = periodDaysFor(advance.repayment_frequency);
+      const advFreqLabel = freqLabel(advance.repayment_frequency);
       const issuedMs = new Date(issuedAtEAT + 'T00:00:00Z').getTime();
       const todayMs = new Date(todayEAT + 'T00:00:00Z').getTime();
       const daysSinceIssue = Math.max(1, Math.floor((todayMs - issuedMs) / 86400000));
-      if (advPeriodDays > 1 && daysSinceIssue % advPeriodDays !== 0) {
+
+      let daysSinceAnchor = daysSinceIssue;
+      if (advPeriodDays > 1) {
+        const { data: lastPaid } = await supabase
+          .from('agent_advance_ledger')
+          .select('date')
+          .eq('advance_id', advance.id)
+          .gt('amount_deducted', 0)
+          .order('date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastPaid?.date) {
+          const lastMs = new Date(String(lastPaid.date) + 'T00:00:00Z').getTime();
+          daysSinceAnchor = Math.max(0, Math.floor((todayMs - lastMs) / 86400000));
+        }
+      }
+
+      if (advPeriodDays > 1 && daysSinceAnchor < advPeriodDays) {
         await supabase.from('agent_advance_ledger').insert({
           advance_id: advance.id,
           date: today,
