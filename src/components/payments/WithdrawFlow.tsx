@@ -239,6 +239,12 @@ export default function WithdrawFlow({
     : withdrawCtx.usageToday.remainingAmount;
   const rawMax = source === 'available' ? trueAvailable : roiBalance;
   const maxAmount = Math.min(rawMax, kycRemainingToday);
+  // True when the binding constraint is the KYC daily cap rather than the
+  // ledger balance. Without this, a level-1 user with money in the ledger
+  // sees "Verified against live ledger · UGX 50,000 available" and believes
+  // the ledger lost their funds.
+  const isKycCapped =
+    Number.isFinite(kycRemainingToday) && kycRemainingToday < rawMax;
 
   // Agent performance gate. `isAgent` broadens to anyone with agent-family
   // roles so hybrid accounts (agent + merchant_agent + proxy_agent, etc.)
@@ -1132,7 +1138,9 @@ export default function WithdrawFlow({
               )}
               {amount > maxAmount && (
                 <p className="text-xs text-destructive text-center font-medium">
-                  Insufficient funds — exceeds available balance ({formatCurrency(maxAmount, currency)})
+                  {isKycCapped
+                    ? `Daily withdrawal limit reached — your account level allows up to ${formatCurrency(maxAmount, currency)} today. Your balance is ${formatCurrency(trueAvailable, currency)}.`
+                    : `Insufficient funds — exceeds available balance (${formatCurrency(maxAmount, currency)})`}
                 </p>
               )}
               {/* Live ledger sync indicator — gates Continue */}
@@ -1141,7 +1149,9 @@ export default function WithdrawFlow({
                   ? 'Checking live ledger balance…'
                   : isStale
                     ? 'Balance may be stale — re-checking…'
-                    : `Verified against live ledger · ${formatCurrency(maxAmount, currency)} available`}
+                    : isKycCapped
+                      ? `Ledger balance ${formatCurrency(trueAvailable, currency)} · daily account limit caps today's withdrawal at ${formatCurrency(maxAmount, currency)}`
+                      : `Verified against live ledger · ${formatCurrency(maxAmount, currency)} available`}
               </p>
               {/* Zero-fee assurance — Welile wallet has no withdrawal fees,
                   so users see the full amount on the other side. */}
