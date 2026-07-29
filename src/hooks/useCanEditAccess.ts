@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-const EDIT_ROLES = ['access_admin', 'super_admin'];
+const EDIT_ROLES = ['access_admin', 'super_admin'] as const;
 
 export function useCanEditAccess() {
   const { user } = useAuth();
