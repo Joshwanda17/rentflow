@@ -18,6 +18,8 @@ import { UserCog, Loader2, Plus, X, ShieldAlert, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { useAuth } from '@/hooks/useAuth';
+import { useCanEditAccess } from '@/hooks/useCanEditAccess';
+
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
@@ -45,7 +47,9 @@ export function MobileRoleEditor({
   onRolesUpdated 
 }: MobileRoleEditorProps) {
   const { user } = useAuth();
+  const { canEdit } = useCanEditAccess();
   const [open, setOpen] = useState(false);
+
   const [roles, setRoles] = useState<string[]>(currentRoles);
   const [enabledStatus, setEnabledStatus] = useState<Record<string, boolean>>(roleEnabledStatus);
   const [loading, setLoading] = useState<string | null>(null);
@@ -244,7 +248,13 @@ export function MobileRoleEditor({
           </SheetHeader>
           
           <div className="space-y-3 overflow-y-auto pb-8" style={{ maxHeight: 'calc(85vh - 100px)' }}>
+            {!canEdit && (
+              <p className="text-sm text-muted-foreground text-center">
+                Only access administrators can change internal roles.
+              </p>
+            )}
             {allRoles.map((role) => {
+
               const hasRole = roles.includes(role.value);
               const isEnabled = enabledStatus[role.value] ?? true;
               const isLoading = loading === role.value || loading === `toggle-${role.value}`;
@@ -295,9 +305,10 @@ export function MobileRoleEditor({
                             <Switch
                               checked={isEnabled}
                               onCheckedChange={() => handleToggleEnabled(role.value)}
-                              disabled={isLoading}
+                              disabled={isLoading || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(role.value))}
                               className="scale-125"
                             />
+
                             <span className="text-[10px] text-muted-foreground">
                               {isEnabled ? 'On' : 'Off'}
                             </span>
@@ -308,9 +319,10 @@ export function MobileRoleEditor({
                             variant="destructive"
                             size="icon"
                             onClick={() => handleRemoveRole(role.value)}
-                            disabled={isLoading || roles.length <= 1}
+                            disabled={isLoading || roles.length <= 1 || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(role.value))}
                             className="h-12 w-12 rounded-xl"
                           >
+
                             {isLoading ? (
                               <Loader2 className="h-5 w-5 animate-spin" />
                             ) : (
@@ -323,9 +335,10 @@ export function MobileRoleEditor({
                         <Button
                           variant="default"
                           onClick={() => handleAddRole(role.value)}
-                          disabled={isLoading}
+                          disabled={isLoading || (!canEdit && !['tenant','agent','landlord','supporter','senior_agent','sub_agent'].includes(role.value))}
                           className="h-12 px-5 rounded-xl gap-2 bg-success hover:bg-success/90 text-success-foreground"
                         >
+
                           {isLoading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
