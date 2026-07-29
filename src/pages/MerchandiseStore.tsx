@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -57,6 +57,7 @@ const PAGE_SIZE = 8;
 
 export default function MerchandiseStore() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<CatalogItem | null>(null);
@@ -162,6 +163,22 @@ export default function MerchandiseStore() {
   const totalPages = Math.max(1, Math.ceil(catalog.length / PAGE_SIZE));
   const safePage = Math.min(catalogPage, totalPages);
   const catalogSlice = catalog.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  // Deep-link: /merchandise?item=<id> auto-opens the checkout for that product.
+  useEffect(() => {
+    const itemId = searchParams.get('item');
+    if (!itemId || catalog.length === 0 || selected) return;
+    const match = catalog.find((c) => c.id === itemId);
+    if (match) {
+      setSelected(match);
+      setQuantity('1');
+    }
+    // Clear the param so refreshes/back-navigation don't reopen unexpectedly.
+    const next = new URLSearchParams(searchParams);
+    next.delete('item');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog, searchParams]);
 
   const placeOrder = async () => {
     if (!selected) return;
@@ -351,7 +368,21 @@ export default function MerchandiseStore() {
               {catalogSlice.map((item) => {
                 const img = pickImage(item);
                 return (
-                <Card key={item.id} className="overflow-hidden">
+                <Card
+                  key={item.id}
+                  className="overflow-hidden cursor-pointer transition hover:shadow-md hover:border-primary/40 focus-within:ring-2 focus-within:ring-primary/40"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => { setSelected(item); setQuantity('1'); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelected(item);
+                      setQuantity('1');
+                    }
+                  }}
+                  aria-label={`Buy ${item.item_name}`}
+                >
                   {img ? (
                     <StorageImage src={img} alt={item.item_name} className="w-full h-28 object-cover" loading="lazy" />
                   ) : (
@@ -366,7 +397,11 @@ export default function MerchandiseStore() {
                     )}
                     <p className="text-sm font-bold text-primary">{formatUGX(Number(item.unit_price))}</p>
                     <div className="flex gap-1.5">
-                      <Button size="sm" className="flex-1 h-8 text-xs gap-1" onClick={() => { setSelected(item); setQuantity('1'); }}>
+                      <Button
+                        size="sm"
+                        className="flex-1 h-8 text-xs gap-1"
+                        onClick={(e) => { e.stopPropagation(); setSelected(item); setQuantity('1'); }}
+                      >
                         <ShoppingBag className="h-3.5 w-3.5" /> Buy
                       </Button>
                       <Button
@@ -374,7 +409,7 @@ export default function MerchandiseStore() {
                         variant="outline"
                         className="h-8 w-8 p-0 shrink-0"
                         aria-label={`Share ${item.item_name}`}
-                        onClick={() => handleShare(item)}
+                        onClick={(e) => { e.stopPropagation(); handleShare(item); }}
                       >
                         <Share2 className="h-3.5 w-3.5" />
                       </Button>
