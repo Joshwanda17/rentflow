@@ -1357,12 +1357,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       }
 
       toast.success('House listed successfully!', {
-        description: `UGX 1,000 sent to your wallet now · earn UGX 4,000 more when Landlord Ops verifies this house (UGX 5,000 total)`,
+        description: `You'll earn UGX 2,000 once Landlord Ops verifies this house, plus UGX 5,000 when a tenant is placed.`,
       });
       showFormMessage(
         'success',
         'House listed successfully!',
-        'UGX 1,000 sent to your wallet now · UGX 4,000 more when verified.',
+        'UGX 2,000 on verification · UGX 5,000 on tenant placement.',
       );
       onSuccess?.();
 
