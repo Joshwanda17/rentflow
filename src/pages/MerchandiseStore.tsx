@@ -618,6 +618,52 @@ export default function MerchandiseStore() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Share fallback dialog */}
+      <Dialog open={!!shareItem} onOpenChange={(o) => { if (!o) setShareItem(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-4 w-4 text-primary" /> Share {shareItem?.item_name}
+            </DialogTitle>
+          </DialogHeader>
+          {shareItem && (() => {
+            const { url, text, full } = buildShare(shareItem);
+            const enc = encodeURIComponent;
+            const targets: { label: string; href: string; className: string }[] = [
+              { label: 'WhatsApp', href: `https://wa.me/?text=${enc(full)}`, className: 'bg-emerald-500 hover:bg-emerald-600 text-white' },
+              { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc(text)}`, className: 'bg-blue-600 hover:bg-blue-700 text-white' },
+              { label: 'X (Twitter)', href: `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(url)}`, className: 'bg-black hover:bg-neutral-800 text-white' },
+              { label: 'Telegram', href: `https://t.me/share/url?url=${enc(url)}&text=${enc(text)}`, className: 'bg-sky-500 hover:bg-sky-600 text-white' },
+              { label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}`, className: 'bg-[#0A66C2] hover:bg-[#004182] text-white' },
+              { label: 'Email', href: `mailto:?subject=${enc(shareItem.item_name)}&body=${enc(full)}`, className: 'bg-muted hover:bg-muted/80 text-foreground' },
+            ];
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {targets.map((t) => (
+                    <a
+                      key={t.label}
+                      href={t.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`h-9 rounded-md text-xs font-semibold inline-flex items-center justify-center ${t.className}`}
+                    >
+                      {t.label}
+                    </a>
+                  ))}
+                </div>
+                <div className="rounded-md border bg-muted/40 px-2.5 py-2 text-[11px] break-all">
+                  {url}
+                </div>
+                <Button size="sm" variant="outline" className="w-full h-8 text-xs" onClick={() => copyShareLink(shareItem)}>
+                  Copy link
+                </Button>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
