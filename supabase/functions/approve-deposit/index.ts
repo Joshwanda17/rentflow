@@ -527,8 +527,10 @@ Deno.serve(async (req) => {
           `[approve-deposit] Unknown deposit_purpose='${rawPurpose}' for ${depositRequest.id}; defaulting to float.`,
         );
       }
-      // Float-by-default: only an explicit personal_deposit stays withdrawable.
-      const isFloatDeposit = rawPurpose !== 'personal_deposit';
+      // FLOAT-ALWAYS (2026-07-29): every deposit auto-credits float,
+      // regardless of the declared purpose. `deposit_purpose` is retained
+      // for analytics only.
+      const isFloatDeposit = true;
       const depositCategory: 'agent_float_deposit' | 'wallet_deposit' =
         isFloatDeposit ? 'agent_float_deposit' : 'wallet_deposit';
       const depositBucket: 'float' | 'withdrawable' =
