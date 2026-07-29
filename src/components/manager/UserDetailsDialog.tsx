@@ -1978,7 +1978,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                           variant="outline"
                                           size="sm"
                                           onClick={() => handleAddRole(role.value)}
-                                          disabled={addingRole === role.value}
+                                          disabled={addingRole === role.value || (!canEdit && role.category !== 'standard')}
                                           className="h-9 px-3 rounded-lg border-success/40 text-success hover:bg-success/10"
                                         >
                                           {addingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Add</>}
