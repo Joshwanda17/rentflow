@@ -31,6 +31,7 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
   const [department, setDepartment] = useState(employee.staffProfile?.department || '');
   const [newRole, setNewRole] = useState('');
   const [saving, setSaving] = useState(false);
+  const { canEdit } = useCanEditAccess();
 
   const currentRoles = employee.roles;
 
