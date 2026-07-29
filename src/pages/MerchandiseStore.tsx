@@ -158,7 +158,7 @@ export default function MerchandiseStore() {
       }
       return;
     }
-    toast.success(`${selected.item_name} purchased. ${formatUGX(orderTotal)} debited from your wallet.`);
+    toast.success(`${selected.item_name} ordered. ${formatUGX(orderTotal)} will be recovered from your wallet.`);
     setSelected(null);
     setQuantity('1');
     queryClient.invalidateQueries({ queryKey: ['my-merchandise-plans', user?.id] });
@@ -456,11 +456,11 @@ export default function MerchandiseStore() {
               {insufficient ? (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2 flex gap-2 text-[11px] text-destructive">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <p><span className="font-semibold">Insufficient balance.</span> Top up your wallet or reduce the quantity to continue.</p>
+                  <p><span className="font-semibold">Amount exceeds your available wallet balance of {formatUGX(availableWallet)}.</span> Reduce the quantity to continue.</p>
                 </div>
               ) : (
                 <p className="text-[11px] text-muted-foreground">
-                  The full amount is debited from your withdrawable wallet immediately. No credit, no daily deductions.
+                  This amount is recovered from your withdrawable wallet — 15% up to 4 times a day until fully paid.
                 </p>
               )}
             </div>
@@ -468,7 +468,7 @@ export default function MerchandiseStore() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelected(null)} disabled={ordering}>Cancel</Button>
             <Button onClick={placeOrder} disabled={ordering || insufficient}>
-              {ordering ? 'Processing…' : insufficient ? 'Insufficient balance' : `Pay ${formatUGX(orderTotal)}`}
+              {ordering ? 'Ordering…' : insufficient ? 'Amount exceeds balance' : `Confirm order · ${formatUGX(orderTotal)}`}
             </Button>
           </DialogFooter>
         </DialogContent>
