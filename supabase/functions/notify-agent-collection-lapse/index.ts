@@ -1,6 +1,8 @@
 // Scans active tenancies and warns agents (via web push) when they have not
-// collected rent or made a float allocation for a tenant in >= 3 days. If the
-// gap reaches 5 days, upstream ops can reassign the tenant to an active agent.
+// collected rent or made a float allocation for a tenant in >= 5 days. If the
+// idle gap exceeds 7 days (i.e. 8+), the tenant is locked so Agent Ops can
+// reassign them to an active agent. Tenants with any collection inside the
+// last 7 days are considered active and are NEVER locked.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
@@ -9,8 +11,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const WARN_AFTER_DAYS = 3;
-const REASSIGN_AT_DAYS = 5;
+const WARN_AFTER_DAYS = 5;
+const REASSIGN_AT_DAYS = 8; // strictly > 7 days idle
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
