@@ -21,7 +21,7 @@ export default function RunBackupNowButton() {
   const [result, setResult] = useState<BackupResult | null>(null);
   const [showResend, setShowResend] = useState(false);
   const [resending, setResending] = useState(false);
-  const [recipients, setRecipients] = useState('joshwanda17@gmail.com, weliletechnologies@gmail.com');
+  const [recipients, setRecipients] = useState('joshwanda17@gmail.com, pexpert46@gmail.com, weliletechnologies@gmail.com');
   const [note, setNote] = useState('Re-sent because the previous email did not arrive in the inbox.');
 
   const handleRun = async () => {
