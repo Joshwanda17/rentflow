@@ -1898,6 +1898,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
               <TabsContent value="roles" className="mt-0">
                 <div className="p-4 space-y-5">
+                  <Input
+                    value={roleChangeReason}
+                    onChange={(e) => setRoleChangeReason(e.target.value)}
+                    placeholder="Reason for this change (recorded in the audit log)"
+                    className="h-10 text-sm"
+                  />
                   {/* All Roles - Unified List */}
                   {(['standard', 'internal', 'executive'] as const).map(category => {
                     const categoryRoles = allRoles.filter(r => r.category === category);
