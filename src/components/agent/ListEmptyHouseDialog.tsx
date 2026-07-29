@@ -1504,7 +1504,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => { if (!successListing) e.preventDefault(); }}
-        className={`w-[calc(100vw-1rem)] sm:max-w-md !overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl p-4 sm:p-6 max-h-[92vh] max-h-[92dvh]`}
+        className={`app-dialog-bottom-sheet w-[calc(100vw-1rem)] sm:max-w-md !overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-2xl rounded-b-none sm:rounded-2xl p-4 sm:p-6 max-h-[96vh] max-h-[96dvh] [touch-action:pan-y] [-webkit-overflow-scrolling:touch]`}
       >
         {listingBlock?.blocked ? (
           (() => {
@@ -2305,7 +2305,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   .filter((o) => o.label.toLowerCase().includes(q))
                   .slice(0, 8);
                 return (
-                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                  <div className="mt-1 w-full max-h-48 overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover shadow-lg [-webkit-overflow-scrolling:touch]">
                     {matches.length === 0 ? (
                       <p className="px-3 py-3 text-xs text-muted-foreground">
                         No match — just type the area below to add a new location.
