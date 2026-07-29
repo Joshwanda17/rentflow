@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
           });
           await notifyAgent(
             advance.agent_id,
-            `WELILE: You are ahead on your advance repayment — no deduction today. Outstanding ${fmtUGX(advance.outstanding_balance)}.`,
+            `WELILE: You are ahead on your ${advFreqLabel} advance repayment — no deduction today. Outstanding ${fmtUGX(advance.outstanding_balance)}.`,
             'advance_ahead_skip',
           );
           skipped.push(advance.id);
@@ -279,9 +279,10 @@ Deno.serve(async (req) => {
         },
       }).then(() => {}, () => {});
 
-      // Cap daily deduction at scheduled installment + any accrued arrears.
-      // Never scoop the agent's whole withdrawable in a single day — the
-      // schedule is `principal + access_fee` spread over cycle_days.
+      // Cap each sweep at the scheduled installment for the advance's repayment
+      // frequency, plus any accrued arrears. Never scoop the agent's whole
+      // withdrawable — the schedule is `principal + access_fee` spread over
+      // cycle_days at the selected frequency.
       const scheduledDailyCap = scheduledInstallment;
       const arrearsCap = Math.max(0, Number(advance.arrears_balance || 0));
       const dailyCap = Math.max(0, scheduledDailyCap + arrearsCap);
@@ -355,7 +356,7 @@ Deno.serve(async (req) => {
         // will be recovered automatically from their next earnings.
         await notifyAgent(
           advance.agent_id,
-          `WELILE: Today's advance repayment could not be collected (low wallet balance). Outstanding ${fmtUGX(closingBalance)}. It will be auto-recovered from your next earnings. Top up to avoid arrears.`,
+          `WELILE: Your ${advFreqLabel} advance repayment could not be collected today (low wallet balance). Outstanding ${fmtUGX(closingBalance)}. It will be auto-recovered from your next earnings. Top up to avoid arrears.`,
           'advance_deduction_missed',
         );
       } else {
@@ -380,8 +381,8 @@ Deno.serve(async (req) => {
               source_table: 'agent_advances',
               source_id: advance.id,
               description: interestAccrued > 0
-                ? `Advance daily deduction - Overdue penalty: ${interestAccrued}`
-                : `Advance daily deduction`,
+                ? `Advance ${advFreqLabel} deduction - Overdue penalty: ${interestAccrued}`
+                : `Advance ${advFreqLabel} deduction`,
               currency: 'UGX',
               transaction_date: today,
               metadata: repaymentMeta,
@@ -416,7 +417,7 @@ Deno.serve(async (req) => {
           // Notify the agent where the money went (also visible in transactions).
           await notifyAgent(
             advance.agent_id,
-            `WELILE: ${fmtUGX(amountDeducted)} was deducted from your wallet today towards your advance. Remaining balance ${fmtUGX(closingBalance)}. See your transactions for details.`,
+            `WELILE: ${fmtUGX(amountDeducted)} was deducted from your wallet today towards your ${advFreqLabel} advance installment. Remaining balance ${fmtUGX(closingBalance)}. See your transactions for details.`,
             'advance_deduction_success',
           );
         }
