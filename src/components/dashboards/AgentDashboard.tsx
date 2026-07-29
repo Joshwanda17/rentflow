@@ -1441,7 +1441,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             Never rendered for Merchant Agents (tenant operations disabled). */}
         {activeTab === 'tenants' && !isMerchant && (
           <div className={cn("space-y-4 pb-24", tabAnimClass)}>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-foreground">My Tenants</h2>
               <div className="flex items-center gap-2">
                 <Button
