@@ -46,8 +46,21 @@ Deno.serve(async (req) => {
       .single()
 
     if (reqErr || !request) throw new Error('Rent request not found')
-    if (!['approved', 'coo_approved', 'funded'].includes(request.status)) {
-      throw new Error(`Invalid status: ${request.status}. Expected approved, coo_approved, or funded.`)
+    if (!['approved', 'coo_approved'].includes(request.status)) {
+      // Idempotency guard: refuse to re-fund. A duplicate click on "Batch: landlord float"
+      // used to double- or quadruple-fund the agent's float (see RR d723bc4d incident,
+      // 2026-07-29). Once status='funded' this endpoint is a no-op.
+      if (request.status === 'funded') {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            already_funded: true,
+            error: 'This rent request is already funded. Refusing to re-fund.',
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+      throw new Error(`Invalid status: ${request.status}. Expected approved or coo_approved.`)
     }
 
     const bonusAgentId = request.assigned_agent_id || request.agent_id
