@@ -741,6 +741,127 @@ Deno.serve(async (req) => {
         ['Notification delivery', `${(100 - emailFailRate).toFixed(1)}%`, '95%+'],
       ],
       recommendations: recs.map((r) => r.replace(/<[^>]+>/g, '')),
+      diagSections: [
+        {
+          title: 'Detailed Error Analysis',
+          headers: ['Signature', 'Severity', 'Today / 7d', 'Users', 'Source', 'Browsers', 'Root cause and recommended fix'],
+          weights: [0.24, 0.08, 0.09, 0.06, 0.14, 0.14, 0.25],
+          rows: dErrors.slice(0, 12).map((e: any) => [
+            String(e.message || '').slice(0, 120),
+            String(e.severity || 'Low'),
+            `${fmt(e.occurrences_today)} / ${fmt(e.occurrences_7d)}`,
+            fmt(e.affected_users_today),
+            `${String(e.source_file || 'n/a')}${e.source_line ? ':' + e.source_line : ''} ${String(e.component || '')}`.trim(),
+            shareLine(e.browsers),
+            `${String(e.root_cause || '')} Fix: ${String(e.suggested_fix || '')} Owner: ${String(e.owner_team || '')} (${String(e.expected_resolution || '')})`,
+          ]),
+        },
+        {
+          title: 'API and Edge Function Failures',
+          headers: ['Endpoint', 'Failures', 'Users', 'Status', 'Root cause and fix'],
+          weights: [0.26, 0.1, 0.09, 0.1, 0.45],
+          rows: dApi.map((a: any) => [
+            String(a.endpoint || '-'), fmt(a.failed_requests), fmt(a.affected_users), String(a.status_codes || '-'),
+            `${String(a.root_cause || '')} ${String(a.recommended_fix || '')}`,
+          ]),
+        },
+        {
+          title: 'Database Diagnostics - Slow Statements',
+          headers: ['Statement', 'Calls', 'Mean ms', 'Recommendation'],
+          weights: [0.42, 0.09, 0.1, 0.39],
+          rows: arr(dDb.slow_queries).map((q: any) => [
+            String(q.query || '').replace(/\s+/g, ' ').slice(0, 220), fmt(q.calls), fmt(q.mean_ms), String(q.recommendation || ''),
+          ]),
+        },
+        {
+          title: 'Database Diagnostics - Missing Index Candidates',
+          headers: ['Table', 'Seq scans', 'Rows read', 'Index scans', 'Recommendation'],
+          weights: [0.2, 0.11, 0.13, 0.11, 0.45],
+          rows: arr(dDb.missing_indexes).map((m: any) => [
+            String(m.table), fmt(m.sequential_scans), fmt(m.rows_read_sequentially), fmt(m.index_scans), String(m.recommendation || ''),
+          ]),
+        },
+        {
+          title: 'Automation Failure Details',
+          headers: ['Automation', 'Failures / runs', 'Last failure', 'Exception', 'Retry status'],
+          weights: [0.22, 0.12, 0.14, 0.34, 0.18],
+          rows: dJobs.map((j: any) => [
+            String(j.automation), `${fmt(j.failures_24h)} / ${fmt(j.runs_24h)}`, ts(j.last_failure_at),
+            String(j.exception || 'not captured').replace(/\s+/g, ' ').slice(0, 200), String(j.retry_status || ''),
+          ]),
+        },
+        {
+          title: 'Frontend Errors by Route, Browser and Device',
+          headers: ['Segment', 'Type', 'Errors'],
+          weights: [0.6, 0.22, 0.18],
+          rows: [
+            ...arr(dFront.by_route).map((r: any) => [String(r.route), 'Route', fmt(r.n)]),
+            ...arr(dFront.by_browser).map((r: any) => [String(r.browser), 'Browser', fmt(r.n)]),
+            ...arr(dFront.by_os).map((r: any) => [String(r.os), 'Operating system', fmt(r.n)]),
+            ...arr(dFront.by_device).map((r: any) => [String(r.device), 'Device', fmt(r.n)]),
+            ...arr(dFront.by_component).map((r: any) => [String(r.component), 'Component', fmt(r.n)]),
+          ],
+        },
+        {
+          title: 'Authentication Diagnostics',
+          headers: ['Item', 'Type', 'Count', 'Detail'],
+          weights: [0.36, 0.18, 0.12, 0.34],
+          rows: [
+            ...arr(dAuth.failure_breakdown).map((r: any) => [String(r.reason), 'Sign-in failure', fmt(r.n), `${fmt(r.users)} users`]),
+            ...arr(dAuth.slowest_phases).map((r: any) => [String(r.phase), 'Latency', fmt(r.n), `avg ${fmt(r.avg_ms)} ms, max ${fmt(r.max_ms)} ms`]),
+            ...arr(dAuth.otp_breakdown).map((r: any) => [`${r.outcome} / ${r.reason}`, 'One-time password', fmt(r.n), String(r.stage || '-')]),
+            ...arr(dAuth.device_issues).map((r: any) => [String(r.event_type), 'Device', fmt(r.n), String(r.platform || '-')]),
+          ],
+        },
+        {
+          title: 'Infrastructure Alerts',
+          headers: ['Metric', 'Current', 'Threshold', 'Status', 'Action'],
+          weights: [0.2, 0.16, 0.13, 0.11, 0.4],
+          rows: dInfra.map((i: any) => [String(i.metric), String(i.current), String(i.threshold), String(i.status), String(i.action)]),
+        },
+        {
+          title: 'Security Events',
+          headers: ['Item', 'Type', 'Count', 'Detail'],
+          weights: [0.32, 0.2, 0.13, 0.35],
+          rows: [
+            ['Signup attempts', 'Volume', fmt(dSec.signup_attempts), `${fmt(dSec.signup_blocked)} blocked`],
+            ['Authorisation violations', 'Access control', fmt(dSec.authorization_violations), 'Row level security or permission denials'],
+            ['Injection probes', 'Attack surface', fmt(dSec.injection_probes), 'Detected in application error signatures'],
+            ['Identity mismatch attempts', 'Fraud', fmt(dSec.identity_mismatch_attempts), 'One-time password bound to a different account'],
+            ...arr(dSec.suspicious_ips).map((r: any) => [String(r.ip), 'Suspicious IP', fmt(r.attempts), `${fmt(r.distinct_identities)} identities`]),
+            ...arr(dSec.brute_force_candidates).map((r: any) => [String(r.identity), 'Brute force', fmt(r.failed_attempts), ts(r.last_attempt)]),
+            ...arr(dSec.privilege_changes).map((r: any) => [String(r.action_type), 'Privilege change', fmt(r.n), String(r.table_name)]),
+          ],
+        },
+        {
+          title: 'Regression Report',
+          headers: ['Error', 'Movement', 'Yesterday', 'Today'],
+          weights: [0.52, 0.18, 0.15, 0.15],
+          rows: [
+            ...arr(dReg.new_errors).map((r: any) => [String(r.error), 'New', '0', fmt(r.today)]),
+            ...arr(dReg.worsening).map((r: any) => [String(r.error), 'Worsening', fmt(r.yesterday), fmt(r.today)]),
+            ...arr(dReg.improving).map((r: any) => [String(r.error), 'Improving', fmt(r.yesterday), fmt(r.today)]),
+            ...arr(dReg.resolved_errors).map((r: any) => [String(r.error), 'Resolved', fmt(r.yesterday), '0']),
+          ],
+        },
+        {
+          title: 'Engineering Action Items',
+          headers: ['Priority', 'Issue', 'Action', 'Team', 'Due date'],
+          weights: [0.08, 0.28, 0.36, 0.14, 0.14],
+          rows: dActions.map((a: any) => [
+            String(a.priority), String(a.issue), String(a.action || ''), String(a.team || '-'), String(a.due_date || '-'),
+          ]),
+        },
+        {
+          title: 'Business Impact of Open Defects',
+          headers: ['Signature', 'Feature area', 'Users', 'Revenue', 'Data integrity', 'Blocking'],
+          weights: [0.36, 0.18, 0.1, 0.12, 0.14, 0.1],
+          rows: dErrors.filter((e: any) => e.revenue_exposed || e.data_integrity_risk || e.production_blocking).slice(0, 12).map((e: any) => [
+            String(e.message || '').slice(0, 110), String(e.feature_area || '-'), fmt(e.affected_users_today),
+            yesNo(e.revenue_exposed), yesNo(e.data_integrity_risk), yesNo(e.production_blocking),
+          ]),
+        },
+      ],
     });
     const pdfName = `Welile_Daily_CTO_Report_${dateStr}.pdf`;
 
