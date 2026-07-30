@@ -251,6 +251,7 @@ export function AgentOpsDashboard() {
       );
       case 'advances-analytics': return (
         <div className="space-y-6">
+          <AdvanceHealthCard />
           <AdvancesAnalyticsView context="agent_ops" />
           <AgentMonthlyKpis />
           <AgentAdvanceRepaymentMonitor />
@@ -259,7 +260,15 @@ export function AgentOpsDashboard() {
       case 'active-advances': return <ActiveAdvancesPanel />;
       case 'advance-potential': return <AgentAdvancePotential />;
       case 'advance-limits': return <AgentAdvanceLimits />;
-      case 'advance-repayments': return <AdvanceRepaymentsPanel />;
+      case 'advance-repayments': return (
+        <div className="space-y-6">
+          <AdvanceRepaymentsPanel />
+          <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
+            <h3 className="text-sm font-semibold mb-2">At-Risk Agents</h3>
+            <AtRiskAgentsPreview />
+          </Card>
+        </div>
+      );
       case 'advance-activity-correlation': return <AdvanceActivityCorrelation />;
       case 'transfers': return (
         <div className="rounded-2xl border border-border bg-card p-3">
