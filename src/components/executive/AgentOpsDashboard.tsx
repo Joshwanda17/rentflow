@@ -50,7 +50,9 @@ import { AgentLeaderboardPanel } from './AgentLeaderboardPanel';
 import { AgentListingCampaignPanel } from './AgentListingCampaignPanel';
 import { DailyRentReport } from '@/components/reports/DailyRentReport';
 import { usePendingAdvanceCount } from '@/hooks/usePendingAdvanceCount';
-import { AgentOpsOverview } from './agent-ops-v2/AgentOpsOverview';
+import { AgentOpsOverview, AtRiskAgentsPreview } from './agent-ops-v2/AgentOpsOverview';
+import { AdvanceHealthCard } from './agent-ops-v2/AdvanceHealthCard';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
