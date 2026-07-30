@@ -418,6 +418,35 @@ export default function WithdrawFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount]);
 
+  // Load the user's locked withdrawal account whenever the flow opens.
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('mobile_money_number, mobile_money_name, mobile_money_provider')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const num = (data?.mobile_money_number ?? '').trim();
+      const nm = (data?.mobile_money_name ?? '').trim();
+      if (!num || !nm) {
+        setLockedMomo(null);
+        return;
+      }
+      const prov: 'MTN' | 'Airtel' =
+        (data?.mobile_money_provider ?? '').toLowerCase() === 'airtel' ? 'Airtel' : 'MTN';
+      setLockedMomo({ number: num, name: nm, provider: prov });
+      setMomoNumber(num);
+      setMomoName(nm);
+      setMomoProvider(prov);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user?.id]);
+
   const handleReset = () => {
     setLockedMomo(null);
     setCurrentStep(0);
