@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Home, ArrowRight, X, AlertCircle, RefreshCw, Check, Wallet, TrendingUp } from 'lucide-react';
+import { Search, MapPin, Home, ArrowRight, X, AlertCircle, RefreshCw, Check, Wallet, TrendingUp, CalendarIcon } from 'lucide-react';
+import { format, addMonths } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calcFunderEarnings, sumFunderEarnings } from '@/lib/funderEarnings';
@@ -344,7 +348,7 @@ export function FunderDirectHouseListing() {
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
 
   const selectedHouses = (houses ?? []).filter((h) => selectedIds.includes(h.id));
-  const selectionTotals = sumFunderEarnings(selectedHouses.map((h) => h.monthly_rent));
+  const selectionTotals = sumFunderEarnings(selectedHouses.map((h) => h.monthly_rent), moveInDate);
   const shortfall = Math.max(0, selectionTotals.capital - walletBalance);
 
   if (loading) {
