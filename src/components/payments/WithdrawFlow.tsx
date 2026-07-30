@@ -419,6 +419,7 @@ export default function WithdrawFlow({
   }, [amount]);
 
   const handleReset = () => {
+    setLockedMomo(null);
     setCurrentStep(0);
     setSource('available');
     setAmount(100000);
