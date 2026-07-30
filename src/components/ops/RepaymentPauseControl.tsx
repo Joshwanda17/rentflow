@@ -16,17 +16,27 @@ const DURATIONS = [7, 14, 30] as const;
 
 interface RepaymentPauseControlProps {
   rentRequestId: string;
-  /** Only outstanding-balance repayments may be paused. */
+  /** Kept for context only — pausing is gated on a remaining balance, not the registration type. */
   registrationType?: string | null;
+  /** Remaining balance on the plan. Pausing is only offered when money is still owed. */
+  outstandingAmount?: number;
+  /** Terminal plans (cancelled/rejected/closed/defaulted) cannot be paused. */
+  planStatus?: string | null;
 }
 
-export function RepaymentPauseControl({ rentRequestId, registrationType }: RepaymentPauseControlProps) {
+export function RepaymentPauseControl({
+  rentRequestId,
+  outstandingAmount = 0,
+  planStatus,
+}: RepaymentPauseControlProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState<number>(7);
   const [reason, setReason] = useState('');
 
-  const isOutstanding = registrationType === 'outstanding_balance';
+  const TERMINAL = ['cancelled', 'rejected', 'closed', 'defaulted', 'deleted_by_agent'];
+  const isOutstanding =
+    outstandingAmount > 0 && !TERMINAL.includes(String(planStatus || '').toLowerCase());
 
   const { data: activePause, isLoading } = useQuery({
     queryKey: ['repayment-pause', rentRequestId],
