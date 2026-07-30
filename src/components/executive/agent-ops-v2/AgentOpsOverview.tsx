@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { format, subDays, subHours } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area,
-  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis,
+  XAxis, YAxis,
   CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import {
