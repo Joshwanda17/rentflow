@@ -58,3 +58,4 @@
 - [Daytime listing window](mem://business-model/daytime-listing-window) — Agents/sub-agents can only insert `house_listings` 06:00–18:00 EAT; enforced by `trg_enforce_daytime_house_listing` + client gate in `ListEmptyHouseDialog`; ops/managers/admins bypass
 - [Deposit match alerts](mem://features/financial-ops/deposit-match-alerts) — configurable-window ops email alerts when a deposit submission or incoming email receipt fails to match
 - [Daily CTO Report](mem://features/cto/daily-cto-report) — 14-section executive technology report emailed 00:00 EAT (get_cto_daily_report RPC + daily-cto-report edge fn + cron)
+- [Tenant Ops geo drill-down rejected](mem://constraints/tenant-ops-no-geo-drilldown) — Continent→Country→Region→District→Agent analytics centre reverted 2026-07-30; Tenant Ops keeps only New + Classic modes

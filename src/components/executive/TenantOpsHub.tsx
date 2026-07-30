@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sparkles, History, MapPin, Home, BarChart3 } from 'lucide-react';
+import { Sparkles, History, MapPin, Home } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
-import { TenantOpsGeoCommandCenter } from './tenant-ops/TenantOpsGeoCommandCenter';
 import { AgentInactiveAlertBanner } from '@/components/ops/AgentInactiveAlertBanner';
 import { BehaviorDrawer } from '@/components/ops/BehaviorDrawer';
 import { TenantPhoneDuplicatePanel } from '@/components/ops/TenantPhoneDuplicatePanel';
@@ -14,10 +13,10 @@ import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY = 'tenant-ops-view-mode';
 
-type Mode = 'analytics' | 'v2' | 'classic';
+type Mode = 'v2' | 'classic';
 
 export function TenantOpsHub() {
-  const [mode, setMode] = useState<Mode>('analytics');
+  const [mode, setMode] = useState<Mode>('v2');
   const [opsUserId, setOpsUserId] = useState<string | null>(null);
   const [behaviorTenantId, setBehaviorTenantId] = useState<string | null>(null);
   const [welileHomesOpen, setWelileHomesOpen] = useState(false);
@@ -25,7 +24,7 @@ export function TenantOpsHub() {
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'classic' || saved === 'v2' || saved === 'analytics') setMode(saved);
+    if (saved === 'classic' || saved === 'v2') setMode(saved);
   }, []);
 
   useEffect(() => {
@@ -61,14 +60,6 @@ export function TenantOpsHub() {
           <Home className="h-3.5 w-3.5" /> Welile Homes
         </Button>
         <Button
-          variant={mode === 'analytics' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setAndSave('analytics')}
-          className="gap-1.5"
-        >
-          <BarChart3 className="h-3.5 w-3.5" /> Analytics
-        </Button>
-        <Button
           variant={mode === 'v2' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setAndSave('v2')}
@@ -85,18 +76,7 @@ export function TenantOpsHub() {
           <History className="h-3.5 w-3.5" /> Classic
         </Button>
       </div>
-      {mode === 'analytics' ? (
-        <TenantOpsGeoCommandCenter />
-      ) : mode === 'v2' ? (
-        <TenantOpsDashboardV2 />
-      ) : (
-        <>
-          {/* Classic view enhancement: the same live hierarchical insight band
-              sits above the legacy operational tools. */}
-          <TenantOpsGeoCommandCenter />
-          <TenantOpsDashboard />
-        </>
-      )}
+      {mode === 'v2' ? <TenantOpsDashboardV2 /> : <TenantOpsDashboard />}
 
       <BehaviorDrawer
         tenantId={behaviorTenantId}
