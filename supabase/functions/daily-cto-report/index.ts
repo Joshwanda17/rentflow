@@ -6,6 +6,7 @@
 //   POST /daily-cto-report { "date": "YYYY-MM-DD", "recipients": ["a@x"] }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -418,18 +419,97 @@ Deno.serve(async (req) => {
       ...recs.map((r, i) => `${i + 1}. ${r.replace(/<[^>]+>/g, '')}`),
     ].join('\n');
 
-    const form = new URLSearchParams();
+    // ---- Downloadable PDF attachment ------------------------------------
+    const pdfBytes = await buildCtoPdf({
+      dateStr,
+      generatedAt: String(d.generated_at || '').slice(0, 19).replace('T', ' '),
+      health, healthLabel,
+      scoreParts: scoreParts.map((p) => ({ label: p.label, weight: p.w, value: Math.round(p.v) })),
+      summaryPoints,
+      platform: [
+        ['Total users', fmt(P.total_users)], ['New users today', fmt(P.new_users_today)],
+        ['Active 24h', fmt(P.active_24h)], ['Active 7d', fmt(P.active_7d)],
+        ['Active 30d', fmt(P.active_30d)], ['System events today', fmt(P.events_today)],
+        ['Events vs prior day', delta(n(P.events_today), n(P.events_prev_day))],
+        ['Ledger postings today', fmt(P.txn_today)],
+        ['Client errors today', fmt(E.today)], ['Client error rate', `${errRate.toFixed(2)}%`],
+        ['Users affected by errors', fmt(E.affected_users_today)], ['Browser compat events 7d', fmt(E.compat_events_7d)],
+      ],
+      errorTrend: trend.map((t: any) => ({ label: String(t.d), value: n(t.n) })),
+      infra: [
+        ['Database size', bytes(I.db_size_bytes)], ['Cache hit ratio', `${cacheHit.toFixed(2)}%`],
+        ['Connections', `${fmt(I.connections)} / ${fmt(I.max_connections)}`], ['Connection saturation', `${connSat.toFixed(0)}%`],
+        ['Uptime hours', fmt(I.uptime_hours)], ['Deadlocks since boot', fmt(I.deadlocks)],
+        ['Commits', fmt(I.commits)], ['Rolled-back transactions', fmt(I.rollbacks)],
+        ['Scheduled automations', fmt(J.total_scheduled)], ['Automation runs 24h', fmt(J.runs_24h)],
+        ['Failed runs 24h', fmt(J.failed_24h)], ['Automation failure rate', `${jobFailRate.toFixed(1)}%`],
+      ],
+      largestTables: largest.map((t: any) => ({ label: String(t.table_name), value: n(t.bytes), display: bytes(t.bytes) })),
+      failingJobs: failingJobs.map((j: any) => [String(j.jobname), fmt(j.n), String(j.last_error || '').replace(/\s+/g, ' ')]),
+      topRoutes: topRoutes.map((r: any) => [String(r.route), fmt(r.n)]),
+      topMessages: topMsgs.map((m: any) => [String(m.message), fmt(m.n)]),
+      slowQueries: slow.map((q: any) => [String(q.query).replace(/\s+/g, ' '), fmt(q.mean_ms), fmt(q.calls)]),
+      security: [
+        ['RLS coverage', `${rlsCoverage.toFixed(1)}%`], ['Tables with RLS', `${fmt(S.rls_tables)} of ${fmt(S.public_tables)}`],
+        ['Privileged accounts', fmt(S.privileged_accounts)], ['Active fraud blocks', fmt(S.fraud_blocks_active)],
+        ['Fraud blocks raised today', fmt(S.fraud_blocks_today)], ['Blocked signup IPs', fmt(S.blocked_ips_total)],
+        ['Signup attempts today', fmt(S.signup_attempts_today)], ['Signups rejected today', fmt(S.signup_blocked_today)],
+        ['Login failures today', fmt(A.login_failures_today)], ['Login failure rate', `${loginFailRate.toFixed(1)}%`],
+        ['OTP attempts today', fmt(A.otp_attempts_today)], ['Audit writes today', fmt(S.audit_writes_today)],
+      ],
+      experience: [
+        ['Average sign-in latency', `${fmt(A.avg_login_ms_today)} ms`], ['Authentication success', `${(100 - loginFailRate).toFixed(1)}%`],
+        ['Weekly active share', `${pct(n(P.active_7d), Math.max(1, n(P.total_users))).toFixed(1)}%`],
+        ['Monthly active share', `${pct(n(P.active_30d), Math.max(1, n(P.total_users))).toFixed(1)}%`],
+        ['Emails sent today', fmt(M.sent_today)], ['Emails failed today', fmt(M.failed_today)],
+        ['Notification delivery', `${(100 - emailFailRate).toFixed(1)}%`], ['Emails sent 7d', fmt(M.sent_7d)],
+        ['Backup runs 7d', fmt(B.runs_7d)], ['Backup failures 7d', fmt(B.failures_7d)],
+        ['Latest backup status', B.latest?.status ? String(B.latest.status) : 'none'],
+        ['Latest backup at', B.latest?.created_at ? String(B.latest.created_at).slice(0, 16).replace('T', ' ') : 'no run recorded'],
+      ],
+      risks: risks.map((r) => [r.area, r.risk, r.likelihood, r.impact, r.action]),
+      compliance: [
+        ['Row level security enforced', rlsCoverage >= 98 ? 'Compliant' : 'Partial', `${fmt(S.rls_tables)} of ${fmt(S.public_tables)} public tables`],
+        ['Immutable audit trail', n(S.audit_writes_today) > 0 ? 'Active' : 'No writes today', `${fmt(S.audit_writes_today)} entries logged`],
+        ['Data backup and retention', backupOk ? 'Compliant' : 'Attention', `${fmt(B.runs_7d)} runs, ${fmt(B.failures_7d)} failures in 7 days`],
+        ['Privileged access review', n(S.privileged_accounts) <= 25 ? 'Within limit' : 'Review needed', `${fmt(S.privileged_accounts)} privileged accounts`],
+        ['Fraud and AML controls', 'Operating', `${fmt(S.fraud_blocks_active)} active identity blocks`],
+        ['Double-entry financial integrity', 'Enforced', `${fmt(P.txn_today)} balanced ledger postings today`],
+      ],
+      kpis: [
+        ['Technology health score', String(health), '85+'],
+        ['Client error rate', `${errRate.toFixed(2)}%`, 'Below 1%'],
+        ['Authentication success', `${(100 - loginFailRate).toFixed(1)}%`, '90%+'],
+        ['Automation success', `${(100 - jobFailRate).toFixed(1)}%`, '99%+'],
+        ['Database cache hit', `${cacheHit.toFixed(2)}%`, '99%+'],
+        ['Connection headroom', `${(100 - connSat).toFixed(0)}%`, '40%+'],
+        ['Notification delivery', `${(100 - emailFailRate).toFixed(1)}%`, '95%+'],
+      ],
+      recommendations: recs.map((r) => r.replace(/<[^>]+>/g, '')),
+    });
+    const pdfName = `Welile_Daily_CTO_Report_${dateStr}.pdf`;
+
+    // Preview mode: return the PDF itself instead of emailing it.
+    if (body?.preview === true) {
+      return new Response(pdfBytes, {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${pdfName}"` },
+      });
+    }
+
+    const form = new FormData();
     form.append('from', FROM);
     for (const r of recipients) form.append('to', r);
     form.append('h:Reply-To', REPLY_TO);
     form.append('subject', `Daily CTO Report — ${dateStr} — Health ${health}/100 (${healthLabel})`);
     form.append('text', text);
     form.append('html', html);
+    form.append('attachment', new Blob([pdfBytes], { type: 'application/pdf' }), pdfName);
 
     const mgRes = await fetch(`${mgBase}/v3/${mgDomain}/messages`, {
       method: 'POST',
-      headers: { Authorization: `Basic ${btoa(`api:${mgKey}`)}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
+      headers: { Authorization: `Basic ${btoa(`api:${mgKey}`)}` },
+      body: form,
     });
     if (!mgRes.ok) {
       const errBody = await mgRes.text();
@@ -439,7 +519,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, date: dateStr, recipients, health, risks: risks.length }), {
+    return new Response(JSON.stringify({ ok: true, date: dateStr, recipients, health, risks: risks.length, attachment: pdfName, pdf_bytes: pdfBytes.length }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
@@ -449,3 +529,279 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// ============================================================================
+// PDF renderer (pdf-lib). A4 portrait, auto page-break, no emojis, no images.
+// ============================================================================
+
+interface PdfArgs {
+  dateStr: string;
+  generatedAt: string;
+  health: number;
+  healthLabel: string;
+  scoreParts: { label: string; weight: number; value: number }[];
+  summaryPoints: string[];
+  platform: [string, string][];
+  errorTrend: { label: string; value: number }[];
+  infra: [string, string][];
+  largestTables: { label: string; value: number; display: string }[];
+  failingJobs: string[][];
+  topRoutes: string[][];
+  topMessages: string[][];
+  slowQueries: string[][];
+  security: [string, string][];
+  experience: [string, string][];
+  risks: string[][];
+  compliance: string[][];
+  kpis: string[][];
+  recommendations: string[];
+}
+
+async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  const W = 595.28, H = 841.89, margin = 40;
+  const col = (r: number, g: number, b: number) => rgb(r / 255, g / 255, b / 255);
+  const ink = col(15, 23, 42);
+  const muted = col(100, 116, 139);
+  const line = col(226, 232, 240);
+  const soft = col(248, 250, 252);
+  const brand = col(11, 95, 255);
+  const good = col(15, 157, 88);
+  const warn = col(199, 119, 0);
+  const bad = col(192, 57, 43);
+  const tone = (v: number) => (v >= 85 ? good : v >= 70 ? warn : bad);
+
+  let page = doc.addPage([W, H]);
+  let y = 0;
+  let pageNo = 0;
+
+  const clip = (s: string, f: any, size: number, maxW: number) => {
+    let t = String(s ?? '');
+    if (f.widthOfTextAtSize(t, size) <= maxW) return t;
+    while (t.length > 1 && f.widthOfTextAtSize(t + '...', size) > maxW) t = t.slice(0, -1);
+    return t + '...';
+  };
+  const wrap = (s: string, f: any, size: number, maxW: number) => {
+    const raw = String(s ?? '').split(/\s+/);
+    // hard-break tokens longer than the column (SQL text, identifiers)
+    const words: string[] = [];
+    for (const w of raw) {
+      let t = w;
+      while (f.widthOfTextAtSize(t, size) > maxW) {
+        let cut = 1;
+        while (cut < t.length && f.widthOfTextAtSize(t.slice(0, cut + 1), size) <= maxW) cut += 1;
+        words.push(t.slice(0, cut));
+        t = t.slice(cut);
+      }
+      if (t) words.push(t);
+    }
+    const lines: string[] = [];
+    let cur = '';
+    for (const w of words) {
+      const t = cur ? `${cur} ${w}` : w;
+      if (f.widthOfTextAtSize(t, size) > maxW && cur) { lines.push(cur); cur = w; } else { cur = t; }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  };
+
+  const header = () => {
+    pageNo += 1;
+    page.drawRectangle({ x: 0, y: H - 86, width: W, height: 86, color: ink });
+    page.drawText('WELILE TECHNOLOGIES LIMITED', { x: margin, y: H - 34, size: 8.5, font: bold, color: col(148, 163, 184) });
+    page.drawText('Daily Chief Technology Officer Report', { x: margin, y: H - 56, size: 16, font: bold, color: col(255, 255, 255) });
+    page.drawText(`Reporting day ${a.dateStr} (EAT)  |  Health score ${a.health}/100 (${a.healthLabel})`, { x: margin, y: H - 74, size: 8.5, font, color: col(203, 213, 225) });
+    const pn = `Page ${pageNo}`;
+    page.drawText(pn, { x: W - margin - bold.widthOfTextAtSize(pn, 8.5), y: H - 74, size: 8.5, font: bold, color: col(203, 213, 225) });
+    y = H - 86 - 24;
+  };
+  const footer = () => {
+    page.drawLine({ start: { x: margin, y: 38 }, end: { x: W - margin, y: 38 }, color: line, thickness: 0.6 });
+    page.drawText('Confidential - prepared for the Chief Executive Officer and Board of Directors', { x: margin, y: 25, size: 7.5, font, color: muted });
+  };
+  const newPage = () => { footer(); page = doc.addPage([W, H]); header(); };
+  const ensure = (h: number) => { if (y - h < 56) newPage(); };
+
+  header();
+
+  const sectionTitle = (num: number, label: string) => {
+    ensure(34);
+    page.drawText(`${num}. ${label.toUpperCase()}`, { x: margin, y: y - 11, size: 9.5, font: bold, color: ink });
+    page.drawLine({ start: { x: margin, y: y - 17 }, end: { x: W - margin, y: y - 17 }, color: ink, thickness: 1.2 });
+    y -= 28;
+  };
+
+  const bars = (rows: { label: string; value: number; display?: string }[], maxOverride?: number, toned = false) => {
+    const max = maxOverride ?? Math.max(1, ...rows.map((r) => r.value));
+    const labelW = 140, valW = 62;
+    const trackW = W - margin * 2 - labelW - valW;
+    for (const r of rows) {
+      ensure(16);
+      page.drawText(clip(r.label, font, 8, labelW - 6), { x: margin, y: y - 9, size: 8, font, color: muted });
+      page.drawRectangle({ x: margin + labelW, y: y - 12, width: trackW, height: 9, color: soft });
+      const w = Math.max(2, (r.value / max) * trackW);
+      page.drawRectangle({ x: margin + labelW, y: y - 12, width: w, height: 9, color: toned ? tone(r.value) : brand });
+      const disp = r.display ?? r.value.toLocaleString('en-UG');
+      page.drawText(disp, { x: W - margin - bold.widthOfTextAtSize(disp, 8), y: y - 9, size: 8, font: bold, color: ink });
+      y -= 14;
+    }
+    y -= 6;
+  };
+
+  const kpiGrid = (items: [string, string][]) => {
+    const perRow = 3, gutter = 8;
+    const cardW = (W - margin * 2 - gutter * (perRow - 1)) / perRow;
+    const cardH = 42;
+    for (let i = 0; i < items.length; i += perRow) {
+      ensure(cardH + 8);
+      const row = items.slice(i, i + perRow);
+      row.forEach((it, ix) => {
+        const x = margin + ix * (cardW + gutter);
+        page.drawRectangle({ x, y: y - cardH, width: cardW, height: cardH, color: soft, borderColor: line, borderWidth: 0.6 });
+        page.drawRectangle({ x, y: y - cardH, width: 2.5, height: cardH, color: brand });
+        page.drawText(clip(it[0].toUpperCase(), bold, 6.5, cardW - 14), { x: x + 9, y: y - 15, size: 6.5, font: bold, color: muted });
+        let vs = 12;
+        while (vs > 7 && bold.widthOfTextAtSize(it[1], vs) > cardW - 18) vs -= 0.5;
+        page.drawText(it[1], { x: x + 9, y: y - 32, size: vs, font: bold, color: ink });
+      });
+      y -= cardH + gutter;
+    }
+    y -= 2;
+  };
+
+  const grid = (headers: string[], rows: string[][], weights: number[]) => {
+    if (!rows.length) {
+      ensure(18);
+      page.drawText('No records for this period.', { x: margin, y: y - 10, size: 8.5, font, color: muted });
+      y -= 20;
+      return;
+    }
+    const tw = W - margin * 2;
+    const colW = weights.map((w) => tw * w);
+    const drawHead = () => {
+      ensure(18);
+      page.drawRectangle({ x: margin, y: y - 15, width: tw, height: 15, color: soft });
+      let cx = margin;
+      headers.forEach((h, i) => {
+        page.drawText(clip(h.toUpperCase(), bold, 7, colW[i] - 10), { x: cx + 5, y: y - 11, size: 7, font: bold, color: muted });
+        cx += colW[i];
+      });
+      y -= 15;
+    };
+    drawHead();
+    rows.forEach((r, ri) => {
+      const cellLines = r.map((c, i) => wrap(String(c ?? ''), i === 0 ? bold : font, 8, colW[i] - 10).slice(0, 3));
+      const rowH = Math.max(15, 4 + cellLines.reduce((m, l) => Math.max(m, l.length), 1) * 9.5);
+      if (y - rowH < 56) { newPage(); drawHead(); }
+      if (ri % 2 === 1) page.drawRectangle({ x: margin, y: y - rowH, width: tw, height: rowH, color: col(252, 252, 254) });
+      let cx = margin;
+      cellLines.forEach((lines, i) => {
+        lines.forEach((ln, li) => {
+          page.drawText(ln, { x: cx + 5, y: y - 11 - li * 9.5, size: 8, font: i === 0 ? bold : font, color: ink });
+        });
+        cx += colW[i];
+      });
+      page.drawLine({ start: { x: margin, y: y - rowH }, end: { x: W - margin, y: y - rowH }, color: line, thickness: 0.5 });
+      y -= rowH;
+    });
+    y -= 10;
+  };
+
+  // 1. Executive summary
+  sectionTitle(1, 'Executive Summary');
+  ensure(70);
+  const boxH = 56;
+  page.drawRectangle({ x: margin, y: y - boxH, width: 120, height: boxH, color: soft, borderColor: tone(a.health), borderWidth: 2 });
+  page.drawText(String(a.health), { x: margin + 12, y: y - 36, size: 28, font: bold, color: tone(a.health) });
+  page.drawText('/ 100', { x: margin + 12 + bold.widthOfTextAtSize(String(a.health), 28) + 5, y: y - 36, size: 10, font: bold, color: muted });
+  page.drawText(`HEALTH: ${a.healthLabel.toUpperCase()}`, { x: margin + 12, y: y - 50, size: 7, font: bold, color: muted });
+  let sy = y - 8;
+  for (const p of a.summaryPoints.slice(0, 3)) {
+    for (const ln of wrap(p, font, 8, W - margin * 2 - 136)) {
+      page.drawText(ln, { x: margin + 132, y: sy - 4, size: 8, font, color: ink });
+      sy -= 10;
+    }
+    sy -= 2;
+  }
+  y = Math.min(y - boxH, sy) - 12;
+  for (const p of a.summaryPoints.slice(3)) {
+    for (const ln of wrap(`- ${p}`, font, 8, W - margin * 2)) {
+      ensure(12);
+      page.drawText(ln, { x: margin, y: y - 8, size: 8, font, color: ink });
+      y -= 10;
+    }
+  }
+  y -= 8;
+  bars(a.scoreParts.map((s) => ({ label: `${s.label} (${s.weight}%)`, value: s.value, display: String(s.value) })), 100, true);
+
+  // 2. Platform health
+  sectionTitle(2, 'Platform Health Dashboard');
+  kpiGrid(a.platform);
+  if (a.errorTrend.length) {
+    ensure(20);
+    page.drawText('CLIENT ERROR TREND - LAST 14 DAYS', { x: margin, y: y - 9, size: 7, font: bold, color: muted });
+    y -= 16;
+    bars(a.errorTrend);
+  }
+
+  // 3. Infrastructure
+  sectionTitle(3, 'Infrastructure Operations');
+  kpiGrid(a.infra);
+  if (a.largestTables.length) {
+    ensure(20);
+    page.drawText('STORAGE FOOTPRINT - LARGEST TABLES', { x: margin, y: y - 9, size: 7, font: bold, color: muted });
+    y -= 16;
+    bars(a.largestTables);
+  }
+  ensure(20);
+  page.drawText('FAILING AUTOMATIONS - LAST 24 HOURS', { x: margin, y: y - 9, size: 7, font: bold, color: muted });
+  y -= 16;
+  grid(['Automation', 'Failures', 'Last error'], a.failingJobs, [0.3, 0.12, 0.58]);
+
+  // 4. Engineering performance
+  sectionTitle(4, 'Engineering Performance');
+  grid(['Route', 'Errors (7d)'], a.topRoutes, [0.75, 0.25]);
+  grid(['Most frequent error', 'Occurrences (7d)'], a.topMessages, [0.75, 0.25]);
+  grid(['Slowest database operation', 'Mean ms', 'Calls'], a.slowQueries, [0.62, 0.19, 0.19]);
+
+  // 5. Cybersecurity
+  sectionTitle(5, 'Cybersecurity Dashboard');
+  kpiGrid(a.security);
+
+  // 6-9. Experience, monitoring, data
+  sectionTitle(6, 'Customer Experience, Monitoring and Data');
+  kpiGrid(a.experience);
+
+  // 7. Risk register
+  sectionTitle(7, 'Technology Risk Register');
+  grid(['Area', 'Risk', 'Likelihood', 'Impact', 'Mitigation'], a.risks, [0.14, 0.32, 0.13, 0.11, 0.3]);
+
+  // 8. Compliance
+  sectionTitle(8, 'Compliance');
+  grid(['Control', 'Status', 'Evidence'], a.compliance, [0.36, 0.19, 0.45]);
+
+  // 9. KPIs
+  sectionTitle(9, 'CTO Executive KPIs');
+  grid(['KPI', 'Today', 'Target'], a.kpis, [0.5, 0.25, 0.25]);
+
+  // 10. Recommendations
+  sectionTitle(10, 'Strategic Recommendations and Action Items');
+  a.recommendations.forEach((r, i) => {
+    const lines = wrap(`${i + 1}. ${r}`, font, 8.5, W - margin * 2 - 10);
+    ensure(lines.length * 11 + 6);
+    lines.forEach((ln, li) => {
+      page.drawText(ln, { x: margin + (li ? 12 : 0), y: y - 9, size: 8.5, font: li ? font : bold, color: ink });
+      y -= 11;
+    });
+    y -= 4;
+  });
+
+  ensure(24);
+  page.drawText(`Generated from live production telemetry at ${a.generatedAt} UTC.`, { x: margin, y: y - 10, size: 7.5, font, color: muted });
+  footer();
+
+  return await doc.save();
+}
