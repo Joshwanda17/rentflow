@@ -235,51 +235,21 @@ export async function enrollStaff(input: {
   return hydrated[0];
 }
 
-export type EnrollableUser = {
-  id: string;
-  full_name: string;
-  email: string | null;
-  phone: string | null;
+export type UnenrolledStaffCandidate = {
+  user_id: string;
+  display_name: string;
+  staff_roles: string;
 };
 
 /**
- * Platform users that do not yet have an hr_staff row.
- * `search` filters by name / email / phone; results are capped for the picker.
+ * Staff-role platform users that are not yet enrolled.
+ * Served entirely by the `hr_unenrolled_staff_candidates` database function —
+ * the picker never scans the profiles table.
  */
-export async function getEnrollableUsers(search = '', limit = 30): Promise<EnrollableUser[]> {
-  const enrolled = unwrap(
-    await supabase.from('hr_staff').select('user_id'),
-  ) as { user_id: string }[];
-  const enrolledIds = new Set(enrolled.map((s) => s.user_id));
-
-  let query = supabase
-    .from('profiles')
-    .select('id, full_name, email, phone')
-    .order('full_name', { ascending: true })
-    .limit(limit + enrolledIds.size > 500 ? 500 : limit + enrolledIds.size);
-
-  const term = search.trim();
-  if (term) {
-    const safe = term.replace(/[%,]/g, ' ');
-    query = query.or(`full_name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`);
-  }
-
-  const rows = unwrap(await query) as {
-    id: string;
-    full_name: string | null;
-    email: string | null;
-    phone: string | null;
-  }[];
-
-  return rows
-    .filter((r) => !enrolledIds.has(r.id))
-    .slice(0, limit)
-    .map((r) => ({
-      id: r.id,
-      full_name: r.full_name ?? '(no name)',
-      email: r.email,
-      phone: r.phone,
-    }));
+export async function searchUnenrolledStaff(search: string): Promise<UnenrolledStaffCandidate[]> {
+  return unwrap(
+    await supabase.rpc('hr_unenrolled_staff_candidates', { _q: search }),
+  ) as UnenrolledStaffCandidate[];
 }
 
 /**
