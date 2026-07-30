@@ -433,6 +433,7 @@ export default function ExecutiveBrief({ embedded = false }: ExecutiveBriefProps
 
   return (
     <div className="space-y-5">
+      {!embedded && null}
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           Updated {updatedAt ? agoLabel(updatedAt, nowTick) : '—'}
