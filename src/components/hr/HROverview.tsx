@@ -7,6 +7,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import MyModuleSummary from '@/hr/components/MyModuleSummary';
 
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -133,6 +134,9 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
         <h2 className="text-xl font-bold text-foreground">HR Command Center</h2>
         <p className="text-xs text-muted-foreground mt-0.5">People operations at a glance</p>
       </div>
+
+      {/* Signed-in staff member's own figures, pulled from each sidebar tab */}
+      <MyModuleSummary />
 
       {/* KPI Cards */}
       <motion.div
