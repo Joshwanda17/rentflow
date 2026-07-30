@@ -2753,7 +2753,8 @@ Deno.serve(async (req) => {
         `\n\nThank you for using Welile.`;
 
       // In-app notification center entry so the user sees the approval update
-      // (merchant agent name + remaining wallet balance) without relying on SMS.
+      // (amount + remaining wallet balance) without relying on SMS. Merchant
+      // agent identity is never surfaced to the customer.
       // Fire-and-forget — a notification write must never block the approval.
       try {
         const balText =
@@ -2769,13 +2770,14 @@ Deno.serve(async (req) => {
             message:
               `Your withdrawal of UGX ${amount.toLocaleString()} has been approved and paid via ` +
               `${payment_method} (${proofLabel}: ${refUpper}).` +
-              `${merchantName ? ` Processed by Welile merchant agent ${merchantName}.` : ""}` +
               `${balText}`,
             metadata: {
               kind: "withdrawal_update",
               stage: "approved",
               withdrawal_id,
               amount,
+              // Internal-only field for admin/audit + reconciliation; not rendered
+              // in any customer-facing surface.
               merchant_agent: merchantName,
               new_balance: newBalance,
               payment_method,
