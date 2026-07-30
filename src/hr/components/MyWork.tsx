@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import {
   Line,
   LineChart,
@@ -21,9 +22,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { addTaskEvent, getMetricDefinitions, getMyStaff, getSnapshots, getTasks } from '@/hr/api';
+import { addTaskEvent, getDepartments, getMetricDefinitions, getMyStaff, getSnapshots, getTasks } from '@/hr/api';
 import { supabase } from '@/hr/api/client';
-import type { Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
+import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
+import TaskFormDialog from './TaskFormDialog';
 
 /** Statuses that take a task out of the open list. */
 const CLOSED: string[] = ['completed', 'cancelled'];
@@ -167,6 +169,8 @@ export default function MyWork() {
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [attention, setAttention] = useState<AttentionItem[]>([]);
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [logOpen, setLogOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -176,13 +180,15 @@ export default function MyWork() {
       if (!me) return;
 
       const { start, end } = monthBounds(new Date());
-      const [defs, snaps, myTasks, thresholdRows] = await Promise.all([
+      const [defs, snaps, myTasks, thresholdRows, depts] = await Promise.all([
         getMetricDefinitions(me.current_assignment?.department_id),
         getSnapshots({ staffId: me.id, periodStart: start, periodEnd: end }),
         getTasks({ assigneeEmployeeId: me.id }),
         supabase.from('hr_metric_definitions').select('id, amber_at, red_at'),
+        getDepartments(),
       ]);
 
+      setDepartments(depts);
       setDefinitions(defs);
       setSnapshots(snaps);
       setTasks(myTasks);
@@ -380,6 +386,19 @@ export default function MyWork() {
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          to={`/hr/dashboard/scorecard/${staff.id}`}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          View my full scorecard
+        </Link>
+        <Button size="sm" onClick={() => setLogOpen(true)}>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Log a task
+        </Button>
+      </div>
+
       {attention.length > 0 && (
         <Card className="border-amber-500/40">
           <CardHeader className="pb-2">
@@ -561,6 +580,17 @@ export default function MyWork() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* The assignee is always the signed-in person; no picker is shown. */}
+      <TaskFormDialog
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        title="Log a task"
+        departments={departments}
+        fixedAssigneeStaffId={staff.id}
+        defaultDepartmentId={staff.current_assignment?.department_id ?? null}
+        onCreated={() => void load()}
+      />
     </div>
   );
 }

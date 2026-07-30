@@ -12,7 +12,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { RefreshCw, MessageSquarePlus } from 'lucide-react';
+import { RefreshCw, MessageSquarePlus, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,13 +38,15 @@ import {
 import { toast } from 'sonner';
 import {
   addTaskEvent,
+  getDepartments,
   getMetricDefinitions,
   getSnapshots,
   getStaffDirectory,
   getTasks,
 } from '@/hr/api';
 import { supabase } from '@/hr/api/client';
-import type { Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
+import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
+import TaskFormDialog from './TaskFormDialog';
 
 /** Statuses that take a task out of the open list. */
 const CLOSED: string[] = ['completed', 'cancelled'];
@@ -166,6 +169,8 @@ export default function ExecutiveBrief() {
   const [nowTick, setNowTick] = useState(Date.now());
 
   const [staff, setStaff] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [definitions, setDefinitions] = useState<MetricDefinition[]>([]);
@@ -184,7 +189,7 @@ export default function ExecutiveBrief() {
     else setRefreshing(true);
     try {
       const { start, end } = monthBounds(new Date());
-      const [people, allTasks, defs, snaps, eventRows, thresholdRows] = await Promise.all([
+      const [people, allTasks, defs, snaps, eventRows, thresholdRows, depts] = await Promise.all([
         getStaffDirectory(),
         getTasks(),
         getMetricDefinitions(),
@@ -195,9 +200,11 @@ export default function ExecutiveBrief() {
           .order('occurred_at', { ascending: false })
           .limit(5000),
         supabase.from('hr_metric_definitions').select('id, amber_at, red_at'),
+        getDepartments(),
       ]);
 
       setStaff(people);
+      setDepartments(depts);
       setTasks(allTasks);
       setDefinitions(defs);
       setSnapshots(snaps);
@@ -339,6 +346,7 @@ export default function ExecutiveBrief() {
         const lastMs = last ? new Date(last).getTime() : now;
         return {
           task: t,
+          staffId: person?.id ?? null,
           personName: person?.full_name ?? 'Unassigned',
           position: person?.current_assignment?.role_title ?? '—',
           department: person?.current_assignment?.department_name ?? '—',
@@ -423,10 +431,16 @@ export default function ExecutiveBrief() {
         <p className="text-xs text-muted-foreground">
           Updated {updatedAt ? agoLabel(updatedAt, nowTick) : '—'}
         </p>
-        <Button size="sm" variant="outline" onClick={() => void load()} disabled={refreshing}>
-          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => void load()} disabled={refreshing}>
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button size="sm" onClick={() => setAssignOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Assign task
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -530,7 +544,18 @@ export default function ExecutiveBrief() {
                 )}
                 {openRows.map((row) => (
                   <TableRow key={row.task.id}>
-                    <TableCell className="whitespace-nowrap">{row.personName}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {row.staffId ? (
+                        <Link
+                          to={`/hr/dashboard/scorecard/${row.staffId}`}
+                          className="font-medium text-foreground hover:underline"
+                        >
+                          {row.personName}
+                        </Link>
+                      ) : (
+                        row.personName
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
                       {row.position}
                     </TableCell>
@@ -615,6 +640,15 @@ export default function ExecutiveBrief() {
           </Card>
         ))}
       </div>
+
+      <TaskFormDialog
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        title="Assign task"
+        departments={departments}
+        assignees={staff}
+        onCreated={() => void load()}
+      />
 
       <Dialog open={!!commentTask} onOpenChange={(open) => !open && setCommentTask(null)}>
         <DialogContent className="sm:max-w-md">
