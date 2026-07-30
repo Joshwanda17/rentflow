@@ -103,7 +103,7 @@ export function FunderFunnelPanel() {
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from('system_events')
-        .select('event_type, user_id, created_at')
+        .select('event_type, user_id, created_at, related_entity_id')
         .in('event_type', STEPS.map((s) => s.key))
         .gte('created_at', range.from.toISOString())
         .lte('created_at', range.to.toISOString())
@@ -112,10 +112,10 @@ export function FunderFunnelPanel() {
       if (error) throw error;
 
       const events = {} as Record<StepKey, number>;
-      const progressedSets = {} as Record<StepKey, Set<string>>;
+      const perStep = {} as Record<StepKey, Record<string, FunderDetail>>;
       STEPS.forEach((s) => {
         events[s.key] = 0;
-        progressedSets[s.key] = new Set<string>();
+        perStep[s.key] = {};
       });
 
       // First "viewed terms" timestamp per funder within the range — later
@@ -127,19 +127,56 @@ export function FunderFunnelPanel() {
         }
       });
 
+      const housesByUser: Record<string, Set<string>> = {};
+
       (rows || []).forEach((r: any) => {
         const key = r.event_type as StepKey;
         if (!(key in events)) return;
         events[key]++;
         if (!r.user_id) return;
         const fv = firstView[r.user_id];
-        if (fv && r.created_at >= fv) progressedSets[key].add(r.user_id);
+        if (!fv || r.created_at < fv) return;
+
+        const bucket = perStep[key];
+        if (!bucket[r.user_id]) {
+          bucket[r.user_id] = {
+            userId: r.user_id,
+            count: 0,
+            firstAt: r.created_at,
+            lastAt: r.created_at,
+            houseIds: [],
+          };
+        }
+        const d = bucket[r.user_id];
+        d.count++;
+        if (r.created_at < d.firstAt) d.firstAt = r.created_at;
+        if (r.created_at > d.lastAt) d.lastAt = r.created_at;
+        if (r.related_entity_id && !d.houseIds.includes(r.related_entity_id)) {
+          d.houseIds.push(r.related_entity_id);
+        }
+        if (key === 'funder_house_selected' && r.related_entity_id) {
+          (housesByUser[r.user_id] ||= new Set<string>()).add(r.related_entity_id);
+        }
       });
 
       const progressed = {} as Record<StepKey, number>;
-      STEPS.forEach((s) => { progressed[s.key] = progressedSets[s.key].size; });
+      const details = {} as Record<StepKey, FunderDetail[]>;
+      STEPS.forEach((s) => {
+        const list = Object.values(perStep[s.key]).sort(
+          (a, b) => b.count - a.count || (a.lastAt < b.lastAt ? 1 : -1),
+        );
+        details[s.key] = list;
+        progressed[s.key] = list.length;
+      });
 
-      return { events, progressed };
+      return {
+        events,
+        progressed,
+        details,
+        housesByUser: Object.fromEntries(
+          Object.entries(housesByUser).map(([k, v]) => [k, Array.from(v)]),
+        ),
+      };
     },
   });
 
