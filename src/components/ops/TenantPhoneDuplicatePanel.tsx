@@ -13,6 +13,7 @@ import {
   Check,
   EyeOff,
   Settings2,
+  ChevronDown,
 } from 'lucide-react';
 import { TenantPhoneDuplicateSettingsDialog } from './TenantPhoneDuplicateSettingsDialog';
 
@@ -52,6 +53,7 @@ export function TenantPhoneDuplicatePanel() {
   const queryClient = useQueryClient();
   const [showResolved, setShowResolved] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState<boolean>(true);
 
   const { data, isFetching, refetch, error } = useQuery({
     queryKey: ['tenant-phone-duplicate-alerts', showResolved],
@@ -117,7 +119,12 @@ export function TenantPhoneDuplicatePanel() {
     <Card className="border-amber-500/30">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <button
+            type="button"
+            onClick={() => setPanelOpen((v) => !v)}
+            aria-expanded={panelOpen}
+            className="min-w-0 flex-1 text-left rounded-md -m-1 p-1 hover:bg-muted/40 transition-colors"
+          >
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldAlert className="h-4 w-4 text-amber-600" />
               Tenant Phone Duplicate Monitor
@@ -126,12 +133,17 @@ export function TenantPhoneDuplicatePanel() {
                   {openCount} open
                 </Badge>
               )}
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground transition-transform ${
+                  panelOpen ? 'rotate-180' : ''
+                }`}
+              />
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               Runs automatically every hour. Flags tenant phone numbers that nearly match an
               existing record (same last 8 digits) — likely typos or duplicate sign-ups.
             </p>
-          </div>
+          </button>
           <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="ghost"
@@ -165,6 +177,7 @@ export function TenantPhoneDuplicatePanel() {
           </div>
         </div>
       </CardHeader>
+      {panelOpen && (
       <CardContent className="space-y-3">
         {error && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
@@ -241,6 +254,7 @@ export function TenantPhoneDuplicatePanel() {
           </div>
         )}
       </CardContent>
+      )}
       <TenantPhoneDuplicateSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Card>
   );
