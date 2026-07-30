@@ -543,28 +543,11 @@ function TopPerformers({
 
 function TopAgentsPreview({ onOpen }: { onOpen: () => void }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-ops-top-agents'],
+    queryKey: ['agent-ops-top-agents-strict'],
     queryFn: async () => {
-      const since = subDays(new Date(), 30).toISOString();
-      const { data } = await supabase
-        .from('general_ledger')
-        .select('user_id, amount')
-        .eq('ledger_scope', 'wallet')
-        .in('direction', ['cash_in', 'credit'])
-        .in('category', ['agent_commission_earned', 'agent_commission', 'agent_bonus'])
-        .gte('created_at', since)
-        .limit(2000);
-      const map = new Map<string, number>();
-      (data || []).forEach((r: any) => map.set(r.user_id, (map.get(r.user_id) || 0) + Number(r.amount || 0)));
-      const top = Array.from(map.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([user_id, total]) => ({ user_id, total }));
-      if (top.length === 0) return [];
-      const { data: profs } = await supabase
-        .from('profiles').select('id, full_name, phone').in('id', top.map((t) => t.user_id));
-      const pm = new Map((profs || []).map((p: any) => [p.id, p]));
-      return top.map((t) => ({ ...t, profile: pm.get(t.user_id) }));
+      const { data, error } = await supabase.rpc('get_agent_ops_top_agents' as any, { p_days: 30, p_limit: 10 });
+      if (error) throw error;
+      return (data as any[]) || [];
     },
     staleTime: 300_000,
   });
@@ -575,9 +558,12 @@ function TopAgentsPreview({ onOpen }: { onOpen: () => void }) {
       {data.map((row: any, i: number) => (
         <div key={row.user_id} className="flex items-center gap-2 py-1.5 border-b border-border/40 last:border-0">
           <span className="w-5 text-xs font-bold text-muted-foreground tabular-nums">{i + 1}</span>
-          <span className="flex-1 text-sm truncate">{row.profile?.full_name || row.user_id.slice(0, 8)}</span>
-          <span className="text-xs text-muted-foreground truncate hidden sm:inline">{row.profile?.phone || ''}</span>
-          <span className="text-sm font-semibold tabular-nums">{fmtMoney(row.total)}</span>
+          <span className="flex-1 text-sm truncate">
+            {row.name || String(row.user_id).slice(0, 8)}
+            <span className="ml-1.5 text-[10px] text-muted-foreground">{row.category}</span>
+          </span>
+          <span className="text-xs text-muted-foreground truncate hidden sm:inline">{row.phone || ''}</span>
+          <span className="text-sm font-semibold tabular-nums">{fmtMoney(Number(row.total || 0))}</span>
         </div>
       ))}
       <button onClick={onOpen} className="w-full text-xs text-primary hover:underline flex items-center justify-center gap-1 pt-2">
