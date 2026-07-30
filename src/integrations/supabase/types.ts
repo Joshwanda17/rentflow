@@ -25355,6 +25355,7 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_ops_directory_guard: { Args: never; Returns: string }
       agent_ops_qualifying_agent_ids: {
         Args: never
         Returns: {
@@ -26761,6 +26762,16 @@ export type Database = {
           with_territory: number
         }[]
       }
+      get_agent_directory_v2: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
       get_agent_display_names: {
         Args: { _ids: string[] }
         Returns: {
@@ -26908,6 +26919,7 @@ export type Database = {
           with_withdrawable: number
         }[]
       }
+      get_agent_profile_360: { Args: { p_agent_id: string }; Returns: Json }
       get_agent_proxy_roi_payouts: {
         Args: { p_agent_id?: string }
         Returns: {

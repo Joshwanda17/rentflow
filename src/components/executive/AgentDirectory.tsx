@@ -1,175 +1,127 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import {
-  Search, Users, Phone, MapPin, X, FileDown, Loader2,
-  ShieldCheck, Sparkles, Activity, ChevronLeft, ChevronRight, LayoutList, Map,
+  Search, Users, Phone, X, Loader2, UserPlus, Activity,
+  ChevronLeft, ChevronRight, LayoutList, Map, ChevronRight as Chevron,
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
-import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
 import { cn } from '@/lib/utils';
-import { useAgentCapacityMap } from '@/hooks/useAgentCapacityMap';
-import { AgentCapacityBadge } from './AgentCapacityBadge';
 import { AgentAvatar } from './AgentAvatar';
 import { AgentRegionBreakdown } from './AgentRegionBreakdown';
+import { AgentProfile360Sheet } from './AgentProfile360Sheet';
 
-interface AgentRow {
+interface DirectoryRow {
   id: string;
   full_name: string | null;
   phone: string | null;
   email: string | null;
   avatar_url: string | null;
   verified: boolean;
-  created_at: string | null;
   territory: string | null;
+  created_at: string | null;
   last_active_at: string | null;
+  agent_kind: 'agent' | 'sub_agent';
+  total_tenants: number;
+  status: 'active' | 'inactive' | 'frozen';
 }
 
 interface DirectoryResponse {
-  rows: AgentRow[];
-  totals: {
-    total: number;
-    verified: number;
-    withTerritory: number;
-    active30d: number;
-    new30d: number;
-  };
-  totalMatched: number;
-  limit: number;
-  offset: number;
+  kpis: { total_agents: number; total_sub_agents: number; total_active: number; total_all: number };
+  total_matched: number;
+  rows: DirectoryRow[];
 }
 
 const PAGE_SIZE = 50;
-const SORT_OPTIONS = [
-  { value: 'name', label: 'Name (A-Z)' },
-  { value: 'recent', label: 'Newest first' },
-  { value: 'active', label: 'Recently active' },
-  { value: 'territory', label: 'Territory' },
+const TYPE_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'agent', label: 'Agents' },
+  { value: 'sub_agent', label: 'Sub-Agents' },
+] as const;
+const STATUS_FILTERS = [
+  { value: 'all', label: 'Any status' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'frozen', label: 'Frozen' },
 ] as const;
 
-type SortKey = typeof SORT_OPTIONS[number]['value'];
-
 const fmt = (n: number) =>
-  n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
+  n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toLocaleString();
+
+const STATUS_STYLE: Record<string, string> = {
+  active: 'bg-emerald-500/10 text-emerald-700 border-emerald-300',
+  inactive: 'bg-muted text-muted-foreground border-border',
+  frozen: 'bg-destructive/10 text-destructive border-destructive/30',
+};
 
 export function AgentDirectory() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortKey>('name');
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [type, setType] = useState<'all' | 'agent' | 'sub_agent'>('all');
+  const [status, setStatus] = useState<'all' | 'active' | 'inactive' | 'frozen'>('all');
   const [page, setPage] = useState(0);
-  const [selectedAgent, setSelectedAgent] = useState<any>(null);
-  const [downloading, setDownloading] = useState<string | null>(null);
+  const [openAgentId, setOpenAgentId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'region'>('list');
-  const { toast } = useToast();
 
-  // Debounce search (300ms) and reset page when search/sort/filter changes
   useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(0);
-    }, 300);
+    const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(0); }, 300);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  useEffect(() => { setPage(0); }, [sort, verifiedOnly]);
+  useEffect(() => { setPage(0); }, [type, status]);
 
   const { data, isLoading, isFetching, error } = useQuery<DirectoryResponse>({
-    queryKey: ['agent-directory', search, sort, verifiedOnly, page],
+    queryKey: ['agent-directory-v2', search, type, status, page],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('agent-directory', {
-        body: {
-          search,
-          sort,
-          verifiedOnly,
-          limit: PAGE_SIZE,
-          offset: page * PAGE_SIZE,
-        },
+      const { data, error } = await supabase.rpc('get_agent_directory_v2' as any, {
+        p_search: search || null,
+        p_type: type,
+        p_status: status,
+        p_limit: PAGE_SIZE,
+        p_offset: page * PAGE_SIZE,
       });
       if (error) throw error;
-      return data as DirectoryResponse;
+      return data as unknown as DirectoryResponse;
     },
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
 
   const rows = data?.rows ?? [];
-  const visibleAgentIds = useMemo(() => rows.map(r => r.id), [rows]);
-  const { data: capacityMap, isFetching: capacityFetching } = useAgentCapacityMap(visibleAgentIds);
-  const totals = data?.totals;
-  const totalMatched = data?.totalMatched ?? 0;
+  const kpis = data?.kpis;
+  const totalMatched = data?.total_matched ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalMatched / PAGE_SIZE));
-
-  const openProfile = useCallback((a: AgentRow) => {
-    setSelectedAgent({
-      id: a.id,
-      name: a.full_name || 'Unknown Agent',
-      avatarUrl: a.avatar_url,
-      type: 'agent' as const,
-      createdAt: a.created_at,
-      phone: a.phone,
-      verified: a.verified,
-      city: a.territory,
-    });
-  }, []);
-
-  const handleDownload = async (agentId: string, agentName: string) => {
-    setDownloading(agentId);
-    try {
-      toast({ title: 'Generating wallet report…' });
-      const reportData = await fetchAgentWalletData(agentId);
-      const blob = await generateAgentWalletReportPdf(reportData);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Wallet_Report_${(agentName || 'agent').replace(/\s+/g, '_')}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: 'Report downloaded' });
-    } catch (e: any) {
-      console.error(e);
-      toast({ title: 'Failed to generate report', description: e?.message, variant: 'destructive' });
-    } finally {
-      setDownloading(null);
-    }
-  };
-
   const showingFrom = totalMatched === 0 ? 0 : page * PAGE_SIZE + 1;
   const showingTo = Math.min((page + 1) * PAGE_SIZE, totalMatched);
 
-  const kpis = useMemo(() => ([
-    { label: 'Total Agents', value: totals ? fmt(totals.total) : '—', icon: Users, color: 'text-primary' },
-    { label: 'Verified', value: totals ? fmt(totals.verified) : '—', icon: ShieldCheck, color: 'text-emerald-600' },
-    { label: 'Active (30d)', value: totals ? fmt(totals.active30d) : '—', icon: Activity, color: 'text-blue-600' },
-    { label: 'New (30d)', value: totals ? fmt(totals.new30d) : '—', icon: Sparkles, color: 'text-violet-600' },
-  ]), [totals]);
+  const kpiCards = useMemo(() => ([
+    { label: 'Total Agents', value: kpis ? fmt(kpis.total_agents) : '—', icon: Users, color: 'text-primary' },
+    { label: 'Total Sub-Agents', value: kpis ? fmt(kpis.total_sub_agents) : '—', icon: UserPlus, color: 'text-violet-600' },
+    { label: 'Active (Agents + Sub-Agents)', value: kpis ? fmt(kpis.total_active) : '—', icon: Activity, color: 'text-emerald-600' },
+  ]), [kpis]);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <Users className="h-4 w-4" />
           Agent Directory
-          {totals && <Badge variant="secondary" className="text-xs">{fmt(totals.total)}</Badge>}
+          {kpis && <Badge variant="secondary" className="text-xs">{fmt(kpis.total_all)}</Badge>}
         </h3>
         {isFetching && !isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {kpis.map(k => (
-          <div key={k.label} className="rounded-xl border border-border bg-background p-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {kpiCards.map(k => (
+          <div key={k.label} className="rounded-xl border border-border bg-background p-3">
             <div className="flex items-center gap-1.5">
               <k.icon className={cn('h-3.5 w-3.5', k.color)} />
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium truncate">{k.label}</p>
             </div>
-            <p className="font-bold text-sm mt-1">{k.value}</p>
+            <p className="font-bold text-lg mt-1 tabular-nums">{k.value}</p>
           </div>
         ))}
       </div>
@@ -178,233 +130,164 @@ export function AgentDirectory() {
       <div className="flex items-center gap-1 rounded-full bg-muted/50 p-0.5 w-fit">
         <button
           onClick={() => setViewMode('list')}
-          className={cn(
-            'flex items-center gap-1 text-xs px-3 py-1.5 rounded-full transition-colors',
-            viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-          )}
+          className={cn('flex items-center gap-1 text-xs px-3 py-1.5 rounded-full transition-colors',
+            viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground')}
         >
-          <LayoutList className="h-3.5 w-3.5" />
-          List
+          <LayoutList className="h-3.5 w-3.5" /> List
         </button>
         <button
           onClick={() => setViewMode('region')}
-          className={cn(
-            'flex items-center gap-1 text-xs px-3 py-1.5 rounded-full transition-colors',
-            viewMode === 'region' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-          )}
+          className={cn('flex items-center gap-1 text-xs px-3 py-1.5 rounded-full transition-colors',
+            viewMode === 'region' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground')}
         >
-          <Map className="h-3.5 w-3.5" />
-          By Region
+          <Map className="h-3.5 w-3.5" /> By Region
         </button>
       </div>
 
       {viewMode === 'region' ? (
-        <AgentRegionBreakdown verifiedOnly={verifiedOnly} />
+        <AgentRegionBreakdown verifiedOnly={false} />
       ) : (
-      <>
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name, phone, email, territory, or ID…"
-          value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
-          className="pl-10 pr-10 h-10 text-sm"
-          autoComplete="off"
-        />
-        {searchInput && (
-          <button
-            onClick={() => setSearchInput('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label="Clear search"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Sort + filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-          {SORT_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => setSort(opt.value)}
-              className={cn(
-                'text-xs px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-colors',
-                sort === opt.value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border text-muted-foreground hover:bg-muted'
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setVerifiedOnly(v => !v)}
-          className={cn(
-            'flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border ml-auto transition-colors',
-            verifiedOnly
-              ? 'bg-emerald-500/10 text-emerald-700 border-emerald-300'
-              : 'border-border text-muted-foreground hover:bg-muted'
-          )}
-        >
-          <ShieldCheck className="h-3 w-3" />
-          Verified only
-        </button>
-      </div>
-
-      {/* Result count */}
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>
-          {search || verifiedOnly
-            ? `${fmt(totalMatched)} match${totalMatched === 1 ? '' : 'es'}`
-            : `Showing ${fmt(totalMatched)} agents`}
-        </span>
-        {totalMatched > 0 && (
-          <span>
-            {showingFrom.toLocaleString()}–{showingTo.toLocaleString()} of {totalMatched.toLocaleString()}
-          </span>
-        )}
-      </div>
-
-      {/* List */}
-      {error && (
-        <div className="text-center py-6 text-sm text-destructive">
-          Failed to load agents. {(error as any)?.message}
-        </div>
-      )}
-
-      {isLoading && !data ? (
-        <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="text-center py-10 text-muted-foreground">
-          <Search className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm font-medium">{search ? 'No agents match your search' : 'No agents found'}</p>
-          {search && <p className="text-xs mt-1">Try a different name, phone, or territory</p>}
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {rows.map(a => {
-            const daysAgo = a.last_active_at
-              ? Math.floor((Date.now() - new Date(a.last_active_at).getTime()) / 86400000)
-              : null;
-            return (
-              <div
-                key={a.id}
-                className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-muted/60 transition-colors"
+        <>
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, phone, email, territory, or ID…"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              className="pl-10 pr-10 h-10 text-sm"
+              autoComplete="off"
+            />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
               >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
+              {TYPE_FILTERS.map(t => (
                 <button
-                  onClick={() => openProfile(a)}
-                  className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                  key={t.value}
+                  onClick={() => setType(t.value)}
+                  className={cn('text-xs px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-colors',
+                    type === t.value ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border text-muted-foreground hover:bg-muted')}
                 >
-                  <AgentAvatar src={a.avatar_url} name={a.full_name} className="h-9 w-9" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`font-medium text-sm truncate ${(() => {
-                        const dr = capacityMap?.get(a.id)?.daily_rating;
-                        return dr === 'Very Good' || dr === 'Good' ? 'text-emerald-700' : '';
-                      })()}`}>{a.full_name || 'Unknown Agent'}</span>
-                      {a.verified && (
-                        <Badge variant="default" className="text-[10px] px-1 py-0 h-4 shrink-0">✓</Badge>
-                      )}
-                      <AgentCapacityBadge
-                        capacity={capacityMap?.get(a.id)}
-                        loading={capacityFetching && !capacityMap}
-                        className="shrink-0"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {a.phone && (
-                        <span className="flex items-center gap-0.5 truncate">
-                          <Phone className="h-3 w-3 shrink-0" />{a.phone}
-                        </span>
-                      )}
-                      {a.territory && (
-                        <span className="hidden sm:flex items-center gap-0.5 truncate">
-                          <MapPin className="h-3 w-3 shrink-0" />{a.territory}
-                        </span>
-                      )}
-                    </div>
-                    {capacityMap?.get(a.id) && (
-                      <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5 truncate">
-                        Rent exposure <strong className="text-foreground">UGX {((capacityMap.get(a.id)!.used)/1e6).toFixed(2)}M</strong>
-                        {' '}/ 100M · headroom{' '}
-                        <strong className="text-foreground">UGX {((capacityMap.get(a.id)!.headroom)/1e6).toFixed(2)}M</strong>
-                      </p>
-                    )}
-                  </div>
-                  {daysAgo !== null && (
-                    <div className="hidden sm:block text-right shrink-0 text-xs">
-                      <p className={cn(
-                        'font-semibold',
-                        daysAgo > 30 ? 'text-destructive' : daysAgo > 7 ? 'text-amber-600' : 'text-emerald-600'
-                      )}>
-                        {daysAgo === 0 ? 'Today' : daysAgo === 1 ? '1d' : `${daysAgo}d`}
-                      </p>
-                      <p className="text-muted-foreground text-[10px]">active</p>
-                    </div>
-                  )}
+                  {t.label}
                 </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 h-8 w-8"
-                  title="Download wallet report"
-                  disabled={downloading === a.id}
-                  onClick={(e) => { e.stopPropagation(); handleDownload(a.id, a.full_name || 'agent'); }}
+              ))}
+            </div>
+            <div className="flex items-center gap-1 ml-auto">
+              {STATUS_FILTERS.map(s => (
+                <button
+                  key={s.value}
+                  onClick={() => setStatus(s.value)}
+                  className={cn('text-xs px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-colors',
+                    status === s.value ? 'bg-secondary text-secondary-foreground border-border'
+                      : 'border-border text-muted-foreground hover:bg-muted')}
                 >
-                  {downloading === a.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileDown className="h-4 w-4" />
-                  )}
-                </Button>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Showing {fmt(totalMatched)} agents &amp; sub-agents</span>
+            {totalMatched > 0 && (
+              <span>{showingFrom.toLocaleString()}–{showingTo.toLocaleString()} of {totalMatched.toLocaleString()}</span>
+            )}
+          </div>
+
+          {error && (
+            <div className="text-center py-6 text-sm text-destructive">
+              Failed to load agents. {(error as any)?.message}
+            </div>
+          )}
+
+          {isLoading && !data ? (
+            <div className="space-y-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
+              ))}
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              <Search className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm font-medium">No agents match these filters</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border/60 rounded-xl border border-border overflow-hidden">
+              {/* Column head (desktop) */}
+              <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_110px_110px_110px_24px] gap-2 px-3 py-2 bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+                <span>Agent</span><span>Type</span><span className="text-right">Tenants</span><span>Status</span><span />
               </div>
-            );
-          })}
-        </div>
+              {rows.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => setOpenAgentId(a.id)}
+                  className="w-full text-left grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_110px_110px_110px_24px] gap-2 items-center px-3 py-2.5 hover:bg-muted/60 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <AgentAvatar src={a.avatar_url} name={a.full_name} className="h-9 w-9" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-sm truncate">{a.full_name || 'Unknown Agent'}</span>
+                        {a.verified && <Badge variant="default" className="text-[10px] px-1 py-0 h-4 shrink-0">✓</Badge>}
+                      </div>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                        <Phone className="h-3 w-3 shrink-0" />{a.phone || a.email || '—'}
+                      </span>
+                      <div className="flex sm:hidden items-center gap-2 mt-1">
+                        <Badge variant={a.agent_kind === 'sub_agent' ? 'secondary' : 'outline'} className="text-[10px]">
+                          {a.agent_kind === 'sub_agent' ? 'Sub-Agent' : 'Agent'}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">{a.total_tenants} tenants</span>
+                        <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border capitalize', STATUS_STYLE[a.status])}>
+                          {a.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="hidden sm:block">
+                    <Badge variant={a.agent_kind === 'sub_agent' ? 'secondary' : 'outline'} className="text-[10px]">
+                      {a.agent_kind === 'sub_agent' ? 'Sub-Agent' : 'Agent'}
+                    </Badge>
+                  </div>
+                  <span className="hidden sm:block text-sm text-right tabular-nums font-medium">{a.total_tenants}</span>
+                  <span className={cn('hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full border capitalize w-fit', STATUS_STYLE[a.status])}>
+                    {a.status}
+                  </span>
+                  <Chevron className="h-4 w-4 text-muted-foreground shrink-0 justify-self-end" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {totalMatched > PAGE_SIZE && (
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+              <Button variant="outline" size="sm" className="text-xs h-8"
+                disabled={page === 0 || isFetching} onClick={() => setPage(p => Math.max(0, p - 1))}>
+                <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Prev
+              </Button>
+              <span className="text-xs text-muted-foreground">Page {page + 1} of {totalPages.toLocaleString()}</span>
+              <Button variant="outline" size="sm" className="text-xs h-8"
+                disabled={page >= totalPages - 1 || isFetching} onClick={() => setPage(p => p + 1)}>
+                Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Pagination */}
-      {totalMatched > PAGE_SIZE && (
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs h-8"
-            disabled={page === 0 || isFetching}
-            onClick={() => setPage(p => Math.max(0, p - 1))}
-          >
-            <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Prev
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            Page {page + 1} of {totalPages.toLocaleString()}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs h-8"
-            disabled={page >= totalPages - 1 || isFetching}
-            onClick={() => setPage(p => p + 1)}
-          >
-            Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
-          </Button>
-        </div>
-      )}
-      </>
-      )}
-
-      <UserProfileDialog
-        open={!!selectedAgent}
-        onOpenChange={(open) => !open && setSelectedAgent(null)}
-        user={selectedAgent}
-      />
+      <AgentProfile360Sheet agentId={openAgentId} onOpenChange={(o) => !o && setOpenAgentId(null)} />
     </div>
   );
 }
