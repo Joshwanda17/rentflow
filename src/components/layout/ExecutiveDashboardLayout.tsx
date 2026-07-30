@@ -9,7 +9,8 @@ import { Search } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { SidebarSkeleton, TopBarSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
-import type { SidebarSection } from './executiveSidebarConfig';
+import type { SidebarSection, SidebarItem } from './executiveSidebarConfig';
+import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { GlossaryButton } from '@/components/shared/GlossaryButton';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 
@@ -31,6 +32,7 @@ export default function ExecutiveDashboardLayout({
   badges,
 }: ExecutiveDashboardLayoutProps) {
   const { user, roles, signOut, switchRole, addRole } = useAuth();
+  const { hasPermission } = useStaffPermissions();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -55,7 +57,28 @@ export default function ExecutiveDashboardLayout({
     });
   }, [user, role]);
 
-  const sections: SidebarSection[] = executiveSidebarConfig[role] || [];
+  const allSections: SidebarSection[] = executiveSidebarConfig[role] || [];
+
+  /**
+   * An item renders only when the signed-in person could actually open its
+   * route. Items with no `access` field keep their previous always-visible
+   * behaviour.
+   */
+  const canSeeItem = (item: SidebarItem) => {
+    if (!item.access) return true;
+    if (item.access === 'signed-in') return !!user;
+    if (!user) return false;
+    const roleOk = item.access.roles.some((r) => roles.includes(r));
+    if (!roleOk) return false;
+    if (item.access.permission && !hasPermission(item.access.permission)) return false;
+    return true;
+  };
+
+  // Groups whose items are all hidden drop their heading too.
+  const sections: SidebarSection[] = allSections
+    .map((s) => ({ ...s, items: s.items.filter(canSeeItem) }))
+    .filter((s) => s.items.length > 0);
+
   const displayRole = roleLabels[role as AppRole] || role.toUpperCase();
 
   /**
