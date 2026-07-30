@@ -62,6 +62,8 @@ export async function getMetricDefinitions(
     .select(
       'id, department_id, key, name, description, unit, direction, measurement_mode, target_value, version, active, created_at',
     )
+    .eq('active', true)
+    .order('display_order', { ascending: true, nullsFirst: true })
     .order('name', { ascending: true });
   if (departmentId) {
     // null department_id means universal — always included.
