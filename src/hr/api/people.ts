@@ -154,6 +154,9 @@ async function hydrateStaff(staff: StaffRow[]): Promise<Employee[]> {
   const names = await departmentNameMap();
   const currentByStaff: Record<string, Assignment> = {};
   for (const a of assignments) {
+    // A person may hold several active assignments. The primary one is the
+    // face of the row and the department their metrics roll up to.
+    if (currentByStaff[a.staff_id] && a.is_primary !== true) continue;
     currentByStaff[a.staff_id] = mapAssignment(a, names[a.department_id] ?? '');
   }
 
