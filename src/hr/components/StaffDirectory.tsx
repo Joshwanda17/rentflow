@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, Plus, UserPlus } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Plus, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,11 +34,14 @@ import { toast } from 'sonner';
 import {
   createDepartment,
   createPosition,
+  addAssignment,
   enrollStaff,
+  getActiveAssignmentsByStaff,
   getDepartments,
   getPositions,
   getStaffDirectory,
   searchUnenrolledStaff,
+  type ActiveAssignment,
   type Position,
   type UnenrolledStaffCandidate,
 } from '@/hr/api';
@@ -45,9 +49,27 @@ import type { Department, Employee } from '@/hr/types';
 
 const NONE = '__none__';
 
+/** Turns any thrown value into something a person can read. */
+function readableError(e: unknown, action: string): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  if (/hr_assign_one_primary/i.test(raw)) {
+    return 'This person already has a primary position. Untick the primary box, or try again — the existing primary must be cleared first.';
+  }
+  if (/hr_assign_no_dup_position/i.test(raw)) {
+    return 'This person already holds that position. Choose a different position.';
+  }
+  if (/row-level security|permission denied|not authorized|violates row/i.test(raw)) {
+    return `${action} was refused by the database. This requires the hr or super_admin role.`;
+  }
+  return `${action} failed: ${raw}`;
+}
+
 export default function StaffDirectory() {
   const [staff, setStaff] = useState<Employee[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, ActiveAssignment[]>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [addFor, setAddFor] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -56,9 +78,14 @@ export default function StaffDirectory() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [directory, positionRows] = await Promise.all([getStaffDirectory(), getPositions()]);
+      const [directory, positionRows, assignmentRows] = await Promise.all([
+        getStaffDirectory(),
+        getPositions(),
+        getActiveAssignmentsByStaff(),
+      ]);
       setStaff(directory);
       setPositions(positionRows);
+      setAssignments(assignmentRows);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load staff');
     } finally {
