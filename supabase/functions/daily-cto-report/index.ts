@@ -203,6 +203,16 @@ Deno.serve(async (req) => {
       console.error('[daily-cto-report] diagnostics threw', e);
     }
 
+    // Engineering issue intelligence (ranked, fully diagnosed issues)
+    let intel: any = {};
+    try {
+      const { data: it, error: itErr } = await supabase.rpc('get_cto_issue_intelligence', { p_date: dateStr });
+      if (itErr) console.error('[daily-cto-report] intelligence rpc failed', itErr);
+      else intel = it || {};
+    } catch (e) {
+      console.error('[daily-cto-report] intelligence threw', e);
+    }
+
     const d: any = data || {};
     const P = d.platform || {}, E = d.errors || {}, A = d.auth || {}, S = d.security || {},
       I = d.infra || {}, B = d.backups || {}, J = d.jobs || {}, M = d.email || {};
