@@ -737,26 +737,12 @@ export function FunderDirectHouseListing() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setExpandedIds((prev) =>
-                      prev.includes(house.id) ? prev.filter((id) => id !== house.id) : [...prev, house.id]
-                    );
+                    setDetailsHouse(house);
                   }}
-                  aria-expanded={expanded}
                   className="text-[10px] font-semibold text-primary hover:underline touch-manipulation"
                 >
-                  {expanded ? 'See less' : 'See more'}
+                  See more
                 </button>
-                {expanded && (
-                  <div className="pt-0.5 space-y-1">
-                    <p className="text-sm font-black text-success leading-none">
-                      {formatUGX(house.daily_rate)}
-                      <span className="text-[9px] font-normal text-muted-foreground">
-                        /day tenant repayment
-                      </span>
-                    </p>
-                    <MoveInOfferBadge className="mt-1" />
-                  </div>
-                )}
 
                 {/* Funder earning projection — 15% of monthly rent */}
                 {earn.capital > 0 && (
