@@ -5,8 +5,15 @@ import { KPICard } from './KPICard';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { Eye, MousePointerClick, Lock, Wallet, CalendarIcon } from 'lucide-react';
+import { Eye, MousePointerClick, Lock, Wallet, CalendarIcon, ChevronRight, Home } from 'lucide-react';
 import {
   subDays,
   startOfDay,
@@ -27,9 +34,21 @@ const STEPS = [
 
 type StepKey = (typeof STEPS)[number]['key'];
 
+type FunderDetail = {
+  userId: string;
+  count: number;
+  firstAt: string;
+  lastAt: string;
+  houseIds: string[];
+};
+
 type FunnelData = {
   events: Record<StepKey, number>;
   progressed: Record<StepKey, number>;
+  /** Per step: the funders who reached it, richest-activity first. */
+  details: Record<StepKey, FunderDetail[]>;
+  /** All houses a funder selected in the range (used for drill-down). */
+  housesByUser: Record<string, string[]>;
 };
 
 type PresetKey = 'today' | 'week' | '7d' | '30d' | 'month' | '90d' | 'custom';
