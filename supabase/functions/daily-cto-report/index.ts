@@ -6,6 +6,7 @@
 //   POST /daily-cto-report { "date": "YYYY-MM-DD", "recipients": ["a@x"] }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
