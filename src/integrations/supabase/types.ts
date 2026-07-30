@@ -27856,6 +27856,15 @@ export type Database = {
           phone: string
         }[]
       }
+      find_lc1_by_phone: {
+        Args: { p_phone: string }
+        Returns: {
+          id: string
+          name: string
+          verified: boolean
+          village: string
+        }[]
+      }
       find_nearby_houses: {
         Args: {
           category_filter?: string

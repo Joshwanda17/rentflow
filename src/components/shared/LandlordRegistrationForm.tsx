@@ -610,13 +610,20 @@ export default function LandlordRegistrationForm({
 
       // Persist LC1 chairperson when collected (minimal/outstanding flow).
       if (minimal && lc1Name.trim() && lc1PhoneClean) {
-        const { error: lc1Err } = await supabase
-          .from('lc1_chairpersons')
-          .insert({
-            name: lc1Name.trim(),
-            phone: lc1PhoneClean,
-            village: 'To be confirmed',
-          } as any);
+        // Reuse an existing chairperson matched on the normalised phone —
+        // inserting a duplicate is refused by the database guard.
+        const { data: existingLc1 } = await supabase
+          .rpc('find_lc1_by_phone', { p_phone: lc1PhoneClean });
+        const lc1Err = ((existingLc1 ?? []) as any[]).length
+          ? null
+          : (
+              await supabase.from('lc1_chairpersons').insert({
+                name: lc1Name.trim(),
+                phone: lc1PhoneClean,
+                village: 'To be confirmed',
+                registered_by: user.id,
+              } as any)
+            ).error;
         if (lc1Err) {
           console.warn('[LandlordRegistration] LC1 insert failed:', lc1Err);
         }
