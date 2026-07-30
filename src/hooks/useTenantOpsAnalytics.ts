@@ -12,27 +12,22 @@ import { supabase } from '@/integrations/supabase/client';
  * No values are hardcoded, mocked or cached beyond React Query's stale window.
  */
 
-export type GeoLevel = 'continent' | 'country' | 'region' | 'district' | 'agent';
+export type GeoLevel = 'district' | 'agent';
 
+/**
+ * Geographic hierarchy is derived from what the platform actually stores.
+ * Districts are the only operationally meaningful level in the data, so the
+ * drill-down is District → Agent. No artificial continent/country levels.
+ */
 export interface GeoPath {
-  continent?: string;
-  country?: string;
-  region?: string;
   district?: string;
 }
 
 export function nextGeoLevel(p: GeoPath): GeoLevel {
-  if (!p.continent) return 'continent';
-  if (!p.country) return 'country';
-  if (!p.region) return 'region';
-  if (!p.district) return 'district';
-  return 'agent';
+  return p.district ? 'agent' : 'district';
 }
 
 export const GEO_LEVEL_LABEL: Record<GeoLevel, string> = {
-  continent: 'Continents',
-  country: 'Countries',
-  region: 'Regions',
   district: 'Districts',
   agent: 'Agents',
 };
@@ -131,14 +126,14 @@ function normalise(row: any): GeoMetricsRow {
 export function useTenantOpsGeoMetrics(path: GeoPath) {
   const level = nextGeoLevel(path);
   return useQuery({
-    queryKey: ['tenant-ops-geo-metrics', level, path.continent, path.country, path.region, path.district],
+    queryKey: ['tenant-ops-geo-metrics', level, path.district],
     staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase.rpc as any)('get_tenant_ops_geo_metrics', {
         p_level: level,
-        p_continent: path.continent ?? null,
-        p_country: path.country ?? null,
-        p_region: path.region ?? null,
+        p_continent: null,
+        p_country: null,
+        p_region: null,
         p_district: path.district ?? null,
       });
       if (error) throw error;
