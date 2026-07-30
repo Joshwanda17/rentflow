@@ -1273,7 +1273,7 @@ export default function WithdrawFlow({
         );
         return (
           <div className="space-y-5">
-            {payoutMode !== 'cash' && compatibleSaved.length > 0 && (
+            {payoutMode !== 'cash' && !(payoutMode === 'mobile_money' && lockedMomo) && compatibleSaved.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm">Saved {payoutMode === 'mobile_money' ? 'mobile money' : 'bank'} destinations</Label>
@@ -1355,7 +1355,37 @@ export default function WithdrawFlow({
               </div>
             )}
 
-            {payoutMode === 'mobile_money' && (
+            {payoutMode === 'mobile_money' && lockedMomo && (
+              <div className="space-y-3">
+                <div className="text-center mb-1">
+                  <h3 className="font-semibold text-lg">📱 Mobile Money Details</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Funds are paid to your registered withdrawal account
+                  </p>
+                </div>
+                <Card className="p-4 space-y-2 bg-muted/40">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Number</span>
+                    <span className="font-bold tracking-wide">{lockedMomo.number}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Provider</span>
+                    <span className="font-semibold">{lockedMomo.provider}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Name</span>
+                    <span className="font-semibold text-right truncate">{lockedMomo.name}</span>
+                  </div>
+                </Card>
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" />
+                  Locked to your account. To change it, go to Settings →
+                  Withdrawal account.
+                </p>
+              </div>
+            )}
+
+            {payoutMode === 'mobile_money' && !lockedMomo && (
               <>
                 <div className="text-center mb-2">
                   <h3 className="font-semibold text-lg">📱 Mobile Money Details</h3>
