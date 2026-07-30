@@ -27610,6 +27610,15 @@ export type Database = {
           reason: string
         }[]
       }
+      cto_search_profiles: {
+        Args: { p_term: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       cto_set_kyc_level: {
         Args: { p_new_level: number; p_reason: string; p_user_id: string }
         Returns: undefined
