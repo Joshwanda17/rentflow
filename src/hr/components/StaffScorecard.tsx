@@ -246,9 +246,9 @@ export default function StaffScorecard({ staffId }: Props) {
     void load();
   }, [load]);
 
-  /** The six metrics this scorecard reports on, in definition display order. */
+  /** Every active definition the database returns, in display order. */
   const scored = useMemo(() => {
-    const active = definitions.filter((d) => d.active).slice(0, RADAR_SIZE);
+    const active = definitions.filter((d) => d.active);
     return active.map((def) => {
       const snap = snapshots.find(
         (s) => s.metric_definition_id === def.id && s.period_start === period?.start,
@@ -268,13 +268,25 @@ export default function StaffScorecard({ staffId }: Props) {
     if (!trendMetricId && scored.length > 0) setTrendMetricId(scored[0].def.id);
   }, [scored, trendMetricId]);
 
+  /** Only spokes with a real, comparable attainment. A missing value is never plotted as 0. */
   const radarData = useMemo(
     () =>
-      scored.map((row) => ({
-        metric: row.def.name,
-        Attainment: row.attainment === null ? 0 : Math.min(row.attainment, 150),
-        Target: 100,
-      })),
+      scored
+        .filter((row) => row.def.target_value !== null && row.attainment !== null)
+        .map((row) => ({
+          metric: row.def.name,
+          Attainment: Math.min(row.attainment as number, 150),
+          Target: 100,
+        })),
+    [scored],
+  );
+
+  /** Named beneath the chart so an omitted spoke is explained, never silently dropped. */
+  const omittedFromRadar = useMemo(
+    () =>
+      scored
+        .filter((row) => row.def.target_value === null || row.attainment === null)
+        .map((row) => row.def.name),
     [scored],
   );
 
