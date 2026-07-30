@@ -104,6 +104,18 @@ export function AgentDirectory() {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+      {openAgentId ? (
+        <>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setOpenAgentId(null)}>
+              <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Back to directory
+            </Button>
+            <h3 className="text-sm font-semibold">Agent profile</h3>
+          </div>
+          <AgentProfile360Sheet agentId={openAgentId} onOpenChange={(o) => !o && setOpenAgentId(null)} inline />
+        </>
+      ) : (
+      <>
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <Users className="h-4 w-4" />
@@ -286,8 +298,8 @@ export function AgentDirectory() {
           )}
         </>
       )}
-
-      <AgentProfile360Sheet agentId={openAgentId} onOpenChange={(o) => !o && setOpenAgentId(null)} />
+      </>
+      )}
     </div>
   );
 }
