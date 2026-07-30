@@ -284,6 +284,7 @@ export default function CFODashboard() {
           {/* Reconciliation Tab */}
           <TabsContent value="reconciliation" className="space-y-6">
             <CronJobsHealthPanel />
+            <LandlordFloatReconciliationPanel />
             <p className="text-sm text-muted-foreground">
               Reconciliation panels have been retired. The general ledger is now
               the single source of truth for every wallet bucket.
