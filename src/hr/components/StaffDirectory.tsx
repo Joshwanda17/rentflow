@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import {
+  createDepartment,
   createPosition,
   enrollStaff,
   getDepartments,
@@ -166,6 +167,15 @@ function EnrollDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addPositionOpen, setAddPositionOpen] = useState(false);
+  const [addDepartmentOpen, setAddDepartmentOpen] = useState(false);
+
+  const loadDepartments = useCallback(async () => {
+    try {
+      setDepartments(await getDepartments());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load departments');
+    }
+  }, []);
 
   const loadPositions = useCallback(async () => {
     try {
@@ -228,7 +238,19 @@ function EnrollDialog({
   };
 
   const selectedUser = users.find((u) => u.user_id === userId);
-  const canSave = !!userId && !!departmentId && !!positionId && !saving;
+  const missing: string[] = [];
+  if (!userId) missing.push('a platform user');
+  if (!departmentId) missing.push('a department');
+  if (!positionId) missing.push('a position');
+  const canSave = missing.length === 0 && !saving;
+  const disabledReason =
+    missing.length === 0
+      ? null
+      : `Select ${
+          missing.length === 1
+            ? missing[0]
+            : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`
+        } to continue.`;
 
   const handleSave = async () => {
     setSaving(true);
@@ -323,7 +345,16 @@ function EnrollDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Department</Label>
+            <div className="flex items-center justify-between">
+              <Label>Department</Label>
+              <button
+                type="button"
+                onClick={() => setAddDepartmentOpen(true)}
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> Add department
+              </button>
+            </div>
             <Select value={departmentId} onValueChange={setDepartmentId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select department" />
@@ -388,15 +419,26 @@ function EnrollDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={!canSave}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Enroll
-          </Button>
-        </DialogFooter>
+        <div className="space-y-2">
+          {disabledReason && (
+            <p className="text-xs text-muted-foreground text-right">{disabledReason}</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!canSave}
+              aria-disabled={!canSave}
+              title={disabledReason ?? undefined}
+              className={!canSave ? 'opacity-50 cursor-not-allowed pointer-events-none' : undefined}
+            >
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Enroll
+            </Button>
+          </DialogFooter>
+        </div>
 
         <AddPositionDialog
           open={addPositionOpen}
@@ -407,6 +449,112 @@ function EnrollDialog({
             setPositionId(created.id);
           }}
         />
+
+        <AddDepartmentDialog
+          open={addDepartmentOpen}
+          onOpenChange={setAddDepartmentOpen}
+          onCreated={async (created) => {
+            await loadDepartments();
+            setDepartmentId(created.id);
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddDepartmentDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: (created: Department) => void | Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [mode, setMode] = useState<'output' | 'time'>('output');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setName('');
+    setMode('output');
+    setError(null);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await createDepartment({ name: name.trim(), measurementMode: mode });
+      toast.success('Department added');
+      await onCreated(created);
+      reset();
+      onOpenChange(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add department');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) reset();
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add department</DialogTitle>
+          <DialogDescription>
+            Departments group postings and set how work is measured.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input
+              placeholder="e.g. Field Operations"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Measured by</Label>
+            <Select value={mode} onValueChange={(v) => setMode(v as 'output' | 'time')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select measurement" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="output">Output — tasks and deliverables</SelectItem>
+                <SelectItem value="time">Time — hours, shifts and attendance</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {error && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive flex gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={name.trim().length < 2 || saving}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Save
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
