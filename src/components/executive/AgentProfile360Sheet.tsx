@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -53,6 +53,7 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
   const [tab, setTab] = useState('overview');
   const [tenantPage, setTenantPage] = useState(0);
   const TENANTS_PER_PAGE = 15;
+  useEffect(() => { setTenantPage(0); }, [agentId]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['agent-profile-360', agentId],
