@@ -1213,6 +1213,59 @@ Deno.serve(async (req) => {
       recommendations: recs.map((r) => r.replace(/<[^>]+>/g, '')),
       diagSections: [
         {
+          title: 'Daily Scheduled Job Failures (today only)',
+          headers: ['Job', 'Schedule', 'What it does', 'Today', 'Fail/Runs', 'Last success', 'Error', 'How to fix'],
+          weights: [0.13, 0.08, 0.16, 0.1, 0.07, 0.07, 0.21, 0.18],
+          rows: adFailedJobs.map((j: any) => [
+            String(j.jobname), String(j.schedule || '-'), String(j.what_it_does || ''),
+            String(j.today_status || ''), `${fmt(j.failures_today)}/${fmt(j.runs_today)}`,
+            String(j.last_success_eat || 'none'), String(j.last_error || '').slice(0, 220),
+            String(j.how_to_fix || ''),
+          ]),
+        },
+        {
+          title: 'User-Facing Error Breakdown (today only)',
+          headers: ['Error', 'Times', 'Users', 'User experience', 'Route', 'Role', 'Browser/device', 'Window', 'Action'],
+          weights: [0.19, 0.05, 0.05, 0.19, 0.11, 0.06, 0.09, 0.07, 0.19],
+          rows: adUserErrors.map((e2: any) => [
+            String(e2.signature || '').slice(0, 120), fmt(e2.occurrences), fmt(e2.users),
+            String(e2.user_impact || ''), String(e2.top_route || '-'), String(e2.top_role || '-'),
+            `${e2.top_browser || '-'} / ${e2.top_device || '-'}`,
+            `${e2.first_seen_eat || '-'}-${e2.last_seen_eat || '-'}`,
+            String(e2.engineering_action || ''),
+          ]),
+        },
+        {
+          title: 'Database Exceptions and Rolled-Back Transactions (today only)',
+          headers: ['Source', 'Exception', 'Occurrences', 'Last seen'],
+          weights: [0.14, 0.58, 0.11, 0.17],
+          rows: adDbExceptions.map((x: any) => [
+            String(x.src || ''), String(x.signature || ''), fmt(x.occurrences), ts(x.last_seen),
+          ]),
+        },
+        {
+          title: 'Anti-Bot and Signup Abuse (today only)',
+          headers: ['Signal', 'Detail', 'Attempts', 'Rejected', 'IPs/Devices', 'Identities'],
+          weights: [0.16, 0.32, 0.12, 0.12, 0.14, 0.14],
+          rows: [
+            ['Summary', `${fmt(adAntiBot.attempts_today)} attempts today, ${fmt(adAntiBot.ips_blocked_today)} IPs blocked`,
+              fmt(adAntiBot.attempts_today), fmt(adAntiBot.rejected_today),
+              `${fmt(adAntiBot.distinct_ips)} / ${fmt(adAntiBot.distinct_devices)}`, '-'],
+            ...adAbReasons.map((r: any) => ['Rejection reason', String(r.reason), fmt(r.n), fmt(r.n), `${fmt(r.ips)} / ${fmt(r.devices)}`, '-']),
+            ...adAbIps.map((r: any) => ['Repeat IP', String(r.ip), fmt(r.attempts), fmt(r.rejected), `${fmt(r.devices)} devices`, fmt(r.identities)]),
+            ...adAbDevices.map((r: any) => ['Repeat device', String(r.device_fp).slice(0, 28), fmt(r.attempts), '-', `${fmt(r.ips)} IPs`, fmt(r.identities)]),
+          ],
+        },
+        {
+          title: 'Authentication Errors Users Faced (today only)',
+          headers: ['What the user hit', 'Times', 'Users', 'Stage'],
+          weights: [0.5, 0.11, 0.11, 0.28],
+          rows: [
+            ...adAuthErrors.map((r: any) => [String(r.reason), fmt(r.n), fmt(r.users), String(r.worst_phase || '-')]),
+            ...adOtpErrors.map((r: any) => [`OTP: ${r.reason}`, fmt(r.n), `${fmt(r.phones)} phones`, String(r.stage || '-')]),
+          ],
+        },
+        {
           title: 'Top 10 Issues Requiring Immediate Engineering Attention',
           headers: ['#', 'Issue', 'Severity', 'Users', 'Revenue risk', 'Root cause', 'Team', 'Resolution', 'Status'],
           weights: [0.03, 0.24, 0.08, 0.06, 0.09, 0.24, 0.11, 0.08, 0.07],
