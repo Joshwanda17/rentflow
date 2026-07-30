@@ -931,6 +931,7 @@ interface PdfArgs {
   compliance: string[][];
   kpis: string[][];
   recommendations: string[];
+  diagSections?: { title: string; headers: string[]; rows: string[][]; weights: number[] }[];
 }
 
 async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
@@ -1177,6 +1178,16 @@ async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
 
   ensure(24);
   page.drawText(`Generated from live production telemetry at ${a.generatedAt} UTC.`, { x: margin, y: y - 10, size: 7.5, font, color: muted });
+
+  // 11+. Deep technical diagnostics
+  let dn = 10;
+  for (const s of a.diagSections || []) {
+    if (!s.rows.length) continue;
+    dn += 1;
+    sectionTitle(dn, s.title);
+    grid(s.headers, s.rows, s.weights);
+  }
+
   footer();
 
   return await doc.save();
