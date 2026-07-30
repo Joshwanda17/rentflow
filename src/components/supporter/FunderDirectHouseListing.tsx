@@ -740,7 +740,7 @@ export function FunderDirectHouseListing() {
                   }}
                   className="text-[10px] font-semibold text-primary hover:underline touch-manipulation"
                 >
-                  See more
+                  View repayment terms
                 </button>
 
                 {/* Funder earning projection — 15% of monthly rent */}
