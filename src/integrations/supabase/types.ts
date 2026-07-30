@@ -12095,6 +12095,8 @@ export type Database = {
           region: string | null
           registered_at: string | null
           registered_by: string | null
+          registration_verification_bonus_paid: boolean
+          registration_verification_bonus_paid_at: string | null
           sub_county: string | null
           town_council: string | null
           verification_bonus_paid: boolean
@@ -12122,6 +12124,8 @@ export type Database = {
           region?: string | null
           registered_at?: string | null
           registered_by?: string | null
+          registration_verification_bonus_paid?: boolean
+          registration_verification_bonus_paid_at?: string | null
           sub_county?: string | null
           town_council?: string | null
           verification_bonus_paid?: boolean
@@ -12149,6 +12153,8 @@ export type Database = {
           region?: string | null
           registered_at?: string | null
           registered_by?: string | null
+          registration_verification_bonus_paid?: boolean
+          registration_verification_bonus_paid_at?: string | null
           sub_county?: string | null
           town_council?: string | null
           verification_bonus_paid?: boolean
