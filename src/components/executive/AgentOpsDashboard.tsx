@@ -19,8 +19,6 @@ import { AgentOpsPipelineHub } from './AgentOpsPipelineHub';
 import { AgentDirectory } from './AgentDirectory';
 import { AgentPerformanceTiers } from './AgentPerformanceTiers';
 import { AgentLifecyclePipeline } from './AgentLifecyclePipeline';
-import { AgentOpsBrief } from './AgentOpsBrief';
-import { AgentAlertFeed } from './AgentAlertFeed';
 import { AgentTaskManager } from './AgentTaskManager';
 import { AgentEscalationQueue } from './AgentEscalationQueue';
 import { ServiceCentreVerificationQueue } from './ServiceCentreVerificationQueue';
@@ -72,7 +70,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation';
+type ActiveView = null | 'pipeline' | 'directory' | 'rent-capacity' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sc-overview' | 'sc-directory' | 'sc-payouts' | 'sc-operating-model' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'leaderboard' | 'earnings' | 'transfers' | 'locked-transfers' | 'advances-analytics' | 'advance-requests' | 'active-advances' | 'advance-potential' | 'advance-limits' | 'advance-repayments' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops' | 'listing-campaign' | 'daily-collections-report' | 'advance-activity-correlation';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'advances-analytics', icon: BarChart3, label: 'Advances Overview', color: 'bg-purple-800', priority: true },
@@ -81,36 +79,34 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'daily-collections-report', icon: FileBarChart, label: 'Daily Rent Collections', color: 'bg-emerald-700', priority: true },
   { key: 'advance-limits', icon: Coins, label: 'Advance Limits', color: 'bg-emerald-800', priority: true },
   { key: 'advance-repayments', icon: TrendingDown, label: 'Repayments', color: 'bg-emerald-700', priority: true },
-  { key: 'bulk-ops', icon: Layers, label: 'Bulk Ops Console', color: 'bg-rose-700', priority: true },
+  { key: 'bulk-ops', icon: Layers, label: 'Abilities', color: 'bg-rose-700', priority: true },
   { key: 'performance-report', icon: FileBarChart, label: 'Performance Report', color: 'bg-teal-600', priority: true },
   { key: 'allocation-report', icon: Network, label: 'Allocations & Repayment', color: 'bg-indigo-600', priority: true },
   { key: 'pipeline', icon: Briefcase, label: 'Pipeline', color: 'bg-primary', priority: true },
   { key: 'balances', icon: PiggyBank, label: 'Agent Balances', color: 'bg-emerald-600', priority: true },
   { key: 'lending-agents', icon: HandCoins, label: 'Lending Agents', color: 'bg-violet-600', priority: true },
-  { key: 'sc-overview', icon: Store, label: 'Centres Overview', color: 'bg-orange-600', priority: true },
+  { key: 'sc-overview', icon: Store, label: 'Service Centers', color: 'bg-orange-600', priority: true },
   { key: 'service-centres', icon: Building2, label: 'Verification Queue', color: 'bg-orange-500', priority: true },
-  { key: 'sc-directory', icon: MapPinned, label: 'Centres Directory', color: 'bg-orange-400' },
-  { key: 'sc-payouts', icon: Banknote, label: 'Centre Payouts', color: 'bg-orange-700' },
+  { key: 'sc-directory', icon: MapPinned, label: 'Centers Directory', color: 'bg-orange-400' },
+  { key: 'sc-payouts', icon: Banknote, label: 'Center Payouts', color: 'bg-orange-700' },
   { key: 'sc-operating-model', icon: Workflow, label: 'Operating Model', color: 'bg-amber-700' },
   { key: 'sub-agents', icon: UsersRound, label: 'Sub-Agents', color: 'bg-amber-600', priority: true },
   { key: 'promote-tenant', icon: ArrowLeftRight, label: 'Tenant → Sub-Agent', color: 'bg-fuchsia-600', priority: true },
-  { key: 'directory', icon: Search, label: 'Agents', color: 'bg-blue-500', priority: true },
+  { key: 'directory', icon: Search, label: 'Directory', color: 'bg-blue-500', priority: true },
   { key: 'rent-capacity', icon: Gauge, label: 'Rent Capacity', color: 'bg-cyan-500', priority: true },
   { key: 'tasks', icon: ClipboardList, label: 'Tasks', color: 'bg-emerald-500', priority: true },
   { key: 'escalations', icon: AlertTriangle, label: 'Escalations', color: 'bg-red-500' },
   { key: 'connector', icon: UserPlus, label: 'Connect', color: 'bg-violet-500' },
-  { key: 'float-payouts', icon: Wallet, label: 'Float Payouts', color: 'bg-pink-500' },
+  { key: 'float-payouts', icon: Wallet, label: 'Landlord Float Payouts', color: 'bg-pink-500' },
   { key: 'performance', icon: TrendingUp, label: 'Performance', color: 'bg-teal-500' },
   { key: 'lifecycle', icon: BarChart3, label: 'Lifecycle', color: 'bg-indigo-500' },
   { key: 'leaderboard', icon: Trophy, label: 'Leaderboard', color: 'bg-amber-500' },
   { key: 'listing-campaign', icon: Megaphone, label: 'Weekly Listing Campaign', color: 'bg-purple-600' },
   { key: 'earnings', icon: Banknote, label: 'Earnings', color: 'bg-green-500' },
-  { key: 'alerts', icon: Bell, label: 'Alerts', color: 'bg-slate-500' },
   { key: 'transfers', icon: ArrowLeftRight, label: 'Transfers', color: 'bg-cyan-600' },
   { key: 'locked-transfers', icon: Lock, label: 'Idle Tenants', color: 'bg-rose-600', priority: true },
   { key: 'advance-requests', icon: Banknote, label: 'Advances', color: 'bg-purple-600', priority: true },
   { key: 'active-advances', icon: Activity, label: 'Active Advances', color: 'bg-purple-500', priority: true },
-  { key: 'brief', icon: DollarSign, label: 'Daily Brief', color: 'bg-rose-500' },
 ];
 
 export function AgentOpsDashboard() {
@@ -227,7 +223,6 @@ export function AgentOpsDashboard() {
       case 'feature-flags': return <AgentFeatureFlagsPanel onBack={() => setActiveView(null)} />;
       case 'bulk-ops': return <AgentBulkOpsConsole onBack={() => setActiveView(null)} />;
       case 'pipeline': return <AgentOpsPipelineHub />;
-      case 'brief': return <AgentOpsBrief />;
       case 'directory': return <AgentDirectory />;
       case 'rent-capacity': return <AgentRentCapacityPanel />;
       case 'connector': return <AgentTenantConnector />;
@@ -254,13 +249,18 @@ export function AgentOpsDashboard() {
           <RentHistoryVerificationQueue dept="agent_ops" />
         </div>
       );
-      case 'advances-analytics': return <AdvancesAnalyticsView context="agent_ops" />;
+      case 'advances-analytics': return (
+        <div className="space-y-6">
+          <AdvancesAnalyticsView context="agent_ops" />
+          <AgentMonthlyKpis />
+          <AgentAdvanceRepaymentMonitor />
+        </div>
+      );
       case 'active-advances': return <ActiveAdvancesPanel />;
       case 'advance-potential': return <AgentAdvancePotential />;
       case 'advance-limits': return <AgentAdvanceLimits />;
       case 'advance-repayments': return <AdvanceRepaymentsPanel />;
       case 'advance-activity-correlation': return <AdvanceActivityCorrelation />;
-      case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
         <div className="rounded-2xl border border-border bg-card p-3">
           <TenantTransferPanel />
@@ -302,13 +302,12 @@ export function AgentOpsDashboard() {
 
   // Grouped sections for the "More" tab (mobile dropdown + grid)
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
-    { title: '📊 Overview', keys: ['brief', 'alerts'] },
-    { title: '👥 Agents', keys: ['directory', 'lifecycle', 'performance', 'leaderboard', 'sub-agents', 'promote-tenant', 'bulk-ops', 'feature-flags'] },
-    { title: '🏪 Service Centres', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-operating-model'] },
-    { title: '🧭 Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'listing-campaign', 'trust-capture', 'tasks', 'escalations', 'connector'] },
-    { title: '💵 Finance', keys: ['balances', 'float-payouts', 'earnings', 'transfers', 'locked-transfers', 'allocation-report', 'lending-agents'] },
-    { title: '💰 Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
-    { title: '📄 Reports', keys: ['performance-report', 'allocation-report'] },
+    { title: 'Agents', keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
+    { title: 'Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
+    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-operating-model'] },
+    { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
+    { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
+    { title: 'Reports', keys: ['performance-report', 'allocation-report'] },
   ];
 
   // Main content region — sub-view when one is active, else the overview / more-grid.
@@ -327,8 +326,6 @@ export function AgentOpsDashboard() {
   ) : bottomTab !== 'more' ? (
     <div className="space-y-4">
       <AgentOpsOverview onOpenSection={handleOpenSection} />
-      <AgentMonthlyKpis />
-      <AgentAdvanceRepaymentMonitor />
     </div>
   ) : (
     <div className="space-y-5 pb-20 sm:pb-4">
@@ -431,15 +428,6 @@ export function AgentOpsDashboard() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <button
-            type="button"
-            onClick={() => setActiveView('alerts')}
-            className="relative h-9 w-9 rounded-full border border-border bg-card flex items-center justify-center hover:border-primary/30 active:scale-95 transition-all touch-manipulation"
-            aria-label="Notifications"
-          >
-            <Bell className="h-4 w-4 text-foreground" />
-            <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
-          </button>
         </div>
       </div>
 
@@ -480,12 +468,12 @@ function AgentOpsSideNav({
   // collapsible so the nav never over-scrolls. Agent Network sits right
   // below Priority and is open by default (this dashboard is agent-centric).
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
-    { title: 'Advances', pinned: true, keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
-    { title: 'Agents', defaultOpen: true, keys: ['directory', 'lifecycle', 'performance', 'leaderboard', 'sub-agents', 'promote-tenant', 'bulk-ops', 'feature-flags'] },
-    { title: 'Service Centres', defaultOpen: true, keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-operating-model'] },
-    { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'listing-campaign', 'trust-capture', 'tasks', 'escalations', 'connector'] },
-    { title: 'Finance', keys: ['balances', 'float-payouts', 'earnings', 'transfers', 'locked-transfers', 'allocation-report', 'lending-agents'] },
-    { title: 'Reports', keys: ['performance-report', 'allocation-report', 'brief', 'alerts'] },
+    { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
+    { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
+    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-operating-model'] },
+    { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
+    { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
+    { title: 'Reports', keys: ['performance-report', 'allocation-report'] },
   ];
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
