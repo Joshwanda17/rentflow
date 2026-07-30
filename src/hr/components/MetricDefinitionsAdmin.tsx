@@ -71,15 +71,6 @@ const BASIS_LABELS: Record<MetricDefinition['target_basis'], string> = {
   own_trend: 'own trend',
 };
 
-const DERIVED_KEYS: MetricSourceKey[] = [
-  'on_time_completion_rate',
-  'acceptance_lag_hours',
-  'cycle_time_hours',
-  'rework_rate',
-  'overdue_open_count',
-  'completed_count',
-];
-
 function formatTarget(value: number | null, unit: MetricUnit): string {
   if (value === null || value === undefined) return '—';
   switch (unit) {
@@ -122,7 +113,7 @@ const EMPTY_FORM: FormState = {
   target_basis: 'target',
   period_type: 'monthly',
   source: 'derived_task',
-  source_key: 'on_time_completion_rate',
+  source_key: '',
 };
 
 export default function MetricDefinitionsAdmin() {
@@ -168,18 +159,7 @@ export default function MetricDefinitionsAdmin() {
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSourceChange = (source: MetricDefinition['source']) => {
-    setForm((prev) => ({
-      ...prev,
-      source,
-      source_key:
-        source === 'derived_task'
-          ? DERIVED_KEYS.includes(prev.source_key)
-            ? prev.source_key
-            : 'on_time_completion_rate'
-          : source === 'manual_entry'
-            ? 'manual'
-            : 'external',
-    }));
+    setForm((prev) => ({ ...prev, source, source_key: prev.source_key }));
   };
 
   const handleSave = () => {
@@ -466,17 +446,11 @@ export default function MetricDefinitionsAdmin() {
             {form.source === 'derived_task' && (
               <div className="space-y-1.5">
                 <Label>Source key</Label>
-                <Select
+                <Input
                   value={form.source_key}
-                  onValueChange={(v) => setField('source_key', v as MetricSourceKey)}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DERIVED_KEYS.map((k) => (
-                      <SelectItem key={k} value={k}>{k}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Machine key for this metric"
+                  onChange={(e) => setField('source_key', e.target.value as MetricSourceKey)}
+                />
               </div>
             )}
 

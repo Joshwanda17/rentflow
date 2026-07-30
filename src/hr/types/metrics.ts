@@ -21,17 +21,11 @@ export type MetricPeriodType = 'weekly' | 'monthly' | 'quarterly';
  * If the string "Collections" ever appears in a conditional, the design is wrong.
  */
 
-export type MetricSourceKey =
-  // Layer 1 — universal, derived from the task event log
-  | 'on_time_completion_rate'
-  | 'acceptance_lag_hours'
-  | 'cycle_time_hours'
-  | 'rework_rate'
-  | 'overdue_open_count'
-  | 'completed_count'
-  // Layer 2 — configured per department
-  | 'manual'
-  | 'external';
+/**
+ * Metric keys are ROWS in hr_metric_definitions, never a code-side union.
+ * Widened deliberately: nothing in the UI may enumerate metric keys.
+ */
+export type MetricSourceKey = string;
 
 export interface MetricDefinition {
   id: string;
