@@ -18537,6 +18537,92 @@ export type Database = {
         }
         Relationships: []
       }
+      rent_repayment_pauses: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json
+          pause_days: number
+          paused_at: string
+          paused_by: string | null
+          previous_end_date: string | null
+          previous_next_charge_date: string | null
+          reason: string
+          rent_request_id: string
+          resume_on: string
+          resumed_at: string | null
+          status: string
+          subscription_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          pause_days: number
+          paused_at?: string
+          paused_by?: string | null
+          previous_end_date?: string | null
+          previous_next_charge_date?: string | null
+          reason: string
+          rent_request_id: string
+          resume_on: string
+          resumed_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          pause_days?: number
+          paused_at?: string
+          paused_by?: string | null
+          previous_end_date?: string | null
+          previous_next_charge_date?: string | null
+          reason?: string
+          rent_request_id?: string
+          resume_on?: string
+          resumed_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rent_repayment_pauses_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_repayment_pauses_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_repayment_pauses_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
+            foreignKeyName: "rent_repayment_pauses_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_charges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rent_request_deletions: {
         Row: {
           agent_id: string | null
@@ -25855,6 +25941,10 @@ export type Database = {
         Args: { _job_id: string }
         Returns: undefined
       }
+      cancel_tenant_repayment_pause: {
+        Args: { p_reason: string; p_rent_request_id: string }
+        Returns: Json
+      }
       capture_location_by_token: {
         Args: {
           p_accuracy?: number
@@ -29052,6 +29142,10 @@ export type Database = {
             }
             Returns: Json
           }
+      pause_tenant_repayment: {
+        Args: { p_days: number; p_reason: string; p_rent_request_id: string }
+        Returns: Json
+      }
       populate_wallet_review_queue: {
         Args: never
         Returns: {
@@ -29440,6 +29534,7 @@ export type Database = {
         Args: { p_id: string; p_payload: Json }
         Returns: string
       }
+      resume_expired_repayment_pauses: { Args: never; Returns: Json }
       return_rent_request_for_correction: {
         Args: { p_reason: string; p_request_id: string; p_stage: string }
         Returns: string
