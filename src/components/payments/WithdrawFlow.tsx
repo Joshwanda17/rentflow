@@ -1072,22 +1072,6 @@ export default function WithdrawFlow({
                   <span className="font-bold text-lg">{formatCurrency(trueAvailable, 'UGX')}</span>
                 </div>
               </Card>
-              
-              <Card 
-                className={`p-4 cursor-pointer transition-all ${source === 'roi' ? 'ring-2 ring-primary border-primary' : 'hover:border-primary/50'}`}
-                onClick={() => setSource('roi')}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-emerald-500" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold">ROI Earnings</h4>
-                    <p className="text-sm text-muted-foreground">Platform rewards</p>
-                  </div>
-                  <span className="font-bold text-lg text-emerald-600">{formatCurrency(roiBalance, 'UGX')}</span>
-                </div>
-              </Card>
             </div>
 
             {(floatBalance > 0 || advanceBalance > 0) && (
