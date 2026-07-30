@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { Textarea } from '@/components/ui/textarea';
 import TenantAssignAgentDialog from '@/components/shared/TenantAssignAgentDialog';
+import { RepaymentPauseControl } from '@/components/ops/RepaymentPauseControl';
 import {
   downloadRentCollectionReceiptPdf,
   downloadRentCollectionReceiptXlsx,
@@ -1006,6 +1007,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                 <ArrowRightLeft className="h-3 w-3" />
                                 Transfer
                               </Button>
+                            )}
+                            {!isEditing && (
+                              <RepaymentPauseControl
+                                rentRequestId={req.id}
+                                registrationType={(req as any).registration_type}
+                              />
                             )}
                           </div>
                         </div>
