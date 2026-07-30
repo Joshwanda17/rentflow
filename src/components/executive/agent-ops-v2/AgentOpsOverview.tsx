@@ -335,7 +335,7 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
       <TopPerformers rows={data?.top_performers || []} loading={isLoading} />
 
       {/* Row B — trend charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
           <div className="flex items-start justify-between mb-2">
             <div>
@@ -358,13 +358,10 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
             </ResponsiveContainer>
           </div>
         </Card>
-
       </div>
 
       {/* Row C — mini charts */}
-      {/* Row C — mini charts */}
       <div className="grid grid-cols-1 gap-3">
-
         <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-2">Rent Pipeline</h3>
           <div className="h-40">
