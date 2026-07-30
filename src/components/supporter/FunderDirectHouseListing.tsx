@@ -306,6 +306,13 @@ export function FunderDirectHouseListing() {
     navigate(`/house/${house.short_code || house.id}`, { state: { from: 'funder' } });
   };
 
+  const toggleSelect = (id: string) => {
+    hapticTap();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const goExplore = () => {
     hapticTap();
     navigate('/find-a-house', { state: { from: 'funder' } });
