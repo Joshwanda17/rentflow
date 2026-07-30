@@ -102,6 +102,18 @@ const num = (v: string) => {
 
 const PAGE_SIZE = 10;
 
+// Sanity thresholds. Anything above these is almost certainly a mis-typed
+// order rather than a real one, so it is badged in the table and kept out of
+// the financial roll-ups.
+const OUTLIER_QTY = 20;
+const OUTLIER_VALUE = 2_000_000;
+
+const isVoidSale = (s: { order_status?: OrderStatus }) =>
+  s.order_status === 'rejected' || s.order_status === 'failed';
+
+const isOutlierSale = (s: { quantity: number; total_revenue: number }) =>
+  Number(s.quantity) > OUTLIER_QTY || Number(s.total_revenue) > OUTLIER_VALUE;
+
 function usePagination<T>(rows: T[], pageSize = PAGE_SIZE) {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -228,14 +240,21 @@ export function MerchandiseManager() {
   );
 
   // ---- Financial roll-ups ----
+  // Cancelled/rejected orders and sanity-check outliers never count towards
+  // revenue, stock, COGS or receivables — they only appear in the sales table.
+  const countableSales = useMemo(
+    () => filteredSales.filter((s) => !isVoidSale(s) && !isOutlierSale(s)),
+    [filteredSales],
+  );
+
   const totals = useMemo(() => {
     const totalInvested = filteredPurchases.reduce((s, p) => s + Number(p.total_cost), 0);
     const totalQtyPurchased = filteredPurchases.reduce((s, p) => s + Number(p.quantity), 0);
-    const totalRevenue = filteredSales.reduce((s, x) => s + Number(x.total_revenue), 0);
-    const totalQtySold = filteredSales.reduce((s, x) => s + Number(x.quantity), 0);
-    const cogs = filteredSales.reduce((s, x) => s + Number(x.unit_cost) * Number(x.quantity), 0);
+    const totalRevenue = countableSales.reduce((s, x) => s + Number(x.total_revenue), 0);
+    const totalQtySold = countableSales.reduce((s, x) => s + Number(x.quantity), 0);
+    const cogs = countableSales.reduce((s, x) => s + Number(x.unit_cost) * Number(x.quantity), 0);
     const grossProfit = totalRevenue - cogs;
-    const outstanding = filteredSales.reduce((s, x) => s + Number(x.amount_outstanding), 0);
+    const outstanding = countableSales.reduce((s, x) => s + Number(x.amount_outstanding), 0);
     const currentStock = totalQtyPurchased - totalQtySold;
 
     // Weighted average unit cost across all purchases (for inventory valuation).
@@ -248,7 +267,7 @@ export function MerchandiseManager() {
       totalInvested, totalQtyPurchased, totalRevenue, totalQtySold,
       cogs, grossProfit, outstanding, currentStock, inventoryValue,
     };
-  }, [filteredPurchases, filteredSales, purchases]);
+  }, [filteredPurchases, countableSales, purchases]);
 
   // ---- Per-item inventory table ----
   const inventoryByItem = useMemo(() => {
@@ -259,7 +278,7 @@ export function MerchandiseManager() {
       e.invested += Number(p.total_cost);
       map.set(p.item_name, e);
     });
-    filteredSales.forEach((s) => {
+    countableSales.forEach((s) => {
       const e = map.get(s.item_name) || { purchased: 0, sold: 0, invested: 0, revenue: 0 };
       e.sold += Number(s.quantity);
       e.revenue += Number(s.total_revenue);
@@ -268,12 +287,12 @@ export function MerchandiseManager() {
     return Array.from(map.entries())
       .map(([item_name, e]) => ({ item_name, ...e, stock: e.purchased - e.sold }))
       .sort((a, b) => a.item_name.localeCompare(b.item_name));
-  }, [filteredPurchases, filteredSales]);
+  }, [filteredPurchases, countableSales]);
 
   // ---- Accounts receivable (clients who owe) ----
   const receivables = useMemo(() => {
     const map = new Map<string, { name: string; phone: string; outstanding: number; count: number }>();
-    filteredSales.forEach((s) => {
+    countableSales.forEach((s) => {
       if (Number(s.amount_outstanding) <= 0) return;
       const key = (s.client_phone || s.client_name || 'Unknown').trim();
       const e = map.get(key) || {
@@ -287,7 +306,7 @@ export function MerchandiseManager() {
       map.set(key, e);
     });
     return Array.from(map.values()).sort((a, b) => b.outstanding - a.outstanding);
-  }, [filteredSales]);
+  }, [countableSales]);
 
   const clearFilters = () => {
     setFromDate(''); setToDate(''); setProductFilter('all'); setClientFilter('all');
@@ -633,7 +652,19 @@ export function MerchandiseManager() {
                   <tr key={s.id} className={`border-b border-border/40 ${s.order_status === 'rejected' ? 'opacity-60' : ''}`}>
                     <td className="py-2 pr-3 whitespace-nowrap">{format(new Date(s.sale_date), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">{s.item_name}</td>
-                    <td className="py-2 px-3 text-right">{s.quantity}</td>
+                    <td className="py-2 px-3 text-right">
+                      <span className="inline-flex items-center justify-end gap-1.5">
+                        {s.quantity}
+                        {isOutlierSale(s) && (
+                          <span
+                            className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600"
+                            title="Outside normal order size — excluded from the metrics above"
+                          >
+                            Outlier
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="py-2 px-3 text-right">{formatUGX(Number(s.total_revenue))}</td>
                     <td className="py-2 px-3">{s.client_name || '—'}</td>
                     <td className="py-2 px-3"><StatusBadge status={s.payment_status} /></td>
