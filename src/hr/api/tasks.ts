@@ -204,3 +204,13 @@ export async function updateTaskStatus(
   if (!task) throw new Error('Task not found after status change');
   return task;
 }
+
+/** Display names for the people behind task events. Read-only. */
+export async function getTaskEventActorNames(userIds: string[]): Promise<Record<string, string>> {
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  if (ids.length === 0) return {};
+  const rows = unwrap(
+    await supabase.from('profiles').select('id, full_name, email').in('id', ids),
+  ) as { id: string; full_name: string | null; email: string | null }[];
+  return Object.fromEntries(rows.map((r) => [r.id, r.full_name || r.email || 'Unknown']));
+}
