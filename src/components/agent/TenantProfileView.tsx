@@ -633,24 +633,38 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     }
     setRenewing(true);
     try {
+      // Guard against a stale/expired session: an expired token makes the RPC
+      // hang on a silent refresh instead of returning an error.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        throw new Error('Your session expired. Please sign in again and retry.');
+      }
       // One atomic call. The RPC re-posts the prior plan server-side, bypasses
       // the daily-eligibility gate (renewals of fully-repaid tenants are exempt)
       // and lets the rent-formula trigger fill in the canonical fees. Any guard
       // failure surfaces as a real error instead of a silent no-op.
-      const { data: newId, error } = await supabase
-        .rpc('renew_rent_request', { p_prev_request_id: req.id });
+      // Never let the request hang forever — a stuck spinner reads as a broken
+      // button. Time it out and tell the user what happened.
+      const { data: newId, error } = await Promise.race([
+        supabase.rpc('renew_rent_request', { p_prev_request_id: req.id }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('The renewal request timed out. Check your connection and try again — the plan may still have been posted.')), 25000),
+        ),
+      ]) as { data: string | null; error: any };
       if (error) throw error;
       if (!newId) throw new Error('The rent request could not be posted. Please try again.');
       toast({ title: 'Rent request renewed ✅', description: `Posted for ${profile.full_name}` });
+      sonnerToast.success(`Rent request renewed for ${profile.full_name}`);
       loadFullProfile();
     } catch (err: any) {
       console.error('Renew failed:', err);
-      const raw = err?.message || err?.error_description || '';
+      const raw = err?.message || err?.error_description || err?.details || err?.hint || '';
       // Translate the most common backend guard into plain language.
       const friendly = raw.includes('DAILY_ELIGIBILITY_BLOCKED')
         ? 'Collect from your existing tenants first — you must reach 50% of your daily target before posting a new rent request.'
         : (raw || 'Something went wrong. Please try again.');
       toast({ title: 'Renew failed', description: friendly, variant: 'destructive' });
+      sonnerToast.error(friendly);
     } finally {
       setRenewing(false);
     }
