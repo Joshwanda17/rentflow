@@ -41,8 +41,8 @@ export function CFOAgentRequisitions() {
   const { data: requisitions = [], isLoading } = useQuery({
     queryKey: ['cfo-agent-requisitions', statusFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('pending_wallet_operations')
+      let query: any = (supabase
+        .from('pending_wallet_operations') as any)
         .select('*, profiles:user_id(full_name, phone)')
         .eq('category', 'agent_requisition')
         .order('created_at', { ascending: false })
