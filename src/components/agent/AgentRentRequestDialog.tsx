@@ -2643,11 +2643,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         // request is APPROVED — that gate lives in the approval flow, not here.
         let existingLc1: { id: string; verified: boolean | null } | null = null;
         try {
+          // Match on the NORMALISED phone, exactly like the duplicate-phone
+          // guard in the database. An exact string match would miss a record
+          // saved as +256700… when the agent types 0700…, and the insert would
+          // then be rejected by that guard.
           const { data, error: lc1LookupError } = await supabase
-            .from('lc1_chairpersons')
-            .select('id, verified')
-            .eq('phone', cleanLc1Phone)
-            .order('verified', { ascending: false, nullsFirst: false });
+            .rpc('find_lc1_by_phone', { p_phone: cleanLc1Phone });
           if (lc1LookupError) throw lc1LookupError;
           existingLc1 = ((data ?? [])[0] as any) ?? null;
         } catch (lc1Err) {
@@ -2678,14 +2679,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             // now exists — re-fetch and reuse it instead of failing.
             if ((lc1InsertError as any)?.code === '23505') {
               const { data: reLookup } = await supabase
-                .from('lc1_chairpersons')
-                .select('id, verified')
-                .eq('phone', cleanLc1Phone)
-                .order('verified', { ascending: false, nullsFirst: false });
+                .rpc('find_lc1_by_phone', { p_phone: cleanLc1Phone });
               lc1Id = ((reLookup ?? [])[0] as any)?.id ?? null;
             }
             if (!lc1Id) {
-              const msg = "Couldn't register the LC1 chairperson. Check the details and try again.";
+              // Show what the database actually refused, never a blank wall.
+              const raw = String((lc1InsertError as any)?.message || '').replace(/^LC1_DUPLICATE:\s*/, '');
+              const isRls =
+                (lc1InsertError as any)?.code === '42501' ||
+                /row-level security|permission denied/i.test(raw);
+              const msg = isRls
+                ? 'Your session has expired. Sign in again, then post the request.'
+                : raw
+                  ? `Couldn't register the LC1 chairperson: ${raw}`
+                  : "Couldn't register the LC1 chairperson. Check the details and try again.";
               setSubmissionError(msg);
               toast.error('LC1 registration failed', { description: msg });
               setLoading(false);
