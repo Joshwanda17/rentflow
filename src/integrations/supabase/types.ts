@@ -10062,6 +10062,7 @@ export type Database = {
           department_id: string | null
           description: string | null
           direction: string
+          display_order: number
           id: string
           key: string
           measurement_mode: Database["public"]["Enums"]["hr_measurement_mode"]
@@ -10078,6 +10079,7 @@ export type Database = {
           department_id?: string | null
           description?: string | null
           direction: string
+          display_order?: number
           id?: string
           key: string
           measurement_mode?: Database["public"]["Enums"]["hr_measurement_mode"]
@@ -10094,6 +10096,7 @@ export type Database = {
           department_id?: string | null
           description?: string | null
           direction?: string
+          display_order?: number
           id?: string
           key?: string
           measurement_mode?: Database["public"]["Enums"]["hr_measurement_mode"]
