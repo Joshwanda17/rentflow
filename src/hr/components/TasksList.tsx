@@ -3,18 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, ClipboardList, Clock, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -30,11 +19,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { createTask, getDepartments, getEmployees, getMyStaff, getTasks } from '@/hr/api';
+import { getDepartments, getEmployees, getTasks } from '@/hr/api';
 import type { Department, Employee, Task } from '@/hr/types';
+import TaskFormDialog from './TaskFormDialog';
 
 const ALL = '__all__';
-const NONE = '__none__';
 
 /** Values the database actually stores (hr_task_status). */
 const STATUS_OPTIONS = [
@@ -101,17 +90,8 @@ export default function TasksList() {
   const [status, setStatus] = useState(ALL);
   const [priority, setPriority] = useState(ALL);
 
-  // New task dialog
+  // New task dialog (shared component)
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    departmentId: '',
-    assigneeId: NONE,
-    priority: 'normal',
-    dueDate: '',
-  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -183,41 +163,6 @@ export default function TasksList() {
       color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     },
   ];
-
-  const missing: string[] = [];
-  if (!form.title.trim()) missing.push('title');
-  if (!form.departmentId) missing.push('department');
-  const canSave = missing.length === 0 && !saving;
-
-  const handleCreate = async () => {
-    if (!canSave) return;
-    setSaving(true);
-    try {
-      let createdByStaffId: string | null = null;
-      try {
-        createdByStaffId = (await getMyStaff())?.id ?? null;
-      } catch {
-        createdByStaffId = null;
-      }
-      await createTask({
-        title: form.title.trim(),
-        description: form.description.trim() || undefined,
-        departmentId: form.departmentId,
-        assigneeStaffId: form.assigneeId === NONE ? null : form.assigneeId,
-        createdByStaffId,
-        priority: form.priority,
-        dueAt: form.dueDate ? new Date(`${form.dueDate}T17:00:00`).toISOString() : null,
-      });
-      toast.success('Task created');
-      setOpen(false);
-      setForm({ title: '', description: '', departmentId: '', assigneeId: NONE, priority: 'normal', dueDate: '' });
-      void load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not create the task.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   if (error) {
     return (
@@ -404,112 +349,13 @@ export default function TasksList() {
         </CardContent>
       </Card>
 
-      {/* New task dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>New task</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Title</Label>
-              <Input
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="What needs doing?"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Description</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Context, definition of done, links"
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Department</Label>
-                <Select
-                  value={form.departmentId}
-                  onValueChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Assignee</Label>
-                <Select
-                  value={form.assigneeId}
-                  onValueChange={(v) => setForm((f) => ({ ...f, assigneeId: v }))}
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Unassigned" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Unassigned</SelectItem>
-                    {employees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Priority</Label>
-                <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRIORITY_OPTIONS.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {humanize(p)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Due date</Label>
-                <Input
-                  type="date"
-                  value={form.dueDate}
-                  onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
-            {missing.length > 0 && (
-              <p className="text-[11px] text-muted-foreground w-full">
-                Still needed: {missing.join(', ')}
-              </p>
-            )}
-            <Button className="w-full" disabled={!canSave} onClick={() => void handleCreate()}>
-              {saving ? 'Saving…' : 'Create task'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TaskFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        departments={departments}
+        assignees={employees}
+        onCreated={() => void load()}
+      />
     </div>
   );
 }
