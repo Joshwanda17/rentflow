@@ -86,7 +86,11 @@ Deno.serve(async (req) => {
       .in('status', ['open', 'partially_paid'])
       .maybeSingle()
 
-    if (existingAllocation) {
+    // A previous attempt may have inserted the allocation and then failed later
+    // (e.g. a trigger error while flipping the request to 'funded'). In that case
+    // the request is still approved/coo_approved, so we RESUME with the existing
+    // allocation instead of blocking the CFO with a 409.
+    if (existingAllocation && existingAllocation.agent_id !== bonusAgentId) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -97,7 +101,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { data: allocation, error: allocationInsertErr } = await serviceClient
+    const { data: allocation, error: allocationInsertErr } = existingAllocation
+      ? { data: { id: existingAllocation.id }, error: null as any }
+      : await serviceClient
       .from('agent_landlord_float_allocations')
       .insert({
         agent_id: bonusAgentId,
@@ -143,7 +149,7 @@ Deno.serve(async (req) => {
       .eq('agent_id', bonusAgentId)
       .maybeSingle()
 
-    if (existingFloat) {
+    if (existingFloat && !existingAllocation) {
       const { error: floatErr } = await serviceClient
         .from('agent_landlord_float')
         .update({
@@ -161,7 +167,7 @@ Deno.serve(async (req) => {
         }
         throw new Error(`Failed to update agent float: ${floatErr.message}`)
       }
-    } else {
+    } else if (!existingFloat) {
       const { error: insertErr } = await serviceClient
         .from('agent_landlord_float')
         .insert({
