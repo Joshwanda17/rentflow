@@ -177,6 +177,7 @@ export function TenantPhoneDuplicatePanel() {
           </div>
         </div>
       </CardHeader>
+      {panelOpen && (
       <CardContent className="space-y-3">
         {error && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
@@ -253,6 +254,7 @@ export function TenantPhoneDuplicatePanel() {
           </div>
         )}
       </CardContent>
+      )}
       <TenantPhoneDuplicateSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Card>
   );
