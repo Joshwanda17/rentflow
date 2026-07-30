@@ -22,8 +22,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { addTaskEvent, getDepartments, getMetricDefinitions, getMyStaff, getSnapshots, getTasks } from '@/hr/api';
+import {
+  addTaskEvent,
+  getDepartments,
+  getEmployees,
+  getMetricDefinitions,
+  getMyStaff,
+  getSnapshots,
+  getTasks,
+  getUnacknowledgedTasks,
+} from '@/hr/api';
 import { supabase } from '@/hr/api/client';
+import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
 
@@ -171,6 +181,7 @@ export default function MyWork() {
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [logOpen, setLogOpen] = useState(false);
+  const [unstarted, setUnstarted] = useState<{ task: Task; assignedBy: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -192,6 +203,22 @@ export default function MyWork() {
       setDefinitions(defs);
       setSnapshots(snaps);
       setTasks(myTasks);
+
+      // Work handed to me by someone else that I have not started yet.
+      const handed = await getUnacknowledgedTasks(me.id);
+      if (handed.length > 0) {
+        const staffList = await getEmployees();
+        const nameByStaff = Object.fromEntries(staffList.map((s) => [s.id, s.full_name || 'Unknown']));
+        setUnstarted(
+          handed.map((t) => ({
+            task: t,
+            assignedBy: nameByStaff[t.assigner_employee_id ?? ''] ?? 'Unknown',
+          })),
+        );
+      } else {
+        setUnstarted([]);
+      }
+      setMyWorkBadge(handed.length);
 
       // Flagged comments awaiting my acknowledgement. Read-only pass over the
       // append-only event log: a later `acknowledged` note cancels an earlier
