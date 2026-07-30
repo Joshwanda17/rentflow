@@ -463,6 +463,39 @@ export function FunderDirectHouseListing() {
         </div>
       </div>
 
+      {/* Move-in date anchor for the earnings projection */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2.5">
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Tenant move-in date
+          </p>
+          <p className="text-[10px] text-muted-foreground">
+            Earnings run {format(moveInDate, 'd MMM yyyy')} → {format(addMonths(moveInDate, 12), 'd MMM yyyy')} ({selectionTotals.daysInTerm} days)
+          </p>
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn('ml-auto h-9 rounded-xl justify-start text-left text-xs font-semibold gap-2')}
+              aria-label="Pick the tenant move-in date"
+            >
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {format(moveInDate, 'd MMM yyyy')}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="single"
+              selected={moveInDate}
+              onSelect={(d) => d && setMoveInDate(d)}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
 
       {/* Active filter chips */}
       <AnimatePresence>
@@ -532,7 +565,7 @@ export function FunderDirectHouseListing() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {filtered.map((house) => {
-            const earn = calcFunderEarnings(house.monthly_rent);
+            const earn = calcFunderEarnings(house.monthly_rent, moveInDate);
             const selected = selectedIds.includes(house.id);
             return (
             <motion.div
@@ -631,7 +664,7 @@ export function FunderDirectHouseListing() {
                       ))}
                     </div>
                     <p className="text-[9px] text-muted-foreground">
-                      Capital needed {formatUGX(earn.capital)}
+                      Capital needed {formatUGX(earn.capital)} · from {format(earn.startDate, 'd MMM')} over {earn.daysInTerm} days
                     </p>
                     <button
                       type="button"
