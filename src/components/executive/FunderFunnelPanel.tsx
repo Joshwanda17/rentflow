@@ -5,15 +5,9 @@ import { KPICard } from './KPICard';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { FunderFunnelDrilldown } from './FunderFunnelDrilldown';
 import { cn } from '@/lib/utils';
-import { Eye, MousePointerClick, Lock, Wallet, CalendarIcon, ChevronRight, Home } from 'lucide-react';
+import { Eye, MousePointerClick, Lock, Wallet, CalendarIcon, ChevronRight } from 'lucide-react';
 import {
   subDays,
   startOfDay,
@@ -85,6 +79,7 @@ export function FunderFunnelPanel() {
   const [preset, setPreset] = useState<PresetKey>('30d');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfDay(subDays(new Date(), 13)));
   const [customTo, setCustomTo] = useState<Date | undefined>(endOfDay(new Date()));
+  const [drillStep, setDrillStep] = useState<StepKey | null>(null);
 
   const range = useMemo(() => {
     if (preset === 'custom') {
@@ -182,6 +177,7 @@ export function FunderFunnelPanel() {
 
   const base = data?.progressed.funder_house_repayment_terms_viewed ?? 0;
   const pct = (n: number) => (base > 0 ? Math.round((n / base) * 100) : 0);
+  const rangeLabel = `${format(range.from, 'd MMM yyyy')} – ${format(range.to, 'd MMM yyyy')}`;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-4">
