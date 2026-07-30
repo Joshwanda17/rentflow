@@ -8,6 +8,8 @@ import { AgentAvatar } from './AgentAvatar';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import { Loader2, Phone, MapPin, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   agentId: string | null;
@@ -18,6 +20,146 @@ interface Props {
 
 const dt = (v?: string | null) => (v ? new Date(v).toLocaleDateString() : '—');
 
+type Period = 'today' | 'weekly' | 'monthly' | 'yearly';
+
+function CollectionPerformance({ agentId }: { agentId: string | null }) {
+  const [period, setPeriod] = useState<Period>('weekly');
+
+  const since = useMemo(() => {
+    const d = new Date();
+    if (period === 'today') d.setHours(0, 0, 0, 0);
+    else if (period === 'weekly') d.setDate(d.getDate() - 6);
+    else if (period === 'monthly') d.setDate(d.getDate() - 29);
+    else d.setMonth(d.getMonth() - 11);
+    if (period !== 'today') d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }, [period]);
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['agent-collection-performance', agentId, period],
+    enabled: !!agentId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_collections')
+        .select('amount, created_at')
+        .eq('agent_id', agentId as string)
+        .gte('created_at', since)
+        .order('created_at', { ascending: true })
+        .limit(5000);
+      if (error) throw error;
+      return (data ?? []) as { amount: number; created_at: string }[];
+    },
+  });
+
+  const series = useMemo(() => {
+    const buckets: { key: string; label: string; amount: number; count: number }[] = [];
+    const index = new Map<string, number>();
+    const push = (key: string, label: string) => {
+      index.set(key, buckets.length);
+      buckets.push({ key, label, amount: 0, count: 0 });
+    };
+    const now = new Date();
+    if (period === 'today') {
+      for (let h = 0; h <= now.getHours(); h++) push(String(h), `${String(h).padStart(2, '0')}:00`);
+    } else if (period === 'yearly') {
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        push(`${d.getFullYear()}-${d.getMonth()}`, d.toLocaleDateString(undefined, { month: 'short' }));
+      }
+    } else {
+      const days = period === 'weekly' ? 7 : 30;
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        push(d.toDateString(), d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }));
+      }
+    }
+    for (const r of rows) {
+      const d = new Date(r.created_at);
+      const key = period === 'today' ? String(d.getHours())
+        : period === 'yearly' ? `${d.getFullYear()}-${d.getMonth()}`
+        : d.toDateString();
+      const i = index.get(key);
+      if (i === undefined) continue;
+      buckets[i].amount += Number(r.amount || 0);
+      buckets[i].count += 1;
+    }
+    return buckets;
+  }, [rows, period]);
+
+  const total = series.reduce((s, b) => s + b.amount, 0);
+  const count = series.reduce((s, b) => s + b.count, 0);
+  const best = series.reduce((m, b) => (b.amount > (m?.amount ?? -1) ? b : m), series[0]);
+  const active = series.filter(b => b.amount > 0).length;
+  const avg = active > 0 ? total / active : 0;
+
+  const options: { value: Period; label: string }[] = [
+    { value: 'today', label: 'Today' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border bg-background p-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+        <div>
+          <p className="text-xs font-semibold">Overall collection performance</p>
+          <p className="text-[11px] text-muted-foreground">How this agent collects rent over time</p>
+        </div>
+        <div className="flex gap-1">
+          {options.map(o => (
+            <Button
+              key={o.value}
+              size="sm"
+              variant={period === o.value ? 'default' : 'outline'}
+              className="h-7 px-2 text-[11px]"
+              onClick={() => setPeriod(o.value)}
+            >
+              {o.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        <Stat label="Collected" value={formatUGX(total)} tone="text-emerald-600" />
+        <Stat label="Payments" value={count} />
+        <Stat label={period === 'today' ? 'Avg / active hour' : period === 'yearly' ? 'Avg / active month' : 'Avg / active day'} value={formatUGX(Math.round(avg))} />
+        <Stat label="Best period" value={best && best.amount > 0 ? `${best.label} · ${formatUGX(best.amount)}` : '—'} />
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center h-40 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /></div>
+      ) : total === 0 ? (
+        <p className="text-xs text-muted-foreground py-8 text-center">No collections in this period</p>
+      ) : (
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={series} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="agentCollGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" width={54}
+                tickFormatter={(v: number) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1000 ? `${Math.round(v / 1000)}K` : String(v))} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8, background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', color: 'hsl(var(--popover-foreground))' }}
+                formatter={(v: any, _n, p: any) => [`${formatUGX(Number(v))} · ${p?.payload?.count ?? 0} payments`, 'Collected']}
+              />
+              <Area type="monotone" dataKey="amount" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#agentCollGrad)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+}
 function Stat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
   return (
     <div className="rounded-xl border border-border bg-background p-2.5">
@@ -152,14 +294,7 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
                     <div className="h-full bg-primary" style={{ width: `${Math.min(100, behaviour.pct)}%` }} />
                   </div>
                 </div>
-                <div className="rounded-xl border border-border bg-background p-3">
-                  <p className="text-xs font-semibold mb-2">Performance by earning type</p>
-                  <Table
-                    head={['Type', 'Count', 'Total']}
-                    rows={(perf.by_type ?? []).map((t: any) => [t.earning_type ?? '—', t.count, formatUGX(Number(t.total || 0))])}
-                    empty="No earnings recorded"
-                  />
-                </div>
+                <CollectionPerformance agentId={agentId} />
               </TabsContent>
 
               <TabsContent value="rent" className="space-y-3 mt-3">
