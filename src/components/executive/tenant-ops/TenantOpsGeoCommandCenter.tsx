@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Loader2, ChevronRight, Globe2, Flag, Map, Building2, Users, Search, RefreshCw, Trophy,
+  Loader2, ChevronRight, Building2, Users, Search, RefreshCw, Trophy,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 
 const LEVEL_ICON = {
-  continent: Globe2, country: Flag, region: Map, district: Building2, agent: Users,
+  district: Building2, agent: Users,
 } as const;
 
 type SortKey = 'collected' | 'collection_rate' | 'occupancy' | 'arrears' | 'tenants' | 'new_tenants' | 'landlords';
@@ -59,8 +59,8 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string | numbe
 }
 
 /**
- * Tenant Operations — hierarchical analytics command center.
- * Continent → Country → Region → District → Agent, every figure live from
+ * Tenant Operations — Operations Intelligence command center.
+ * District → Agent drill-down; every figure is live from
  * get_tenant_ops_geo_metrics / get_tenant_ops_agent_360.
  */
 export function TenantOpsGeoCommandCenter() {
@@ -100,19 +100,13 @@ export function TenantOpsGeoCommandCenter() {
   ].filter((s) => s.value > 0);
 
   const crumbs: { label: string; onClick: () => void }[] = [
-    { label: 'World', onClick: () => { setPath({}); setAgentId(null); } },
+    { label: 'All districts', onClick: () => { setPath({}); setAgentId(null); } },
   ];
-  if (path.continent) crumbs.push({ label: path.continent, onClick: () => { setPath({ continent: path.continent }); setAgentId(null); } });
-  if (path.country) crumbs.push({ label: path.country, onClick: () => { setPath({ continent: path.continent, country: path.country }); setAgentId(null); } });
-  if (path.region) crumbs.push({ label: path.region, onClick: () => { setPath({ ...path, district: undefined }); setAgentId(null); } });
   if (path.district) crumbs.push({ label: path.district, onClick: () => setAgentId(null) });
 
   const drill = (r: GeoMetricsRow) => {
     if (level === 'agent') { setAgentId(r.agent_id); setAgentName(r.label); return; }
-    if (level === 'continent') setPath({ continent: r.key });
-    else if (level === 'country') setPath({ ...path, country: r.key });
-    else if (level === 'region') setPath({ ...path, region: r.key });
-    else if (level === 'district') setPath({ ...path, district: r.key });
+    setPath({ district: r.key });
   };
 
   const Icon = LEVEL_ICON[level];
@@ -243,9 +237,7 @@ export function TenantOpsGeoCommandCenter() {
             </div>
           )}
           <p className="text-[11px] text-muted-foreground mt-3">
-            Click a card to drill down{level !== 'agent' ? ` into ${GEO_LEVEL_LABEL[
-              level === 'continent' ? 'country' : level === 'country' ? 'region' : level === 'region' ? 'district' : 'agent'
-            ].toLowerCase()}` : ' into the agent 360 view'}.
+            Click a card to drill down{level === 'district' ? ' into the agents operating in that district' : ' into the agent 360 view'}.
           </p>
         </TabsContent>
 
