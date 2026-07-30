@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -18,21 +18,25 @@ export function CTOKycLevelPanel() {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const term = q.trim();
+  const [debounced, setDebounced] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 400);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const term = debounced;
   const { data: results, isFetching } = useQuery({
     queryKey: ['cto-kyc-search', term],
     enabled: term.length >= 3,
     queryFn: async () => {
-      const like = `%${term}%`;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, email')
-        .or(`full_name.ilike.${like},phone.ilike.${like},email.ilike.${like}`)
-        .limit(20);
+      const { data, error } = await (supabase as any).rpc('cto_search_profiles', {
+        p_term: term,
+      });
       if (error) throw error;
       return (data || []) as ProfileRow[];
     },
-    staleTime: 30_000,
+    staleTime: 60_000,
+    retry: false,
   });
 
   const { data: currentKyc, refetch: refetchKyc } = useQuery({
@@ -108,17 +112,17 @@ export function CTOKycLevelPanel() {
           />
         </div>
 
-        {term.length >= 3 && (
+        {q.trim().length >= 3 && (
           <div className="mt-3 max-h-60 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-            {isFetching && (
+            {(isFetching || q.trim() !== term) && (
               <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
                 <Loader2 className="h-3 w-3 animate-spin" /> Searching...
               </div>
             )}
-            {!isFetching && (results?.length ?? 0) === 0 && (
+            {!isFetching && q.trim() === term && (results?.length ?? 0) === 0 && (
               <div className="p-3 text-xs text-muted-foreground">No matches</div>
             )}
-            {(results || []).map((r) => (
+            {!isFetching && (results || []).map((r) => (
               <button
                 key={r.id}
                 type="button"
