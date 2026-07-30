@@ -206,6 +206,46 @@ export async function updateTaskStatus(
 }
 
 /** Display names for the people behind task events. Read-only. */
+/**
+ * Work handed to me by someone else that I have not started yet.
+ * Filter: assignee_staff_id = my staff id AND status = 'open'
+ * AND created_by_staff_id <> my staff id (and not null).
+ * No new table, no seen/read column — starting the task is the acknowledgement.
+ */
+export async function getUnacknowledgedCount(): Promise<number> {
+  const userId = await requireUserId();
+  const staffRows = unwrap(
+    await supabase.from('hr_staff').select('id').eq('user_id', userId).limit(1),
+  ) as { id: string }[];
+  const staffId = staffRows[0]?.id;
+  if (!staffId) return 0;
+
+  const res = await supabase
+    .from('hr_tasks')
+    .select('id', { count: 'exact', head: true })
+    .eq('assignee_staff_id', staffId)
+    .eq('status', 'open')
+    .not('created_by_staff_id', 'is', null)
+    .neq('created_by_staff_id', staffId);
+  if (res.error) throw new Error(res.error.message);
+  return res.count ?? 0;
+}
+
+/** The actual rows behind getUnacknowledgedCount, newest first. */
+export async function getUnacknowledgedTasks(staffId: string): Promise<Task[]> {
+  const rows = unwrap(
+    await supabase
+      .from('hr_tasks')
+      .select(TASK_COLUMNS)
+      .eq('assignee_staff_id', staffId)
+      .eq('status', 'open')
+      .not('created_by_staff_id', 'is', null)
+      .neq('created_by_staff_id', staffId)
+      .order('created_at', { ascending: false }),
+  ) as unknown as TaskRow[];
+  return rows.map(mapTask);
+}
+
 export async function getTaskEventActorNames(userIds: string[]): Promise<Record<string, string>> {
   const ids = Array.from(new Set(userIds.filter(Boolean)));
   if (ids.length === 0) return {};
