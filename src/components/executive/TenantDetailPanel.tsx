@@ -55,6 +55,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [savingRequest, setSavingRequest] = useState(false);
   const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', access_fee: '', request_fee: '', outstanding: '', reason: '' });
+  // Tracks whether the operator actually edited the Outstanding field. If they
+  // only corrected the rent amount, we must NOT recompute repaid from a stale
+  // outstanding figure — that silently marks the tenant as (over) paid and
+  // drops them out of the agent's owing list.
+  const [outstandingTouched, setOutstandingTouched] = useState(false);
 
   // Total Repaid inline-edit state (stats card)
   const [editingRepaid, setEditingRepaid] = useState(false);
@@ -505,6 +510,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       outstanding: String(currentOutstanding),
       reason: '',
     });
+    setOutstandingTouched(false);
     setEditingRequestId(req.id);
   };
 
@@ -537,14 +543,22 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       const totalRepayment = Math.round(amount + accessFee + requestFee);
       const dailyRepayment = Math.ceil(totalRepayment / days);
       const calc = { accessFee, requestFee, totalRepayment, dailyRepayment };
-      const desiredOutstanding = Number(requestEdit.outstanding);
-      if (!Number.isFinite(desiredOutstanding) || desiredOutstanding < 0) { toast.error('Outstanding must be zero or positive'); setSavingRequest(false); return; }
-      if (desiredOutstanding > calc.totalRepayment) {
-        toast.error(`Outstanding cannot exceed total repayment (UGX ${calc.totalRepayment.toLocaleString()})`);
-        setSavingRequest(false);
-        return;
+      const currentRepaid = Math.max(0, Number(originalReq.amount_repaid || 0));
+      let newRepaid: number;
+      if (outstandingTouched) {
+        const desiredOutstanding = Number(requestEdit.outstanding);
+        if (!Number.isFinite(desiredOutstanding) || desiredOutstanding < 0) { toast.error('Outstanding must be zero or positive'); setSavingRequest(false); return; }
+        if (desiredOutstanding > calc.totalRepayment) {
+          toast.error(`Outstanding cannot exceed total repayment (UGX ${calc.totalRepayment.toLocaleString()})`);
+          setSavingRequest(false);
+          return;
+        }
+        newRepaid = Math.max(0, calc.totalRepayment - desiredOutstanding);
+      } else {
+        // Untouched: keep what the tenant has genuinely repaid, capped at the new total.
+        newRepaid = Math.min(currentRepaid, calc.totalRepayment);
       }
-      const newRepaid = Math.max(0, calc.totalRepayment - desiredOutstanding);
+      newRepaid = Math.min(Math.max(0, newRepaid), calc.totalRepayment);
 
       const after = {
         rent_amount: amount,
@@ -1087,7 +1101,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                     <Input
                                       type="number"
                                       value={requestEdit.outstanding}
-                                      onChange={e => setRequestEdit(v => ({ ...v, outstanding: e.target.value }))}
+                                      onChange={e => { setOutstandingTouched(true); setRequestEdit(v => ({ ...v, outstanding: e.target.value })); }}
                                       className="h-8 text-sm"
                                     />
                                   </div>
