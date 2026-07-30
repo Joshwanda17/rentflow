@@ -375,6 +375,11 @@ function timeSince(d: string) {
 export default function COOPartnersPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
+  // Wallet Balances breakdown dialog (all partners holding wallet money)
+  const [walletBalancesOpen, setWalletBalancesOpen] = useState(false);
+  const [walletBalancesSearch, setWalletBalancesSearch] = useState('');
+  const [walletBalancesLoading, setWalletBalancesLoading] = useState(false);
+  const [walletBalancesList, setWalletBalancesList] = useState<{ id: string; name: string; phone: string; email: string; balance: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
