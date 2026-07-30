@@ -33,8 +33,8 @@ export function WalletRetractionsFeed({ compact = false }: WalletRetractionsFeed
   const { data: deductions, isLoading } = useQuery({
     queryKey: ['cfo-wallet-deductions', filterRetractions],
     queryFn: async () => {
-      let query = supabase
-        .from('wallet_deductions')
+      let query: any = (supabase
+        .from('wallet_deductions') as any)
         .select(`
           id,
           target_user_id,
