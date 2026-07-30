@@ -150,7 +150,8 @@ export async function getMyStaff(): Promise<Employee | null> {
 /** Enrols a user into HR. Optionally creates their opening assignment. */
 export async function enrollStaff(input: {
   userId: string;
-  staffRef: string;
+  /** Optional — the database generates EMP-00001 style refs when omitted. */
+  staffRef?: string;
   departmentId?: string;
   jobTitle?: string;
   reportsToStaffId?: string | null;
@@ -162,7 +163,7 @@ export async function enrollStaff(input: {
       .from('hr_staff')
       .insert({
         user_id: input.userId,
-        staff_ref: input.staffRef,
+        ...(input.staffRef ? { staff_ref: input.staffRef } : {}),
         enrolled_by: enrolledBy,
       })
       .select('id, user_id, staff_ref, active, created_at')
@@ -187,6 +188,53 @@ export async function enrollStaff(input: {
 
   const hydrated = await hydrateStaff([staff]);
   return hydrated[0];
+}
+
+export type EnrollableUser = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+};
+
+/**
+ * Platform users that do not yet have an hr_staff row.
+ * `search` filters by name / email / phone; results are capped for the picker.
+ */
+export async function getEnrollableUsers(search = '', limit = 30): Promise<EnrollableUser[]> {
+  const enrolled = unwrap(
+    await supabase.from('hr_staff').select('user_id'),
+  ) as { user_id: string }[];
+  const enrolledIds = new Set(enrolled.map((s) => s.user_id));
+
+  let query = supabase
+    .from('profiles')
+    .select('id, full_name, email, phone')
+    .order('full_name', { ascending: true })
+    .limit(limit + enrolledIds.size > 500 ? 500 : limit + enrolledIds.size);
+
+  const term = search.trim();
+  if (term) {
+    const safe = term.replace(/[%,]/g, ' ');
+    query = query.or(`full_name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`);
+  }
+
+  const rows = unwrap(await query) as {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+  }[];
+
+  return rows
+    .filter((r) => !enrolledIds.has(r.id))
+    .slice(0, limit)
+    .map((r) => ({
+      id: r.id,
+      full_name: r.full_name ?? '(no name)',
+      email: r.email,
+      phone: r.phone,
+    }));
 }
 
 /**
