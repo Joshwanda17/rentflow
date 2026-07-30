@@ -10656,6 +10656,7 @@ export type Database = {
           department_id: string | null
           id: string
           key: string
+          org_wide_read: boolean
           title: string
         }
         Insert: {
@@ -10664,6 +10665,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           key: string
+          org_wide_read?: boolean
           title: string
         }
         Update: {
@@ -10672,6 +10674,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           key?: string
+          org_wide_read?: boolean
           title?: string
         }
         Relationships: [
@@ -29734,6 +29737,7 @@ export type Database = {
         Returns: number
       }
       hr_is_admin: { Args: never; Returns: boolean }
+      hr_is_executive: { Args: never; Returns: boolean }
       hr_manages: { Args: { _staff_id: string }; Returns: boolean }
       hr_my_staff_id: { Args: never; Returns: string }
       hr_unenrolled_staff_candidates: {
