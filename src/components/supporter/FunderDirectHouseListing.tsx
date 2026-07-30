@@ -104,6 +104,9 @@ function ListingSkeleton() {
 
 export function FunderDirectHouseListing() {
   const navigate = useNavigate();
+  const { wallet } = useWallet();
+  const walletBalance = wallet?.balance ?? 0;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
