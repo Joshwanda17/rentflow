@@ -1012,6 +1012,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                               <RepaymentPauseControl
                                 rentRequestId={req.id}
                                 registrationType={(req as any).registration_type}
+                                outstandingAmount={outstandingLeft}
+                                planStatus={rawStatus}
                               />
                             )}
                           </div>
