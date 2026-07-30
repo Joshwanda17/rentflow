@@ -585,7 +585,19 @@ async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
     return t + '...';
   };
   const wrap = (s: string, f: any, size: number, maxW: number) => {
-    const words = String(s ?? '').split(/\s+/);
+    const raw = String(s ?? '').split(/\s+/);
+    // hard-break tokens longer than the column (SQL text, identifiers)
+    const words: string[] = [];
+    for (const w of raw) {
+      let t = w;
+      while (f.widthOfTextAtSize(t, size) > maxW) {
+        let cut = 1;
+        while (cut < t.length && f.widthOfTextAtSize(t.slice(0, cut + 1), size) <= maxW) cut += 1;
+        words.push(t.slice(0, cut));
+        t = t.slice(cut);
+      }
+      if (t) words.push(t);
+    }
     const lines: string[] = [];
     let cur = '';
     for (const w of words) {
@@ -622,7 +634,7 @@ async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
     y -= 28;
   };
 
-  const bars = (rows: { label: string; value: number; display?: string }[], maxOverride?: number) => {
+  const bars = (rows: { label: string; value: number; display?: string }[], maxOverride?: number, toned = false) => {
     const max = maxOverride ?? Math.max(1, ...rows.map((r) => r.value));
     const labelW = 140, valW = 62;
     const trackW = W - margin * 2 - labelW - valW;
@@ -631,7 +643,7 @@ async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
       page.drawText(clip(r.label, font, 8, labelW - 6), { x: margin, y: y - 9, size: 8, font, color: muted });
       page.drawRectangle({ x: margin + labelW, y: y - 12, width: trackW, height: 9, color: soft });
       const w = Math.max(2, (r.value / max) * trackW);
-      page.drawRectangle({ x: margin + labelW, y: y - 12, width: w, height: 9, color: brand });
+      page.drawRectangle({ x: margin + labelW, y: y - 12, width: w, height: 9, color: toned ? tone(r.value) : brand });
       const disp = r.display ?? r.value.toLocaleString('en-UG');
       page.drawText(disp, { x: W - margin - bold.widthOfTextAtSize(disp, 8), y: y - 9, size: 8, font: bold, color: ink });
       y -= 14;
@@ -723,7 +735,7 @@ async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
     }
   }
   y -= 8;
-  bars(a.scoreParts.map((s) => ({ label: `${s.label} (${s.weight}%)`, value: s.value, display: String(s.value) })), 100);
+  bars(a.scoreParts.map((s) => ({ label: `${s.label} (${s.weight}%)`, value: s.value, display: String(s.value) })), 100, true);
 
   // 2. Platform health
   sectionTitle(2, 'Platform Health Dashboard');
