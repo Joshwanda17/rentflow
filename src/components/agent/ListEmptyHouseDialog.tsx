@@ -2183,19 +2183,17 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           />
           {/* Property Details */}
           <div id="lh-field-house" className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-sm font-medium">Rooms</Label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={20}
-                  value={form.number_of_rooms}
-                  onChange={e => setForm(f => ({ ...f, number_of_rooms: parseInt(e.target.value) || 1 }))}
-                  className="h-12 text-base"
-                />
-              </div>
+            <div>
+              <Label className="text-sm font-medium">Rooms</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={20}
+                value={form.number_of_rooms}
+                onChange={e => setForm(f => ({ ...f, number_of_rooms: parseInt(e.target.value) || 1 }))}
+                className="h-12 w-full text-base"
+              />
             </div>
             {/* House category dropdown */}
             <div>
