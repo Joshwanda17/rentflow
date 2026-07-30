@@ -288,7 +288,7 @@ export default function ExecutiveBrief() {
         value: openTasks.filter((t) => !!t.due_at && new Date(t.due_at).getTime() < now).length,
       },
       { label: 'Awaiting review', value: tasks.filter((t) => t.status === 'submitted').length },
-      { label: 'Blocked', value: tasks.filter((t) => t.status === 'blocked').length },
+      { label: 'Blocked', value: tasks.filter((t) => String(t.status) === 'blocked').length },
       {
         label: 'Completed this week',
         value: tasks.filter(
