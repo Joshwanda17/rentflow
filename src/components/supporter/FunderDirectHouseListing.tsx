@@ -7,6 +7,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { calcFunderEarnings, sumFunderEarnings } from '@/lib/funderEarnings';
 import { useWallet } from '@/hooks/useWallet';
 import { Button } from '@/components/ui/button';
+import { FunderTopUpDialog } from './FunderTopUpDialog';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
@@ -107,6 +108,7 @@ export function FunderDirectHouseListing() {
   const { wallet } = useWallet();
   const walletBalance = wallet?.balance ?? 0;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showTopUp, setShowTopUp] = useState(false);
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -722,35 +724,28 @@ export function FunderDirectHouseListing() {
               <span className="font-bold text-foreground">{formatUGX(walletBalance)}</span>
             </div>
 
-            {shortfall > 0 ? (
-              <Button
-                onClick={() => {
-                  hapticTap();
-                  window.dispatchEvent(new CustomEvent('open-deposit'));
-                }}
-                className="w-full h-11 rounded-xl text-xs font-bold gap-2 uppercase tracking-wide"
-              >
-                <Wallet className="h-4 w-4" />
-                Add {formatUGX(shortfall)} to wallet
-              </Button>
-            ) : (
-              <Button
-                onClick={() => {
-                  hapticTap();
-                  window.dispatchEvent(new CustomEvent('open-deposit'));
-                }}
-                className="w-full h-11 rounded-xl text-xs font-bold gap-2 uppercase tracking-wide"
-              >
-                <Wallet className="h-4 w-4" />
-                Fund selected houses
-              </Button>
-            )}
+            <Button
+              onClick={() => { hapticTap(); setShowTopUp(true); }}
+              className="w-full h-11 rounded-xl text-xs font-bold gap-2 uppercase tracking-wide"
+            >
+              <Wallet className="h-4 w-4" />
+              {shortfall > 0 ? `Add ${formatUGX(shortfall)} to wallet` : 'Fund selected houses'}
+            </Button>
             <p className="text-[9px] text-muted-foreground/80 text-center leading-relaxed">
               You earn 15% of each house's monthly rent while the tenant repays.
             </p>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <FunderTopUpDialog
+        open={showTopUp}
+        onOpenChange={setShowTopUp}
+        houseCount={selectedHouses.length}
+        capitalRequired={selectionTotals.capital}
+        monthlyEarning={selectionTotals.monthly}
+        walletBalance={walletBalance}
+      />
     </div>
   );
 }
