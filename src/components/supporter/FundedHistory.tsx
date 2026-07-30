@@ -123,7 +123,7 @@ export function FundedHistory() {
     const to = from + PAGE_SIZE - 1;
 
     // Build query based on filter mode
-    let query = supabase
+    let query = (supabase as any)
       .from('rent_requests')
       .select(`
         id,

@@ -30,12 +30,12 @@ export function AgentDetailDrawer({ agentId, open, onClose }: AgentDetailDrawerP
     if (!agentId || !open) return;
     const load = async () => {
       const [pRes, wRes, eRes, vRes, tRes, lRes] = await Promise.all([
-        supabase.from('profiles').select('full_name, phone, email, created_at, territory, avatar_url, last_active_at').eq('id', agentId).single(),
-        supabase.from('wallets').select('balance').eq('user_id', agentId).single(),
-        supabase.from('agent_earnings').select('amount, earning_type, created_at, description').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(10),
-        supabase.from('agent_visits').select('checked_in_at, location_name, tenant:tenant_id(full_name)').eq('agent_id', agentId).order('checked_in_at', { ascending: false }).limit(8),
-        supabase.from('rent_requests').select('tenant_id, tenant:tenant_id(full_name, phone)').eq('agent_id', agentId).limit(20),
-        supabase.from('agent_landlord_assignments').select('landlord_id, landlord:landlord_id(landlord_name, phone_number)').eq('agent_id', agentId).limit(20),
+        (supabase as any).from('profiles').select('full_name, phone, email, created_at, territory, avatar_url, last_active_at').eq('id', agentId).single(),
+        (supabase as any).from('wallets').select('balance').eq('user_id', agentId).single(),
+        (supabase as any).from('agent_earnings').select('amount, earning_type, created_at, description').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(10),
+        (supabase as any).from('agent_visits').select('checked_in_at, location_name, tenant:tenant_id(full_name)').eq('agent_id', agentId).order('checked_in_at', { ascending: false }).limit(8),
+        (supabase as any).from('rent_requests').select('tenant_id, tenant:tenant_id(full_name, phone)').eq('agent_id', agentId).limit(20),
+        (supabase as any).from('agent_landlord_assignments').select('landlord_id, landlord:landlord_id(landlord_name, phone_number)').eq('agent_id', agentId).limit(20),
       ]);
       setProfile(pRes.data);
       setWallet(wRes.data);

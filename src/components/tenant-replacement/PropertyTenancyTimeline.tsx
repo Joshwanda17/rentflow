@@ -39,7 +39,7 @@ export function PropertyTenancyTimeline({ landlordId }: { landlordId: string }) 
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('rent_requests')
         .select('id, tenant_id, created_at, tenancy_status, tenancy_ended_at, tenancy_end_reason, outstanding_at_end, amount_repaid, total_repayment, tenant:profiles!rent_requests_tenant_id_fkey(full_name, phone)')
         .eq('landlord_id', landlordId)

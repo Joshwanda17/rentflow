@@ -86,7 +86,7 @@ export function BusinessAdvanceQueue({ stage }: BusinessAdvanceQueueProps) {
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['business-advance-queue', stage],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('business_advances')
         .select('*, tenant:profiles!business_advances_tenant_id_fkey(full_name, phone), agent:profiles!business_advances_agent_id_fkey(full_name, phone)')
         .eq('status', config.filterStatus as any)
@@ -123,7 +123,7 @@ export function BusinessAdvanceQueue({ stage }: BusinessAdvanceQueueProps) {
         updateData[config.reviewedAtCol] = new Date().toISOString();
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('business_advances')
         .update(updateData)
         .eq('id', id)

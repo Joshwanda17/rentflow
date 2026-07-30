@@ -92,7 +92,7 @@ export function ProxyAgentManager() {
       const pageSize = 1000;
       const all: any[] = [];
       for (let from = 0; ; from += pageSize) {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('user_roles')
           .select('user_id, profiles:user_id(id, full_name, phone)')
           .eq('role', bulkRole as any)
