@@ -285,6 +285,86 @@ export type UnenrolledStaffCandidate = {
   staff_roles: string;
 };
 
+/** One active assignment, shown in the expandable staff row. */
+export type ActiveAssignment = {
+  id: string;
+  staff_id: string;
+  department_id: string;
+  department_name: string;
+  position_title: string;
+  reports_to_title: string | null;
+  started_on: string;
+  is_primary: boolean;
+};
+
+/** Every active (not ended) assignment, grouped by staff id. */
+export async function getActiveAssignmentsByStaff(): Promise<Record<string, ActiveAssignment[]>> {
+  const rows = unwrap(
+    await supabase.from('hr_assignments').select(ASSIGNMENT_SELECT).is('ended_on', null),
+  ) as unknown as AssignmentRow[];
+  const names = await departmentNameMap();
+  const grouped: Record<string, ActiveAssignment[]> = {};
+  for (const r of rows) {
+    (grouped[r.staff_id] ||= []).push({
+      id: r.id,
+      staff_id: r.staff_id,
+      department_id: r.department_id,
+      department_name: names[r.department_id] ?? '',
+      position_title: r.position?.title ?? '',
+      reports_to_title: r.reports_to?.title ?? null,
+      started_on: r.started_on,
+      is_primary: r.is_primary === true,
+    });
+  }
+  for (const list of Object.values(grouped)) {
+    list.sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.started_on.localeCompare(b.started_on));
+  }
+  return grouped;
+}
+
+/**
+ * Adds a further active assignment to someone who is already enrolled.
+ *
+ * When it should become the primary one, the existing active primary is
+ * demoted FIRST and the new row inserted SECOND — the reverse order would
+ * momentarily leave two primaries and the unique index would reject it.
+ */
+export async function addAssignment(input: {
+  staffId: string;
+  departmentId: string;
+  positionId: string;
+  reportsToPositionId?: string | null;
+  makePrimary: boolean;
+  startedOn?: string;
+}): Promise<void> {
+  if (input.makePrimary) {
+    unwrap(
+      await supabase
+        .from('hr_assignments')
+        .update({ is_primary: false })
+        .eq('staff_id', input.staffId)
+        .is('ended_on', null)
+        .eq('is_primary', true)
+        .select('id'),
+    );
+  }
+
+  unwrap(
+    await supabase
+      .from('hr_assignments')
+      .insert({
+        staff_id: input.staffId,
+        department_id: input.departmentId,
+        position_id: input.positionId,
+        reports_to_position_id: input.reportsToPositionId ?? null,
+        started_on: input.startedOn ?? new Date().toISOString().slice(0, 10),
+        is_primary: input.makePrimary,
+      })
+      .select('id')
+      .single(),
+  );
+}
+
 /**
  * Staff-role platform users that are not yet enrolled.
  * Served entirely by the `hr_unenrolled_staff_candidates` database function —
