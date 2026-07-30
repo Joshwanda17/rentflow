@@ -683,6 +683,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   }, [open, prefillFromMatch, editRequestId]);
 
   /**
+   * Caller-supplied prefill (amount + payment method). Used by flows that
+   * already collected those details, e.g. the funder house top-up modal.
+   */
+  useEffect(() => {
+    if (!open || editRequestId || prefillFromMatch) return;
+    if (defaultAmount && defaultAmount > 0) setAmount(String(Math.round(defaultAmount)));
+    if (defaultChannel) {
+      setChannel(defaultChannel);
+      if (defaultChannel === 'momo' && defaultMomoProvider) setMomoProvider(defaultMomoProvider);
+      if (defaultPurpose) setStep('form');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultAmount, defaultChannel, defaultMomoProvider]);
+
+  /**
    * Edit-mode hydration. When the dialog opens with an `editRequestId`,
    * load the existing pending row, decode the allocations tail off the
    * notes column, and prefill every field so the agent can adjust amounts
