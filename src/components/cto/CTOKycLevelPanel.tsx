@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ShieldCheck, Search, Loader2 } from 'lucide-react';
@@ -10,6 +10,8 @@ type ProfileRow = {
   phone: string | null;
   email: string | null;
 };
+
+const PAGE_SIZE = 20;
 
 export function CTOKycLevelPanel() {
   const [q, setQ] = useState('');
@@ -25,19 +27,44 @@ export function CTOKycLevelPanel() {
   }, [q]);
 
   const term = debounced;
-  const { data: results, isFetching } = useQuery({
+  const {
+    data: pages,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ['cto-kyc-search', term],
     enabled: term.length >= 3,
-    queryFn: async () => {
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
       const { data, error } = await (supabase as any).rpc('cto_search_profiles', {
         p_term: term,
+        p_limit: PAGE_SIZE,
+        p_offset: pageParam as number,
       });
       if (error) throw error;
       return (data || []) as ProfileRow[];
     },
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length < PAGE_SIZE ? undefined : allPages.length * PAGE_SIZE,
     staleTime: 60_000,
     retry: false,
   });
+
+  const results = pages?.pages.flat() ?? [];
+  const isInitialLoading = isFetching && !isFetchingNextPage;
+
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (
+      hasNextPage &&
+      !isFetchingNextPage &&
+      el.scrollTop + el.clientHeight >= el.scrollHeight - 40
+    ) {
+      fetchNextPage();
+    }
+  };
 
   const { data: currentKyc, refetch: refetchKyc } = useQuery({
     queryKey: ['cto-kyc-current', selected?.id],
@@ -113,16 +140,19 @@ export function CTOKycLevelPanel() {
         </div>
 
         {q.trim().length >= 3 && (
-          <div className="mt-3 max-h-60 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-            {(isFetching || q.trim() !== term) && (
+          <div
+            onScroll={onScroll}
+            className="mt-3 max-h-60 overflow-y-auto rounded-xl border border-border divide-y divide-border"
+          >
+            {(isInitialLoading || q.trim() !== term) && (
               <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
                 <Loader2 className="h-3 w-3 animate-spin" /> Searching...
               </div>
             )}
-            {!isFetching && q.trim() === term && (results?.length ?? 0) === 0 && (
+            {!isFetching && q.trim() === term && results.length === 0 && (
               <div className="p-3 text-xs text-muted-foreground">No matches</div>
             )}
-            {!isFetching && (results || []).map((r) => (
+            {!isInitialLoading && results.map((r) => (
               <button
                 key={r.id}
                 type="button"
@@ -137,6 +167,20 @@ export function CTOKycLevelPanel() {
                 </div>
               </button>
             ))}
+            {isFetchingNextPage && (
+              <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading more...
+              </div>
+            )}
+            {!isFetchingNextPage && hasNextPage && results.length > 0 && (
+              <button
+                type="button"
+                onClick={() => fetchNextPage()}
+                className="w-full py-2 text-xs font-medium text-primary hover:bg-muted"
+              >
+                Load more
+              </button>
+            )}
           </div>
         )}
       </div>
