@@ -128,6 +128,14 @@ Deno.serve(async (req) => {
 
     // ============================================================
     // FUND AGENT'S LANDLORD FLOAT (no TID required at this stage)
+    //
+    // The balance is NOT written here any more. Since 2026-07-30
+    // `agent_landlord_float.balance` is derived from the allocation rows by
+    // `trg_sync_landlord_float_from_allocation`, so inserting the allocation
+    // above has already credited exactly the right amount. Writing it here as
+    // well (plus the old agent_float_funding trigger) is what double- and
+    // quadruple-credited agent floats. Only the lifetime `total_funded`
+    // counter is incremented.
     // ============================================================
     const { data: existingFloat } = await serviceClient
       .from('agent_landlord_float')
@@ -139,7 +147,6 @@ Deno.serve(async (req) => {
       const { error: floatErr } = await serviceClient
         .from('agent_landlord_float')
         .update({
-          balance: existingFloat.balance + request.rent_amount,
           total_funded: (existingFloat.total_funded || 0) + request.rent_amount,
           updated_at: now,
         })
@@ -157,12 +164,15 @@ Deno.serve(async (req) => {
     } else {
       const { error: insertErr } = await serviceClient
         .from('agent_landlord_float')
-        .insert({
-          agent_id: bonusAgentId,
-          balance: request.rent_amount,
-          total_funded: request.rent_amount,
-          total_paid_out: 0,
-        })
+        .upsert(
+          {
+            agent_id: bonusAgentId,
+            balance: request.rent_amount,
+            total_funded: request.rent_amount,
+            total_paid_out: 0,
+          },
+          { onConflict: 'agent_id' },
+        )
 
       if (insertErr) {
         if (allocation?.id) {
@@ -192,13 +202,19 @@ Deno.serve(async (req) => {
 
     if (updateErr) throw new Error(`Failed to update request: ${updateErr.message}`)
 
-    // Record agent_float_funding so it shows in agent's float history
-    await serviceClient.from('agent_float_funding').insert({
+    // Record agent_float_funding so it shows in the agent's float history.
+    // `rent_request_id` carries a unique index for active rows, so a retry can
+    // never write a second funding record for the same rent request.
+    const { error: fundingErr } = await serviceClient.from('agent_float_funding').insert({
       agent_id: bonusAgentId,
       amount: request.rent_amount,
       funded_by: user.id,
+      rent_request_id,
       notes: `CFO funded rent for landlord ${landlord?.name || 'Unknown'} – Request: ${rent_request_id.slice(0, 8)}`,
     })
+    if (fundingErr && fundingErr.code !== '23505') {
+      console.warn('[fund-float] funding history insert failed:', fundingErr.message)
+    }
 
     // Record in general ledger via RPC — platform cash out to agent float
     const { data: transactionGroupId, error: floatLedgerErr } = await serviceClient.rpc('create_ledger_transaction', {
