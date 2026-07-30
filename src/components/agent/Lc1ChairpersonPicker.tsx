@@ -21,7 +21,7 @@ const REGIONS = [
  *  - mode "existing" → an LC1 already in the system (no bonus, no insert)
  *  - mode "new"      → a brand-new LC1 the agent is registering. On submit the
  *                      parent inserts it with registered_by = agent and triggers
- *                      the UGX 1,000 instant reward (UGX 4,000 on Ops verify).
+ *                      the UGX 5,000 reward, paid only after Landlord Ops verifies.
  */
 export interface Lc1Selection {
   mode: 'existing' | 'new';
