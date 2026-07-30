@@ -112,7 +112,7 @@ const CATEGORY_REASON: Record<string, string> = {
   verification_bonus: 'Reward for completing a verification.',
   facilitation_bonus: 'Reward for facilitating a deal.',
   listing_bonus: 'Reward for listing a house.',
-  tenant_placement_bonus: 'UGX 5,000 reward for placing a tenant in a listed house.',
+  tenant_placement_bonus: 'UGX 10,000 reward for placing a tenant in a listed house.',
   agent_bonus: 'A bonus credited to your wallet.',
   approval_bonus: 'Reward for an approval milestone.',
   referral_bonus: 'Reward for a referral that signed up.',

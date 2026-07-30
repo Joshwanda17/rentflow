@@ -33,7 +33,7 @@ const CATEGORY_META: Record<string, { label: string; bucket: string; note?: stri
   agent_commission: { label: '10% Rent Collection Commission', bucket: 'Agent Commissions', note: 'Instant 10% of every tenant rent slice the agent collected.' },
   agent_commission_earned: { label: 'Listing / Verification / Referral Bonuses', bucket: 'Agent Commissions', note: 'House listing 2k, landlord verified 2k, LC1 chairperson verified, sub-agent registration bonuses, recruiter overrides.' },
   partner_commission: { label: 'Partner Commission (2%)', bucket: 'Agent Commissions', note: '2% commission on proxy agent deposits routed to partners.' },
-  tenant_placement_bonus: { label: 'Tenant Placement Bonus (5k)', bucket: 'Agent Commissions', note: 'Paid when an empty listing gets its first tenant assigned.' },
+  tenant_placement_bonus: { label: 'Tenant Placement Bonus (10k)', bucket: 'Agent Commissions', note: 'Paid when an empty listing gets its first tenant assigned.' },
   recruiter_override: { label: 'Recruiter Override (3k)', bucket: 'Agent Commissions', note: 'Paid to the recruiting agent when a sub-agent produces a verified listing/landlord/LC1.' },
   agent_incentive_bonus: { label: 'Agent Incentive Bonus', bucket: 'Agent Commissions' },
   merchant_commission: { label: 'Merchant Cashout Commission (0.5%)', bucket: 'Agent Commissions' },

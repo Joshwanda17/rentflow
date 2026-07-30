@@ -42,7 +42,7 @@ const pct = (rate: number) => `${Math.round(rate * 100)}%`;
  * EVENT_BONUSES because they are credited entirely server-side.
  */
 const DB_EVENT_BONUSES = {
-  tenant_placement: 5000,
+  tenant_placement: 10000,
   service_centre_setup: 25000,
   recruiter_override_verification: 3000,
 } as const;
