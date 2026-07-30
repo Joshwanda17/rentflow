@@ -82,6 +82,31 @@ Deno.serve(async (req) => {
     const userId = data.user?.id;
     if (!userId) return json({ error: "Account was not created" }, 500);
 
+    // ── Welcome email (server-side, guaranteed) ──────────────────────────────
+    // The agreement email is fired later from the client once the contract row
+    // is written; that call can silently fail (slow PDF render, tab closed), so
+    // the account-creation confirmation MUST be sent here where nothing can
+    // interrupt it. Non-blocking: a mail failure never fails account creation.
+    try {
+      const { error: mailErr } = await admin.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "partner-account-created",
+          recipientEmail: email,
+          templateData: {
+            partner_name: fullName,
+            partner_email: email,
+            partner_reference: `PA-${userId.slice(0, 8).toUpperCase()}`,
+            company_name: "WELILE TECHNOLOGIES LTD",
+          },
+        },
+      });
+      if (mailErr) {
+        console.error("[create-funder-onboarding-account] welcome email failed:", mailErr.message || mailErr);
+      }
+    } catch (e) {
+      console.error("[create-funder-onboarding-account] welcome email threw:", (e as Error)?.message || e);
+    }
+
     return json({ ok: true, userId, user: { id: userId, email } });
   } catch (e) {
     console.error("[create-funder-onboarding-account] error:", (e as Error)?.message || e);

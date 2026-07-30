@@ -1364,7 +1364,10 @@ export default function FunderOnboarding() {
             // partner can download the stored PDF from their dashboard later.
             let pdfBase64: string | null = null;
             try {
-              pdfBase64 = await renderAgreementPdfBase64(
+              // Hard 20s ceiling: a hung/slow client render must never stop the
+              // contract email from going out.
+              pdfBase64 = await Promise.race<string | null>([
+                renderAgreementPdfBase64(
                 buildAgreementHtml({
                   partnerName: `${cleanFirst} ${cleanLast}`.trim(),
                   partnerId: cleanNationalId,
@@ -1385,7 +1388,9 @@ export default function FunderOnboarding() {
                   includeStamp: false,
                   partnerSignatureDataUrl: form.signatureDataUrl || undefined,
                 }),
-              );
+                ),
+                new Promise<null>(resolve => setTimeout(() => resolve(null), 20000)),
+              ]);
             } catch (e) {
               console.warn('partnership PDF render failed — email will still be sent:', e);
             }
@@ -1395,6 +1400,16 @@ export default function FunderOnboarding() {
               });
             } catch (e) {
               console.warn('generate-partner-agreement invoke failed:', e);
+              // One retry without the PDF — the confirmation email matters more
+              // than the attachment link, which the partner can also download
+              // from their dashboard.
+              try {
+                await supabase.functions.invoke('generate-partner-agreement', {
+                  body: { partnerId: newUserId, countersign: false, pdfBase64: null },
+                });
+              } catch (e2) {
+                console.warn('generate-partner-agreement retry failed:', e2);
+              }
             }
           } catch (e) {
             console.warn('partnership agreement pipeline failed:', e);
