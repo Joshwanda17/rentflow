@@ -338,6 +338,38 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
               </div>
             </div>
 
+            {/* Bio data */}
+            <div className="rounded-2xl border border-border bg-background p-3">
+              <p className="text-xs font-semibold mb-2">Bio data</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                {([
+                  ['Full name', bio.full_name],
+                  ['Phone', bio.phone],
+                  ['Email', bio.email],
+                  ['National ID', bio.national_id],
+                  ['Agent tier', bio.agent_tier],
+                  ['Account type', bio.agent_kind === 'sub_agent' ? 'Sub-Agent' : 'Agent'],
+                  ['Verified', bio.verified ? 'Yes' : 'No'],
+                  ['Frozen', bio.is_frozen ? `Yes — ${bio.frozen_reason || 'no reason given'}` : 'No'],
+                  ['Mobile money number', bio.mobile_money_number],
+                  ['Mobile money name', bio.mobile_money_name],
+                  ['Region', bio.region],
+                  ['District', bio.district],
+                  ['Sub-county', bio.sub_county],
+                  ['Village', bio.village],
+                  ['Territory', bio.territory],
+                  ['Joined', dt(bio.created_at)],
+                  ['Last active', dt(bio.last_active_at)],
+                  ['Recruited by', bio.parent_agent ? `${bio.parent_agent.full_name}${bio.parent_agent.phone ? ` · ${bio.parent_agent.phone}` : ''}` : null],
+                ] as [string, any][]).map(([label, value]) => (
+                  <div key={label} className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium truncate">{label}</p>
+                    <p className="text-xs font-medium break-words">{value ? String(value) : '—'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <Tabs value={tab} onValueChange={setTab}>
               <TabsList className="w-full overflow-x-auto justify-start">
                 <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
@@ -370,7 +402,7 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
                     <div className="h-full bg-primary" style={{ width: `${Math.min(100, behaviour.pct)}%` }} />
                   </div>
                 </div>
-                <CollectionPerformance agentId={agentId} />
+                <CollectionPerformance agentId={agentId} dailyTarget={Number(rep.daily_target || 0)} />
               </TabsContent>
 
               <TabsContent value="rent" className="space-y-3 mt-3">
