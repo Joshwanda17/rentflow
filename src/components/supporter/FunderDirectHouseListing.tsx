@@ -70,9 +70,30 @@ const ROOMS = [
 
 const SORTS = [
   { value: 'newest', label: 'Newest' },
+  { value: 'earn_desc', label: 'Earnings: High to Low' },
+  { value: 'earn_asc', label: 'Earnings: Low to High' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'rooms_desc', label: 'Most rooms' },
+];
+
+// Minimum projected monthly earning (15% of rent) filters
+const MIN_MONTHLY_EARN = [
+  { value: 'all', label: 'Any monthly earning' },
+  { value: '5000', label: 'Monthly 5k+' },
+  { value: '10000', label: 'Monthly 10k+' },
+  { value: '15000', label: 'Monthly 15k+' },
+  { value: '30000', label: 'Monthly 30k+' },
+  { value: '50000', label: 'Monthly 50k+' },
+];
+
+// Minimum projected 12-month earning filters
+const MIN_ANNUAL_EARN = [
+  { value: 'all', label: 'Any 12-month earning' },
+  { value: '100000', label: '12-month 100k+' },
+  { value: '250000', label: '12-month 250k+' },
+  { value: '500000', label: '12-month 500k+' },
+  { value: '1000000', label: '12-month 1M+' },
 ];
 
 function HouseCardSkeleton() {
@@ -134,6 +155,8 @@ export function FunderDirectHouseListing() {
   const [category, setCategory] = useState('all');
   const [rooms, setRooms] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [minMonthlyEarn, setMinMonthlyEarn] = useState('all');
+  const [minAnnualEarn, setMinAnnualEarn] = useState('all');
 
   useEffect(() => {
     mountedRef.current = true;
@@ -294,10 +317,32 @@ export function FunderDirectHouseListing() {
       }
     }
 
+    // Projected-earnings filters (15% of monthly rent, anchored on move-in date)
+    if (minMonthlyEarn !== 'all') {
+      const min = Number(minMonthlyEarn);
+      result = result.filter((h) => calcFunderEarnings(h.monthly_rent, moveInDate).monthly >= min);
+    }
+    if (minAnnualEarn !== 'all') {
+      const min = Number(minAnnualEarn);
+      result = result.filter((h) => calcFunderEarnings(h.monthly_rent, moveInDate).annual >= min);
+    }
+
     result.sort((a, b) => {
       if (sortBy === 'newest') {
         return (
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }
+      if (sortBy === 'earn_desc') {
+        return (
+          calcFunderEarnings(b.monthly_rent, moveInDate).monthly -
+          calcFunderEarnings(a.monthly_rent, moveInDate).monthly
+        );
+      }
+      if (sortBy === 'earn_asc') {
+        return (
+          calcFunderEarnings(a.monthly_rent, moveInDate).monthly -
+          calcFunderEarnings(b.monthly_rent, moveInDate).monthly
         );
       }
       if (sortBy === 'price_asc') return a.daily_rate - b.daily_rate;
@@ -307,7 +352,7 @@ export function FunderDirectHouseListing() {
     });
 
     return result;
-  }, [houses, search, region, category, rooms, sortBy]);
+  }, [houses, search, region, category, rooms, sortBy, minMonthlyEarn, minAnnualEarn, moveInDate]);
 
   const openHouse = (house: House) => {
     hapticTap();
@@ -332,6 +377,8 @@ export function FunderDirectHouseListing() {
     setCategory('all');
     setRooms('all');
     setSortBy('newest');
+    setMinMonthlyEarn('all');
+    setMinAnnualEarn('all');
   };
 
   const activeFilterChips = [
@@ -347,9 +394,18 @@ export function FunderDirectHouseListing() {
       label: ROOMS.find((r) => r.value === rooms)?.label || rooms,
       onRemove: () => setRooms('all'),
     },
+    minMonthlyEarn !== 'all' && {
+      label: MIN_MONTHLY_EARN.find((m) => m.value === minMonthlyEarn)?.label || minMonthlyEarn,
+      onRemove: () => setMinMonthlyEarn('all'),
+    },
+    minAnnualEarn !== 'all' && {
+      label: MIN_ANNUAL_EARN.find((m) => m.value === minAnnualEarn)?.label || minAnnualEarn,
+      onRemove: () => setMinAnnualEarn('all'),
+    },
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
 
   const selectedHouses = (houses ?? []).filter((h) => selectedIds.includes(h.id));
+  const earningsFilterActive = minMonthlyEarn !== 'all' || minAnnualEarn !== 'all';
   const selectionTotals = sumFunderEarnings(selectedHouses.map((h) => h.monthly_rent), moveInDate);
   const shortfall = Math.max(0, selectionTotals.capital - walletBalance);
 
@@ -453,12 +509,39 @@ export function FunderDirectHouseListing() {
           </SelectContent>
         </Select>
 
+        <Select value={minMonthlyEarn} onValueChange={setMinMonthlyEarn}>
+          <SelectTrigger className="h-9 text-xs w-[170px]" aria-label="Filter by projected monthly earning">
+            <SelectValue placeholder="Monthly earning" />
+          </SelectTrigger>
+          <SelectContent>
+            {MIN_MONTHLY_EARN.map((m) => (
+              <SelectItem key={m.value} value={m.value} className="text-xs">
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={minAnnualEarn} onValueChange={setMinAnnualEarn}>
+          <SelectTrigger className="h-9 text-xs w-[180px]" aria-label="Filter by projected 12-month earning">
+            <SelectValue placeholder="12-month earning" />
+          </SelectTrigger>
+          <SelectContent>
+            {MIN_ANNUAL_EARN.map((m) => (
+              <SelectItem key={m.value} value={m.value} className="text-xs">
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <div className="ml-auto flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
           {countLoading && (
             <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
           )}
           <span aria-live="polite" aria-atomic="true">
-            {(totalMatch ?? filtered.length).toLocaleString()} {((totalMatch ?? filtered.length) === 1 ? 'house' : 'houses')} found
+            {(earningsFilterActive ? filtered.length : (totalMatch ?? filtered.length)).toLocaleString()}{' '}
+            {(earningsFilterActive ? filtered.length : (totalMatch ?? filtered.length)) === 1 ? 'house' : 'houses'} found
           </span>
         </div>
       </div>
