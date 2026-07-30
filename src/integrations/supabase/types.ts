@@ -25369,6 +25369,12 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_ops_strict_agent_ids: {
+        Args: never
+        Returns: {
+          agent_id: string
+        }[]
+      }
       agent_order_merchandise: {
         Args: { p_catalog_id: string; p_quantity: number }
         Returns: Json
@@ -26883,6 +26889,10 @@ export type Database = {
         | { Args: { _month?: string }; Returns: Json }
       get_agent_ops_overview: {
         Args: { p_range_end?: string; p_range_start: string }
+        Returns: Json
+      }
+      get_agent_ops_top_agents: {
+        Args: { p_days?: number; p_limit?: number }
         Returns: Json
       }
       get_agent_ops_totals: {
