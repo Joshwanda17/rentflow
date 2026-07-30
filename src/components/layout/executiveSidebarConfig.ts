@@ -8,11 +8,29 @@ import {
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
+/**
+ * Declares what a signed-in person needs in order to actually open a sidebar
+ * item's route. Mirrors the guard already applied to the route in App.tsx —
+ * this adds NO new permission system, it only stops rendering links that would
+ * bounce the user with a 404.
+ *
+ *  - `'signed-in'` → visible to anyone who is authenticated.
+ *  - `{ roles, permission }` → visible when the user holds one of `roles`
+ *    AND (when given) `hasPermission(permission)` from `useStaffPermissions`.
+ *
+ * Omitted entirely = unchanged legacy behaviour (always rendered).
+ */
+export type SidebarItemAccess =
+  | 'signed-in'
+  | { roles: AppRole[]; permission?: string };
+
 export interface SidebarItem {
   label: string;
   icon: typeof BarChart3;
   id: string;
   route?: string;
+  /** Optional gate describing who can reach this item's route. */
+  access?: SidebarItemAccess;
 }
 
 export interface SidebarSection {
@@ -28,6 +46,12 @@ export interface SidebarSection {
   /** Optional icon shown next to the section title when collapsible. */
   icon?: typeof BarChart3;
 }
+
+/** Same gate the /hr/* routes already enforce via RoleGuard. */
+const HR_ACCESS: SidebarItemAccess = {
+  roles: ['hr', 'super_admin', 'cto'],
+  permission: 'hr',
+};
 
 export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
   cto: [
@@ -230,28 +254,28 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
     {
       title: 'Human Resources',
       items: [
-        { label: 'Overview', icon: LayoutDashboard, id: 'overview' },
-        { label: 'Employee Directory', icon: Users, id: 'employees' },
-        { label: 'Staff', icon: Users, id: 'hr-staff', route: '/hr/dashboard/staff' },
-        { label: 'Departments', icon: Building2, id: 'departments' },
-        { label: 'System Users', icon: UserCog, id: 'user-management' },
-        { label: 'Leave Management', icon: ClipboardList, id: 'leave' },
-        { label: 'Payroll', icon: Banknote, id: 'payroll' },
-        { label: 'Disciplinary', icon: AlertTriangle, id: 'disciplinary' },
-        { label: 'Audit Trail', icon: FileText, id: 'audit' },
-        { label: 'Internship Applications', icon: GraduationCap, id: 'internships' },
-        { label: 'Requisitions', icon: ClipboardList, id: 'requisitions' },
+        { label: 'Overview', icon: LayoutDashboard, id: 'overview', access: HR_ACCESS },
+        { label: 'Employee Directory', icon: Users, id: 'employees', access: HR_ACCESS },
+        { label: 'Staff', icon: Users, id: 'hr-staff', route: '/hr/dashboard/staff', access: HR_ACCESS },
+        { label: 'Departments', icon: Building2, id: 'departments', access: HR_ACCESS },
+        { label: 'System Users', icon: UserCog, id: 'user-management', access: HR_ACCESS },
+        { label: 'Leave Management', icon: ClipboardList, id: 'leave', access: HR_ACCESS },
+        { label: 'Payroll', icon: Banknote, id: 'payroll', access: HR_ACCESS },
+        { label: 'Disciplinary', icon: AlertTriangle, id: 'disciplinary', access: HR_ACCESS },
+        { label: 'Audit Trail', icon: FileText, id: 'audit', access: HR_ACCESS },
+        { label: 'Internship Applications', icon: GraduationCap, id: 'internships', access: HR_ACCESS },
+        { label: 'Requisitions', icon: ClipboardList, id: 'requisitions', access: HR_ACCESS },
       ],
     },
     {
       title: 'Performance & Hiring',
       items: [
-        { label: 'Executive Brief', icon: Gauge, id: 'hr-executive-brief', route: '/hr/dashboard/executive-brief' },
-        { label: 'My Work', icon: LayoutDashboard, id: 'hr-my-work', route: '/hr/dashboard/my-work' },
-        { label: 'Tasks', icon: ClipboardList, id: 'hr-tasks', route: '/hr/dashboard/tasks' },
-        { label: 'Productivity', icon: TrendingUp, id: 'hr-productivity', route: '/hr/dashboard/productivity' },
-        { label: 'Recruitment', icon: UserCheck, id: 'hr-recruitment', route: '/hr/dashboard/recruitment' },
-        { label: 'Metric Definitions', icon: Gauge, id: 'hr-metrics', route: '/hr/dashboard/metrics' },
+        { label: 'Executive Brief', icon: Gauge, id: 'hr-executive-brief', route: '/hr/dashboard/executive-brief', access: HR_ACCESS },
+        { label: 'My Work', icon: LayoutDashboard, id: 'hr-my-work', route: '/hr/dashboard/my-work', access: 'signed-in' },
+        { label: 'Tasks', icon: ClipboardList, id: 'hr-tasks', route: '/hr/dashboard/tasks', access: HR_ACCESS },
+        { label: 'Productivity', icon: TrendingUp, id: 'hr-productivity', route: '/hr/dashboard/productivity', access: HR_ACCESS },
+        { label: 'Recruitment', icon: UserCheck, id: 'hr-recruitment', route: '/hr/dashboard/recruitment', access: HR_ACCESS },
+        { label: 'Metric Definitions', icon: Gauge, id: 'hr-metrics', route: '/hr/dashboard/metrics', access: HR_ACCESS },
       ],
     },
   ],
