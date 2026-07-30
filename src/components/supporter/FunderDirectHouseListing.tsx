@@ -15,6 +15,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { Button } from '@/components/ui/button';
 import { FunderTopUpDialog } from './FunderTopUpDialog';
 import { FunderSelectionConfirmDialog } from './FunderSelectionConfirmDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
@@ -43,8 +44,6 @@ interface House {
   short_code: string | null;
   created_at: string;
 }
-
-const EXPANDED_STORAGE_KEY = 'welile-funder-house-expanded';
 
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
@@ -144,24 +143,8 @@ export function FunderDirectHouseListing() {
   const [selectionLocked, setSelectionLocked] = useState(false);
   // Tenant move-in / start date the earnings projection is anchored on
   const [moveInDate, setMoveInDate] = useState<Date>(() => new Date());
-  // "See more" state per house, remembered for the whole browser session
-  const [expandedIds, setExpandedIds] = useState<string[]>(() => {
-    try {
-      const raw = sessionStorage.getItem(EXPANDED_STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(expandedIds));
-    } catch {
-      /* storage unavailable — non-critical */
-    }
-  }, [expandedIds]);
+  // House whose repayment details modal is open ("See more")
+  const [detailsHouse, setDetailsHouse] = useState<House | null>(null);
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -688,7 +671,6 @@ export function FunderDirectHouseListing() {
           {filtered.map((house) => {
             const earn = calcFunderEarnings(house.monthly_rent, moveInDate);
             const selected = selectedIds.includes(house.id);
-            const expanded = expandedIds.includes(house.id);
             return (
             <motion.div
               key={house.id}
@@ -754,26 +736,12 @@ export function FunderDirectHouseListing() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setExpandedIds((prev) =>
-                      prev.includes(house.id) ? prev.filter((id) => id !== house.id) : [...prev, house.id]
-                    );
+                    setDetailsHouse(house);
                   }}
-                  aria-expanded={expanded}
                   className="text-[10px] font-semibold text-primary hover:underline touch-manipulation"
                 >
-                  {expanded ? 'See less' : 'See more'}
+                  See more
                 </button>
-                {expanded && (
-                  <div className="pt-0.5 space-y-1">
-                    <p className="text-sm font-black text-success leading-none">
-                      {formatUGX(house.daily_rate)}
-                      <span className="text-[9px] font-normal text-muted-foreground">
-                        /day tenant repayment
-                      </span>
-                    </p>
-                    <MoveInOfferBadge className="mt-1" />
-                  </div>
-                )}
 
                 {/* Funder earning projection — 15% of monthly rent */}
                 {earn.capital > 0 && (
@@ -975,6 +943,38 @@ export function FunderDirectHouseListing() {
         monthlyEarning={selectionTotals.monthly}
         walletBalance={walletBalance}
       />
+
+      {/* Repayment details — opened from "See more" on a house card */}
+      <Dialog open={!!detailsHouse} onOpenChange={(o) => !o && setDetailsHouse(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">{detailsHouse?.title}</DialogTitle>
+            <DialogDescription className="text-xs">
+              How the tenant repays for this house.
+            </DialogDescription>
+          </DialogHeader>
+          {detailsHouse && (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Tenant daily repayment
+                </p>
+                <p className="text-xl font-black text-success leading-tight">
+                  {formatUGX(detailsHouse.daily_rate)}
+                  <span className="text-[10px] font-normal text-muted-foreground"> /day</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Monthly rent {formatUGX(detailsHouse.monthly_rent)}
+                </p>
+              </div>
+              <MoveInOfferBadge />
+              <p className="text-[10px] leading-relaxed text-muted-foreground">
+                The tenant repays daily. Your earnings accrue as those repayments come in.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
