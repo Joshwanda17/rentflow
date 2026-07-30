@@ -240,14 +240,21 @@ export function MerchandiseManager() {
   );
 
   // ---- Financial roll-ups ----
+  // Cancelled/rejected orders and sanity-check outliers never count towards
+  // revenue, stock, COGS or receivables — they only appear in the sales table.
+  const countableSales = useMemo(
+    () => filteredSales.filter((s) => !isVoidSale(s) && !isOutlierSale(s)),
+    [filteredSales],
+  );
+
   const totals = useMemo(() => {
     const totalInvested = filteredPurchases.reduce((s, p) => s + Number(p.total_cost), 0);
     const totalQtyPurchased = filteredPurchases.reduce((s, p) => s + Number(p.quantity), 0);
-    const totalRevenue = filteredSales.reduce((s, x) => s + Number(x.total_revenue), 0);
-    const totalQtySold = filteredSales.reduce((s, x) => s + Number(x.quantity), 0);
-    const cogs = filteredSales.reduce((s, x) => s + Number(x.unit_cost) * Number(x.quantity), 0);
+    const totalRevenue = countableSales.reduce((s, x) => s + Number(x.total_revenue), 0);
+    const totalQtySold = countableSales.reduce((s, x) => s + Number(x.quantity), 0);
+    const cogs = countableSales.reduce((s, x) => s + Number(x.unit_cost) * Number(x.quantity), 0);
     const grossProfit = totalRevenue - cogs;
-    const outstanding = filteredSales.reduce((s, x) => s + Number(x.amount_outstanding), 0);
+    const outstanding = countableSales.reduce((s, x) => s + Number(x.amount_outstanding), 0);
     const currentStock = totalQtyPurchased - totalQtySold;
 
     // Weighted average unit cost across all purchases (for inventory valuation).
@@ -260,7 +267,7 @@ export function MerchandiseManager() {
       totalInvested, totalQtyPurchased, totalRevenue, totalQtySold,
       cogs, grossProfit, outstanding, currentStock, inventoryValue,
     };
-  }, [filteredPurchases, filteredSales, purchases]);
+  }, [filteredPurchases, countableSales, purchases]);
 
   // ---- Per-item inventory table ----
   const inventoryByItem = useMemo(() => {
@@ -271,7 +278,7 @@ export function MerchandiseManager() {
       e.invested += Number(p.total_cost);
       map.set(p.item_name, e);
     });
-    filteredSales.forEach((s) => {
+    countableSales.forEach((s) => {
       const e = map.get(s.item_name) || { purchased: 0, sold: 0, invested: 0, revenue: 0 };
       e.sold += Number(s.quantity);
       e.revenue += Number(s.total_revenue);
@@ -280,12 +287,12 @@ export function MerchandiseManager() {
     return Array.from(map.entries())
       .map(([item_name, e]) => ({ item_name, ...e, stock: e.purchased - e.sold }))
       .sort((a, b) => a.item_name.localeCompare(b.item_name));
-  }, [filteredPurchases, filteredSales]);
+  }, [filteredPurchases, countableSales]);
 
   // ---- Accounts receivable (clients who owe) ----
   const receivables = useMemo(() => {
     const map = new Map<string, { name: string; phone: string; outstanding: number; count: number }>();
-    filteredSales.forEach((s) => {
+    countableSales.forEach((s) => {
       if (Number(s.amount_outstanding) <= 0) return;
       const key = (s.client_phone || s.client_name || 'Unknown').trim();
       const e = map.get(key) || {
@@ -299,7 +306,7 @@ export function MerchandiseManager() {
       map.set(key, e);
     });
     return Array.from(map.values()).sort((a, b) => b.outstanding - a.outstanding);
-  }, [filteredSales]);
+  }, [countableSales]);
 
   const clearFilters = () => {
     setFromDate(''); setToDate(''); setProductFilter('all'); setClientFilter('all');
