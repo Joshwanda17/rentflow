@@ -641,6 +641,19 @@ Deno.serve(async (req) => {
     ${section('Compliance', 12, compTable)}
     ${section('CTO Executive KPIs', 13, kpiTable)}
     ${section('Strategic Recommendations and Action Items', 14, recsHtml)}
+    ${section('Technical Diagnostics Overview', 15, diagOverview)}
+    ${section('Detailed Error Analysis', 16, errorDossier)}
+    ${section('Critical Errors Ranked by Impact', 17, criticalTable)}
+    ${section('API and Edge Function Failure Report', 18, apiTable)}
+    ${section('Database Diagnostics', 19, dbSection)}
+    ${section('Automation Failure Details', 20, jobDetailTable)}
+    ${section('Frontend Error Report', 21, frontendSection)}
+    ${section('Authentication Diagnostics', 22, authSection)}
+    ${section('Infrastructure Alerts', 23, infraAlertTable)}
+    ${section('Security Events', 24, securitySection)}
+    ${section('Regression Report', 25, regressionSection)}
+    ${section('Engineering Action Items', 26, actionTable)}
+    ${section('Business Impact of Open Defects', 27, businessImpact)}
 
     <div style="margin-top:26px;border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.muted};">
       Generated automatically from live production telemetry at ${esc(String(d.generated_at || '').slice(0, 19).replace('T', ' '))} UTC. Overall technology health score: ${health} of 100 (${healthLabel}).
