@@ -133,33 +133,114 @@ export default function StaffDirectory() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8" />
                     <TableHead>Ref</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Position</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Reports to</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {staff.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-mono text-xs">{s.staff_number}</TableCell>
-                      <TableCell className="font-medium">{s.full_name || '—'}</TableCell>
-                      <TableCell>{s.current_assignment?.role_title || '—'}</TableCell>
-                      <TableCell>{s.current_assignment?.department_name || '—'}</TableCell>
-                      <TableCell>
-                        {s.current_assignment?.manager_employee_id
-                          ? positionTitleById[s.current_assignment.manager_employee_id] ?? '—'
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={s.status === 'active' ? 'default' : 'secondary'}>
-                          {s.status === 'active' ? 'Active' : 'Exited'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {staff.map((s) => {
+                    const rows = assignments[s.id] ?? [];
+                    const isOpen = expanded[s.id] === true;
+                    return (
+                      <>
+                        <TableRow key={s.id}>
+                          <TableCell className="pr-0">
+                            <button
+                              type="button"
+                              aria-label={isOpen ? 'Hide positions' : 'Show positions'}
+                              aria-expanded={isOpen}
+                              onClick={() =>
+                                setExpanded((prev) => ({ ...prev, [s.id]: !prev[s.id] }))
+                              }
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              {isOpen ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </button>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{s.staff_number}</TableCell>
+                          <TableCell className="font-medium">
+                            {s.full_name || '—'}
+                            {rows.length > 1 && (
+                              <Badge variant="outline" className="ml-2 text-[10px]">
+                                {rows.length} positions
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{s.current_assignment?.role_title || '—'}</TableCell>
+                          <TableCell>{s.current_assignment?.department_name || '—'}</TableCell>
+                          <TableCell>
+                            {s.current_assignment?.manager_employee_id
+                              ? positionTitleById[s.current_assignment.manager_employee_id] ?? '—'
+                              : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={s.status === 'active' ? 'default' : 'secondary'}>
+                              {s.status === 'active' ? 'Active' : 'Exited'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button size="sm" variant="outline" onClick={() => setAddFor(s)}>
+                              <Plus className="h-3.5 w-3.5 mr-1" />
+                              Add position
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        {isOpen && (
+                          <TableRow key={`${s.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell />
+                            <TableCell colSpan={7} className="py-3">
+                              {rows.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                  No active positions for this person yet.
+                                </p>
+                              ) : (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="text-xs uppercase text-muted-foreground">
+                                        <th className="text-left font-medium py-1 pr-4">Position</th>
+                                        <th className="text-left font-medium py-1 pr-4">Department</th>
+                                        <th className="text-left font-medium py-1 pr-4">Reports to</th>
+                                        <th className="text-left font-medium py-1 pr-4">Started on</th>
+                                        <th className="text-left font-medium py-1">Primary</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map((a) => (
+                                        <tr key={a.id} className="border-t border-border/40">
+                                          <td className="py-1.5 pr-4">{a.position_title || '—'}</td>
+                                          <td className="py-1.5 pr-4">{a.department_name || '—'}</td>
+                                          <td className="py-1.5 pr-4">{a.reports_to_title || '—'}</td>
+                                          <td className="py-1.5 pr-4">{a.started_on}</td>
+                                          <td className="py-1.5">
+                                            {a.is_primary ? (
+                                              <Badge>Primary</Badge>
+                                            ) : (
+                                              <span className="text-muted-foreground">—</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
