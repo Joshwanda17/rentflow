@@ -121,44 +121,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ─── Balanced double-entry for the UGX 4,000 verification reward ───
-    const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
-      entries: [
-        {
-          user_id: agentId,
-          amount: VERIFICATION_BONUS,
-          direction: "cash_in",
-          category: "agent_commission",
-          ledger_scope: "wallet",
-          recipient_type: "user",
-          source_table: "lc1_chairpersons",
-          source_id: lc1_id,
-          description: `UGX ${VERIFICATION_BONUS.toLocaleString()} LC1 verification reward — ${lc1.name || "LC1 chairperson"}`,
-          currency: "UGX",
-          transaction_date: now,
-        },
-        {
-          amount: VERIFICATION_BONUS,
-          direction: "cash_out",
-          category: "marketing_expense",
-          ledger_scope: "platform",
-          source_table: "lc1_chairpersons",
-          source_id: lc1_id,
-          description: `Platform expense: LC1 verification reward — ${lc1.name || "LC1 chairperson"}`,
-          currency: "UGX",
-          transaction_date: now,
-        },
-      ],
-    });
-
-    if (ledgerErr) {
-      console.error("[credit-lc1-verification-bonus] Ledger write failed:", ledgerErr.message);
-      return new Response(JSON.stringify({ error: "Failed to credit verification reward" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Mark paid only after money has moved (idempotency anchor)
+    // The full UGX 5,000 reward is posted by the DB trigger
+    // `trg_pay_lc1_registration_verified_bonus` when `verified` flips to true,
+    // so this function no longer writes ledger entries (that would double-pay).
+    // Mark paid for legacy idempotency bookkeeping.
     const { error: flagErr } = await adminClient
       .from("lc1_chairpersons")
       .update({ verification_bonus_paid: true, verification_bonus_paid_at: now })
