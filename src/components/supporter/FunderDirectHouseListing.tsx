@@ -143,7 +143,7 @@ export function FunderDirectHouseListing() {
   const [selectionLocked, setSelectionLocked] = useState(false);
   // Tenant move-in / start date the earnings projection is anchored on
   const [moveInDate, setMoveInDate] = useState<Date>(() => new Date());
-  // House whose repayment details modal is open ("See more")
+  // House whose repayment details modal is open ("View repayment terms")
   const [detailsHouse, setDetailsHouse] = useState<House | null>(null);
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
