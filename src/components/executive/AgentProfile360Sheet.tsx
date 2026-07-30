@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 interface Props {
   agentId: string | null;
   onOpenChange: (open: boolean) => void;
+  /** Render the profile inline (no side sheet) */
+  inline?: boolean;
 }
 
 const dt = (v?: string | null) => (v ? new Date(v).toLocaleDateString() : '—');
@@ -47,7 +49,7 @@ function Table({ head, rows, empty }: { head: string[]; rows: (string | number)[
   );
 }
 
-export function AgentProfile360Sheet({ agentId, onOpenChange }: Props) {
+export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: Props) {
   const [tab, setTab] = useState('overview');
 
   const { data, isLoading, error } = useQuery({
@@ -78,13 +80,8 @@ export function AgentProfile360Sheet({ agentId, onOpenChange }: Props) {
     return { pct, label: pct >= 80 ? 'Strong' : pct >= 50 ? 'Fair' : pct > 0 ? 'Weak' : 'No history' };
   }, [rep]);
 
-  return (
-    <Sheet open={!!agentId} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-4">
-        <SheetHeader className="mb-3">
-          <SheetTitle className="text-base">Agent profile</SheetTitle>
-        </SheetHeader>
-
+  const body = (
+    <>
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
