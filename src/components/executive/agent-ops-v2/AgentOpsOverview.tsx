@@ -61,9 +61,8 @@ interface KpiTileProps {
   subtitle?: string;
 }
 
-function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, loading, subtitle }: KpiTileProps) {
+function KpiTile({ title, value, delta, icon: Icon, accent, onClick, loading, subtitle }: KpiTileProps) {
   const up = (delta ?? 0) >= 0;
-  const sparkData = (spark || []).map((y, x) => ({ x, y }));
   return (
     <button
       type="button"
@@ -71,7 +70,7 @@ function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, load
       className={cn(
         'group text-left rounded-2xl border border-border/50 bg-card p-3 sm:p-4',
         'shadow-sm hover:shadow-md hover:border-primary/30 transition-all active:scale-[0.98]',
-        'flex flex-col gap-1.5 min-h-[128px]',
+        'flex flex-col gap-1.5 min-h-[104px]',
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -102,15 +101,6 @@ function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, load
       {subtitle && !loading && (
         <p className="text-[10px] text-muted-foreground line-clamp-1 tabular-nums">{subtitle}</p>
       )}
-      <div className="h-8 -mx-1 -mb-1 mt-auto">
-        {sparkData.length > 1 && (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sparkData} margin={{ top: 2, right: 2, bottom: 0, left: 2 }}>
-              <Area type="monotone" dataKey="y" stroke="hsl(var(--primary))" strokeWidth={1.5} fill="hsl(var(--primary))" fillOpacity={0.15} dot={false} isAnimationActive={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </div>
     </button>
   );
 }
