@@ -21,6 +21,7 @@ import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
 import { RecentlyVerifiedList } from './RecentlyVerifiedList';
 import { RejectedFieldDepositsList } from './RejectedFieldDepositsList';
 import { EmailAutoMatchPanel } from './EmailAutoMatchPanel';
+import { PendingUserDepositsPanel } from './PendingUserDepositsPanel';
 import { EmailNeedsReviewPanel } from './EmailNeedsReviewPanel';
 import { EmailMatchAuditLogPanel } from './EmailMatchAuditLogPanel';
 import { DepositDecisionAuditPanel } from './DepositDecisionAuditPanel';
@@ -399,6 +400,7 @@ export function VerifyDepositsHub() {
           >
             <ul className="flex items-center gap-2 py-1 w-max">
               {[
+                { id: 'sec-pending-user', label: 'Pending', Icon: AlertTriangle },
                 { id: 'sec-auto-match', label: 'Auto-match', Icon: Mail },
                 { id: 'sec-needs-review', label: 'Needs review', Icon: AlertTriangle },
                 { id: 'sec-verify-tid', label: 'Verify TID', Icon: KeyRound },
@@ -423,6 +425,19 @@ export function VerifyDepositsHub() {
               ))}
             </ul>
           </nav>
+
+          <section
+            id="sec-pending-user"
+            aria-label="Pending user deposits"
+            className="scroll-mt-24"
+          >
+            <SectionHeader
+              icon={AlertTriangle}
+              title="Pending user deposits"
+              subtitle="Every submitted deposit still awaiting verification — shown even before a receipt arrives."
+            />
+            <PendingUserDepositsPanel />
+          </section>
 
           <section
             id="sec-verify-tid"
