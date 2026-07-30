@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calcFunderEarnings, sumFunderEarnings } from '@/lib/funderEarnings';
+import { FunderEarningsAssumptions } from './FunderEarningsAssumptions';
+import { FunderEarningsBreakdown } from './FunderEarningsBreakdown';
 import { useWallet } from '@/hooks/useWallet';
 import { Button } from '@/components/ui/button';
 import { FunderTopUpDialog } from './FunderTopUpDialog';
@@ -589,6 +591,12 @@ export function FunderDirectHouseListing() {
         </Popover>
       </div>
 
+      {/* How the projections are calculated */}
+      <FunderEarningsAssumptions
+        startDate={moveInDate}
+        endDate={addMonths(moveInDate, 12)}
+        daysInTerm={selectionTotals.daysInTerm}
+      />
 
       {/* Active filter chips */}
       <AnimatePresence>
@@ -759,6 +767,7 @@ export function FunderDirectHouseListing() {
                     <p className="text-[9px] text-muted-foreground">
                       Capital needed {formatUGX(earn.capital)} · from {format(earn.startDate, 'd MMM')} over {earn.daysInTerm} days
                     </p>
+                    <FunderEarningsBreakdown earn={earn} />
                     <button
                       type="button"
                       onClick={(e) => {
