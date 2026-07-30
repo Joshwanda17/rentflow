@@ -2205,7 +2205,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 <SelectTrigger className="h-12 w-full text-base">
                   <SelectValue placeholder="Select house type" />
                 </SelectTrigger>
-                <SelectContent className="z-[60] bg-popover">
+                <SelectContent className="bg-popover">
                   {HOUSE_CATEGORIES.map(c => (
                     <SelectItem key={c.value} value={c.value}>
                       <span className="mr-2">{c.emoji}</span>
