@@ -164,17 +164,16 @@ Deno.serve(async (req) => {
     } else {
       const { error: insertErr } = await serviceClient
         .from('agent_landlord_float')
-        .upsert(
-          {
-            agent_id: bonusAgentId,
-            balance: request.rent_amount,
-            total_funded: request.rent_amount,
-            total_paid_out: 0,
-          },
-          { onConflict: 'agent_id' },
-        )
+        .insert({
+          agent_id: bonusAgentId,
+          balance: request.rent_amount,
+          total_funded: request.rent_amount,
+          total_paid_out: 0,
+        })
 
-      if (insertErr) {
+      // 23505 = the allocation trigger already created the float row with the
+      // correct derived balance; that is the expected happy path.
+      if (insertErr && insertErr.code !== '23505') {
         if (allocation?.id) {
           await serviceClient
             .from('agent_landlord_float_allocations')
