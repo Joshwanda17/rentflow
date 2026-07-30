@@ -419,18 +419,89 @@ Deno.serve(async (req) => {
       ...recs.map((r, i) => `${i + 1}. ${r.replace(/<[^>]+>/g, '')}`),
     ].join('\n');
 
-    const form = new URLSearchParams();
+    // ---- Downloadable PDF attachment ------------------------------------
+    const pdfBytes = await buildCtoPdf({
+      dateStr,
+      generatedAt: String(d.generated_at || '').slice(0, 19).replace('T', ' '),
+      health, healthLabel,
+      scoreParts: scoreParts.map((p) => ({ label: p.label, weight: p.w, value: Math.round(p.v) })),
+      summaryPoints,
+      platform: [
+        ['Total users', fmt(P.total_users)], ['New users today', fmt(P.new_users_today)],
+        ['Active 24h', fmt(P.active_24h)], ['Active 7d', fmt(P.active_7d)],
+        ['Active 30d', fmt(P.active_30d)], ['System events today', fmt(P.events_today)],
+        ['Events vs prior day', delta(n(P.events_today), n(P.events_prev_day))],
+        ['Ledger postings today', fmt(P.txn_today)],
+        ['Client errors today', fmt(E.today)], ['Client error rate', `${errRate.toFixed(2)}%`],
+        ['Users affected by errors', fmt(E.affected_users_today)], ['Browser compat events 7d', fmt(E.compat_events_7d)],
+      ],
+      errorTrend: trend.map((t: any) => ({ label: String(t.d), value: n(t.n) })),
+      infra: [
+        ['Database size', bytes(I.db_size_bytes)], ['Cache hit ratio', `${cacheHit.toFixed(2)}%`],
+        ['Connections', `${fmt(I.connections)} / ${fmt(I.max_connections)}`], ['Connection saturation', `${connSat.toFixed(0)}%`],
+        ['Uptime hours', fmt(I.uptime_hours)], ['Deadlocks since boot', fmt(I.deadlocks)],
+        ['Commits', fmt(I.commits)], ['Rolled-back transactions', fmt(I.rollbacks)],
+        ['Scheduled automations', fmt(J.total_scheduled)], ['Automation runs 24h', fmt(J.runs_24h)],
+        ['Failed runs 24h', fmt(J.failed_24h)], ['Automation failure rate', `${jobFailRate.toFixed(1)}%`],
+      ],
+      largestTables: largest.map((t: any) => ({ label: String(t.table_name), value: n(t.bytes), display: bytes(t.bytes) })),
+      failingJobs: failingJobs.map((j: any) => [String(j.jobname), fmt(j.n), String(j.last_error || '').replace(/\s+/g, ' ')]),
+      topRoutes: topRoutes.map((r: any) => [String(r.route), fmt(r.n)]),
+      topMessages: topMsgs.map((m: any) => [String(m.message), fmt(m.n)]),
+      slowQueries: slow.map((q: any) => [String(q.query).replace(/\s+/g, ' '), fmt(q.mean_ms), fmt(q.calls)]),
+      security: [
+        ['RLS coverage', `${rlsCoverage.toFixed(1)}%`], ['Tables with RLS', `${fmt(S.rls_tables)} of ${fmt(S.public_tables)}`],
+        ['Privileged accounts', fmt(S.privileged_accounts)], ['Active fraud blocks', fmt(S.fraud_blocks_active)],
+        ['Fraud blocks raised today', fmt(S.fraud_blocks_today)], ['Blocked signup IPs', fmt(S.blocked_ips_total)],
+        ['Signup attempts today', fmt(S.signup_attempts_today)], ['Signups rejected today', fmt(S.signup_blocked_today)],
+        ['Login failures today', fmt(A.login_failures_today)], ['Login failure rate', `${loginFailRate.toFixed(1)}%`],
+        ['OTP attempts today', fmt(A.otp_attempts_today)], ['Audit writes today', fmt(S.audit_writes_today)],
+      ],
+      experience: [
+        ['Average sign-in latency', `${fmt(A.avg_login_ms_today)} ms`], ['Authentication success', `${(100 - loginFailRate).toFixed(1)}%`],
+        ['Weekly active share', `${pct(n(P.active_7d), Math.max(1, n(P.total_users))).toFixed(1)}%`],
+        ['Monthly active share', `${pct(n(P.active_30d), Math.max(1, n(P.total_users))).toFixed(1)}%`],
+        ['Emails sent today', fmt(M.sent_today)], ['Emails failed today', fmt(M.failed_today)],
+        ['Notification delivery', `${(100 - emailFailRate).toFixed(1)}%`], ['Emails sent 7d', fmt(M.sent_7d)],
+        ['Backup runs 7d', fmt(B.runs_7d)], ['Backup failures 7d', fmt(B.failures_7d)],
+        ['Latest backup status', B.latest?.status ? String(B.latest.status) : 'none'],
+        ['Latest backup at', B.latest?.created_at ? String(B.latest.created_at).slice(0, 16).replace('T', ' ') : 'no run recorded'],
+      ],
+      risks: risks.map((r) => [r.area, r.risk, r.likelihood, r.impact, r.action]),
+      compliance: [
+        ['Row level security enforced', rlsCoverage >= 98 ? 'Compliant' : 'Partial', `${fmt(S.rls_tables)} of ${fmt(S.public_tables)} public tables`],
+        ['Immutable audit trail', n(S.audit_writes_today) > 0 ? 'Active' : 'No writes today', `${fmt(S.audit_writes_today)} entries logged`],
+        ['Data backup and retention', backupOk ? 'Compliant' : 'Attention', `${fmt(B.runs_7d)} runs, ${fmt(B.failures_7d)} failures in 7 days`],
+        ['Privileged access review', n(S.privileged_accounts) <= 25 ? 'Within limit' : 'Review needed', `${fmt(S.privileged_accounts)} privileged accounts`],
+        ['Fraud and AML controls', 'Operating', `${fmt(S.fraud_blocks_active)} active identity blocks`],
+        ['Double-entry financial integrity', 'Enforced', `${fmt(P.txn_today)} balanced ledger postings today`],
+      ],
+      kpis: [
+        ['Technology health score', String(health), '85+'],
+        ['Client error rate', `${errRate.toFixed(2)}%`, 'Below 1%'],
+        ['Authentication success', `${(100 - loginFailRate).toFixed(1)}%`, '90%+'],
+        ['Automation success', `${(100 - jobFailRate).toFixed(1)}%`, '99%+'],
+        ['Database cache hit', `${cacheHit.toFixed(2)}%`, '99%+'],
+        ['Connection headroom', `${(100 - connSat).toFixed(0)}%`, '40%+'],
+        ['Notification delivery', `${(100 - emailFailRate).toFixed(1)}%`, '95%+'],
+      ],
+      recommendations: recs.map((r) => r.replace(/<[^>]+>/g, '')),
+    });
+    const pdfName = `Welile_Daily_CTO_Report_${dateStr}.pdf`;
+
+    const form = new FormData();
     form.append('from', FROM);
     for (const r of recipients) form.append('to', r);
     form.append('h:Reply-To', REPLY_TO);
     form.append('subject', `Daily CTO Report — ${dateStr} — Health ${health}/100 (${healthLabel})`);
     form.append('text', text);
     form.append('html', html);
+    form.append('attachment', new Blob([pdfBytes], { type: 'application/pdf' }), pdfName);
 
     const mgRes = await fetch(`${mgBase}/v3/${mgDomain}/messages`, {
       method: 'POST',
-      headers: { Authorization: `Basic ${btoa(`api:${mgKey}`)}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
+      headers: { Authorization: `Basic ${btoa(`api:${mgKey}`)}` },
+      body: form,
     });
     if (!mgRes.ok) {
       const errBody = await mgRes.text();
@@ -440,7 +511,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, date: dateStr, recipients, health, risks: risks.length }), {
+    return new Response(JSON.stringify({ ok: true, date: dateStr, recipients, health, risks: risks.length, attachment: pdfName, pdf_bytes: pdfBytes.length }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
