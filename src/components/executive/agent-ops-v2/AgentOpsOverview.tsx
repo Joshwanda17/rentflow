@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { format, subDays, subHours } from 'date-fns';
 import {
-  ResponsiveContainer, AreaChart, Area, LineChart, Line,
+  ResponsiveContainer, AreaChart, Area,
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend,
 } from 'recharts';
@@ -117,7 +117,6 @@ function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, load
 
 interface OverviewPayload {
   kpis: Record<string, number>;
-  listings_funnel: { listed: number; verified: number; placed: number };
   trend: Array<{ day: string; agents: number; requests: number; collections: number; commission: number; active_agents: number; expected?: number; pending?: number }>;
   top_performers?: Array<{
     user_id: string; name: string; phone: string | null; category: 'Agent' | 'Sub-Agent';
@@ -179,13 +178,6 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
     { name: 'Approved', value: Number(k.rent_approved || 0), fill: 'hsl(199 89% 48%)' },
     { name: 'Repaying', value: Number(k.rent_repaying || 0), fill: 'hsl(160 84% 39%)' },
     { name: 'Rejected', value: Number(k.rent_rejected || 0), fill: 'hsl(0 84% 60%)' },
-  ];
-
-  const funnel = data?.listings_funnel || { listed: 0, verified: 0, placed: 0 };
-  const listingsData = [
-    { name: 'Listed', value: funnel.listed },
-    { name: 'Verified', value: funnel.verified },
-    { name: 'Placed', value: funnel.placed },
   ];
 
   return (
@@ -367,45 +359,11 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <h3 className="text-sm font-semibold">Commission vs Collections</h3>
-              <p className="text-[11px] text-muted-foreground">Wallet commission credits & field collections (UGX)</p>
-            </div>
-          </div>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number) => fmtMoney(v)} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="collections" name="Collections" stroke="hsl(160 84% 39%)" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="commission" name="Commission" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
       </div>
 
       {/* Row C — mini charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
-          <h3 className="text-sm font-semibold mb-2">Listings Funnel</h3>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={listingsData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Bar dataKey="value" fill="hsl(38 92% 50%)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+      {/* Row C — mini charts */}
+      <div className="grid grid-cols-1 gap-3">
 
         <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-2">Rent Pipeline</h3>
