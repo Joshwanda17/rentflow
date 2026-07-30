@@ -57,3 +57,4 @@
 - [Proxy Weekend Badge](mem://features/agent/proxy-weekend-badge) — ProxyPartnerFunds shows amber "Weekend" badge next to partner name when `proxy_agent_assignments.created_at` day-of-week is Sat/Sun (client-derived, no schema change)
 - [Daytime listing window](mem://business-model/daytime-listing-window) — Agents/sub-agents can only insert `house_listings` 06:00–18:00 EAT; enforced by `trg_enforce_daytime_house_listing` + client gate in `ListEmptyHouseDialog`; ops/managers/admins bypass
 - [Deposit match alerts](mem://features/financial-ops/deposit-match-alerts) — configurable-window ops email alerts when a deposit submission or incoming email receipt fails to match
+- [Daily CTO Report](mem://features/cto/daily-cto-report) — 14-section executive technology report emailed 00:00 EAT (get_cto_daily_report RPC + daily-cto-report edge fn + cron)
