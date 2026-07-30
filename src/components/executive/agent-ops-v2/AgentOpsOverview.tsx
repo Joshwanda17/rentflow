@@ -213,13 +213,13 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         </div>
       </div>
 
-      {/* Row A — 8 KPI tiles */}
+      {/* Row A — network KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         <KpiTile
           title="Total Agents"
           value={fmtNum(k.total_agents || 0)}
           delta={pctDelta(k.total_agents || 0, k.total_agents_prev || 0)}
-          subtitle={`of ${fmtNum(k.total_users || 0)} users`}
+          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new this period`}
           icon={Users}
           accent="bg-primary"
           onClick={() => onOpenSection('directory')}
@@ -237,62 +237,110 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           loading={isLoading}
         />
         <KpiTile
-          title="New Agents"
-          value={fmtNum(k.new_agents_curr || 0)}
-          delta={pctDelta(k.new_agents_curr || 0, k.new_agents_prev || 0)}
-          subtitle={`of ${fmtNum(k.total_agents || 0)} agents`}
-          icon={UserPlus}
+          title="Total Sub-Agents"
+          value={fmtNum(k.total_subagents || 0)}
+          delta={pctDelta(k.total_subagents || 0, k.total_subagents_prev || 0)}
+          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new this period`}
+          icon={UsersRound}
           accent="bg-sky-600"
-          spark={trendData.map((t) => t.agents)}
           onClick={() => onOpenSection('sub-agents')}
           loading={isLoading}
         />
         <KpiTile
-          title="Rent Requests"
-          value={fmtNum(k.rent_req_curr || 0)}
-          delta={pctDelta(k.rent_req_curr || 0, k.rent_req_prev || 0)}
-          icon={FileText}
+          title="Active Sub-Agents"
+          value={fmtNum(k.active_subagents_curr || 0)}
+          delta={pctDelta(k.active_subagents_curr || 0, k.active_subagents_prev || 0)}
+          subtitle={`of ${fmtNum(k.total_subagents || 0)} sub-agents`}
+          icon={Network}
           accent="bg-indigo-600"
-          spark={trendData.map((t) => t.requests)}
-          onClick={() => onOpenSection('pipeline')}
+          onClick={() => onOpenSection('sub-agents')}
           loading={isLoading}
         />
+      </div>
+
+      {/* Row A2 — money KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         <KpiTile
-          title="Verified Houses"
-          value={fmtNum(k.verified_houses_curr || 0)}
-          delta={pctDelta(k.verified_houses_curr || 0, k.verified_houses_prev || 0)}
-          icon={Home}
-          accent="bg-amber-600"
-          onClick={() => onOpenSection('listing-campaign')}
-          loading={isLoading}
-        />
-        <KpiTile
-          title="Collections Today"
-          value={fmtMoney(k.collections_today || 0)}
+          title="Total Collected"
+          value={fmtMoney(k.collections_curr || 0)}
+          delta={pctDelta(k.collections_curr || 0, k.collections_prev || 0)}
+          subtitle={`${fmtMoney(k.collections_today || 0)} today`}
           icon={Wallet}
+          accent="bg-emerald-700"
+          spark={trendData.map((t) => t.collected)}
+          onClick={() => onOpenSection('daily-collections-report')}
+          loading={isLoading}
+        />
+        <KpiTile
+          title="Pending Collections"
+          value={fmtMoney(k.pending_collections || 0)}
+          subtitle="Outstanding on live rent plans"
+          icon={Hourglass}
+          accent="bg-rose-600"
+          spark={trendData.map((t) => t.pending)}
+          onClick={() => onOpenSection('allocation-report')}
+          loading={isLoading}
+        />
+        <KpiTile
+          title="Total Collections"
+          value={fmtNum(k.collections_count_curr || 0)}
+          delta={pctDelta(k.collections_count_curr || 0, k.collections_count_prev || 0)}
+          subtitle={`${fmtNum(k.collections_today_count || 0)} today`}
+          icon={Receipt}
           accent="bg-teal-600"
           onClick={() => onOpenSection('daily-collections-report')}
           loading={isLoading}
         />
         <KpiTile
-          title="Commission Paid"
+          title="Commissions Paid Out"
           value={fmtMoney(k.commission_curr || 0)}
           delta={pctDelta(k.commission_curr || 0, k.commission_prev || 0)}
-          icon={Banknote}
+          icon={Coins}
           accent="bg-fuchsia-600"
           spark={trendData.map((t) => t.commission)}
           onClick={() => onOpenSection('earnings')}
           loading={isLoading}
         />
-        <KpiTile
-          title="Outstanding Advances"
-          value={fmtMoney(k.outstanding_advances || 0)}
-          icon={TrendingDown}
-          accent="bg-rose-600"
-          onClick={() => onOpenSection('active-advances')}
-          loading={isLoading}
-        />
       </div>
+
+      {/* Rent collections — pending vs collected */}
+      <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <h3 className="text-sm font-semibold">Rent Collections</h3>
+            <p className="text-[11px] text-muted-foreground">Collected (green) vs still pending (red), UGX</p>
+          </div>
+        </div>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="collectedFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(160 84% 39%)" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="hsl(160 84% 39%)" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="pendingFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(0 84% 60%)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="hsl(0 84% 60%)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number) => fmtMoney(v)} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="pending" name="Pending" stroke="hsl(0 84% 60%)" strokeWidth={2} fill="url(#pendingFill)" dot={false} />
+              <Area type="monotone" dataKey="collected" name="Collected" stroke="hsl(160 84% 39%)" strokeWidth={2} fill="url(#collectedFill)" dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Latest rent requests */}
+      <LatestRentRequests onViewAll={() => onOpenSection('pipeline')} />
+
+      {/* Top performers */}
+      <TopPerformers rows={data?.top_performers || []} loading={isLoading} />
 
       {/* Row B — trend charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
