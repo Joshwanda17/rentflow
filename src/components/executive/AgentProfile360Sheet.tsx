@@ -504,19 +504,7 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
               </TabsContent>
 
               <TabsContent value="collections" className="space-y-3 mt-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <Stat label="Collections" value={col.count ?? 0} />
-                  <Stat label="Today" value={formatUGX(Number(col.today || 0))} />
-                  <Stat label="Last 30d" value={formatUGX(Number(col.last_30d || 0))} />
-                  <Stat label="All time" value={formatUGX(Number(col.total || 0))} />
-                </div>
-                <Table
-                  head={['Tenant', 'Amount', 'Method', 'When']}
-                  rows={(col.recent ?? []).map((c: any) => [
-                    c.tenant_name ?? '—', formatUGX(Number(c.amount || 0)), c.payment_method ?? '—', dt(c.created_at),
-                  ])}
-                  empty="No collections recorded"
-                />
+                <CollectionsLedger agentId={agentId} />
               </TabsContent>
 
               <TabsContent value="network" className="space-y-3 mt-3">
