@@ -388,7 +388,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     {
       title: 'Deposits & Reconciliation',
       items: moreActions.filter(a => [
-        'bridge_health','manual_float_credit','email_tx','auto_credit_review','offline_collections',
+        'deposits','bridge_health','manual_float_credit','email_tx','auto_credit_review','offline_collections',
         'recon','recon_review','mismatch_metrics',
       ].includes(a.id as string)),
     },
