@@ -144,24 +144,8 @@ export function FunderDirectHouseListing() {
   const [selectionLocked, setSelectionLocked] = useState(false);
   // Tenant move-in / start date the earnings projection is anchored on
   const [moveInDate, setMoveInDate] = useState<Date>(() => new Date());
-  // "See more" state per house, remembered for the whole browser session
-  const [expandedIds, setExpandedIds] = useState<string[]>(() => {
-    try {
-      const raw = sessionStorage.getItem(EXPANDED_STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(expandedIds));
-    } catch {
-      /* storage unavailable — non-critical */
-    }
-  }, [expandedIds]);
+  // House whose repayment details modal is open ("See more")
+  const [detailsHouse, setDetailsHouse] = useState<House | null>(null);
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
