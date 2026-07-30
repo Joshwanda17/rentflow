@@ -163,13 +163,6 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
     pending: Number(t.pending || 0),
   }));
 
-  const rentPipelineData = [
-    { name: 'Pending', value: Number(k.rent_pending || 0), fill: 'hsl(var(--muted-foreground))' },
-    { name: 'Approved', value: Number(k.rent_approved || 0), fill: 'hsl(199 89% 48%)' },
-    { name: 'Repaying', value: Number(k.rent_repaying || 0), fill: 'hsl(160 84% 39%)' },
-    { name: 'Rejected', value: Number(k.rent_rejected || 0), fill: 'hsl(0 84% 60%)' },
-  ];
-
   return (
     <div className="space-y-4">
       {/* Range switch */}
@@ -345,26 +338,6 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
                 <Area type="monotone" dataKey="agents" name="New" stroke="hsl(199 89% 48%)" fill="hsl(199 89% 48%)" fillOpacity={0.2} />
                 <Area type="monotone" dataKey="requests" name="Requests" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} />
               </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
-
-      {/* Row C — mini charts */}
-      <div className="grid grid-cols-1 gap-3">
-        <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
-          <h3 className="text-sm font-semibold mb-2">Rent Pipeline</h3>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rentPipelineData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {rentPipelineData.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                </Bar>
-              </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
