@@ -102,6 +102,18 @@ const num = (v: string) => {
 
 const PAGE_SIZE = 10;
 
+// Sanity thresholds. Anything above these is almost certainly a mis-typed
+// order rather than a real one, so it is badged in the table and kept out of
+// the financial roll-ups.
+const OUTLIER_QTY = 20;
+const OUTLIER_VALUE = 2_000_000;
+
+const isVoidSale = (s: { order_status?: OrderStatus }) =>
+  s.order_status === 'rejected' || s.order_status === 'failed';
+
+const isOutlierSale = (s: { quantity: number; total_revenue: number }) =>
+  Number(s.quantity) > OUTLIER_QTY || Number(s.total_revenue) > OUTLIER_VALUE;
+
 function usePagination<T>(rows: T[], pageSize = PAGE_SIZE) {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
