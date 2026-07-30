@@ -27157,6 +27157,7 @@ export type Database = {
           verified: number
         }[]
       }
+      get_cto_daily_addendum: { Args: { p_date?: string }; Returns: Json }
       get_cto_daily_report: { Args: { p_date?: string }; Returns: Json }
       get_cto_diagnostics: { Args: { p_date?: string }; Returns: Json }
       get_cto_issue_intelligence: { Args: { p_date?: string }; Returns: Json }

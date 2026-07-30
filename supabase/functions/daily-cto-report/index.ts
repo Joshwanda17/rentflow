@@ -213,6 +213,27 @@ Deno.serve(async (req) => {
       console.error('[daily-cto-report] intelligence threw', e);
     }
 
+    // Same-day engineering addendum (strictly 24h scoped diagnostics)
+    let addendum: any = {};
+    try {
+      const { data: ad, error: adErr } = await supabase.rpc('get_cto_daily_addendum', { p_date: dateStr });
+      if (adErr) console.error('[daily-cto-report] addendum rpc failed', adErr);
+      else addendum = ad || {};
+    } catch (e) {
+      console.error('[daily-cto-report] addendum threw', e);
+    }
+    const adFailedJobs: any[] = Array.isArray(addendum.failed_jobs) ? addendum.failed_jobs : [];
+    const adJobsSummary: any = addendum.jobs_summary || {};
+    const adUserErrors: any[] = Array.isArray(addendum.user_errors) ? addendum.user_errors : [];
+    const adErrSummary: any = addendum.errors_summary || {};
+    const adDbExceptions: any[] = Array.isArray(addendum.db_exceptions) ? addendum.db_exceptions : [];
+    const adAntiBot: any = addendum.anti_bot || {};
+    const adAbReasons: any[] = Array.isArray(adAntiBot.reasons) ? adAntiBot.reasons : [];
+    const adAbIps: any[] = Array.isArray(adAntiBot.repeat_ips) ? adAntiBot.repeat_ips : [];
+    const adAbDevices: any[] = Array.isArray(adAntiBot.repeat_devices) ? adAntiBot.repeat_devices : [];
+    const adAuthErrors: any[] = Array.isArray(addendum.auth_errors) ? addendum.auth_errors : [];
+    const adOtpErrors: any[] = Array.isArray(addendum.otp_errors) ? addendum.otp_errors : [];
+
     const d: any = data || {};
     const P = d.platform || {}, E = d.errors || {}, A = d.auth || {}, S = d.security || {},
       I = d.infra || {}, B = d.backups || {}, J = d.jobs || {}, M = d.email || {};
@@ -1060,6 +1081,44 @@ Deno.serve(async (req) => {
     ${section('Regression Report', 28, regressionSection)}
     ${section('Engineering Action Items', 29, actionTable)}
     ${section('Business Impact of Open Defects', 30, businessImpact)}
+    ${section('Daily Scheduled Job Failures (today only)', 31,
+      `<div style="font-size:12px;color:${C.muted};margin-bottom:8px;">${fmt(adJobsSummary.runs_today)} scheduled runs today, ${fmt(adJobsSummary.failures_today)} failed across ${fmt(adJobsSummary.jobs_failing)} job(s); ${fmt(adJobsSummary.jobs_broken_all_day)} never succeeded today.</div>` +
+      table(['Job', 'Schedule', 'What it does', 'Today', 'Failures', 'Last success', 'Error', 'How to fix'],
+        adFailedJobs.map((j: any) => [
+          esc(String(j.jobname)), esc(String(j.schedule || '-')), esc(String(j.what_it_does || '')),
+          esc(String(j.today_status || '')), `${fmt(j.failures_today)} / ${fmt(j.runs_today)}`,
+          esc(String(j.last_success_eat || 'none today')),
+          esc(String(j.last_error || '').slice(0, 240)), esc(String(j.how_to_fix || '')),
+        ])))}
+    ${section('User-Facing Error Breakdown (today only)', 32,
+      `<div style="font-size:12px;color:${C.muted};margin-bottom:8px;">${fmt(adErrSummary.total_today)} errors today across ${fmt(adErrSummary.distinct_signatures)} distinct signatures, affecting ${fmt(adErrSummary.users_today)} users.</div>` +
+      table(['Error', 'Times', 'Users', 'What the user experienced', 'Route', 'Role', 'Browser / device', 'Window', 'Engineering action'],
+        adUserErrors.map((e2: any) => [
+          esc(String(e2.signature || '')), fmt(e2.occurrences), fmt(e2.users),
+          esc(String(e2.user_impact || '')), esc(String(e2.top_route || '-')), esc(String(e2.top_role || '-')),
+          `${esc(String(e2.top_browser || '-'))} / ${esc(String(e2.top_device || '-'))}`,
+          `${esc(String(e2.first_seen_eat || '-'))}-${esc(String(e2.last_seen_eat || '-'))}`,
+          esc(String(e2.engineering_action || '')),
+        ])))}
+    ${section('Database Exception and Rolled-Back Transaction Register (today only)', 33,
+      table(['Source', 'Exception', 'Occurrences', 'Last seen'],
+        adDbExceptions.map((x: any) => [
+          esc(String(x.src || '')), esc(String(x.signature || '')), fmt(x.occurrences), ts(x.last_seen),
+        ])))}
+    ${section('Anti-Bot and Signup Abuse (today only)', 34,
+      `<div style="font-size:12px;color:${C.muted};margin-bottom:8px;">${fmt(adAntiBot.attempts_today)} signup attempts, ${fmt(adAntiBot.rejected_today)} rejected, ${fmt(adAntiBot.distinct_ips)} IP addresses, ${fmt(adAntiBot.distinct_devices)} devices, ${fmt(adAntiBot.ips_blocked_today)} IPs blocked today.</div>` +
+      subLabel('Rejection reasons') +
+      table(['Reason', 'Attempts', 'IPs', 'Devices'], adAbReasons.map((r: any) => [esc(String(r.reason)), fmt(r.n), fmt(r.ips), fmt(r.devices)])) +
+      subLabel('Repeat IP addresses') +
+      table(['IP', 'Attempts', 'Rejected', 'Identities', 'Devices'], adAbIps.map((r: any) => [esc(String(r.ip)), fmt(r.attempts), fmt(r.rejected), fmt(r.identities), fmt(r.devices)])) +
+      subLabel('Repeat devices') +
+      table(['Device fingerprint', 'Attempts', 'IPs', 'Identities'], adAbDevices.map((r: any) => [esc(String(r.device_fp).slice(0, 24)), fmt(r.attempts), fmt(r.ips), fmt(r.identities)])))}
+    ${section('Authentication Errors Users Faced (today only)', 35,
+      table(['What the user hit', 'Times', 'Users', 'Stage'],
+        adAuthErrors.map((r: any) => [esc(String(r.reason)), fmt(r.n), fmt(r.users), esc(String(r.worst_phase || '-'))])) +
+      subLabel('One-time password failures') +
+      table(['Reason', 'Stage', 'Times', 'Phones'],
+        adOtpErrors.map((r: any) => [esc(String(r.reason)), esc(String(r.stage)), fmt(r.n), fmt(r.phones)])))}
 
     <div style="margin-top:26px;border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.muted};">
       Generated automatically from live production telemetry at ${esc(String(d.generated_at || '').slice(0, 19).replace('T', ' '))} UTC. Overall technology health score: ${health} of 100 (${healthLabel}).
@@ -1153,6 +1212,59 @@ Deno.serve(async (req) => {
       ],
       recommendations: recs.map((r) => r.replace(/<[^>]+>/g, '')),
       diagSections: [
+        {
+          title: 'Daily Scheduled Job Failures (today only)',
+          headers: ['Job', 'Schedule', 'What it does', 'Today', 'Fail/Runs', 'Last success', 'Error', 'How to fix'],
+          weights: [0.13, 0.08, 0.16, 0.1, 0.07, 0.07, 0.21, 0.18],
+          rows: adFailedJobs.map((j: any) => [
+            String(j.jobname), String(j.schedule || '-'), String(j.what_it_does || ''),
+            String(j.today_status || ''), `${fmt(j.failures_today)}/${fmt(j.runs_today)}`,
+            String(j.last_success_eat || 'none'), String(j.last_error || '').slice(0, 220),
+            String(j.how_to_fix || ''),
+          ]),
+        },
+        {
+          title: 'User-Facing Error Breakdown (today only)',
+          headers: ['Error', 'Times', 'Users', 'User experience', 'Route', 'Role', 'Browser/device', 'Window', 'Action'],
+          weights: [0.19, 0.05, 0.05, 0.19, 0.11, 0.06, 0.09, 0.07, 0.19],
+          rows: adUserErrors.map((e2: any) => [
+            String(e2.signature || '').slice(0, 120), fmt(e2.occurrences), fmt(e2.users),
+            String(e2.user_impact || ''), String(e2.top_route || '-'), String(e2.top_role || '-'),
+            `${e2.top_browser || '-'} / ${e2.top_device || '-'}`,
+            `${e2.first_seen_eat || '-'}-${e2.last_seen_eat || '-'}`,
+            String(e2.engineering_action || ''),
+          ]),
+        },
+        {
+          title: 'Database Exceptions and Rolled-Back Transactions (today only)',
+          headers: ['Source', 'Exception', 'Occurrences', 'Last seen'],
+          weights: [0.14, 0.58, 0.11, 0.17],
+          rows: adDbExceptions.map((x: any) => [
+            String(x.src || ''), String(x.signature || ''), fmt(x.occurrences), ts(x.last_seen),
+          ]),
+        },
+        {
+          title: 'Anti-Bot and Signup Abuse (today only)',
+          headers: ['Signal', 'Detail', 'Attempts', 'Rejected', 'IPs/Devices', 'Identities'],
+          weights: [0.16, 0.32, 0.12, 0.12, 0.14, 0.14],
+          rows: [
+            ['Summary', `${fmt(adAntiBot.attempts_today)} attempts today, ${fmt(adAntiBot.ips_blocked_today)} IPs blocked`,
+              fmt(adAntiBot.attempts_today), fmt(adAntiBot.rejected_today),
+              `${fmt(adAntiBot.distinct_ips)} / ${fmt(adAntiBot.distinct_devices)}`, '-'],
+            ...adAbReasons.map((r: any) => ['Rejection reason', String(r.reason), fmt(r.n), fmt(r.n), `${fmt(r.ips)} / ${fmt(r.devices)}`, '-']),
+            ...adAbIps.map((r: any) => ['Repeat IP', String(r.ip), fmt(r.attempts), fmt(r.rejected), `${fmt(r.devices)} devices`, fmt(r.identities)]),
+            ...adAbDevices.map((r: any) => ['Repeat device', String(r.device_fp).slice(0, 28), fmt(r.attempts), '-', `${fmt(r.ips)} IPs`, fmt(r.identities)]),
+          ],
+        },
+        {
+          title: 'Authentication Errors Users Faced (today only)',
+          headers: ['What the user hit', 'Times', 'Users', 'Stage'],
+          weights: [0.5, 0.11, 0.11, 0.28],
+          rows: [
+            ...adAuthErrors.map((r: any) => [String(r.reason), fmt(r.n), fmt(r.users), String(r.worst_phase || '-')]),
+            ...adOtpErrors.map((r: any) => [`OTP: ${r.reason}`, fmt(r.n), `${fmt(r.phones)} phones`, String(r.stage || '-')]),
+          ],
+        },
         {
           title: 'Top 10 Issues Requiring Immediate Engineering Attention',
           headers: ['#', 'Issue', 'Severity', 'Users', 'Revenue risk', 'Root cause', 'Team', 'Resolution', 'Status'],
