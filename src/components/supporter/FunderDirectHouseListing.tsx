@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Home, ArrowRight, X, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, MapPin, Home, ArrowRight, X, AlertCircle, RefreshCw, Check, Wallet, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { calcFunderEarnings, sumFunderEarnings } from '@/lib/funderEarnings';
+import { useWallet } from '@/hooks/useWallet';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
@@ -101,6 +104,9 @@ function ListingSkeleton() {
 
 export function FunderDirectHouseListing() {
   const navigate = useNavigate();
+  const { wallet } = useWallet();
+  const walletBalance = wallet?.balance ?? 0;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -300,6 +306,13 @@ export function FunderDirectHouseListing() {
     navigate(`/house/${house.short_code || house.id}`, { state: { from: 'funder' } });
   };
 
+  const toggleSelect = (id: string) => {
+    hapticTap();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const goExplore = () => {
     hapticTap();
     navigate('/find-a-house', { state: { from: 'funder' } });
@@ -327,6 +340,10 @@ export function FunderDirectHouseListing() {
       onRemove: () => setRooms('all'),
     },
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
+
+  const selectedHouses = (houses ?? []).filter((h) => selectedIds.includes(h.id));
+  const selectionTotals = sumFunderEarnings(selectedHouses.map((h) => h.monthly_rent));
+  const shortfall = Math.max(0, selectionTotals.capital - walletBalance);
 
   if (loading) {
     return <ListingSkeleton />;
@@ -506,7 +523,10 @@ export function FunderDirectHouseListing() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {filtered.map((house) => (
+          {filtered.map((house) => {
+            const earn = calcFunderEarnings(house.monthly_rent);
+            const selected = selectedIds.includes(house.id);
+            return (
             <motion.div
               key={house.id}
               layout
@@ -518,7 +538,9 @@ export function FunderDirectHouseListing() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') openHouse(house);
               }}
-              className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className={`rounded-2xl border bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                selected ? 'border-primary ring-2 ring-primary/30' : 'border-border/60'
+              }`}
               aria-label={`View details for ${house.title}`}
             >
               <div className="relative w-full h-36 bg-muted">
@@ -570,9 +592,60 @@ export function FunderDirectHouseListing() {
                   <span className="text-[9px] font-normal text-muted-foreground">/day</span>
                 </p>
                 <MoveInOfferBadge className="mt-1" />
+
+                {/* Funder earning projection — 15% of monthly rent */}
+                {earn.capital > 0 && (
+                  <div className="mt-2 rounded-xl border border-primary/20 bg-primary/5 p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        <TrendingUp className="h-3 w-3 text-primary" /> You earn
+                      </span>
+                      <span className="text-[9px] font-semibold text-muted-foreground">
+                        15% / month
+                      </span>
+                    </div>
+                    <p className="text-base font-black text-primary leading-none">
+                      {formatUGX(earn.monthly)}
+                      <span className="text-[9px] font-normal text-muted-foreground"> /month</span>
+                    </p>
+                    <div className="grid grid-cols-3 gap-1 pt-0.5">
+                      {[
+                        { label: 'Daily', value: earn.daily },
+                        { label: 'Weekly', value: earn.weekly },
+                        { label: '12 months', value: earn.annual },
+                      ].map((m) => (
+                        <div key={m.label} className="text-center">
+                          <p className="text-[10px] font-black text-foreground leading-tight">
+                            {formatUGX(m.value)}
+                          </p>
+                          <p className="text-[8px] text-muted-foreground font-medium">{m.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-muted-foreground">
+                      Capital needed {formatUGX(earn.capital)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelect(house.id);
+                      }}
+                      aria-pressed={selected}
+                      className={`w-full h-9 rounded-xl text-[11px] font-bold inline-flex items-center justify-center gap-1.5 transition-colors touch-manipulation ${
+                        selected
+                          ? 'bg-primary text-primary-foreground'
+                          : 'border border-primary/40 text-primary hover:bg-primary/10'
+                      }`}
+                    >
+                      {selected ? (<><Check className="h-3.5 w-3.5" /> Selected</>) : 'Select to earn'}
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -595,6 +668,89 @@ export function FunderDirectHouseListing() {
           </button>
         </div>
       )}
+
+      {/* Persistent earnings summary for the current selection */}
+      <AnimatePresence>
+        {selectedHouses.length > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            className="fixed inset-x-3 bottom-20 z-40 rounded-2xl border border-primary/30 bg-card/95 backdrop-blur shadow-2xl p-3.5 space-y-3 max-w-xl mx-auto"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  {selectedHouses.length} {selectedHouses.length === 1 ? 'house' : 'houses'} selected
+                </p>
+                <p className="text-xl font-black text-primary leading-tight">
+                  {formatUGX(selectionTotals.monthly)}
+                  <span className="text-[10px] font-normal text-muted-foreground"> /month</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { hapticTap(); setSelectedIds([]); }}
+                className="text-[10px] font-semibold text-muted-foreground hover:text-foreground shrink-0"
+              >
+                Clear
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Daily', value: selectionTotals.daily },
+                { label: 'Weekly', value: selectionTotals.weekly },
+                { label: '12 months', value: selectionTotals.annual },
+              ].map((m) => (
+                <div key={m.label} className="rounded-xl bg-muted/40 py-1.5 text-center">
+                  <p className="text-[11px] font-black text-foreground leading-tight">
+                    {formatUGX(m.value)}
+                  </p>
+                  <p className="text-[8px] text-muted-foreground font-medium">{m.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Capital to landlords</span>
+              <span className="font-bold text-foreground">{formatUGX(selectionTotals.capital)}</span>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Wallet balance</span>
+              <span className="font-bold text-foreground">{formatUGX(walletBalance)}</span>
+            </div>
+
+            {shortfall > 0 ? (
+              <Button
+                onClick={() => {
+                  hapticTap();
+                  window.dispatchEvent(new CustomEvent('open-deposit'));
+                }}
+                className="w-full h-11 rounded-xl text-xs font-bold gap-2 uppercase tracking-wide"
+              >
+                <Wallet className="h-4 w-4" />
+                Add {formatUGX(shortfall)} to wallet
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  hapticTap();
+                  window.dispatchEvent(new CustomEvent('open-deposit'));
+                }}
+                className="w-full h-11 rounded-xl text-xs font-bold gap-2 uppercase tracking-wide"
+              >
+                <Wallet className="h-4 w-4" />
+                Fund selected houses
+              </Button>
+            )}
+            <p className="text-[9px] text-muted-foreground/80 text-center leading-relaxed">
+              You earn 15% of each house's monthly rent while the tenant repays.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
