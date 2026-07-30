@@ -1,8 +1,22 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
-import { Eye, MousePointerClick, Lock, Wallet } from 'lucide-react';
-import { subDays } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Eye, MousePointerClick, Lock, Wallet, CalendarIcon } from 'lucide-react';
+import {
+  subDays,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  startOfMonth,
+  endOfMonth,
+  format,
+  differenceInCalendarDays,
+} from 'date-fns';
 
 const STEPS = [
   { key: 'funder_house_repayment_terms_viewed', label: 'Viewed repayment terms', icon: Eye, color: 'bg-primary/10 text-primary' },
@@ -15,37 +29,78 @@ type StepKey = (typeof STEPS)[number]['key'];
 
 type FunnelData = {
   events: Record<StepKey, number>;
-  users: Record<StepKey, number>;
-  /** Funders who viewed terms and later reached the given step. */
   progressed: Record<StepKey, number>;
 };
 
-const WINDOW_DAYS = 30;
+type PresetKey = 'today' | 'week' | '7d' | '30d' | 'month' | '90d' | 'custom';
+
+const PRESETS: { key: Exclude<PresetKey, 'custom'>; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'week', label: 'This week' },
+  { key: '7d', label: 'Last 7 days' },
+  { key: '30d', label: 'Last 30 days' },
+  { key: 'month', label: 'This month' },
+  { key: '90d', label: 'Last 90 days' },
+];
+
+function rangeForPreset(preset: Exclude<PresetKey, 'custom'>): { from: Date; to: Date } {
+  const now = new Date();
+  switch (preset) {
+    case 'today':
+      return { from: startOfDay(now), to: endOfDay(now) };
+    case 'week':
+      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfDay(now) };
+    case '7d':
+      return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
+    case 'month':
+      return { from: startOfMonth(now), to: endOfMonth(now) };
+    case '90d':
+      return { from: startOfDay(subDays(now, 89)), to: endOfDay(now) };
+    case '30d':
+    default:
+      return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
+  }
+}
 
 export function FunderFunnelPanel() {
+  const [preset, setPreset] = useState<PresetKey>('30d');
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfDay(subDays(new Date(), 13)));
+  const [customTo, setCustomTo] = useState<Date | undefined>(endOfDay(new Date()));
+
+  const range = useMemo(() => {
+    if (preset === 'custom') {
+      const from = customFrom ? startOfDay(customFrom) : startOfDay(subDays(new Date(), 29));
+      const to = customTo ? endOfDay(customTo) : endOfDay(new Date());
+      return from <= to ? { from, to } : { from: to, to: from };
+    }
+    return rangeForPreset(preset);
+  }, [preset, customFrom, customTo]);
+
+  const days = differenceInCalendarDays(range.to, range.from) + 1;
+
   const { data, isLoading } = useQuery<FunnelData>({
-    queryKey: ['exec-funder-funnel-panel', WINDOW_DAYS],
+    queryKey: ['exec-funder-funnel-panel', range.from.toISOString(), range.to.toISOString()],
     staleTime: 300_000,
     queryFn: async () => {
-      const since = subDays(new Date(), WINDOW_DAYS).toISOString();
       const { data: rows, error } = await supabase
         .from('system_events')
         .select('event_type, user_id, created_at')
         .in('event_type', STEPS.map((s) => s.key))
-        .gte('created_at', since)
+        .gte('created_at', range.from.toISOString())
+        .lte('created_at', range.to.toISOString())
         .order('created_at', { ascending: true })
         .limit(20000);
       if (error) throw error;
 
       const events = {} as Record<StepKey, number>;
-      const userSets = {} as Record<StepKey, Set<string>>;
+      const progressedSets = {} as Record<StepKey, Set<string>>;
       STEPS.forEach((s) => {
         events[s.key] = 0;
-        userSets[s.key] = new Set<string>();
+        progressedSets[s.key] = new Set<string>();
       });
 
-      // First "viewed terms" timestamp per funder — later steps only count as
-      // progression if they happen at or after that first view.
+      // First "viewed terms" timestamp per funder within the range — later
+      // steps only count as progression if they happen at or after it.
       const firstView: Record<string, string> = {};
       (rows || []).forEach((r: any) => {
         if (r.event_type === 'funder_house_repayment_terms_viewed' && r.user_id && !firstView[r.user_id]) {
@@ -53,27 +108,19 @@ export function FunderFunnelPanel() {
         }
       });
 
-      const progressedSets = {} as Record<StepKey, Set<string>>;
-      STEPS.forEach((s) => { progressedSets[s.key] = new Set<string>(); });
-
       (rows || []).forEach((r: any) => {
         const key = r.event_type as StepKey;
         if (!(key in events)) return;
         events[key]++;
         if (!r.user_id) return;
-        userSets[key].add(r.user_id);
         const fv = firstView[r.user_id];
         if (fv && r.created_at >= fv) progressedSets[key].add(r.user_id);
       });
 
-      const users = {} as Record<StepKey, number>;
       const progressed = {} as Record<StepKey, number>;
-      STEPS.forEach((s) => {
-        users[s.key] = userSets[s.key].size;
-        progressed[s.key] = progressedSets[s.key].size;
-      });
+      STEPS.forEach((s) => { progressed[s.key] = progressedSets[s.key].size; });
 
-      return { events, users, progressed };
+      return { events, progressed };
     },
   });
 
@@ -82,11 +129,76 @@ export function FunderFunnelPanel() {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold">Funder conversion funnel</h3>
-        <p className="text-[11px] text-muted-foreground">
-          Funders who opened “View repayment terms” and how far they went — last {WINDOW_DAYS} days.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold">Funder conversion funnel</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Funders who opened “View repayment terms” and how far they went ·{' '}
+            {format(range.from, 'd MMM yyyy')} – {format(range.to, 'd MMM yyyy')} ({days} day{days === 1 ? '' : 's'})
+          </p>
+        </div>
+      </div>
+
+      {/* Date range controls */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {PRESETS.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => setPreset(p.key)}
+            className={cn(
+              'rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors touch-manipulation',
+              preset === p.key
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:bg-muted',
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                'h-7 rounded-full px-2.5 text-[11px] font-medium',
+                preset === 'custom' && 'border-primary text-primary',
+              )}
+            >
+              <CalendarIcon className="mr-1 h-3.5 w-3.5" />
+              {preset === 'custom'
+                ? `${customFrom ? format(customFrom, 'd MMM') : '—'} – ${customTo ? format(customTo, 'd MMM') : '—'}`
+                : 'Custom range'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3 space-y-3" align="start">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">From</p>
+                <Calendar
+                  mode="single"
+                  selected={customFrom}
+                  onSelect={(d) => { if (d) { setCustomFrom(d); setPreset('custom'); } }}
+                  disabled={{ after: new Date() }}
+                  initialFocus
+                  className={cn('rounded-md border p-3 pointer-events-auto')}
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">To</p>
+                <Calendar
+                  mode="single"
+                  selected={customTo}
+                  onSelect={(d) => { if (d) { setCustomTo(d); setPreset('custom'); } }}
+                  disabled={{ after: new Date() }}
+                  className={cn('rounded-md border p-3 pointer-events-auto')}
+                />
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -135,9 +247,13 @@ export function FunderFunnelPanel() {
         })}
       </div>
 
+      {!isLoading && base === 0 && (
+        <p className="text-[11px] text-muted-foreground">No funder activity in this range.</p>
+      )}
+
       <p className="text-[10px] text-muted-foreground">
         A funder counts at a step only if the action happened at or after their first
-        “View repayment terms” click, so the funnel measures true progression.
+        “View repayment terms” click inside the selected range.
       </p>
     </div>
   );
