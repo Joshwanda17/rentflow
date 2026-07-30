@@ -413,6 +413,44 @@ export default function MyWork() {
 
   return (
     <div className="space-y-5">
+      {unstarted.length > 0 && (
+        <Card className="border-primary/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">
+              {unstarted.length} {unstarted.length === 1 ? 'task' : 'tasks'} assigned to you, not yet started
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            {unstarted.map(({ task, assignedBy }) => (
+              <div
+                key={task.id}
+                className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <Link
+                    to={`/hr/dashboard/tasks/${task.id}`}
+                    className="text-sm font-semibold text-foreground hover:underline"
+                  >
+                    {task.title}
+                  </Link>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Assigned by {assignedBy} · {formatDateTime(task.created_at)} · Due {formatDate(task.due_at)}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="h-7 shrink-0 px-3 text-[11px]"
+                  disabled={busyTaskId === task.id}
+                  onClick={() => act(task.id, 'started')}
+                >
+                  Start
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
           to={`/hr/dashboard/scorecard/${staff.id}`}
