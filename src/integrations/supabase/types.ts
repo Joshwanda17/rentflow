@@ -9923,6 +9923,7 @@ export type Database = {
           department_id: string
           ended_on: string | null
           id: string
+          is_primary: boolean
           position_id: string
           reports_to_position_id: string | null
           staff_id: string
@@ -9933,6 +9934,7 @@ export type Database = {
           department_id: string
           ended_on?: string | null
           id?: string
+          is_primary?: boolean
           position_id: string
           reports_to_position_id?: string | null
           staff_id: string
@@ -9943,6 +9945,7 @@ export type Database = {
           department_id?: string
           ended_on?: string | null
           id?: string
+          is_primary?: boolean
           position_id?: string
           reports_to_position_id?: string | null
           staff_id?: string
