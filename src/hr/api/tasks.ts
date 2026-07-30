@@ -94,7 +94,7 @@ export async function getTasks(filters: TaskFilters = {}): Promise<Task[]> {
     .order('created_at', { ascending: false });
   if (filters.departmentId) query = query.eq('department_id', filters.departmentId);
   if (filters.assigneeEmployeeId) query = query.eq('assignee_staff_id', filters.assigneeEmployeeId);
-  if (filters.status) query = query.eq('status', filters.status);
+  if (filters.status) query = query.eq('status', filters.status as never);
   if (filters.origin) query = query.eq('origin', filters.origin);
   const rows = unwrap(await query) as unknown as TaskRow[];
   return rows.map(mapTask);

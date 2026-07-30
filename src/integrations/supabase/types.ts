@@ -29329,6 +29329,10 @@ export type Database = {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
       }
+      set_withdrawal_account: {
+        Args: { p_name: string; p_number: string; p_provider: string }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       signup_source_funnel: {

@@ -134,6 +134,15 @@ export default function WithdrawFlow({
   const [momoNumber, setMomoNumber] = useState('');
   const [momoName, setMomoName] = useState('');
   const [momoProvider, setMomoProvider] = useState<'MTN' | 'Airtel'>('MTN');
+  // Locked withdrawal destination saved by the user in Settings →
+  // Withdrawal account. When present, the mobile-money fields are
+  // prefilled and read-only so payouts always land on the one verified
+  // account bound to this user.
+  const [lockedMomo, setLockedMomo] = useState<{
+    number: string;
+    name: string;
+    provider: 'MTN' | 'Airtel';
+  } | null>(null);
 
   // Bank details
   const [bankName, setBankName] = useState('');
@@ -409,7 +418,37 @@ export default function WithdrawFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount]);
 
+  // Load the user's locked withdrawal account whenever the flow opens.
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('mobile_money_number, mobile_money_name, mobile_money_provider')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const num = (data?.mobile_money_number ?? '').trim();
+      const nm = (data?.mobile_money_name ?? '').trim();
+      if (!num || !nm) {
+        setLockedMomo(null);
+        return;
+      }
+      const prov: 'MTN' | 'Airtel' =
+        (data?.mobile_money_provider ?? '').toLowerCase() === 'airtel' ? 'Airtel' : 'MTN';
+      setLockedMomo({ number: num, name: nm, provider: prov });
+      setMomoNumber(num);
+      setMomoName(nm);
+      setMomoProvider(prov);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user?.id]);
+
   const handleReset = () => {
+    setLockedMomo(null);
     setCurrentStep(0);
     setSource('available');
     setAmount(100000);
@@ -1234,7 +1273,7 @@ export default function WithdrawFlow({
         );
         return (
           <div className="space-y-5">
-            {payoutMode !== 'cash' && compatibleSaved.length > 0 && (
+            {payoutMode !== 'cash' && !(payoutMode === 'mobile_money' && lockedMomo) && compatibleSaved.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm">Saved {payoutMode === 'mobile_money' ? 'mobile money' : 'bank'} destinations</Label>
@@ -1316,7 +1355,37 @@ export default function WithdrawFlow({
               </div>
             )}
 
-            {payoutMode === 'mobile_money' && (
+            {payoutMode === 'mobile_money' && lockedMomo && (
+              <div className="space-y-3">
+                <div className="text-center mb-1">
+                  <h3 className="font-semibold text-lg">📱 Mobile Money Details</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Funds are paid to your registered withdrawal account
+                  </p>
+                </div>
+                <Card className="p-4 space-y-2 bg-muted/40">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Number</span>
+                    <span className="font-bold tracking-wide">{lockedMomo.number}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Provider</span>
+                    <span className="font-semibold">{lockedMomo.provider}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Name</span>
+                    <span className="font-semibold text-right truncate">{lockedMomo.name}</span>
+                  </div>
+                </Card>
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" />
+                  Locked to your account. To change it, go to Settings →
+                  Withdrawal account.
+                </p>
+              </div>
+            )}
+
+            {payoutMode === 'mobile_money' && !lockedMomo && (
               <>
                 <div className="text-center mb-2">
                   <h3 className="font-semibold text-lg">📱 Mobile Money Details</h3>
