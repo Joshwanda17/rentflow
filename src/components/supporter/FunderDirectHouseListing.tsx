@@ -672,7 +672,6 @@ export function FunderDirectHouseListing() {
           {filtered.map((house) => {
             const earn = calcFunderEarnings(house.monthly_rent, moveInDate);
             const selected = selectedIds.includes(house.id);
-            const expanded = expandedIds.includes(house.id);
             return (
             <motion.div
               key={house.id}
