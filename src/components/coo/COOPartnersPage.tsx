@@ -2225,7 +2225,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           <SummaryCard icon={<Banknote className="h-4 w-4" />} label="Total Funded" value={formatUGX(summary.totalFunded)}
             sub={`${summary.totalDeals} deals completed`} accent="emerald" />
           <SummaryCard icon={<Wallet className="h-4 w-4" />} label="Wallet Balances" value={formatUGX(summary.totalWalletBalance)}
-            sub="Across all partner wallets" accent="amber" />
+            sub="Across all partner wallets · tap to view" accent="amber"
+            onClick={() => { setWalletBalancesSearch(''); setWalletBalancesOpen(true); }} />
           <NearingPayoutsCard portfolios={allPortfoliosForPayout} onClick={() => setNearingPayoutsOpen(true)} />
           <ExpiringPortfoliosCard portfolios={allPortfoliosForPayout} onClick={() => setExpiringPortfoliosOpen(true)} />
           <PortfolioTopUpsCard />
