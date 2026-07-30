@@ -47,43 +47,41 @@ export async function getDepartments(): Promise<Department[]> {
   return getDepartmentsInternal();
 }
 
-/** Finds the position with this title in the department, creating it when absent. */
-async function resolvePositionId(departmentId: string, title: string): Promise<string> {
-  const existing = unwrap(
+export type Position = {
+  id: string;
+  title: string;
+  key: string;
+  department_id: string | null;
+};
+
+/** Active positions, ordered by title. Reporting lines point at these. */
+export async function getPositions(): Promise<Position[]> {
+  return unwrap(
     await supabase
       .from('hr_positions')
-      .select('id')
-      .eq('department_id', departmentId)
-      .ilike('title', title)
-      .limit(1),
-  ) as { id: string }[];
-  if (existing.length > 0) return existing[0].id;
+      .select('id, title, key, department_id')
+      .eq('active', true)
+      .order('title', { ascending: true }),
+  ) as Position[];
+}
 
-  const created = unwrap(
+/** Creates a position; the key is derived from the title. */
+export async function createPosition(input: {
+  title: string;
+  departmentId?: string | null;
+}): Promise<Position> {
+  const title = input.title.trim();
+  return unwrap(
     await supabase
       .from('hr_positions')
       .insert({
-        department_id: departmentId,
         title,
-        key: title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+        key: title.toLowerCase().replace(/\s+/g, '_'),
+        department_id: input.departmentId || null,
       })
-      .select('id')
+      .select('id, title, key, department_id')
       .single(),
-  ) as { id: string };
-  return created.id;
-}
-
-/** The position currently held by a staff member, used for reporting lines. */
-async function currentPositionIdForStaff(staffId: string): Promise<string | null> {
-  const rows = unwrap(
-    await supabase
-      .from('hr_assignments')
-      .select('position_id')
-      .eq('staff_id', staffId)
-      .is('ended_on', null)
-      .limit(1),
-  ) as { position_id: string }[];
-  return rows[0]?.position_id ?? null;
+  ) as Position;
 }
 
 async function getDepartmentsInternal(): Promise<Department[]> {
@@ -200,8 +198,8 @@ export async function enrollStaff(input: {
   /** Optional — the database generates EMP-00001 style refs when omitted. */
   staffRef?: string;
   departmentId?: string;
-  jobTitle?: string;
-  reportsToStaffId?: string | null;
+  positionId?: string;
+  reportsToPositionId?: string | null;
   startedOn?: string;
 }): Promise<Employee> {
   const enrolledBy = await requireUserId();
@@ -217,19 +215,15 @@ export async function enrollStaff(input: {
       .single(),
   ) as StaffRow;
 
-  if (input.departmentId && input.jobTitle) {
-    const positionId = await resolvePositionId(input.departmentId, input.jobTitle);
-    const reportsToPositionId = input.reportsToStaffId
-      ? await currentPositionIdForStaff(input.reportsToStaffId)
-      : null;
+  if (input.departmentId && input.positionId) {
     unwrap(
       await supabase
         .from('hr_assignments')
         .insert({
           staff_id: staff.id,
           department_id: input.departmentId,
-          position_id: positionId,
-          reports_to_position_id: reportsToPositionId ?? undefined,
+          position_id: input.positionId,
+          reports_to_position_id: input.reportsToPositionId ?? undefined,
           started_on: input.startedOn ?? new Date().toISOString().slice(0, 10),
         })
         .select('id')
@@ -241,51 +235,21 @@ export async function enrollStaff(input: {
   return hydrated[0];
 }
 
-export type EnrollableUser = {
-  id: string;
-  full_name: string;
-  email: string | null;
-  phone: string | null;
+export type UnenrolledStaffCandidate = {
+  user_id: string;
+  display_name: string;
+  staff_roles: string;
 };
 
 /**
- * Platform users that do not yet have an hr_staff row.
- * `search` filters by name / email / phone; results are capped for the picker.
+ * Staff-role platform users that are not yet enrolled.
+ * Served entirely by the `hr_unenrolled_staff_candidates` database function —
+ * the picker never scans the profiles table.
  */
-export async function getEnrollableUsers(search = '', limit = 30): Promise<EnrollableUser[]> {
-  const enrolled = unwrap(
-    await supabase.from('hr_staff').select('user_id'),
-  ) as { user_id: string }[];
-  const enrolledIds = new Set(enrolled.map((s) => s.user_id));
-
-  let query = supabase
-    .from('profiles')
-    .select('id, full_name, email, phone')
-    .order('full_name', { ascending: true })
-    .limit(limit + enrolledIds.size > 500 ? 500 : limit + enrolledIds.size);
-
-  const term = search.trim();
-  if (term) {
-    const safe = term.replace(/[%,]/g, ' ');
-    query = query.or(`full_name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`);
-  }
-
-  const rows = unwrap(await query) as {
-    id: string;
-    full_name: string | null;
-    email: string | null;
-    phone: string | null;
-  }[];
-
-  return rows
-    .filter((r) => !enrolledIds.has(r.id))
-    .slice(0, limit)
-    .map((r) => ({
-      id: r.id,
-      full_name: r.full_name ?? '(no name)',
-      email: r.email,
-      phone: r.phone,
-    }));
+export async function searchUnenrolledStaff(search: string): Promise<UnenrolledStaffCandidate[]> {
+  return unwrap(
+    await supabase.rpc('hr_unenrolled_staff_candidates', { _q: search }),
+  ) as UnenrolledStaffCandidate[];
 }
 
 /**
