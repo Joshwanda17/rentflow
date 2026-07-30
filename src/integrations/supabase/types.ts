@@ -2050,6 +2050,7 @@ export type Database = {
           funded_by: string | null
           id: string
           notes: string | null
+          rent_request_id: string | null
           status: string
         }
         Insert: {
@@ -2062,6 +2063,7 @@ export type Database = {
           funded_by?: string | null
           id?: string
           notes?: string | null
+          rent_request_id?: string | null
           status?: string
         }
         Update: {
@@ -2074,6 +2076,7 @@ export type Database = {
           funded_by?: string | null
           id?: string
           notes?: string | null
+          rent_request_id?: string | null
           status?: string
         }
         Relationships: [
@@ -3031,6 +3034,48 @@ export type Database = {
           status?: string
           tenant_id?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_landlord_float_corrections: {
+        Row: {
+          agent_id: string
+          applied: boolean
+          corrected_balance: number
+          created_at: string
+          difference: number
+          id: string
+          open_allocation_total: number
+          performed_by: string | null
+          performed_by_process: string
+          previous_balance: number
+          reason: string
+        }
+        Insert: {
+          agent_id: string
+          applied?: boolean
+          corrected_balance?: number
+          created_at?: string
+          difference?: number
+          id?: string
+          open_allocation_total?: number
+          performed_by?: string | null
+          performed_by_process?: string
+          previous_balance?: number
+          reason: string
+        }
+        Update: {
+          agent_id?: string
+          applied?: boolean
+          corrected_balance?: number
+          created_at?: string
+          difference?: number
+          id?: string
+          open_allocation_total?: number
+          performed_by?: string | null
+          performed_by_process?: string
+          previous_balance?: number
+          reason?: string
         }
         Relationships: []
       }
@@ -25111,6 +25156,64 @@ export type Database = {
         }
         Relationships: []
       }
+      v_agent_landlord_float_reconciliation: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          agent_phone: string | null
+          cached_balance: number | null
+          correct_balance: number | null
+          difference: number | null
+          open_allocations: number | null
+          total_funded: number | null
+          total_paid_out: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_accounts_no_verified_phone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       v_lc1_phone_duplicates: {
         Row: {
           created_at: string | null
@@ -29023,6 +29126,17 @@ export type Database = {
             }
             Returns: undefined
           }
+      recompute_agent_landlord_float: {
+        Args: {
+          p_agent_id: string
+          p_allow_increase?: boolean
+          p_apply?: boolean
+          p_performed_by?: string
+          p_process?: string
+          p_reason?: string
+        }
+        Returns: number
+      }
       recompute_kyc_risk_score: {
         Args: { p_user_id: string }
         Returns: {
@@ -29056,6 +29170,22 @@ export type Database = {
           advance: number
           float_bal: number
           withdrawable: number
+        }[]
+      }
+      reconcile_agent_landlord_float_all: {
+        Args: {
+          p_allow_increase?: boolean
+          p_apply?: boolean
+          p_process?: string
+          p_reason?: string
+        }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          applied: boolean
+          correct_balance: number
+          difference: number
+          previous_balance: number
         }[]
       }
       reconcile_credited_deposit_profiles: { Args: never; Returns: number }
