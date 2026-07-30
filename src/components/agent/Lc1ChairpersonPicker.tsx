@@ -159,9 +159,8 @@ export function Lc1ChairpersonPicker({
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
             Search the chairperson in the system first. If they're not there, register them and
-            earn <span className="font-semibold text-foreground">UGX 5,000</span> —
-            <span className="font-semibold text-foreground"> UGX 1,000 now</span>,
-            <span className="font-semibold text-foreground"> UGX 4,000</span> after Landlord Ops verifies.
+            earn <span className="font-semibold text-foreground">UGX 5,000</span> — paid in full
+            after Landlord Ops verifies the chairperson.
           </p>
           <div className="flex gap-2">
             <Input
@@ -246,7 +245,7 @@ export function Lc1ChairpersonPicker({
 
           <div className="p-2 rounded-lg bg-chart-4/10 border border-chart-4/20 text-center">
             <p className="text-xs text-chart-4 font-semibold">
-              💰 UGX 1,000 paid now · UGX 4,000 after Landlord Ops verifies (UGX 5,000 total)
+              💰 UGX 5,000 paid once Landlord Ops verifies (nothing paid upfront)
             </p>
           </div>
 
