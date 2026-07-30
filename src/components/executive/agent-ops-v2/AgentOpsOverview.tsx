@@ -445,6 +445,89 @@ function LatestRentRequests({ onViewAll }: { onViewAll: () => void }) {
 
 // ---------- Top performers (agents + sub-agents) ----------
 
+function TopPendingAgents({ onViewAll }: { onViewAll: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['agent-ops-top-pending-agents'],
+    queryFn: async () => {
+      const { data: rents } = await supabase
+        .from('rent_requests')
+        .select('agent_id, total_repayment, amount_repaid, daily_repayment, status, agent_payment_status')
+        .in('status', ['funded', 'repaying'])
+        .limit(5000);
+      if (!rents || rents.length === 0) return [];
+      const agg = new Map<string, { pending: number; tenants: number; daily: number }>();
+      for (const r of rents as any[]) {
+        if (!r.agent_id) continue;
+        if ((r.agent_payment_status || 'paying') === 'not_paying') continue;
+        const pending = Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
+        if (pending <= 0) continue;
+        const cur = agg.get(r.agent_id) || { pending: 0, tenants: 0, daily: 0 };
+        cur.pending += pending;
+        cur.tenants += 1;
+        cur.daily += Number(r.daily_repayment || 0);
+        agg.set(r.agent_id, cur);
+      }
+      const top = Array.from(agg.entries())
+        .sort((a, b) => b[1].pending - a[1].pending)
+        .slice(0, 5);
+      if (top.length === 0) return [];
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', top.map(([id]) => id));
+      const pm = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+      return top.map(([id, v]) => ({ agent_id: id, name: pm.get(id) || '—', ...v }));
+    },
+    staleTime: 60_000,
+  });
+
+  return (
+    <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h3 className="text-sm font-semibold">Highest Pending Collections</h3>
+          <p className="text-[11px] text-muted-foreground">Top 5 agents by outstanding tenant repayments</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={onViewAll} className="gap-1">
+          View all <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : !data || data.length === 0 ? (
+        <p className="text-xs text-muted-foreground p-4 text-center">No pending repayments.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead>Agent</TableHead>
+                <TableHead className="hidden sm:table-cell text-right">Tenants</TableHead>
+                <TableHead className="hidden md:table-cell text-right">Daily due</TableHead>
+                <TableHead className="text-right">Pending</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((r: any, i: number) => (
+                <TableRow key={r.agent_id}>
+                  <TableCell className="text-xs font-bold text-muted-foreground tabular-nums">{i + 1}</TableCell>
+                  <TableCell className="font-medium max-w-[160px] truncate">{r.name}</TableCell>
+                  <TableCell className="hidden sm:table-cell text-right tabular-nums text-xs">{fmtNum(r.tenants)}</TableCell>
+                  <TableCell className="hidden md:table-cell text-right tabular-nums text-xs text-muted-foreground">{fmtMoney(r.daily)}</TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums text-xs text-red-600 dark:text-red-400">
+                    {fmtMoney(r.pending)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function TopPerformers({
   rows,
   loading,
