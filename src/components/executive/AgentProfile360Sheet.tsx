@@ -10,6 +10,7 @@ import { Loader2, Phone, MapPin, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 
 interface Props {
   agentId: string | null;
@@ -22,7 +23,80 @@ const dt = (v?: string | null) => (v ? new Date(v).toLocaleDateString() : '—')
 
 type Period = 'today' | 'weekly' | 'monthly' | 'yearly';
 
-function CollectionPerformance({ agentId }: { agentId: string | null }) {
+function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 0; }
+
+function TargetCards({ agentId, dailyTarget }: { agentId: string | null; dailyTarget: number }) {
+  const { data: rows = [] } = useQuery({
+    queryKey: ['agent-target-cards', agentId],
+    enabled: !!agentId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const since = new Date();
+      since.setDate(since.getDate() - 7);
+      since.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from('agent_collections')
+        .select('amount, created_at')
+        .eq('agent_id', agentId as string)
+        .gte('created_at', since.toISOString())
+        .limit(5000);
+      if (error) throw error;
+      return (data ?? []) as { amount: number; created_at: string }[];
+    },
+  });
+
+  const { today, yesterday, week } = useMemo(() => {
+    const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    const y0 = new Date(t0.getTime() - 86_400_000);
+    const w0 = new Date(t0.getTime() - 6 * 86_400_000);
+    let today = 0, yesterday = 0, week = 0;
+    for (const r of rows) {
+      const d = new Date(r.created_at); const a = Number(r.amount || 0);
+      if (d >= t0) today += a;
+      else if (d >= y0) yesterday += a;
+      if (d >= w0) week += a;
+    }
+    return { today, yesterday, week };
+  }, [rows]);
+
+  const weekTarget = dailyTarget * 7;
+  const todayPct = pct(today, dailyTarget);
+
+  const cards = [
+    { label: 'Today', value: today, target: dailyTarget, sub: `${todayPct}% of daily target` },
+    { label: 'Yesterday', value: yesterday, target: dailyTarget, sub: `${pct(yesterday, dailyTarget)}% of daily target` },
+    { label: 'This week (7d)', value: week, target: weekTarget, sub: `${pct(week, weekTarget)}% of weekly target` },
+  ];
+
+  return (
+    <div className="space-y-2 mb-3">
+      <div className={cn(
+        'rounded-xl border p-3',
+        todayPct >= 20 ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-destructive/40 bg-destructive/5',
+      )}>
+        <p className={cn('text-sm font-bold', todayPct >= 20 ? 'text-emerald-600' : 'text-destructive')}>
+          {todayPct >= 20 ? 'Can post new rent today' : 'Below posting threshold today'}
+        </p>
+        <p className="text-[11px] text-muted-foreground">Collected {todayPct}% of today’s target</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {cards.map(c => (
+          <div key={c.label} className="rounded-xl border border-border bg-background p-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{c.label}</p>
+            <p className="text-sm font-bold mt-1 tabular-nums">
+              <span className={c.value > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(c.value)}</span>
+              <span className="text-muted-foreground font-normal"> / {formatUGX(c.target)}</span>
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{c.sub}</p>
+          </div>
+        ))}
+      </div>
+      {agentId && <AgentEligibilityHistoryStrip agentId={agentId} />}
+    </div>
+  );
+}
+
+function CollectionPerformance({ agentId, dailyTarget = 0 }: { agentId: string | null; dailyTarget?: number }) {
   const [period, setPeriod] = useState<Period>('weekly');
 
   const since = useMemo(() => {
@@ -122,6 +196,8 @@ function CollectionPerformance({ agentId }: { agentId: string | null }) {
           ))}
         </div>
       </div>
+
+      <TargetCards agentId={agentId} dailyTarget={dailyTarget} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         <Stat label="Collected" value={formatUGX(total)} tone="text-emerald-600" />
