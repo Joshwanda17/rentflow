@@ -314,6 +314,9 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
       {/* Latest rent requests */}
       <LatestRentRequests onViewAll={() => onOpenSection('pipeline')} />
 
+      {/* Highest pending collections */}
+      <TopPendingAgents onViewAll={() => onOpenSection('pipeline')} />
+
       {/* Top performers */}
       <TopPerformers rows={data?.top_performers || []} loading={isLoading} />
 
