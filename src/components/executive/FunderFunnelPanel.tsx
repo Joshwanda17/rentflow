@@ -303,7 +303,7 @@ export function FunderFunnelPanel() {
                   style={{ width: `${width}%` }}
                 />
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -316,6 +316,15 @@ export function FunderFunnelPanel() {
         A funder counts at a step only if the action happened at or after their first
         “View repayment terms” click inside the selected range.
       </p>
+
+      <FunderFunnelDrilldown
+        open={!!drillStep}
+        onOpenChange={(o) => !o && setDrillStep(null)}
+        stepLabel={STEPS.find((s) => s.key === drillStep)?.label ?? ''}
+        rangeLabel={rangeLabel}
+        details={drillStep ? data?.details[drillStep] ?? [] : []}
+        housesByUser={data?.housesByUser ?? {}}
+      />
     </div>
   );
 }
