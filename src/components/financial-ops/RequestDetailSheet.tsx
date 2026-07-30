@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { decodeAllocationsFromNote } from '@/components/payments/OperationalFloatTenantAllocator';
 import { DepositReviewTimeline } from '@/components/financial-ops/DepositReviewTimeline';
 import { DuplicateTidPanel } from '@/components/financial-ops/DuplicateTidPanel';
+import { WithdrawalSourceIndicator } from '@/components/financial-ops/WithdrawalSourceIndicator';
 
 interface RequestDetailSheetProps {
   open: boolean;
@@ -334,6 +335,13 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
                     triage before approval. */}
                 {requestType === 'deposits' && (
                   <DuplicateTidPanel request={requestData} />
+                )}
+
+                {/* Funding-source composition — withdrawals only.
+                    Read-only indicator derived from ledger credit history.
+                    Does not move money or alter the withdrawal request. */}
+                {(requestType === 'withdrawals' || requestType === 'wallet_withdrawals') && (
+                  <WithdrawalSourceIndicator userId={userId} />
                 )}
 
                 {/* Operational Float — per-tenant breakdown.
