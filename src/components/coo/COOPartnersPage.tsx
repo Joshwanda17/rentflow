@@ -846,6 +846,58 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setRows(tableRows);
   }, [buildRowsForIds, filterProspect]);
 
+  /* ─── Wallet balances breakdown: ALL partners holding wallet money ─── */
+  useEffect(() => {
+    if (!walletBalancesOpen) return;
+    let cancelled = false;
+    (async () => {
+      setWalletBalancesLoading(true);
+      try {
+        const ids = await fetchAllUserIdsByRole('supporter');
+        if (!ids.length) { if (!cancelled) setWalletBalancesList([]); return; }
+        const wallets = await batchedQuery<{ user_id: string; balance: number }>(
+          ids,
+          (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch).gt('balance', 0),
+        );
+        const holderIds = wallets.map(w => w.user_id);
+        const profiles = holderIds.length
+          ? await batchedQuery<{ id: string; full_name: string | null; phone: string | null; email: string | null }>(
+              holderIds,
+              (batch) => supabase.from('profiles').select('id, full_name, phone, email').in('id', batch),
+            )
+          : [];
+        const pMap = new Map(profiles.map(p => [p.id, p]));
+        const list = wallets
+          .map(w => ({
+            id: w.user_id,
+            name: pMap.get(w.user_id)?.full_name || w.user_id.slice(0, 8),
+            phone: pMap.get(w.user_id)?.phone || '',
+            email: pMap.get(w.user_id)?.email || '',
+            balance: Number(w.balance) || 0,
+          }))
+          .sort((a, b) => b.balance - a.balance);
+        if (!cancelled) setWalletBalancesList(list);
+      } catch (e) {
+        console.error('[COOPartnersPage] wallet balances load failed', e);
+        if (!cancelled) toast.error('Could not load partner wallet balances');
+      } finally {
+        if (!cancelled) setWalletBalancesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [walletBalancesOpen]);
+
+  const walletBalancesFiltered = useMemo(() => {
+    const q = walletBalancesSearch.trim().toLowerCase();
+    if (!q) return walletBalancesList;
+    return walletBalancesList.filter(p =>
+      p.name.toLowerCase().includes(q) || p.phone.toLowerCase().includes(q) || p.email.toLowerCase().includes(q));
+  }, [walletBalancesList, walletBalancesSearch]);
+  const walletBalancesTotal = useMemo(
+    () => walletBalancesFiltered.reduce((s, p) => s + p.balance, 0),
+    [walletBalancesFiltered],
+  );
+
   /* ─── Nearing payouts: loaded independently from ALL supporters ─── */
   const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false); // eslint-disable-line -- top-level hook, after all other useState
   const fetchNearingPayoutsAsync = useCallback(async () => {
