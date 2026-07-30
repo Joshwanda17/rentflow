@@ -341,6 +341,10 @@ export function FunderDirectHouseListing() {
     },
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
 
+  const selectedHouses = (houses ?? []).filter((h) => selectedIds.includes(h.id));
+  const selectionTotals = sumFunderEarnings(selectedHouses.map((h) => h.monthly_rent));
+  const shortfall = Math.max(0, selectionTotals.capital - walletBalance);
+
   if (loading) {
     return <ListingSkeleton />;
   }
