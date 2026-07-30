@@ -9899,8 +9899,8 @@ export type Database = {
           department_id: string
           ended_on: string | null
           id: string
-          job_title: string
-          reports_to_staff_id: string | null
+          position_id: string
+          reports_to_position_id: string | null
           staff_id: string
           started_on: string
         }
@@ -9909,8 +9909,8 @@ export type Database = {
           department_id: string
           ended_on?: string | null
           id?: string
-          job_title: string
-          reports_to_staff_id?: string | null
+          position_id: string
+          reports_to_position_id?: string | null
           staff_id: string
           started_on?: string
         }
@@ -9919,8 +9919,8 @@ export type Database = {
           department_id?: string
           ended_on?: string | null
           id?: string
-          job_title?: string
-          reports_to_staff_id?: string | null
+          position_id?: string
+          reports_to_position_id?: string | null
           staff_id?: string
           started_on?: string
         }
@@ -9933,10 +9933,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "hr_assignments_reports_to_staff_id_fkey"
-            columns: ["reports_to_staff_id"]
+            foreignKeyName: "hr_assignments_position_id_fkey"
+            columns: ["position_id"]
             isOneToOne: false
-            referencedRelation: "hr_staff"
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_assignments_reports_to_position_id_fkey"
+            columns: ["reports_to_position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
             referencedColumns: ["id"]
           },
           {
@@ -10087,6 +10094,41 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_positions: {
+        Row: {
+          active: boolean
+          created_at: string
+          department_id: string | null
+          id: string
+          key: string
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          key: string
+          title: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          key?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_positions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
             referencedColumns: ["id"]
           },
         ]
@@ -26059,6 +26101,7 @@ export type Database = {
           schedule: string
         }[]
       }
+      cto_classify_error: { Args: { p_msg: string }; Returns: Json }
       cto_search_agents: {
         Args: { p_query?: string }
         Returns: {
@@ -27115,6 +27158,7 @@ export type Database = {
         }[]
       }
       get_cto_daily_report: { Args: { p_date?: string }; Returns: Json }
+      get_cto_diagnostics: { Args: { p_date?: string }; Returns: Json }
       get_daily_active_users: {
         Args: { p_end: string; p_start: string }
         Returns: {
@@ -28118,6 +28162,14 @@ export type Database = {
       hr_is_admin: { Args: never; Returns: boolean }
       hr_manages: { Args: { _staff_id: string }; Returns: boolean }
       hr_my_staff_id: { Args: never; Returns: string }
+      hr_unenrolled_staff_candidates: {
+        Args: { _q?: string }
+        Returns: {
+          display_name: string
+          staff_roles: string
+          user_id: string
+        }[]
+      }
       ignore_withdrawal_dispatch: {
         Args: { p_withdrawal_id: string }
         Returns: boolean

@@ -9,11 +9,15 @@ type AssignmentRow = {
   id: string;
   staff_id: string;
   department_id: string;
-  job_title: string;
-  reports_to_staff_id: string | null;
+  position_id: string;
+  reports_to_position_id: string | null;
+  hr_positions?: { title: string | null } | null;
   started_on: string;
   ended_on: string | null;
 };
+
+const ASSIGNMENT_SELECT =
+  'id, staff_id, department_id, position_id, reports_to_position_id, started_on, ended_on, hr_positions(title)';
 
 function mapDepartment(row: DeptRow): Department {
   return {
@@ -31,8 +35,8 @@ function mapAssignment(row: AssignmentRow, departmentName: string): Assignment {
     employee_id: row.staff_id,
     department_id: row.department_id,
     department_name: departmentName,
-    role_title: row.job_title,
-    manager_employee_id: row.reports_to_staff_id,
+    role_title: row.hr_positions?.title ?? '',
+    manager_employee_id: row.reports_to_position_id,
     employment_type: 'permanent',
     valid_from: row.started_on,
     valid_to: row.ended_on,
@@ -40,6 +44,49 @@ function mapAssignment(row: AssignmentRow, departmentName: string): Assignment {
 }
 
 export async function getDepartments(): Promise<Department[]> {
+  return getDepartmentsInternal();
+}
+
+/** Finds the position with this title in the department, creating it when absent. */
+async function resolvePositionId(departmentId: string, title: string): Promise<string> {
+  const existing = unwrap(
+    await supabase
+      .from('hr_positions')
+      .select('id')
+      .eq('department_id', departmentId)
+      .ilike('title', title)
+      .limit(1),
+  ) as { id: string }[];
+  if (existing.length > 0) return existing[0].id;
+
+  const created = unwrap(
+    await supabase
+      .from('hr_positions')
+      .insert({
+        department_id: departmentId,
+        title,
+        key: title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+      })
+      .select('id')
+      .single(),
+  ) as { id: string };
+  return created.id;
+}
+
+/** The position currently held by a staff member, used for reporting lines. */
+async function currentPositionIdForStaff(staffId: string): Promise<string | null> {
+  const rows = unwrap(
+    await supabase
+      .from('hr_assignments')
+      .select('position_id')
+      .eq('staff_id', staffId)
+      .is('ended_on', null)
+      .limit(1),
+  ) as { position_id: string }[];
+  return rows[0]?.position_id ?? null;
+}
+
+async function getDepartmentsInternal(): Promise<Department[]> {
   const rows = unwrap(
     await supabase
       .from('hr_departments')
@@ -80,10 +127,10 @@ async function hydrateStaff(staff: StaffRow[]): Promise<Employee[]> {
   const assignments = unwrap(
     await supabase
       .from('hr_assignments')
-      .select('id, staff_id, department_id, job_title, reports_to_staff_id, started_on, ended_on')
+      .select(ASSIGNMENT_SELECT)
       .in('staff_id', staffIds)
       .is('ended_on', null),
-  ) as AssignmentRow[];
+  ) as unknown as AssignmentRow[];
   const names = await departmentNameMap();
   const currentByStaff: Record<string, Assignment> = {};
   for (const a of assignments) {
@@ -171,14 +218,18 @@ export async function enrollStaff(input: {
   ) as StaffRow;
 
   if (input.departmentId && input.jobTitle) {
+    const positionId = await resolvePositionId(input.departmentId, input.jobTitle);
+    const reportsToPositionId = input.reportsToStaffId
+      ? await currentPositionIdForStaff(input.reportsToStaffId)
+      : null;
     unwrap(
       await supabase
         .from('hr_assignments')
         .insert({
           staff_id: staff.id,
           department_id: input.departmentId,
-          job_title: input.jobTitle,
-          reports_to_staff_id: input.reportsToStaffId ?? null,
+          position_id: positionId,
+          reports_to_position_id: reportsToPositionId ?? undefined,
           started_on: input.startedOn ?? new Date().toISOString().slice(0, 10),
         })
         .select('id')
@@ -248,10 +299,10 @@ export async function getAssignmentsForPeriod(
   const rows = unwrap(
     await supabase
       .from('hr_assignments')
-      .select('id, staff_id, department_id, job_title, reports_to_staff_id, started_on, ended_on')
+      .select(ASSIGNMENT_SELECT)
       .lte('started_on', periodEnd)
       .or(`ended_on.is.null,ended_on.gte.${periodStart}`),
-  ) as AssignmentRow[];
+  ) as unknown as AssignmentRow[];
   const names = await departmentNameMap();
   return rows.map((r) => mapAssignment(r, names[r.department_id] ?? ''));
 }
