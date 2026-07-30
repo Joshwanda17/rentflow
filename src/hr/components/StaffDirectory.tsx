@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, Plus, UserPlus } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Plus, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,11 +34,14 @@ import { toast } from 'sonner';
 import {
   createDepartment,
   createPosition,
+  addAssignment,
   enrollStaff,
+  getActiveAssignmentsByStaff,
   getDepartments,
   getPositions,
   getStaffDirectory,
   searchUnenrolledStaff,
+  type ActiveAssignment,
   type Position,
   type UnenrolledStaffCandidate,
 } from '@/hr/api';
@@ -45,9 +49,27 @@ import type { Department, Employee } from '@/hr/types';
 
 const NONE = '__none__';
 
+/** Turns any thrown value into something a person can read. */
+function readableError(e: unknown, action: string): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  if (/hr_assign_one_primary/i.test(raw)) {
+    return 'This person already has a primary position. Untick the primary box, or try again — the existing primary must be cleared first.';
+  }
+  if (/hr_assign_no_dup_position/i.test(raw)) {
+    return 'This person already holds that position. Choose a different position.';
+  }
+  if (/row-level security|permission denied|not authorized|violates row/i.test(raw)) {
+    return `${action} was refused by the database. This requires the hr or super_admin role.`;
+  }
+  return `${action} failed: ${raw}`;
+}
+
 export default function StaffDirectory() {
   const [staff, setStaff] = useState<Employee[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, ActiveAssignment[]>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [addFor, setAddFor] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -56,9 +78,14 @@ export default function StaffDirectory() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [directory, positionRows] = await Promise.all([getStaffDirectory(), getPositions()]);
+      const [directory, positionRows, assignmentRows] = await Promise.all([
+        getStaffDirectory(),
+        getPositions(),
+        getActiveAssignmentsByStaff(),
+      ]);
       setStaff(directory);
       setPositions(positionRows);
+      setAssignments(assignmentRows);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load staff');
     } finally {
@@ -106,33 +133,114 @@ export default function StaffDirectory() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8" />
                     <TableHead>Ref</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Position</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Reports to</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {staff.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-mono text-xs">{s.staff_number}</TableCell>
-                      <TableCell className="font-medium">{s.full_name || '—'}</TableCell>
-                      <TableCell>{s.current_assignment?.role_title || '—'}</TableCell>
-                      <TableCell>{s.current_assignment?.department_name || '—'}</TableCell>
-                      <TableCell>
-                        {s.current_assignment?.manager_employee_id
-                          ? positionTitleById[s.current_assignment.manager_employee_id] ?? '—'
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={s.status === 'active' ? 'default' : 'secondary'}>
-                          {s.status === 'active' ? 'Active' : 'Exited'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {staff.map((s) => {
+                    const rows = assignments[s.id] ?? [];
+                    const isOpen = expanded[s.id] === true;
+                    return (
+                      <Fragment key={s.id}>
+                        <TableRow>
+                          <TableCell className="pr-0">
+                            <button
+                              type="button"
+                              aria-label={isOpen ? 'Hide positions' : 'Show positions'}
+                              aria-expanded={isOpen}
+                              onClick={() =>
+                                setExpanded((prev) => ({ ...prev, [s.id]: !prev[s.id] }))
+                              }
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              {isOpen ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </button>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{s.staff_number}</TableCell>
+                          <TableCell className="font-medium">
+                            {s.full_name || '—'}
+                            {rows.length > 1 && (
+                              <Badge variant="outline" className="ml-2 text-[10px]">
+                                {rows.length} positions
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{s.current_assignment?.role_title || '—'}</TableCell>
+                          <TableCell>{s.current_assignment?.department_name || '—'}</TableCell>
+                          <TableCell>
+                            {s.current_assignment?.manager_employee_id
+                              ? positionTitleById[s.current_assignment.manager_employee_id] ?? '—'
+                              : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={s.status === 'active' ? 'default' : 'secondary'}>
+                              {s.status === 'active' ? 'Active' : 'Exited'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button size="sm" variant="outline" onClick={() => setAddFor(s)}>
+                              <Plus className="h-3.5 w-3.5 mr-1" />
+                              Add position
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        {isOpen && (
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell />
+                            <TableCell colSpan={7} className="py-3">
+                              {rows.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                  No active positions for this person yet.
+                                </p>
+                              ) : (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="text-xs uppercase text-muted-foreground">
+                                        <th className="text-left font-medium py-1 pr-4">Position</th>
+                                        <th className="text-left font-medium py-1 pr-4">Department</th>
+                                        <th className="text-left font-medium py-1 pr-4">Reports to</th>
+                                        <th className="text-left font-medium py-1 pr-4">Started on</th>
+                                        <th className="text-left font-medium py-1">Primary</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map((a) => (
+                                        <tr key={a.id} className="border-t border-border/40">
+                                          <td className="py-1.5 pr-4">{a.position_title || '—'}</td>
+                                          <td className="py-1.5 pr-4">{a.department_name || '—'}</td>
+                                          <td className="py-1.5 pr-4">{a.reports_to_title || '—'}</td>
+                                          <td className="py-1.5 pr-4">{a.started_on}</td>
+                                          <td className="py-1.5">
+                                            {a.is_primary ? (
+                                              <Badge>Primary</Badge>
+                                            ) : (
+                                              <span className="text-muted-foreground">—</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -141,7 +249,174 @@ export default function StaffDirectory() {
       </Card>
 
       <EnrollDialog open={open} onOpenChange={setOpen} onEnrolled={() => void load()} />
+
+      <AddAssignmentDialog
+        staff={addFor}
+        onOpenChange={(v) => {
+          if (!v) setAddFor(null);
+        }}
+        onAdded={() => void load()}
+      />
     </div>
+  );
+}
+
+function AddAssignmentDialog({
+  staff,
+  onOpenChange,
+  onAdded,
+}: {
+  staff: Employee | null;
+  onOpenChange: (v: boolean) => void;
+  onAdded: () => void;
+}) {
+  const open = staff !== null;
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [departmentId, setDepartmentId] = useState('');
+  const [positionId, setPositionId] = useState('');
+  const [reportsTo, setReportsTo] = useState<string>(NONE);
+  const [makePrimary, setMakePrimary] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setDepartmentId('');
+    setPositionId('');
+    setReportsTo(NONE);
+    setMakePrimary(false);
+    setError(null);
+    Promise.all([getDepartments(), getPositions()])
+      .then(([d, p]) => {
+        setDepartments(d);
+        setPositions(p);
+      })
+      .catch((e) => setError(readableError(e, 'Loading departments and positions')));
+  }, [open]);
+
+  const canSave = Boolean(departmentId && positionId) && !saving;
+
+  const handleSave = async () => {
+    if (!staff) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await addAssignment({
+        staffId: staff.id,
+        departmentId,
+        positionId,
+        reportsToPositionId: reportsTo === NONE ? null : reportsTo,
+        makePrimary,
+      });
+      toast.success('Position added');
+      onOpenChange(false);
+      onAdded();
+    } catch (e) {
+      setError(readableError(e, 'Adding the position'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add position</DialogTitle>
+          <DialogDescription>
+            Gives {staff?.full_name || 'this person'} a further active position, starting today.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Department</Label>
+            <Select value={departmentId} onValueChange={setDepartmentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select department" />
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Position</Label>
+            <Select value={positionId} onValueChange={setPositionId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select position" />
+              </SelectTrigger>
+              <SelectContent>
+                {positions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Reports to (optional)</Label>
+            <Select value={reportsTo} onValueChange={setReportsTo}>
+              <SelectTrigger>
+                <SelectValue placeholder="No manager" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>No manager</SelectItem>
+                {positions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Any active position can be the reporting line, including one in another department.
+            </p>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="make-primary"
+              checked={makePrimary}
+              onCheckedChange={(v) => setMakePrimary(v === true)}
+            />
+            <div>
+              <Label htmlFor="make-primary" className="cursor-pointer">
+                Make this their primary position
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                The primary position decides which department their metrics roll up to.
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive flex gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={!canSave}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Add position
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
