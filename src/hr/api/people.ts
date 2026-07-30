@@ -47,43 +47,41 @@ export async function getDepartments(): Promise<Department[]> {
   return getDepartmentsInternal();
 }
 
-/** Finds the position with this title in the department, creating it when absent. */
-async function resolvePositionId(departmentId: string, title: string): Promise<string> {
-  const existing = unwrap(
+export type Position = {
+  id: string;
+  title: string;
+  key: string;
+  department_id: string | null;
+};
+
+/** Active positions, ordered by title. Reporting lines point at these. */
+export async function getPositions(): Promise<Position[]> {
+  return unwrap(
     await supabase
       .from('hr_positions')
-      .select('id')
-      .eq('department_id', departmentId)
-      .ilike('title', title)
-      .limit(1),
-  ) as { id: string }[];
-  if (existing.length > 0) return existing[0].id;
+      .select('id, title, key, department_id')
+      .eq('active', true)
+      .order('title', { ascending: true }),
+  ) as Position[];
+}
 
-  const created = unwrap(
+/** Creates a position; the key is derived from the title. */
+export async function createPosition(input: {
+  title: string;
+  departmentId?: string | null;
+}): Promise<Position> {
+  const title = input.title.trim();
+  return unwrap(
     await supabase
       .from('hr_positions')
       .insert({
-        department_id: departmentId,
         title,
-        key: title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+        key: title.toLowerCase().replace(/\s+/g, '_'),
+        department_id: input.departmentId || null,
       })
-      .select('id')
+      .select('id, title, key, department_id')
       .single(),
-  ) as { id: string };
-  return created.id;
-}
-
-/** The position currently held by a staff member, used for reporting lines. */
-async function currentPositionIdForStaff(staffId: string): Promise<string | null> {
-  const rows = unwrap(
-    await supabase
-      .from('hr_assignments')
-      .select('position_id')
-      .eq('staff_id', staffId)
-      .is('ended_on', null)
-      .limit(1),
-  ) as { position_id: string }[];
-  return rows[0]?.position_id ?? null;
+  ) as Position;
 }
 
 async function getDepartmentsInternal(): Promise<Department[]> {
