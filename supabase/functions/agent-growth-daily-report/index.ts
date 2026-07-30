@@ -34,7 +34,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Fixed recipients for the morning report.
-const REPORT_RECIPIENTS = ["benjaminmuhanguzi29@gmail.com", "joshwanda17@gmail.com"];
+const REPORT_RECIPIENTS = ["benjaminm@welile.com", "joshwanda17@gmail.com"];
 
 type RGB = [number, number, number];
 
