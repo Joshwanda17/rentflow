@@ -144,6 +144,12 @@ export async function createTask(input: {
   const row = unwrap(
     await supabase.from('hr_tasks').insert(payload as never).select(TASK_COLUMNS).single(),
   ) as unknown as TaskRow;
+  // Append the opening event. The task row itself is never status-edited here.
+  try {
+    await addTaskEvent({ taskId: row.id, eventType: 'created' });
+  } catch {
+    // The task exists; a failed audit event must not read as a failed save.
+  }
   return mapTask(row);
 }
 
