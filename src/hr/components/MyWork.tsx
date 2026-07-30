@@ -165,7 +165,7 @@ export default function MyWork() {
   }, [load]);
 
   const tiles = useMemo(() => {
-    const active = definitions.filter((d) => d.active).slice(0, 6);
+    const active = definitions.filter((d) => d.active);
     return active.map((def) => {
       const snap = snapshots.find((s) => s.metric_definition_id === def.id);
       return {
