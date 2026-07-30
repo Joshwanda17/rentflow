@@ -652,7 +652,19 @@ export function MerchandiseManager() {
                   <tr key={s.id} className={`border-b border-border/40 ${s.order_status === 'rejected' ? 'opacity-60' : ''}`}>
                     <td className="py-2 pr-3 whitespace-nowrap">{format(new Date(s.sale_date), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">{s.item_name}</td>
-                    <td className="py-2 px-3 text-right">{s.quantity}</td>
+                    <td className="py-2 px-3 text-right">
+                      <span className="inline-flex items-center justify-end gap-1.5">
+                        {s.quantity}
+                        {isOutlierSale(s) && (
+                          <span
+                            className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600"
+                            title="Outside normal order size — excluded from the metrics above"
+                          >
+                            Outlier
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="py-2 px-3 text-right">{formatUGX(Number(s.total_revenue))}</td>
                     <td className="py-2 px-3">{s.client_name || '—'}</td>
                     <td className="py-2 px-3"><StatusBadge status={s.payment_status} /></td>
