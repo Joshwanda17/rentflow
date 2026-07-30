@@ -381,6 +381,9 @@ export function FunderDirectHouseListing() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+    if (!selectedIds.includes(id)) {
+      trackFunnelStep('funder_house_selected', id, { source: 'funder_direct_listing' });
+    }
   };
 
   const goExplore = () => {
@@ -398,27 +401,46 @@ export function FunderDirectHouseListing() {
     setMinAnnualEarn('all');
   };
 
-  const trackRepaymentTermsView = useCallback(
-    async (house: House) => {
+  /**
+   * Best-effort funnel tracking. Each step of the funder journey
+   * (view repayment terms → select house → lock selection → start funding)
+   * emits a `system_events` row so the funnel report can measure drop-off.
+   */
+  const trackFunnelStep = useCallback(
+    async (
+      eventType:
+        | 'funder_house_repayment_terms_viewed'
+        | 'funder_house_selected'
+        | 'funder_selection_locked'
+        | 'funder_funding_started',
+      houseId?: string,
+      metadata?: Record<string, unknown>,
+    ) => {
       if (!user?.id) return;
       try {
         await supabase.from('system_events').insert({
-          event_type: 'funder_house_repayment_terms_viewed',
+          event_type: eventType,
           user_id: user.id,
-          related_entity_type: 'house_listing',
-          related_entity_id: house.id,
-          metadata: {
-            monthly_rent: house.monthly_rent,
-            daily_rate: house.daily_rate,
-            source: 'funder_direct_listing',
-          },
-        });
+          related_entity_type: houseId ? 'house_listing' : 'funder_selection',
+          related_entity_id: houseId ?? null,
+          metadata: { source: 'funder_direct_listing', ...(metadata || {}) },
+        } as any);
       } catch (err) {
         // Best-effort tracking; don't block the UI
-        console.error('[FunderDirectHouseListing] track view error:', err);
+        console.error('[FunderDirectHouseListing] track funnel error:', err);
       }
     },
     [user?.id]
+  );
+
+  const trackRepaymentTermsView = useCallback(
+    (house: House) => {
+      void trackFunnelStep('funder_house_repayment_terms_viewed', house.id, {
+        monthly_rent: house.monthly_rent,
+        daily_rate: house.daily_rate,
+      });
+    },
+    [trackFunnelStep]
   );
 
   const activeFilterChips = [
@@ -953,6 +975,15 @@ export function FunderDirectHouseListing() {
           setSelectionLocked(true);
           setShowConfirm(false);
           setShowTopUp(true);
+          trackFunnelStep('funder_selection_locked', undefined, {
+            house_count: selectedHouses.length,
+            capital: selectionTotals.capital,
+            monthly_earning: selectionTotals.monthly,
+          });
+          trackFunnelStep('funder_funding_started', undefined, {
+            house_count: selectedHouses.length,
+            capital: selectionTotals.capital,
+          });
           toast.success('Selection locked', {
             description: `${formatUGX(selectionTotals.capital)} to reserve for ${selectedHouses.length} ${
               selectedHouses.length === 1 ? 'house' : 'houses'
