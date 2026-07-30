@@ -146,7 +146,7 @@ const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 const MIN_DEPOSIT = 500;
 const MAX_DEPOSIT = 1_000_000_000;
 
-export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch, defaultAmount, defaultChannel, defaultMomoProvider }: DepositFlowProps) {
   const navigate = useNavigate();
   const { roles } = useAuth();
   /**
