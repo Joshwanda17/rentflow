@@ -4,9 +4,8 @@ import { attemptYoolaPrimary } from "./yoolaPrimary.ts";
 // Sends an in-app notification (notifications table, realtime) AND an
 // SMS/WhatsApp text via Africa's Talking to the registering agent's phone.
 //
-// Stage "registered" → UGX 1,000 instant reward (paid when the agent registers
-//                      a new LC1 chairperson in the system)
-// Stage "verified"   → UGX 4,000 reward (paid after Landlord Ops verifies)
+// Stage "registered" → no money moves (registration only, acknowledgement text)
+// Stage "verified"   → UGX 5,000 full reward (paid after Landlord Ops verifies)
 //
 // Always best-effort: callers must never let a notification failure roll back
 // money that has already moved. Wrap calls in try/catch or fire-and-forget.
@@ -14,8 +13,8 @@ import { attemptYoolaPrimary } from "./yoolaPrimary.ts";
 type Stage = "registered" | "verified";
 
 const STAGE_AMOUNT: Record<Stage, number> = {
-  registered: 1000,
-  verified: 4000,
+  registered: 0,
+  verified: 5000,
 };
 
 function formatPhoneInternational(phone: string): string {
@@ -87,12 +86,12 @@ export async function notifyLc1Bonus(
   const name = (lc1Name || "the LC1 chairperson").trim();
 
   const inAppTitle = stage === "registered"
-    ? "UGX 1,000 LC1 reward credited! 💰"
-    : "LC1 verified — UGX 4,000 credited! 💰";
+    ? "LC1 chairperson submitted for verification"
+    : "LC1 verified — UGX 5,000 credited! 💰";
 
   const inAppMessage = stage === "registered"
-    ? `UGX ${amount.toLocaleString()} has been credited to your withdrawable wallet for registering LC1 chairperson "${name}". The remaining UGX 4,000 is released once Landlord Ops verifies them.`
-    : `LC1 chairperson "${name}" has been verified by Landlord Ops. UGX ${amount.toLocaleString()} has been credited to your withdrawable wallet (plus the UGX 1,000 paid instantly on registration).`;
+    ? `LC1 chairperson "${name}" was registered and sent to Landlord Ops. Your UGX 5,000 reward is credited once they verify the chairperson.`
+    : `LC1 chairperson "${name}" has been verified by Landlord Ops. UGX ${amount.toLocaleString()} has been credited to your withdrawable wallet.`;
 
   // 1) In-app notification (realtime). Best-effort.
   try {
@@ -123,7 +122,7 @@ export async function notifyLc1Bonus(
 
     const first = (profile?.full_name || "").trim().split(/\s+/)[0] || "there";
     const smsMessage = stage === "registered"
-      ? `Hi ${first}, UGX ${amount.toLocaleString()} has been credited to your Welile wallet for registering LC1 chairperson "${name}". UGX 4,000 more is released once Landlord Ops verifies them.`
+      ? `Hi ${first}, LC1 chairperson "${name}" was registered. Your UGX 5,000 reward is credited once Landlord Ops verifies them.`
       : `Hi ${first}, LC1 chairperson "${name}" has been verified! UGX ${amount.toLocaleString()} has been credited to your Welile withdrawable wallet. Thank you.`;
 
     await sendSMS(phone, smsMessage);
