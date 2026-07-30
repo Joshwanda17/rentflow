@@ -107,6 +107,12 @@ interface DepositFlowProps {
    * agent to re-paste the TID into the in-form matcher.
    */
   prefillFromMatch?: MatchResult | null;
+  /** Pre-fill the amount field (UGX) and skip straight to the form. */
+  defaultAmount?: number;
+  /** Pre-select the payment channel (skips the channel picker). */
+  defaultChannel?: DepositChannel;
+  /** Pre-select the mobile money provider when `defaultChannel` is 'momo'. */
+  defaultMomoProvider?: 'mtn' | 'airtel';
 }
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
