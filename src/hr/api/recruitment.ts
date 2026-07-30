@@ -1,6 +1,10 @@
 /**
  * HR data access — Recruitment
- * No component may import from `src/hr/mocks/` directly. Read through here.
+ *
+ * The HR schema currently provisions departments, staff, assignments, tasks,
+ * task events, metric definitions and metric snapshots only. There are no
+ * recruitment tables yet, so these reads return empty lists rather than mock
+ * rows — no screen may ever display invented data. Writes fail loudly.
  */
 import type {
   Application,
@@ -9,73 +13,48 @@ import type {
   JobPosting,
   Rubric,
 } from '../types';
-import recruitmentData from '../mocks/recruitment.json';
-import applicationData from '../mocks/applications.json';
-import { resolve } from './client';
+
+const NOT_PROVISIONED = 'Recruitment tables are not provisioned yet';
 
 export async function getHiringRequisitions(): Promise<HiringRequisition[]> {
-  return resolve(recruitmentData.hiring_requisitions as HiringRequisition[]);
+  return [];
 }
 
-export async function getJobPostings(status?: string): Promise<JobPosting[]> {
-  let rows = recruitmentData.job_postings as JobPosting[];
-  if (status) rows = rows.filter((j) => j.status === status);
-  return resolve(rows);
+export async function getJobPostings(_status?: string): Promise<JobPosting[]> {
+  return [];
 }
 
-export async function getJobPosting(jobId: string): Promise<JobPosting | null> {
-  const found = (recruitmentData.job_postings as JobPosting[]).find((j) => j.id === jobId);
-  return resolve(found ?? null);
+export async function getJobPosting(_jobId: string): Promise<JobPosting | null> {
+  return null;
 }
 
 export async function getCandidates(): Promise<Candidate[]> {
-  return resolve(recruitmentData.candidates as Candidate[]);
+  return [];
 }
 
 export async function getRubrics(): Promise<Rubric[]> {
-  return resolve(recruitmentData.rubrics as unknown as Rubric[]);
+  return [];
 }
 
-export async function getRubric(rubricId: string): Promise<Rubric | null> {
-  const found = (recruitmentData.rubrics as unknown as Rubric[]).find((r) => r.id === rubricId);
-  return resolve(found ?? null);
+export async function getRubric(_rubricId: string): Promise<Rubric | null> {
+  return null;
 }
 
 export async function getApplications(
-  params: { jobPostingId?: string; stage?: string } = {},
+  _params: { jobPostingId?: string; stage?: string } = {},
 ): Promise<Application[]> {
-  let rows = applicationData.applications as unknown as Application[];
-  if (params.jobPostingId) rows = rows.filter((a) => a.job_posting_id === params.jobPostingId);
-  if (params.stage) rows = rows.filter((a) => a.stage === params.stage);
-  return resolve(rows);
+  return [];
 }
 
-export async function getApplication(applicationId: string): Promise<Application | null> {
-  const found = (applicationData.applications as unknown as Application[]).find(
-    (a) => a.id === applicationId,
-  );
-  return resolve(found ?? null);
+export async function getApplication(_applicationId: string): Promise<Application | null> {
+  return null;
 }
 
-/**
- * Mock write. Note the required `decidedByEmployeeId` — there is no code path
- * in this application that changes an application stage without a named human.
- */
 export async function setApplicationStage(
-  applicationId: string,
-  stage: Application['stage'],
-  decidedByEmployeeId: string,
-  reason: string,
+  _applicationId: string,
+  _stage: Application['stage'],
+  _decidedByEmployeeId: string,
+  _reason: string,
 ): Promise<Application> {
-  const found = (applicationData.applications as unknown as Application[]).find(
-    (a) => a.id === applicationId,
-  );
-  if (!found) throw new Error('Application not found');
-  return resolve({
-    ...found,
-    stage,
-    decided_by_employee_id: decidedByEmployeeId,
-    decision_reason: reason,
-    stage_changed_at: new Date().toISOString(),
-  });
+  throw new Error(NOT_PROVISIONED);
 }
