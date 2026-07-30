@@ -11,13 +11,14 @@ type AssignmentRow = {
   department_id: string;
   position_id: string;
   reports_to_position_id: string | null;
-  hr_positions?: { title: string | null } | null;
+  position?: { id: string; title: string | null } | null;
+  reports_to?: { id: string; title: string | null } | null;
   started_on: string;
   ended_on: string | null;
 };
 
 const ASSIGNMENT_SELECT =
-  'id, staff_id, department_id, position_id, reports_to_position_id, started_on, ended_on, hr_positions(title)';
+  'id, staff_id, department_id, position_id, reports_to_position_id, started_on, ended_on, position:hr_positions!position_id(id, title), reports_to:hr_positions!reports_to_position_id(id, title)';
 
 function mapDepartment(row: DeptRow): Department {
   return {
@@ -35,7 +36,7 @@ function mapAssignment(row: AssignmentRow, departmentName: string): Assignment {
     employee_id: row.staff_id,
     department_id: row.department_id,
     department_name: departmentName,
-    role_title: row.hr_positions?.title ?? '',
+    role_title: row.position?.title ?? '',
     manager_employee_id: row.reports_to_position_id,
     employment_type: 'permanent',
     valid_from: row.started_on,
