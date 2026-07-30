@@ -45,6 +45,7 @@ interface House {
 }
 
 const CATEGORIES = [
+// placeholder
   { value: 'all', label: 'All Types' },
   { value: 'single_room', label: 'Single Room' },
   { value: 'double_room', label: 'Double Room' },
