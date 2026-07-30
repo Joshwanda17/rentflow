@@ -8,11 +8,29 @@ import {
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
+/**
+ * Declares what a signed-in person needs in order to actually open a sidebar
+ * item's route. Mirrors the guard already applied to the route in App.tsx —
+ * this adds NO new permission system, it only stops rendering links that would
+ * bounce the user with a 404.
+ *
+ *  - `'signed-in'` → visible to anyone who is authenticated.
+ *  - `{ roles, permission }` → visible when the user holds one of `roles`
+ *    AND (when given) `hasPermission(permission)` from `useStaffPermissions`.
+ *
+ * Omitted entirely = unchanged legacy behaviour (always rendered).
+ */
+export type SidebarItemAccess =
+  | 'signed-in'
+  | { roles: AppRole[]; permission?: string };
+
 export interface SidebarItem {
   label: string;
   icon: typeof BarChart3;
   id: string;
   route?: string;
+  /** Optional gate describing who can reach this item's route. */
+  access?: SidebarItemAccess;
 }
 
 export interface SidebarSection {
