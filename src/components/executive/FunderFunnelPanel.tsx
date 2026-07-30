@@ -262,6 +262,7 @@ export function FunderFunnelPanel() {
             icon={s.icon}
             color={s.color}
             loading={isLoading}
+            onClick={() => setDrillStep(s.key)}
             subtitle={
               s.key === 'funder_house_repayment_terms_viewed'
                 ? `${(data?.events[s.key] ?? 0).toLocaleString()} clicks`
@@ -278,9 +279,17 @@ export function FunderFunnelPanel() {
           const prev = i === 0 ? null : data?.progressed[STEPS[i - 1].key] ?? 0;
           const dropOff = prev && prev > 0 ? Math.round(((prev - value) / prev) * 100) : 0;
           return (
-            <div key={s.key} className="space-y-1">
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setDrillStep(s.key)}
+              className="w-full space-y-1 rounded-lg p-1 text-left transition-colors hover:bg-muted/50 touch-manipulation"
+            >
               <div className="flex items-center justify-between text-[11px]">
-                <span className="font-medium">{s.label}</span>
+                <span className="font-medium flex items-center gap-1">
+                  {s.label}
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                </span>
                 <span className="text-muted-foreground">
                   {value.toLocaleString()} funder{value === 1 ? '' : 's'} · {pct(value)}%
                   {i > 0 && dropOff > 0 && (
