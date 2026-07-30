@@ -189,6 +189,7 @@ const PhantomDriftDetailPage = lazy(() => import('./pages/cfo/PhantomDriftDetail
 const COODashboardPage = lazy(() => import('./pages/coo/Dashboard'));
 const HRDashboardPage = lazy(() => import('./pages/hr/Dashboard'));
 const HRTasksPage = lazy(() => import('./hr/pages/Tasks'));
+const HRStaffPage = lazy(() => import('./hr/pages/Staff'));
 const HRProductivityPage = lazy(() => import('./hr/pages/Productivity'));
 const HRRecruitmentPage = lazy(() => import('./hr/pages/Recruitment'));
 const HRMetricDefinitionsPage = lazy(() => import('./hr/pages/MetricDefinitions'));
@@ -568,6 +569,7 @@ function AppRoutes() {
           <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'cto']} requiredPermission="crm"><CRMDashboardPage /></RoleGuard>} />
           <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRDashboardPage /></RoleGuard>} />
           <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRTasksPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/staff" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRStaffPage /></RoleGuard>} />
           <Route path="/hr/dashboard/productivity" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRProductivityPage /></RoleGuard>} />
           <Route path="/hr/dashboard/recruitment" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRRecruitmentPage /></RoleGuard>} />
           <Route path="/hr/dashboard/metrics" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRMetricDefinitionsPage /></RoleGuard>} />
