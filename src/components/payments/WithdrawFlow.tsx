@@ -134,6 +134,15 @@ export default function WithdrawFlow({
   const [momoNumber, setMomoNumber] = useState('');
   const [momoName, setMomoName] = useState('');
   const [momoProvider, setMomoProvider] = useState<'MTN' | 'Airtel'>('MTN');
+  // Locked withdrawal destination saved by the user in Settings →
+  // Withdrawal account. When present, the mobile-money fields are
+  // prefilled and read-only so payouts always land on the one verified
+  // account bound to this user.
+  const [lockedMomo, setLockedMomo] = useState<{
+    number: string;
+    name: string;
+    provider: 'MTN' | 'Airtel';
+  } | null>(null);
 
   // Bank details
   const [bankName, setBankName] = useState('');
