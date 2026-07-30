@@ -4,7 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ArrowRight,
   BadgeCheck,
+  Briefcase,
+  Building2,
+  CalendarClock,
   ClipboardList,
+  ListChecks,
   TrendingUp,
   UserCheck,
   Users,
@@ -14,9 +18,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getActiveAssignmentsByStaff,
+  getDepartments,
   getMetricDefinitions,
   getMyStaff,
   getSnapshots,
+  getStaffDirectory,
   getTasks,
 } from '@/hr/api';
 import { getJobPostings } from '@/hr/api/recruitment';
@@ -117,6 +123,22 @@ export default function MyModuleSummary() {
     queryFn: () => getJobPostings(),
   });
 
+  // Second-row figures cover the whole tracked organisation, not just me.
+  const { data: allTasks = [] } = useQuery({
+    queryKey: ['hr', 'all-tasks'],
+    queryFn: () => getTasks(),
+  });
+
+  const { data: staffDirectory = [] } = useQuery({
+    queryKey: ['hr', 'staff-directory'],
+    queryFn: getStaffDirectory,
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ['hr', 'departments'],
+    queryFn: getDepartments,
+  });
+
   if (meLoading) {
     return (
       <div className="grid grid-cols-2 gap-2">
@@ -165,6 +187,18 @@ export default function MyModuleSummary() {
       ? row.snapshot.value <= target
       : row.snapshot.value >= target;
   }).length;
+
+  const orgOpenTasks = allTasks.filter((t) => !CLOSED.includes(t.status));
+  const orgOverdue = orgOpenTasks.filter(
+    (t) => t.due_at && new Date(t.due_at).getTime() < now,
+  );
+  const activeStaff = staffDirectory.filter((s) => s.status === 'active').length;
+  const departmentsWithStaff = new Set(
+    Object.values(assignmentsByStaff ?? {})
+      .flat()
+      .map((a) => a.department_name)
+      .filter(Boolean),
+  ).size;
 
   return (
     <div className="space-y-2">
@@ -215,6 +249,65 @@ export default function MyModuleSummary() {
           primary={postings.length ? `${postings.length} open roles` : 'No open roles'}
           detail={postings.length ? 'Live job postings' : 'Nothing being recruited for'}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Tile
+          icon={ListChecks}
+          label="Open Tasks"
+          route="/hr/dashboard/tasks"
+          primary={`${orgOpenTasks.length}`}
+          detail="Across every tracked assignment"
+        />
+        <Tile
+          icon={CalendarClock}
+          label="Overdue Tasks"
+          route="/hr/dashboard/tasks"
+          primary={`${orgOverdue.length}`}
+          detail="Past their due date"
+          tone={orgOverdue.length > 0 ? 'alert' : 'default'}
+        />
+        <Tile
+          icon={Users}
+          label="Staff Enrolled"
+          route="/hr/dashboard/staff"
+          primary={`${staffDirectory.length}`}
+          detail={`${activeStaff} active`}
+        />
+        <Tile
+          icon={Building2}
+          label="Departments Tracked"
+          route="/hr/dashboard/staff"
+          primary={`${departments.length}`}
+          detail={`${departmentsWithStaff} with staff assigned`}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          to="/hr/dashboard/my-work"
+          className="w-full text-left rounded-xl border border-border/50 bg-card hover:bg-muted/40 p-3.5 transition-all active:scale-[0.97] touch-manipulation group block"
+        >
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-1.5 rounded-lg bg-muted/50 group-hover:bg-muted text-primary">
+              <Briefcase className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-sm font-semibold text-foreground leading-tight">My Work</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Your tasks and your numbers</p>
+        </Link>
+        <Link
+          to="/hr/dashboard/staff"
+          className="w-full text-left rounded-xl border border-border/50 bg-card hover:bg-muted/40 p-3.5 transition-all active:scale-[0.97] touch-manipulation group block"
+        >
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-1.5 rounded-lg bg-muted/50 group-hover:bg-muted text-primary">
+              <Users className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-sm font-semibold text-foreground leading-tight">Staff</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Enroll and manage tracked staff</p>
+        </Link>
       </div>
 
       {me.status === 'active' && (
