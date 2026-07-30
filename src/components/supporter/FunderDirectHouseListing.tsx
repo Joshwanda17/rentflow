@@ -816,6 +816,7 @@ export function FunderDirectHouseListing() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  {selectionLocked ? 'Locked · ' : ''}
                   {selectedHouses.length} {selectedHouses.length === 1 ? 'house' : 'houses'} selected
                 </p>
                 <p className="text-xl font-black text-primary leading-tight">
@@ -825,10 +826,17 @@ export function FunderDirectHouseListing() {
               </div>
               <button
                 type="button"
-                onClick={() => { hapticTap(); setSelectedIds([]); }}
+                onClick={() => {
+                  hapticTap();
+                  if (selectionLocked) {
+                    setSelectionLocked(false);
+                    return;
+                  }
+                  setSelectedIds([]);
+                }}
                 className="text-[10px] font-semibold text-muted-foreground hover:text-foreground shrink-0"
               >
-                Clear
+                {selectionLocked ? 'Unlock' : 'Clear'}
               </button>
             </div>
 
@@ -861,11 +869,22 @@ export function FunderDirectHouseListing() {
             </div>
 
             <Button
-              onClick={() => { hapticTap(); setShowTopUp(true); }}
+              onClick={() => {
+                hapticTap();
+                if (selectionLocked) {
+                  setShowTopUp(true);
+                } else {
+                  setShowConfirm(true);
+                }
+              }}
               className="w-full h-11 rounded-xl text-xs font-bold gap-2 uppercase tracking-wide"
             >
-              <Wallet className="h-4 w-4" />
-              {shortfall > 0 ? `Add ${formatUGX(shortfall)} to wallet` : 'Fund selected houses'}
+              {selectionLocked ? <Wallet className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+              {selectionLocked
+                ? shortfall > 0
+                  ? `Add ${formatUGX(shortfall)} to wallet`
+                  : 'Reserve funds for these houses'
+                : 'Review & lock selection'}
             </Button>
             <p className="text-[9px] text-muted-foreground/80 text-center leading-relaxed">
               You earn 15% of each house's monthly rent while the tenant repays.
@@ -873,6 +892,31 @@ export function FunderDirectHouseListing() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <FunderSelectionConfirmDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        houses={selectedHouses.map((h) => ({
+          id: h.id,
+          title: h.title,
+          region: h.region,
+          district: h.district,
+          monthly_rent: h.monthly_rent,
+        }))}
+        totals={selectionTotals}
+        walletBalance={walletBalance}
+        onConfirm={() => {
+          hapticTap();
+          setSelectionLocked(true);
+          setShowConfirm(false);
+          setShowTopUp(true);
+          toast.success('Selection locked', {
+            description: `${formatUGX(selectionTotals.capital)} to reserve for ${selectedHouses.length} ${
+              selectedHouses.length === 1 ? 'house' : 'houses'
+            }.`,
+          });
+        }}
+      />
 
       <FunderTopUpDialog
         open={showTopUp}
