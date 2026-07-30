@@ -250,6 +250,8 @@ export async function enrollStaff(input: {
           position_id: input.positionId,
           reports_to_position_id: input.reportsToPositionId ?? undefined,
           started_on: input.startedOn ?? new Date().toISOString().slice(0, 10),
+          // The opening assignment is always the person's primary one.
+          is_primary: true,
         })
         .select('id')
         .single(),
