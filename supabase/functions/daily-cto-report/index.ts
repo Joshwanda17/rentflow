@@ -1034,32 +1034,32 @@ Deno.serve(async (req) => {
     ${section('Top 10 Issues Requiring Immediate Engineering Attention', 2, top10Table)}
     ${section('CTO Engineering Action Plan', 3, actionPlan)}
     ${section('Full Diagnostic Dossiers', 4, dossiersHtml)}
-    ${section('Platform Health Dashboard', 2, platformCards + trendChart)}
-    ${section('Infrastructure Operations', 3, infraCards + storageChart + `<div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:${C.muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Failing automations — last 24 hours</div>${jobTable}</div>`)}
-    ${section('Engineering Performance', 4, engCards + `<div style="margin-top:14px;">${routeTable}</div><div style="margin-top:14px;">${msgTable}</div><div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:${C.muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Slowest database operations</div>${slowTable}</div>`)}
-    ${section('Cybersecurity Dashboard', 5, secCards)}
-    ${section('Product Development', 6, prodCards)}
-    ${section('Customer Technology Experience', 7, cxCards)}
-    ${section('System Monitoring', 8, monCards)}
-    ${section('Data and Analytics', 9, dataCards)}
-    ${section('Innovation and Research', 10, innovation)}
-    ${section('Technology Risk Register', 11, riskTable)}
-    ${section('Compliance', 12, compTable)}
-    ${section('CTO Executive KPIs', 13, kpiTable)}
-    ${section('Strategic Recommendations and Action Items', 14, recsHtml)}
-    ${section('Technical Diagnostics Overview', 15, diagOverview)}
-    ${section('Detailed Error Analysis', 16, errorDossier)}
-    ${section('Critical Errors Ranked by Impact', 17, criticalTable)}
-    ${section('API and Edge Function Failure Report', 18, apiTable)}
-    ${section('Database Diagnostics', 19, dbSection)}
-    ${section('Automation Failure Details', 20, jobDetailTable)}
-    ${section('Frontend Error Report', 21, frontendSection)}
-    ${section('Authentication Diagnostics', 22, authSection)}
-    ${section('Infrastructure Alerts', 23, infraAlertTable)}
-    ${section('Security Events', 24, securitySection)}
-    ${section('Regression Report', 25, regressionSection)}
-    ${section('Engineering Action Items', 26, actionTable)}
-    ${section('Business Impact of Open Defects', 27, businessImpact)}
+    ${section('Platform Health Dashboard', 5, platformCards + trendChart)}
+    ${section('Infrastructure Operations', 6, infraCards + storageChart + `<div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:${C.muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Failing automations — last 24 hours</div>${jobTable}</div>`)}
+    ${section('Engineering Performance', 7, engCards + `<div style="margin-top:14px;">${routeTable}</div><div style="margin-top:14px;">${msgTable}</div><div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:${C.muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Slowest database operations</div>${slowTable}</div>`)}
+    ${section('Cybersecurity Dashboard', 8, secCards)}
+    ${section('Product Development', 9, prodCards)}
+    ${section('Customer Technology Experience', 10, cxCards)}
+    ${section('System Monitoring', 11, monCards)}
+    ${section('Data and Analytics', 12, dataCards)}
+    ${section('Innovation and Research', 13, innovation)}
+    ${section('Technology Risk Register', 14, riskTable)}
+    ${section('Compliance', 15, compTable)}
+    ${section('CTO Executive KPIs', 16, kpiTable)}
+    ${section('Strategic Recommendations and Action Items', 17, recsHtml)}
+    ${section('Technical Diagnostics Overview', 18, diagOverview)}
+    ${section('Detailed Error Analysis', 19, errorDossier)}
+    ${section('Critical Errors Ranked by Impact', 20, criticalTable)}
+    ${section('API and Edge Function Failure Report', 21, apiTable)}
+    ${section('Database Diagnostics', 22, dbSection)}
+    ${section('Automation Failure Details', 23, jobDetailTable)}
+    ${section('Frontend Error Report', 24, frontendSection)}
+    ${section('Authentication Diagnostics', 25, authSection)}
+    ${section('Infrastructure Alerts', 26, infraAlertTable)}
+    ${section('Security Events', 27, securitySection)}
+    ${section('Regression Report', 28, regressionSection)}
+    ${section('Engineering Action Items', 29, actionTable)}
+    ${section('Business Impact of Open Defects', 30, businessImpact)}
 
     <div style="margin-top:26px;border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.muted};">
       Generated automatically from live production telemetry at ${esc(String(d.generated_at || '').slice(0, 19).replace('T', ' '))} UTC. Overall technology health score: ${health} of 100 (${healthLabel}).
