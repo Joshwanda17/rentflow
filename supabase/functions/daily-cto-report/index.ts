@@ -1031,6 +1031,9 @@ Deno.serve(async (req) => {
     </div>
 
     ${section('Executive Summary', 1, execSummary)}
+    ${section('Top 10 Issues Requiring Immediate Engineering Attention', 2, top10Table)}
+    ${section('CTO Engineering Action Plan', 3, actionPlan)}
+    ${section('Full Diagnostic Dossiers', 4, dossiersHtml)}
     ${section('Platform Health Dashboard', 2, platformCards + trendChart)}
     ${section('Infrastructure Operations', 3, infraCards + storageChart + `<div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:${C.muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Failing automations — last 24 hours</div>${jobTable}</div>`)}
     ${section('Engineering Performance', 4, engCards + `<div style="margin-top:14px;">${routeTable}</div><div style="margin-top:14px;">${msgTable}</div><div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:${C.muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Slowest database operations</div>${slowTable}</div>`)}
