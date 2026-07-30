@@ -51,6 +51,8 @@ function Table({ head, rows, empty }: { head: string[]; rows: (string | number)[
 
 export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: Props) {
   const [tab, setTab] = useState('overview');
+  const [tenantPage, setTenantPage] = useState(0);
+  const TENANTS_PER_PAGE = 15;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['agent-profile-360', agentId],
@@ -241,12 +243,35 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
               <TabsContent value="tenants" className="mt-3">
                 <Table
                   head={['Tenant', 'Phone', 'Status', 'Rent', 'Outstanding']}
-                  rows={tenants.map((t: any) => [
-                    t.full_name ?? '—', t.phone ?? '—', t.agent_payment_status || t.status || '—',
-                    formatUGX(Number(t.rent_amount || 0)), formatUGX(Number(t.outstanding || 0)),
-                  ])}
+                  rows={tenants
+                    .slice(tenantPage * TENANTS_PER_PAGE, tenantPage * TENANTS_PER_PAGE + TENANTS_PER_PAGE)
+                    .map((t: any) => [
+                      t.full_name ?? '—', t.phone ?? '—', t.agent_payment_status || t.status || '—',
+                      formatUGX(Number(t.rent_amount || 0)), formatUGX(Number(t.outstanding || 0)),
+                    ])}
                   empty="No tenants linked to this agent"
                 />
+                {tenants.length > TENANTS_PER_PAGE && (
+                  <div className="flex items-center justify-between gap-2 pt-2 mt-2 border-t border-border">
+                    <button
+                      className="text-xs px-2.5 py-1.5 rounded-lg border border-border disabled:opacity-40"
+                      disabled={tenantPage === 0}
+                      onClick={() => setTenantPage(p => Math.max(0, p - 1))}
+                    >
+                      Prev
+                    </button>
+                    <span className="text-[11px] text-muted-foreground tabular-nums">
+                      {tenantPage * TENANTS_PER_PAGE + 1}–{Math.min(tenants.length, (tenantPage + 1) * TENANTS_PER_PAGE)} of {tenants.length}
+                    </span>
+                    <button
+                      className="text-xs px-2.5 py-1.5 rounded-lg border border-border disabled:opacity-40"
+                      disabled={(tenantPage + 1) * TENANTS_PER_PAGE >= tenants.length}
+                      onClick={() => setTenantPage(p => p + 1)}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
