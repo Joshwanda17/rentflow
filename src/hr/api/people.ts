@@ -252,8 +252,25 @@ export async function enrollStaff(input: {
     );
   }
 
-  const hydrated = await hydrateStaff([staff]);
-  return hydrated[0];
+  // The staff row exists from here on. A failing follow-up read is a display
+  // problem, never an enrolment failure — fall back to the inserted row.
+  try {
+    const hydrated = await hydrateStaff([staff]);
+    if (hydrated[0]) return hydrated[0];
+  } catch (e) {
+    console.warn('[hr] enrolled, but reading the new staff record failed', e);
+  }
+  return {
+    id: staff.id,
+    staff_number: staff.staff_ref,
+    full_name: '',
+    email: '',
+    phone: '',
+    photo_url: null,
+    status: staff.active ? 'active' : 'exited',
+    joined_at: staff.created_at,
+    current_assignment: null,
+  } satisfies Employee;
 }
 
 export type UnenrolledStaffCandidate = {
