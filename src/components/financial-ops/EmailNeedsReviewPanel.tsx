@@ -163,7 +163,7 @@ export function EmailNeedsReviewPanel() {
       if (fromIso) emailQ = emailQ.gte('internal_date', fromIso);
       if (toIso) emailQ = emailQ.lte('internal_date', toIso);
 
-      let pendingQ: any = supabase.from('deposit_requests')
+      let pendingQ: any = (supabase.from('deposit_requests') as any)
         .select('id,amount,transaction_id,created_at,user_id,profiles!deposit_requests_user_id_fkey(full_name,phone)')
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
