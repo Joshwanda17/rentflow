@@ -390,8 +390,8 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         </Card>
       </div>
 
-      {/* Row C — three mini charts */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Row C — mini charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-2">Listings Funnel</h3>
           <div className="h-40">
@@ -423,21 +423,6 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
             </ResponsiveContainer>
           </div>
         </Card>
-
-        <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
-          <h3 className="text-sm font-semibold mb-2">Advance Health</h3>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={advanceDonut} dataKey="value" nameKey="name" innerRadius={30} outerRadius={55} paddingAngle={2}>
-                  {advanceDonut.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                </Pie>
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
       </div>
 
       {/* Row D — operational tables */}
@@ -447,15 +432,165 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
             <TabsTrigger value="top-agents">Top Agents</TabsTrigger>
             <TabsTrigger value="recent-requests">Recent Requests</TabsTrigger>
             <TabsTrigger value="recent-verifs">Recent Verifications</TabsTrigger>
-            <TabsTrigger value="at-risk">At-Risk</TabsTrigger>
           </TabsList>
           <TabsContent value="top-agents"><TopAgentsPreview onOpen={() => onOpenSection('leaderboard')} /></TabsContent>
           <TabsContent value="recent-requests"><RecentRequestsPreview onOpen={() => onOpenSection('pipeline')} /></TabsContent>
           <TabsContent value="recent-verifs"><RecentVerificationsPreview /></TabsContent>
-          <TabsContent value="at-risk"><AtRiskAgentsPreview onOpen={() => onOpenSection('advance-repayments')} /></TabsContent>
         </Tabs>
       </Card>
     </div>
+  );
+}
+
+// ---------- Latest rent requests ----------
+
+function LatestRentRequests({ onViewAll }: { onViewAll: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['agent-ops-latest-rent-requests'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('rent_requests')
+        .select('id, agent_id, tenant_id, rent_amount, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (!data || data.length === 0) return [];
+      const ids = Array.from(new Set(data.flatMap((r: any) => [r.agent_id, r.tenant_id]).filter(Boolean)));
+      const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      const pm = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+      return data.map((r: any) => ({
+        ...r,
+        agent_name: pm.get(r.agent_id) || '—',
+        tenant_name: pm.get(r.tenant_id) || '—',
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const statusTone = (s: string) =>
+    ['rejected', 'deleted_by_agent'].includes(s) ? 'destructive'
+      : ['repaying', 'funded', 'disbursed', 'approved'].includes(s) ? 'default'
+      : 'outline';
+
+  return (
+    <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h3 className="text-sm font-semibold">Latest Rent Requests</h3>
+          <p className="text-[11px] text-muted-foreground">The five most recent submissions</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={onViewAll} className="gap-1">
+          View all <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : !data || data.length === 0 ? (
+        <p className="text-xs text-muted-foreground p-4 text-center">No rent requests yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Tenant</TableHead>
+                <TableHead className="hidden sm:table-cell">Agent</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Rent</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((r: any) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    {format(new Date(r.created_at), 'd MMM HH:mm')}
+                  </TableCell>
+                  <TableCell className="font-medium max-w-[140px] truncate">{r.tenant_name}</TableCell>
+                  <TableCell className="hidden sm:table-cell max-w-[140px] truncate">{r.agent_name}</TableCell>
+                  <TableCell>
+                    <Badge variant={statusTone(r.status) as any} className="text-[10px]">{r.status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums text-xs">
+                    {fmtMoney(Number(r.rent_amount || 0))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ---------- Top performers (agents + sub-agents) ----------
+
+function TopPerformers({
+  rows,
+  loading,
+}: {
+  rows: NonNullable<OverviewPayload['top_performers']>;
+  loading?: boolean;
+}) {
+  return (
+    <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
+      <div className="flex items-center gap-2 mb-2">
+        <Trophy className="h-4 w-4 text-amber-500" />
+        <div>
+          <h3 className="text-sm font-semibold">Top Performers</h3>
+          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected this period</p>
+        </div>
+      </div>
+      {loading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded in this period.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="hidden sm:table-cell text-right">Collections</TableHead>
+                <TableHead className="text-right">Collected</TableHead>
+                <TableHead className="hidden md:table-cell text-right">Commission</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r, i) => (
+                <TableRow key={r.user_id}>
+                  <TableCell className="text-xs font-bold text-muted-foreground tabular-nums">{i + 1}</TableCell>
+                  <TableCell className="font-medium max-w-[160px] truncate">{r.name}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'text-[10px]',
+                        r.category === 'Sub-Agent'
+                          ? 'bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30'
+                          : 'bg-primary/10 text-primary border-primary/30',
+                      )}
+                    >
+                      {r.category}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell text-right tabular-nums text-xs">
+                    {fmtNum(Number(r.collections || 0))}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums text-xs">
+                    {fmtMoney(Number(r.collected || 0))}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell text-right tabular-nums text-xs text-muted-foreground">
+                    {fmtMoney(Number(r.commission || 0))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
   );
 }
 
