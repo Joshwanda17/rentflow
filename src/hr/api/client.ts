@@ -1,29 +1,23 @@
 /**
  * HR transport layer — the single swap point.
  *
- * Today every HR read resolves a mock after a short delay, so that loading and
- * error states are built and tested from day one rather than bolted on later.
- *
- * When the engine API is ready, ONLY this file changes. No screen is touched.
+ * Live: every HR read/write goes through the project Supabase client.
+ * Errors are returned to the caller, never swallowed.
  */
-const USE_MOCKS = true;
-const MOCK_LATENCY_MS = 300;
+import { supabase } from '@/integrations/supabase/client';
 
-export async function resolve<T>(value: T): Promise<T> {
-  if (USE_MOCKS) {
-    await new Promise((r) => setTimeout(r, MOCK_LATENCY_MS));
-    return value;
-  }
-  throw new Error('Live HR API not wired yet');
+export { supabase };
+
+/** Throws the Supabase error verbatim so callers can surface it. */
+export function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
+  if (res.error) throw new Error(res.error.message);
+  return res.data as T;
 }
 
-/* When the engine lands, this replaces `resolve` and nothing else changes:
- *
- * export async function get<T>(path: string): Promise<T> {
- *   const res = await fetch(`${import.meta.env.VITE_HR_API_URL}${path}`, {
- *     headers: { Authorization: `Bearer ${await getAccessToken()}` },
- *   });
- *   if (!res.ok) throw new Error(`HR API ${res.status}`);
- *   return res.json();
- * }
- */
+/** The auth user id of the caller. Required for every HR write. */
+export async function requireUserId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error('Not signed in');
+  return data.user.id;
+}
