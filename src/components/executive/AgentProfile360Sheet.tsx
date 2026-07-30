@@ -246,6 +246,113 @@ function Stat({ label, value, tone }: { label: string; value: string | number; t
   );
 }
 
+/** Full collections ledger for an agent: per-payment amount plus the tenant's
+ *  total rent, cumulative repaid and remaining balance. */
+function CollectionsLedger({ agentId }: { agentId: string | null }) {
+  const [limit, setLimit] = useState(50);
+  const [q, setQ] = useState('');
+  useEffect(() => { setLimit(50); setQ(''); }, [agentId]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['agent-collections-detail', agentId, limit],
+    enabled: !!agentId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_agent_collections_detail' as any, {
+        p_agent_id: agentId, p_limit: limit,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const s = data?.summary ?? {};
+  const p = data?.portfolio ?? {};
+  const rows: any[] = data?.rows ?? [];
+  const term = q.trim().toLowerCase();
+  const filtered = term
+    ? rows.filter(r => `${r.tenant_name ?? ''} ${r.tenant_phone ?? ''} ${r.momo_transaction_id ?? ''} ${r.amount}`.toLowerCase().includes(term))
+    : rows;
+
+  const rentTotal = Number(p.rent_total || 0);
+  const repaidTotal = Number(p.repaid_total || 0);
+  const outstandingTotal = Number(p.outstanding_total || 0);
+  const collectedAll = Number(s.total || 0);
+
+  if (isLoading) {
+    return <div className="flex justify-center py-10"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Portfolio: total billed vs collected vs still owed */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <Stat label="Total rent (portfolio)" value={formatUGX(rentTotal)} />
+        <Stat label="Total repaid" value={formatUGX(repaidTotal)} tone="text-emerald-600" />
+        <Stat label="Outstanding" value={formatUGX(outstandingTotal)} tone="text-amber-600" />
+        <Stat label="Repayment rate" value={`${pct(repaidTotal, rentTotal)}%`} />
+      </div>
+
+      {/* Collection activity */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <Stat label="Collections" value={Number(s.count || 0).toLocaleString()} />
+        <Stat label="Tenants paid" value={Number(s.tenants_paid || 0).toLocaleString()} />
+        <Stat label="Today" value={formatUGX(Number(s.today || 0))} />
+        <Stat label="Last 7 days" value={formatUGX(Number(s.week || 0))} />
+        <Stat label="Last 30 days" value={formatUGX(Number(s.last_30d || 0))} />
+        <Stat label="Collected all time" value={formatUGX(collectedAll)} tone="text-emerald-600" />
+        <Stat label="Average payment" value={formatUGX(Math.round(Number(s.avg_amount || 0)))} />
+        <Stat label="Last collection" value={s.last_collection_at ? dt(s.last_collection_at) : '—'} />
+      </div>
+
+      {/* Channel split */}
+      <div className="grid grid-cols-3 gap-2">
+        <Stat label="Cash" value={formatUGX(Number(s.cash_total || 0))} />
+        <Stat label="Mobile money" value={formatUGX(Number(s.momo_total || 0))} />
+        <Stat label="In-app wallet" value={formatUGX(Number(s.wallet_total || 0))} />
+      </div>
+
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search tenant, phone, TID or amount…"
+        className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      />
+
+      <Table
+        head={['Tenant', 'Phone', 'Paid', 'Total rent', 'Repaid', 'Balance', '% repaid', 'Daily', 'Method', 'Reference', 'When']}
+        rows={filtered.map((r) => {
+          const rent = Number(r.rent_total || 0);
+          const repaid = Number(r.repaid_total || 0);
+          return [
+            r.tenant_name ?? '—',
+            r.tenant_phone ?? '—',
+            formatUGX(Number(r.amount || 0)),
+            rent ? formatUGX(rent) : '—',
+            repaid ? formatUGX(repaid) : '—',
+            rent ? formatUGX(Number(r.outstanding || 0)) : '—',
+            rent ? `${pct(repaid, rent)}%` : '—',
+            Number(r.daily_repayment || 0) ? formatUGX(Number(r.daily_repayment)) : '—',
+            (r.payment_method ?? '—').toString().replace(/_/g, ' '),
+            r.momo_transaction_id || r.momo_provider || r.location_name || '—',
+            r.created_at ? new Date(r.created_at).toLocaleString() : '—',
+          ];
+        })}
+        empty={term ? 'No collections match that search' : 'No collections recorded'}
+      />
+
+      {rows.length >= limit && (
+        <div className="flex justify-center">
+          <Button size="sm" variant="outline" onClick={() => setLimit((l) => l + 50)}>Load more</Button>
+        </div>
+      )}
+      <p className="text-[10px] text-muted-foreground text-center">
+        Showing {filtered.length.toLocaleString()} of {Number(s.count || 0).toLocaleString()} recorded collections.
+      </p>
+    </div>
+  );
+}
+
 function Table({ head, rows, empty }: { head: string[]; rows: (string | number)[][]; empty: string }) {
   if (!rows.length) return <p className="text-xs text-muted-foreground py-4 text-center">{empty}</p>;
   return (
@@ -397,19 +504,7 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
               </TabsContent>
 
               <TabsContent value="collections" className="space-y-3 mt-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <Stat label="Collections" value={col.count ?? 0} />
-                  <Stat label="Today" value={formatUGX(Number(col.today || 0))} />
-                  <Stat label="Last 30d" value={formatUGX(Number(col.last_30d || 0))} />
-                  <Stat label="All time" value={formatUGX(Number(col.total || 0))} />
-                </div>
-                <Table
-                  head={['Tenant', 'Amount', 'Method', 'When']}
-                  rows={(col.recent ?? []).map((c: any) => [
-                    c.tenant_name ?? '—', formatUGX(Number(c.amount || 0)), c.payment_method ?? '—', dt(c.created_at),
-                  ])}
-                  empty="No collections recorded"
-                />
+                <CollectionsLedger agentId={agentId} />
               </TabsContent>
 
               <TabsContent value="network" className="space-y-3 mt-3">

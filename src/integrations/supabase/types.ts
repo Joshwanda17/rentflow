@@ -28106,6 +28106,10 @@ export type Database = {
         }[]
       }
       get_agent_campaign_dashboard: { Args: never; Returns: Json }
+      get_agent_collections_detail: {
+        Args: { p_agent_id: string; p_limit?: number }
+        Returns: Json
+      }
       get_agent_daily_activity_report: {
         Args: { p_date?: string }
         Returns: Json
