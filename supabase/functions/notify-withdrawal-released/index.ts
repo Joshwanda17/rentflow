@@ -240,13 +240,13 @@ Deno.serve(async (req) => {
         );
       }
 
-      const smsMsg = reason === "timeout"
-        ? `WELILE: The merchant agent processing your withdrawal of UGX ${amount.toLocaleString()} ` +
-          `ran out of time, so your request was returned to the queue. Your funds are still on hold ` +
-          `and another agent will pick it up shortly. Track it at https://welileapp.com/auth`
-        : `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} was returned to the queue and ` +
-          `will be picked up by another merchant agent shortly. Your funds remain on hold. ` +
-          `Track it at https://welileapp.com/auth`;
+      // Customer-facing SMS: never expose merchant agent identity or role.
+      const smsMsg =
+        `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} is still being processed. ` +
+        `Your funds remain on hold and your money will arrive shortly.\n` +
+        `Track your transaction:\n` +
+        `https://welileapp.com/auth\n` +
+        `For assistance, contact Welile Support on 0748747134.`;
 
       let sent = false;
       let smsAttempts = 0;
