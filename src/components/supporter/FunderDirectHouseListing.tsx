@@ -523,7 +523,10 @@ export function FunderDirectHouseListing() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {filtered.map((house) => (
+          {filtered.map((house) => {
+            const earn = calcFunderEarnings(house.monthly_rent);
+            const selected = selectedIds.includes(house.id);
+            return (
             <motion.div
               key={house.id}
               layout
@@ -535,7 +538,9 @@ export function FunderDirectHouseListing() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') openHouse(house);
               }}
-              className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className={`rounded-2xl border bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                selected ? 'border-primary ring-2 ring-primary/30' : 'border-border/60'
+              }`}
               aria-label={`View details for ${house.title}`}
             >
               <div className="relative w-full h-36 bg-muted">
@@ -587,9 +592,60 @@ export function FunderDirectHouseListing() {
                   <span className="text-[9px] font-normal text-muted-foreground">/day</span>
                 </p>
                 <MoveInOfferBadge className="mt-1" />
+
+                {/* Funder earning projection — 15% of monthly rent */}
+                {earn.capital > 0 && (
+                  <div className="mt-2 rounded-xl border border-primary/20 bg-primary/5 p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        <TrendingUp className="h-3 w-3 text-primary" /> You earn
+                      </span>
+                      <span className="text-[9px] font-semibold text-muted-foreground">
+                        15% / month
+                      </span>
+                    </div>
+                    <p className="text-base font-black text-primary leading-none">
+                      {formatUGX(earn.monthly)}
+                      <span className="text-[9px] font-normal text-muted-foreground"> /month</span>
+                    </p>
+                    <div className="grid grid-cols-3 gap-1 pt-0.5">
+                      {[
+                        { label: 'Daily', value: earn.daily },
+                        { label: 'Weekly', value: earn.weekly },
+                        { label: '12 months', value: earn.annual },
+                      ].map((m) => (
+                        <div key={m.label} className="text-center">
+                          <p className="text-[10px] font-black text-foreground leading-tight">
+                            {formatUGX(m.value)}
+                          </p>
+                          <p className="text-[8px] text-muted-foreground font-medium">{m.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-muted-foreground">
+                      Capital needed {formatUGX(earn.capital)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelect(house.id);
+                      }}
+                      aria-pressed={selected}
+                      className={`w-full h-9 rounded-xl text-[11px] font-bold inline-flex items-center justify-center gap-1.5 transition-colors touch-manipulation ${
+                        selected
+                          ? 'bg-primary text-primary-foreground'
+                          : 'border border-primary/40 text-primary hover:bg-primary/10'
+                      }`}
+                    >
+                      {selected ? (<><Check className="h-3.5 w-3.5" /> Selected</>) : 'Select to earn'}
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       )}
 
