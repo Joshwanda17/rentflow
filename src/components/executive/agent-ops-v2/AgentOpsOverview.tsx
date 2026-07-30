@@ -712,7 +712,7 @@ function RecentVerificationsPreview() {
   );
 }
 
-function AtRiskAgentsPreview({ onOpen }: { onOpen: () => void }) {
+export function AtRiskAgentsPreview({ onOpen }: { onOpen?: () => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['agent-ops-at-risk'],
     queryFn: async () => {
@@ -743,9 +743,11 @@ function AtRiskAgentsPreview({ onOpen }: { onOpen: () => void }) {
           <span className="font-semibold tabular-nums text-xs">{fmtMoney(r.outstanding_balance || 0)}</span>
         </div>
       ))}
-      <button onClick={onOpen} className="w-full text-xs text-primary hover:underline flex items-center justify-center gap-1 pt-2">
-        Open repayments monitor <ArrowRight className="h-3 w-3" />
-      </button>
+      {onOpen && (
+        <button onClick={onOpen} className="w-full text-xs text-primary hover:underline flex items-center justify-center gap-1 pt-2">
+          Open repayments monitor <ArrowRight className="h-3 w-3" />
+        </button>
+      )}
     </div>
   );
 }
