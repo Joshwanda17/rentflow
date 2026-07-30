@@ -412,13 +412,14 @@ export default function StaffScorecard({ staffId }: Props) {
               Metrics against target · {period?.label ?? DASH}
             </CardTitle>
           </CardHeader>
-          <CardContent className="h-80">
+          <CardContent className={omittedFromRadar.length > 0 ? 'h-80 pb-0' : 'h-80'}>
             {radarData.length === 0 ? (
               <p className="pt-24 text-center text-xs text-muted-foreground">
-                No metrics are defined for this department.
+                No metric here has both a target and a value for this period, so there is
+                nothing that can be plotted against target.
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={omittedFromRadar.length > 0 ? '82%' : '100%'}>
                 <RadarChart data={radarData} outerRadius="72%">
                   <PolarGrid stroke="hsl(var(--border))" />
                   <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10 }} />
@@ -441,10 +442,16 @@ export default function StaffScorecard({ staffId }: Props) {
                 </RadarChart>
               </ResponsiveContainer>
             )}
+            {omittedFromRadar.length > 0 && (
+              <p className="pt-1 text-[10px] leading-tight text-muted-foreground">
+                Not plotted (no target or no value this period): {omittedFromRadar.join(', ')}.
+                Shown as tiles instead — a missing measurement is never drawn as zero.
+              </p>
+            )}
           </CardContent>
         </Card>
 
-        {/* 2. The same six metrics as tiles */}
+        {/* 2. Every definition as a tile, including those the radar omits */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Metric detail</CardTitle>
