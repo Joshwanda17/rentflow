@@ -44,8 +44,6 @@ import type {
 } from '@/hr/api/people';
 import type { Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 
-/** How many metrics the radar carries. Six is the contract. */
-const RADAR_SIZE = 6;
 /** How many periods the trend line covers. */
 const TREND_PERIODS = 6;
 
@@ -248,9 +246,9 @@ export default function StaffScorecard({ staffId }: Props) {
     void load();
   }, [load]);
 
-  /** The six metrics this scorecard reports on, in definition display order. */
+  /** Every active definition the database returns, in display order. */
   const scored = useMemo(() => {
-    const active = definitions.filter((d) => d.active).slice(0, RADAR_SIZE);
+    const active = definitions.filter((d) => d.active);
     return active.map((def) => {
       const snap = snapshots.find(
         (s) => s.metric_definition_id === def.id && s.period_start === period?.start,
@@ -270,13 +268,25 @@ export default function StaffScorecard({ staffId }: Props) {
     if (!trendMetricId && scored.length > 0) setTrendMetricId(scored[0].def.id);
   }, [scored, trendMetricId]);
 
+  /** Only spokes with a real, comparable attainment. A missing value is never plotted as 0. */
   const radarData = useMemo(
     () =>
-      scored.map((row) => ({
-        metric: row.def.name,
-        Attainment: row.attainment === null ? 0 : Math.min(row.attainment, 150),
-        Target: 100,
-      })),
+      scored
+        .filter((row) => row.def.target_value !== null && row.attainment !== null)
+        .map((row) => ({
+          metric: row.def.name,
+          Attainment: Math.min(row.attainment as number, 150),
+          Target: 100,
+        })),
+    [scored],
+  );
+
+  /** Named beneath the chart so an omitted spoke is explained, never silently dropped. */
+  const omittedFromRadar = useMemo(
+    () =>
+      scored
+        .filter((row) => row.def.target_value === null || row.attainment === null)
+        .map((row) => row.def.name),
     [scored],
   );
 
@@ -402,13 +412,14 @@ export default function StaffScorecard({ staffId }: Props) {
               Metrics against target · {period?.label ?? DASH}
             </CardTitle>
           </CardHeader>
-          <CardContent className="h-80">
+          <CardContent className={omittedFromRadar.length > 0 ? 'h-80 pb-0' : 'h-80'}>
             {radarData.length === 0 ? (
               <p className="pt-24 text-center text-xs text-muted-foreground">
-                No metrics are defined for this department.
+                No metric here has both a target and a value for this period, so there is
+                nothing that can be plotted against target.
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={omittedFromRadar.length > 0 ? '82%' : '100%'}>
                 <RadarChart data={radarData} outerRadius="72%">
                   <PolarGrid stroke="hsl(var(--border))" />
                   <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10 }} />
@@ -431,10 +442,16 @@ export default function StaffScorecard({ staffId }: Props) {
                 </RadarChart>
               </ResponsiveContainer>
             )}
+            {omittedFromRadar.length > 0 && (
+              <p className="pt-1 text-[10px] leading-tight text-muted-foreground">
+                Not plotted (no target or no value this period): {omittedFromRadar.join(', ')}.
+                Shown as tiles instead — a missing measurement is never drawn as zero.
+              </p>
+            )}
           </CardContent>
         </Card>
 
-        {/* 2. The same six metrics as tiles */}
+        {/* 2. Every definition as a tile, including those the radar omits */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Metric detail</CardTitle>
