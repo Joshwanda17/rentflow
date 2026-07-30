@@ -14,8 +14,10 @@ import {
 } from 'recharts';
 import {
   Users, UserPlus, Activity, FileText, Home, Wallet, Banknote, TrendingDown,
-  TrendingUp, ArrowRight,
+  TrendingUp, ArrowRight, UsersRound, Network, Coins, Hourglass, Receipt, Trophy,
 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 
 export type OverviewRange = '24h' | '7d' | '1m';
 
@@ -116,7 +118,11 @@ function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, load
 interface OverviewPayload {
   kpis: Record<string, number>;
   listings_funnel: { listed: number; verified: number; placed: number };
-  trend: Array<{ day: string; agents: number; requests: number; collections: number; commission: number; active_agents: number }>;
+  trend: Array<{ day: string; agents: number; requests: number; collections: number; commission: number; active_agents: number; expected?: number; pending?: number }>;
+  top_performers?: Array<{
+    user_id: string; name: string; phone: string | null; category: 'Agent' | 'Sub-Agent';
+    collected: number; collections: number; commission: number;
+  }>;
   generated_at: string;
 }
 
@@ -164,6 +170,8 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
     activeAgents: t.active_agents,
     collections: t.collections,
     commission: t.commission,
+    collected: t.collections,
+    pending: Number(t.pending || 0),
   }));
 
   const rentPipelineData = [
@@ -171,14 +179,6 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
     { name: 'Approved', value: Number(k.rent_approved || 0), fill: 'hsl(199 89% 48%)' },
     { name: 'Repaying', value: Number(k.rent_repaying || 0), fill: 'hsl(160 84% 39%)' },
     { name: 'Rejected', value: Number(k.rent_rejected || 0), fill: 'hsl(0 84% 60%)' },
-  ];
-
-  const advActive = Number(k.active_advances_count || 0);
-  const advBehind = Number(k.behind_advances_count || 0);
-  const advOn = Math.max(0, advActive - advBehind);
-  const advanceDonut = [
-    { name: 'On track', value: advOn, fill: 'hsl(160 84% 39%)' },
-    { name: 'Behind', value: advBehind, fill: 'hsl(0 84% 60%)' },
   ];
 
   const funnel = data?.listings_funnel || { listed: 0, verified: 0, placed: 0 };
@@ -213,13 +213,13 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         </div>
       </div>
 
-      {/* Row A — 8 KPI tiles */}
+      {/* Row A — network KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         <KpiTile
           title="Total Agents"
           value={fmtNum(k.total_agents || 0)}
           delta={pctDelta(k.total_agents || 0, k.total_agents_prev || 0)}
-          subtitle={`of ${fmtNum(k.total_users || 0)} users`}
+          subtitle={`+${fmtNum(k.new_agents_curr || 0)} new this period`}
           icon={Users}
           accent="bg-primary"
           onClick={() => onOpenSection('directory')}
@@ -237,62 +237,110 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           loading={isLoading}
         />
         <KpiTile
-          title="New Agents"
-          value={fmtNum(k.new_agents_curr || 0)}
-          delta={pctDelta(k.new_agents_curr || 0, k.new_agents_prev || 0)}
-          subtitle={`of ${fmtNum(k.total_agents || 0)} agents`}
-          icon={UserPlus}
+          title="Total Sub-Agents"
+          value={fmtNum(k.total_subagents || 0)}
+          delta={pctDelta(k.total_subagents || 0, k.total_subagents_prev || 0)}
+          subtitle={`+${fmtNum(k.new_subagents_curr || 0)} new this period`}
+          icon={UsersRound}
           accent="bg-sky-600"
-          spark={trendData.map((t) => t.agents)}
           onClick={() => onOpenSection('sub-agents')}
           loading={isLoading}
         />
         <KpiTile
-          title="Rent Requests"
-          value={fmtNum(k.rent_req_curr || 0)}
-          delta={pctDelta(k.rent_req_curr || 0, k.rent_req_prev || 0)}
-          icon={FileText}
+          title="Active Sub-Agents"
+          value={fmtNum(k.active_subagents_curr || 0)}
+          delta={pctDelta(k.active_subagents_curr || 0, k.active_subagents_prev || 0)}
+          subtitle={`of ${fmtNum(k.total_subagents || 0)} sub-agents`}
+          icon={Network}
           accent="bg-indigo-600"
-          spark={trendData.map((t) => t.requests)}
-          onClick={() => onOpenSection('pipeline')}
+          onClick={() => onOpenSection('sub-agents')}
           loading={isLoading}
         />
+      </div>
+
+      {/* Row A2 — money KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         <KpiTile
-          title="Verified Houses"
-          value={fmtNum(k.verified_houses_curr || 0)}
-          delta={pctDelta(k.verified_houses_curr || 0, k.verified_houses_prev || 0)}
-          icon={Home}
-          accent="bg-amber-600"
-          onClick={() => onOpenSection('listing-campaign')}
-          loading={isLoading}
-        />
-        <KpiTile
-          title="Collections Today"
-          value={fmtMoney(k.collections_today || 0)}
+          title="Total Collected"
+          value={fmtMoney(k.collections_curr || 0)}
+          delta={pctDelta(k.collections_curr || 0, k.collections_prev || 0)}
+          subtitle={`${fmtMoney(k.collections_today || 0)} today`}
           icon={Wallet}
+          accent="bg-emerald-700"
+          spark={trendData.map((t) => t.collected)}
+          onClick={() => onOpenSection('daily-collections-report')}
+          loading={isLoading}
+        />
+        <KpiTile
+          title="Pending Collections"
+          value={fmtMoney(k.pending_collections || 0)}
+          subtitle="Outstanding on live rent plans"
+          icon={Hourglass}
+          accent="bg-rose-600"
+          spark={trendData.map((t) => t.pending)}
+          onClick={() => onOpenSection('allocation-report')}
+          loading={isLoading}
+        />
+        <KpiTile
+          title="Total Collections"
+          value={fmtNum(k.collections_count_curr || 0)}
+          delta={pctDelta(k.collections_count_curr || 0, k.collections_count_prev || 0)}
+          subtitle={`${fmtNum(k.collections_today_count || 0)} today`}
+          icon={Receipt}
           accent="bg-teal-600"
           onClick={() => onOpenSection('daily-collections-report')}
           loading={isLoading}
         />
         <KpiTile
-          title="Commission Paid"
+          title="Commissions Paid Out"
           value={fmtMoney(k.commission_curr || 0)}
           delta={pctDelta(k.commission_curr || 0, k.commission_prev || 0)}
-          icon={Banknote}
+          icon={Coins}
           accent="bg-fuchsia-600"
           spark={trendData.map((t) => t.commission)}
           onClick={() => onOpenSection('earnings')}
           loading={isLoading}
         />
-        <KpiTile
-          title="Outstanding Advances"
-          value={fmtMoney(k.outstanding_advances || 0)}
-          icon={TrendingDown}
-          accent="bg-rose-600"
-          onClick={() => onOpenSection('active-advances')}
-          loading={isLoading}
-        />
       </div>
+
+      {/* Rent collections — pending vs collected */}
+      <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <h3 className="text-sm font-semibold">Rent Collections</h3>
+            <p className="text-[11px] text-muted-foreground">Collected (green) vs still pending (red), UGX</p>
+          </div>
+        </div>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="collectedFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(160 84% 39%)" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="hsl(160 84% 39%)" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="pendingFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(0 84% 60%)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="hsl(0 84% 60%)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number) => fmtMoney(v)} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="pending" name="Pending" stroke="hsl(0 84% 60%)" strokeWidth={2} fill="url(#pendingFill)" dot={false} />
+              <Area type="monotone" dataKey="collected" name="Collected" stroke="hsl(160 84% 39%)" strokeWidth={2} fill="url(#collectedFill)" dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Latest rent requests */}
+      <LatestRentRequests onViewAll={() => onOpenSection('pipeline')} />
+
+      {/* Top performers */}
+      <TopPerformers rows={data?.top_performers || []} loading={isLoading} />
 
       {/* Row B — trend charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -342,8 +390,8 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         </Card>
       </div>
 
-      {/* Row C — three mini charts */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Row C — mini charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-2">Listings Funnel</h3>
           <div className="h-40">
@@ -375,21 +423,6 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
             </ResponsiveContainer>
           </div>
         </Card>
-
-        <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
-          <h3 className="text-sm font-semibold mb-2">Advance Health</h3>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={advanceDonut} dataKey="value" nameKey="name" innerRadius={30} outerRadius={55} paddingAngle={2}>
-                  {advanceDonut.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                </Pie>
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
       </div>
 
       {/* Row D — operational tables */}
@@ -399,15 +432,165 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
             <TabsTrigger value="top-agents">Top Agents</TabsTrigger>
             <TabsTrigger value="recent-requests">Recent Requests</TabsTrigger>
             <TabsTrigger value="recent-verifs">Recent Verifications</TabsTrigger>
-            <TabsTrigger value="at-risk">At-Risk</TabsTrigger>
           </TabsList>
           <TabsContent value="top-agents"><TopAgentsPreview onOpen={() => onOpenSection('leaderboard')} /></TabsContent>
           <TabsContent value="recent-requests"><RecentRequestsPreview onOpen={() => onOpenSection('pipeline')} /></TabsContent>
           <TabsContent value="recent-verifs"><RecentVerificationsPreview /></TabsContent>
-          <TabsContent value="at-risk"><AtRiskAgentsPreview onOpen={() => onOpenSection('advance-repayments')} /></TabsContent>
         </Tabs>
       </Card>
     </div>
+  );
+}
+
+// ---------- Latest rent requests ----------
+
+function LatestRentRequests({ onViewAll }: { onViewAll: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['agent-ops-latest-rent-requests'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('rent_requests')
+        .select('id, agent_id, tenant_id, rent_amount, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (!data || data.length === 0) return [];
+      const ids = Array.from(new Set(data.flatMap((r: any) => [r.agent_id, r.tenant_id]).filter(Boolean)));
+      const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      const pm = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+      return data.map((r: any) => ({
+        ...r,
+        agent_name: pm.get(r.agent_id) || '—',
+        tenant_name: pm.get(r.tenant_id) || '—',
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const statusTone = (s: string) =>
+    ['rejected', 'deleted_by_agent'].includes(s) ? 'destructive'
+      : ['repaying', 'funded', 'disbursed', 'approved'].includes(s) ? 'default'
+      : 'outline';
+
+  return (
+    <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h3 className="text-sm font-semibold">Latest Rent Requests</h3>
+          <p className="text-[11px] text-muted-foreground">The five most recent submissions</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={onViewAll} className="gap-1">
+          View all <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : !data || data.length === 0 ? (
+        <p className="text-xs text-muted-foreground p-4 text-center">No rent requests yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Tenant</TableHead>
+                <TableHead className="hidden sm:table-cell">Agent</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Rent</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((r: any) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    {format(new Date(r.created_at), 'd MMM HH:mm')}
+                  </TableCell>
+                  <TableCell className="font-medium max-w-[140px] truncate">{r.tenant_name}</TableCell>
+                  <TableCell className="hidden sm:table-cell max-w-[140px] truncate">{r.agent_name}</TableCell>
+                  <TableCell>
+                    <Badge variant={statusTone(r.status) as any} className="text-[10px]">{r.status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums text-xs">
+                    {fmtMoney(Number(r.rent_amount || 0))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ---------- Top performers (agents + sub-agents) ----------
+
+function TopPerformers({
+  rows,
+  loading,
+}: {
+  rows: NonNullable<OverviewPayload['top_performers']>;
+  loading?: boolean;
+}) {
+  return (
+    <Card className="rounded-2xl border-border/50 p-3 sm:p-4 w-full">
+      <div className="flex items-center gap-2 mb-2">
+        <Trophy className="h-4 w-4 text-amber-500" />
+        <div>
+          <h3 className="text-sm font-semibold">Top Performers</h3>
+          <p className="text-[11px] text-muted-foreground">Agents and sub-agents by rent collected this period</p>
+        </div>
+      </div>
+      {loading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground p-4 text-center">No collections recorded in this period.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="hidden sm:table-cell text-right">Collections</TableHead>
+                <TableHead className="text-right">Collected</TableHead>
+                <TableHead className="hidden md:table-cell text-right">Commission</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r, i) => (
+                <TableRow key={r.user_id}>
+                  <TableCell className="text-xs font-bold text-muted-foreground tabular-nums">{i + 1}</TableCell>
+                  <TableCell className="font-medium max-w-[160px] truncate">{r.name}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'text-[10px]',
+                        r.category === 'Sub-Agent'
+                          ? 'bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30'
+                          : 'bg-primary/10 text-primary border-primary/30',
+                      )}
+                    >
+                      {r.category}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell text-right tabular-nums text-xs">
+                    {fmtNum(Number(r.collections || 0))}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums text-xs">
+                    {fmtMoney(Number(r.collected || 0))}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell text-right tabular-nums text-xs text-muted-foreground">
+                    {fmtMoney(Number(r.commission || 0))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -529,7 +712,7 @@ function RecentVerificationsPreview() {
   );
 }
 
-function AtRiskAgentsPreview({ onOpen }: { onOpen: () => void }) {
+export function AtRiskAgentsPreview({ onOpen }: { onOpen?: () => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['agent-ops-at-risk'],
     queryFn: async () => {
@@ -560,9 +743,11 @@ function AtRiskAgentsPreview({ onOpen }: { onOpen: () => void }) {
           <span className="font-semibold tabular-nums text-xs">{fmtMoney(r.outstanding_balance || 0)}</span>
         </div>
       ))}
-      <button onClick={onOpen} className="w-full text-xs text-primary hover:underline flex items-center justify-center gap-1 pt-2">
-        Open repayments monitor <ArrowRight className="h-3 w-3" />
-      </button>
+      {onOpen && (
+        <button onClick={onOpen} className="w-full text-xs text-primary hover:underline flex items-center justify-center gap-1 pt-2">
+          Open repayments monitor <ArrowRight className="h-3 w-3" />
+        </button>
+      )}
     </div>
   );
 }
