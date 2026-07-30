@@ -170,6 +170,8 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
     activeAgents: t.active_agents,
     collections: t.collections,
     commission: t.commission,
+    collected: t.collections,
+    pending: Number(t.pending || 0),
   }));
 
   const rentPipelineData = [
@@ -177,14 +179,6 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
     { name: 'Approved', value: Number(k.rent_approved || 0), fill: 'hsl(199 89% 48%)' },
     { name: 'Repaying', value: Number(k.rent_repaying || 0), fill: 'hsl(160 84% 39%)' },
     { name: 'Rejected', value: Number(k.rent_rejected || 0), fill: 'hsl(0 84% 60%)' },
-  ];
-
-  const advActive = Number(k.active_advances_count || 0);
-  const advBehind = Number(k.behind_advances_count || 0);
-  const advOn = Math.max(0, advActive - advBehind);
-  const advanceDonut = [
-    { name: 'On track', value: advOn, fill: 'hsl(160 84% 39%)' },
-    { name: 'Behind', value: advBehind, fill: 'hsl(0 84% 60%)' },
   ];
 
   const funnel = data?.listings_funnel || { listed: 0, verified: 0, placed: 0 };
