@@ -107,6 +107,12 @@ interface DepositFlowProps {
    * agent to re-paste the TID into the in-form matcher.
    */
   prefillFromMatch?: MatchResult | null;
+  /** Pre-fill the amount field (UGX) and skip straight to the form. */
+  defaultAmount?: number;
+  /** Pre-select the payment channel (skips the channel picker). */
+  defaultChannel?: DepositChannel;
+  /** Pre-select the mobile money provider when `defaultChannel` is 'momo'. */
+  defaultMomoProvider?: 'mtn' | 'airtel';
 }
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
@@ -140,7 +146,7 @@ const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 const MIN_DEPOSIT = 500;
 const MAX_DEPOSIT = 1_000_000_000;
 
-export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch, defaultAmount, defaultChannel, defaultMomoProvider }: DepositFlowProps) {
   const navigate = useNavigate();
   const { roles } = useAuth();
   /**
@@ -675,6 +681,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setTransactionId(m.reference);
     }
   }, [open, prefillFromMatch, editRequestId]);
+
+  /**
+   * Caller-supplied prefill (amount + payment method). Used by flows that
+   * already collected those details, e.g. the funder house top-up modal.
+   */
+  useEffect(() => {
+    if (!open || editRequestId || prefillFromMatch) return;
+    if (defaultAmount && defaultAmount > 0) setAmount(String(Math.round(defaultAmount)));
+    if (defaultChannel) {
+      setChannel(defaultChannel);
+      if (defaultChannel === 'momo' && defaultMomoProvider) setMomoProvider(defaultMomoProvider);
+      if (defaultPurpose) setStep('form');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultAmount, defaultChannel, defaultMomoProvider]);
 
   /**
    * Edit-mode hydration. When the dialog opens with an `editRequestId`,
