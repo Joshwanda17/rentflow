@@ -45,8 +45,6 @@ interface House {
   created_at: string;
 }
 
-const EXPANDED_STORAGE_KEY = 'welile-funder-house-expanded';
-
 const CATEGORIES = [
   { value: 'all', label: 'All Types' },
   { value: 'single_room', label: 'Single Room' },
