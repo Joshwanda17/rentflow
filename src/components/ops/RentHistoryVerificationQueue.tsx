@@ -59,7 +59,7 @@ export function RentHistoryVerificationQueue({ dept }: Props) {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['rent-history-verify', dept],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('rent_history_records')
         .select('*, tenant:profiles!rent_history_records_tenant_id_fkey(full_name, phone)')
         .in('status', ['pending', 'verified'])
@@ -84,7 +84,7 @@ export function RentHistoryVerificationQueue({ dept }: Props) {
         update.status = 'rejected';
         update.rejection_reason = notes[id] || `Rejected by ${cfg.label}`;
       }
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('rent_history_records')
         .update(update)
         .eq('id', id)
