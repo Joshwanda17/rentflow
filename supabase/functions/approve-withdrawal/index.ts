@@ -2692,10 +2692,11 @@ Deno.serve(async (req) => {
         if (parts.length) bankLine = ` Bank details: ${parts.join(" - ")}.`;
       }
 
-      // When a genuine merchant agent settled this payout, identify them by
-      // phone number in the receipt so the withdrawing user knows exactly who
-      // processed it (and can reach them if needed).
-      let merchantLine = "";
+      // Merchant agent identity is INTERNAL ONLY (admin/audit + reconciliation).
+      // It must never appear in any customer-facing channel (SMS, push, email,
+      // in-app notification, receipt). We still resolve the name for internal
+      // metadata, but never render it into customer copy.
+      const merchantLine = "";
       let merchantName: string | null = null;
       let merchantPhone: string | null = null;
       if (actingAsMerchant) {
@@ -2711,12 +2712,6 @@ Deno.serve(async (req) => {
             merchantName = mName;
           }
           if (mPhone) merchantPhone = mPhone;
-          const agentLabel = merchantName
-            ? `${merchantName}${merchantPhone ? ` (${merchantPhone})` : ""}`
-            : merchantPhone || "";
-          merchantLine = agentLabel
-            ? ` Processed by Welile merchant agent ${agentLabel}.`
-            : ` Processed by a Welile merchant agent.`;
         } catch (e) {
           console.error("[approve-withdrawal] merchant name fetch for SMS failed (non-fatal):", e);
         }
@@ -2730,7 +2725,7 @@ Deno.serve(async (req) => {
         String((wr as any).bank_account_name || "").trim() ||
         String(profile?.full_name || "").trim() ||
         "";
-      const recipientLine = recipientName ? ` Recipient: ${recipientName}.` : "";
+      const recipientLine = recipientName ? `\nRecipient: ${recipientName}` : "";
 
       // Date & time of payment in East Africa Time (UTC+3).
       const paidAtEat = new Date(Date.now() + 3 * 60 * 60 * 1000);
@@ -2739,21 +2734,27 @@ Deno.serve(async (req) => {
         `${paidAtEat.toISOString().slice(11, 16)} EAT`;
 
       const customerFirstName = (profile?.full_name || "").toString().trim().split(/\s+/)[0] || "Customer";
+      const walletBalanceLine =
+        newBalance !== null
+          ? `\nNew Wallet Balance: UGX ${Math.round(newBalance).toLocaleString()}`
+          : "";
+      void balanceLine;
+      void bankLine;
+      void merchantLine;
+      // Customer-facing SMS: no merchant agent name, phone or ID.
       const smsMsg =
-        `WELILE: Payment Received. Dear ${customerFirstName}, your payout of ` +
-        `UGX ${amount.toLocaleString()} has been confirmed by the payment provider and delivered successfully.\n` +
-        `Transaction ID: ${refUpper}.` +
+        `WELILE: Payment Received.\n` +
+        `Dear ${customerFirstName}, your payout of UGX ${amount.toLocaleString()} has been confirmed and delivered successfully.\n` +
+        `Transaction ID: ${refUpper}` +
         `${recipientLine}` +
-        `${bankLine}` +
-        `${merchantLine}` +
-        ` Date: ${paidAtLabel}.` +
-        `${balanceLine}` +
-        `\n\nYour digital receipt is ready (no sign-in required):\n` +
-        `${receiptUrl}` +
-        `\n\nThank you for choosing Welile Technologies Ltd. Help: +256777607640`;
+        `\nDate: ${paidAtLabel}` +
+        `${walletBalanceLine}` +
+        `\n\nYour digital receipt (no sign-in required):\n${receiptUrl}` +
+        `\n\nThank you for using Welile.`;
 
       // In-app notification center entry so the user sees the approval update
-      // (merchant agent name + remaining wallet balance) without relying on SMS.
+      // (amount + remaining wallet balance) without relying on SMS. Merchant
+      // agent identity is never surfaced to the customer.
       // Fire-and-forget — a notification write must never block the approval.
       try {
         const balText =
@@ -2769,13 +2770,14 @@ Deno.serve(async (req) => {
             message:
               `Your withdrawal of UGX ${amount.toLocaleString()} has been approved and paid via ` +
               `${payment_method} (${proofLabel}: ${refUpper}).` +
-              `${merchantName ? ` Processed by Welile merchant agent ${merchantName}.` : ""}` +
               `${balText}`,
             metadata: {
               kind: "withdrawal_update",
               stage: "approved",
               withdrawal_id,
               amount,
+              // Internal-only field for admin/audit + reconciliation; not rendered
+              // in any customer-facing surface.
               merchant_agent: merchantName,
               new_balance: newBalance,
               payment_method,

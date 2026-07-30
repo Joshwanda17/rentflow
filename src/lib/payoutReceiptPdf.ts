@@ -210,8 +210,8 @@ export async function downloadPayoutReceiptPdf(data: PayoutReceiptData) {
     line('Phone Number', data.mobile_money_number);
     line('Registered Name', data.mobile_money_name);
   }
-  line('Merchant Agent', data.processor_name);
-  line('Merchant Branch', data.merchant_branch);
+  // Customer-facing receipt: merchant agent identity is intentionally omitted.
+  // It remains available in internal admin/audit systems only.
   line('Date & Time', dateStr);
 
   y += 22;

@@ -281,11 +281,13 @@ Deno.serve(async (req) => {
       ? formattedMomo
       : (profileValid ? profilePhone : (momoValid ? formattedMomo : ""));
 
+    // Customer-facing SMS: never expose merchant agent identity.
     const smsMsg =
-      `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} is being processed by our Merchant Agent ${merchantName}` +
-      `${merchantPhone ? ` (${merchantPhone})` : ""}. ` +
-      `Your money will arrive shortly. Thank you. ` +
-      `https://welileapp.com/ZQhyGb`;
+      `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} is being processed. ` +
+      `Your money will arrive shortly.\n` +
+      `Track your transaction:\n` +
+      `https://welileapp.com/ZQhyGb\n` +
+      `For assistance, contact Welile Support on 0748747134.`;
 
     let sent = false;
     let smsAttempts = 0;
