@@ -30339,6 +30339,10 @@ export type Database = {
         Args: { _job_id: string; _reason: string }
         Returns: Json
       }
+      ops_update_agent_profile: {
+        Args: { p_agent_id: string; p_updates: Json }
+        Returns: Json
+      }
       ops_update_landlord: {
         Args: { p_landlord_id: string; p_patch: Json; p_reason: string }
         Returns: Json
