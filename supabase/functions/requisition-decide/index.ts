@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { creditRequisitionWallet } from '../_shared/requisitionWalletCredit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,48 +68,44 @@ Deno.serve(async (req) => {
       .from('employee_requisitions')
       .update(patch)
       .eq('id', body.id)
-      .select('id, employee_email, employee_name, amount, currency, purpose, category')
+      .select('id, employee_email, employee_name, amount, currency, purpose, category, status, approved_at')
       .single();
     if (upErr) throw upErr;
 
-    // On approval, credit the requester's wallet via CFO Direct Credit.
+    // On approval, credit the requester's wallet (idempotent + ledger-backed).
     let creditError: string | null = null;
+    let walletCredit: unknown = null;
     if (body.action === 'approve') {
-      try {
-        const { data: profile } = await admin
-          .from('profiles')
-          .select('id')
-          .ilike('email', updated.employee_email)
-          .maybeSingle();
-        if (!profile?.id) {
-          creditError = 'No user profile matches ' + updated.employee_email;
-        } else {
-          const { data: cc, error: ccErr } = await admin.functions.invoke('cfo-direct-credit', {
-            body: {
-              target_user_id: profile.id,
-              amount: Number(updated.amount),
-              operation: 'credit',
-              recipient_type: 'user',
-              wallet_category: 'payroll_expense',
-              platform_category: 'payroll_expense',
-              financial_impact: 'expense',
-              category_label: 'Employee Requisition',
-              sub_category: updated.category,
-              reason: `Requisition ${updated.id.slice(0, 8)}: ${updated.purpose}`,
-              manual_credit: true,
-            },
-          });
-          if (ccErr || (cc as { error?: string })?.error) {
-            creditError = (cc as { error?: string })?.error ?? ccErr?.message ?? 'credit_failed';
-          } else {
-            await admin
-              .from('employee_requisitions')
-              .update({ status: 'paid' })
-              .eq('id', body.id);
-          }
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('id')
+        .ilike('email', updated.employee_email)
+        .maybeSingle();
+      if (!profile?.id) {
+        creditError = 'No user profile matches ' + updated.employee_email;
+        await admin.from('employee_requisitions').update({ wallet_credit_status: 'failed' }).eq('id', body.id);
+      } else {
+        const result = await creditRequisitionWallet({
+          admin,
+          sourceTable: 'employee_requisitions',
+          requisitionId: body.id,
+          requisitionCode: String(updated.id).slice(0, 8).toUpperCase(),
+          userId: profile.id,
+          approverId: userId,
+          amount: Number(updated.amount),
+          currency: updated.currency || 'UGX',
+          purpose: updated.purpose,
+          category: updated.category,
+          status: 'approved',
+          approvedAt: updated.approved_at,
+          ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip'),
+          deviceInfo: req.headers.get('user-agent'),
+        });
+        walletCredit = result;
+        if (!result.ok) creditError = result.error ?? result.message;
+        else if (!result.already_credited) {
+          await admin.from('employee_requisitions').update({ status: 'paid' }).eq('id', body.id);
         }
-      } catch (e) {
-        creditError = String((e as Error).message ?? e);
       }
     }
 
@@ -138,7 +135,7 @@ Deno.serve(async (req) => {
       });
     } catch (_) { /* non-fatal */ }
 
-    return json({ ok: true, credit_error: creditError }, 200);
+    return json({ ok: true, credit_error: creditError, wallet_credit: walletCredit }, 200);
   } catch (e) {
     console.error('decide error', e);
     return json({ error: String((e as Error).message ?? e) }, 500);

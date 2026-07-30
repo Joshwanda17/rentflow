@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
-  Loader2, Plus, CheckCircle2, XCircle, Clock, HelpCircle, FileText, Building2,
+  Loader2, Plus, CheckCircle2, XCircle, Clock, HelpCircle, FileText, Building2, Wallet, RefreshCw,
 } from 'lucide-react';
 
 type Status = 'pending' | 'approved' | 'rejected' | 'more_info';
@@ -33,6 +33,10 @@ interface Requisition {
   director_comment: string | null;
   decided_at: string | null;
   created_at: string;
+  wallet_credit_status: string | null;
+  wallet_transaction_id: string | null;
+  credited_at: string | null;
+  credited_by: string | null;
 }
 
 interface ReqEvent {
@@ -84,6 +88,23 @@ export function DirectorRequisitionsPanel() {
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'request_info'>('approve');
   const [comment, setComment] = useState('');
   const [acting, setActing] = useState(false);
+  const [retrying, setRetrying] = useState<string | null>(null);
+
+  const retryCredit = async (requisitionId: string) => {
+    setRetrying(requisitionId);
+    const { data, error } = await invokeEdgeFunction('requisition-credit-retry', {
+      source_table: 'director_requisitions',
+      requisition_id: requisitionId,
+    });
+    setRetrying(null);
+    const result = data as { message?: string; already_credited?: boolean } | null;
+    if (error) {
+      toast.error('Wallet credit failed', { description: error.message });
+    } else {
+      toast.success(result?.message || 'Wallet credited');
+    }
+    await fetchData();
+  };
 
   const fetchData = useCallback(async () => {
     const { data, error } = await supabase
@@ -264,6 +285,46 @@ export function DirectorRequisitionsPanel() {
                     <div>Approver: <span className="text-foreground">{req.approver_name || '—'}</span></div>
                     {req.decided_at && <div>Decided: <span className="text-foreground">{fmtDate(req.decided_at)}</span></div>}
                   </div>
+
+                  {req.status === 'approved' && (
+                    <div className="mt-3 rounded-md border border-border bg-muted/40 p-2 text-xs space-y-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        <Wallet className="h-3.5 w-3.5" />
+                        Wallet credit:
+                        <Badge
+                          variant="outline"
+                          className={
+                            req.wallet_credit_status === 'credited'
+                              ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
+                              : req.wallet_credit_status === 'failed'
+                                ? 'bg-red-500/10 text-red-700 border-red-500/30'
+                                : 'bg-amber-500/10 text-amber-700 border-amber-500/30'
+                          }
+                        >
+                          {req.wallet_credit_status === 'credited'
+                            ? 'Credited'
+                            : req.wallet_credit_status === 'failed'
+                              ? 'Approved — wallet credit failed'
+                              : 'Not credited'}
+                        </Badge>
+                      </div>
+                      <div>Wallet transaction: <span className="font-mono text-foreground">{req.wallet_transaction_id || '—'}</span></div>
+                      <div>Credited at: <span className="text-foreground">{req.credited_at ? fmtDate(req.credited_at) : '—'}</span></div>
+                      <div>Credited by: <span className="text-foreground">{req.approver_name || '—'}</span></div>
+                      {isDirector && req.wallet_credit_status !== 'credited' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 mt-1"
+                          disabled={retrying === req.id}
+                          onClick={() => retryCredit(req.id)}
+                        >
+                          {retrying === req.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                          Retry wallet credit
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   {req.director_comment && (
                     <div className="mt-2 rounded-md bg-muted/50 p-2 text-sm">

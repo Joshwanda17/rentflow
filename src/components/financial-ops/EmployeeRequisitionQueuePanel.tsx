@@ -27,6 +27,9 @@ interface Req {
   status: string;
   submitted_at: string;
   rejection_reason: string | null;
+  wallet_credit_status: string | null;
+  wallet_transaction_id: string | null;
+  credited_at: string | null;
 }
 
 const STATUS_TONES: Record<string, string> = {
@@ -45,6 +48,7 @@ export function EmployeeRequisitionQueuePanel() {
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [amountEdits, setAmountEdits] = useState<Record<string, string>>({});
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -155,6 +159,42 @@ export function EmployeeRequisitionQueuePanel() {
                         </div>
                       </div>
                     )}
+                    {(r.status === 'approved' || r.status === 'paid') && (
+                      <div className="rounded-md border border-border bg-muted/40 p-2 text-xs space-y-1">
+                        <div className="font-medium">
+                          Wallet credit:{' '}
+                          <span className={r.wallet_credit_status === 'credited' ? 'text-emerald-700' : r.wallet_credit_status === 'failed' ? 'text-destructive' : 'text-amber-700'}>
+                            {r.wallet_credit_status === 'credited'
+                              ? 'Credited'
+                              : r.wallet_credit_status === 'failed'
+                                ? 'Approved — wallet credit failed'
+                                : 'Not credited'}
+                          </span>
+                        </div>
+                        <div>Wallet transaction: <span className="font-mono">{r.wallet_transaction_id || '—'}</span></div>
+                        <div>Credited at: {r.credited_at ? new Date(r.credited_at).toLocaleString() : '—'}</div>
+                        {r.wallet_credit_status !== 'credited' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={retryingId === r.id}
+                            onClick={async () => {
+                              setRetryingId(r.id);
+                              const { data, error } = await supabase.functions.invoke('requisition-credit-retry', {
+                                body: { source_table: 'employee_requisitions', requisition_id: r.id },
+                              });
+                              setRetryingId(null);
+                              if (error) toast.error('Wallet credit failed', { description: error.message });
+                              else toast.success((data as { message?: string })?.message || 'Wallet credited');
+                              load();
+                            }}
+                          >
+                            Retry wallet credit
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
                     {r.status === 'rejected' && r.rejection_reason && (
                       <div className="text-xs text-destructive">
                         <strong>Rejection reason:</strong> {r.rejection_reason}

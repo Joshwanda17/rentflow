@@ -7581,6 +7581,8 @@ export type Database = {
           approver_id: string | null
           approver_name: string | null
           created_at: string
+          credited_at: string | null
+          credited_by: string | null
           decided_at: string | null
           director_comment: string | null
           id: string
@@ -7592,12 +7594,16 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          wallet_credit_status: string | null
+          wallet_transaction_id: string | null
         }
         Insert: {
           amount: number
           approver_id?: string | null
           approver_name?: string | null
           created_at?: string
+          credited_at?: string | null
+          credited_by?: string | null
           decided_at?: string | null
           director_comment?: string | null
           id?: string
@@ -7609,12 +7615,16 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          wallet_credit_status?: string | null
+          wallet_transaction_id?: string | null
         }
         Update: {
           amount?: number
           approver_id?: string | null
           approver_name?: string | null
           created_at?: string
+          credited_at?: string | null
+          credited_by?: string | null
           decided_at?: string | null
           director_comment?: string | null
           id?: string
@@ -7626,6 +7636,8 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          wallet_credit_status?: string | null
+          wallet_transaction_id?: string | null
         }
         Relationships: []
       }
@@ -8309,6 +8321,8 @@ export type Database = {
           attachment_urls: string[]
           category: string
           created_at: string
+          credited_at: string | null
+          credited_by: string | null
           currency: string
           department: string | null
           description: string | null
@@ -8326,6 +8340,8 @@ export type Database = {
           submitted_at: string
           submitter_ip: string | null
           updated_at: string
+          wallet_credit_status: string | null
+          wallet_transaction_id: string | null
         }
         Insert: {
           amount: number
@@ -8334,6 +8350,8 @@ export type Database = {
           attachment_urls?: string[]
           category: string
           created_at?: string
+          credited_at?: string | null
+          credited_by?: string | null
           currency?: string
           department?: string | null
           description?: string | null
@@ -8351,6 +8369,8 @@ export type Database = {
           submitted_at?: string
           submitter_ip?: string | null
           updated_at?: string
+          wallet_credit_status?: string | null
+          wallet_transaction_id?: string | null
         }
         Update: {
           amount?: number
@@ -8359,6 +8379,8 @@ export type Database = {
           attachment_urls?: string[]
           category?: string
           created_at?: string
+          credited_at?: string | null
+          credited_by?: string | null
           currency?: string
           department?: string | null
           description?: string | null
@@ -8376,6 +8398,8 @@ export type Database = {
           submitted_at?: string
           submitter_ip?: string | null
           updated_at?: string
+          wallet_credit_status?: string | null
+          wallet_transaction_id?: string | null
         }
         Relationships: [
           {
@@ -19129,6 +19153,72 @@ export type Database = {
           submission_count?: number
           token?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      requisition_wallet_credits: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approver_id: string | null
+          attempt_count: number
+          created_at: string
+          credited_at: string | null
+          currency: string
+          device_info: string | null
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json
+          requisition_code: string | null
+          requisition_id: string
+          source_table: string
+          status: string
+          updated_at: string
+          user_id: string
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approver_id?: string | null
+          attempt_count?: number
+          created_at?: string
+          credited_at?: string | null
+          currency?: string
+          device_info?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          requisition_code?: string | null
+          requisition_id: string
+          source_table: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approver_id?: string | null
+          attempt_count?: number
+          created_at?: string
+          credited_at?: string | null
+          currency?: string
+          device_info?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          requisition_code?: string | null
+          requisition_id?: string
+          source_table?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          wallet_transaction_id?: string | null
         }
         Relationships: []
       }
