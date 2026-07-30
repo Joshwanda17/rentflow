@@ -9,6 +9,7 @@ import { Activity, UserPlus, RefreshCw, Share2, ArrowRightLeft } from 'lucide-re
 import { TrustCoverageSection } from './TrustCoverageSection';
 import { AgentAdvancesDailyReportCard } from './AgentAdvancesDailyReportCard';
 import { AgentOpsLiveStatsCard } from './AgentOpsLiveStatsCard';
+import { FunderEngagementPanel } from './FunderEngagementPanel';
 
 export function CEODashboard() {
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
@@ -187,6 +188,9 @@ export function CEODashboard() {
         <KPICard title="Platform Revenue" value={`${fmt(revenue || 0)}`} icon={DollarSign} loading={loading} color="bg-emerald-500/10 text-emerald-600" />
         <KPICard title="Rent Repaid" value={`${fmt(rentStats?.totalRepaid || 0)}`} icon={TrendingUp} loading={loading} color="bg-teal-500/10 text-teal-600" />
       </div>
+
+      {/* Funder engagement — repayment details opens */}
+      <FunderEngagementPanel />
 
       {/* Growth Metrics */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">

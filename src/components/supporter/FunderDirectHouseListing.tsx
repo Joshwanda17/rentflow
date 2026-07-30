@@ -12,6 +12,7 @@ import { calcFunderEarnings, sumFunderEarnings } from '@/lib/funderEarnings';
 import { FunderEarningsAssumptions } from './FunderEarningsAssumptions';
 import { FunderEarningsBreakdown } from './FunderEarningsBreakdown';
 import { useWallet } from '@/hooks/useWallet';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { FunderTopUpDialog } from './FunderTopUpDialog';
 import { FunderSelectionConfirmDialog } from './FunderSelectionConfirmDialog';
@@ -136,6 +137,7 @@ export function FunderDirectHouseListing() {
   const navigate = useNavigate();
   const { wallet } = useWallet();
   const walletBalance = wallet?.balance ?? 0;
+  const { user } = useAuth();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showTopUp, setShowTopUp] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -395,6 +397,29 @@ export function FunderDirectHouseListing() {
     setMinMonthlyEarn('all');
     setMinAnnualEarn('all');
   };
+
+  const trackRepaymentTermsView = useCallback(
+    async (house: House) => {
+      if (!user?.id) return;
+      try {
+        await supabase.from('system_events').insert({
+          event_type: 'funder_house_repayment_terms_viewed',
+          user_id: user.id,
+          related_entity_type: 'house_listing',
+          related_entity_id: house.id,
+          metadata: {
+            monthly_rent: house.monthly_rent,
+            daily_rate: house.daily_rate,
+            source: 'funder_direct_listing',
+          },
+        });
+      } catch (err) {
+        // Best-effort tracking; don't block the UI
+        console.error('[FunderDirectHouseListing] track view error:', err);
+      }
+    },
+    [user?.id]
+  );
 
   const activeFilterChips = [
     region !== 'all' && {
@@ -736,6 +761,7 @@ export function FunderDirectHouseListing() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    trackRepaymentTermsView(house);
                     setDetailsHouse(house);
                   }}
                   className="text-[10px] font-semibold text-primary hover:underline touch-manipulation"
