@@ -198,8 +198,8 @@ export async function enrollStaff(input: {
   /** Optional — the database generates EMP-00001 style refs when omitted. */
   staffRef?: string;
   departmentId?: string;
-  jobTitle?: string;
-  reportsToStaffId?: string | null;
+  positionId?: string;
+  reportsToPositionId?: string | null;
   startedOn?: string;
 }): Promise<Employee> {
   const enrolledBy = await requireUserId();
@@ -215,19 +215,15 @@ export async function enrollStaff(input: {
       .single(),
   ) as StaffRow;
 
-  if (input.departmentId && input.jobTitle) {
-    const positionId = await resolvePositionId(input.departmentId, input.jobTitle);
-    const reportsToPositionId = input.reportsToStaffId
-      ? await currentPositionIdForStaff(input.reportsToStaffId)
-      : null;
+  if (input.departmentId && input.positionId) {
     unwrap(
       await supabase
         .from('hr_assignments')
         .insert({
           staff_id: staff.id,
           department_id: input.departmentId,
-          position_id: positionId,
-          reports_to_position_id: reportsToPositionId ?? undefined,
+          position_id: input.positionId,
+          reports_to_position_id: input.reportsToPositionId ?? undefined,
           started_on: input.startedOn ?? new Date().toISOString().slice(0, 10),
         })
         .select('id')
