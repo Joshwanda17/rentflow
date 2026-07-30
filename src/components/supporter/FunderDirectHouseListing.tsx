@@ -155,6 +155,8 @@ export function FunderDirectHouseListing() {
   const [category, setCategory] = useState('all');
   const [rooms, setRooms] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [minMonthlyEarn, setMinMonthlyEarn] = useState('all');
+  const [minAnnualEarn, setMinAnnualEarn] = useState('all');
 
   useEffect(() => {
     mountedRef.current = true;
@@ -315,10 +317,32 @@ export function FunderDirectHouseListing() {
       }
     }
 
+    // Projected-earnings filters (15% of monthly rent, anchored on move-in date)
+    if (minMonthlyEarn !== 'all') {
+      const min = Number(minMonthlyEarn);
+      result = result.filter((h) => calcFunderEarnings(h.monthly_rent, moveInDate).monthly >= min);
+    }
+    if (minAnnualEarn !== 'all') {
+      const min = Number(minAnnualEarn);
+      result = result.filter((h) => calcFunderEarnings(h.monthly_rent, moveInDate).annual >= min);
+    }
+
     result.sort((a, b) => {
       if (sortBy === 'newest') {
         return (
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }
+      if (sortBy === 'earn_desc') {
+        return (
+          calcFunderEarnings(b.monthly_rent, moveInDate).monthly -
+          calcFunderEarnings(a.monthly_rent, moveInDate).monthly
+        );
+      }
+      if (sortBy === 'earn_asc') {
+        return (
+          calcFunderEarnings(a.monthly_rent, moveInDate).monthly -
+          calcFunderEarnings(b.monthly_rent, moveInDate).monthly
         );
       }
       if (sortBy === 'price_asc') return a.daily_rate - b.daily_rate;
@@ -328,7 +352,7 @@ export function FunderDirectHouseListing() {
     });
 
     return result;
-  }, [houses, search, region, category, rooms, sortBy]);
+  }, [houses, search, region, category, rooms, sortBy, minMonthlyEarn, minAnnualEarn, moveInDate]);
 
   const openHouse = (house: House) => {
     hapticTap();
@@ -353,6 +377,8 @@ export function FunderDirectHouseListing() {
     setCategory('all');
     setRooms('all');
     setSortBy('newest');
+    setMinMonthlyEarn('all');
+    setMinAnnualEarn('all');
   };
 
   const activeFilterChips = [
@@ -367,6 +393,14 @@ export function FunderDirectHouseListing() {
     rooms !== 'all' && {
       label: ROOMS.find((r) => r.value === rooms)?.label || rooms,
       onRemove: () => setRooms('all'),
+    },
+    minMonthlyEarn !== 'all' && {
+      label: MIN_MONTHLY_EARN.find((m) => m.value === minMonthlyEarn)?.label || minMonthlyEarn,
+      onRemove: () => setMinMonthlyEarn('all'),
+    },
+    minAnnualEarn !== 'all' && {
+      label: MIN_ANNUAL_EARN.find((m) => m.value === minAnnualEarn)?.label || minAnnualEarn,
+      onRemove: () => setMinAnnualEarn('all'),
     },
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
 
