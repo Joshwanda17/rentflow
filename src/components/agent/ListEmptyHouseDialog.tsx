@@ -1619,7 +1619,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             List Empty House
           </DialogTitle>
           <DialogDescription>
-            Register an available rental · Earn UGX 5,000 when a tenant is placed
+            Register an available rental · Earn UGX 10,000 when a tenant is placed
           </DialogDescription>
         </DialogHeader>
 
