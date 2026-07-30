@@ -47,6 +47,12 @@ export interface SidebarSection {
   icon?: typeof BarChart3;
 }
 
+/** Same gate the /hr/* routes already enforce via RoleGuard. */
+const HR_ACCESS: SidebarItemAccess = {
+  roles: ['hr', 'super_admin', 'cto'],
+  permission: 'hr',
+};
+
 export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
   cto: [
     {
