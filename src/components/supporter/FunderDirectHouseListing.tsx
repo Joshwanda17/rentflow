@@ -668,6 +668,89 @@ export function FunderDirectHouseListing() {
           </button>
         </div>
       )}
+
+      {/* Persistent earnings summary for the current selection */}
+      <AnimatePresence>
+        {selectedHouses.length > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            className="fixed inset-x-3 bottom-20 z-40 rounded-2xl border border-primary/30 bg-card/95 backdrop-blur shadow-2xl p-3.5 space-y-3 max-w-xl mx-auto"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  {selectedHouses.length} {selectedHouses.length === 1 ? 'house' : 'houses'} selected
+                </p>
+                <p className="text-xl font-black text-primary leading-tight">
+                  {formatUGX(selectionTotals.monthly)}
+                  <span className="text-[10px] font-normal text-muted-foreground"> /month</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { hapticTap(); setSelectedIds([]); }}
+                className="text-[10px] font-semibold text-muted-foreground hover:text-foreground shrink-0"
+              >
+                Clear
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Daily', value: selectionTotals.daily },
+                { label: 'Weekly', value: selectionTotals.weekly },
+                { label: '12 months', value: selectionTotals.annual },
+              ].map((m) => (
+                <div key={m.label} className="rounded-xl bg-muted/40 py-1.5 text-center">
+                  <p className="text-[11px] font-black text-foreground leading-tight">
+                    {formatUGX(m.value)}
+                  </p>
+                  <p className="text-[8px] text-muted-foreground font-medium">{m.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Capital to landlords</span>
+              <span className="font-bold text-foreground">{formatUGX(selectionTotals.capital)}</span>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Wallet balance</span>
+              <span className="font-bold text-foreground">{formatUGX(walletBalance)}</span>
+            </div>
+
+            {shortfall > 0 ? (
+              <Button
+                onClick={() => {
+                  hapticTap();
+                  window.dispatchEvent(new CustomEvent('open-deposit'));
+                }}
+                className="w-full h-11 rounded-xl text-xs font-bold gap-2 uppercase tracking-wide"
+              >
+                <Wallet className="h-4 w-4" />
+                Add {formatUGX(shortfall)} to wallet
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  hapticTap();
+                  window.dispatchEvent(new CustomEvent('open-deposit'));
+                }}
+                className="w-full h-11 rounded-xl text-xs font-bold gap-2 uppercase tracking-wide"
+              >
+                <Wallet className="h-4 w-4" />
+                Fund selected houses
+              </Button>
+            )}
+            <p className="text-[9px] text-muted-foreground/80 text-center leading-relaxed">
+              You earn 15% of each house's monthly rent while the tenant repays.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
