@@ -375,6 +375,11 @@ function timeSince(d: string) {
 export default function COOPartnersPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
+  // Wallet Balances breakdown dialog (all partners holding wallet money)
+  const [walletBalancesOpen, setWalletBalancesOpen] = useState(false);
+  const [walletBalancesSearch, setWalletBalancesSearch] = useState('');
+  const [walletBalancesLoading, setWalletBalancesLoading] = useState(false);
+  const [walletBalancesList, setWalletBalancesList] = useState<{ id: string; name: string; phone: string; email: string; balance: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
@@ -840,6 +845,58 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const tableRows = await buildRowsForIds(supporterIds);
     setRows(tableRows);
   }, [buildRowsForIds, filterProspect]);
+
+  /* ─── Wallet balances breakdown: ALL partners holding wallet money ─── */
+  useEffect(() => {
+    if (!walletBalancesOpen) return;
+    let cancelled = false;
+    (async () => {
+      setWalletBalancesLoading(true);
+      try {
+        const ids = await fetchAllUserIdsByRole('supporter');
+        if (!ids.length) { if (!cancelled) setWalletBalancesList([]); return; }
+        const wallets = await batchedQuery<{ user_id: string; balance: number }>(
+          ids,
+          (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch).gt('balance', 0),
+        );
+        const holderIds = wallets.map(w => w.user_id);
+        const profiles = holderIds.length
+          ? await batchedQuery<{ id: string; full_name: string | null; phone: string | null; email: string | null }>(
+              holderIds,
+              (batch) => supabase.from('profiles').select('id, full_name, phone, email').in('id', batch),
+            )
+          : [];
+        const pMap = new Map(profiles.map(p => [p.id, p]));
+        const list = wallets
+          .map(w => ({
+            id: w.user_id,
+            name: pMap.get(w.user_id)?.full_name || w.user_id.slice(0, 8),
+            phone: pMap.get(w.user_id)?.phone || '',
+            email: pMap.get(w.user_id)?.email || '',
+            balance: Number(w.balance) || 0,
+          }))
+          .sort((a, b) => b.balance - a.balance);
+        if (!cancelled) setWalletBalancesList(list);
+      } catch (e) {
+        console.error('[COOPartnersPage] wallet balances load failed', e);
+        if (!cancelled) toast.error('Could not load partner wallet balances');
+      } finally {
+        if (!cancelled) setWalletBalancesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [walletBalancesOpen]);
+
+  const walletBalancesFiltered = useMemo(() => {
+    const q = walletBalancesSearch.trim().toLowerCase();
+    if (!q) return walletBalancesList;
+    return walletBalancesList.filter(p =>
+      p.name.toLowerCase().includes(q) || p.phone.toLowerCase().includes(q) || p.email.toLowerCase().includes(q));
+  }, [walletBalancesList, walletBalancesSearch]);
+  const walletBalancesTotal = useMemo(
+    () => walletBalancesFiltered.reduce((s, p) => s + p.balance, 0),
+    [walletBalancesFiltered],
+  );
 
   /* ─── Nearing payouts: loaded independently from ALL supporters ─── */
   const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false); // eslint-disable-line -- top-level hook, after all other useState
@@ -2225,7 +2282,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           <SummaryCard icon={<Banknote className="h-4 w-4" />} label="Total Funded" value={formatUGX(summary.totalFunded)}
             sub={`${summary.totalDeals} deals completed`} accent="emerald" />
           <SummaryCard icon={<Wallet className="h-4 w-4" />} label="Wallet Balances" value={formatUGX(summary.totalWalletBalance)}
-            sub="Across all partner wallets" accent="amber" />
+            sub="Across all partner wallets · tap to view" accent="amber"
+            onClick={() => { setWalletBalancesSearch(''); setWalletBalancesOpen(true); }} />
           <NearingPayoutsCard portfolios={allPortfoliosForPayout} onClick={() => setNearingPayoutsOpen(true)} />
           <ExpiringPortfoliosCard portfolios={allPortfoliosForPayout} onClick={() => setExpiringPortfoliosOpen(true)} />
           <PortfolioTopUpsCard />
@@ -3995,14 +4053,72 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Wallet Balances breakdown ─── */}
+      <Dialog open={walletBalancesOpen} onOpenChange={setWalletBalancesOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Wallet className="h-4 w-4" /> Partner Wallet Balances
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Every partner currently holding money in their wallet, highest balance first.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={walletBalancesSearch}
+              onChange={e => setWalletBalancesSearch(e.target.value)}
+              placeholder="Search by name, phone or email..."
+              className="pl-8 h-9 text-xs"
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">{walletBalancesFiltered.length} partner{walletBalancesFiltered.length === 1 ? '' : 's'}</span>
+            <span className="font-bold tabular-nums">{formatUGX(walletBalancesTotal)}</span>
+          </div>
+
+          <div className="max-h-[50vh] overflow-y-auto -mx-1 px-1">
+            {walletBalancesLoading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading partner wallets...
+              </div>
+            ) : walletBalancesFiltered.length === 0 ? (
+              <p className="py-10 text-center text-xs text-muted-foreground">
+                {walletBalancesSearch ? 'No partner matches this search.' : 'No partner is holding wallet money.'}
+              </p>
+            ) : (
+              <div className="divide-y">
+                {walletBalancesFiltered.map(p => (
+                  <div key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold truncate">{p.name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{p.phone || p.email || '—'}</p>
+                    </div>
+                    <span className="text-xs font-bold tabular-nums shrink-0">{formatUGX(p.balance)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setWalletBalancesOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 /* ─── Summary Card ─── */
-function SummaryCard({ icon, label, value, sub, accent }: {
+function SummaryCard({ icon, label, value, sub, accent, onClick }: {
   icon: React.ReactNode; label: string; value: string | number; sub: string;
   accent: 'primary' | 'emerald' | 'amber' | 'violet';
+  onClick?: () => void;
 }) {
   const styles = {
     primary: { card: 'border-primary/30 bg-primary/5', icon: 'text-primary bg-primary/10' },
@@ -4012,7 +4128,13 @@ function SummaryCard({ icon, label, value, sub, accent }: {
   };
   const s = styles[accent];
   return (
-    <div className={cn('rounded-2xl border p-3.5 space-y-2', s.card)}>
+    <div
+      className={cn('rounded-2xl border p-3.5 space-y-2', s.card, onClick && 'cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring')}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+    >
       <div className="flex items-center gap-2">
         <div className={cn('p-1.5 rounded-lg', s.icon)}>{icon}</div>
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
