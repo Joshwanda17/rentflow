@@ -4003,6 +4003,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 function SummaryCard({ icon, label, value, sub, accent }: {
   icon: React.ReactNode; label: string; value: string | number; sub: string;
   accent: 'primary' | 'emerald' | 'amber' | 'violet';
+  onClick?: () => void;
 }) {
   const styles = {
     primary: { card: 'border-primary/30 bg-primary/5', icon: 'text-primary bg-primary/10' },
@@ -4011,6 +4012,7 @@ function SummaryCard({ icon, label, value, sub, accent }: {
     violet: { card: 'border-violet-500/20 bg-violet-500/5', icon: 'text-violet-600 bg-violet-500/10' },
   };
   const s = styles[accent];
+  const Wrapper: any = arguments.length ? 'div' : 'div';
   return (
     <div className={cn('rounded-2xl border p-3.5 space-y-2', s.card)}>
       <div className="flex items-center gap-2">
