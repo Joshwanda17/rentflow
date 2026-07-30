@@ -15,6 +15,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { Button } from '@/components/ui/button';
 import { FunderTopUpDialog } from './FunderTopUpDialog';
 import { FunderSelectionConfirmDialog } from './FunderSelectionConfirmDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
@@ -944,6 +945,38 @@ export function FunderDirectHouseListing() {
         monthlyEarning={selectionTotals.monthly}
         walletBalance={walletBalance}
       />
+
+      {/* Repayment details — opened from "See more" on a house card */}
+      <Dialog open={!!detailsHouse} onOpenChange={(o) => !o && setDetailsHouse(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">{detailsHouse?.title}</DialogTitle>
+            <DialogDescription className="text-xs">
+              How the tenant repays for this house.
+            </DialogDescription>
+          </DialogHeader>
+          {detailsHouse && (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Tenant daily repayment
+                </p>
+                <p className="text-xl font-black text-success leading-tight">
+                  {formatUGX(detailsHouse.daily_rate)}
+                  <span className="text-[10px] font-normal text-muted-foreground"> /day</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Monthly rent {formatUGX(detailsHouse.monthly_rent)}
+                </p>
+              </div>
+              <MoveInOfferBadge />
+              <p className="text-[10px] leading-relaxed text-muted-foreground">
+                The tenant repays daily. Your earnings accrue as those repayments come in.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
