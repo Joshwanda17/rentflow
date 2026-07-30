@@ -27114,6 +27114,7 @@ export type Database = {
           verified: number
         }[]
       }
+      get_cto_daily_report: { Args: { p_date?: string }; Returns: Json }
       get_daily_active_users: {
         Args: { p_end: string; p_start: string }
         Returns: {
