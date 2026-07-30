@@ -306,7 +306,7 @@ function Lc1VerifyList({ country, canVerify, onChanged }: { country: string; can
     });
     setBusy(null);
     if (!error) {
-      toast.success(`${name || 'LC1 chairperson'} verified — UGX 4,000 reward released to agent`);
+      toast.success(`${name || 'LC1 chairperson'} verified — UGX 5,000 reward released to agent`);
       refetch();
       onChanged();
     }
@@ -323,7 +323,7 @@ function Lc1VerifyList({ country, canVerify, onChanged }: { country: string; can
           title={l.name || 'Unnamed chairperson'}
           subtitle={l.phone}
           location={locationLine(l)}
-          tag={l.registered_by ? 'UGX 4,000 agent reward' : undefined}
+          tag={l.registered_by ? 'UGX 5,000 agent reward' : undefined}
           busy={busy === l.id}
           canVerify={canVerify}
           onVerify={() => verify(l.id, l.name)}
