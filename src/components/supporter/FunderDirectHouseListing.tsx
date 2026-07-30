@@ -143,7 +143,7 @@ export function FunderDirectHouseListing() {
   const [selectionLocked, setSelectionLocked] = useState(false);
   // Tenant move-in / start date the earnings projection is anchored on
   const [moveInDate, setMoveInDate] = useState<Date>(() => new Date());
-  // House whose repayment details modal is open ("See more")
+  // House whose repayment details modal is open ("View repayment terms")
   const [detailsHouse, setDetailsHouse] = useState<House | null>(null);
   const [houses, setHouses] = useState<House[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -740,7 +740,7 @@ export function FunderDirectHouseListing() {
                   }}
                   className="text-[10px] font-semibold text-primary hover:underline touch-manipulation"
                 >
-                  See more
+                  View repayment terms
                 </button>
 
                 {/* Funder earning projection — 15% of monthly rent */}
@@ -944,7 +944,7 @@ export function FunderDirectHouseListing() {
         walletBalance={walletBalance}
       />
 
-      {/* Repayment details — opened from "See more" on a house card */}
+      {/* Repayment details — opened from "View repayment terms" on a house card */}
       <Dialog open={!!detailsHouse} onOpenChange={(o) => !o && setDetailsHouse(null)}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
