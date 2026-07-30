@@ -2725,7 +2725,7 @@ Deno.serve(async (req) => {
         String((wr as any).bank_account_name || "").trim() ||
         String(profile?.full_name || "").trim() ||
         "";
-      const recipientLine = recipientName ? ` Recipient: ${recipientName}.` : "";
+      const recipientLine = recipientName ? `\nRecipient: ${recipientName}` : "";
 
       // Date & time of payment in East Africa Time (UTC+3).
       const paidAtEat = new Date(Date.now() + 3 * 60 * 60 * 1000);
@@ -2734,18 +2734,23 @@ Deno.serve(async (req) => {
         `${paidAtEat.toISOString().slice(11, 16)} EAT`;
 
       const customerFirstName = (profile?.full_name || "").toString().trim().split(/\s+/)[0] || "Customer";
+      const walletBalanceLine =
+        newBalance !== null
+          ? `\nNew Wallet Balance: UGX ${Math.round(newBalance).toLocaleString()}`
+          : "";
+      void balanceLine;
+      void bankLine;
+      void merchantLine;
+      // Customer-facing SMS: no merchant agent name, phone or ID.
       const smsMsg =
-        `WELILE: Payment Received. Dear ${customerFirstName}, your payout of ` +
-        `UGX ${amount.toLocaleString()} has been confirmed by the payment provider and delivered successfully.\n` +
-        `Transaction ID: ${refUpper}.` +
+        `WELILE: Payment Received.\n` +
+        `Dear ${customerFirstName}, your payout of UGX ${amount.toLocaleString()} has been confirmed and delivered successfully.\n` +
+        `Transaction ID: ${refUpper}` +
         `${recipientLine}` +
-        `${bankLine}` +
-        `${merchantLine}` +
-        ` Date: ${paidAtLabel}.` +
-        `${balanceLine}` +
-        `\n\nYour digital receipt is ready (no sign-in required):\n` +
-        `${receiptUrl}` +
-        `\n\nThank you for choosing Welile Technologies Ltd. Help: +256777607640`;
+        `\nDate: ${paidAtLabel}` +
+        `${walletBalanceLine}` +
+        `\n\nYour digital receipt (no sign-in required):\n${receiptUrl}` +
+        `\n\nThank you for using Welile.`;
 
       // In-app notification center entry so the user sees the approval update
       // (merchant agent name + remaining wallet balance) without relying on SMS.
