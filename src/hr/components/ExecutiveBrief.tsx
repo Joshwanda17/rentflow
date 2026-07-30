@@ -162,7 +162,13 @@ function agoLabel(from: Date, now: number) {
 
 type EventRow = { task_id: string; event_type: string; occurred_at: string };
 
-export default function ExecutiveBrief() {
+interface ExecutiveBriefProps {
+  /** When true, the surrounding surface already supplies the page heading
+   *  and subtitle, so this component renders its body only. */
+  embedded?: boolean;
+}
+
+export default function ExecutiveBrief({ embedded = false }: ExecutiveBriefProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -426,7 +432,7 @@ export default function ExecutiveBrief() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className={embedded ? 'space-y-5' : 'space-y-5'}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           Updated {updatedAt ? agoLabel(updatedAt, nowTick) : '—'}
