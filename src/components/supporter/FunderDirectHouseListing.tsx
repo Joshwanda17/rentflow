@@ -70,9 +70,30 @@ const ROOMS = [
 
 const SORTS = [
   { value: 'newest', label: 'Newest' },
+  { value: 'earn_desc', label: 'Earnings: High to Low' },
+  { value: 'earn_asc', label: 'Earnings: Low to High' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'rooms_desc', label: 'Most rooms' },
+];
+
+// Minimum projected monthly earning (15% of rent) filters
+const MIN_MONTHLY_EARN = [
+  { value: 'all', label: 'Any monthly earning' },
+  { value: '5000', label: 'Monthly 5k+' },
+  { value: '10000', label: 'Monthly 10k+' },
+  { value: '15000', label: 'Monthly 15k+' },
+  { value: '30000', label: 'Monthly 30k+' },
+  { value: '50000', label: 'Monthly 50k+' },
+];
+
+// Minimum projected 12-month earning filters
+const MIN_ANNUAL_EARN = [
+  { value: 'all', label: 'Any 12-month earning' },
+  { value: '100000', label: '12-month 100k+' },
+  { value: '250000', label: '12-month 250k+' },
+  { value: '500000', label: '12-month 500k+' },
+  { value: '1000000', label: '12-month 1M+' },
 ];
 
 function HouseCardSkeleton() {
