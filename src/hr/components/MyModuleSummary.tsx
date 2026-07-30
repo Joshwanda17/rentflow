@@ -161,7 +161,7 @@ export default function MyModuleSummary() {
   const onTarget = scored.filter((row) => {
     const target = row.definition!.target_value;
     if (target === null || target === undefined) return false;
-    return row.definition!.direction === 'lower_better'
+    return row.definition!.direction === 'lower_is_better'
       ? row.snapshot.value <= target
       : row.snapshot.value >= target;
   }).length;
@@ -172,7 +172,7 @@ export default function MyModuleSummary() {
         <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           My workspace
         </p>
-        <span className="text-[10px] text-muted-foreground">{me.staff_ref}</span>
+        <span className="text-[10px] text-muted-foreground">{me.staff_number}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -217,7 +217,7 @@ export default function MyModuleSummary() {
         />
       </div>
 
-      {me.active && (
+      {me.status === 'active' && (
         <p className="text-[10px] text-muted-foreground flex items-center gap-1 px-0.5">
           <BadgeCheck className="h-3 w-3 text-primary" /> Figures are yours only and refresh from each tab.
         </p>
