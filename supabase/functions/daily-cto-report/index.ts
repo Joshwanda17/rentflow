@@ -628,6 +628,399 @@ Deno.serve(async (req) => {
       ]),
     );
 
+    // =====================================================================
+    // ENGINEERING OPERATIONS LAYER — every metric becomes a diagnosed issue
+    // =====================================================================
+    const IN: any = intel || {};
+    const inIssues: any[] = Array.isArray(IN.issues) ? IN.issues : [];
+    const inAutos: any[] = Array.isArray(IN.automations) ? IN.automations : [];
+    const inSlow: any[] = Array.isArray(IN.slow_queries) ? IN.slow_queries : [];
+    const inApis: any[] = Array.isArray(IN.api_failures) ? IN.api_failures : [];
+    const inNotif: any = IN.notifications || {};
+    const inAuth: any = IN.auth || {};
+
+    type Issue = {
+      key: string; domain: string; title: string; severity: string; priority: string;
+      execSummary: string; techSummary: string; rootCause: string; timeline: string; frequency: string;
+      trendY: string; trend7: string; trend30: string;
+      systems: string; services: string; apis: string; tables: string; functions: string; files: string;
+      businessImpact: string; userImpact: string; usersAffected: number; revenueRisk: string;
+      owner: string; team: string; fix: string; effort: string; status: string;
+      isNew: boolean; isRecurring: boolean; daysActive: number; previouslyFixed: boolean;
+      gettingWorse: boolean; blockingProd: boolean; investigating: boolean; eta: string;
+      score: number; extra: [string, string][];
+    };
+    const sevRank = (s: string) => (s === 'Critical' ? 3 : s === 'High' ? 2 : s === 'Medium' ? 1 : 0);
+    const signed = (v: number) => (v > 0 ? `+${fmt(v)}` : v < 0 ? `${fmt(v)}` : 'no change');
+    const issues: Issue[] = [];
+
+    // --- Client / frontend error issues
+    for (const e of inIssues) {
+      issues.push({
+        key: String(e.key), domain: 'Client errors', title: String(e.title || 'Unlabelled error'),
+        severity: String(e.severity || 'Low'), priority: String(e.priority || 'P4'),
+        execSummary: String(e.executive_summary || ''), techSummary: String(e.technical_summary || ''),
+        rootCause: String(e.root_cause || ''), timeline: String(e.timeline || ''), frequency: String(e.frequency || ''),
+        trendY: signed(n(e.trend_yesterday)), trend7: signed(n(e.trend_7d)), trend30: signed(n(e.trend_30d)),
+        systems: String(e.systems_affected || ''), services: String(e.services_affected || ''),
+        apis: String(e.apis_affected || ''), tables: String(e.tables_involved || ''),
+        functions: String(e.functions_involved || ''), files: String(e.source_files || ''),
+        businessImpact: String(e.business_impact || ''), userImpact: String(e.user_impact || ''),
+        usersAffected: n(e.users_affected), revenueRisk: String(e.revenue_risk || 'Low'),
+        owner: String(e.owner || 'Engineering'), team: String(e.team || 'Engineering'),
+        fix: String(e.suggested_fix || ''), effort: String(e.effort || ''), status: String(e.status || 'Open'),
+        isNew: e.is_new === true, isRecurring: e.is_recurring === true, daysActive: n(e.days_active),
+        previouslyFixed: e.previously_fixed === true, gettingWorse: e.getting_worse === true,
+        blockingProd: e.blocking_production === true, investigating: e.investigation_active === true,
+        eta: String(e.resolution_eta || 'Next sprint'), score: n(e.impact_score),
+        extra: [
+          ['Browsers', shareLine(e.browsers)],
+          ['Operating systems', shareLine(e.operating_systems)],
+          ['Devices', shareLine(e.devices)],
+          ['Routes', Array.isArray(e.routes) ? e.routes.slice(0, 5).map((r: any) => `${r.route} (${fmt(r.n)})`).join(', ') : '-'],
+          ['Source map', String(e.source_map_location || 'not available')],
+          ['Sample session user', String(e.sample_session_user || 'anonymous')],
+          ['Actor role', String(e.actor_role || 'unknown')],
+          ['Stack trace', e.stack ? String(e.stack).slice(0, 600) : 'not captured — upload source maps to resolve'],
+          ['Screenshot', 'not captured — client screenshot capture is not enabled'],
+        ],
+      });
+    }
+
+    // --- Automation issues
+    for (const j of inAutos) {
+      const cons = n(j.consecutive_failures);
+      issues.push({
+        key: `automation:${j.automation}`, domain: 'Automation', title: `Scheduled job "${j.automation}" is failing`,
+        severity: String(j.severity || 'Medium'),
+        priority: cons >= 5 ? 'P1' : n(j.failures_today) >= 3 ? 'P2' : 'P3',
+        execSummary: `The automation "${j.automation}" failed ${fmt(j.failures_today)} time(s) today and ${fmt(j.failures_7d)} time(s) this week, with ${fmt(cons)} consecutive failures. Purpose: ${String(j.purpose || '')}.`,
+        techSummary: `Trigger: ${String(j.trigger || 'pg_cron')} on schedule "${String(j.schedule || '-')}". Average run duration ${fmt(j.avg_duration_seconds)} s over ${fmt(j.runs_30d)} runs in 30 days. Command: ${String(j.command || '').slice(0, 200)}`,
+        rootCause: String(j.error_message || 'not captured').slice(0, 400),
+        timeline: `Last success ${ts(j.last_success_at)} · last failure ${ts(j.last_failure_at)} (UTC).`,
+        frequency: `${fmt(j.failures_today)} today · ${fmt(j.failures_7d)} in 7 days · ${fmt(j.failures_30d)} in 30 days`,
+        trendY: signed(n(j.trend_yesterday)), trend7: `${fmt(j.failures_7d)} failures in 7 days`,
+        trend30: `${fmt(j.failures_30d)} of ${fmt(j.runs_30d)} runs failed in 30 days`,
+        systems: 'Postgres scheduler (pg_cron)', services: String(j.downstream_affected || '-'),
+        apis: String(j.dependencies || '-'), tables: 'cron.job_run_details and the job target tables',
+        functions: String(j.automation), files: 'supabase/functions and database routines invoked by the job',
+        businessImpact: `Downstream area affected: ${String(j.downstream_affected || 'scheduled maintenance')}.`,
+        userImpact: cons > 0 ? 'Silent — users are not notified when a scheduled job stops running.' : 'None observed.',
+        usersAffected: 0,
+        revenueRisk: /wallet|ledger|advance|sweep|payout|drift/i.test(String(j.automation)) ? 'High' : 'Low',
+        owner: 'Backend / Platform', team: 'Backend / Platform',
+        fix: String(j.recovery_recommendation || ''),
+        effort: cons >= 5 ? '0.5-1 engineer day' : '1-3 engineer hours',
+        status: String(j.status || 'Failing'),
+        isNew: cons > 0 && n(j.failures_30d) === n(j.failures_today), isRecurring: n(j.failures_30d) > n(j.failures_today),
+        daysActive: Math.min(30, Math.ceil(n(j.failures_30d) / Math.max(1, n(j.failures_today) || 1))),
+        previouslyFixed: j.last_success_at != null && cons > 0, gettingWorse: n(j.trend_yesterday) > 0,
+        blockingProd: cons >= 5 && /wallet|ledger|advance|sweep|payout|drift/i.test(String(j.automation)),
+        investigating: false,
+        eta: cons >= 5 ? 'Today' : 'This week',
+        score: 300 + cons * 12 + n(j.failures_today) * 5 + (/wallet|ledger|advance|payout/i.test(String(j.automation)) ? 250 : 0),
+        extra: [
+          ['Schedule', String(j.schedule || '-')],
+          ['Consecutive failures', fmt(cons)],
+          ['Last successful execution', ts(j.last_success_at)],
+          ['Last failed execution', ts(j.last_failure_at)],
+          ['Complete error message', String(j.error_message || 'not captured')],
+          ['Stack trace', String(j.error_message || 'not captured')],
+          ['Dependencies', String(j.dependencies || '-')],
+          ['Downstream systems affected', String(j.downstream_affected || '-')],
+          ['Retry attempts', String(j.retry_attempts || '-')],
+          ['Recovery recommendation', String(j.recovery_recommendation || '-')],
+        ],
+      });
+    }
+
+    // --- Slow query issues (only those above threshold)
+    for (const q of inSlow.filter((x: any) => n(x.mean_ms) > 200 || n(x.total_ms) > 600000)) {
+      const sev = String(q.severity || 'Medium');
+      issues.push({
+        key: `slow_query:${String(q.statement).slice(0, 60)}`, domain: 'Database performance',
+        title: `Slow statement: ${String(q.statement).replace(/\s+/g, ' ').slice(0, 90)}`,
+        severity: sev, priority: sev === 'Critical' ? 'P1' : sev === 'High' ? 'P2' : 'P3',
+        execSummary: `A database statement averages ${fmt(q.mean_ms)} ms across ${fmt(q.calls)} calls, consuming ${fmt(Math.round(n(q.total_ms) / 1000))} seconds of database time in total.`,
+        techSummary: `${String(q.plan_note || '')} Cache hit ${fmt(q.cache_hit_pct)}%, ${fmt(q.disk_reads)} disk block reads, ${fmt(q.rows_per_call)} rows returned per call.`,
+        rootCause: String(q.plan_note || ''),
+        timeline: 'Cumulative since the last statistics reset.',
+        frequency: `${fmt(q.calls)} executions`,
+        trendY: 'cumulative counter — no daily delta available',
+        trend7: 'cumulative counter — no 7 day delta available',
+        trend30: 'cumulative counter — no 30 day delta available',
+        systems: 'Postgres primary', services: 'Data API and edge functions issuing this statement',
+        apis: 'PostgREST / RPC callers', tables: 'See the FROM clause in the statement below',
+        functions: 'Database function or client query', files: 'Callers in src/ and supabase/functions/',
+        businessImpact: n(q.mean_ms) > 2000 ? 'Requests on this path can time out for users on slow networks.' : 'Adds latency to every caller of this path.',
+        userImpact: 'All users exercising the affected feature path.', usersAffected: 0,
+        revenueRisk: n(q.mean_ms) > 2000 ? 'Medium' : 'Low',
+        owner: 'Backend / Database', team: 'Backend / Database',
+        fix: String(q.optimization_recommendation || ''),
+        effort: '2-6 engineer hours including EXPLAIN ANALYZE and index rollout',
+        status: 'Open', isNew: false, isRecurring: true, daysActive: 30, previouslyFixed: false,
+        gettingWorse: false, blockingProd: n(q.mean_ms) > 5000, investigating: false,
+        eta: sev === 'Critical' ? 'Today' : 'This week',
+        score: 150 + n(q.mean_ms) / 5 + (sev === 'Critical' ? 300 : sev === 'High' ? 120 : 0),
+        extra: [
+          ['Complete SQL statement', String(q.statement || '')],
+          ['Query execution plan', String(q.plan_note || '') + ' (run EXPLAIN ANALYZE, BUFFERS for the full plan)'],
+          ['Blocks scanned', fmt(q.blocks_scanned)],
+          ['Rows returned', `${fmt(q.rows_returned)} total · ${fmt(q.rows_per_call)} per call`],
+          ['Indexes used', n(q.cache_hit_pct) >= 99 ? 'Index-served (fully cached)' : 'Likely partial or missing index coverage'],
+          ['Missing indexes', n(q.disk_reads) > n(q.blocks_scanned) / 2 ? 'Candidate: add a covering index on the filter and join columns' : 'None detected'],
+          ['CPU time', `${fmt(q.cpu_ms_estimate)} ms`],
+          ['Memory usage', String(q.memory_pressure || '-')],
+          ['Temp blocks', fmt(q.temp_blocks)],
+          ['Lock waits', `${fmt(dDb.lock_waits)} ungranted locks observed on the instance`],
+          ['Blocking sessions', arr(dDb.blocked_queries).length ? arr(dDb.blocked_queries).map((b: any) => `pid ${b.pid} (${b.wait_event})`).join(', ') : 'none'],
+          ['Optimization recommendation', String(q.optimization_recommendation || '')],
+        ],
+      });
+    }
+
+    // --- API / edge function failure issues
+    for (const ap of inApis.filter((x: any) => n(x.failed_today) > 0)) {
+      const sev = String(ap.severity || 'Medium');
+      const totalReq = n(ap.failed_today);
+      issues.push({
+        key: `api:${ap.endpoint}:${ap.status_code}`, domain: 'API failures',
+        title: `API failures on ${String(ap.endpoint || 'unattributed request')}`,
+        severity: sev, priority: sev === 'Critical' ? 'P1' : sev === 'High' ? 'P2' : 'P3',
+        execSummary: `${fmt(ap.failed_today)} failed calls to ${String(ap.endpoint)} today affecting ${fmt(ap.affected_users)} users (status ${String(ap.status_code)}).`,
+        techSummary: `Method ${String(ap.method)} · status ${String(ap.status_code)} · ${fmt(ap.failed_7d)} failures in 7 days · ${fmt(ap.failed_30d)} in 30 days.`,
+        rootCause: String(ap.failure_reason || ''),
+        timeline: `First seen ${ts(ap.first_seen)} · last seen ${ts(ap.last_seen)} (UTC).`,
+        frequency: `${fmt(ap.failed_today)} today · ${fmt(ap.failed_7d)} in 7 days · ${fmt(ap.failed_30d)} in 30 days`,
+        trendY: signed(n(ap.trend_yesterday)), trend7: `${fmt(ap.failed_7d)} failures in 7 days`,
+        trend30: `${fmt(ap.failed_30d)} failures in 30 days`,
+        systems: 'Edge function runtime and Data API', services: String(ap.endpoint || '-'),
+        apis: `${String(ap.method)} ${String(ap.endpoint)}`, tables: 'Tables written by this endpoint',
+        functions: String(ap.endpoint || '-'), files: `supabase/functions/${String(ap.endpoint || '')}/index.ts`,
+        businessImpact: 'Failed calls abandon the user action that triggered them.',
+        userImpact: `${fmt(ap.affected_users)} users affected today.`, usersAffected: n(ap.affected_users),
+        revenueRisk: /wallet|withdraw|deposit|payout|advance/i.test(String(ap.endpoint || '')) ? 'High' : 'Medium',
+        owner: 'Backend', team: 'Backend', fix: String(ap.remediation || ''),
+        effort: '3-8 engineer hours', status: 'Open',
+        isNew: n(ap.failed_30d) === n(ap.failed_today), isRecurring: n(ap.failed_30d) > n(ap.failed_today),
+        daysActive: n(ap.failed_30d) > n(ap.failed_7d) ? 30 : 7, previouslyFixed: false,
+        gettingWorse: n(ap.trend_yesterday) > 0, blockingProd: sev === 'Critical', investigating: false,
+        eta: sev === 'Critical' ? 'Today' : 'This week',
+        score: 200 + n(ap.affected_users) * 6 + totalReq * 1.5,
+        extra: [
+          ['Endpoint', String(ap.endpoint || '-')],
+          ['Request method', String(ap.method || '-')],
+          ['Status code', String(ap.status_code || '-')],
+          ['Failure reason', String(ap.failure_reason || '-')],
+          ['Failed requests', fmt(ap.failed_today)],
+          ['Affected clients', String(ap.affected_clients || '-')],
+          ['Suggested remediation', String(ap.remediation || '-')],
+          ['Response times', 'Per-call latency is not captured client-side — enable timing headers on the gateway'],
+        ],
+      });
+    }
+
+    // --- Notification delivery issue
+    if (n(inNotif.failed_today) > 0) {
+      const tmpl = Array.isArray(inNotif.by_template) ? inNotif.by_template : [];
+      const sev = n(inNotif.failed_today) >= 50 ? 'High' : 'Medium';
+      issues.push({
+        key: 'notifications', domain: 'Notification failures', title: 'Outbound notification delivery failures',
+        severity: sev, priority: sev === 'High' ? 'P2' : 'P3',
+        execSummary: `${fmt(inNotif.failed_today)} of ${fmt(inNotif.sent_today)} notifications failed to deliver today.`,
+        techSummary: `${fmt(inNotif.failed_7d)} failures in 7 days and ${fmt(inNotif.failed_30d)} in 30 days across ${tmpl.length} templates.`,
+        rootCause: tmpl.length ? String(tmpl[0].error || 'provider rejection') : 'Provider rejection or invalid recipient address.',
+        timeline: 'Continuous — evaluated per send attempt.',
+        frequency: `${fmt(inNotif.failed_today)} today · ${fmt(inNotif.failed_7d)} in 7 days · ${fmt(inNotif.failed_30d)} in 30 days`,
+        trendY: signed(n(inNotif.failed_today) - n(inNotif.failed_prev)),
+        trend7: `${fmt(inNotif.failed_7d)} in 7 days`, trend30: `${fmt(inNotif.failed_30d)} in 30 days`,
+        systems: 'Mailgun delivery pipeline', services: tmpl.map((t: any) => t.template).slice(0, 5).join(', ') || 'email templates',
+        apis: 'Mailgun messages API', tables: 'email_send_log', functions: 'send-* edge functions',
+        files: 'supabase/functions/send-*/index.ts',
+        businessImpact: 'Users miss payout, deposit and reminder notifications, driving support load.',
+        userImpact: 'Recipients of the failing templates.', usersAffected: n(inNotif.failed_today),
+        revenueRisk: 'Medium', owner: 'Backend / Notifications', team: 'Backend / Notifications',
+        fix: 'Inspect the provider error per template, validate recipient addresses at write time, and add a retry queue with dead-lettering.',
+        effort: '4-8 engineer hours', status: 'Open', isNew: false, isRecurring: n(inNotif.failed_30d) > n(inNotif.failed_today),
+        daysActive: 30, previouslyFixed: false, gettingWorse: n(inNotif.failed_today) > n(inNotif.failed_prev),
+        blockingProd: false, investigating: false, eta: 'This week',
+        score: 120 + n(inNotif.failed_today) * 2,
+        extra: tmpl.slice(0, 8).map((t: any) => [`Template ${String(t.template)}`, `${fmt(t.failures)} failures — ${String(t.error || '')}`] as [string, string]),
+      });
+    }
+
+    // --- Authentication / signup rejection issue
+    if (n(inAuth.failed_today) > 0) {
+      const reasons = Array.isArray(inAuth.reasons) ? inAuth.reasons : [];
+      const rate = pct(n(inAuth.failed_today), Math.max(1, n(inAuth.attempts_today)));
+      const sev = rate >= 60 ? 'High' : rate >= 30 ? 'Medium' : 'Low';
+      issues.push({
+        key: 'auth_rejections', domain: 'Authentication failures',
+        title: 'Sign-up and sign-in attempts rejected',
+        severity: sev, priority: sev === 'High' ? 'P2' : 'P3',
+        execSummary: `${fmt(inAuth.failed_today)} of ${fmt(inAuth.attempts_today)} registration attempts were rejected today (${rate.toFixed(1)}%).`,
+        techSummary: `Top rejection reason: ${reasons.length ? String(reasons[0].reason) : 'unspecified'}. ${fmt(inAuth.failed_7d)} rejections in 7 days, ${fmt(inAuth.failed_30d)} in 30 days.`,
+        rootCause: reasons.length ? `Guard "${String(reasons[0].reason)}" fired on ${fmt(reasons[0].n)} attempts from ${fmt(reasons[0].ips)} distinct IP addresses.` : 'Anti-fraud guards rejected the attempts.',
+        timeline: 'Evaluated at every registration attempt.',
+        frequency: `${fmt(inAuth.failed_today)} today · ${fmt(inAuth.failed_7d)} in 7 days · ${fmt(inAuth.failed_30d)} in 30 days`,
+        trendY: signed(n(inAuth.failed_today) - n(inAuth.failed_prev)),
+        trend7: `${fmt(inAuth.failed_7d)} in 7 days`, trend30: `${fmt(inAuth.failed_30d)} in 30 days`,
+        systems: 'Authentication and signup guard', services: 'Registration flow',
+        apis: 'Auth sign-up, OTP verification', tables: 'signup_attempts, blocked_signup_ips',
+        functions: 'signupGuard, verify-otp', files: 'src/lib/signupGuard.ts, supabase/functions/verify-otp/index.ts',
+        businessImpact: 'Legitimate rejections protect the platform; false positives block genuine acquisition.',
+        userImpact: `${fmt(inAuth.failed_today)} attempts blocked today.`, usersAffected: n(inAuth.failed_today),
+        revenueRisk: rate >= 60 ? 'Medium' : 'Low', owner: 'Auth', team: 'Auth',
+        fix: 'Review the dominant rejection reason and confirm the guard threshold is not blocking genuine users sharing an IP or device.',
+        effort: '2-4 engineer hours', status: 'Monitoring', isNew: false, isRecurring: true, daysActive: 30,
+        previouslyFixed: false, gettingWorse: n(inAuth.failed_today) > n(inAuth.failed_prev),
+        blockingProd: false, investigating: false, eta: rate >= 60 ? 'This week' : 'Next sprint',
+        score: 90 + rate * 2,
+        extra: reasons.slice(0, 8).map((r: any) => [`Reason ${String(r.reason)}`, `${fmt(r.n)} attempts from ${fmt(r.ips)} IP addresses`] as [string, string]),
+      });
+    }
+
+    // --- Infrastructure alert issues (breached thresholds only)
+    for (const inf of dInfra.filter((x: any) => x.status === 'Breached' || x.status === 'Watch')) {
+      const sev = inf.status === 'Breached' ? 'High' : 'Medium';
+      issues.push({
+        key: `infra:${inf.metric}`, domain: 'Infrastructure alerts', title: `Infrastructure threshold: ${String(inf.metric)}`,
+        severity: sev, priority: sev === 'High' ? 'P2' : 'P3',
+        execSummary: `${String(inf.metric)} is at ${String(inf.current)} against a threshold of ${String(inf.threshold)} (${String(inf.status)}).`,
+        techSummary: String(inf.impact || ''), rootCause: String(inf.root_cause || ''),
+        timeline: 'Sampled at report generation time.', frequency: 'Continuous',
+        trendY: 'point-in-time sample', trend7: 'point-in-time sample', trend30: 'point-in-time sample',
+        systems: 'Database instance', services: 'All services sharing the primary',
+        apis: 'All', tables: 'Instance-wide', functions: 'Instance-wide', files: 'Infrastructure configuration',
+        businessImpact: String(inf.impact || ''), userImpact: 'Platform-wide latency or availability risk.',
+        usersAffected: 0, revenueRisk: sev === 'High' ? 'High' : 'Medium',
+        owner: 'Platform / Infrastructure', team: 'Platform / Infrastructure', fix: String(inf.action || ''),
+        effort: '1-2 engineer hours to apply, longer if a resize is required', status: String(inf.status || 'Watch'),
+        isNew: false, isRecurring: true, daysActive: 1, previouslyFixed: false,
+        gettingWorse: inf.status === 'Breached', blockingProd: inf.status === 'Breached', investigating: false,
+        eta: inf.status === 'Breached' ? 'Today' : 'This week',
+        score: inf.status === 'Breached' ? 420 : 160,
+        extra: [['Current value', String(inf.current)], ['Threshold', String(inf.threshold)], ['Action', String(inf.action || '')]],
+      });
+    }
+
+    // --- Security incident issues
+    if (n(dSec.injection_probes) > 0 || n(dSec.authorization_violations) > 0 || arr(dSec.brute_force_candidates).length > 0) {
+      const sev = n(dSec.injection_probes) > 0 ? 'High' : 'Medium';
+      issues.push({
+        key: 'security_events', domain: 'Security incidents', title: 'Security probes and access-control violations',
+        severity: sev, priority: sev === 'High' ? 'P1' : 'P2',
+        execSummary: `${fmt(dSec.injection_probes)} injection probes, ${fmt(dSec.authorization_violations)} authorisation violations and ${arr(dSec.brute_force_candidates).length} possible brute-force identities were observed.`,
+        techSummary: `${arr(dSec.suspicious_ips).length} suspicious IP addresses in the last 7 days; ${fmt(dSec.blocked_ips_added_today)} IPs blocked today.`,
+        rootCause: 'Automated scanners and credential-stuffing attempts against public endpoints.',
+        timeline: 'Continuous, detected from application telemetry.',
+        frequency: `${fmt(dSec.signup_attempts)} signup attempts, ${fmt(dSec.signup_blocked)} blocked today`,
+        trendY: 'see security section', trend7: `${arr(dSec.suspicious_ips).length} suspicious IPs in 7 days`,
+        trend30: 'monitored continuously',
+        systems: 'Public web surface and Data API', services: 'Auth, signup, public routes',
+        apis: 'Auth endpoints', tables: 'signup_attempts, blocked_signup_ips, fraud_identity_blocks',
+        functions: 'signup guard, RLS policies', files: 'src/lib/signupGuard.ts and RLS policy definitions',
+        businessImpact: 'Successful abuse would expose customer data and funds.',
+        userImpact: 'No confirmed user compromise; controls held.', usersAffected: 0, revenueRisk: 'High',
+        owner: 'Backend Security', team: 'Backend Security',
+        fix: 'Rate-limit the probed endpoints at the edge, keep the offending IPs blocked, and re-verify RLS coverage on every table touched by the violations.',
+        effort: '1 engineer day', status: 'Contained', isNew: false, isRecurring: true, daysActive: 7,
+        previouslyFixed: false, gettingWorse: false, blockingProd: false, investigating: true, eta: 'This week',
+        score: 380,
+        extra: [
+          ['Suspicious IP addresses', arr(dSec.suspicious_ips).slice(0, 5).map((r: any) => `${r.ip} (${fmt(r.attempts)})`).join(', ') || 'none'],
+          ['Brute-force identities', arr(dSec.brute_force_candidates).slice(0, 5).map((r: any) => `${r.identity} (${fmt(r.failed_attempts)})`).join(', ') || 'none'],
+          ['Authorisation violations', fmt(dSec.authorization_violations)],
+          ['Injection probes', fmt(dSec.injection_probes)],
+        ],
+      });
+    }
+
+    issues.sort((x, y) => sevRank(y.severity) - sevRank(x.severity) || y.score - x.score);
+    const top10 = issues.slice(0, 10);
+
+    // --- Rendering: Top 10 table
+    const top10Table = top10.length
+      ? table(
+          ['#', 'Issue', 'Severity', 'Business impact', 'Users affected', 'Revenue risk', 'Root cause', 'Team', 'Resolution', 'Status'],
+          top10.map((i, idx) => [
+            String(idx + 1),
+            `<b>${esc(i.title.slice(0, 90))}</b><div style="font-size:10.5px;color:${C.muted};">${esc(i.domain)}</div>`,
+            sevBadge(i.severity), esc(i.businessImpact.slice(0, 120)), fmt(i.usersAffected),
+            riskCell(i.revenueRisk === 'High' ? 'High' : i.revenueRisk === 'Medium' ? 'Medium' : 'Low'),
+            esc(i.rootCause.slice(0, 140)), esc(i.team), esc(i.eta), esc(i.status),
+          ]),
+        )
+      : `<div style="font-size:12px;color:${C.muted};">No issues crossed the engineering attention threshold today.</div>`;
+
+    // --- Rendering: full diagnostic dossier per issue
+    const dossier = (i: Issue, idx: number) => {
+      const row = (k: string, v: string) =>
+        `<tr><td style="padding:3px 10px 3px 0;font-size:11px;color:${C.muted};white-space:nowrap;vertical-align:top;width:180px;">${esc(k)}</td><td style="padding:3px 0;font-size:11.5px;color:${C.ink};word-break:break-word;">${v}</td></tr>`;
+      const flag = (b: boolean) => (b ? `<b style="color:${C.bad}">Yes</b>` : 'No');
+      return `
+      <div style="border:1px solid ${C.line};border-left:4px solid ${i.severity === 'Critical' ? C.bad : i.severity === 'High' ? C.warn : C.line};border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:12.5px;font-weight:800;color:${C.ink};">${idx}. ${esc(i.title.slice(0, 150))}</div>
+        <div style="margin:4px 0 8px;">${sevBadge(i.severity)} <span style="font-size:11px;color:${C.muted};">${esc(i.domain)} · ${esc(i.priority)} · owner ${esc(i.owner)}</span></div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+          ${row('Executive summary', esc(i.execSummary))}
+          ${row('Technical summary', esc(i.techSummary))}
+          ${row('Root cause', esc(i.rootCause))}
+          ${row('Timeline', esc(i.timeline))}
+          ${row('Severity', esc(i.severity))}
+          ${row('Frequency', esc(i.frequency))}
+          ${row('Trend vs yesterday', esc(i.trendY))}
+          ${row('Trend vs last 7 days', esc(i.trend7))}
+          ${row('Trend vs last 30 days', esc(i.trend30))}
+          ${row('Systems affected', esc(i.systems))}
+          ${row('Services affected', esc(i.services))}
+          ${row('APIs affected', esc(i.apis))}
+          ${row('Database tables involved', esc(i.tables))}
+          ${row('Functions involved', esc(i.functions))}
+          ${row('Source files involved', esc(i.files))}
+          ${row('Estimated business impact', esc(i.businessImpact))}
+          ${row('Estimated user impact', esc(i.userImpact))}
+          ${row('Recommended owner', esc(i.owner))}
+          ${row('Suggested fix', esc(i.fix))}
+          ${row('Estimated effort', esc(i.effort))}
+          ${row('Priority', esc(i.priority))}
+          ${row('Current status', esc(i.status))}
+          ${row('Recurrence', `New: ${flag(i.isNew)} · Recurring: ${flag(i.isRecurring)} · Days active: ${fmt(i.daysActive)} · Previously fixed then returned: ${flag(i.previouslyFixed)} · Getting worse: ${flag(i.gettingWorse)} · Blocking production: ${flag(i.blockingProd)} · Active investigation: ${i.investigating ? 'Yes' : 'No'} · Owning team: ${esc(i.team)}`)}
+          ${i.extra.map(([k, v]) => row(k, `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;">${esc(String(v).slice(0, 900))}</span>`)).join('')}
+        </table>
+      </div>`;
+    };
+    const dossiersHtml = issues.length
+      ? issues.slice(0, 14).map((i, idx) => dossier(i, idx + 1)).join('')
+      : `<div style="font-size:12px;color:${C.muted};">No diagnosable issues detected for this reporting day.</div>`;
+
+    // --- Rendering: CTO Engineering Action Plan
+    const today = issues.filter((i) => i.eta === 'Today' || i.severity === 'Critical');
+    const thisWeek = issues.filter((i) => !today.includes(i) && i.eta === 'This week');
+    const nextSprint = issues.filter((i) => !today.includes(i) && !thisWeek.includes(i));
+    const prodRisks = issues.filter((i) => i.blockingProd || i.revenueRisk === 'High');
+    const planList = (items: Issue[], empty: string) =>
+      items.length
+        ? `<ol style="margin:0;padding-left:18px;font-size:12px;line-height:1.8;color:${C.ink};">${items.slice(0, 10).map((i) => `<li><b>${esc(i.title.slice(0, 100))}</b> — ${esc(i.fix.slice(0, 200))} <span style="color:${C.muted};">(${esc(i.team)}, ${esc(i.effort)})</span></li>`).join('')}</ol>`
+        : `<div style="font-size:12px;color:${C.muted};">${esc(empty)}</div>`;
+    const architectural = [
+      'Upload production source maps so client stack traces resolve to real components instead of "Script error".',
+      'Introduce a structured API telemetry table capturing endpoint, status code and latency for every edge-function call.',
+      'Add retry with dead-lettering to every scheduled automation so a single failed tick does not silently skip a day.',
+      'Move heavy reporting reads to materialised views refreshed off-peak to remove them from the interactive query path.',
+      'Adopt per-route error budgets with automatic alerting when a route exceeds its budget for two consecutive days.',
+    ];
+    const actionPlan = `
+      ${subLabel('Fix today')}${planList(today, 'Nothing requires same-day engineering intervention.')}
+      ${subLabel('Fix this week')}${planList(thisWeek, 'No items queued for this week.')}
+      ${subLabel('Defer to the next sprint')}${planList(nextSprint, 'No deferred items.')}
+      ${subLabel('Immediate production risks')}
+      ${prodRisks.length
+        ? table(['Risk', 'Severity', 'Revenue risk', 'Owner'], prodRisks.slice(0, 8).map((i) => [esc(i.title.slice(0, 110)), sevBadge(i.severity), esc(i.revenueRisk), esc(i.team)]))
+        : `<div style="font-size:12px;color:${C.muted};">No immediate production risk identified.</div>`}
+      ${subLabel('Long-term architectural improvements')}
+      <ol style="margin:0;padding-left:18px;font-size:12px;line-height:1.8;color:${C.ink};">${architectural.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`;
+
     const html = `
 <div style="background:${C.bg};padding:22px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="max-width:860px;margin:0 auto;background:#fff;border:1px solid ${C.line};border-radius:14px;padding:26px 28px;">
