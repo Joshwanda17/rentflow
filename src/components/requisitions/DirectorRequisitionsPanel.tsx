@@ -88,6 +88,23 @@ export function DirectorRequisitionsPanel() {
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'request_info'>('approve');
   const [comment, setComment] = useState('');
   const [acting, setActing] = useState(false);
+  const [retrying, setRetrying] = useState<string | null>(null);
+
+  const retryCredit = async (requisitionId: string) => {
+    setRetrying(requisitionId);
+    const { data, error } = await invokeEdgeFunction('requisition-credit-retry', {
+      source_table: 'director_requisitions',
+      requisition_id: requisitionId,
+    });
+    setRetrying(null);
+    const result = data as { message?: string; already_credited?: boolean } | null;
+    if (error) {
+      toast.error('Wallet credit failed', { description: error.message });
+    } else {
+      toast.success(result?.message || 'Wallet credited');
+    }
+    await fetchData();
+  };
 
   const fetchData = useCallback(async () => {
     const { data, error } = await supabase
