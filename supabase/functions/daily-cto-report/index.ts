@@ -110,6 +110,57 @@ function riskCell(level: 'Low' | 'Medium' | 'High') {
   return `<span style="background:${bg};color:${fg};font-weight:700;padding:2px 8px;border-radius:99px;font-size:11px;">${level}</span>`;
 }
 
+// ---- Diagnostics helpers ----------------------------------------------------
+const shareLine = (m: Record<string, unknown> | undefined | null) => {
+  const entries = Object.entries(m || {}).map(([k, v]) => [k, Number(v) || 0] as [string, number]).filter(([, v]) => v > 0);
+  const total = entries.reduce((s, [, v]) => s + v, 0);
+  if (!total) return 'not captured';
+  return entries.sort((a, b) => b[1] - a[1]).slice(0, 4)
+    .map(([k, v]) => `${Math.round((v / total) * 100)}% ${k}`).join(', ');
+};
+const ts = (s: unknown) => (typeof s === 'string' && s.length >= 16 ? s.slice(0, 16).replace('T', ' ') : '-');
+const sevBadge = (s: string) => {
+  const bg = s === 'Critical' ? '#fdecea' : s === 'High' ? '#fff4e0' : s === 'Medium' ? '#eef2ff' : '#e9f7ef';
+  const fg = s === 'Critical' ? C.bad : s === 'High' ? C.warn : s === 'Medium' ? C.ink : C.good;
+  return `<span style="background:${bg};color:${fg};font-weight:700;padding:2px 8px;border-radius:99px;font-size:11px;">${esc(s)}</span>`;
+};
+const yesNo = (v: unknown) => (v === true ? 'Yes' : 'No');
+const subLabel = (t: string) =>
+  `<div style="font-size:11px;font-weight:700;color:${C.muted};text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;">${esc(t)}</div>`;
+
+/** Full diagnostic dossier for a single error signature. */
+function errorCard(e: any, idx: number) {
+  const row = (k: string, v: string) =>
+    `<tr><td style="padding:3px 10px 3px 0;font-size:11px;color:${C.muted};white-space:nowrap;vertical-align:top;width:150px;">${esc(k)}</td><td style="padding:3px 0;font-size:11.5px;color:${C.ink};word-break:break-word;">${v}</td></tr>`;
+  const routes = Array.isArray(e.routes)
+    ? e.routes.slice(0, 4).map((r: any) => `${esc(String(r.route))} (${fmt(r.n)})`).join(', ')
+    : esc(String(e.route || '-'));
+  return `
+  <div style="border:1px solid ${C.line};border-left:4px solid ${e.severity === 'Critical' ? C.bad : e.severity === 'High' ? C.warn : C.line};border-radius:10px;padding:12px 14px;margin-bottom:12px;">
+    <div style="font-size:12.5px;font-weight:800;color:${C.ink};margin-bottom:2px;">${idx}. ${esc(String(e.message || '').slice(0, 160))}</div>
+    <div style="margin-bottom:8px;">${sevBadge(String(e.severity || 'Low'))} <span style="font-size:11px;color:${C.muted};">${esc(String(e.category || ''))} · ${esc(String(e.feature_area || ''))}</span></div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      ${row('Occurrences', `${fmt(e.occurrences_today)} today · ${fmt(e.occurrences_prev_day)} yesterday · ${fmt(e.occurrences_7d)} over 7 days`)}
+      ${row('Affected users', `${fmt(e.affected_users_today)} today · ${fmt(e.affected_users_7d)} over 7 days`)}
+      ${row('First / last seen', `${esc(ts(e.first_seen))} → ${esc(ts(e.last_seen))} UTC`)}
+      ${row('Routes', routes)}
+      ${row('Source file', esc(String(e.source_file || 'not captured')) + (e.source_line ? `:${esc(String(e.source_line))}:${esc(String(e.source_column || '0'))}` : ''))}
+      ${row('Component', esc(String(e.component || e.boundary_label || 'not captured')))}
+      ${row('Capture point', esc(String(e.capture_source || 'unknown')))}
+      ${row('Browsers', esc(shareLine(e.browsers)))}
+      ${row('Operating systems', esc(shareLine(e.operating_systems)))}
+      ${row('Devices', esc(shareLine(e.devices)))}
+      ${row('Sample user id', esc(String(e.sample_user_id || 'anonymous')))}
+      ${row('Actor role', esc(String(e.actor_role || 'unknown')))}
+      ${e.stack ? row('Stack', `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;color:${C.muted};">${esc(String(e.stack).slice(0, 500))}</span>`) : row('Stack', 'not captured (see action item on source maps)')}
+      ${row('Root cause', esc(String(e.root_cause || '')))}
+      ${row('Recommended fix', esc(String(e.suggested_fix || '')))}
+      ${row('Owner', `${esc(String(e.owner_team || 'Engineering'))} · ${esc(String(e.expected_resolution || ''))}`)}
+      ${row('Business impact', `Revenue exposed: ${yesNo(e.revenue_exposed)} · Data integrity risk: ${yesNo(e.data_integrity_risk)} · Blocking production: ${yesNo(e.production_blocking)}`)}
+    </table>
+  </div>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -140,6 +191,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'metrics_failed', details: error.message }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Deep technical diagnostics (best-effort: the summary report still ships if this fails)
+    let diag: any = {};
+    try {
+      const { data: dg, error: dgErr } = await supabase.rpc('get_cto_diagnostics', { p_date: dateStr });
+      if (dgErr) console.error('[daily-cto-report] diagnostics rpc failed', dgErr);
+      else diag = dg || {};
+    } catch (e) {
+      console.error('[daily-cto-report] diagnostics threw', e);
     }
 
     const d: any = data || {};
@@ -375,6 +436,187 @@ Deno.serve(async (req) => {
           </div>
         </td>
       </tr></table>`;
+
+    // ---- Deep diagnostics rendering ---------------------------------------
+    const DG: any = diag || {};
+    const dSum: any = DG.summary || {};
+    const dErrors: any[] = Array.isArray(DG.errors) ? DG.errors : [];
+    const dFront: any = DG.frontend || {};
+    const dApi: any[] = Array.isArray(DG.api_failures) ? DG.api_failures : [];
+    const dDb: any = DG.database || {};
+    const dJobs: any[] = Array.isArray(DG.automations) ? DG.automations : [];
+    const dAuth: any = DG.auth || {};
+    const dInfra: any[] = Array.isArray(DG.infrastructure) ? DG.infrastructure : [];
+    const dSec: any = DG.security || {};
+    const dReg: any = DG.regression || {};
+    const dActions: any[] = Array.isArray(DG.action_items) ? DG.action_items : [];
+    const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+
+    const diagOverview = kpiRows([
+      kpi('Client errors today', fmt(dSum.client_errors_today)),
+      kpi('Users affected', fmt(dSum.affected_users_today)),
+      kpi('Distinct signatures', fmt(dSum.distinct_signatures)),
+      kpi('Critical signatures', fmt(dSum.critical_signatures), '', n(dSum.critical_signatures) > 0 ? 'bad' : 'good'),
+      kpi('Failing automations', fmt(dSum.failing_automations), '', n(dSum.failing_automations) > 0 ? 'warn' : 'good'),
+      kpi('Failing endpoints', fmt(dSum.failing_endpoints), '', n(dSum.failing_endpoints) > 0 ? 'warn' : 'good'),
+      kpi('Breached infra alerts', fmt(dSum.breached_infra_alerts), '', n(dSum.breached_infra_alerts) > 0 ? 'bad' : 'good'),
+      kpi('Open action items', fmt(dSum.open_action_items)),
+    ]);
+
+    const errorDossier = dErrors.length
+      ? dErrors.slice(0, 8).map((e, i) => errorCard(e, i + 1)).join('')
+      : `<div style="font-size:12px;color:${C.muted};">No client error signatures recorded for this day.</div>`;
+
+    const criticalTable = table(
+      ['Error', 'Severity', 'Occurrences', 'Users', 'Feature area', 'Revenue risk', 'Owner', 'Target'],
+      dErrors.slice(0, 20).map((e) => [
+        esc(String(e.message || '').slice(0, 90)), sevBadge(String(e.severity || 'Low')),
+        fmt(e.occurrences_today), fmt(e.affected_users_today), esc(String(e.feature_area || '-')),
+        yesNo(e.revenue_exposed), esc(String(e.owner_team || '-')), esc(String(e.expected_resolution || '-')),
+      ]),
+    );
+
+    const apiTable = table(
+      ['Endpoint', 'Method', 'Failures', 'Users', 'Status', 'First seen', 'Last seen', 'Root cause and fix'],
+      dApi.map((a: any) => [
+        esc(String(a.endpoint || '-')), esc(String(a.method || '-')), fmt(a.failed_requests), fmt(a.affected_users),
+        esc(String(a.status_codes || '-')), esc(ts(a.first_seen)), esc(ts(a.last_seen)),
+        `${esc(String(a.root_cause || ''))} <span style="color:${C.muted};">${esc(String(a.recommended_fix || ''))}</span>`,
+      ]),
+    );
+
+    const dbSection = [
+      subLabel('Slowest statements with tuning guidance'),
+      table(['Statement', 'Calls', 'Mean ms', 'Max ms', 'Cache hit', 'Disk reads', 'Recommendation'],
+        arr(dDb.slow_queries).map((q: any) => [
+          `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;">${esc(String(q.query || '').slice(0, 260))}</span>`,
+          fmt(q.calls), fmt(q.mean_ms), fmt(q.max_ms), `${fmt(q.cache_hit_pct)}%`, fmt(q.disk_reads),
+          esc(String(q.recommendation || '')),
+        ])),
+      subLabel('Tables dominated by sequential scans (missing index candidates)'),
+      table(['Table', 'Seq scans', 'Rows read sequentially', 'Index scans', 'Live rows', 'Recommendation'],
+        arr(dDb.missing_indexes).map((m: any) => [
+          esc(String(m.table)), fmt(m.sequential_scans), fmt(m.rows_read_sequentially), fmt(m.index_scans), fmt(m.live_rows),
+          esc(String(m.recommendation || '')),
+        ])),
+      subLabel(`Lock contention — ${fmt(dDb.lock_waits)} ungranted locks`),
+      table(['PID', 'Wait event', 'Waiting (s)', 'Query'],
+        arr(dDb.blocked_queries).map((b: any) => [
+          esc(String(b.pid)), esc(String(b.wait_event)), fmt(b.waiting_for),
+          `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;">${esc(String(b.query || '').slice(0, 160))}</span>`,
+        ])),
+      subLabel('Vacuum / bloat candidates'),
+      table(['Table', 'Dead rows', 'Live rows', 'Last autovacuum'],
+        arr(dDb.bloat_candidates).map((b: any) => [
+          esc(String(b.table)), fmt(b.dead_rows), fmt(b.live_rows), esc(ts(b.last_autovacuum)),
+        ])),
+      `<div style="font-size:11px;color:${C.muted};margin-top:8px;">${esc(String(dDb.note || ''))}</div>`,
+    ].join('');
+
+    const jobDetailTable = table(
+      ['Automation', 'Schedule', 'Failures / runs', 'Last failure', 'Last success', 'Exception', 'Retry status', 'Fix'],
+      dJobs.map((j: any) => [
+        esc(String(j.automation)), esc(String(j.schedule || '-')), `${fmt(j.failures_24h)} / ${fmt(j.runs_24h)}`,
+        esc(ts(j.last_failure_at)), esc(ts(j.last_success_at)),
+        `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;">${esc(String(j.exception || 'not captured').slice(0, 260))}</span>`,
+        esc(String(j.retry_status || '')), esc(String(j.recommended_fix || '')),
+      ]),
+    );
+
+    const frontendSection = [
+      subLabel('Errors by route'),
+      table(['Route', 'Errors', 'Users'], arr(dFront.by_route).map((r: any) => [esc(String(r.route)), fmt(r.n), fmt(r.users)])),
+      subLabel('Errors by browser'),
+      table(['Browser', 'Errors', 'Users'], arr(dFront.by_browser).map((r: any) => [esc(String(r.browser)), fmt(r.n), fmt(r.users)])),
+      subLabel('Errors by operating system and device'),
+      table(['Segment', 'Errors'], [
+        ...arr(dFront.by_os).map((r: any) => [esc(String(r.os)), fmt(r.n)]),
+        ...arr(dFront.by_device).map((r: any) => [esc(String(r.device)), fmt(r.n)]),
+      ]),
+      subLabel('Errors by component and source file'),
+      table(['Component or file', 'Errors'], [
+        ...arr(dFront.by_component).map((r: any) => [esc(String(r.component)), fmt(r.n)]),
+        ...arr(dFront.by_file).map((r: any) => [esc(String(r.file)), fmt(r.n)]),
+      ]),
+      subLabel('Browser compatibility events'),
+      table(['Event', 'Count', 'Sample'], arr(dFront.compat_events).map((r: any) => [esc(String(r.event_type)), fmt(r.n), esc(String(r.sample || '-'))])),
+    ].join('');
+
+    const authSection = [
+      kpiRows([
+        kpi('Sign-in attempts', fmt(dAuth.login_attempts)),
+        kpi('Sign-in failures', fmt(dAuth.login_failures), '', n(dAuth.login_failures) > 0 ? 'warn' : 'good'),
+        kpi('OTP identity mismatches', fmt(dAuth.otp_identity_mismatch), '', n(dAuth.otp_identity_mismatch) > 0 ? 'bad' : 'good'),
+      ]),
+      subLabel('Failure reasons'),
+      table(['Reason', 'Occurrences', 'Users'], arr(dAuth.failure_breakdown).map((r: any) => [esc(String(r.reason)), fmt(r.n), fmt(r.users)])),
+      subLabel('Slowest authentication phases'),
+      table(['Phase', 'Average ms', 'Max ms', 'Samples'], arr(dAuth.slowest_phases).map((r: any) => [esc(String(r.phase)), fmt(r.avg_ms), fmt(r.max_ms), fmt(r.n)])),
+      subLabel('One-time password outcomes'),
+      table(['Outcome', 'Reason', 'Stage', 'Count'], arr(dAuth.otp_breakdown).map((r: any) => [esc(String(r.outcome)), esc(String(r.reason)), esc(String(r.stage)), fmt(r.n)])),
+      subLabel('Device and installation issues'),
+      table(['Event', 'Platform', 'Count'], arr(dAuth.device_issues).map((r: any) => [esc(String(r.event_type)), esc(String(r.platform)), fmt(r.n)])),
+    ].join('');
+
+    const infraAlertTable = table(
+      ['Metric', 'Current', 'Threshold', 'Status', 'Root cause', 'Impact', 'Action'],
+      dInfra.map((i: any) => [
+        esc(String(i.metric)), esc(String(i.current)), esc(String(i.threshold)),
+        i.status === 'Breached' ? riskCell('High') : i.status === 'Watch' ? riskCell('Medium') : riskCell('Low'),
+        esc(String(i.root_cause)), esc(String(i.impact)), esc(String(i.action)),
+      ]),
+    );
+
+    const securitySection = [
+      kpiRows([
+        kpi('Signup attempts', fmt(dSec.signup_attempts)),
+        kpi('Signups blocked', fmt(dSec.signup_blocked)),
+        kpi('IPs blocked today', fmt(dSec.blocked_ips_added_today)),
+        kpi('Fraud identity blocks', fmt(dSec.fraud_blocks_today)),
+        kpi('Authorisation violations', fmt(dSec.authorization_violations), '', n(dSec.authorization_violations) > 0 ? 'warn' : 'good'),
+        kpi('Injection probes', fmt(dSec.injection_probes), '', n(dSec.injection_probes) > 0 ? 'bad' : 'good'),
+      ]),
+      subLabel('Suspicious IP addresses — last 7 days'),
+      table(['IP address', 'Attempts', 'Distinct identities', 'Last seen'],
+        arr(dSec.suspicious_ips).map((r: any) => [esc(String(r.ip)), fmt(r.attempts), fmt(r.distinct_identities), esc(ts(r.last_seen))])),
+      subLabel('Possible brute-force identities'),
+      table(['Identity', 'Failed attempts', 'Last attempt'],
+        arr(dSec.brute_force_candidates).map((r: any) => [esc(String(r.identity)), fmt(r.failed_attempts), esc(ts(r.last_attempt))])),
+      subLabel('Privilege and access changes'),
+      table(['Action', 'Table', 'Count', 'Last change'],
+        arr(dSec.privilege_changes).map((r: any) => [esc(String(r.action_type)), esc(String(r.table_name)), fmt(r.n), esc(ts(r.last_at))])),
+      `<div style="font-size:11px;color:${C.muted};margin-top:8px;">${esc(String(dSec.note || ''))}</div>`,
+    ].join('');
+
+    const regressionSection = [
+      subLabel('New errors introduced today'),
+      table(['Error', 'Occurrences today'], arr(dReg.new_errors).map((r: any) => [esc(String(r.error)), fmt(r.today)])),
+      subLabel('Errors resolved since yesterday'),
+      table(['Error', 'Occurrences yesterday'], arr(dReg.resolved_errors).map((r: any) => [esc(String(r.error)), fmt(r.yesterday)])),
+      subLabel('Worsening errors'),
+      table(['Error', 'Yesterday', 'Today', 'Change'], arr(dReg.worsening).map((r: any) => [esc(String(r.error)), fmt(r.yesterday), fmt(r.today), delta(n(r.today), n(r.yesterday))])),
+      subLabel('Improving errors'),
+      table(['Error', 'Yesterday', 'Today', 'Change'], arr(dReg.improving).map((r: any) => [esc(String(r.error)), fmt(r.yesterday), fmt(r.today), delta(n(r.today), n(r.yesterday))])),
+      subLabel('Recurring errors present on both days'),
+      table(['Error', 'Yesterday', 'Today'], arr(dReg.recurring).map((r: any) => [esc(String(r.error)), fmt(r.yesterday), fmt(r.today)])),
+    ].join('');
+
+    const actionTable = table(
+      ['Priority', 'Issue', 'Recommended action', 'Team', 'Owner', 'Due date', 'Status', 'Blockers'],
+      dActions.map((a: any) => [
+        `<strong>${esc(String(a.priority))}</strong>`, esc(String(a.issue)), esc(String(a.action || '')),
+        esc(String(a.team || '-')), esc(String(a.owner || '-')), esc(String(a.due_date || '-')),
+        esc(String(a.status || 'Open')), esc(String(a.blockers || '-')),
+      ]),
+    );
+
+    const businessImpact = table(
+      ['Signature', 'Feature area', 'Users affected', 'Revenue exposed', 'Data integrity risk', 'Blocking production'],
+      dErrors.filter((e: any) => e.revenue_exposed || e.data_integrity_risk || e.production_blocking).slice(0, 12).map((e: any) => [
+        esc(String(e.message || '').slice(0, 90)), esc(String(e.feature_area || '-')), fmt(e.affected_users_today),
+        yesNo(e.revenue_exposed), yesNo(e.data_integrity_risk), yesNo(e.production_blocking),
+      ]),
+    );
 
     const html = `
 <div style="background:${C.bg};padding:22px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
