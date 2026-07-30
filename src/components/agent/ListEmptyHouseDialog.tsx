@@ -2197,24 +2197,25 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 />
               </div>
             </div>
-            {/* Big visual category picker */}
-            <div className="grid grid-cols-3 gap-2">
-              {HOUSE_CATEGORIES.map(c => {
-                const selected = form.house_category === c.value;
-                return (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, house_category: c.value }))}
-                    className={`flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-colors ${
-                      selected ? 'border-primary bg-primary/10 ring-2 ring-primary' : 'border-border bg-muted/30 hover:bg-muted/50'
-                    }`}
-                  >
-                    <span className="text-3xl leading-none">{c.emoji}</span>
-                    <span className="text-xs font-semibold leading-tight">{c.label}</span>
-                  </button>
-                );
-              })}
+            {/* House category dropdown */}
+            <div>
+              <Label className="text-sm font-medium">House type</Label>
+              <Select
+                value={form.house_category}
+                onValueChange={(v) => setForm(f => ({ ...f, house_category: v }))}
+              >
+                <SelectTrigger className="h-12 w-full text-base">
+                  <SelectValue placeholder="Select house type" />
+                </SelectTrigger>
+                <SelectContent className="z-[60] bg-popover">
+                  {HOUSE_CATEGORIES.map(c => (
+                    <SelectItem key={c.value} value={c.value}>
+                      <span className="mr-2">{c.emoji}</span>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div id="lh-field-rent">
