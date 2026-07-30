@@ -47,6 +47,26 @@ export async function getDepartments(): Promise<Department[]> {
   return getDepartmentsInternal();
 }
 
+/** Creates a department; the key is derived from the name. */
+export async function createDepartment(input: {
+  name: string;
+  measurementMode: 'output' | 'time';
+}): Promise<Department> {
+  const name = input.name.trim();
+  const row = unwrap(
+    await supabase
+      .from('hr_departments')
+      .insert({
+        name,
+        key: name.toLowerCase().replace(/[\s&]+/g, '_'),
+        measurement_mode: input.measurementMode,
+      })
+      .select('id, key, name, active')
+      .single(),
+  ) as DeptRow;
+  return mapDepartment(row);
+}
+
 export type Position = {
   id: string;
   title: string;
