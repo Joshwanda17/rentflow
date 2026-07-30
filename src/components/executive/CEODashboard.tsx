@@ -189,6 +189,9 @@ export function CEODashboard() {
         <KPICard title="Rent Repaid" value={`${fmt(rentStats?.totalRepaid || 0)}`} icon={TrendingUp} loading={loading} color="bg-teal-500/10 text-teal-600" />
       </div>
 
+      {/* Funder engagement — repayment details opens */}
+      <FunderEngagementPanel />
+
       {/* Growth Metrics */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
         <h3 className="text-sm font-semibold mb-3">Growth Metrics</h3>
