@@ -79,8 +79,8 @@ export function NearbyTenantsSheet({ open, onOpenChange }: NearbyTenantsSheetPro
     setLoading(true);
     try {
       // Fetch unverified rent requests with tenant & landlord info
-      const { data: requests } = await supabase
-        .from('rent_requests')
+      const { data: requests } = await (supabase
+        .from('rent_requests') as any)
         .select(`
           id, rent_amount, agent_verified,
           tenant:profiles!rent_requests_tenant_id_fkey(id, full_name, phone, city),
