@@ -335,7 +335,7 @@ export default function MyWork() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        {(task.status === 'open' || task.status === 'assigned' || task.status === 'returned') && (
+                        {['open', 'assigned', 'returned'].includes(String(task.status)) && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -346,7 +346,7 @@ export default function MyWork() {
                             Start
                           </Button>
                         )}
-                        {(task.status === 'in_progress' || task.status === 'blocked') && (
+                        {['in_progress', 'blocked'].includes(String(task.status)) && (
                           <Button
                             size="sm"
                             variant="outline"
