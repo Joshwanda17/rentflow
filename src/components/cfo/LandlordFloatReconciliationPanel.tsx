@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Scale } from 'lucide-react';
-import { formatUGX } from '@/lib/currency';
+import { formatUGX } from '@/lib/agentAdvanceCalculations';
 
 interface DriftRow {
   agent_id: string;
