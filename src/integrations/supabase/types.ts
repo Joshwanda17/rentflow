@@ -11262,64 +11262,112 @@ export type Database = {
       }
       job_applications: {
         Row: {
+          availability_date: string | null
           category: string
+          consent_text_version: string | null
+          consented_at: string | null
           contacted_at: string | null
           contacted_by: string | null
           cover_note: string | null
           created_at: string
+          current_employer: string | null
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
           email: string | null
+          employment_type: string | null
+          expected_salary: string | null
           experience_level: string | null
           full_name: string
+          future_roles_consent: boolean
+          highest_education: string | null
           id: string
+          linkedin_url: string | null
           location: string | null
           portfolio_url: string | null
+          purged_at: string | null
+          resume_filename: string | null
+          resume_url: string | null
           role_interest: string | null
+          source: string | null
           status: string
           updated_at: string
           utm_campaign: string | null
           utm_medium: string | null
           utm_source: string | null
-          whatsapp_number: string
+          whatsapp_number: string | null
         }
         Insert: {
+          availability_date?: string | null
           category?: string
+          consent_text_version?: string | null
+          consented_at?: string | null
           contacted_at?: string | null
           contacted_by?: string | null
           cover_note?: string | null
           created_at?: string
+          current_employer?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
           email?: string | null
+          employment_type?: string | null
+          expected_salary?: string | null
           experience_level?: string | null
           full_name: string
+          future_roles_consent?: boolean
+          highest_education?: string | null
           id?: string
+          linkedin_url?: string | null
           location?: string | null
           portfolio_url?: string | null
+          purged_at?: string | null
+          resume_filename?: string | null
+          resume_url?: string | null
           role_interest?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
           utm_campaign?: string | null
           utm_medium?: string | null
           utm_source?: string | null
-          whatsapp_number: string
+          whatsapp_number?: string | null
         }
         Update: {
+          availability_date?: string | null
           category?: string
+          consent_text_version?: string | null
+          consented_at?: string | null
           contacted_at?: string | null
           contacted_by?: string | null
           cover_note?: string | null
           created_at?: string
+          current_employer?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
           email?: string | null
+          employment_type?: string | null
+          expected_salary?: string | null
           experience_level?: string | null
           full_name?: string
+          future_roles_consent?: boolean
+          highest_education?: string | null
           id?: string
+          linkedin_url?: string | null
           location?: string | null
           portfolio_url?: string | null
+          purged_at?: string | null
+          resume_filename?: string | null
+          resume_url?: string | null
           role_interest?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
           utm_campaign?: string | null
           utm_medium?: string | null
           utm_source?: string | null
-          whatsapp_number?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
