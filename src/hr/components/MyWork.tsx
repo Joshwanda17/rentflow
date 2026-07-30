@@ -50,6 +50,31 @@ interface MetricThreshold {
   red_at: number | null;
 }
 
+/** A flagged comment on one of my tasks that I have not yet acknowledged. */
+interface AttentionItem {
+  eventId: string;
+  taskId: string;
+  taskTitle: string;
+  note: string;
+  authorName: string;
+  at: string;
+}
+
+/** Raw note event shape, read append-only from hr_task_events. */
+interface NoteEventRow {
+  id: string;
+  task_id: string;
+  actor_user_id: string;
+  occurred_at: string;
+  note: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+function flagOf(metadata: Record<string, unknown> | null): string {
+  const raw = metadata && typeof metadata === 'object' ? (metadata as { flag?: unknown }).flag : null;
+  return typeof raw === 'string' ? raw : '';
+}
+
 function humanize(value: string) {
   return (value || '').replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
@@ -59,6 +84,18 @@ function formatDate(iso: string | null) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
+function formatDateTime(iso: string | null) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function formatValue(value: number | null, unit: string) {
@@ -128,6 +165,8 @@ export default function MyWork() {
   const [thresholds, setThresholds] = useState<Record<string, MetricThreshold>>({});
   const [tasks, setTasks] = useState<Task[]>([]);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
+  const [attention, setAttention] = useState<AttentionItem[]>([]);
+  const [busyEventId, setBusyEventId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -147,6 +186,64 @@ export default function MyWork() {
       setDefinitions(defs);
       setSnapshots(snaps);
       setTasks(myTasks);
+
+      // Flagged comments awaiting my acknowledgement. Read-only pass over the
+      // append-only event log: a later `acknowledged` note cancels an earlier
+      // `attention` note on the same task.
+      const taskIds = myTasks.map((t) => t.id);
+      if (taskIds.length > 0) {
+        const { data: noteRows } = await supabase
+          .from('hr_task_events')
+          .select('id, task_id, actor_user_id, occurred_at, note, metadata')
+          .in('task_id', taskIds)
+          .eq('event_type', 'note')
+          .order('occurred_at', { ascending: true });
+
+        const notes = (noteRows ?? []) as unknown as NoteEventRow[];
+        const lastAck: Record<string, number> = {};
+        for (const row of notes) {
+          if (flagOf(row.metadata) !== 'acknowledged') continue;
+          const ts = new Date(row.occurred_at).getTime();
+          if (!lastAck[row.task_id] || ts > lastAck[row.task_id]) lastAck[row.task_id] = ts;
+        }
+
+        const pending = notes.filter(
+          (row) =>
+            flagOf(row.metadata) === 'attention' &&
+            new Date(row.occurred_at).getTime() > (lastAck[row.task_id] ?? -Infinity),
+        );
+
+        let nameByUser: Record<string, string> = {};
+        const authorIds = Array.from(new Set(pending.map((p) => p.actor_user_id).filter(Boolean)));
+        if (authorIds.length > 0) {
+          const { data: authorRows } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', authorIds);
+          nameByUser = Object.fromEntries(
+            ((authorRows ?? []) as { id: string; full_name: string | null }[]).map((p) => [
+              p.id,
+              p.full_name || 'Unknown',
+            ]),
+          );
+        }
+
+        const titleById = Object.fromEntries(myTasks.map((t) => [t.id, t.title]));
+        setAttention(
+          pending
+            .map((row) => ({
+              eventId: row.id,
+              taskId: row.task_id,
+              taskTitle: titleById[row.task_id] ?? 'Task',
+              note: row.note ?? '',
+              authorName: nameByUser[row.actor_user_id] ?? 'Unknown',
+              at: row.occurred_at,
+            }))
+            .reverse(),
+        );
+      } else {
+        setAttention([]);
+      }
 
       const map: Record<string, MetricThreshold> = {};
       for (const row of (thresholdRows.data ?? []) as { id: string; amber_at: number | null; red_at: number | null }[]) {
@@ -238,6 +335,28 @@ export default function MyWork() {
     }
   };
 
+  /**
+   * Acknowledging INSERTS one new note event. The original comment row is
+   * never updated and never deleted.
+   */
+  const acknowledge = async (item: AttentionItem) => {
+    setBusyEventId(item.eventId);
+    try {
+      await addTaskEvent({
+        taskId: item.taskId,
+        eventType: 'note',
+        note: 'Acknowledged',
+        metadata: { flag: 'acknowledged', acknowledges_event_id: item.eventId },
+      });
+      toast.success('Acknowledged');
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not acknowledge');
+    } finally {
+      setBusyEventId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -261,6 +380,44 @@ export default function MyWork() {
 
   return (
     <div className="space-y-5">
+      {attention.length > 0 && (
+        <Card className="border-amber-500/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Needs your attention</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            {attention.map((item) => (
+              <div
+                key={item.eventId}
+                className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <Link
+                    to={`/hr/dashboard/tasks/${item.taskId}`}
+                    className="text-sm font-semibold text-foreground hover:underline"
+                  >
+                    {item.taskTitle}
+                  </Link>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{item.note}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {item.authorName} · {formatDateTime(item.at)}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 shrink-0 px-2 text-[11px]"
+                  disabled={busyEventId === item.eventId}
+                  onClick={() => acknowledge(item)}
+                >
+                  Acknowledge
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         {tiles.length === 0 ? (
           <p className="col-span-full text-sm text-muted-foreground">
