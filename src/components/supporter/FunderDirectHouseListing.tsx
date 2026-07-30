@@ -754,6 +754,10 @@ export function FunderDirectHouseListing() {
               ))}
             </div>
 
+            <p className="text-[9px] text-muted-foreground text-center">
+              From move-in {format(selectionTotals.startDate, 'd MMM yyyy')} · {selectionTotals.daysInTerm} days to {format(selectionTotals.endDate, 'd MMM yyyy')}
+            </p>
+
             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
               <span>Capital to landlords</span>
               <span className="font-bold text-foreground">{formatUGX(selectionTotals.capital)}</span>
