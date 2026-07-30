@@ -14,8 +14,10 @@ import {
 } from 'recharts';
 import {
   Users, UserPlus, Activity, FileText, Home, Wallet, Banknote, TrendingDown,
-  TrendingUp, ArrowRight,
+  TrendingUp, ArrowRight, UsersRound, Network, Coins, Hourglass, Receipt, Trophy,
 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 
 export type OverviewRange = '24h' | '7d' | '1m';
 
@@ -116,7 +118,11 @@ function KpiTile({ title, value, delta, icon: Icon, accent, spark, onClick, load
 interface OverviewPayload {
   kpis: Record<string, number>;
   listings_funnel: { listed: number; verified: number; placed: number };
-  trend: Array<{ day: string; agents: number; requests: number; collections: number; commission: number; active_agents: number }>;
+  trend: Array<{ day: string; agents: number; requests: number; collections: number; commission: number; active_agents: number; expected?: number; pending?: number }>;
+  top_performers?: Array<{
+    user_id: string; name: string; phone: string | null; category: 'Agent' | 'Sub-Agent';
+    collected: number; collections: number; commission: number;
+  }>;
   generated_at: string;
 }
 
