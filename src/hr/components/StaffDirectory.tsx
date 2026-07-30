@@ -249,7 +249,174 @@ export default function StaffDirectory() {
       </Card>
 
       <EnrollDialog open={open} onOpenChange={setOpen} onEnrolled={() => void load()} />
+
+      <AddAssignmentDialog
+        staff={addFor}
+        onOpenChange={(v) => {
+          if (!v) setAddFor(null);
+        }}
+        onAdded={() => void load()}
+      />
     </div>
+  );
+}
+
+function AddAssignmentDialog({
+  staff,
+  onOpenChange,
+  onAdded,
+}: {
+  staff: Employee | null;
+  onOpenChange: (v: boolean) => void;
+  onAdded: () => void;
+}) {
+  const open = staff !== null;
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [departmentId, setDepartmentId] = useState('');
+  const [positionId, setPositionId] = useState('');
+  const [reportsTo, setReportsTo] = useState<string>(NONE);
+  const [makePrimary, setMakePrimary] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setDepartmentId('');
+    setPositionId('');
+    setReportsTo(NONE);
+    setMakePrimary(false);
+    setError(null);
+    Promise.all([getDepartments(), getPositions()])
+      .then(([d, p]) => {
+        setDepartments(d);
+        setPositions(p);
+      })
+      .catch((e) => setError(readableError(e, 'Loading departments and positions')));
+  }, [open]);
+
+  const canSave = Boolean(departmentId && positionId) && !saving;
+
+  const handleSave = async () => {
+    if (!staff) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await addAssignment({
+        staffId: staff.id,
+        departmentId,
+        positionId,
+        reportsToPositionId: reportsTo === NONE ? null : reportsTo,
+        makePrimary,
+      });
+      toast.success('Position added');
+      onOpenChange(false);
+      onAdded();
+    } catch (e) {
+      setError(readableError(e, 'Adding the position'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add position</DialogTitle>
+          <DialogDescription>
+            Gives {staff?.full_name || 'this person'} a further active position, starting today.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Department</Label>
+            <Select value={departmentId} onValueChange={setDepartmentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select department" />
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Position</Label>
+            <Select value={positionId} onValueChange={setPositionId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select position" />
+              </SelectTrigger>
+              <SelectContent>
+                {positions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Reports to (optional)</Label>
+            <Select value={reportsTo} onValueChange={setReportsTo}>
+              <SelectTrigger>
+                <SelectValue placeholder="No manager" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>No manager</SelectItem>
+                {positions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Any active position can be the reporting line, including one in another department.
+            </p>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="make-primary"
+              checked={makePrimary}
+              onCheckedChange={(v) => setMakePrimary(v === true)}
+            />
+            <div>
+              <Label htmlFor="make-primary" className="cursor-pointer">
+                Make this their primary position
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                The primary position decides which department their metrics roll up to.
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive flex gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={!canSave}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Add position
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
