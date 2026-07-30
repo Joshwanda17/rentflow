@@ -1078,6 +1078,11 @@ Deno.serve(async (req) => {
       '',
       'Recommendations:',
       ...recs.map((r, i) => `${i + 1}. ${r.replace(/<[^>]+>/g, '')}`),
+      '',
+      'Top 10 issues requiring immediate engineering attention:',
+      ...top10.map((i, idx) => `${idx + 1}. [${i.severity}/${i.priority}] ${i.title} — ${i.usersAffected} users, revenue risk ${i.revenueRisk}, owner ${i.team}, resolve ${i.eta}. Cause: ${i.rootCause}`),
+      '',
+      `Action plan — today: ${today.length} item(s); this week: ${thisWeek.length}; next sprint: ${nextSprint.length}; immediate production risks: ${prodRisks.length}.`,
     ].join('\n');
 
     // ---- Downloadable PDF attachment ------------------------------------
