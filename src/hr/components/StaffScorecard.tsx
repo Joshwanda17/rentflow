@@ -44,8 +44,6 @@ import type {
 } from '@/hr/api/people';
 import type { Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 
-/** How many metrics the radar carries. Six is the contract. */
-const RADAR_SIZE = 6;
 /** How many periods the trend line covers. */
 const TREND_PERIODS = 6;
 
