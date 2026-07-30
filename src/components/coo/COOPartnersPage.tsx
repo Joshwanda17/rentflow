@@ -4000,7 +4000,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 }
 
 /* ─── Summary Card ─── */
-function SummaryCard({ icon, label, value, sub, accent }: {
+function SummaryCard({ icon, label, value, sub, accent, onClick }: {
   icon: React.ReactNode; label: string; value: string | number; sub: string;
   accent: 'primary' | 'emerald' | 'amber' | 'violet';
   onClick?: () => void;
@@ -4012,9 +4012,14 @@ function SummaryCard({ icon, label, value, sub, accent }: {
     violet: { card: 'border-violet-500/20 bg-violet-500/5', icon: 'text-violet-600 bg-violet-500/10' },
   };
   const s = styles[accent];
-  const Wrapper: any = arguments.length ? 'div' : 'div';
   return (
-    <div className={cn('rounded-2xl border p-3.5 space-y-2', s.card)}>
+    <div
+      className={cn('rounded-2xl border p-3.5 space-y-2', s.card, onClick && 'cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring')}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+    >
       <div className="flex items-center gap-2">
         <div className={cn('p-1.5 rounded-lg', s.icon)}>{icon}</div>
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
