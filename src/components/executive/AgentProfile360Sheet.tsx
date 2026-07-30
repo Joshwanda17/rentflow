@@ -251,6 +251,18 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
             </Tabs>
           </div>
         )}
+    </>
+  );
+
+  if (inline) return <div className="space-y-3">{body}</div>;
+
+  return (
+    <Sheet open={!!agentId} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-4">
+        <SheetHeader className="mb-3">
+          <SheetTitle className="text-base">Agent profile</SheetTitle>
+        </SheetHeader>
+        {body}
       </SheetContent>
     </Sheet>
   );
