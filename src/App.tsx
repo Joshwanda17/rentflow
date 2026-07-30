@@ -580,6 +580,7 @@ function AppRoutes() {
           <Route path="/hr/dashboard/metrics" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRMetricDefinitionsPage /></RoleGuard>} />
           <Route path="/hr/dashboard/tasks/:id" element={<HRSignedInRoute><HRTaskDetailPage /></HRSignedInRoute>} />
           <Route path="/hr/dashboard/my-work" element={<HRSignedInRoute><HRMyWorkPage /></HRSignedInRoute>} />
+          <Route path="/hr/dashboard/executive-brief" element={<HRSignedInRoute><HRExecutiveBriefPage /></HRSignedInRoute>} />
           <Route path="/hr/dashboard/scorecard/:staffId" element={<HRSignedInRoute><HRStaffScorecardPage /></HRSignedInRoute>} />
           <Route path="/hr/profiles/:userId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HREmployeeProfilePage /></RoleGuard>} />
           <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'employee']}><AdminDashboardPage /></RoleGuard>} />
