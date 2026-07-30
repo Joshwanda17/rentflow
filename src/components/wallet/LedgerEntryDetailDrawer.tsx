@@ -236,16 +236,13 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
               {ownerProfile && (
                 <DetailRow label="Owner" value={`${ownerProfile.full_name} (${ownerProfile.phone})`} />
               )}
-              {entry.linked_party && (
-                <DetailRow
-                  label={
-                    entry.source_table === 'withdrawal_requests' || entry.category === 'wallet_withdrawal'
-                      ? 'Linked Party (Merchant Agent)'
-                      : 'Linked Party'
-                  }
-                  value={linkedPartyProfile ? `${linkedPartyProfile.full_name} (${linkedPartyProfile.phone})` : entry.linked_party}
-                />
-              )}
+              {entry.linked_party &&
+                !(entry.source_table === 'withdrawal_requests' || entry.category === 'wallet_withdrawal') && (
+                  <DetailRow
+                    label="Linked Party"
+                    value={linkedPartyProfile ? `${linkedPartyProfile.full_name} (${linkedPartyProfile.phone})` : entry.linked_party}
+                  />
+                )}
             </DetailSection>
 
             <Separator />
