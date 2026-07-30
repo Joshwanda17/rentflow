@@ -19265,6 +19265,57 @@ export type Database = {
         }
         Relationships: []
       }
+      rent_amount_change_log: {
+        Row: {
+          agent_id: string | null
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_amount_repaid: number | null
+          new_rent_amount: number | null
+          new_total_repayment: number | null
+          notified_at: string | null
+          old_amount_repaid: number | null
+          old_rent_amount: number | null
+          old_total_repayment: number | null
+          rent_request_id: string
+          status: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_amount_repaid?: number | null
+          new_rent_amount?: number | null
+          new_total_repayment?: number | null
+          notified_at?: string | null
+          old_amount_repaid?: number | null
+          old_rent_amount?: number | null
+          old_total_repayment?: number | null
+          rent_request_id: string
+          status?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_amount_repaid?: number | null
+          new_rent_amount?: number | null
+          new_total_repayment?: number | null
+          notified_at?: string | null
+          old_amount_repaid?: number | null
+          old_rent_amount?: number | null
+          old_total_repayment?: number | null
+          rent_request_id?: string
+          status?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       rent_history_records: {
         Row: {
           agent_ops_verified_at: string | null
