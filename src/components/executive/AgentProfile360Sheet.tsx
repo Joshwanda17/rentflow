@@ -10,6 +10,7 @@ import { Loader2, Phone, MapPin, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 
 interface Props {
   agentId: string | null;
@@ -22,7 +23,80 @@ const dt = (v?: string | null) => (v ? new Date(v).toLocaleDateString() : '—')
 
 type Period = 'today' | 'weekly' | 'monthly' | 'yearly';
 
-function CollectionPerformance({ agentId }: { agentId: string | null }) {
+function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 0; }
+
+function TargetCards({ agentId, dailyTarget }: { agentId: string | null; dailyTarget: number }) {
+  const { data: rows = [] } = useQuery({
+    queryKey: ['agent-target-cards', agentId],
+    enabled: !!agentId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const since = new Date();
+      since.setDate(since.getDate() - 7);
+      since.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from('agent_collections')
+        .select('amount, created_at')
+        .eq('agent_id', agentId as string)
+        .gte('created_at', since.toISOString())
+        .limit(5000);
+      if (error) throw error;
+      return (data ?? []) as { amount: number; created_at: string }[];
+    },
+  });
+
+  const { today, yesterday, week } = useMemo(() => {
+    const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    const y0 = new Date(t0.getTime() - 86_400_000);
+    const w0 = new Date(t0.getTime() - 6 * 86_400_000);
+    let today = 0, yesterday = 0, week = 0;
+    for (const r of rows) {
+      const d = new Date(r.created_at); const a = Number(r.amount || 0);
+      if (d >= t0) today += a;
+      else if (d >= y0) yesterday += a;
+      if (d >= w0) week += a;
+    }
+    return { today, yesterday, week };
+  }, [rows]);
+
+  const weekTarget = dailyTarget * 7;
+  const todayPct = pct(today, dailyTarget);
+
+  const cards = [
+    { label: 'Today', value: today, target: dailyTarget, sub: `${todayPct}% of daily target` },
+    { label: 'Yesterday', value: yesterday, target: dailyTarget, sub: `${pct(yesterday, dailyTarget)}% of daily target` },
+    { label: 'This week (7d)', value: week, target: weekTarget, sub: `${pct(week, weekTarget)}% of weekly target` },
+  ];
+
+  return (
+    <div className="space-y-2 mb-3">
+      <div className={cn(
+        'rounded-xl border p-3',
+        todayPct >= 20 ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-destructive/40 bg-destructive/5',
+      )}>
+        <p className={cn('text-sm font-bold', todayPct >= 20 ? 'text-emerald-600' : 'text-destructive')}>
+          {todayPct >= 20 ? 'Can post new rent today' : 'Below posting threshold today'}
+        </p>
+        <p className="text-[11px] text-muted-foreground">Collected {todayPct}% of today’s target</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {cards.map(c => (
+          <div key={c.label} className="rounded-xl border border-border bg-background p-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{c.label}</p>
+            <p className="text-sm font-bold mt-1 tabular-nums">
+              <span className={c.value > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(c.value)}</span>
+              <span className="text-muted-foreground font-normal"> / {formatUGX(c.target)}</span>
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{c.sub}</p>
+          </div>
+        ))}
+      </div>
+      {agentId && <AgentEligibilityHistoryStrip agentId={agentId} />}
+    </div>
+  );
+}
+
+function CollectionPerformance({ agentId, dailyTarget = 0 }: { agentId: string | null; dailyTarget?: number }) {
   const [period, setPeriod] = useState<Period>('weekly');
 
   const since = useMemo(() => {
@@ -122,6 +196,8 @@ function CollectionPerformance({ agentId }: { agentId: string | null }) {
           ))}
         </div>
       </div>
+
+      <TargetCards agentId={agentId} dailyTarget={dailyTarget} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         <Stat label="Collected" value={formatUGX(total)} tone="text-emerald-600" />
@@ -262,6 +338,38 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
               </div>
             </div>
 
+            {/* Bio data */}
+            <div className="rounded-2xl border border-border bg-background p-3">
+              <p className="text-xs font-semibold mb-2">Bio data</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                {([
+                  ['Full name', bio.full_name],
+                  ['Phone', bio.phone],
+                  ['Email', bio.email],
+                  ['National ID', bio.national_id],
+                  ['Agent tier', bio.agent_tier],
+                  ['Account type', bio.agent_kind === 'sub_agent' ? 'Sub-Agent' : 'Agent'],
+                  ['Verified', bio.verified ? 'Yes' : 'No'],
+                  ['Frozen', bio.is_frozen ? `Yes — ${bio.frozen_reason || 'no reason given'}` : 'No'],
+                  ['Mobile money number', bio.mobile_money_number],
+                  ['Mobile money name', bio.mobile_money_name],
+                  ['Region', bio.region],
+                  ['District', bio.district],
+                  ['Sub-county', bio.sub_county],
+                  ['Village', bio.village],
+                  ['Territory', bio.territory],
+                  ['Joined', dt(bio.created_at)],
+                  ['Last active', dt(bio.last_active_at)],
+                  ['Recruited by', bio.parent_agent ? `${bio.parent_agent.full_name}${bio.parent_agent.phone ? ` · ${bio.parent_agent.phone}` : ''}` : null],
+                ] as [string, any][]).map(([label, value]) => (
+                  <div key={label} className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium truncate">{label}</p>
+                    <p className="text-xs font-medium break-words">{value ? String(value) : '—'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <Tabs value={tab} onValueChange={setTab}>
               <TabsList className="w-full overflow-x-auto justify-start">
                 <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
@@ -294,7 +402,7 @@ export function AgentProfile360Sheet({ agentId, onOpenChange, inline = false }: 
                     <div className="h-full bg-primary" style={{ width: `${Math.min(100, behaviour.pct)}%` }} />
                   </div>
                 </div>
-                <CollectionPerformance agentId={agentId} />
+                <CollectionPerformance agentId={agentId} dailyTarget={Number(rep.daily_target || 0)} />
               </TabsContent>
 
               <TabsContent value="rent" className="space-y-3 mt-3">
