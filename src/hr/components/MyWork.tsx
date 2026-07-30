@@ -22,8 +22,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { addTaskEvent, getDepartments, getMetricDefinitions, getMyStaff, getSnapshots, getTasks } from '@/hr/api';
+import {
+  addTaskEvent,
+  getDepartments,
+  getEmployees,
+  getMetricDefinitions,
+  getMyStaff,
+  getSnapshots,
+  getTasks,
+  getUnacknowledgedTasks,
+} from '@/hr/api';
 import { supabase } from '@/hr/api/client';
+import { setMyWorkBadge } from '@/hr/lib/myWorkBadge';
 import type { Department, Employee, MetricDefinition, MetricSnapshot, Task } from '@/hr/types';
 import TaskFormDialog from './TaskFormDialog';
 
@@ -171,6 +181,7 @@ export default function MyWork() {
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [logOpen, setLogOpen] = useState(false);
+  const [unstarted, setUnstarted] = useState<{ task: Task; assignedBy: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -192,6 +203,22 @@ export default function MyWork() {
       setDefinitions(defs);
       setSnapshots(snaps);
       setTasks(myTasks);
+
+      // Work handed to me by someone else that I have not started yet.
+      const handed = await getUnacknowledgedTasks(me.id);
+      if (handed.length > 0) {
+        const staffList = await getEmployees();
+        const nameByStaff = Object.fromEntries(staffList.map((s) => [s.id, s.full_name || 'Unknown']));
+        setUnstarted(
+          handed.map((t) => ({
+            task: t,
+            assignedBy: nameByStaff[t.assigner_employee_id ?? ''] ?? 'Unknown',
+          })),
+        );
+      } else {
+        setUnstarted([]);
+      }
+      setMyWorkBadge(handed.length);
 
       // Flagged comments awaiting my acknowledgement. Read-only pass over the
       // append-only event log: a later `acknowledged` note cancels an earlier
@@ -386,6 +413,44 @@ export default function MyWork() {
 
   return (
     <div className="space-y-5">
+      {unstarted.length > 0 && (
+        <Card className="border-primary/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">
+              {unstarted.length} {unstarted.length === 1 ? 'task' : 'tasks'} assigned to you, not yet started
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            {unstarted.map(({ task, assignedBy }) => (
+              <div
+                key={task.id}
+                className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <Link
+                    to={`/hr/dashboard/tasks/${task.id}`}
+                    className="text-sm font-semibold text-foreground hover:underline"
+                  >
+                    {task.title}
+                  </Link>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Assigned by {assignedBy} · {formatDateTime(task.created_at)} · Due {formatDate(task.due_at)}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="h-7 shrink-0 px-3 text-[11px]"
+                  disabled={busyTaskId === task.id}
+                  onClick={() => act(task.id, 'started')}
+                >
+                  Start
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
           to={`/hr/dashboard/scorecard/${staff.id}`}
