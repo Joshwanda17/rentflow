@@ -213,6 +213,27 @@ Deno.serve(async (req) => {
       console.error('[daily-cto-report] intelligence threw', e);
     }
 
+    // Same-day engineering addendum (strictly 24h scoped diagnostics)
+    let addendum: any = {};
+    try {
+      const { data: ad, error: adErr } = await supabase.rpc('get_cto_daily_addendum', { p_date: dateStr });
+      if (adErr) console.error('[daily-cto-report] addendum rpc failed', adErr);
+      else addendum = ad || {};
+    } catch (e) {
+      console.error('[daily-cto-report] addendum threw', e);
+    }
+    const adFailedJobs: any[] = Array.isArray(addendum.failed_jobs) ? addendum.failed_jobs : [];
+    const adJobsSummary: any = addendum.jobs_summary || {};
+    const adUserErrors: any[] = Array.isArray(addendum.user_errors) ? addendum.user_errors : [];
+    const adErrSummary: any = addendum.errors_summary || {};
+    const adDbExceptions: any[] = Array.isArray(addendum.db_exceptions) ? addendum.db_exceptions : [];
+    const adAntiBot: any = addendum.anti_bot || {};
+    const adAbReasons: any[] = Array.isArray(adAntiBot.reasons) ? adAntiBot.reasons : [];
+    const adAbIps: any[] = Array.isArray(adAntiBot.repeat_ips) ? adAntiBot.repeat_ips : [];
+    const adAbDevices: any[] = Array.isArray(adAntiBot.repeat_devices) ? adAntiBot.repeat_devices : [];
+    const adAuthErrors: any[] = Array.isArray(addendum.auth_errors) ? addendum.auth_errors : [];
+    const adOtpErrors: any[] = Array.isArray(addendum.otp_errors) ? addendum.otp_errors : [];
+
     const d: any = data || {};
     const P = d.platform || {}, E = d.errors || {}, A = d.auth || {}, S = d.security || {},
       I = d.infra || {}, B = d.backups || {}, J = d.jobs || {}, M = d.email || {};
