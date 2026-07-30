@@ -205,7 +205,6 @@ export async function updateTaskStatus(
   return task;
 }
 
-/** Display names for the people behind task events. Read-only. */
 /**
  * Work handed to me by someone else that I have not started yet.
  * Filter: assignee_staff_id = my staff id AND status = 'open'
@@ -246,6 +245,7 @@ export async function getUnacknowledgedTasks(staffId: string): Promise<Task[]> {
   return rows.map(mapTask);
 }
 
+/** Display names for the people behind task events. Read-only. */
 export async function getTaskEventActorNames(userIds: string[]): Promise<Record<string, string>> {
   const ids = Array.from(new Set(userIds.filter(Boolean)));
   if (ids.length === 0) return {};
