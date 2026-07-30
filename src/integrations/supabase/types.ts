@@ -27611,11 +27611,12 @@ export type Database = {
         }[]
       }
       cto_search_profiles: {
-        Args: { p_term: string }
+        Args: { p_limit?: number; p_offset?: number; p_term: string }
         Returns: {
           email: string
           full_name: string
           id: string
+          match_rank: number
           phone: string
         }[]
       }
