@@ -1081,6 +1081,44 @@ Deno.serve(async (req) => {
     ${section('Regression Report', 28, regressionSection)}
     ${section('Engineering Action Items', 29, actionTable)}
     ${section('Business Impact of Open Defects', 30, businessImpact)}
+    ${section('Daily Scheduled Job Failures (today only)', 31,
+      `<div style="font-size:12px;color:${C.muted};margin-bottom:8px;">${fmt(adJobsSummary.runs_today)} scheduled runs today, ${fmt(adJobsSummary.failures_today)} failed across ${fmt(adJobsSummary.jobs_failing)} job(s); ${fmt(adJobsSummary.jobs_broken_all_day)} never succeeded today.</div>` +
+      table(['Job', 'Schedule', 'What it does', 'Today', 'Failures', 'Last success', 'Error', 'How to fix'],
+        adFailedJobs.map((j: any) => [
+          esc(String(j.jobname)), esc(String(j.schedule || '-')), esc(String(j.what_it_does || '')),
+          esc(String(j.today_status || '')), `${fmt(j.failures_today)} / ${fmt(j.runs_today)}`,
+          esc(String(j.last_success_eat || 'none today')),
+          esc(String(j.last_error || '').slice(0, 240)), esc(String(j.how_to_fix || '')),
+        ])))}
+    ${section('User-Facing Error Breakdown (today only)', 32,
+      `<div style="font-size:12px;color:${C.muted};margin-bottom:8px;">${fmt(adErrSummary.total_today)} errors today across ${fmt(adErrSummary.distinct_signatures)} distinct signatures, affecting ${fmt(adErrSummary.users_today)} users.</div>` +
+      table(['Error', 'Times', 'Users', 'What the user experienced', 'Route', 'Role', 'Browser / device', 'Window', 'Engineering action'],
+        adUserErrors.map((e2: any) => [
+          esc(String(e2.signature || '')), fmt(e2.occurrences), fmt(e2.users),
+          esc(String(e2.user_impact || '')), esc(String(e2.top_route || '-')), esc(String(e2.top_role || '-')),
+          `${esc(String(e2.top_browser || '-'))} / ${esc(String(e2.top_device || '-'))}`,
+          `${esc(String(e2.first_seen_eat || '-'))}-${esc(String(e2.last_seen_eat || '-'))}`,
+          esc(String(e2.engineering_action || '')),
+        ])))}
+    ${section('Database Exception and Rolled-Back Transaction Register (today only)', 33,
+      table(['Source', 'Exception', 'Occurrences', 'Last seen'],
+        adDbExceptions.map((x: any) => [
+          esc(String(x.src || '')), esc(String(x.signature || '')), fmt(x.occurrences), ts(x.last_seen),
+        ])))}
+    ${section('Anti-Bot and Signup Abuse (today only)', 34,
+      `<div style="font-size:12px;color:${C.muted};margin-bottom:8px;">${fmt(adAntiBot.attempts_today)} signup attempts, ${fmt(adAntiBot.rejected_today)} rejected, ${fmt(adAntiBot.distinct_ips)} IP addresses, ${fmt(adAntiBot.distinct_devices)} devices, ${fmt(adAntiBot.ips_blocked_today)} IPs blocked today.</div>` +
+      subLabel('Rejection reasons') +
+      table(['Reason', 'Attempts', 'IPs', 'Devices'], adAbReasons.map((r: any) => [esc(String(r.reason)), fmt(r.n), fmt(r.ips), fmt(r.devices)])) +
+      subLabel('Repeat IP addresses') +
+      table(['IP', 'Attempts', 'Rejected', 'Identities', 'Devices'], adAbIps.map((r: any) => [esc(String(r.ip)), fmt(r.attempts), fmt(r.rejected), fmt(r.identities), fmt(r.devices)])) +
+      subLabel('Repeat devices') +
+      table(['Device fingerprint', 'Attempts', 'IPs', 'Identities'], adAbDevices.map((r: any) => [esc(String(r.device_fp).slice(0, 24)), fmt(r.attempts), fmt(r.ips), fmt(r.identities)])))}
+    ${section('Authentication Errors Users Faced (today only)', 35,
+      table(['What the user hit', 'Times', 'Users', 'Stage'],
+        adAuthErrors.map((r: any) => [esc(String(r.reason)), fmt(r.n), fmt(r.users), esc(String(r.worst_phase || '-'))])) +
+      subLabel('One-time password failures') +
+      table(['Reason', 'Stage', 'Times', 'Phones'],
+        adOtpErrors.map((r: any) => [esc(String(r.reason)), esc(String(r.stage)), fmt(r.n), fmt(r.phones)])))}
 
     <div style="margin-top:26px;border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.muted};">
       Generated automatically from live production telemetry at ${esc(String(d.generated_at || '').slice(0, 19).replace('T', ' '))} UTC. Overall technology health score: ${health} of 100 (${healthLabel}).
