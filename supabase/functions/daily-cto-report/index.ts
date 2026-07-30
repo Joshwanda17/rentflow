@@ -1149,6 +1149,66 @@ Deno.serve(async (req) => {
       recommendations: recs.map((r) => r.replace(/<[^>]+>/g, '')),
       diagSections: [
         {
+          title: 'Top 10 Issues Requiring Immediate Engineering Attention',
+          headers: ['#', 'Issue', 'Severity', 'Users', 'Revenue risk', 'Root cause', 'Team', 'Resolution', 'Status'],
+          weights: [0.03, 0.24, 0.08, 0.06, 0.09, 0.24, 0.11, 0.08, 0.07],
+          rows: top10.map((i, idx) => [
+            String(idx + 1), `${i.title.slice(0, 110)} (${i.domain})`, i.severity, fmt(i.usersAffected),
+            i.revenueRisk, i.rootCause.slice(0, 160), i.team, i.eta, i.status,
+          ]),
+        },
+        {
+          title: 'CTO Engineering Action Plan',
+          headers: ['Horizon', 'Issue', 'Action', 'Team', 'Effort'],
+          weights: [0.12, 0.26, 0.4, 0.12, 0.1],
+          rows: [
+            ...today.slice(0, 10).map((i) => ['Today', i.title.slice(0, 110), i.fix.slice(0, 220), i.team, i.effort]),
+            ...thisWeek.slice(0, 10).map((i) => ['This week', i.title.slice(0, 110), i.fix.slice(0, 220), i.team, i.effort]),
+            ...nextSprint.slice(0, 10).map((i) => ['Next sprint', i.title.slice(0, 110), i.fix.slice(0, 220), i.team, i.effort]),
+            ...prodRisks.slice(0, 6).map((i) => ['Production risk', i.title.slice(0, 110), `Revenue risk ${i.revenueRisk}. ${i.fix.slice(0, 180)}`, i.team, i.effort]),
+            ...architectural.map((x) => ['Architecture', 'Long-term improvement', x, 'Engineering', 'Roadmap']),
+          ],
+        },
+        {
+          title: 'Issue Diagnostics - Cause, Impact and Ownership',
+          headers: ['Issue', 'Severity', 'Frequency and trend', 'Root cause', 'Suggested fix', 'Owner', 'Priority'],
+          weights: [0.19, 0.07, 0.16, 0.21, 0.21, 0.1, 0.06],
+          rows: issues.slice(0, 20).map((i) => [
+            i.title.slice(0, 110), i.severity,
+            `${i.frequency} | vs yesterday ${i.trendY}`,
+            i.rootCause.slice(0, 200), i.fix.slice(0, 200), i.team, i.priority,
+          ]),
+        },
+        {
+          title: 'Issue Recurrence Register',
+          headers: ['Issue', 'New', 'Recurring', 'Days active', 'Previously fixed', 'Worsening', 'Blocking production', 'Team'],
+          weights: [0.3, 0.07, 0.1, 0.1, 0.13, 0.11, 0.12, 0.07],
+          rows: issues.slice(0, 20).map((i) => [
+            i.title.slice(0, 110), i.isNew ? 'Yes' : 'No', i.isRecurring ? 'Yes' : 'No', String(i.daysActive),
+            i.previouslyFixed ? 'Yes' : 'No', i.gettingWorse ? 'Yes' : 'No', i.blockingProd ? 'Yes' : 'No', i.team,
+          ]),
+        },
+        {
+          title: 'Failing Automations - Full Diagnostic',
+          headers: ['Automation', 'Schedule', 'Consecutive failures', 'Last success', 'Error message', 'Recovery'],
+          weights: [0.17, 0.1, 0.09, 0.12, 0.29, 0.23],
+          rows: inAutos.map((j: any) => [
+            String(j.automation), String(j.schedule || '-'), fmt(j.consecutive_failures), ts(j.last_success_at),
+            String(j.error_message || 'not captured').replace(/\s+/g, ' ').slice(0, 300),
+            String(j.recovery_recommendation || ''),
+          ]),
+        },
+        {
+          title: 'Slow Queries - Full Diagnostic',
+          headers: ['Statement', 'Calls', 'Mean ms', 'Rows/call', 'Cache hit', 'Memory', 'Optimisation'],
+          weights: [0.32, 0.07, 0.08, 0.08, 0.08, 0.14, 0.23],
+          rows: inSlow.map((q: any) => [
+            String(q.statement || '').replace(/\s+/g, ' ').slice(0, 300), fmt(q.calls), fmt(q.mean_ms),
+            fmt(q.rows_per_call), `${fmt(q.cache_hit_pct)}%`, String(q.memory_pressure || ''),
+            String(q.optimization_recommendation || ''),
+          ]),
+        },
+        {
           title: 'Detailed Error Analysis',
           headers: ['Signature', 'Severity', 'Today / 7d', 'Users', 'Source', 'Browsers', 'Root cause and recommended fix'],
           weights: [0.24, 0.08, 0.09, 0.06, 0.14, 0.14, 0.25],
