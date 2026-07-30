@@ -10,6 +10,7 @@ import { TrustCoverageSection } from './TrustCoverageSection';
 import { AgentAdvancesDailyReportCard } from './AgentAdvancesDailyReportCard';
 import { AgentOpsLiveStatsCard } from './AgentOpsLiveStatsCard';
 import { FunderEngagementPanel } from './FunderEngagementPanel';
+import { FunderFunnelPanel } from './FunderFunnelPanel';
 
 export function CEODashboard() {
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
@@ -191,6 +192,9 @@ export function CEODashboard() {
 
       {/* Funder engagement — repayment details opens */}
       <FunderEngagementPanel />
+
+      {/* Funder funnel — view terms → select → lock → fund */}
+      <FunderFunnelPanel />
 
       {/* Growth Metrics */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
