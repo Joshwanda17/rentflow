@@ -2692,10 +2692,11 @@ Deno.serve(async (req) => {
         if (parts.length) bankLine = ` Bank details: ${parts.join(" - ")}.`;
       }
 
-      // When a genuine merchant agent settled this payout, identify them by
-      // phone number in the receipt so the withdrawing user knows exactly who
-      // processed it (and can reach them if needed).
-      let merchantLine = "";
+      // Merchant agent identity is INTERNAL ONLY (admin/audit + reconciliation).
+      // It must never appear in any customer-facing channel (SMS, push, email,
+      // in-app notification, receipt). We still resolve the name for internal
+      // metadata, but never render it into customer copy.
+      const merchantLine = "";
       let merchantName: string | null = null;
       let merchantPhone: string | null = null;
       if (actingAsMerchant) {
@@ -2711,12 +2712,6 @@ Deno.serve(async (req) => {
             merchantName = mName;
           }
           if (mPhone) merchantPhone = mPhone;
-          const agentLabel = merchantName
-            ? `${merchantName}${merchantPhone ? ` (${merchantPhone})` : ""}`
-            : merchantPhone || "";
-          merchantLine = agentLabel
-            ? ` Processed by Welile merchant agent ${agentLabel}.`
-            : ` Processed by a Welile merchant agent.`;
         } catch (e) {
           console.error("[approve-withdrawal] merchant name fetch for SMS failed (non-fatal):", e);
         }
