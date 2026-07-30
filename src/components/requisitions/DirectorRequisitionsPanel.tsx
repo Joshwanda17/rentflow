@@ -93,8 +93,10 @@ export function DirectorRequisitionsPanel() {
   const retryCredit = async (requisitionId: string) => {
     setRetrying(requisitionId);
     const { data, error } = await invokeEdgeFunction('requisition-credit-retry', {
-      source_table: 'director_requisitions',
-      requisition_id: requisitionId,
+      body: {
+        source_table: 'director_requisitions',
+        requisition_id: requisitionId,
+      },
     });
     setRetrying(null);
     const result = data as { message?: string; already_credited?: boolean } | null;
