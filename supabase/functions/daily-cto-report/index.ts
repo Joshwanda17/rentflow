@@ -693,7 +693,7 @@ async function buildCtoPdf(a: PdfArgs): Promise<Uint8Array> {
     };
     drawHead();
     rows.forEach((r, ri) => {
-      const cellLines = r.map((c, i) => wrap(String(c ?? ''), font, 8, colW[i] - 10).slice(0, 3));
+      const cellLines = r.map((c, i) => wrap(String(c ?? ''), i === 0 ? bold : font, 8, colW[i] - 10).slice(0, 3));
       const rowH = Math.max(15, 4 + cellLines.reduce((m, l) => Math.max(m, l.length), 1) * 9.5);
       if (y - rowH < 56) { newPage(); drawHead(); }
       if (ri % 2 === 1) page.drawRectangle({ x: margin, y: y - rowH, width: tw, height: rowH, color: col(252, 252, 254) });
