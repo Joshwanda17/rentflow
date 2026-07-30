@@ -15,10 +15,11 @@ type AssignmentRow = {
   reports_to?: { id: string; title: string | null } | null;
   started_on: string;
   ended_on: string | null;
+  is_primary?: boolean;
 };
 
 const ASSIGNMENT_SELECT =
-  'id, staff_id, department_id, position_id, reports_to_position_id, started_on, ended_on, position:hr_positions!position_id(id, title), reports_to:hr_positions!reports_to_position_id(id, title)';
+  'id, staff_id, department_id, position_id, reports_to_position_id, started_on, ended_on, is_primary, position:hr_positions!position_id(id, title), reports_to:hr_positions!reports_to_position_id(id, title)';
 
 function mapDepartment(row: DeptRow): Department {
   return {
