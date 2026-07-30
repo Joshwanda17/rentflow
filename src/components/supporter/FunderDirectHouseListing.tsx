@@ -944,7 +944,7 @@ export function FunderDirectHouseListing() {
         walletBalance={walletBalance}
       />
 
-      {/* Repayment details — opened from "See more" on a house card */}
+      {/* Repayment details — opened from "View repayment terms" on a house card */}
       <Dialog open={!!detailsHouse} onOpenChange={(o) => !o && setDetailsHouse(null)}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
