@@ -12,6 +12,7 @@ import { calcFunderEarnings, sumFunderEarnings } from '@/lib/funderEarnings';
 import { useWallet } from '@/hooks/useWallet';
 import { Button } from '@/components/ui/button';
 import { FunderTopUpDialog } from './FunderTopUpDialog';
+import { FunderSelectionConfirmDialog } from './FunderSelectionConfirmDialog';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
@@ -134,6 +135,9 @@ export function FunderDirectHouseListing() {
   const walletBalance = wallet?.balance ?? 0;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  // Once confirmed the selection is locked so it can't change while funding
+  const [selectionLocked, setSelectionLocked] = useState(false);
   // Tenant move-in / start date the earnings projection is anchored on
   const [moveInDate, setMoveInDate] = useState<Date>(() => new Date());
   const [houses, setHouses] = useState<House[] | null>(null);
@@ -361,6 +365,12 @@ export function FunderDirectHouseListing() {
 
   const toggleSelect = (id: string) => {
     hapticTap();
+    if (selectionLocked) {
+      toast.info('Selection locked', {
+        description: 'Unlock your selection to add or remove houses.',
+      });
+      return;
+    }
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
