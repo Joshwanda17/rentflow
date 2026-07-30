@@ -5,8 +5,9 @@ import { KPICard } from './KPICard';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { FunderFunnelDrilldown } from './FunderFunnelDrilldown';
 import { cn } from '@/lib/utils';
-import { Eye, MousePointerClick, Lock, Wallet, CalendarIcon } from 'lucide-react';
+import { Eye, MousePointerClick, Lock, Wallet, CalendarIcon, ChevronRight } from 'lucide-react';
 import {
   subDays,
   startOfDay,
@@ -27,9 +28,21 @@ const STEPS = [
 
 type StepKey = (typeof STEPS)[number]['key'];
 
+type FunderDetail = {
+  userId: string;
+  count: number;
+  firstAt: string;
+  lastAt: string;
+  houseIds: string[];
+};
+
 type FunnelData = {
   events: Record<StepKey, number>;
   progressed: Record<StepKey, number>;
+  /** Per step: the funders who reached it, richest-activity first. */
+  details: Record<StepKey, FunderDetail[]>;
+  /** All houses a funder selected in the range (used for drill-down). */
+  housesByUser: Record<string, string[]>;
 };
 
 type PresetKey = 'today' | 'week' | '7d' | '30d' | 'month' | '90d' | 'custom';
@@ -66,6 +79,7 @@ export function FunderFunnelPanel() {
   const [preset, setPreset] = useState<PresetKey>('30d');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfDay(subDays(new Date(), 13)));
   const [customTo, setCustomTo] = useState<Date | undefined>(endOfDay(new Date()));
+  const [drillStep, setDrillStep] = useState<StepKey | null>(null);
 
   const range = useMemo(() => {
     if (preset === 'custom') {
@@ -84,7 +98,7 @@ export function FunderFunnelPanel() {
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from('system_events')
-        .select('event_type, user_id, created_at')
+        .select('event_type, user_id, created_at, related_entity_id')
         .in('event_type', STEPS.map((s) => s.key))
         .gte('created_at', range.from.toISOString())
         .lte('created_at', range.to.toISOString())
@@ -93,10 +107,10 @@ export function FunderFunnelPanel() {
       if (error) throw error;
 
       const events = {} as Record<StepKey, number>;
-      const progressedSets = {} as Record<StepKey, Set<string>>;
+      const perStep = {} as Record<StepKey, Record<string, FunderDetail>>;
       STEPS.forEach((s) => {
         events[s.key] = 0;
-        progressedSets[s.key] = new Set<string>();
+        perStep[s.key] = {};
       });
 
       // First "viewed terms" timestamp per funder within the range — later
@@ -108,24 +122,62 @@ export function FunderFunnelPanel() {
         }
       });
 
+      const housesByUser: Record<string, Set<string>> = {};
+
       (rows || []).forEach((r: any) => {
         const key = r.event_type as StepKey;
         if (!(key in events)) return;
         events[key]++;
         if (!r.user_id) return;
         const fv = firstView[r.user_id];
-        if (fv && r.created_at >= fv) progressedSets[key].add(r.user_id);
+        if (!fv || r.created_at < fv) return;
+
+        const bucket = perStep[key];
+        if (!bucket[r.user_id]) {
+          bucket[r.user_id] = {
+            userId: r.user_id,
+            count: 0,
+            firstAt: r.created_at,
+            lastAt: r.created_at,
+            houseIds: [],
+          };
+        }
+        const d = bucket[r.user_id];
+        d.count++;
+        if (r.created_at < d.firstAt) d.firstAt = r.created_at;
+        if (r.created_at > d.lastAt) d.lastAt = r.created_at;
+        if (r.related_entity_id && !d.houseIds.includes(r.related_entity_id)) {
+          d.houseIds.push(r.related_entity_id);
+        }
+        if (key === 'funder_house_selected' && r.related_entity_id) {
+          (housesByUser[r.user_id] ||= new Set<string>()).add(r.related_entity_id);
+        }
       });
 
       const progressed = {} as Record<StepKey, number>;
-      STEPS.forEach((s) => { progressed[s.key] = progressedSets[s.key].size; });
+      const details = {} as Record<StepKey, FunderDetail[]>;
+      STEPS.forEach((s) => {
+        const list = Object.values(perStep[s.key]).sort(
+          (a, b) => b.count - a.count || (a.lastAt < b.lastAt ? 1 : -1),
+        );
+        details[s.key] = list;
+        progressed[s.key] = list.length;
+      });
 
-      return { events, progressed };
+      return {
+        events,
+        progressed,
+        details,
+        housesByUser: Object.fromEntries(
+          Object.entries(housesByUser).map(([k, v]) => [k, Array.from(v)]),
+        ),
+      };
     },
   });
 
   const base = data?.progressed.funder_house_repayment_terms_viewed ?? 0;
   const pct = (n: number) => (base > 0 ? Math.round((n / base) * 100) : 0);
+  const rangeLabel = `${format(range.from, 'd MMM yyyy')} – ${format(range.to, 'd MMM yyyy')}`;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-4">
@@ -210,6 +262,7 @@ export function FunderFunnelPanel() {
             icon={s.icon}
             color={s.color}
             loading={isLoading}
+            onClick={() => setDrillStep(s.key)}
             subtitle={
               s.key === 'funder_house_repayment_terms_viewed'
                 ? `${(data?.events[s.key] ?? 0).toLocaleString()} clicks`
@@ -226,9 +279,17 @@ export function FunderFunnelPanel() {
           const prev = i === 0 ? null : data?.progressed[STEPS[i - 1].key] ?? 0;
           const dropOff = prev && prev > 0 ? Math.round(((prev - value) / prev) * 100) : 0;
           return (
-            <div key={s.key} className="space-y-1">
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setDrillStep(s.key)}
+              className="w-full space-y-1 rounded-lg p-1 text-left transition-colors hover:bg-muted/50 touch-manipulation"
+            >
               <div className="flex items-center justify-between text-[11px]">
-                <span className="font-medium">{s.label}</span>
+                <span className="font-medium flex items-center gap-1">
+                  {s.label}
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                </span>
                 <span className="text-muted-foreground">
                   {value.toLocaleString()} funder{value === 1 ? '' : 's'} · {pct(value)}%
                   {i > 0 && dropOff > 0 && (
@@ -242,7 +303,7 @@ export function FunderFunnelPanel() {
                   style={{ width: `${width}%` }}
                 />
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -255,6 +316,15 @@ export function FunderFunnelPanel() {
         A funder counts at a step only if the action happened at or after their first
         “View repayment terms” click inside the selected range.
       </p>
+
+      <FunderFunnelDrilldown
+        open={!!drillStep}
+        onOpenChange={(o) => !o && setDrillStep(null)}
+        stepLabel={STEPS.find((s) => s.key === drillStep)?.label ?? ''}
+        rangeLabel={rangeLabel}
+        details={drillStep ? data?.details[drillStep] ?? [] : []}
+        housesByUser={data?.housesByUser ?? {}}
+      />
     </div>
   );
 }
