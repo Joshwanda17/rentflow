@@ -489,6 +489,14 @@ Deno.serve(async (req) => {
     });
     const pdfName = `Welile_Daily_CTO_Report_${dateStr}.pdf`;
 
+    // Preview mode: return the PDF itself instead of emailing it.
+    if (body?.preview === true) {
+      return new Response(pdfBytes, {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${pdfName}"` },
+      });
+    }
+
     const form = new FormData();
     form.append('from', FROM);
     for (const r of recipients) form.append('to', r);
