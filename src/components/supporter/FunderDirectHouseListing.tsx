@@ -508,12 +508,39 @@ export function FunderDirectHouseListing() {
           </SelectContent>
         </Select>
 
+        <Select value={minMonthlyEarn} onValueChange={setMinMonthlyEarn}>
+          <SelectTrigger className="h-9 text-xs w-[170px]" aria-label="Filter by projected monthly earning">
+            <SelectValue placeholder="Monthly earning" />
+          </SelectTrigger>
+          <SelectContent>
+            {MIN_MONTHLY_EARN.map((m) => (
+              <SelectItem key={m.value} value={m.value} className="text-xs">
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={minAnnualEarn} onValueChange={setMinAnnualEarn}>
+          <SelectTrigger className="h-9 text-xs w-[180px]" aria-label="Filter by projected 12-month earning">
+            <SelectValue placeholder="12-month earning" />
+          </SelectTrigger>
+          <SelectContent>
+            {MIN_ANNUAL_EARN.map((m) => (
+              <SelectItem key={m.value} value={m.value} className="text-xs">
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <div className="ml-auto flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
           {countLoading && (
             <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
           )}
           <span aria-live="polite" aria-atomic="true">
-            {(totalMatch ?? filtered.length).toLocaleString()} {((totalMatch ?? filtered.length) === 1 ? 'house' : 'houses')} found
+            {(earningsFilterActive ? filtered.length : (totalMatch ?? filtered.length)).toLocaleString()}{' '}
+            {(earningsFilterActive ? filtered.length : (totalMatch ?? filtered.length)) === 1 ? 'house' : 'houses'} found
           </span>
         </div>
       </div>
