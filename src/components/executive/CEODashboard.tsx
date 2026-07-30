@@ -9,6 +9,7 @@ import { Activity, UserPlus, RefreshCw, Share2, ArrowRightLeft } from 'lucide-re
 import { TrustCoverageSection } from './TrustCoverageSection';
 import { AgentAdvancesDailyReportCard } from './AgentAdvancesDailyReportCard';
 import { AgentOpsLiveStatsCard } from './AgentOpsLiveStatsCard';
+import { FunderEngagementPanel } from './FunderEngagementPanel';
 
 export function CEODashboard() {
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
