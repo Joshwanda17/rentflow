@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Plus, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -148,8 +148,8 @@ export default function StaffDirectory() {
                     const rows = assignments[s.id] ?? [];
                     const isOpen = expanded[s.id] === true;
                     return (
-                      <>
-                        <TableRow key={s.id}>
+                      <Fragment key={s.id}>
+                        <TableRow>
                           <TableCell className="pr-0">
                             <button
                               type="button"
@@ -196,7 +196,7 @@ export default function StaffDirectory() {
                           </TableCell>
                         </TableRow>
                         {isOpen && (
-                          <TableRow key={`${s.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableCell />
                             <TableCell colSpan={7} className="py-3">
                               {rows.length === 0 ? (
@@ -238,7 +238,7 @@ export default function StaffDirectory() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </TableBody>
