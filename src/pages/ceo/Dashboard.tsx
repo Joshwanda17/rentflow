@@ -8,6 +8,7 @@ import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManage
 import { MissionGoalsEditor } from '@/components/executive/MissionGoalsEditor';
 import { RoleManagementPanel } from '@/components/executive/RoleManagementPanel';
 import { DirectorRequisitionsPanel } from '@/components/requisitions/DirectorRequisitionsPanel';
+import ExecutiveBrief from '@/hr/components/ExecutiveBrief';
 
 export default function CEODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('ceo');
@@ -19,7 +20,12 @@ export default function CEODashboardPage() {
       case 'revenue-recognition':
         return <RevenueRecognitionPanel />;
       case 'staff-performance':
-        return <StaffPerformancePanel />;
+        return (
+          <div className="space-y-6">
+            <ExecutiveBrief embedded />
+            <StaffPerformancePanel />
+          </div>
+        );
       case 'requisitions':
         return <DirectorRequisitionsPanel />;
       case 'angel-pool':
