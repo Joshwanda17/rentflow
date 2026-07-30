@@ -64,12 +64,12 @@ export function VerificationOpportunitiesButton() {
 
   const fetchCounts = async () => {
     const [rentRes, houseRes] = await Promise.all([
-      supabase
+      (supabase as any)
         .from('rent_requests')
         .select('*', { count: 'exact', head: true })
         .eq('agent_verified', false)
         .in('status', ['pending', 'approved']),
-      supabase
+      (supabase as any)
         .from('house_listings')
         .select('*', { count: 'exact', head: true })
         .or('verified.is.null,verified.eq.false')
@@ -82,13 +82,13 @@ export function VerificationOpportunitiesButton() {
   const fetchAll = async () => {
     setLoading(true);
     const [rentRes, houseRes] = await Promise.all([
-      supabase
+      (supabase as any)
         .from('rent_requests')
         .select('id, rent_amount, created_at, landlord_id, tenant:profiles!rent_requests_tenant_id_fkey(full_name, city), landlord:landlords!rent_requests_landlord_id_fkey(name, property_address, latitude, longitude)')
         .eq('agent_verified', false)
         .in('status', ['pending', 'approved'])
         .order('created_at', { ascending: false }),
-      supabase
+      (supabase as any)
         .from('house_listings')
         .select('id, title, address, region, monthly_rent, daily_rate, number_of_rooms, house_category, status, created_at, verified, latitude, longitude')
         .or('verified.is.null,verified.eq.false')

@@ -80,7 +80,7 @@ export function TenantRequestDetailsDialog({
     if (!requestId) return;
     setLoading(true);
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('rent_requests')
       .select(`
         id, rent_amount, duration_days, access_fee, request_fee, 
