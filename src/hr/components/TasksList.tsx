@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, ClipboardList, Clock } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardList, Clock, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -20,50 +30,48 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getDepartments, getEmployees, getTasks } from '@/hr/api';
-import type { Department, Employee, Task, TaskPriority, TaskStatus } from '@/hr/types';
+import { createTask, getDepartments, getEmployees, getMyStaff, getTasks } from '@/hr/api';
+import type { Department, Employee, Task } from '@/hr/types';
 
 const ALL = '__all__';
+const NONE = '__none__';
 
-const STATUS_OPTIONS: TaskStatus[] = [
-  'draft',
-  'assigned',
-  'acknowledged',
+/** Values the database actually stores (hr_task_status). */
+const STATUS_OPTIONS = [
+  'open',
   'in_progress',
+  'blocked',
   'submitted',
-  'returned',
   'completed',
   'cancelled',
-];
+] as const;
 
-const ORIGIN_LABELS: Record<string, string> = {
-  assigned: 'Assigned',
-  self_initiated: 'Self-initiated',
-  recurring: 'Recurring',
-};
+const PRIORITY_OPTIONS = ['low', 'normal', 'high', 'urgent'] as const;
 
-const STATUS_PILL: Record<TaskStatus, string> = {
+const STATUS_PILL: Record<string, string> = {
+  open: 'bg-muted text-foreground',
   draft: 'bg-muted text-muted-foreground',
   assigned: 'bg-muted text-foreground',
   acknowledged: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   in_progress: 'bg-primary/15 text-primary',
+  blocked: 'bg-destructive/15 text-destructive',
   submitted: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   returned: 'bg-destructive/15 text-destructive',
   completed: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   cancelled: 'bg-muted/60 text-muted-foreground',
 };
 
-const PRIORITY_DOT: Record<TaskPriority, string> = {
+const PRIORITY_DOT: Record<string, string> = {
   low: 'bg-muted-foreground',
   normal: 'bg-blue-500',
   high: 'bg-amber-500',
   urgent: 'bg-destructive',
 };
 
-const OPEN_EXCLUDED: TaskStatus[] = ['completed', 'cancelled'];
+const CLOSED: string[] = ['completed', 'cancelled'];
 
 function humanize(value: string) {
-  return value.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+  return (value || '').replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
 
 function formatDue(iso: string | null) {
@@ -75,7 +83,7 @@ function formatDue(iso: string | null) {
 
 function isOverdue(task: Task, now: Date) {
   if (!task.due_at) return false;
-  if (OPEN_EXCLUDED.includes(task.status)) return false;
+  if (CLOSED.includes(task.status)) return false;
   const due = new Date(task.due_at);
   return !Number.isNaN(due.getTime()) && due.getTime() < now.getTime();
 }
@@ -91,7 +99,19 @@ export default function TasksList() {
   const [departmentId, setDepartmentId] = useState(ALL);
   const [assigneeId, setAssigneeId] = useState(ALL);
   const [status, setStatus] = useState(ALL);
-  const [origin, setOrigin] = useState(ALL);
+  const [priority, setPriority] = useState(ALL);
+
+  // New task dialog
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    departmentId: '',
+    assigneeId: NONE,
+    priority: 'normal',
+    dueDate: '',
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,17 +139,18 @@ export default function TasksList() {
 
   const employeeName = useMemo(() => {
     const map = new Map(employees.map((e) => [e.id, e.full_name]));
-    return (id: string) => map.get(id) ?? '—';
+    return (id: string) => (id ? map.get(id) ?? 'Unassigned' : 'Unassigned');
   }, [employees]);
 
   const now = new Date();
 
   const stats = useMemo(() => {
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+    const ref = new Date();
+    const monthStart = new Date(ref.getFullYear(), ref.getMonth(), 1).getTime();
+    const monthEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 1).getTime();
     return {
-      open: tasks.filter((t) => !OPEN_EXCLUDED.includes(t.status)).length,
-      overdue: tasks.filter((t) => isOverdue(t, now)).length,
+      open: tasks.filter((t) => !CLOSED.includes(t.status)).length,
+      overdue: tasks.filter((t) => isOverdue(t, ref)).length,
       awaiting: tasks.filter((t) => t.status === 'submitted').length,
       completedThisMonth: tasks.filter((t) => {
         if (t.status !== 'completed' || !t.completed_at) return false;
@@ -137,7 +158,6 @@ export default function TasksList() {
         return at >= monthStart && at < monthEnd;
       }).length,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
   const filtered = useMemo(
@@ -146,23 +166,58 @@ export default function TasksList() {
         if (departmentId !== ALL && t.department_id !== departmentId) return false;
         if (assigneeId !== ALL && t.assignee_employee_id !== assigneeId) return false;
         if (status !== ALL && t.status !== status) return false;
-        if (origin !== ALL && t.origin !== origin) return false;
+        if (priority !== ALL && t.priority !== priority) return false;
         return true;
       }),
-    [tasks, departmentId, assigneeId, status, origin],
+    [tasks, departmentId, assigneeId, status, priority],
   );
 
   const tiles = [
-    { label: 'Open tasks', value: stats.open, icon: ClipboardList, color: 'bg-primary/10 text-primary' },
-    { label: 'Overdue', value: stats.overdue, icon: AlertTriangle, color: 'bg-destructive/10 text-destructive' },
-    { label: 'Awaiting review', value: stats.awaiting, icon: Clock, color: 'bg-warning/10 text-warning' },
+    { label: 'OPEN TASKS', value: stats.open, icon: ClipboardList, color: 'bg-primary/10 text-primary' },
+    { label: 'OVERDUE', value: stats.overdue, icon: AlertTriangle, color: 'bg-destructive/10 text-destructive' },
+    { label: 'AWAITING REVIEW', value: stats.awaiting, icon: Clock, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
     {
-      label: 'Completed this month',
+      label: 'COMPLETED THIS MONTH',
       value: stats.completedThisMonth,
       icon: CheckCircle2,
-      color: 'bg-success/10 text-success',
+      color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     },
   ];
+
+  const missing: string[] = [];
+  if (!form.title.trim()) missing.push('title');
+  if (!form.departmentId) missing.push('department');
+  const canSave = missing.length === 0 && !saving;
+
+  const handleCreate = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      let createdByStaffId: string | null = null;
+      try {
+        createdByStaffId = (await getMyStaff())?.id ?? null;
+      } catch {
+        createdByStaffId = null;
+      }
+      await createTask({
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        departmentId: form.departmentId,
+        assigneeStaffId: form.assigneeId === NONE ? null : form.assigneeId,
+        createdByStaffId,
+        priority: form.priority,
+        dueAt: form.dueDate ? new Date(`${form.dueDate}T17:00:00`).toISOString() : null,
+      });
+      toast.success('Task created');
+      setOpen(false);
+      setForm({ title: '', description: '', departmentId: '', assigneeId: NONE, priority: 'normal', dueDate: '' });
+      void load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not create the task.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (error) {
     return (
@@ -205,63 +260,70 @@ export default function TasksList() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        <Select value={departmentId} onValueChange={setDepartmentId}>
-          <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder="Department" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All departments</SelectItem>
-            {departments.map((d) => (
-              <SelectItem key={d.id} value={d.id}>
-                {d.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Filters + New task */}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 flex-1">
+          <Select value={departmentId} onValueChange={setDepartmentId}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All departments</SelectItem>
+              {departments.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={assigneeId} onValueChange={setAssigneeId}>
-          <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder="Assignee" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All assignees</SelectItem>
-            {employees.map((e) => (
-              <SelectItem key={e.id} value={e.id}>
-                {e.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={assigneeId} onValueChange={setAssigneeId}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All assignees</SelectItem>
+              {employees.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All statuses</SelectItem>
-            {STATUS_OPTIONS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {humanize(s)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All statuses</SelectItem>
+              {STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {humanize(s)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={origin} onValueChange={setOrigin}>
-          <SelectTrigger className="h-9 text-xs">
-            <SelectValue placeholder="Origin" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All origins</SelectItem>
-            {Object.entries(ORIGIN_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All priorities</SelectItem>
+              {PRIORITY_OPTIONS.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {humanize(p)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button size="sm" className="h-9 gap-1.5" onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4" />
+          New task
+        </Button>
       </div>
 
       {/* Table */}
@@ -275,7 +337,6 @@ export default function TasksList() {
                   <TableHead className="text-[11px] uppercase tracking-wider">Title</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider">Assignee</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider">Department</TableHead>
-                  <TableHead className="text-[11px] uppercase tracking-wider">Origin</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider">Priority</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider">Due</TableHead>
@@ -285,7 +346,7 @@ export default function TasksList() {
                 {loading &&
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={`sk-${i}`}>
-                      {Array.from({ length: 8 }).map((__, j) => (
+                      {Array.from({ length: 7 }).map((__, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -295,7 +356,7 @@ export default function TasksList() {
 
                 {!loading && filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
                       No tasks match these filters.
                     </TableCell>
                   </TableRow>
@@ -311,32 +372,20 @@ export default function TasksList() {
                         onClick={() => navigate(`/hr/dashboard/tasks/${task.id}`)}
                       >
                         <TableCell className="font-mono text-xs text-muted-foreground">{task.ref}</TableCell>
-                        <TableCell className="text-sm font-medium text-foreground max-w-[260px] truncate">
+                        <TableCell className="text-sm font-medium text-foreground max-w-[280px] truncate">
                           {task.title}
                         </TableCell>
                         <TableCell className="text-sm">{employeeName(task.assignee_employee_id)}</TableCell>
                         <TableCell className="text-sm">{departmentName(task.department_id)}</TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap items-center gap-1">
-                            <Badge variant="outline" className="text-[10px] font-medium">
-                              {ORIGIN_LABELS[task.origin] ?? humanize(task.origin)}
-                            </Badge>
-                            {task.origin === 'self_initiated' && !task.origin_acknowledged_by && (
-                              <Badge className="text-[10px] font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 border-transparent">
-                                Needs manager sign-off
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
                           <span className="inline-flex items-center gap-1.5 text-xs">
-                            <span className={`h-2 w-2 rounded-full ${PRIORITY_DOT[task.priority]}`} />
+                            <span className={`h-2 w-2 rounded-full ${PRIORITY_DOT[task.priority] ?? 'bg-muted-foreground'}`} />
                             {humanize(task.priority)}
                           </span>
                         </TableCell>
                         <TableCell>
                           <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[task.status]}`}
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[task.status] ?? 'bg-muted text-muted-foreground'}`}
                           >
                             {humanize(task.status)}
                           </span>
@@ -354,6 +403,113 @@ export default function TasksList() {
           </div>
         </CardContent>
       </Card>
+
+      {/* New task dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New task</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Title</Label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="What needs doing?"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Context, definition of done, links"
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Department</Label>
+                <Select
+                  value={form.departmentId}
+                  onValueChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Assignee</Label>
+                <Select
+                  value={form.assigneeId}
+                  onValueChange={(v) => setForm((f) => ({ ...f, assigneeId: v }))}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Unassigned</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Priority</Label>
+                <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITY_OPTIONS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {humanize(p)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Due date</Label>
+                <Input
+                  type="date"
+                  value={form.dueDate}
+                  onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+            {missing.length > 0 && (
+              <p className="text-[11px] text-muted-foreground w-full">
+                Still needed: {missing.join(', ')}
+              </p>
+            )}
+            <Button className="w-full" disabled={!canSave} onClick={() => void handleCreate()}>
+              {saving ? 'Saving…' : 'Create task'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
