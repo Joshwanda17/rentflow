@@ -9893,6 +9893,348 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_assignments: {
+        Row: {
+          created_at: string
+          department_id: string
+          ended_on: string | null
+          id: string
+          job_title: string
+          reports_to_staff_id: string | null
+          staff_id: string
+          started_on: string
+        }
+        Insert: {
+          created_at?: string
+          department_id: string
+          ended_on?: string | null
+          id?: string
+          job_title: string
+          reports_to_staff_id?: string | null
+          staff_id: string
+          started_on?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string
+          ended_on?: string | null
+          id?: string
+          job_title?: string
+          reports_to_staff_id?: string | null
+          staff_id?: string
+          started_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_assignments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_assignments_reports_to_staff_id_fkey"
+            columns: ["reports_to_staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_assignments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_departments: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          key: string
+          measurement_mode: Database["public"]["Enums"]["hr_measurement_mode"]
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key: string
+          measurement_mode?: Database["public"]["Enums"]["hr_measurement_mode"]
+          name: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key?: string
+          measurement_mode?: Database["public"]["Enums"]["hr_measurement_mode"]
+          name?: string
+        }
+        Relationships: []
+      }
+      hr_metric_definitions: {
+        Row: {
+          active: boolean
+          amber_at: number | null
+          created_at: string
+          department_id: string | null
+          description: string | null
+          direction: string
+          id: string
+          key: string
+          measurement_mode: Database["public"]["Enums"]["hr_measurement_mode"]
+          name: string
+          red_at: number | null
+          target_value: number | null
+          unit: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          amber_at?: number | null
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          direction: string
+          id?: string
+          key: string
+          measurement_mode?: Database["public"]["Enums"]["hr_measurement_mode"]
+          name: string
+          red_at?: number | null
+          target_value?: number | null
+          unit: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          amber_at?: number | null
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          direction?: string
+          id?: string
+          key?: string
+          measurement_mode?: Database["public"]["Enums"]["hr_measurement_mode"]
+          name?: string
+          red_at?: number | null
+          target_value?: number | null
+          unit?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_metric_definitions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_metric_snapshots: {
+        Row: {
+          computed_at: string
+          department_id: string
+          id: string
+          inputs_snapshot: Json
+          locked: boolean
+          metric_key: string
+          metric_version: number
+          period_end: string
+          period_start: string
+          staff_id: string
+          value: number | null
+        }
+        Insert: {
+          computed_at?: string
+          department_id: string
+          id?: string
+          inputs_snapshot?: Json
+          locked?: boolean
+          metric_key: string
+          metric_version?: number
+          period_end: string
+          period_start: string
+          staff_id: string
+          value?: number | null
+        }
+        Update: {
+          computed_at?: string
+          department_id?: string
+          id?: string
+          inputs_snapshot?: Json
+          locked?: boolean
+          metric_key?: string
+          metric_version?: number
+          period_end?: string
+          period_start?: string
+          staff_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_metric_snapshots_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_metric_snapshots_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_staff: {
+        Row: {
+          active: boolean
+          created_at: string
+          enrolled_by: string | null
+          id: string
+          staff_ref: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          enrolled_by?: string | null
+          id?: string
+          staff_ref?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          enrolled_by?: string | null
+          id?: string
+          staff_ref?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      hr_task_events: {
+        Row: {
+          actor_user_id: string
+          event_type: Database["public"]["Enums"]["hr_task_event_type"]
+          id: string
+          metadata: Json
+          note: string | null
+          occurred_at: string
+          task_id: string
+        }
+        Insert: {
+          actor_user_id?: string
+          event_type: Database["public"]["Enums"]["hr_task_event_type"]
+          id?: string
+          metadata?: Json
+          note?: string | null
+          occurred_at?: string
+          task_id: string
+        }
+        Update: {
+          actor_user_id?: string
+          event_type?: Database["public"]["Enums"]["hr_task_event_type"]
+          id?: string
+          metadata?: Json
+          note?: string | null
+          occurred_at?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_task_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_tasks: {
+        Row: {
+          assignee_staff_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by_staff_id: string | null
+          department_id: string
+          description: string | null
+          due_at: string | null
+          id: string
+          origin: string
+          priority: Database["public"]["Enums"]["hr_task_priority"]
+          ref: string
+          reopen_count: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["hr_task_status"]
+          submitted_at: string | null
+          title: string
+        }
+        Insert: {
+          assignee_staff_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_staff_id?: string | null
+          department_id: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          origin?: string
+          priority?: Database["public"]["Enums"]["hr_task_priority"]
+          ref?: string
+          reopen_count?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["hr_task_status"]
+          submitted_at?: string | null
+          title: string
+        }
+        Update: {
+          assignee_staff_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_staff_id?: string | null
+          department_id?: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          origin?: string
+          priority?: Database["public"]["Enums"]["hr_task_priority"]
+          ref?: string
+          reopen_count?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["hr_task_status"]
+          submitted_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_tasks_assignee_staff_id_fkey"
+            columns: ["assignee_staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_tasks_created_by_staff_id_fkey"
+            columns: ["created_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_tasks_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       infrastructure_settings: {
         Row: {
           current_instance: string
@@ -27738,6 +28080,17 @@ export type Database = {
           payout_method: string
         }[]
       }
+      get_withdrawal_source_breakdown: {
+        Args: { p_lookback_days?: number; p_user_id: string }
+        Returns: {
+          amount: number
+          is_adjustment: boolean
+          pct: number
+          source_key: string
+          source_label: string
+          txn_count: number
+        }[]
+      }
       has_agent_capability: {
         Args: { _agent_id: string; _capability: string }
         Returns: boolean
@@ -27757,6 +28110,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      hr_compute_snapshots: {
+        Args: { _period_end: string; _period_start: string }
+        Returns: number
+      }
+      hr_is_admin: { Args: never; Returns: boolean }
+      hr_manages: { Args: { _staff_id: string }; Returns: boolean }
+      hr_my_staff_id: { Args: never; Returns: string }
       ignore_withdrawal_dispatch: {
         Args: { p_withdrawal_id: string }
         Returns: boolean
@@ -29587,6 +29947,28 @@ export type Database = {
         | "employee_advances"
         | "general"
       flag_severity: "low" | "medium" | "high" | "critical"
+      hr_measurement_mode: "output" | "time" | "mixed"
+      hr_task_event_type:
+        | "created"
+        | "assigned"
+        | "started"
+        | "blocked"
+        | "unblocked"
+        | "submitted"
+        | "reviewed"
+        | "completed"
+        | "reopened"
+        | "cancelled"
+        | "due_changed"
+        | "note"
+      hr_task_priority: "low" | "normal" | "high" | "urgent"
+      hr_task_status:
+        | "open"
+        | "in_progress"
+        | "blocked"
+        | "submitted"
+        | "completed"
+        | "cancelled"
       leave_type: "annual" | "sick" | "personal" | "maternity" | "paternity"
       recruitment_campaign_status: "draft" | "active" | "paused" | "completed"
       recruitment_link_status: "active" | "disabled" | "expired"
@@ -29907,6 +30289,30 @@ export const Constants = {
         "general",
       ],
       flag_severity: ["low", "medium", "high", "critical"],
+      hr_measurement_mode: ["output", "time", "mixed"],
+      hr_task_event_type: [
+        "created",
+        "assigned",
+        "started",
+        "blocked",
+        "unblocked",
+        "submitted",
+        "reviewed",
+        "completed",
+        "reopened",
+        "cancelled",
+        "due_changed",
+        "note",
+      ],
+      hr_task_priority: ["low", "normal", "high", "urgent"],
+      hr_task_status: [
+        "open",
+        "in_progress",
+        "blocked",
+        "submitted",
+        "completed",
+        "cancelled",
+      ],
       leave_type: ["annual", "sick", "personal", "maternity", "paternity"],
       recruitment_campaign_status: ["draft", "active", "paused", "completed"],
       recruitment_link_status: ["active", "disabled", "expired"],
