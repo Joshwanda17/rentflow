@@ -516,6 +516,7 @@ export function LandlordOpsDashboard() {
   // ─── Verification Queue bulk selection ───
   const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<null | 'hide' | 'unhide' | 'verify' | 'reject'>(null);
+  const [bulkProgress, setBulkProgress] = useState<null | { done: number; total: number }>(null);
   const [bulkResult, setBulkResult] = useState<null | {
     action: string;
     results: { id: string; title: string; ok: boolean; error?: string }[];
@@ -1694,7 +1695,18 @@ export function LandlordOpsDashboard() {
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
-    clearVerifySelection();
+    setBulkProgress(null);
+    // Keep failed listings selected so the operator can retry just those.
+    if (failed === 0) {
+      clearVerifySelection();
+    } else {
+      const okIds = new Set(results.filter(r => r.ok).map(r => r.id));
+      setVerifySelectedIds(prev => {
+        const next = new Set(prev);
+        for (const id of okIds) next.delete(id);
+        return next;
+      });
+    }
     setBulkResult({ action: nextHidden ? 'Hide houses' : 'Unhide houses', results });
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} ${nextHidden ? 'hidden' : 'shown'}` : `${ok} done, ${failed} failed`,
@@ -1806,28 +1818,50 @@ export function LandlordOpsDashboard() {
     const titleById = new Map(selected.map(h => [h.id, h.title] as const));
     let results: Array<{ id: string; title: string; ok: boolean; error?: string }>;
     try {
-      // Chunk + run in parallel so 100+ selections do not blow past the
-      // PostgREST statement timeout. Each chunk still runs atomically inside
-      // the RPC (per-listing rejection + UGX 4,000 ledger penalty stay together).
-      const CHUNK = 20;
+      // The database role runs with an 8s statement timeout and each rejection
+      // writes an audit row, a notification and a UGX 4,000 ledger transaction.
+      // Large chunks (20+) blew past that timeout, so the WHOLE chunk failed —
+      // which is why rejecting 300+ houses appeared broken while single
+      // rejections kept working. Small chunks + bounded concurrency + a
+      // per-listing retry keep every rejection well inside the timeout.
+      const CHUNK = 4;
+      const CONCURRENCY = 4;
       const chunks: string[][] = [];
       for (let i = 0; i < ids.length; i += CHUNK) chunks.push(ids.slice(i, i + CHUNK));
-      const settled = await Promise.all(chunks.map(chunk =>
-        supabase.rpc('bulk_reject_house_listings', { p_listing_ids: chunk, p_reason: trimmed })
-          .then(res => ({ chunk, res }))
-      ));
+
       const rows: Array<{ id: string; ok: boolean; error: string | null }> = [];
-      for (const { chunk, res } of settled) {
-        if (res.error) {
-          // Whole chunk failed — mark each id in the chunk as failed with the RPC error.
-          const msg = res.error.message || 'RPC failed';
-          chunk.forEach(id => rows.push({ id, ok: false, error: msg }));
-        } else {
-          for (const r of (res.data ?? []) as Array<{ id: string; ok: boolean; error: string | null }>) {
-            rows.push(r);
+      const runChunk = async (chunk: string[]) => {
+        const res = await supabase.rpc('bulk_reject_house_listings', { p_listing_ids: chunk, p_reason: trimmed });
+        if (!res.error) {
+          for (const r of (res.data ?? []) as Array<{ id: string; ok: boolean; error: string | null }>) rows.push(r);
+          return;
+        }
+        // Chunk-level failure (usually a statement timeout): retry each listing
+        // on its own so one slow listing cannot take the rest down with it.
+        for (const id of chunk) {
+          const single = await supabase.rpc('bulk_reject_house_listings', { p_listing_ids: [id], p_reason: trimmed });
+          if (single.error) {
+            rows.push({ id, ok: false, error: single.error.message || 'Rejection failed' });
+          } else {
+            const r = ((single.data ?? []) as Array<{ id: string; ok: boolean; error: string | null }>)[0];
+            rows.push(r ?? { id, ok: false, error: 'Not rejected' });
           }
         }
-      }
+      };
+
+      let cursor = 0;
+      let done = 0;
+      const worker = async () => {
+        while (cursor < chunks.length) {
+          const chunk = chunks[cursor++];
+          await runChunk(chunk);
+          done += chunk.length;
+          setBulkProgress({ done: Math.min(done, ids.length), total: ids.length });
+        }
+      };
+      setBulkProgress({ done: 0, total: ids.length });
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, chunks.length) }, worker));
+      setBulkProgress(null);
       const byId = new Map(rows.map(r => [r.id, r] as const));
       const rejectedIds = new Set(rows.filter(r => r.ok).map(r => r.id));
       results = ids.map(id => {
@@ -3203,7 +3237,10 @@ export function LandlordOpsDashboard() {
                     <ShieldCheck className="h-4 w-4" />{bulkBusy === 'verify' ? '…' : 'Verify'}
                   </Button>
                   <Button size="sm" variant="outline" className="h-10 gap-1.5 font-semibold border-destructive/40 text-destructive hover:bg-destructive/10" disabled={bulkBusy !== null} onClick={() => handleBulkReject(selectedHouses)}>
-                    <XCircle className="h-4 w-4" />{bulkBusy === 'reject' ? '…' : 'Reject'}
+                    <XCircle className="h-4 w-4" />
+                    {bulkBusy === 'reject'
+                      ? (bulkProgress ? `${bulkProgress.done}/${bulkProgress.total}` : '…')
+                      : 'Reject'}
                   </Button>
                 </div>
               )}
