@@ -25,7 +25,7 @@ function Metric({
   return (
     <div className="space-y-2">
       <span className="block text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="text-3xl font-semibold tabular-nums leading-none text-foreground">
+      <div className="text-3xl font-semibold tabular-nums leading-none text-primary">
         {value}
         <span className="text-base font-normal text-muted-foreground"> / {target}</span>
       </div>
@@ -119,7 +119,7 @@ export function ServiceCenterQualificationCard({ agentId }: { agentId: string })
     <div className="rounded-xl border border-border/60 bg-card p-5 space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-[15px] font-semibold text-foreground">Free Service Center</h3>
+          <h3 className="text-[15px] font-semibold text-primary">Free Service Center</h3>
           <p className="text-xs text-muted-foreground mt-1">
             Build an active rent-collection team to qualify.
           </p>
