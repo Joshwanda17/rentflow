@@ -35,6 +35,7 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Fixed recipients for the morning report.
 const REPORT_RECIPIENTS = ["benjamin@welile.com", "joshwanda17@gmail.com"];
+const REPORT_CC = ["pexpert46@gmail.com"];
 
 type RGB = [number, number, number];
 
@@ -525,7 +526,12 @@ function chunk76(b64: string): string {
 }
 
 async function sendWithAttachment(
-  to: string, subject: string, html: string, pdf: Uint8Array, filename: string,
+  to: string,
+  cc: string[],
+  subject: string,
+  html: string,
+  pdf: Uint8Array,
+  filename: string,
 ): Promise<{ ok: boolean; status: number; raw?: string }> {
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
   const gmailKey = Deno.env.get("GOOGLE_MAIL_API_KEY");
@@ -539,6 +545,7 @@ async function sendWithAttachment(
     : subject;
   const raw = [
     `To: ${to}`,
+    cc.length ? `Cc: ${cc.join(", ")}` : "",
     `Subject: ${encodedSubject}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
@@ -557,7 +564,7 @@ async function sendWithAttachment(
     pdfB64,
     "",
     `--${boundary}--`,
-  ].join("\r\n");
+  ].filter(Boolean).join("\r\n");
   const encoded = bytesToBase64(new TextEncoder().encode(raw))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   const res = await fetch(
@@ -693,7 +700,7 @@ async function run(admin: ReturnType<typeof createClient>, reportDate: string, f
   const results: Record<string, string> = {};
   for (const to of REPORT_RECIPIENTS) {
     try {
-      const r = await sendWithAttachment(to, subject, html, pdf, filename);
+      const r = await sendWithAttachment(to, REPORT_CC, subject, html, pdf, filename);
       results[to] = r.ok ? "sent" : `error(${r.status}): ${r.raw?.slice(0, 200)}`;
       if (!r.ok) console.error("[agent-growth-daily-report] send failed", to, r.status, r.raw);
     } catch (e) {
@@ -708,6 +715,7 @@ async function run(admin: ReturnType<typeof createClient>, reportDate: string, f
       report_date: reportDate,
       sent_on: eatToday(),
       recipients: REPORT_RECIPIENTS,
+      cc: REPORT_CC,
       active_agents: a.active_agents,
       active_subagents: a.active_subagents,
       agents_last_week: weekly.agents.last_week,
