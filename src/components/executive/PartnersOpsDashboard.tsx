@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText, UserPlus, UserCog, Inbox } from 'lucide-react';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText, UserPlus, UserCog, Inbox, History } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 
 import { ROIPaymentHistory } from './ROIPaymentHistory';
@@ -32,8 +32,9 @@ import { PendingPartnerRequests } from './PendingPartnerRequests';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
 import { MaturityRequestsQueue } from './MaturityRequestsQueue';
 import { InvitedPortfoliosPanel } from './InvitedPortfoliosPanel';
+import { PortfolioRenewalsPanel } from './PortfolioRenewalsPanel';
 
-type Tab = 'portfolios' | 'invited' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'withdrawals' | 'proxy-agents';
+type Tab = 'portfolios' | 'invited' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'renewals' | 'withdrawals' | 'proxy-agents';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
@@ -116,39 +117,31 @@ export function PartnersOpsDashboard() {
   });
   const nearingPayouts = nearingPayoutsList.length;
 
-  // ═══ AUTO-RENEW MATURED PORTFOLIOS ═══
+  // ═══ AUTO-RENEW DUE PORTFOLIOS (server-side, atomic, logged) ═══
+  // The database routine picks up matured portfolios, active portfolios past
+  // maturity and scheduled renewals whose date has arrived. It is idempotent
+  // (one renewal per portfolio per day) so repeated dashboard loads are safe.
   useEffect(() => {
     if (autoRenewedRef.current || !portfolios || portfolios.length === 0) return;
-    const matured = portfolios.filter(p => p.status === 'matured');
-    if (matured.length === 0) return;
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const due = portfolios.filter(p =>
+      p.status === 'matured' ||
+      (p.status === 'active' && p.maturity_date && p.maturity_date <= today)
+    );
+    if (due.length === 0) return;
 
     autoRenewedRef.current = true;
 
     const autoRenew = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      let renewed = 0;
-
-      for (const p of matured) {
-        const newMaturity = format(addMonths(new Date(), p.duration_months || 12), 'yyyy-MM-dd');
-        const { error } = await supabase.from('investor_portfolios')
-          .update({ status: 'active', maturity_date: newMaturity })
-          .eq('id', p.id);
-
-        if (!error) {
-          await supabase.from('portfolio_renewals').insert({
-            portfolio_id: p.id, renewed_by: user?.id || 'system',
-            reason: 'Auto-renewed on maturity (system)',
-            old_maturity_date: p.maturity_date, new_maturity_date: newMaturity,
-            old_created_at: p.created_at, new_created_at: new Date().toISOString(),
-            old_duration_months: p.duration_months || 12, new_duration_months: p.duration_months || 12,
-            old_roi_percentage: p.roi_percentage, new_roi_percentage: p.roi_percentage,
-            top_up_amount: 0,
-          });
-          renewed++;
-        }
-      }
-      if (renewed > 0) {
-        toast({ title: `${renewed} matured portfolio(s) auto-renewed`, description: 'History preserved' });
+      const { data, error } = await supabase.rpc('auto_renew_due_portfolios', { p_limit: 500 });
+      if (error) return;
+      const res: any = data;
+      if ((res?.renewed ?? 0) > 0) {
+        toast({
+          title: `${res.renewed} portfolio(s) auto-renewed`,
+          description: 'Logged in the Renewals tab — reversible from there.',
+        });
+        queryClient.invalidateQueries({ queryKey: ['portfolio-renewals-log'] });
         refetch();
       }
     };
@@ -179,6 +172,7 @@ export function PartnersOpsDashboard() {
     { key: 'topups', label: 'Top-ups', icon: PlusCircle },
     { key: 'promissory', label: 'Promissory Notes', icon: FileText },
     { key: 'maturity', label: 'Maturity Requests', icon: CalendarClock, badge: maturityPending },
+    { key: 'renewals', label: 'Renewed Portfolios', icon: History },
     { key: 'withdrawals', label: 'Withdrawals', icon: Banknote },
     { key: 'proxy-agents', label: 'Proxy Agents', icon: UserCog },
   ];
@@ -210,6 +204,7 @@ export function PartnersOpsDashboard() {
       case 'activity': return <PartnerFinancialActivity />;
       case 'promissory': return <PromissoryNotesQueue />;
       case 'maturity': return <MaturityRequestsQueue />;
+      case 'renewals': return <PortfolioRenewalsPanel />;
       case 'withdrawals': return (
         <div className="space-y-6">
           <PartnerOpsWithdrawalQueue />
