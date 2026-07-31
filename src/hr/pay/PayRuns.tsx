@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import HRPlaceholderPage from '@/hr/pages/HRPlaceholderPage';
@@ -474,7 +474,7 @@ export default function PayRuns() {
 
 /** Placeholder so run links resolve. The real screen comes next. */
 export function PayRunDetailPlaceholder() {
-  const runId = window.location.pathname.split('/').pop() ?? '';
+  const { runId } = useParams<{ runId: string }>();
   return (
     <div className="p-6">
       <h1 className="text-xl font-semibold">Run detail</h1>
