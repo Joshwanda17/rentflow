@@ -169,7 +169,13 @@ function weekStart(d: Date) {
   return copy;
 }
 
-export default function MyWork() {
+interface MyWorkProps {
+  /** When true, the surrounding surface already supplies the page heading
+   *  and subtitle, so this component renders its body only. */
+  embedded?: boolean;
+}
+
+export default function MyWork({ embedded = false }: MyWorkProps) {
   const [loading, setLoading] = useState(true);
   const [staff, setStaff] = useState<Employee | null>(null);
   const [definitions, setDefinitions] = useState<MetricDefinition[]>([]);
