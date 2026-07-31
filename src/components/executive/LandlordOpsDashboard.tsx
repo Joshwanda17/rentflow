@@ -3226,7 +3226,10 @@ export function LandlordOpsDashboard() {
                     <ShieldCheck className="h-4 w-4" />{bulkBusy === 'verify' ? '…' : 'Verify'}
                   </Button>
                   <Button size="sm" variant="outline" className="h-10 gap-1.5 font-semibold border-destructive/40 text-destructive hover:bg-destructive/10" disabled={bulkBusy !== null} onClick={() => handleBulkReject(selectedHouses)}>
-                    <XCircle className="h-4 w-4" />{bulkBusy === 'reject' ? '…' : 'Reject'}
+                    <XCircle className="h-4 w-4" />
+                    {bulkBusy === 'reject'
+                      ? (bulkProgress ? `${bulkProgress.done}/${bulkProgress.total}` : '…')
+                      : 'Reject'}
                   </Button>
                 </div>
               )}
