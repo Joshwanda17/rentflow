@@ -111,7 +111,7 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
   // ---- Cash bonuses ----
   sectionTitle('Extra Cash Bonuses');
   bullet('Help a tenant apply for rent', 'UGX 5,000');
-  bullet('List an empty house', 'UGX 5,000');
+  bullet('List an empty house (paid after verification)', 'UGX 2,000');
   bullet('A tenant moves into a house you listed', 'UGX 10,000');
   bullet('Landlord on your rent request verified', 'UGX 4,000');
   bullet("Sub-agent's house / landlord / LC1 verified", 'UGX 1,000');

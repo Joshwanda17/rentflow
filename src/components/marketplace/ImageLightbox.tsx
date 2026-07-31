@@ -584,7 +584,7 @@ export function ImageLightbox({
                         : 'border-transparent opacity-50 hover:opacity-75'
                     )}
                   >
-                    <StorageImage src={image.image_url} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
+                    <StorageImage src={image.image_url} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" expandable={false} />
                   </button>
                 ))}
               </div>
