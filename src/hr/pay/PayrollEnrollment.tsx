@@ -701,6 +701,108 @@ export default function PayrollEnrollment() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={dedRow !== null} onOpenChange={(open) => !open && setDedRow(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Deductions{dedRow ? ` — ${dedRow.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {dedLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading deductions…
+              </div>
+            ) : dedRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No open deductions.</p>
+            ) : (
+              <div className="space-y-2">
+                {dedRecords.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between rounded-md border p-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {r.component_name} ({r.component_code})
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        From {formatDate(r.effective_from)}
+                      </p>
+                    </div>
+                    <span className="font-mono tabular-nums">UGX {formatAmount(r.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-semibold">Add deduction</p>
+              <div className="space-y-1.5">
+                <Label>Component</Label>
+                <Select value={dedComponentId} onValueChange={setDedComponentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a deduction" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {deductionComponents.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ded-amount">Amount</Label>
+                <Input
+                  id="ded-amount"
+                  type="number"
+                  min={0}
+                  value={dedAmount}
+                  onChange={(e) => {
+                    setDedAmount(e.target.value);
+                    setDedError('');
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ded-from">Effective from</Label>
+                <Input
+                  id="ded-from"
+                  type="date"
+                  value={dedFrom}
+                  onChange={(e) => setDedFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ded-reason">Reason</Label>
+                <Textarea
+                  id="ded-reason"
+                  rows={3}
+                  value={dedReason}
+                  onChange={(e) => {
+                    setDedReason(e.target.value);
+                    setDedError('');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Required. Minimum 10 characters. To stop a deduction, add a closing record.
+                </p>
+                {dedError ? <p className="text-xs text-destructive">{dedError}</p> : null}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDedRow(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveDeduction()} disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Add deduction
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
