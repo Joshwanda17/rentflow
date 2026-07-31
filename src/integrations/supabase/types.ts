@@ -10690,6 +10690,86 @@ export type Database = {
           },
         ]
       }
+      hr_pay_compensation: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          component_id: string
+          created_at: string
+          currency: string
+          effective_from: string
+          effective_to: string | null
+          entered_by: string | null
+          grade_id: string | null
+          id: string
+          reason: string
+          staff_id: string
+          superseded_by: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          component_id: string
+          created_at?: string
+          currency?: string
+          effective_from: string
+          effective_to?: string | null
+          entered_by?: string | null
+          grade_id?: string | null
+          id?: string
+          reason: string
+          staff_id: string
+          superseded_by?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          component_id?: string
+          created_at?: string
+          currency?: string
+          effective_from?: string
+          effective_to?: string | null
+          entered_by?: string | null
+          grade_id?: string | null
+          id?: string
+          reason?: string
+          staff_id?: string
+          superseded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_compensation_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_compensation_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_compensation_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_compensation_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_compensation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_pay_components: {
         Row: {
           active: boolean
@@ -30309,6 +30389,7 @@ export type Database = {
       hr_my_staff_id: { Args: never; Returns: string }
       hr_pay_has_authority: { Args: { _fn: string }; Returns: boolean }
       hr_pay_is_approver: { Args: never; Returns: boolean }
+      hr_pay_is_own_staff: { Args: { _staff_id: string }; Returns: boolean }
       hr_pay_is_preparer: { Args: never; Returns: boolean }
       hr_pay_is_releaser: { Args: never; Returns: boolean }
       hr_pay_is_rule_admin: { Args: never; Returns: boolean }
