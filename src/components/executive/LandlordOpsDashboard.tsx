@@ -939,8 +939,82 @@ export function LandlordOpsDashboard() {
     },
   });
 
+  // ─── Server-side paginated house search (status + term + date + sort) ───
+  // Replaces the capped client-side slices: the DB resolves the scope and
+  // returns both the page and the TRUE total match count, so operators see
+  // every house, not the latest 500/1000.
+  const verifyDateFromIso = verifyDateFrom ? new Date(verifyDateFrom).toISOString() : null;
+  const verifyDateToIso = verifyDateTo
+    ? new Date(new Date(verifyDateTo).getTime() + 24 * 60 * 60 * 1000 - 1).toISOString()
+    : null;
+  const serverSearchTerm = debouncedVerifySearch.length >= 2 ? debouncedVerifySearch : null;
+
+  const {
+    data: houseSearchPages,
+    isFetching: isHouseSearchFetching,
+    fetchNextPage: fetchMoreHouses,
+    isFetchingNextPage: isFetchingMoreHouses,
+    hasNextPage: hasMoreHousePages,
+  } = useInfiniteQuery({
+    queryKey: ['ops-house-search', houseStatusFilter, serverSearchTerm, verifyDateFromIso, verifyDateToIso, verifySort],
+    enabled: view === 'verify',
+    staleTime: 30_000,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const offset = Number(pageParam) || 0;
+      const { data, error } = await (supabase.rpc as any)('ops_search_house_listings', {
+        p_status: houseStatusFilter,
+        p_search: serverSearchTerm,
+        p_date_from: verifyDateFromIso,
+        p_date_to: verifyDateToIso,
+        p_sort: verifySort,
+        p_limit: VERIFY_PAGE_SIZE,
+        p_offset: offset,
+      });
+      if (error) throw error;
+      const pageRows = (data || []) as any[];
+      return {
+        listings: pageRows.map(r => r.listing as ListingWithLandlord),
+        total: Number(pageRows[0]?.total_count ?? 0),
+        offset,
+      };
+    },
+    getNextPageParam: (last: any) => {
+      const next = last.offset + VERIFY_PAGE_SIZE;
+      return next < last.total ? next : undefined;
+    },
+  });
+
+  const serverHouseRows = useMemo(
+    () => ((houseSearchPages?.pages || []) as any[]).flatMap(p => p.listings as ListingWithLandlord[]),
+    [houseSearchPages],
+  );
+  const serverHouseTotal = Number(((houseSearchPages?.pages || []) as any[])[0]?.total ?? 0);
+
+  // True per-status totals for the chips, honouring the active search/date range.
+  const { data: houseStatusCounts } = useQuery({
+    queryKey: ['ops-house-status-counts', serverSearchTerm, verifyDateFromIso, verifyDateToIso],
+    enabled: view === 'verify',
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('ops_house_listing_status_counts', {
+        p_search: serverSearchTerm,
+        p_date_from: verifyDateFromIso,
+        p_date_to: verifyDateToIso,
+      });
+      if (error) throw error;
+      const r = ((data || []) as any[])[0] || {};
+      return {
+        pending: Number(r.pending || 0),
+        verified: Number(r.verified || 0),
+        hidden: Number(r.hidden || 0),
+        rejected: Number(r.rejected || 0),
+        all: Number(r.all_houses || 0),
+      };
+    },
+  });
+
   // ─── All Landlords Direct Query ───
-  // (see server-side paginated house search below)
   const { data: allLandlords, refetch: refetchLandlords } = useQuery({
     queryKey: ['landlord-ops-all-landlords'],
     queryFn: async () => {
