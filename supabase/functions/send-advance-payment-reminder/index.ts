@@ -60,9 +60,10 @@ Deno.serve(async (req) => {
     // Pull each agent's active/overdue advance (amounts computed server-side).
     const { data: advances } = await admin
       .from('agent_advances')
-      .select('agent_id, outstanding_balance, arrears_balance, principal, access_fee, cycle_days, status')
+      .select('agent_id, outstanding_balance, arrears_balance, principal, access_fee, cycle_days, status, recovery_source')
       .in('agent_id', agentIds)
-      .in('status', ['active', 'overdue']);
+      .in('status', ['active', 'overdue'])
+      .neq('recovery_source', 'roi');
 
     const { data: profs } = await admin
       .from('profiles')
