@@ -10934,6 +10934,50 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_pay_exports: {
+        Row: {
+          content_hash: string
+          export_kind: string
+          generated_at: string
+          generated_by: string | null
+          id: string
+          row_count: number | null
+          rule_status_at_run: string
+          run_id: string
+          total_amount: number | null
+        }
+        Insert: {
+          content_hash: string
+          export_kind: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          row_count?: number | null
+          rule_status_at_run: string
+          run_id: string
+          total_amount?: number | null
+        }
+        Update: {
+          content_hash?: string
+          export_kind?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          row_count?: number | null
+          rule_status_at_run?: string
+          run_id?: string
+          total_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_exports_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_pay_grades: {
         Row: {
           active: boolean
@@ -11004,6 +11048,161 @@ export type Database = {
             columns: ["rule_version_id"]
             isOneToOne: false
             referencedRelation: "hr_pay_rule_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_pay_payslip_lines: {
+        Row: {
+          amount: number
+          component_code: string
+          display_order: number
+          id: string
+          kind: string
+          name: string
+          payslip_id: string
+          quantity: number
+          rate: number | null
+          taxable_at_run: boolean
+        }
+        Insert: {
+          amount: number
+          component_code: string
+          display_order?: number
+          id?: string
+          kind: string
+          name: string
+          payslip_id: string
+          quantity?: number
+          rate?: number | null
+          taxable_at_run?: boolean
+        }
+        Update: {
+          amount?: number
+          component_code?: string
+          display_order?: number
+          id?: string
+          kind?: string
+          name?: string
+          payslip_id?: string
+          quantity?: number
+          rate?: number | null
+          taxable_at_run?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_payslip_lines_payslip_id_fkey"
+            columns: ["payslip_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_payslips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_pay_payslips: {
+        Row: {
+          calc_seq: number
+          calculation_trace: Json
+          chargeable_income: number
+          computed_at: string
+          department_id: string | null
+          employer_cost: number
+          gross: number
+          id: string
+          inputs_snapshot: Json
+          is_current: boolean
+          lst: number
+          net: number
+          nssf_employee: number
+          nssf_employer: number
+          other_deductions: number
+          paye: number
+          position_id: string | null
+          rule_status_at_run: string
+          rule_version_id: string
+          run_id: string
+          staff_id: string
+        }
+        Insert: {
+          calc_seq?: number
+          calculation_trace: Json
+          chargeable_income: number
+          computed_at?: string
+          department_id?: string | null
+          employer_cost: number
+          gross: number
+          id?: string
+          inputs_snapshot: Json
+          is_current?: boolean
+          lst?: number
+          net: number
+          nssf_employee: number
+          nssf_employer: number
+          other_deductions?: number
+          paye: number
+          position_id?: string | null
+          rule_status_at_run: string
+          rule_version_id: string
+          run_id: string
+          staff_id: string
+        }
+        Update: {
+          calc_seq?: number
+          calculation_trace?: Json
+          chargeable_income?: number
+          computed_at?: string
+          department_id?: string | null
+          employer_cost?: number
+          gross?: number
+          id?: string
+          inputs_snapshot?: Json
+          is_current?: boolean
+          lst?: number
+          net?: number
+          nssf_employee?: number
+          nssf_employer?: number
+          other_deductions?: number
+          paye?: number
+          position_id?: string | null
+          rule_status_at_run?: string
+          rule_version_id?: string
+          run_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_payslips_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_payslips_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_payslips_rule_version_id_fkey"
+            columns: ["rule_version_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_rule_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_payslips_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_payslips_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
             referencedColumns: ["id"]
           },
         ]
@@ -30740,7 +30939,34 @@ export type Database = {
       hr_is_admin: { Args: never; Returns: boolean }
       hr_is_executive: { Args: never; Returns: boolean }
       hr_manages: { Args: { _staff_id: string }; Returns: boolean }
+      hr_my_approvals: {
+        Args: never
+        Returns: {
+          action_required: string
+          detail: string
+          item_id: string
+          item_type: string
+          raised_at: string
+          raised_by: string
+          route: string
+          title: string
+        }[]
+      }
       hr_my_staff_id: { Args: never; Returns: string }
+      hr_pay_cost_by_department: {
+        Args: { _period_code?: string }
+        Returns: {
+          department_name: string
+          headcount: number
+          period_code: string
+          rule_status: string
+          total_employer_cost: number
+          total_gross: number
+          total_net: number
+          total_nssf_employer: number
+          total_paye: number
+        }[]
+      }
       hr_pay_has_authority: { Args: { _fn: string }; Returns: boolean }
       hr_pay_is_approver: { Args: never; Returns: boolean }
       hr_pay_is_own_staff: { Args: { _staff_id: string }; Returns: boolean }
