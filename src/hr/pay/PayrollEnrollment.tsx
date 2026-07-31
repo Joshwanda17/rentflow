@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
+import '@/hr/pay/print.css';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,6 +37,12 @@ import {
   setStatutoryProfile,
   type EnrollmentRow,
 } from '@/hr/pay/api/enrollment';
+import { listComponents, type PayComponentRow } from '@/hr/pay/api/config';
+import {
+  addCompensation,
+  listCompensation,
+  type CompensationRow,
+} from '@/hr/pay/api/compensation';
 
 const EMPLOYMENT_TYPES = ['employee', 'consultant', 'casual', 'expatriate', 'director'];
 
@@ -82,6 +89,17 @@ export default function PayrollEnrollment() {
   const [payReason, setPayReason] = useState('');
   const [payError, setPayError] = useState('');
 
+  // Deductions dialog state
+  const [dedRow, setDedRow] = useState<EnrollmentRow | null>(null);
+  const [dedRecords, setDedRecords] = useState<CompensationRow[]>([]);
+  const [dedLoading, setDedLoading] = useState(false);
+  const [components, setComponents] = useState<PayComponentRow[]>([]);
+  const [dedComponentId, setDedComponentId] = useState('');
+  const [dedAmount, setDedAmount] = useState('');
+  const [dedFrom, setDedFrom] = useState(firstOfThisMonth());
+  const [dedReason, setDedReason] = useState('');
+  const [dedError, setDedError] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -97,10 +115,101 @@ export default function PayrollEnrollment() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    void listComponents()
+      .then(setComponents)
+      .catch(() => setComponents([]));
+  }, []);
+
+  const deductionComponents = useMemo(
+    () => components.filter((c) => c.active && c.kind === 'deduction' && !c.is_statutory),
+    [components],
+  );
+
   const counts = useMemo(() => {
     const ready = rows.filter(isReady).length;
     return { total: rows.length, ready, incomplete: rows.length - ready };
   }, [rows]);
+
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (acc, r) => ({
+          basic: acc.basic + (r.basicAmount ?? 0),
+          allowances: acc.allowances + r.allowancesTotal,
+          deductions: acc.deductions + r.deductionsTotal,
+          gross: acc.gross + r.grossTotal,
+          people: acc.people + 1,
+        }),
+        { basic: 0, allowances: 0, deductions: 0, gross: 0, people: 0 },
+      ),
+    [rows],
+  );
+
+  async function openDeductions(row: EnrollmentRow) {
+    setDedRow(row);
+    setDedRecords([]);
+    setDedComponentId('');
+    setDedAmount('');
+    setDedFrom(firstOfThisMonth());
+    setDedReason('');
+    setDedError('');
+    setDedLoading(true);
+    try {
+      const records = await listCompensation(row.staffId);
+      setDedRecords(
+        records.filter((r) => r.effective_to === null && r.component_kind === 'deduction'),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not load deductions');
+    } finally {
+      setDedLoading(false);
+    }
+  }
+
+  async function saveDeduction() {
+    if (!dedRow) return;
+    const amount = Number(dedAmount);
+    if (!dedComponentId) {
+      setDedError('Pick the deduction component.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setDedError('Enter a valid amount.');
+      return;
+    }
+    if (!dedFrom) {
+      setDedError('An effective-from date is required.');
+      return;
+    }
+    if (dedReason.trim().length < 10) {
+      setDedError('The reason must be at least 10 characters.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await addCompensation(
+        dedRow.staffId,
+        dedComponentId,
+        null,
+        amount,
+        dedFrom,
+        dedReason.trim(),
+      );
+      toast.success('Deduction recorded');
+      setDedRow(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function printSheet() {
+    setReveal(true);
+    setTimeout(() => window.print(), 50);
+  }
 
   function openStatutory(row: EnrollmentRow, next: { paye: boolean; nssf: boolean; lst: boolean }) {
     setStatRow(row);
