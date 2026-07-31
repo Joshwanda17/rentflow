@@ -64,6 +64,7 @@ export default function PortfolioCompletion() {
 
   const [status, setStatus] = useState<Status>('loading');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [formError, setFormError] = useState<string>('');
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [existingSig, setExistingSig] = useState<string | null>(null);
