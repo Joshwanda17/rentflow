@@ -36,6 +36,7 @@ export interface PayslipLine {
 
 export interface CalculationResult {
   gross: number;
+  gross: number;
   chargeableIncome: number;
   paye: number;
   nssfEmployee: number;
