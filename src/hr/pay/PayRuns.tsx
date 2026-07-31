@@ -35,6 +35,181 @@ import {
   type PayRunRow,
 } from '@/hr/pay/api/runs';
 import { calculateRun, getRunDetail, type RunDetail } from '@/hr/pay/api/calculate';
+import { approveRun, lockRun, returnRun, submitRun } from '@/hr/pay/api/workflow';
+import PayrollRegister from '@/hr/pay/PayrollRegister';
+import { supabase } from '@/hr/api/client';
+
+/**
+ * Authority is read from the database authority register via rpc
+ * (hr_pay_is_preparer / hr_pay_is_approver / hr_pay_is_releaser). It is never
+ * inferred from the signed-in user's roles.
+ */
+function useRunAuthority() {
+  const [authority, setAuthority] = useState({
+    preparer: false,
+    approver: false,
+    releaser: false,
+    loaded: false,
+  });
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const [prep, appr, rel] = await Promise.all([
+        (supabase.rpc as any)('hr_pay_is_preparer'),
+        (supabase.rpc as any)('hr_pay_is_approver'),
+        (supabase.rpc as any)('hr_pay_is_releaser'),
+      ]);
+      if (!alive) return;
+      setAuthority({
+        preparer: prep?.data === true,
+        approver: appr?.data === true,
+        releaser: rel?.data === true,
+        loaded: true,
+      });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return authority;
+}
+
+function RunActionBar({ runId, status, onDone }: { runId: string; status: string; onDone: () => void }) {
+  const authority = useRunAuthority();
+  const [busy, setBusy] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const act = async (fn: () => Promise<void>, message: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      toast.success(message);
+      onDone();
+    } catch (err) {
+      setError((err as Error).message);
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const showSubmit = status === 'calculated' || status === 'returned';
+  const showReview = status === 'in_review';
+  const showLock = status === 'paid';
+  if (!showSubmit && !showReview && !showLock) return null;
+
+  const submitDenied = !authority.preparer;
+  const approveDenied = !authority.approver;
+  const lockDenied = !authority.releaser;
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-border pt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {showSubmit && (
+          <Button
+            size="sm"
+            disabled={busy || submitDenied}
+            title={
+              submitDenied
+                ? 'Your position does not hold prepare authority for payroll runs.'
+                : 'Send this run to the position holding approve authority.'
+            }
+            onClick={() => {
+              if (!window.confirm('This sends the run to the position holding approve authority.')) return;
+              void act(() => submitRun(runId, 'Submitted for approval.'), 'Run submitted for approval.');
+            }}
+          >
+            Submit for approval
+          </Button>
+        )}
+        {showReview && (
+          <>
+            <Button
+              size="sm"
+              disabled={busy || approveDenied}
+              title={
+                approveDenied
+                  ? 'Your position does not hold approve authority for payroll runs.'
+                  : 'Approve this run.'
+              }
+              onClick={() => void act(() => approveRun(runId, 'Approved.'), 'Run approved.')}
+            >
+              Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || approveDenied}
+              title={
+                approveDenied
+                  ? 'Your position does not hold approve authority for payroll runs.'
+                  : 'Return this run for rework.'
+              }
+              onClick={() => setReturnOpen(true)}
+            >
+              Return for rework
+            </Button>
+          </>
+        )}
+        {showLock && (
+          <Button
+            size="sm"
+            disabled={busy || lockDenied}
+            title={
+              lockDenied
+                ? 'Your position does not hold release authority for payroll runs.'
+                : 'Lock this run.'
+            }
+            onClick={() => void act(() => lockRun(runId, 'Locked.'), 'Run locked.')}
+          >
+            Lock
+          </Button>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="text-xs font-medium text-destructive">
+          {error}
+        </p>
+      )}
+      <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Return for rework</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="return-reason">Reason</Label>
+            <Textarea
+              id="return-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={4}
+            />
+            <p className="text-xs text-muted-foreground">
+              Why it is going back. This is the audit record.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              size="sm"
+              disabled={busy || reason.trim().length < 10}
+              onClick={() =>
+                void act(() => returnRun(runId, reason), 'Run returned for rework.').then(() => {
+                  setReturnOpen(false);
+                  setReason('');
+                })
+              }
+            >
+              Return run
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 /** Whole-shilling display with thousands separators. */
 function formatNet(value: number | null): string {
@@ -613,6 +788,7 @@ export function PayRunDetailPlaceholder() {
                 Cut-off {formatDate(detail.cut_off_date)} · Pay date {formatDate(detail.pay_date)}
                 {detail.rule_version_code ? ` · Rule ${detail.rule_version_code}` : ''}
               </p>
+              <RunActionBar runId={detail.id} status={detail.status} onDone={() => void load()} />
             </CardContent>
           </Card>
 
@@ -679,6 +855,8 @@ export function PayRunDetailPlaceholder() {
               )}
             </CardContent>
           </Card>
+
+          <PayrollRegister runId={detail.id} />
 
           <Card>
             <CardHeader>
