@@ -2979,56 +2979,15 @@ export function LandlordOpsDashboard() {
     ];
 
     // Status scope: pending | verified | hidden | rejected | all
-    // When the operator types a search, we widen the source to the global
-    // (server-side) search results so that agents whose listings fall outside
-    // the most-recent 500 are still findable. Status scope still applies.
+    // Scope, search term, date range and sort are all resolved server-side by
+    // ops_search_house_listings, which also returns the true total match count.
+    // Nothing here is capped by a client-side row limit any more.
     const searchActive = debouncedVerifySearch.length >= 2;
     const dateRangeActive = !!(verifyDateFrom || verifyDateTo);
-    const baseSource: ListingWithLandlord[] = (searchActive || dateRangeActive)
-      ? (() => {
-          const seen = new Set<string>();
-          const merged: ListingWithLandlord[] = [];
-          for (const l of [
-            ...(globalSearchListings || []),
-            ...(globalDateRangeListings || []),
-            ...rows,
-          ]) {
-            if (seen.has(l.id)) continue;
-            seen.add(l.id);
-            merged.push(l);
-          }
-          return merged;
-        })()
-      : rows;
-    const scopeListings =
-      houseStatusFilter === 'all'
-        ? baseSource.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id))
-        : houseStatusFilter === 'verified'
-        ? baseSource.filter(l => l.verified && l.status !== 'rejected' && l.status !== 'delisted')
-        : houseStatusFilter === 'hidden'
-        ? baseSource.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted')
-        : houseStatusFilter === 'rejected'
-        ? ((searchActive || dateRangeActive) ? baseSource.filter(l => l.status === 'rejected') : rejectedListings)
-        : ((searchActive || dateRangeActive) ? baseSource.filter(l => !l.verified && l.status !== 'rejected' && l.status !== 'delisted') : unverifiedListings);
+    const scopeListings = serverHouseRows.filter(
+      l => houseStatusFilter === 'verified' || !optimisticallyVerifiedIds.has(l.id),
+    );
     let filteredHouses = scopeListings;
-
-    // Text search across name, phone, location, agent
-    if (verifySearch.trim()) {
-      const q = verifySearch.toLowerCase().trim();
-      filteredHouses = filteredHouses.filter(h =>
-        h.title?.toLowerCase().includes(q) ||
-        h.landlords?.name?.toLowerCase().includes(q) ||
-        h.landlords?.phone?.includes(q) ||
-        h.agent_name?.toLowerCase().includes(q) ||
-        h.agent_phone?.includes(q) ||
-        h.region?.toLowerCase().includes(q) ||
-        h.district?.toLowerCase().includes(q) ||
-        h.village?.toLowerCase().includes(q) ||
-        h.lc1_chairperson_name?.toLowerCase().includes(q) ||
-        h.lc1_chairperson_phone?.includes(q) ||
-        h.address?.toLowerCase().includes(q)
-      );
-    }
 
     // Quick filter chips
     if (verifyFilter === 'has_landlord') filteredHouses = filteredHouses.filter(h => !!h.landlords);
@@ -3037,36 +2996,11 @@ export function LandlordOpsDashboard() {
     else if (verifyFilter === 'has_gps') filteredHouses = filteredHouses.filter(h => h.latitude && h.longitude);
     else if (verifyFilter === 'has_lc1') filteredHouses = filteredHouses.filter(h => !!h.lc1_chairperson_name);
 
-    // Date range filter (created_at)
-    if (verifyDateFrom) {
-      const from = new Date(verifyDateFrom).getTime();
-      filteredHouses = filteredHouses.filter(h => new Date(h.created_at).getTime() >= from);
-    }
-    if (verifyDateTo) {
-      const to = new Date(verifyDateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
-      filteredHouses = filteredHouses.filter(h => new Date(h.created_at).getTime() <= to);
-    }
-
-    // Sort
-    filteredHouses = [...filteredHouses].sort((a, b) => {
-      if (verifySort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      if (verifySort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      if (verifySort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
-      if (verifySort === 'recently_updated') {
-        const bu = (b as any).updated_at || b.created_at;
-        const au = (a as any).updated_at || a.created_at;
-        return new Date(bu).getTime() - new Date(au).getTime();
-      }
-      return 0;
-    });
-
-    // ── Client-side pagination for the queue render ──
-    // The parent query already caps rows; this just prevents mounting 500
-    // heavy cards at once (which was the primary source of the "long load"
-    // and the unresponsive bulk-select toggles).
-    const totalFiltered = filteredHouses.length;
-    const displayedHouses = filteredHouses.slice(0, verifyPage * VERIFY_PAGE_SIZE);
-    const hasMoreHouses = displayedHouses.length < totalFiltered;
+    // ── Server-side pagination ──
+    // totalFiltered is the DB match count for the active scope/search/date.
+    const totalFiltered = serverHouseTotal;
+    const displayedHouses = filteredHouses;
+    const hasMoreHouses = !!hasMoreHousePages;
 
     return (
       <>
