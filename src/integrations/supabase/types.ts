@@ -14173,6 +14173,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_balance_pivot_candidate: {
+        Row: {
+          balance_sum: number
+          bucket: string
+          last_updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_sum?: number
+          bucket: string
+          last_updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_sum?: number
+          bucket?: string
+          last_updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ledger_entries: {
         Row: {
           account_id: string
