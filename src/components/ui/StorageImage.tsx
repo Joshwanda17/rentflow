@@ -41,7 +41,12 @@ export function StorageImage({ src, fallback, alt, expandable = true, onClick, c
 
   const handleClick = (e: React.MouseEvent<HTMLImageElement>) => {
     onClick?.(e);
-    if (expandable && !e.defaultPrevented) setOpen(true);
+    if (expandable && !e.defaultPrevented) {
+      // Don't let the tap also trigger an ancestor card/button handler —
+      // otherwise a product image opens the buy dialog AND the preview.
+      e.stopPropagation();
+      setOpen(true);
+    }
   };
 
   return (
