@@ -1,13 +1,13 @@
 /**
  * Approvals inbox. What appears here is decided by the position the signed-in
- * user holds (hr_my_approvals), never by their app role.
+ * user holds (hr_my_approvals), never by their role.
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import HRPlaceholderPage from '@/hr/pages/HRPlaceholderPage';
 import { Card, CardContent } from '@/components/ui/card';
-import { myApprovals } from '@/hr/pay/api/workflow';
+import { myApprovals, myPayrollAuthority } from '@/hr/pay/api/workflow';
 
 interface ApprovalItem {
   item_type: string;
@@ -20,79 +20,46 @@ interface ApprovalItem {
   route: string | null;
 }
 
+interface PayrollAuthority {
+  preparer: boolean;
+  approver: boolean;
+  releaser: boolean;
+}
+
 export default function Approvals() {
   const [items, setItems] = useState<ApprovalItem[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
-  const [authorities, setAuthorities] = useState<
-    Array<{ function_code: string; title: string | null; holders: string[] }>
-  >([]);
+  const [authority, setAuthority] = useState<PayrollAuthority | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    (async () => {
-      const { supabase } = await import('@/hr/api/client');
-      const { data: rows } = await supabase
-        .from('hr_pay_authorities')
-        .select('function_code, position_id, hr_positions(title)')
-        .is('effective_to', null);
-      if (!alive || !rows) return;
-      const positionIds = rows.map((r: any) => r.position_id).filter(Boolean);
-      const { data: assignments } = await supabase
-        .from('hr_assignments')
-        .select('position_id, hr_staff(user_id)')
-        .in('position_id', positionIds)
-        .is('ended_on', null);
-      const userIds = Array.from(
-        new Set((assignments ?? []).map((a: any) => a.hr_staff?.user_id).filter(Boolean)),
-      ) as string[];
-      const nameById: Record<string, string> = {};
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-        (profiles ?? []).forEach((p: any) => {
-          if (p.full_name) nameById[p.id] = p.full_name;
-        });
-      }
-      if (!alive) return;
-      setAuthorities(
-        rows.map((r: any) => ({
-          function_code: r.function_code,
-          title: r.hr_positions?.title ?? null,
-          holders: (assignments ?? [])
-            .filter((a: any) => a.position_id === r.position_id)
-            .map((a: any) => nameById[a.hr_staff?.user_id] ?? 'Unnamed')
-            .filter(Boolean),
-        })),
-      );
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
     setLoading(true);
-    myApprovals()
-      .then(async (rows) => {
+    (async () => {
+      const rowsPromise = myApprovals();
+      const authPromise = myPayrollAuthority().catch((err) => {
+        // Authority discovery is diagnostic; don't block the inbox on it.
+        // eslint-disable-next-line no-console
+        console.error('myPayrollAuthority failed', err);
+        return null;
+      });
+      const [rows, auth] = await Promise.all([rowsPromise, authPromise]);
+      if (!alive) return;
+      setItems(rows as ApprovalItem[]);
+      setAuthority(auth);
+      const ids = Array.from(new Set(rows.map((r) => r.raised_by).filter(Boolean))) as string[];
+      if (ids.length > 0) {
+        const { supabase } = await import('@/hr/api/client');
+        const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
         if (!alive) return;
-        setItems(rows as ApprovalItem[]);
-        const ids = Array.from(new Set(rows.map((r) => r.raised_by).filter(Boolean))) as string[];
-        if (ids.length > 0) {
-          const { supabase } = await import('@/hr/api/client');
-          const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
-          if (!alive) return;
-          const map: Record<string, string> = {};
-          (data ?? []).forEach((p: any) => {
-            if (p.full_name) map[p.id] = p.full_name;
-          });
-          setNames(map);
-        }
-      })
+        const map: Record<string, string> = {};
+        (data ?? []).forEach((p: any) => {
+          if (p.full_name) map[p.id] = p.full_name;
+        });
+        setNames(map);
+      }
+    })()
       .catch((err) => {
         if (alive) setError((err as Error).message);
       })
@@ -104,11 +71,38 @@ export default function Approvals() {
     };
   }, []);
 
+  const authorityLabels = authority
+    ? [
+        authority.preparer ? 'prepare authority' : '',
+        authority.approver ? 'approve authority' : '',
+        authority.releaser ? 'release authority' : '',
+      ].filter(Boolean)
+    : [];
+
   return (
     <HRPlaceholderPage
       heading="Approvals"
       subtitle="Items waiting on you. This list reflects the position you hold, not your role."
     >
+      {!loading && authority && (
+        <>
+          {authorityLabels.length > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              You hold: {authorityLabels.join(', ')}
+            </p>
+          ) : (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900">You hold no payroll authority</p>
+              <p className="mt-1 text-xs text-amber-800">
+                This inbox shows work assigned to the position you hold in the organisation chart,
+                not to your role. Payroll items appear here for the positions holding prepare,
+                approve or release authority. If you believe you should see items here, ask HR to
+                check your position assignment.
+              </p>
+            </div>
+          )}
+        </>
+      )}
       {loading && (
         <p className="text-sm text-muted-foreground">
           <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
@@ -120,30 +114,13 @@ export default function Approvals() {
           {error}
         </p>
       )}
-      {!loading && !error && items.length === 0 && (
+      {!loading && !error && items.length === 0 && authorityLabels.length > 0 && (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="text-sm font-semibold">Nothing waiting on you.</p>
+            <p className="text-sm font-semibold">Nothing waiting on you right now.</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Items appear here when your position holds the authority to act on them.
+              Items appear here when a run reaches the stage your position is responsible for.
             </p>
-            {authorities.length > 0 && (
-              <div className="mx-auto mt-4 max-w-md space-y-1 rounded-md border border-border bg-muted/40 p-3 text-left">
-                <p className="text-xs font-semibold">Who currently holds payroll authority</p>
-                {authorities.map((a) => (
-                  <p key={a.function_code} className="text-xs text-muted-foreground">
-                    <span className="font-medium capitalize">{a.function_code}</span>
-                    {' · '}
-                    {a.title ?? 'Unassigned position'}
-                    {a.holders.length > 0 ? ` — ${a.holders.join(', ')}` : ' — no one assigned'}
-                  </p>
-                ))}
-                <p className="pt-1 text-[11px] text-muted-foreground">
-                  A submitted run only appears for the account holding the position with
-                  approve authority.
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
