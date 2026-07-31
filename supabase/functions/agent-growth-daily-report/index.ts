@@ -700,7 +700,7 @@ async function run(admin: ReturnType<typeof createClient>, reportDate: string, f
   const results: Record<string, string> = {};
   for (const to of REPORT_RECIPIENTS) {
     try {
-      const r = await sendWithAttachment(to, subject, html, pdf, filename);
+      const r = await sendWithAttachment(to, REPORT_CC, subject, html, pdf, filename);
       results[to] = r.ok ? "sent" : `error(${r.status}): ${r.raw?.slice(0, 200)}`;
       if (!r.ok) console.error("[agent-growth-daily-report] send failed", to, r.status, r.raw);
     } catch (e) {
