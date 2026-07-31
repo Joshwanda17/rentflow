@@ -19,6 +19,37 @@ function json(body: unknown, status = 200) {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// ─── numberToWords (partnership amount in words on the agreement) ────────────
+const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+const SCALES = ['', 'Thousand', 'Million', 'Billion', 'Trillion'];
+function threeDigits(n: number): string {
+  const parts: string[] = [];
+  const h = Math.floor(n / 100);
+  const r = n % 100;
+  if (h > 0) parts.push(`${ONES[h]} Hundred`);
+  if (r > 0) {
+    if (r < 20) parts.push(ONES[r]);
+    else { const t = Math.floor(r / 10); const o = r % 10; parts.push(o > 0 ? `${TENS[t]}-${ONES[o]}` : TENS[t]); }
+  }
+  return parts.join(' ');
+}
+function numberToWords(value: number): string {
+  const n = Math.floor(Math.abs(value || 0));
+  if (n === 0) return 'Zero';
+  const groups: number[] = [];
+  let rem = n;
+  while (rem > 0) { groups.push(rem % 1000); rem = Math.floor(rem / 1000); }
+  const words: string[] = [];
+  for (let i = groups.length - 1; i >= 0; i--) {
+    if (groups[i] === 0) continue;
+    const chunk = threeDigits(groups[i]);
+    const scale = SCALES[i];
+    words.push(scale ? `${chunk} ${scale}` : chunk);
+  }
+  return words.join(' ').replace(/\s+/g, ' ').trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
