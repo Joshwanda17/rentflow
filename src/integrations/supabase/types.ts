@@ -27649,6 +27649,22 @@ export type Database = {
         }
         Relationships: []
       }
+      v_pivot_drift: {
+        Row: {
+          advance_delta: number | null
+          cache_advance: number | null
+          cache_float: number | null
+          cache_withdrawable: number | null
+          float_delta: number | null
+          has_pivot_row: boolean | null
+          pivot_advance: number | null
+          pivot_float: number | null
+          pivot_withdrawable: number | null
+          user_id: string | null
+          withdrawable_delta: number | null
+        }
+        Relationships: []
+      }
       v_suspicious_duplicate_accounts: {
         Row: {
           accounts: number | null
