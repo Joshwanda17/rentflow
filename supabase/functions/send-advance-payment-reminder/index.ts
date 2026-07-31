@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       payload: { sent_count: sent.length, failed_count: failed.length, requested: agentIds.length },
     }).then(() => {}, () => {});
 
-    return new Response(JSON.stringify({ sent: sent.length, failed: failed.length }), {
+    return new Response(JSON.stringify({ sent: sent.length, failed: failed.length, skipped_roi: skippedRoi.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
