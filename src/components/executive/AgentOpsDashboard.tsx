@@ -318,7 +318,7 @@ export function AgentOpsDashboard() {
   const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
     { title: 'Agents', keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
-    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-operating-model'] },
+    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['performance-report', 'allocation-report'] },
@@ -484,7 +484,7 @@ function AgentOpsSideNav({
   const SIDE_GROUPS: { title: string; keys: ActiveView[]; pinned?: boolean; defaultOpen?: boolean }[] = [
     { title: 'Agents', defaultOpen: true, keys: ['directory', 'performance', 'sub-agents', 'bulk-ops'] },
     { title: 'Field Operations', defaultOpen: true, keys: ['pipeline', 'rent-capacity', 'daily-collections-report', 'tasks', 'escalations', 'connector'] },
-    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-operating-model'] },
+    { title: 'Service Centers', keys: ['sc-overview', 'service-centres', 'sc-directory', 'sc-payouts', 'sc-requests', 'sc-operating-model'] },
     { title: 'Financials', keys: ['balances', 'float-payouts', 'earnings', 'locked-transfers', 'allocation-report', 'lending-agents'] },
     { title: 'Advances', keys: ['advances-analytics', 'advance-requests', 'active-advances', 'advance-potential', 'advance-limits', 'advance-repayments', 'advance-activity-correlation'] },
     { title: 'Reports', keys: ['performance-report', 'allocation-report'] },
