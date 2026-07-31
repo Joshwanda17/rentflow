@@ -940,6 +940,7 @@ export function LandlordOpsDashboard() {
   });
 
   // ─── All Landlords Direct Query ───
+  // (see server-side paginated house search below)
   const { data: allLandlords, refetch: refetchLandlords } = useQuery({
     queryKey: ['landlord-ops-all-landlords'],
     queryFn: async () => {
