@@ -238,7 +238,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // Celebratory toast the moment the agent crosses today's 50% eligibility
   // threshold (fires once per Kampala day, on mount or via realtime).
   useAgentUnblockToast(user?.id);
-  // Success / error toast when a UGX 3,000 recruiter override payout is created
+  // Success / error toast when a UGX 2,000 recruiter override payout is created
   // for this agent (a verified sub-agent listing / landlord / LC1 chairperson).
   useRecruiterOverrideToast(user?.id);
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
