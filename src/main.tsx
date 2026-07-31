@@ -114,9 +114,9 @@ const schedulePreviewBlankPageGuard = () => {
     requestAnimationFrame(() => {
       if (!hasVisibleAppContent()) {
         console.error('[Main] Preview blank-page guard triggered');
-        void import('./lib/startupCrashReporter').then((m) =>
-          m.reportStartupCrash({ reason: 'blank-page-guard' }),
-        );
+        void import('./lib/startupCrashReporter')
+          .then((m) => m?.reportStartupCrash?.({ reason: 'blank-page-guard' }))
+          .catch(() => {});
         showErrorUI();
       }
     });
@@ -187,9 +187,9 @@ const loadApp = async () => {
     schedulePreviewBlankPageGuard();
   } catch (err) {
     console.error('[Main] App load failed:', err);
-    void import('./lib/startupCrashReporter').then((m) =>
-      m.reportStartupCrash({ reason: 'app-load-failed', error: err }),
-    );
+    void import('./lib/startupCrashReporter')
+      .then((m) => m?.reportStartupCrash?.({ reason: 'app-load-failed', error: err }))
+      .catch(() => {});
     showErrorUI();
   }
 };
@@ -315,7 +315,7 @@ setTimeout(() => {
 
   // Log the timeout so recurring slow-start issues are diagnosable.
   void import('./lib/startupCrashReporter')
-    .then((m) => m.reportStartupCrash({ reason: online ? 'startup-timeout-slow' : 'startup-timeout-offline' }))
+    .then((m) => m?.reportStartupCrash?.({ reason: online ? 'startup-timeout-slow' : 'startup-timeout-offline' }))
     .catch(() => {});
 }, 10000);
 
