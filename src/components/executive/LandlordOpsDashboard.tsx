@@ -3490,12 +3490,13 @@ export function LandlordOpsDashboard() {
                 variant="outline"
                 size="sm"
                 className="h-10 px-4 font-semibold gap-2"
-                onClick={() => setVerifyPage((p) => p + 1)}
+                disabled={isFetchingMoreHouses}
+                onClick={() => { fetchMoreHouses(); }}
               >
-                Load more ({totalFiltered - displayedHouses.length} remaining)
+                {isFetchingMoreHouses ? 'Loading…' : `Load more (${Math.max(totalFiltered - displayedHouses.length, 0).toLocaleString()} remaining)`}
               </Button>
               <p className="text-[10px] text-muted-foreground">
-                Showing {displayedHouses.length} of {totalFiltered}
+                Showing {displayedHouses.length.toLocaleString()} of {totalFiltered.toLocaleString()}
               </p>
             </div>
           )}
