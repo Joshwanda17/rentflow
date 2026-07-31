@@ -412,3 +412,411 @@ Implemented by `get_user_available_balance` over `v_user_wallet_strict`. Caches,
 2. `apply_wallet_movement` is the only writer; `sync_wallet_from_ledger` is a permanent no-op.
 3. Fix money problems with balanced ledger corrections, never cache patches.
 4. A new earning category without a bucket route silently lands in `wallet_unrouted_movements`.
+
+---
+
+# 6. Advance Engine
+
+Three distinct advance products share one recovery philosophy: **advances are recovered only from withdrawable money; float and custody funds are untouchable.**
+
+## 6.1 Agent advances
+
+- **Tables:** `agent_advance_requests` (33 cols), `agent_advances` (29 cols), `agent_advance_ledger`, `agent_advance_topups`, `advance_fee_config`, `agent_advance_repayment` views.
+- **Eligibility:** computed by `get_agent_advance_potential` / `evaluate_agent_advance_eligibility` from recorded rent history, collection consistency and tier. **One active advance at a time** — `trg_enforce_no_double_agent_advance`.
+- **Fees:** 23% / 28% / 33% monthly compound depending on tier and CFO adjustment (`src/lib/agentAdvanceCalculations.ts`; `advance_period_days`).
+- **Approval chain:** agent request → Agent Ops → (optional **Skip CFO** disbursement by Agent Ops) → CFO → disbursement. CFO may edit the amount and the fee band before approving.
+- **Disbursement:** `agent_advance_credit` into withdrawable; `trg_verify_advance_disbursement` reconciles the ledger against the advance row.
+- **Recovery:**
+  - `sweep_agent_advance_recovery()` every 15 min — for agents with `status in ('active','overdue')` and `outstanding_balance > 0`, reads strict withdrawable and sweeps FIFO (oldest `issued_at` first) via `create_ledger_transaction` with `metadata.source='auto_withdrawable_sweep'`, `interest_accrued = 0`. Agents with prepaid installments are skipped.
+  - `process-agent-advance-deductions` daily at 18:00 EAT applies the scheduled installment and interest. **Missing a day does not increase the outstanding**; it is recorded as arrears.
+  - `trg_recover_advance_arrears_on_earning` claws arrears back from the next earning.
+  - Voluntary prepayment is supported and shifts the schedule.
+- **Notifications:** SMS on deduction and on missed installment (`send-advance-payment-reminder`).
+- **Monitoring:** `get_agent_advance_repayment_monitor` RPC, Agent Ops repayment monitor panel, `ActiveAdvancesPanel`.
+
+## 6.2 Business advances
+
+`business_advances` (56 cols) with enum `business_advance_status`: `pending` → `agent_ops_approved` → `tenant_ops_approved` → `landlord_ops_approved` → `coo_approved` → `cfo_disbursed` → `active` → `completed` (or `rejected`/`defaulted`). Supporting tables: `business_advance_daily_accruals`, `business_advance_repayments`, `business_advance_documents`, `business_advance_notification_log`, `business_advance_share_events`. Limit is Welile-scored from recorded rent history (UGX 50,000 starter → 10,000,000 cap) via `calculate_business_advance_limit`, captured at request time. Daily compounding by `process-business-advance-compounding`.
+
+## 6.3 Credit access draws
+
+`credit_access_limits` and `credit_access_draws` (+ `credit_draw_ledger`, `credit_request_details`). Draws submit as `pending_cfo` — **never auto-credited**. The CFO edits and approves via `cfo-approve-credit-draw`, which disburses into withdrawable. Reconciliation alerts land in `credit_limit_reconciliation_alerts`.
+
+## 6.4 Recovery isolation rules
+
+1. Recovery reads `get_user_available_balance`, never `wallets.balance`.
+2. Float and commission custody are never swept.
+3. The 15-min sweep adds no interest (that would double-count the daily cron).
+4. Recovery legs are `agent_repayment` (wallet, `recipient_type='user'`) against `agent_advance_repayment` (platform, `operational_wallet`).
+
+---
+
+# 7. ROI (Returns) Engine
+
+## 7.1 Model
+
+A Supporter contributes capital into an `investor_portfolios` row (37 cols). Returns accrue on a **monthly flat-rate cycle** against the contributed principal, and are paid into the Supporter's **withdrawable** bucket (Returns are always withdrawable by rule).
+
+## 7.2 Tables
+
+`investor_portfolios`, `supporter_roi_payments`, `roi_payout_schedules`, `portfolio_renewals`, `pending_wallet_operations`, `supporter_capital_ledger`, `investment_withdrawal_requests`, `portfolio_action_requests`, `angel_pool_investments`.
+
+## 7.3 Cycle
+
+```mermaid
+sequenceDiagram
+  participant Cron as pg_cron 06:00 UTC
+  participant Fn as process-supporter-roi
+  participant GL as general_ledger
+  participant W as Wallet (withdrawable)
+  participant Mail as Mailgun
+  Cron->>Fn: invoke
+  Fn->>Fn: select portfolios whose cycle matured (idempotency key per cycle)
+  Fn->>Fn: net outstanding advance (apply_roi_advance_recovery)
+  Fn->>GL: roi_wallet_credit (user) + roi_expense (platform)
+  GL->>W: apply_wallet_movement routes to withdrawable
+  Fn->>Mail: Returns statement email
+```
+
+Rules:
+- **Idempotency per cycle** — `mem/business-model/roi-cycle-idempotency.md`; duplicates are caught by the duplicate ROI credit monitor.
+- **`roi_accrued` must exist before payout** — accrual precedes cash.
+- **Partial split** — a payout can be split between cash and principal reinvestment (`roi_compounded`).
+- **Contributed principal excludes `roi_compounded`** in statements (`getContributedPrincipal`), including manual portfolio edits.
+- **Managed-proxy routing** — if the partner has an active, approved `is_managed_account` proxy, credits route to the proxy agent's wallet and the proxy receives the `proxy-managed-payout-notice` template (`trg_enforce_managed_proxy_roi_routing`).
+- **Renewal** — `auto_renew_due_portfolios()` and `apply-scheduled-portfolio-renewals`; mid-cycle top-ups park in `pending_portfolio_topup` until merged.
+- **Withdrawal of capital** requires 90-day notice, which pauses accrual.
+
+---
+
+# 8. Database Documentation
+
+## 8.1 Domain map
+
+| Domain | Representative tables |
+|---|---|
+| Identity | `profiles`, `user_roles`, `staff_profiles`, `staff_permissions`, `kyc_profiles`, `user_device_sessions` |
+| Ledger | `general_ledger`, `ledger_accounts`, `ledger_account_groups`, `ledger_balance_pivot`, `voided_ledger_entries` |
+| Wallet | `wallets` (view), `wallets_physical`, `wallet_fresh_start_anchors`, `wallet_holds`, `wallet_projections`, drift tables |
+| Rent | `rent_requests`, `repayments`, `subscription_charges`, `rent_history_records`, `rent_repayment_pauses` |
+| Property | `house_listings`, `listing_photos`, `house_reviews`, `house_questions`, `property_viewings` |
+| Agents | ~50 `agent_*` tables |
+| Landlords | `landlords`, `landlord_payouts`, `landlord_account_ledger`, `lc1_chairpersons` |
+| Supporters | `investor_portfolios`, `supporter_roi_payments`, `partner_agreements`, `angel_pool_*` |
+| Advances | `agent_advances*`, `business_advances*`, `credit_access_*` |
+| Deposits/withdrawals | `deposit_requests`, `withdrawal_requests`, `gmail_transactions`, `proxy_payout_settlements` |
+| HR / payroll | `hr_staff`, `hr_positions`, `hr_pay_*` (20 tables), `hr_tasks`, `employee_requisitions` |
+| Recruitment | `recruitment_campaigns`, `campaign_attributions`, `job_applications`, `internship_applications` |
+| Trust/risk | `welile_trust_score_cache`, `user_risk_scores`, `kyc_*`, `fraud_identity_blocks` |
+| Ops/audit | `audit_logs`, `system_events`, `client_error_reports`, `backup_runs`, `daily_platform_stats` |
+
+## 8.2 Key views
+
+`v_user_wallet_strict` (the pivot), `wallets`, `v_agent_daily_eligibility`, `wallet_strict_drift_view`, `wallet_anchored_drift_view`, `wallet_anchored_balance_drift_view`, `v_suspicious_duplicate_accounts`, `v_platform_pnl`, `v_receivables_summary`.
+
+## 8.3 Enums (25)
+
+`app_role`, `agent_tier`, `business_advance_status`, `system_event_type`, `expense_category`, `deposit_purpose`, `collection_payment_method`, `flag_severity`, `ai_priority`, `ai_recommendation_status`, `automation_action_type`, `disciplinary_action_type`, `leave_type`, `hr_task_status`, `hr_task_priority`, `hr_task_event_type`, `hr_measurement_mode`, `recruitment_campaign_status`, `recruitment_link_status`, `recruitment_link_type`, `recruitment_registration_status`, `recruitment_source`, `campaign_attribution_status`, `solvency_bypass_reason`, `sub_agent_draft_status`.
+
+## 8.4 Trigger families (382 total)
+
+1. **Ledger integrity** (§4.5).
+2. **Wallet routing/projection** — bucket stamping, projection maintenance, overdraw capture.
+3. **Bonus payment** — house/landlord/LC1 verification, tenant placement, recruiter override, sub-agent registration, campaign bonuses (all idempotent).
+4. **Validation** — phone normalization/uniqueness, full-name validity, rent formula, daytime listing window, Uganda region, TID uniqueness, single active advance, daily eligibility.
+5. **Audit** — `trg_log_profile_field_changes` → `profile_field_audit`; `system_events` emission; `audit_logs`.
+6. **KYC/trust** — activity-driven level upgrades, trust factor increments.
+7. **Blockers** — retired features (legacy wallet deduction, proxy custody writes, retired instant house reward, merchant auto-debit), fraud earning/withdrawal blocks.
+
+## 8.5 RLS
+
+Every public table has RLS enabled and explicit `GRANT`s (Data API grants are not implicit). Policies scope by `auth.uid()` for user data and by `has_role`/ops predicates for staff surfaces. Roles are never read from `profiles` — always from `user_roles` through the SECURITY DEFINER `has_role` to avoid recursive policy evaluation.
+
+## 8.6 Migration conventions
+
+`CREATE TABLE` → `GRANT` → `ENABLE ROW LEVEL SECURITY` → `CREATE POLICY`, in that order, in the same migration. Functions use `SET search_path = public`. Time-dependent rules use triggers, never CHECK constraints. `ALTER DATABASE` is forbidden.
+
+---
+
+# 9. APIs
+
+## 9.1 Surfaces
+
+1. **PostgREST Data API** — RLS-scoped table reads and RPC calls from the client via `@/integrations/supabase/client`.
+2. **Edge Functions** — 279 Deno functions; the only path for third-party IO, service-role work and orchestration.
+3. **Public REST v1** — `docs/welile-api-v1.postman_collection.json` for partner integrations.
+4. **Webhooks** — `momo-webhook`, `mailgun-webhook`, `ussd-callback`, `auth-email-hook`.
+
+## 9.2 Edge Function families (representative)
+
+| Family | Functions |
+|---|---|
+| Money movement | `create-ledger-transaction`, `cfo-direct-credit`, `finops-wallet-move`, `platform-expense-transfer`, `ops-bucket-transfer`, `admin-float-to-withdrawable`, `admin-withdrawable-to-float` |
+| Deposits | `approve-deposit`, `reject-deposit`, `cash-deposit-verify-code`, `gmail-poll-transactions`, `deposit-bridge-worker`, `auto-reject-unmatched-deposits` |
+| Withdrawals | `approve-withdrawal`, `reject-withdrawal`, `redispatch-withdrawals`, `notify-merchants-new-withdrawal`, `release-stale-claims`, `withdrawal-receipt` |
+| Rent | `approve-rent-request`, `auto-charge-wallets`, `apply-rent-overdue-penalty`, `recognize-fee-revenue-daily`, `register-tenant` |
+| Advances | `process-agent-advance-deductions`, `sweep-agent-advance-recovery`, `cfo-approve-credit-draw`, `process-business-advance-compounding`, `send-advance-payment-reminder` |
+| Returns | `process-supporter-roi`, `create-investor-portfolio`, `coo-create-portfolio`, `merge-pending-topups`, `apply-scheduled-portfolio-renewals` |
+| Landlord | `issue-landlord-payout-otp`, `verify-landlord-payout-otp`, `landlord-payout-disburse`, `landlord-monthly-payout` |
+| Messaging | `send-sms`, `sms-otp`, `inngest-send-sms`, `send-email`, `send-push-notification`, `whatsapp-login-link` |
+| Reports | ~20 `*-report` / `generate-*` functions |
+| Admin/security | `delete-user`, `admin-reset-password`, `fraud-cutoff-account`, `restore-archived-account`, `diagnose-auth` |
+| AI/SEO | `welile-ai-chat`, `seo-scan`, `search-console-sync` |
+
+## 9.3 Edge Function conventions
+
+- Manually define `corsHeaders` — never import a cors package.
+- Authenticate with `adminClient.auth.getUser(token)`, then check roles server-side.
+- Pass `entries` to `create_ledger_transaction` as a **raw JSON array**, never `JSON.stringify`.
+- Use only allowlisted ledger categories.
+- Cron-invoked functions must be idempotent and listed in `config.toml` with `verify_jwt = false` if invoked by `net.http_post`.
+
+## 9.4 Most-used RPCs
+
+`create_ledger_transaction`, `get_user_available_balance`, `get_user_wallet_view`, `apply_wallet_movement`, `agent_allocate_tenant_payment`, `capture_trust_signal`, `has_role`, `get_agent_ops_overview`, `get_agent_daily_eligibility`, `get_agent_advance_potential`, `compute_rent_repayment`, `reconcile_wallet_from_ledger`, `reseed_anchored_withdrawable`, `hr_pay_is_preparer/approver/releaser`, `get_maps_browser_key`.
+
+---
+
+# 10. Scheduled Jobs
+
+98 `pg_cron` jobs (93 active). All times UTC unless noted; EAT = UTC+3.
+
+| Cadence | Jobs |
+|---|---|
+| 30 s | `deposit-bridge-worker-30s`, `process-agent-capability-jobs` |
+| 1 min | `redispatch-withdrawals`, `release-stale-claims`, withdrawal dispatch sweep |
+| 2 min | `gmail-poll-transactions` |
+| 10 min | `reconcile-wallets-from-pivot`, `refresh-wallet-totals-cache` |
+| 15 min | `detect_phantom_wallet_drift`, `detect_withdrawable_drift_alerts`, `sweep-agent-advance-recovery`, `repair-wallet-cache-drift-15m`, `wallet-projection-drift`, `refresh-tenant-idle-states`, `detect_sms_verification_failures`, `detect_ledger_group_imbalances` |
+| Hourly | deposit match alerts, bridge gap alerts, campaign attribution expiry, email routing retries |
+| Daily 02:15 | `nightly-wallet-ledger-reconciliation` |
+| Daily 03:00 | `recalculate-trust-scores-nightly` |
+| Daily 00:30 | `snapshot-agent-daily-eligibility` |
+| Daily 06:00 | `auto-charge-wallets`, `process-supporter-roi`, `recognize-fee-revenue-daily` |
+| Daily 18:00 EAT | `process-agent-advance-deductions`, `auto-apply-pending-topups` |
+| Daily 21:00 (00:00 EAT) | `generate-daily-wallet-report`, `daily-wallet-inflows-report` |
+| Daily (various) | `agent-ops-daily-report`, `agent-growth-daily-report`, `daily-cto-report`, `daily-cmo-users-report`, `daily-landlord-ops-report`, `merchant-cashout-daily-report` (x2), `generate-daily-merchant-commission` |
+| Daily 23:00 | `auto_close_fully_repaid_rents` |
+| Weekly / monthly | `landlord-monthly-payout`, `apply-welile-homes-monthly-interest`, `apply-scheduled-portfolio-renewals`, backup runs, log pruning (7-day retention), SEO scans |
+| Inactive (5) | `process-debt-recovery` and four retired detectors |
+
+**Convention:** jobs invoke Edge Functions with `net.http_post` including `apikey`; such SQL is inserted with the insert tool (never a migration) because it embeds project-specific URLs and keys.
+
+---
+
+# 11. Event Flow
+
+## 11.1 `system_events`
+
+Every state change emits a `system_events` row (75% event-based architecture target). The `system_event_type` enum currently has ~50 values (payments, tenant/agent/supporter lifecycle, funds in/out, rent pipeline transitions, risk/flag changes, role changes, listing lifecycle, deposit/withdrawal outcomes, ledger classification backfills, report events). `system_events` has a `metadata` column and **no `payload` column** — inserts using `payload` fail silently.
+
+## 11.2 Trust signal flow
+
+```mermaid
+flowchart LR
+  ACT[User or agent action] --> SE[system_events]
+  ACT --> CTS[capture_trust_signal]
+  CTS --> TSC[(welile_trust_score_cache)]
+  TSC --> LIMITS[Credit limits, vouch limits, KYC level]
+  TSC --> UI[Trust AI ID card]
+```
+
+Constitution: any user-facing action with observable behavior must emit a `system_event` **and** increment a trust factor. Agent-initiated workflows must additionally write `agent_visits` or `venue_visits` with geo + AI ID.
+
+## 11.3 Background events
+
+Inngest carries fire-and-forget SMS (`app/payment.sms.requested`). `agent_capability_ops_jobs` is a durable job queue with batches, dead letters and undo snapshots, drained every 30 s.
+
+---
+
+# 12. User Roles
+
+`app_role` enum (25): `tenant`, `agent`, `landlord`, `supporter`, `manager`, `ceo`, `coo`, `cfo`, `cto`, `cmo`, `crm`, `employee`, `operations`, `super_admin`, `hr`, `senior_agent`, `sub_agent`, `admin`, `tenant_ops`, `landlord_ops`, `agent_ops`, `financial_ops`, `partner_ops`, `access_admin`.
+
+| Role | Primary surface | Core powers |
+|---|---|---|
+| tenant | `/dashboard` | rent plan, wallet, marketplace |
+| agent | `/agent/dashboard` | onboarding, collection, float, advances, listings |
+| sub_agent / senior_agent | agent dashboard variants | scoped agent powers, recruiter overrides |
+| landlord | `/landlord/dashboard` | properties, payouts, tenants |
+| supporter | `/supporter/dashboard` | portfolio, Returns, top-ups, withdrawals |
+| agent_ops | Agent Ops dashboard | capacity, eligibility, advance queue, skip-CFO disbursement |
+| tenant_ops | `TenantOpsHub` | tenant inbox, segments, reassignment |
+| landlord_ops | Landlord Ops dashboard | listing verification, landlord approval |
+| partner_ops | Partner Ops | portfolios, top-ups, proxy assignments |
+| financial_ops | `/admin/financial-ops` | outbound verification, payouts |
+| cfo | `/cfo/dashboard` | inbound capital, approvals, corrections, reconciliation |
+| coo | `/coo/dashboard` | rent pipeline, withdrawals, Returns approvals |
+| ceo | `/ceo/dashboard` | executive KPIs, payroll approval (position-dependent) |
+| cto | `/cto/dashboard` | infrastructure, freezes, SMS exceptions; permission bypass |
+| cmo | `/cmo/dashboard` | campaigns, merchandise, growth reports |
+| crm | `/crm/dashboard` | customer issues, tenant support |
+| hr | `/hr/dashboard`, `/hr/pay/*` | staffing, payroll, requisitions |
+| manager | manager surfaces | escalations, deletions on sensitive tables |
+| operations / employee | `/operations` | day-to-day ops tasks |
+| admin / access_admin / super_admin | `/admin/*` | user administration, access grants, full bypass |
+
+Single-role focus: the UI renders for the **active** role; `switchRole` performs an atomic state transition in `useAuth`. Separation of powers: CFO handles inbound/strategic/approval, FinOps handles outbound/verification; payroll prepare/approve/release are three distinct positions.
+
+---
+
+# 13. UI Documentation
+
+## 13.1 Routing
+
+All routes are declared in `src/App.tsx` (700+ lines) with lazy imports and `RoleGuard`. Route groups:
+
+- **Public** — `/`, `/find-a-house`, `/house/:id`, `/opportunities`, `/careers`, `/terms`, `/privacy`, agreements (`/agent-agreement`, `/landlord-agreement`, `/merchant-agreement`, `/partners-terms`, `/angel-pool-agreement`), tokenized links (`/r/:token`, `/s/:code`, `/join`, `/c/:token`, `/share-location`, `/resume-sms`, `/stop-sms`, `/unsubscribe`).
+- **Auth** — `/auth`, `/staff-portal`, `/login-diagnostics`, `/oauth-consent`, `/oauth-funnel`.
+- **Tenant** — `/dashboard`, `/my-loans`, `/payment-schedule`, `/wallet`, `/wishlist`, `/chat`.
+- **Agent** — `/agent/dashboard`, `/agent/cash-payouts`, `/record-rent`, merchant onboarding/referrals.
+- **Landlord / Supporter** — respective dashboards plus `/reinvestment-history`, `/investor-portfolio/:id`.
+- **Executive** — `/ceo|coo|cfo|cto|cmo|crm|hr/dashboard`, `/executive-hub`, `/operations`, `/director/dashboard`.
+- **Finance deep links** — `/cfo/ledger/:id`, `/cfo/money-flow-trace`, `/cfo/phantom-drift/:userId`, `/audit-log`.
+- **HR payroll** — `/hr/pay/runs`, `/hr/pay/runs/:runId`, `/hr/pay/enrollment`, `/hr/pay/compensation`, `/approvals`.
+- **E2E harnesses** — `/__e2e/*` (test only).
+
+## 13.2 Dashboard pattern
+
+Executive dashboards are single routes rendering tabs by id with `usePersistedActiveTab('<role>')`; the sidebar is data-driven from `src/components/layout/executiveSidebarConfig.ts` (label, icon, route or tab id, permission). Adding a screen = add a config entry + a `switch` case.
+
+## 13.3 Key shared components
+
+`WithdrawFlow`, `DepositFlow`, `FullScreenWalletSheet`, `WalletTransactionTimeline`, `AgentFrozenGate`, `PhoneCollectionGate`, `NameCompletionGate`, `PriorityCollectionQueue`, `AvailableHousesSheet`, `PropertyMapView` (client-side `DirectionsService` route optimization), `UserDrilldownDrawer`, `ActiveAdvancesPanel`, `PhantomDriftPanel`, `AnchoredCacheDriftPanel`.
+
+## 13.4 UI conventions
+
+- Semantic design tokens only — no hardcoded color utilities.
+- UGX via `formatUGX`; never underscores in user-facing labels; no emojis.
+- Regulatory wording (§1.1); platform fees are hidden from tenants (Rent / Daily Amount / Start only).
+- Gates are layered by priority: frozen-agent banner > name completion > phone collection > profile completion.
+- Offline: profile/UI data may be cached; financial data is network-first and never trusted offline.
+
+---
+
+# 14. Administration
+
+- **User administration:** `/admin/users` (search, role grant, archive, restore), `delete-user`, `admin_purge_user_dependencies`, `restore-archived-account`, `/admin/account-conflicts` for duplicate resolution.
+- **Access administration:** `staff_permissions` grants per dashboard; `/admin/access-audit` shows who has what; `access_admin` role manages grants.
+- **KYC administration:** `/admin/kyc` — `admin_set_kyc_level`, `admin_freeze_kyc_account`, `admin_resolve_kyc_flag`, with `kyc_level_change_audit`.
+- **Financial administration:** §2.20 and §3.16; every action requires a ≥10-char reason and writes `audit_logs` (`action_type`, `table_name`, `record_id`, `reason`).
+- **HR administration:** `hr_staff`, `hr_positions`, `hr_departments`, `hr_assignments`; payroll runs (`hr_pay_runs`) move draft → calculated → in_review → approved → paid → locked with prepare/approve/release authorities held by **positions**; `employee_requisitions` and `director_requisitions` credit the requester's wallet on CFO approval (CFO may edit the amount).
+- **Data export:** table/query CSV via `psql COPY … TO STDOUT`; full database export only through Cloud → Advanced settings → Export data. There is no self-serve import.
+
+---
+
+# 15. Security
+
+1. **RLS everywhere** — 1141 policies; explicit GRANTs; roles never stored on `profiles`.
+2. **Ledger fortress** — four layers: session flag, deny-by-default RLS, revoked table privileges, strict-mode triggers.
+3. **Fail-closed permissions** — `useStaffPermissions` denies on error; server always re-checks.
+4. **Secrets** — stored as Edge Function secrets, never in the repo or a committed `.env`; the service role key and DB password are inaccessible by design.
+5. **Referrer-restricted Maps key** — served only via `get_maps_browser_key()` and usable only from browser Maps JS.
+6. **Audit immutability** — `audit_logs` INSERT policies restrict forgery; ledger rows can never be updated or deleted (reversals only).
+7. **AML/fraud** — UGX 50,000/day cap for accounts ≤ 30 days, deposit-count gate on transfers, IP/device signup throttling, identity blocks, TID uniqueness, mandatory receipt upload for manual withdrawals, OTP for landlord payouts.
+8. **Session security** — Supporter inactivity lock after 5 minutes requiring password; device session tracking.
+9. **Data deletion** — restricted to `manager` on sensitive tables via RLS; soft delete (`enabled` flag) preferred.
+10. **Separation of duties** — CFO vs FinOps; payroll prepare/approve/release; ops approvals chained across departments.
+
+---
+
+# 16. Integrations
+
+See §1.7 for the credential map. Operational notes:
+
+- **SMS:** Yoola primary with Africa's Talking and LANA fallback; delivery logged to `sms_delivery_log`; exceptions in `sms_message_exceptions`; opt-outs honored globally; **never set a custom sender ID**.
+- **Email:** Mailgun US on `notify.welile.com`; single route (all inbound replies land in one route); partner emails use From/Reply-To pairing; suppression list and unsubscribe tokens enforced before every send.
+- **Gmail deposits:** poll every 2 min, dedupe (`gmail_dedup_audit`), exclusions (`gmail_deposit_exclusions`), outgoing transactions excluded, auto-credit gated by an explicit per-row checklist (`autoCreditGateReport`).
+- **Drive vault:** documents archived offsite with `drive_archive_log`.
+- **USSD:** Africa's Talking `ussd-callback` menu for balance and payment.
+- **Maps:** browser-only; server-side Routes/Geocoding calls 403 with the referrer-restricted key.
+
+---
+
+# 17. Monitoring
+
+- **Health:** `infrastructure_settings`, CTO infrastructure panel, benchmarks at 15/40/80/150 concurrent users, 800 ms DB latency warning threshold.
+- **Financial monitors:** phantom drift, anchored cache drift, withdrawable drift alerts, ledger group imbalance alerts, duplicate ROI credit monitor, deposit match/bridge gap alerts, credit limit reconciliation alerts, CFO threshold alerts, bulk payout stuck alerts.
+- **Operational monitors:** SMS verification failure monitor, agent advance repayment monitor, tenant phone duplicate panel (collapsed by default), change-of-address monitor, browser compatibility events.
+- **Client errors:** `client_error_reports` + hardened crash reporter.
+- **Reports:** daily executive emails per function (§10) plus `daily_platform_stats` and `daily_wallet_reports` snapshots.
+- **Retention:** 7-day log retention under the lean-DB write-suppression policy; `backup_runs` records backups.
+
+---
+
+# 18. Deployment
+
+- **Frontend:** Vite build → static assets behind the Lovable proxy; HTML served `no-cache`. Chunk load failures recover with a plain `window.location.reload()`. Custom domains: `welileapp.com`, `www.welileapp.com`, `welilereceipts.com`.
+- **Edge Functions:** deployed individually; JWT verification configured per function in `supabase/config.toml`.
+- **Database:** migrations only; every new public table ships with GRANTs and RLS in the same migration; cron registration uses the insert tool, not migrations.
+- **Environments:** dev and prod each hold their own secret set (100-secret cap per environment).
+- **Build guards:** `scripts/guard-frontend-ledger-writes.mjs`, `guard-deposit-purpose.mjs`, `guard-legacy-domain.mjs`, `guard-persona-routes.mjs`, `site-domains.mjs`.
+- **Tests:** Vitest unit/integration (`src/__tests__`, `src/test`), SQL regression tests (`supabase/tests`), Playwright E2E (`e2e/`) against `/__e2e/*` harnesses.
+
+---
+
+# 19. Known Technical Debt
+
+1. **Table sprawl** — 423 tables with many single-purpose alert/audit tables; several near-duplicate agent float tables.
+2. **Function sprawl** — 1002 RPCs; naming is inconsistent (`get_*`, `admin_*`, `agent_*`, bare verbs) and some are superseded but retained for compatibility.
+3. **Retired-but-attached objects** — `sync_wallet_from_ledger` is a permanent no-op; several `trg_block_*` triggers exist only to fence off removed features; `wallet-deduction` returns 410.
+4. **Classification legacy** — `legacy_real` / `test_dev` rows predate the April 2026 cutoff and complicate every historical query.
+5. **`system_events` schema gap** — no `payload` column and an incomplete enum, so some historical event inserts silently no-oped (notably advance repayment events).
+6. **Drift machinery** — seven distinct drift detectors and repair RPCs exist because the cache and the pivot can still diverge; the real fix is to read the pivot everywhere.
+7. **Cron centralization** — 98 jobs, several overlapping in purpose; five inactive rows remain registered.
+8. **Client-side route optimization** — forced by the referrer-restricted Maps key; server-side routing is unavailable.
+9. **Offline collection** — `offline_collection_submissions` is a queue without a full conflict-resolution UI.
+10. **Deliberately absent** — no service worker or client cache-recovery system; do not reintroduce (§1.6).
+11. **Docs drift** — `SYSTEM_ARCHITECTURE.md`, `welile_architecture_guide.md` and `backend` predate parts of the current design; this file supersedes them.
+
+---
+
+# 20. Future Roadmap
+
+Directionally, from current code and memory:
+
+1. **Pivot-only reads** — remove every remaining cache read so drift detectors become redundant.
+2. **Ledger classification cleanup** — retire `legacy_real`/`test_dev` behind an archive schema.
+3. **Event completeness** — extend `system_event_type` and add a `payload`-equivalent structure so every subsystem emits reliably; push toward the 100% event-based target.
+4. **Trust score as the universal gate** — drive credit, vouch, withdrawal and capacity limits from one score.
+5. **Payroll to full production** — statutory filings, bank export formats, payslip distribution at scale.
+6. **Merchant network expansion** — automated float forecasting and dispatch scoring.
+7. **Welile Homes scale-up** — guaranteed landlord payouts as a standalone product line.
+8. **40M-user readiness** — server-side aggregation everywhere, snapshot dashboards, further write suppression.
+
+---
+
+# 21. Glossary
+
+| Term | Meaning |
+|---|---|
+| **Rent Plan** | The financing product (never call it a loan). |
+| **Supporter** | A retail funder/partner supplying capital (never "lender"). |
+| **Returns** | Payout to Supporters (never "ROI" in user-facing copy). |
+| **Ledger fortress** | The four-layer guard system making `general_ledger` the only writable source of financial truth. |
+| **Pivot** | `v_user_wallet_strict` — the canonical comparator between the `wallets` cache and `general_ledger`. |
+| **Bucket** | One of `withdrawable_balance`, `float_balance`, `advance_balance`. |
+| **Float** | Company money held in an agent's custody; never withdrawable. |
+| **Strict withdrawable** | `get_user_available_balance` output; caches may only reduce it. |
+| **Drift** | Divergence between the wallet cache and the pivot. Phantom = cache too high; hidden owed = cache too low. |
+| **Anchor** | `wallet_fresh_start_anchors` cutoff from which strict ledger net is computed. |
+| **Classification** | Ledger partition: `production`, `legacy_real`, `test_dev`, `admin_correction`. |
+| **Transaction group** | Set of ledger legs sharing `transaction_group_id`; must balance. |
+| **recipient_type** | Sole bucket router: `user` → withdrawable, `operational_wallet` → float. |
+| **Daily eligibility** | Agent gate: ≥20% of `expected_daily` collected, sourced only from `agent_collections`. |
+| **expected_daily** | Sum of `daily_repayment` across funded, still-owing tenants (`v_agent_daily_eligibility`). |
+| **Advance** | Cash issued against future earnings; recovered only from withdrawable. |
+| **Access fee** | The 23/28/33% monthly compound fee on an agent advance. |
+| **Merchant agent** | Agent who fronts personal MoMo cash to settle user withdrawals for 0.5% commission. |
+| **Proxy agent** | Agent authorized to transact on a partner's behalf; managed proxies receive the partner's credits. |
+| **LC1 chairperson** | Local council chairperson who verifies tenant residence. |
+| **TID** | Telecom transaction ID used to match a MoMo deposit. |
+| **RCT** | Prefix for cash receipt codes. |
+| **Welile AI ID** | The user's digital trust identity. |
+| **Trust score** | 6-factor behavioral score in `welile_trust_score_cache`. |
+| **Angel Pool** | 8% equity pool sold at UGX 20,000 per share. |
+| **Vouch** | Welile guaranteeing a borrower up to their trust-score limit with a lender partner. |
+
+---
+
+*This document supersedes `SYSTEM_ARCHITECTURE.md`, `welile_architecture_guide.md` and `backend` where they conflict. When code and this document disagree, the code and the database catalog are authoritative — update this file in the same change.*
