@@ -36,6 +36,12 @@ import {
 } from '@/hr/pay/api/runs';
 import { calculateRun, getRunDetail, type RunDetail } from '@/hr/pay/api/calculate';
 import { approveRun, lockRun, returnRun, submitRun } from '@/hr/pay/api/workflow';
+import {
+  listDisbursements,
+  markRunPaid,
+  runRelease,
+  type DisbursementRow,
+} from '@/hr/pay/api/release';
 import PayrollRegister from '@/hr/pay/PayrollRegister';
 import { supabase } from '@/hr/api/client';
 
@@ -208,6 +214,271 @@ function RunActionBar({ runId, status, onDone }: { runId: string; status: string
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * Release payment. Authority comes from the database authority register
+ * (hr_pay_is_releaser), never from the signed-in user's roles.
+ */
+function ReleaseSection({ runId, status }: { runId: string; status: string }) {
+  const authority = useRunAuthority();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dry, setDry] = useState<{
+    payslip_count: number;
+    total_net: number;
+    items: Array<{ staff_ref: string | null; amount: number; blocker: string | null }>;
+  } | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [released, setReleased] = useState(false);
+  const [disbursements, setDisbursements] = useState<DisbursementRow[]>([]);
+  const [paidError, setPaidError] = useState<string | null>(null);
+  const [paidDone, setPaidDone] = useState(false);
+
+  const loadDisbursements = useCallback(async () => {
+    try {
+      setDisbursements(await listDisbursements(runId));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }, [runId]);
+
+  const doDryRun = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await runRelease(runId, true);
+      setDry({
+        payslip_count: Number(res?.payslip_count ?? 0),
+        total_net: Number(res?.total_net ?? 0),
+        items: Array.isArray(res?.items) ? res.items : [],
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doRelease = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await runRelease(runId, false);
+      setReleased(true);
+      setConfirmOpen(false);
+      setTyped('');
+      await loadDisbursements();
+      toast.success('Release processed.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const counts = useMemo(() => {
+    return disbursements.reduce(
+      (acc, d) => ({
+        posted: acc.posted + (d.status === 'posted' ? 1 : 0),
+        failed: acc.failed + (d.status === 'failed' ? 1 : 0),
+        skipped: acc.skipped + (d.status === 'skipped' ? 1 : 0),
+      }),
+      { posted: 0, failed: 0, skipped: 0 },
+    );
+  }, [disbursements]);
+
+  if (!['approved', 'paid', 'locked'].includes(status)) return null;
+
+  const readOnly = !authority.releaser;
+
+  return (
+    <Card>
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-base">Release payment</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Credits each employee&apos;s wallet. This moves real money.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {readOnly ? (
+          <p className="text-sm text-muted-foreground">
+            Only the position holding release authority may release this run.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void doDryRun()}>
+              {busy && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+              Dry run
+            </Button>
+            <Button
+              size="sm"
+              disabled={busy || !dry}
+              title={dry ? 'Release payment' : 'Perform a dry run first.'}
+              onClick={() => {
+                setTyped('');
+                setConfirmOpen(true);
+              }}
+            >
+              Release payment
+            </Button>
+          </div>
+        )}
+
+        {error && (
+          <p role="alert" className="whitespace-pre-wrap text-xs font-medium text-destructive">
+            {error}
+          </p>
+        )}
+
+        {dry && (
+          <div className="space-y-2">
+            <p className="text-sm">
+              {dry.payslip_count} payslips · total {formatNet(dry.total_net)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              A dry run writes nothing. No wallet is credited and no ledger entry is posted.
+            </p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Staff ref</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Blocker</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dry.items.map((item, index) => (
+                  <TableRow key={`${item.staff_ref ?? 'row'}-${index}`}>
+                    <TableCell className="font-mono text-xs">{item.staff_ref ?? '—'}</TableCell>
+                    <TableCell className="text-right">{formatNet(item.amount)}</TableCell>
+                    <TableCell className="text-xs">
+                      {item.blocker ? (
+                        <span className="font-medium text-destructive">{item.blocker}</span>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {released && (
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-sm font-semibold">
+              Posted {counts.posted} · Failed {counts.failed} · Skipped {counts.skipped}
+            </p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Staff ref</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Ledger reference</TableHead>
+                  <TableHead>Error</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {disbursements.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell className="font-mono text-xs">{d.staff_ref ?? '—'}</TableCell>
+                    <TableCell className="text-right">{formatNet(d.amount)}</TableCell>
+                    <TableCell
+                      className={
+                        d.status === 'posted'
+                          ? 'text-xs font-semibold text-emerald-600'
+                          : d.status === 'failed'
+                            ? 'text-xs font-semibold text-destructive'
+                            : 'text-xs font-semibold text-muted-foreground'
+                      }
+                    >
+                      {d.status}
+                    </TableCell>
+                    <TableCell className="font-mono text-[11px]">
+                      {d.ledger_reference_id ?? '—'}
+                    </TableCell>
+                    <TableCell className="whitespace-pre-wrap text-xs">
+                      {d.error_text ?? '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <p className="text-xs text-muted-foreground">
+              Retrying is safe. Payments already posted are skipped by their idempotency key.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || counts.failed > 0 || paidDone}
+                title={
+                  counts.failed > 0
+                    ? 'Resolve the failed rows before recording payment.'
+                    : 'Record that this run has been paid.'
+                }
+                onClick={() => {
+                  setPaidError(null);
+                  setBusy(true);
+                  void markRunPaid(runId, 'Payment released and recorded.')
+                    .then(() => {
+                      setPaidDone(true);
+                      toast.success('Payment recorded.');
+                    })
+                    .catch((err) => setPaidError((err as Error).message))
+                    .finally(() => setBusy(false));
+                }}
+              >
+                Record payment
+              </Button>
+              {paidDone && <span className="text-xs text-muted-foreground">Recorded.</span>}
+            </div>
+            {paidError && (
+              <p role="alert" className="whitespace-pre-wrap text-xs font-medium text-destructive">
+                {paidError}
+              </p>
+            )}
+          </div>
+        )}
+
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Release payment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm">
+                {dry?.payslip_count ?? 0} employees · {formatNet(dry?.total_net ?? 0)}
+              </p>
+              <p className="text-sm font-medium">
+                This credits wallets and posts to the general ledger. There is no automatic
+                reversal.
+              </p>
+              <div className="space-y-1">
+                <Label htmlFor="release-confirm">Type RELEASE to confirm</Label>
+                <Input
+                  id="release-confirm"
+                  value={typed}
+                  onChange={(e) => setTyped(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button size="sm" disabled={busy || typed !== 'RELEASE'} onClick={() => void doRelease()}>
+                {busy && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                Confirm release
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -857,6 +1128,8 @@ export function PayRunDetailPlaceholder() {
           </Card>
 
           <PayrollRegister runId={detail.id} />
+
+          <ReleaseSection runId={detail.id} status={detail.status} />
 
           <Card>
             <CardHeader>
