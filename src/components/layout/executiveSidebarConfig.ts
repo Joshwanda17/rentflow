@@ -277,6 +277,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       collapsible: true,
       defaultOpen: false,
       items: [
+        { label: 'Approvals', icon: Banknote, id: 'hr-pay-approvals', route: '/approvals', access: HR_ACCESS },
         { label: 'Enrollment', icon: Banknote, id: 'hr-pay-enrollment', route: '/hr/pay/enrollment', access: HR_ACCESS },
         { label: 'Pay runs', icon: Banknote, id: 'hr-pay-runs', route: '/hr/pay/runs', access: HR_ACCESS },
         { label: 'Compensation', icon: Banknote, id: 'hr-pay-compensation', route: '/hr/pay/compensation', access: HR_ACCESS },
