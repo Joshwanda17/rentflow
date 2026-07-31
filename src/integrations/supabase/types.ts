@@ -17018,49 +17018,76 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_auto: boolean
           new_created_at: string
           new_duration_months: number
           new_maturity_date: string | null
           new_roi_percentage: number
           old_created_at: string
           old_duration_months: number
+          old_investment_amount: number | null
           old_maturity_date: string | null
+          old_next_roi_date: string | null
           old_roi_percentage: number
+          old_status: string | null
+          old_total_roi_earned: number
           portfolio_id: string
           reason: string
           renewed_by: string
+          reversal_reason: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          source: string | null
           top_up_amount: number
         }
         Insert: {
           created_at?: string
           id?: string
+          is_auto?: boolean
           new_created_at: string
           new_duration_months: number
           new_maturity_date?: string | null
           new_roi_percentage: number
           old_created_at: string
           old_duration_months: number
+          old_investment_amount?: number | null
           old_maturity_date?: string | null
+          old_next_roi_date?: string | null
           old_roi_percentage: number
+          old_status?: string | null
+          old_total_roi_earned?: number
           portfolio_id: string
           reason: string
           renewed_by: string
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          source?: string | null
           top_up_amount?: number
         }
         Update: {
           created_at?: string
           id?: string
+          is_auto?: boolean
           new_created_at?: string
           new_duration_months?: number
           new_maturity_date?: string | null
           new_roi_percentage?: number
           old_created_at?: string
           old_duration_months?: number
+          old_investment_amount?: number | null
           old_maturity_date?: string | null
+          old_next_roi_date?: string | null
           old_roi_percentage?: number
+          old_status?: string | null
+          old_total_roi_earned?: number
           portfolio_id?: string
           reason?: string
           renewed_by?: string
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          source?: string | null
           top_up_amount?: number
         }
         Relationships: [
@@ -26977,14 +27004,25 @@ export type Database = {
         Args: { p_dry_run?: boolean; p_user_id: string }
         Returns: Json
       }
-      apply_portfolio_renewal: {
-        Args: {
-          p_portfolio_id: string
-          p_reason?: string
-          p_renewed_by: string
-        }
-        Returns: Json
-      }
+      apply_portfolio_renewal:
+        | {
+            Args: {
+              p_portfolio_id: string
+              p_reason?: string
+              p_renewed_by: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_is_auto?: boolean
+              p_portfolio_id: string
+              p_reason?: string
+              p_renewed_by: string
+              p_source?: string
+            }
+            Returns: Json
+          }
       apply_tier_capabilities: {
         Args: {
           _actor: string
@@ -27104,6 +27142,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      auto_renew_due_portfolios: { Args: { p_limit?: number }; Returns: Json }
       auto_upgrade_kyc_from_activity: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -30873,6 +30912,10 @@ export type Database = {
       reverse_all_phantom_auto_debits: { Args: never; Returns: Json }
       reverse_phantom_auto_debit_obligation: {
         Args: { p_obligation_id: string }
+        Returns: Json
+      }
+      reverse_portfolio_renewal: {
+        Args: { p_reason: string; p_renewal_id: string }
         Returns: Json
       }
       run_email_auto_match_retry: {
