@@ -715,6 +715,7 @@ async function run(admin: ReturnType<typeof createClient>, reportDate: string, f
       report_date: reportDate,
       sent_on: eatToday(),
       recipients: REPORT_RECIPIENTS,
+      cc: REPORT_CC,
       active_agents: a.active_agents,
       active_subagents: a.active_subagents,
       agents_last_week: weekly.agents.last_week,
