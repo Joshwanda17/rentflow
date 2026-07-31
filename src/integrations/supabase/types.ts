@@ -11493,6 +11493,56 @@ export type Database = {
           },
         ]
       }
+      hr_pay_statutory_profiles: {
+        Row: {
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          employment_type: string
+          exemption_basis: string | null
+          id: string
+          lst_applicable: boolean
+          nssf_applicable: boolean
+          paye_applicable: boolean
+          set_by: string | null
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          employment_type?: string
+          exemption_basis?: string | null
+          id?: string
+          lst_applicable?: boolean
+          nssf_applicable?: boolean
+          paye_applicable?: boolean
+          set_by?: string | null
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          employment_type?: string
+          exemption_basis?: string | null
+          id?: string
+          lst_applicable?: boolean
+          nssf_applicable?: boolean
+          paye_applicable?: boolean
+          set_by?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_statutory_profiles_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_pay_tax_bands: {
         Row: {
           band_order: number
@@ -30998,6 +31048,17 @@ export type Database = {
           _prepared_position: string
         }
         Returns: boolean
+      }
+      hr_pay_set_statutory_profile: {
+        Args: {
+          _basis: string
+          _employment_type: string
+          _lst: boolean
+          _nssf: boolean
+          _paye: boolean
+          _staff_id: string
+        }
+        Returns: string
       }
       hr_unenrolled_staff_candidates: {
         Args: { _q?: string }
