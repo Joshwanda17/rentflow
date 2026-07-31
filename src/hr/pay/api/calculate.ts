@@ -8,7 +8,7 @@
  */
 import { supabase, unwrap } from '../../api/client';
 import { calculatePayslip } from '../calculator';
-import type { PayComponentInput, RuleVersion, TaxBand } from '../calculator/types';
+import type { Applicability, PayComponentInput, RuleVersion, TaxBand } from '../calculator/types';
 
 export interface RunEventRow {
   id: string;
@@ -243,6 +243,19 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
     throw new Error('No active compensation records. Enter compensation before calculating.');
   }
 
+  // 3b. Open statutory profiles (effective_to is null). Missing row = all apply.
+  const statutoryRows = (unwrap(
+    await supabase
+      .from('hr_pay_statutory_profiles')
+      .select(
+        'staff_id, employment_type, paye_applicable, nssf_applicable, lst_applicable, exemption_basis',
+      )
+      .is('effective_to', null),
+  ) ?? []) as Array<Record<string, any>>;
+
+  const statutoryByStaff = new Map<string, Record<string, any>>();
+  for (const row of statutoryRows) statutoryByStaff.set(row.staff_id as string, row);
+
   // 4. Group by staff and calculate.
   const byStaff = new Map<string, Array<Record<string, any>>>();
   for (const row of compRows) {
@@ -256,6 +269,9 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
     staffId: string;
     earnings: PayComponentInput[];
     otherDeductions: number;
+    applicability: Applicability;
+    employmentType: string | null;
+    exemptionBasis: string | null;
     result: ReturnType<typeof calculatePayslip>;
   }> = [];
 
@@ -279,8 +295,23 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
       )
       .reduce((sum, r) => sum + num(r.amount), 0);
 
-    const result = calculatePayslip(earnings, rule, 0, otherDeductions);
-    computed.push({ staffId, earnings, otherDeductions, result });
+    const profile = statutoryByStaff.get(staffId) ?? null;
+    const applicability: Applicability = {
+      payeApplicable: profile ? profile.paye_applicable !== false : true,
+      nssfApplicable: profile ? profile.nssf_applicable !== false : true,
+      lstApplicable: profile ? profile.lst_applicable !== false : true,
+    };
+
+    const result = calculatePayslip(earnings, rule, 0, otherDeductions, applicability);
+    computed.push({
+      staffId,
+      earnings,
+      otherDeductions,
+      applicability,
+      employmentType: (profile?.employment_type as string | null) ?? null,
+      exemptionBasis: (profile?.exemption_basis as string | null) ?? null,
+      result,
+    });
   }
 
   // 5. Supersede existing payslips, find the next calc_seq.
@@ -330,6 +361,11 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
               earnings: c.earnings,
               otherDeductions: c.otherDeductions,
               ruleCode: rule.code,
+              employment_type: c.employmentType,
+              paye_applicable: c.applicability.payeApplicable,
+              nssf_applicable: c.applicability.nssfApplicable,
+              lst_applicable: c.applicability.lstApplicable,
+              exemption_basis: c.exemptionBasis,
             }),
           ),
           calculation_trace: JSON.parse(JSON.stringify(c.result.trace)),
