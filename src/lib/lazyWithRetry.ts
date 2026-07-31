@@ -60,6 +60,29 @@ function hasValidDefault<T extends ComponentType<any>>(
   return typeof candidate === "function" || typeof candidate === "object";
 }
 
+/**
+ * Some bundler/chunk edge cases (interop wrappers, namespace re-exports) hand us
+ * a module whose `default` is missing even though the component is present as a
+ * named export. Recover by picking the single component-like export instead of
+ * crashing the whole route to a blank screen.
+ */
+function coerceModule<T extends ComponentType<any>>(
+  mod: any,
+): { default: T } | null {
+  if (!mod) return null;
+  if (hasValidDefault(mod)) return mod as { default: T };
+  // CJS/interop wrapper: the real module namespace lives under `default`.
+  const inner = mod.default;
+  if (inner && typeof inner === "object" && hasValidDefault(inner)) {
+    return inner as { default: T };
+  }
+  const candidates = Object.keys(mod).filter(
+    (k) => k !== "default" && typeof mod[k] === "function" && /^[A-Z]/.test(k),
+  );
+  if (candidates.length === 1) return { default: mod[candidates[0]] as T };
+  return null;
+}
+
 function next() {
   if (active >= getImportConcurrency()) return;
   const job = queue.shift();
@@ -103,7 +126,8 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     for (let i = 0; i <= retries; i++) {
       try {
         const mod = await queuedImport(factory);
-        if (!hasValidDefault(mod)) {
+        const coerced = coerceModule<T>(mod);
+        if (!coerced) {
           // A resolved module with an undefined default is not a transient
           // network failure — it is almost always a stale/rotated chunk left
           // over from a previous deploy. Retrying re-reads the same cached
@@ -113,7 +137,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
           reloadOnceForStaleChunk();
           throw new Error("Invalid lazy module: missing React default export");
         }
-        return mod;
+        return coerced;
       } catch (e) {
         lastErr = e;
         // Linear backoff: 400ms, 800ms
@@ -143,7 +167,8 @@ export function optionalLazyWithRetry<T extends ComponentType<any>>(
       for (let i = 0; i <= retries; i++) {
         try {
           const mod = await queuedImport(factory);
-          if (hasValidDefault(mod)) return mod;
+          const coerced = coerceModule<T>(mod);
+          if (coerced) return coerced;
           throw new Error(`Optional lazy module ${label} has no React default export`);
         } catch (e) {
           lastErr = e;
