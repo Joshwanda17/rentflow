@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ReactNode } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, ReactNode } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth, type AppRole } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
@@ -13,6 +13,10 @@ import type { SidebarSection, SidebarItem } from './executiveSidebarConfig';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { GlossaryButton } from '@/components/shared/GlossaryButton';
 import { MissionBanner } from '@/components/mission/MissionBanner';
+
+/** Shared "My Work" tab, available on every executive dashboard. Lazy so
+ *  dashboards that never open the tab do not pay for it. */
+const MyWork = lazy(() => import('@/hr/components/MyWork'));
 
 
 interface ExecutiveDashboardLayoutProps {
@@ -399,7 +403,13 @@ export default function ExecutiveDashboardLayout({
           {activeTab !== 'mission-goals' && (
             <MissionBanner dashboardRole={role} className="mb-4" />
           )}
-          {children}
+          {activeTab === 'my-work' ? (
+            <Suspense fallback={null}>
+              <MyWork embedded />
+            </Suspense>
+          ) : (
+            children
+          )}
         </main>
       </div>
 
