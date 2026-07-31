@@ -880,6 +880,7 @@ export default function PayRuns() {
                   <TableHead>Status</TableHead>
                   <TableHead>Prepared at</TableHead>
                   <TableHead className="text-right">Net total</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -904,12 +905,21 @@ export default function PayRuns() {
                     </TableCell>
                     <TableCell>{formatDate(r.prepared_at)}</TableCell>
                     <TableCell className="text-right">{formatNet(r.total_net)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={`/hr/pay/runs/${r.id}`}>Open run</Link>
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
           <p className="mt-3 text-xs text-muted-foreground">
+            Calculate, submit for approval, release and lock all happen inside a run. Open a run to
+            act on it.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Provisional runs were computed against a rule set that has not been confirmed by a tax
             advisor. They are tracked for settlement once a verified version is loaded.
           </p>
