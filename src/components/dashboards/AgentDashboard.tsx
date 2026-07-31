@@ -63,7 +63,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
-import { WeeklyListingMissionCard } from '@/components/agent/WeeklyListingMissionCard';
+import { ServiceCenterQualificationCard } from '@/components/agent/ServiceCenterQualificationCard';
 import { LastWeekWinnerOverlay } from '@/components/agent/LastWeekWinnerOverlay';
 import { SubAgentInviteLinkDialog } from '@/components/agent/SubAgentInviteLinkDialog';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
@@ -1038,18 +1038,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
         {activeTab === 'home' && !isMerchant && (
           <div className={cn("space-y-4", tabAnimClass)}>
-            {/* Weekly Listing Mission — recruit sub-agents, list verified houses, earn */}
+            {/* Free Service Center qualification — permanent milestone tracker */}
             {!isMerchant && (
               <>
               <LastWeekWinnerOverlay />
-              <WeeklyListingMissionCard
-                agentId={user.id}
-                onInvite={() => { hapticTap(); setSubAgentLinkOpen(true); }}
-                onViewTeam={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
-                onHelpList={() => { hapticTap(); setSubAgentsSheetOpen(true); }}
-                onViewEarnings={() => { hapticTap(); setSlideDirection('left'); setActiveTab('money'); }}
-                onViewLeaderboard={() => { hapticTap(); navigate('/dashboard/agents/leaderboard'); }}
-              />
+              <ServiceCenterQualificationCard agentId={user.id} />
               </>
             )}
 

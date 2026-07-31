@@ -1,0 +1,1 @@
+- [Free Service Center qualification](mem://features/agent/free-service-center-qualification) — permanent milestone: 20 qualifying sub-agents (each with an active tenant) + 5 personal active tenants unlocks a free service center request
