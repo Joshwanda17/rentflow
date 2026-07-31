@@ -27004,25 +27004,16 @@ export type Database = {
         Args: { p_dry_run?: boolean; p_user_id: string }
         Returns: Json
       }
-      apply_portfolio_renewal:
-        | {
-            Args: {
-              p_portfolio_id: string
-              p_reason?: string
-              p_renewed_by: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_is_auto?: boolean
-              p_portfolio_id: string
-              p_reason?: string
-              p_renewed_by: string
-              p_source?: string
-            }
-            Returns: Json
-          }
+      apply_portfolio_renewal: {
+        Args: {
+          p_is_auto?: boolean
+          p_portfolio_id: string
+          p_reason?: string
+          p_renewed_by: string
+          p_source?: string
+        }
+        Returns: Json
+      }
       apply_tier_capabilities: {
         Args: {
           _actor: string
