@@ -59,3 +59,5 @@
 - [Deposit match alerts](mem://features/financial-ops/deposit-match-alerts) — configurable-window ops email alerts when a deposit submission or incoming email receipt fails to match
 - [Daily CTO Report](mem://features/cto/daily-cto-report) — 14-section executive technology report emailed 00:00 EAT (get_cto_daily_report RPC + daily-cto-report edge fn + cron)
 - [Tenant Ops geo drill-down rejected](mem://constraints/tenant-ops-no-geo-drilldown) — Continent→Country→Region→District→Agent analytics centre reverted 2026-07-30; Tenant Ops keeps only New + Classic modes
+
+- [House verification bonus = UGX 2,000](mem://features/agent/house-verification-bonus) — Verified house listing pays the agent exactly UGX 2,000 (`pay_agent_house_verified_bonus`); `credit-listing-bonus` LISTING_BONUS must stay 2000 (was wrongly 5000 on 2026-07-23); no instant listed-reward ever; never backfill past bonuses
