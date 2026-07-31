@@ -10934,6 +10934,82 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_pay_disbursements: {
+        Row: {
+          amount: number
+          attempted_at: string | null
+          created_at: string
+          currency: string
+          error_text: string | null
+          id: string
+          idempotency_key: string
+          ledger_reference_id: string | null
+          payslip_id: string
+          posted_at: string | null
+          released_by: string | null
+          run_id: string
+          staff_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          attempted_at?: string | null
+          created_at?: string
+          currency?: string
+          error_text?: string | null
+          id?: string
+          idempotency_key: string
+          ledger_reference_id?: string | null
+          payslip_id: string
+          posted_at?: string | null
+          released_by?: string | null
+          run_id: string
+          staff_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          attempted_at?: string | null
+          created_at?: string
+          currency?: string
+          error_text?: string | null
+          id?: string
+          idempotency_key?: string
+          ledger_reference_id?: string | null
+          payslip_id?: string
+          posted_at?: string | null
+          released_by?: string | null
+          run_id?: string
+          staff_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_disbursements_payslip_id_fkey"
+            columns: ["payslip_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_payslips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_disbursements_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_disbursements_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_pay_exports: {
         Row: {
           content_hash: string
@@ -31038,6 +31114,19 @@ export type Database = {
           total_employer_cost: number
           total_gross: number
           total_net: number
+        }[]
+      }
+      hr_pay_release_preview: {
+        Args: { _run_id: string }
+        Returns: {
+          blocker: string
+          disb_status: string
+          has_wallet: boolean
+          net: number
+          payslip_id: string
+          staff_id: string
+          staff_ref: string
+          user_id: string
         }[]
       }
       hr_pay_separation_ok: {
