@@ -197,6 +197,7 @@ const HRRecruitmentPage = lazy(() => import('./hr/pages/Recruitment'));
 const HRMetricDefinitionsPage = lazy(() => import('./hr/pages/MetricDefinitions'));
 const HRMyWorkPage = lazy(() => import('./hr/pages/MyWork'));
 const HRExecutiveBriefPage = lazy(() => import('./hr/pages/ExecutiveBrief'));
+const HRLandlordAgentsKpiPage = lazy(() => import('./hr/pages/LandlordAgentsKpi'));
 const HRStaffScorecardPage = lazy(() => import('./hr/pages/StaffScorecard'));
 const HREmployeeProfilePage = lazy(() => import('./pages/hr/EmployeeProfile'));
 const DirectorDashboardPage = lazy(() => import('./pages/director/Dashboard'));
@@ -581,6 +582,7 @@ function AppRoutes() {
           <Route path="/hr/dashboard/tasks/:id" element={<HRSignedInRoute><HRTaskDetailPage /></HRSignedInRoute>} />
           <Route path="/hr/dashboard/my-work" element={<HRSignedInRoute><HRMyWorkPage /></HRSignedInRoute>} />
           <Route path="/hr/dashboard/executive-brief" element={<HRSignedInRoute><HRExecutiveBriefPage /></HRSignedInRoute>} />
+          <Route path="/hr/dashboard/landlord-agents-kpi" element={<HRSignedInRoute><HRLandlordAgentsKpiPage /></HRSignedInRoute>} />
           <Route path="/hr/dashboard/scorecard/:staffId" element={<HRSignedInRoute><HRStaffScorecardPage /></HRSignedInRoute>} />
           <Route path="/hr/profiles/:userId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HREmployeeProfilePage /></RoleGuard>} />
           <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'employee']}><AdminDashboardPage /></RoleGuard>} />
