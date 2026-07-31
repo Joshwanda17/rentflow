@@ -1,12 +1,5 @@
 import type { PayComponentInput, RuleVersion } from './types';
 
-export interface TestCaseExpectation {
-  paye: number;
-  nssfEmployee: number;
-  nssfEmployer: number;
-  net: number;
-  employerCost: number;
-}
 
 export const PROVISIONAL_RULE: RuleVersion = {
   code: 'UG-2026-07-PROV',
@@ -29,7 +22,13 @@ export const TEST_CASES: {
   name: string;
   inputs: PayComponentInput[];
   lstMonthly: number;
-  expected: TestCaseExpectation;
+  expected: {
+    paye: number;
+    nssfEmployee: number;
+    nssfEmployer: number;
+    net: number;
+    employerCost: number;
+  };
 }[] = [
   {
     id: 1,
