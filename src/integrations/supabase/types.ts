@@ -10993,6 +10993,45 @@ export type Database = {
           },
         ]
       }
+      hr_pay_periods: {
+        Row: {
+          auto_prepare_at: string | null
+          auto_release_at: string | null
+          code: string
+          created_at: string
+          created_by: string | null
+          cut_off_date: string
+          id: string
+          pay_date: string
+          period_month: string
+          status: string
+        }
+        Insert: {
+          auto_prepare_at?: string | null
+          auto_release_at?: string | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          cut_off_date: string
+          id?: string
+          pay_date: string
+          period_month: string
+          status?: string
+        }
+        Update: {
+          auto_prepare_at?: string | null
+          auto_release_at?: string | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          cut_off_date?: string
+          id?: string
+          pay_date?: string
+          period_month?: string
+          status?: string
+        }
+        Relationships: []
+      }
       hr_pay_rule_versions: {
         Row: {
           code: string
@@ -11052,6 +11091,152 @@ export type Database = {
           verified_by_name?: string | null
         }
         Relationships: []
+      }
+      hr_pay_run_events: {
+        Row: {
+          actor: string | null
+          actor_position_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          note: string | null
+          run_id: string
+        }
+        Insert: {
+          actor?: string | null
+          actor_position_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          note?: string | null
+          run_id: string
+        }
+        Update: {
+          actor?: string | null
+          actor_position_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          note?: string | null
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_run_events_actor_position_id_fkey"
+            columns: ["actor_position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_run_events_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_pay_runs: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_position_id: string | null
+          auto_release_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          locked_at: string | null
+          period_id: string
+          prepared_at: string | null
+          prepared_by: string | null
+          prepared_position_id: string | null
+          release_armed_at: string | null
+          release_armed_by: string | null
+          rule_status_at_run: string
+          rule_version_id: string
+          run_type: string
+          status: string
+          total_employer_cost: number | null
+          total_gross: number | null
+          total_net: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_position_id?: string | null
+          auto_release_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          locked_at?: string | null
+          period_id: string
+          prepared_at?: string | null
+          prepared_by?: string | null
+          prepared_position_id?: string | null
+          release_armed_at?: string | null
+          release_armed_by?: string | null
+          rule_status_at_run?: string
+          rule_version_id: string
+          run_type?: string
+          status?: string
+          total_employer_cost?: number | null
+          total_gross?: number | null
+          total_net?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_position_id?: string | null
+          auto_release_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          locked_at?: string | null
+          period_id?: string
+          prepared_at?: string | null
+          prepared_by?: string | null
+          prepared_position_id?: string | null
+          release_armed_at?: string | null
+          release_armed_by?: string | null
+          rule_status_at_run?: string
+          rule_version_id?: string
+          run_type?: string
+          status?: string
+          total_employer_cost?: number | null
+          total_gross?: number | null
+          total_net?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_runs_approved_position_id_fkey"
+            columns: ["approved_position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_runs_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_runs_prepared_position_id_fkey"
+            columns: ["prepared_position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_runs_rule_version_id_fkey"
+            columns: ["rule_version_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_rule_versions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_pay_statutory_ids: {
         Row: {
@@ -30532,6 +30717,20 @@ export type Database = {
       hr_pay_is_rule_reader: { Args: never; Returns: boolean }
       hr_pay_my_positions: { Args: never; Returns: string[] }
       hr_pay_position_for: { Args: { _fn: string }; Returns: string }
+      hr_pay_provisional_exposure: {
+        Args: never
+        Returns: {
+          paid_at: string
+          period_code: string
+          rule_effective_from: string
+          rule_version_code: string
+          run_id: string
+          run_status: string
+          total_employer_cost: number
+          total_gross: number
+          total_net: number
+        }[]
+      }
       hr_pay_separation_ok: {
         Args: {
           _approved_by: string
