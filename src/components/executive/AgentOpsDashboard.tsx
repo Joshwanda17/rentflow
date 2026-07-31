@@ -22,6 +22,7 @@ import { AgentLifecyclePipeline } from './AgentLifecyclePipeline';
 import { AgentTaskManager } from './AgentTaskManager';
 import { AgentEscalationQueue } from './AgentEscalationQueue';
 import { ServiceCentreVerificationQueue } from './ServiceCentreVerificationQueue';
+import { ServiceCenterRequestsQueue } from './ServiceCenterRequestsQueue';
 import { ServiceCentreOverview } from './service-centres/ServiceCentreOverview';
 import { ServiceCentreDirectory } from './service-centres/ServiceCentreDirectory';
 import { ServiceCentrePayouts } from './service-centres/ServiceCentrePayouts';
@@ -91,6 +92,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'service-centres', icon: Building2, label: 'Verification Queue', color: 'bg-orange-500', priority: true },
   { key: 'sc-directory', icon: MapPinned, label: 'Centers Directory', color: 'bg-orange-400' },
   { key: 'sc-payouts', icon: Banknote, label: 'Center Payouts', color: 'bg-orange-700' },
+  { key: 'sc-requests', icon: Store, label: 'Free Center Requests', color: 'bg-orange-800', priority: true },
   { key: 'sc-operating-model', icon: Workflow, label: 'Operating Model', color: 'bg-amber-700' },
   { key: 'sub-agents', icon: UsersRound, label: 'Sub-Agents', color: 'bg-amber-600', priority: true },
   { key: 'promote-tenant', icon: ArrowLeftRight, label: 'Tenant → Sub-Agent', color: 'bg-fuchsia-600', priority: true },
@@ -236,6 +238,7 @@ export function AgentOpsDashboard() {
       case 'sc-overview': return <ServiceCentreOverview />;
       case 'sc-directory': return <ServiceCentreDirectory />;
       case 'sc-payouts': return <ServiceCentrePayouts />;
+      case 'sc-requests': return <ServiceCenterRequestsQueue />;
       case 'sc-operating-model': return <ServiceCentreOperatingModel />;
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'promote-tenant': return <TenantToSubAgentPanel />;
