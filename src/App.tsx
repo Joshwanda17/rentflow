@@ -577,22 +577,22 @@ function AppRoutes() {
           <Route path="/coo/dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto']} requiredPermission="coo"><COODashboardPage /></RoleGuard>} />
           <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'cto']} requiredPermission="cmo"><CMODashboardPage /></RoleGuard>} />
           <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'cto']} requiredPermission="crm"><CRMDashboardPage /></RoleGuard>} />
-          <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRDashboardPage /></RoleGuard>} />
+          <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRDashboardPage /></RoleGuard>} />
           <Route path="/hr/pay/calculator-check" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><CalculatorSelfCheck /></RoleGuard>} />
           <Route path="/hr/pay/config" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollConfigPage /></RoleGuard>} />
           <Route path="/hr/pay/compensation" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollCompensationPage /></RoleGuard>} />
           <Route path="/hr/pay/runs" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayRunsPage /></RoleGuard>} />
           <Route path="/hr/pay/runs/:runId" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayRunDetailPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRTasksPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/staff" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRStaffPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/productivity" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRProductivityPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/recruitment" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRRecruitmentPage /></RoleGuard>} />
-          <Route path="/hr/dashboard/metrics" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRMetricDefinitionsPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRTasksPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/staff" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRStaffPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/productivity" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRProductivityPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/recruitment" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRRecruitmentPage /></RoleGuard>} />
+          <Route path="/hr/dashboard/metrics" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRMetricDefinitionsPage /></RoleGuard>} />
           <Route path="/hr/dashboard/tasks/:id" element={<HRSignedInRoute><HRTaskDetailPage /></HRSignedInRoute>} />
           <Route path="/hr/dashboard/my-work" element={<HRSignedInRoute><HRMyWorkPage /></HRSignedInRoute>} />
           <Route path="/hr/dashboard/executive-brief" element={<HRSignedInRoute><HRExecutiveBriefPage /></HRSignedInRoute>} />
           <Route path="/hr/dashboard/scorecard/:staffId" element={<HRSignedInRoute><HRStaffScorecardPage /></HRSignedInRoute>} />
-          <Route path="/hr/profiles/:userId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HREmployeeProfilePage /></RoleGuard>} />
+          <Route path="/hr/profiles/:userId" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HREmployeeProfilePage /></RoleGuard>} />
           <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'employee']}><AdminDashboardPage /></RoleGuard>} />
           <Route path="/director/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']} requiredPermission="director"><DirectorDashboardPage /></RoleGuard>} />
           <Route path="/admin/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']} requiredPermission="company-ops"><AdminUsersPage /></RoleGuard>} />
