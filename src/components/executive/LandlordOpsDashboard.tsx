@@ -3510,7 +3510,7 @@ export function LandlordOpsDashboard() {
               </Button>
             </div>
           )}
-          {scopeListings.length === 0 && (
+          {scopeListings.length === 0 && !isHouseSearchFetching && (
             <div className="text-center py-12">
               <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
               <p className="font-semibold">{houseStatusFilter === 'all' ? 'No houses found.' : 'No listings in this view.'}</p>
