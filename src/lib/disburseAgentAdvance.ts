@@ -26,6 +26,10 @@ export async function disburseAgentAdvanceRequest(opts: {
   repaymentFrequency?: RepaymentFrequency;
   notes?: string | null;
   skipReason?: string | null;
+  /** 'wallet_daily' (default daily wallet sweep) or 'roi' (recover a % of each ROI payout). */
+  recoverySource?: 'wallet_daily' | 'roi';
+  /** Percentage of each ROI payout to recover (only used when recoverySource === 'roi'). */
+  roiRecoveryPercent?: number;
 }) {
   const { req, actorId } = opts;
   const principal = Number(opts.principal ?? req.principal);
@@ -94,6 +98,8 @@ export async function disburseAgentAdvanceRequest(opts: {
     repayment_frequency: repaymentFrequency,
     installment_amount: installment,
     expires_at: expiresAt.toISOString(),
+    recovery_source: opts.recoverySource ?? 'wallet_daily',
+    roi_recovery_percent: opts.recoverySource === 'roi' ? Number(opts.roiRecoveryPercent ?? 0) : 0,
   } as any);
   if (advErr) throw advErr;
 
