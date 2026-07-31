@@ -67,6 +67,8 @@ interface AdvanceRow {
   issued_at: string;
   expires_at: string;
   issued_by: string | null;
+  recovery_source: string | null;
+  roi_recovery_percent: number | null;
   profiles: { full_name: string | null; phone: string | null } | null;
 }
 
@@ -98,7 +100,7 @@ export function DisbursedAdvancesRegister() {
       const { data, error } = await supabase
         .from('agent_advances')
         .select(
-          'id, agent_id, principal, outstanding_balance, arrears_balance, access_fee, access_fee_collected, access_fee_status, registration_fee, monthly_rate, cycle_days, daily_installment, status, issued_at, expires_at, issued_by, profiles:agent_id (full_name, phone)',
+          'id, agent_id, principal, outstanding_balance, arrears_balance, access_fee, access_fee_collected, access_fee_status, registration_fee, monthly_rate, cycle_days, daily_installment, status, issued_at, expires_at, issued_by, recovery_source, roi_recovery_percent, profiles:agent_id (full_name, phone)',
         )
         .order('issued_at', { ascending: false });
       if (error) throw error;
@@ -347,6 +349,12 @@ function DisbursementDetailDrawer({ advance, onClose, onCancel }: { advance: Adv
     ['Monthly Rate', `${Math.round(Number(advance.monthly_rate || 0) * 100)}%`],
     ['Cycle Days', `${advance.cycle_days ?? '—'} days`],
     ['Fee Status', advance.access_fee_status || '—'],
+    [
+      'Recovery Source',
+      advance.recovery_source === 'roi'
+        ? `${Number(advance.roi_recovery_percent || 0)}% of each ROI payout`
+        : 'Daily wallet sweep',
+    ],
   ];
 
   return (
