@@ -98,6 +98,16 @@ Deno.serve(async (req) => {
     // Persist every contract field the partner filled in on their master
     // partner_agreements row so the generated PDF prefills correctly.
     try {
+      // The partnership amount on the agreement is the portfolio's investment
+      // amount — without it the generated contract reads "UGX 0 / Zero
+      // Shillings Only".
+      const { data: agPortfolio } = await admin
+        .from("investor_portfolios")
+        .select("investment_amount")
+        .eq("id", portfolioId)
+        .maybeSingle();
+      const agAmount = Number(agPortfolio?.investment_amount || 0);
+
       const agPatch: Record<string, unknown> = {};
       if (nationalId) agPatch.national_id = nationalId;
       if (address) agPatch.address = address;
@@ -117,10 +127,16 @@ Deno.serve(async (req) => {
 
       const { data: existingAg } = await admin
         .from("partner_agreements")
-        .select("id")
+        .select("id, partnership_amount")
         .eq("partner_id", caller.id)
         .maybeSingle();
       if (existingAg?.id) {
+        // Only backfill the amount when the stored row has none — never
+        // overwrite an amount an executive already countersigned.
+        if (agAmount > 0 && !(Number(existingAg.partnership_amount) > 0)) {
+          agPatch.partnership_amount = agAmount;
+          agPatch.partnership_amount_words = numberToWords(agAmount);
+        }
         if (Object.keys(agPatch).length > 0) {
           await admin.from("partner_agreements").update(agPatch).eq("id", existingAg.id);
         }
@@ -132,6 +148,8 @@ Deno.serve(async (req) => {
           full_name: prof?.full_name || null,
           phone: prof?.phone || null,
           email: prof?.email || null,
+          partnership_amount: agAmount,
+          partnership_amount_words: numberToWords(agAmount),
           status: 'pending',
           reference: `PA-${caller.id.slice(0, 8).toUpperCase()}`,
           ...agPatch,
