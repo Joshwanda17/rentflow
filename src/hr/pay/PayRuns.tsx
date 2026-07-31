@@ -1129,6 +1129,8 @@ export function PayRunDetailPlaceholder() {
 
           <PayrollRegister runId={detail.id} />
 
+          <ReleaseSection runId={detail.id} status={detail.status} />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Event timeline</CardTitle>
