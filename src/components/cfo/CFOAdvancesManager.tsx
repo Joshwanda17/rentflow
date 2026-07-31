@@ -19,6 +19,7 @@ import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
 import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
 import { CFOInitiateAdvanceDialog } from '@/components/cfo/CFOInitiateAdvanceDialog';
 import { RecordAdvancePaymentDialog } from '@/components/cfo/RecordAdvancePaymentDialog';
+import { AdvancePaymentSearchDialog } from '@/components/cfo/AdvancePaymentSearchDialog';
 import { CancelAdvanceDialog } from '@/components/cfo/CancelAdvanceDialog';
 import { EditAdvanceTermsDialog } from '@/components/advances/EditAdvanceTermsDialog';
 import { DailyRecoveryRateCard } from '@/components/cfo/DailyRecoveryRateCard';
@@ -50,6 +51,7 @@ export function CFOAdvancesManager() {
   const [exporting, setExporting] = useState(false);
   const [exportingPayments, setExportingPayments] = useState(false);
   const [paymentAdvance, setPaymentAdvance] = useState<any | null>(null);
+  const [paymentSearchOpen, setPaymentSearchOpen] = useState(false);
   const [termsAdvance, setTermsAdvance] = useState<any | null>(null);
   const [cancelAdvance, setCancelAdvance] = useState<any | null>(null);
 
@@ -209,6 +211,14 @@ export function CFOAdvancesManager() {
             disabled={exportingPayments || filtered.length === 0}
           >
             <FileText className="h-4 w-4" /> {exportingPayments ? 'Exporting...' : 'Export All Payments'}
+          </Button>
+          <Button
+            onClick={() => setPaymentSearchOpen(true)}
+            size="sm"
+            variant="secondary"
+            className="gap-1"
+          >
+            <Receipt className="h-4 w-4" /> Record Payment
           </Button>
           <Button onClick={() => setIssueOpen(true)} size="sm" className="gap-1">
             <Plus className="h-4 w-4" /> Issue Advance
@@ -461,6 +471,13 @@ export function CFOAdvancesManager() {
         open={!!paymentAdvance}
         onOpenChange={(o) => { if (!o) setPaymentAdvance(null); }}
         onSuccess={() => { refetch(); setPaymentAdvance(null); }}
+      />
+
+      <AdvancePaymentSearchDialog
+        open={paymentSearchOpen}
+        onOpenChange={setPaymentSearchOpen}
+        advances={advances}
+        onSelect={(a) => setPaymentAdvance(a)}
       />
 
       <CancelAdvanceDialog
