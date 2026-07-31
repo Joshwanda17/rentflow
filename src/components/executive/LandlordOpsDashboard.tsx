@@ -1695,7 +1695,18 @@ export function LandlordOpsDashboard() {
     const ok = results.filter(r => r.ok).length;
     const failed = results.length - ok;
     setBulkBusy(null);
-    clearVerifySelection();
+    setBulkProgress(null);
+    // Keep failed listings selected so the operator can retry just those.
+    if (failed === 0) {
+      clearVerifySelection();
+    } else {
+      const okIds = new Set(results.filter(r => r.ok).map(r => r.id));
+      setVerifySelectedIds(prev => {
+        const next = new Set(prev);
+        for (const id of okIds) next.delete(id);
+        return next;
+      });
+    }
     setBulkResult({ action: nextHidden ? 'Hide houses' : 'Unhide houses', results });
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} ${nextHidden ? 'hidden' : 'shown'}` : `${ok} done, ${failed} failed`,
