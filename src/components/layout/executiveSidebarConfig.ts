@@ -272,6 +272,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Internship Applications', icon: GraduationCap, id: 'internships', access: HR_ACCESS },
         { label: 'Requisitions', icon: ClipboardList, id: 'requisitions', access: HR_ACCESS },
         { label: 'Payroll config', icon: Banknote, id: 'hr-pay-config', route: '/hr/pay/config', access: HR_ACCESS },
+        { label: 'Compensation', icon: Banknote, id: 'hr-pay-compensation', route: '/hr/pay/compensation', access: HR_ACCESS },
       ],
     },
     {
