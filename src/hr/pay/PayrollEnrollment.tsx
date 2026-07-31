@@ -384,6 +384,9 @@ export default function PayrollEnrollment() {
                     <TableHead>Position</TableHead>
                     <TableHead>Employment type</TableHead>
                     <TableHead className="text-right">Basic pay</TableHead>
+                    <TableHead className="text-right">Allowances</TableHead>
+                    <TableHead className="text-right">Deductions</TableHead>
+                    <TableHead className="text-right">Gross</TableHead>
                     <TableHead>Effective from</TableHead>
                     <TableHead>PAYE</TableHead>
                     <TableHead>NSSF</TableHead>
@@ -395,7 +398,7 @@ export default function PayrollEnrollment() {
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={12} className="p-6 text-sm text-muted-foreground">
+                      <TableCell colSpan={15} className="p-6 text-sm text-muted-foreground">
                         No active staff members.
                       </TableCell>
                     </TableRow>
@@ -443,22 +446,48 @@ export default function PayrollEnrollment() {
                         </TableCell>
                         <TableCell className="text-right">
                           {row.basicAmount === null ? (
-                            <button
-                              type="button"
-                              onClick={() => openPay(row)}
-                              className="text-xs font-medium text-destructive/70 underline-offset-2 hover:underline"
-                            >
-                              not set
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openPay(row)}
+                                className="text-xs font-medium text-destructive/70 underline-offset-2 hover:underline"
+                              >
+                                not set
+                              </button>
+                              <span className="hidden text-xs print:inline">not set</span>
+                            </>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => openPay(row)}
-                              className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
-                            >
-                              {reveal ? `UGX ${formatAmount(row.basicAmount)}` : '••••••'}
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openPay(row)}
+                                className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
+                              >
+                                {reveal ? `UGX ${formatAmount(row.basicAmount)}` : '••••••'}
+                              </button>
+                              <span className="hidden font-mono text-sm tabular-nums print:inline">
+                                {reveal ? formatAmount(row.basicAmount) : '••••••'}
+                              </span>
+                            </>
                           )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm tabular-nums">
+                          {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => void openDeductions(row)}
+                            className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
+                          >
+                            {reveal ? formatAmount(row.deductionsTotal) : '••••••'}
+                          </button>
+                          <span className="hidden font-mono text-sm tabular-nums print:inline">
+                            {reveal ? formatAmount(row.deductionsTotal) : '••••••'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm tabular-nums">
+                          {reveal ? formatAmount(row.grossTotal) : '••••••'}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {formatDate(row.basicEffectiveFrom)}
