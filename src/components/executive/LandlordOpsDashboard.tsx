@@ -3008,7 +3008,7 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{totalFiltered.toLocaleString()} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
         </div>
 
         {/* Thumb-friendly status filter chips */}
@@ -3070,7 +3070,9 @@ export function LandlordOpsDashboard() {
         </div>
         {debouncedVerifySearch.length >= 2 && (
           <p className="text-[11px] text-muted-foreground -mt-1 pl-1">
-            {isGlobalSearching ? 'Searching all agents & listings…' : `Searching across all listings (not just the latest ${rows.length}).`}
+            {isHouseSearchFetching
+              ? 'Searching all agents & listings…'
+              : `${totalFiltered.toLocaleString()} match${totalFiltered === 1 ? '' : 'es'} across every listing in this scope.`}
           </p>
         )}
 
