@@ -61,3 +61,4 @@
 - [Tenant Ops geo drill-down rejected](mem://constraints/tenant-ops-no-geo-drilldown) — Continent→Country→Region→District→Agent analytics centre reverted 2026-07-30; Tenant Ops keeps only New + Classic modes
 
 - [House verification bonus = UGX 2,000](mem://features/agent/house-verification-bonus) — Verified house listing pays the agent exactly UGX 2,000 (`pay_agent_house_verified_bonus`); `credit-listing-bonus` LISTING_BONUS must stay 2000 (was wrongly 5000 on 2026-07-23); no instant listed-reward ever; never backfill past bonuses
+- [Consolidation backlog](mem://architecture/consolidation-backlog) — 11 CTO-report shortcomings (cache-vs-ledger, repair jobs, cron coupling, function sprawl, slow queries, frontend robustness, auth complexity, reporting cost, modularity, domain boundaries, tech debt); MUST be addressed ONE AT A TIME
