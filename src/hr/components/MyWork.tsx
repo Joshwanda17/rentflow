@@ -418,7 +418,7 @@ export default function MyWork({ embedded = false }: MyWorkProps) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className={embedded ? 'space-y-5' : 'space-y-5'}>
       {unstarted.length > 0 && (
         <Card className="border-primary/50">
           <CardHeader className="pb-2">
