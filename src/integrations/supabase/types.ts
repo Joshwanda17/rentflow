@@ -30216,6 +30216,22 @@ export type Database = {
           verified: number
         }[]
       }
+      ops_house_quick_filter_counts: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          all_scope: number
+          has_gps: number
+          has_images: number
+          has_landlord: number
+          has_lc1: number
+          no_landlord: number
+        }[]
+      }
       ops_link_agent_landlord: {
         Args: { p_agent_id: string; p_landlord_id: string; p_reason: string }
         Returns: Json
@@ -30317,21 +30333,38 @@ export type Database = {
         }
         Returns: Json
       }
-      ops_search_house_listings: {
-        Args: {
-          p_date_from?: string
-          p_date_to?: string
-          p_limit?: number
-          p_offset?: number
-          p_search?: string
-          p_sort?: string
-          p_status?: string
-        }
-        Returns: {
-          listing: Json
-          total_count: number
-        }[]
-      }
+      ops_search_house_listings:
+        | {
+            Args: {
+              p_date_from?: string
+              p_date_to?: string
+              p_limit?: number
+              p_offset?: number
+              p_search?: string
+              p_sort?: string
+              p_status?: string
+            }
+            Returns: {
+              listing: Json
+              total_count: number
+            }[]
+          }
+        | {
+            Args: {
+              p_date_from?: string
+              p_date_to?: string
+              p_limit?: number
+              p_offset?: number
+              p_quick?: string
+              p_search?: string
+              p_sort?: string
+              p_status?: string
+            }
+            Returns: {
+              listing: Json
+              total_count: number
+            }[]
+          }
       ops_search_landlords: {
         Args: {
           p_cursor_id?: string

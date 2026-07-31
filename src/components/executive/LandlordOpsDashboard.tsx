@@ -956,7 +956,7 @@ export function LandlordOpsDashboard() {
     isFetchingNextPage: isFetchingMoreHouses,
     hasNextPage: hasMoreHousePages,
   } = useInfiniteQuery({
-    queryKey: ['ops-house-search', houseStatusFilter, serverSearchTerm, verifyDateFromIso, verifyDateToIso, verifySort],
+    queryKey: ['ops-house-search', houseStatusFilter, verifyFilter, serverSearchTerm, verifyDateFromIso, verifyDateToIso, verifySort],
     enabled: view === 'verify',
     staleTime: 30_000,
     initialPageParam: 0,
@@ -970,6 +970,7 @@ export function LandlordOpsDashboard() {
         p_sort: verifySort,
         p_limit: VERIFY_PAGE_SIZE,
         p_offset: offset,
+        p_quick: verifyFilter,
       });
       if (error) throw error;
       const pageRows = (data || []) as any[];
@@ -1010,6 +1011,31 @@ export function LandlordOpsDashboard() {
         hidden: Number(r.hidden || 0),
         rejected: Number(r.rejected || 0),
         all: Number(r.all_houses || 0),
+      };
+    },
+  });
+
+  // True quick-filter totals for the active status scope (server-side).
+  const { data: houseQuickCounts } = useQuery({
+    queryKey: ['ops-house-quick-counts', houseStatusFilter, serverSearchTerm, verifyDateFromIso, verifyDateToIso],
+    enabled: view === 'verify',
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('ops_house_quick_filter_counts', {
+        p_status: houseStatusFilter,
+        p_search: serverSearchTerm,
+        p_date_from: verifyDateFromIso,
+        p_date_to: verifyDateToIso,
+      });
+      if (error) throw error;
+      const r = ((data || []) as any[])[0] || {};
+      return {
+        all: Number(r.all_scope || 0),
+        has_landlord: Number(r.has_landlord || 0),
+        no_landlord: Number(r.no_landlord || 0),
+        has_images: Number(r.has_images || 0),
+        has_gps: Number(r.has_gps || 0),
+        has_lc1: Number(r.has_lc1 || 0),
       };
     },
   });
@@ -2987,14 +3013,8 @@ export function LandlordOpsDashboard() {
     const scopeListings = serverHouseRows.filter(
       l => houseStatusFilter === 'verified' || !optimisticallyVerifiedIds.has(l.id),
     );
-    let filteredHouses = scopeListings;
-
-    // Quick filter chips
-    if (verifyFilter === 'has_landlord') filteredHouses = filteredHouses.filter(h => !!h.landlords);
-    else if (verifyFilter === 'no_landlord') filteredHouses = filteredHouses.filter(h => !h.landlords);
-    else if (verifyFilter === 'has_images') filteredHouses = filteredHouses.filter(h => h.image_urls && h.image_urls.length > 0);
-    else if (verifyFilter === 'has_gps') filteredHouses = filteredHouses.filter(h => h.latitude && h.longitude);
-    else if (verifyFilter === 'has_lc1') filteredHouses = filteredHouses.filter(h => !!h.lc1_chairperson_name);
+    // Quick filters are applied server-side by ops_search_house_listings.
+    const filteredHouses = scopeListings;
 
     // ── Server-side pagination ──
     // totalFiltered is the DB match count for the active scope/search/date.
@@ -3107,13 +3127,7 @@ export function LandlordOpsDashboard() {
         {/* Quick filter chips */}
         <div className="flex gap-1.5 flex-wrap">
           {VERIFY_FILTERS.map(f => {
-            const count =
-              f.value === 'all' ? scopeListings.length :
-              f.value === 'has_landlord' ? scopeListings.filter(h => !!h.landlords).length :
-              f.value === 'no_landlord' ? scopeListings.filter(h => !h.landlords).length :
-              f.value === 'has_images' ? scopeListings.filter(h => h.image_urls && h.image_urls.length > 0).length :
-              f.value === 'has_gps' ? scopeListings.filter(h => h.latitude && h.longitude).length :
-              scopeListings.filter(h => !!h.lc1_chairperson_name).length;
+            const count = houseQuickCounts ? (houseQuickCounts as any)[f.value] ?? 0 : 0;
             const active = verifyFilter === f.value;
             return (
               <button
