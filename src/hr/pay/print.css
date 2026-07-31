@@ -1,0 +1,25 @@
+/* Payslip print stylesheet. Every rule lives inside @media print so no
+   on-screen style is affected. */
+@media print {
+  aside,
+  nav,
+  header nav,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  tr,
+  thead,
+  tbody,
+  tfoot {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
