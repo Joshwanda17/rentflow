@@ -531,6 +531,9 @@ export default function PortfolioCompletion() {
       {/* Sticky submit */}
       <div className="fixed bottom-0 inset-x-0 border-t bg-background/95 backdrop-blur px-4 sm:px-6 py-3 z-30">
         <div className="max-w-lg mx-auto">
+          {formError && (
+            <p className="mb-2 text-xs font-medium text-destructive text-center">{formError}</p>
+          )}
           <Button
             className="w-full h-11"
             size="lg"
