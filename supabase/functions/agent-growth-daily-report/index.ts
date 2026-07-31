@@ -526,7 +526,12 @@ function chunk76(b64: string): string {
 }
 
 async function sendWithAttachment(
-  to: string, subject: string, html: string, pdf: Uint8Array, filename: string,
+  to: string,
+  cc: string[],
+  subject: string,
+  html: string,
+  pdf: Uint8Array,
+  filename: string,
 ): Promise<{ ok: boolean; status: number; raw?: string }> {
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
   const gmailKey = Deno.env.get("GOOGLE_MAIL_API_KEY");
@@ -540,6 +545,7 @@ async function sendWithAttachment(
     : subject;
   const raw = [
     `To: ${to}`,
+    cc.length ? `Cc: ${cc.join(", ")}` : "",
     `Subject: ${encodedSubject}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
