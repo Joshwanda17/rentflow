@@ -51,6 +51,8 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
   const [ratePreset, setRatePreset] = useState('33');
   const [customRate, setCustomRate] = useState('33');
   const [frequency, setFrequency] = useState<RepaymentFrequency>('daily');
+  const [recoverySource, setRecoverySource] = useState<'wallet_daily' | 'roi'>('wallet_daily');
+  const [roiPercent, setRoiPercent] = useState('20');
   const [reason, setReason] = useState('');
   const [confirmAmount, setConfirmAmount] = useState('');
   const [ackRisk, setAckRisk] = useState(false);
@@ -136,12 +138,18 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
     return errs;
   }, [principal]);
 
+  const roiPercentNum = Number(roiPercent);
+  const recoveryValid =
+    recoverySource !== 'roi' ||
+    (Number.isFinite(roiPercentNum) && roiPercentNum > 0 && roiPercentNum <= 100);
+
   const canSubmit =
     !!agent &&
     !checking &&
     blockers.length === 0 &&
     amountErrors.length === 0 &&
     rateValid &&
+    recoveryValid &&
     reason.trim().length >= MIN_REASON &&
     ackRisk &&
     (!overLimit || overrideLimit) &&
