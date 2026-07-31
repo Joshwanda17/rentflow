@@ -35,6 +35,7 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Fixed recipients for the morning report.
 const REPORT_RECIPIENTS = ["benjamin@welile.com", "joshwanda17@gmail.com"];
+const REPORT_CC = ["pexpert46@gmail.com"];
 
 type RGB = [number, number, number];
 
