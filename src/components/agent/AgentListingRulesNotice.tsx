@@ -13,7 +13,8 @@ const NOTICE_DISMISSED_KEY = 'agent-listing-rules-notice-dismissed-v1';
  * Rules surfaced:
  * 1. Every house listing now requires admin verification before it appears
  *    in the public marketplace.
- * 2. Agents earn UGX 1,000 the moment they list a house (before verification).
+ * 2. Agents earn UGX 2,000 ONLY after Landlord Ops verifies the listing
+ *    (no instant reward on posting).
  * 3. If a listing is rejected by Landlord Ops, the agent is charged UGX 2,000.
  * 4. After 3 rejections an agent is automatically blocked from posting for 2 days.
  */
@@ -92,7 +93,7 @@ export default function AgentListingRulesNotice() {
                     <li className="flex items-start gap-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
                       <span className="text-foreground">
-                        <strong>UGX 1,000 reward</strong> — You earn this the moment you list a house, even before it is verified.
+                        <strong>UGX 2,000 on verification</strong> — There is no instant reward for posting. You earn UGX 2,000 only after Landlord Ops verifies your house listing.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
