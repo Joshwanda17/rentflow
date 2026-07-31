@@ -312,11 +312,15 @@ function DisbursementDetailDrawer({ advance, onClose, onCancel }: { advance: Adv
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advance_ledger')
-        .select('id, date, opening_balance, interest_accrued, amount_deducted, closing_balance, deduction_status')
+        .select('id, date, opening_balance, interest_accrued, amount_deducted, closing_balance, deduction_status, recovery_source, roi_amount, recovery_percent')
         .eq('advance_id', advance!.id)
         .order('date', { ascending: false });
       if (error) throw error;
-      return data || [];
+      const rows = data || [];
+      // ROI advances only ever show ROI recovery events — never daily sweep rows
+      return advance?.recovery_source === 'roi'
+        ? rows.filter((r: any) => r.recovery_source === 'roi' && Number(r.amount_deducted || 0) > 0)
+        : rows;
     },
   });
 
@@ -331,13 +335,33 @@ function DisbursementDetailDrawer({ advance, onClose, onCancel }: { advance: Adv
 
   if (!advance) return null;
 
+  const isRoi = advance.recovery_source === 'roi';
   const interest = Math.max(0, Number(advance.outstanding_balance) - Number(advance.principal));
   const totalPayable = Number(advance.principal) + Number(advance.access_fee || 0) + Number(advance.registration_fee || 0);
-  const repaid = Math.max(0, totalPayable - Number(advance.outstanding_balance));
-  const progress = totalPayable > 0 ? Math.min(100, Math.round((repaid / totalPayable) * 100)) : 0;
   const totalDeducted = ledger.reduce((s, l) => s + Number(l.amount_deducted || 0), 0);
+  const outstanding = Number(advance.outstanding_balance);
+  // ROI advances: progress is recovered ÷ (recovered + outstanding) and only moves on ROI recoveries
+  const repaid = isRoi ? totalDeducted : Math.max(0, totalPayable - outstanding);
+  const progressBase = isRoi ? totalDeducted + outstanding : totalPayable;
+  const progress = progressBase > 0 ? Math.min(100, Math.round((repaid / progressBase) * 100)) : 0;
+  const lastRecovery = isRoi ? ledger.find((l) => Number(l.amount_deducted || 0) > 0) : null;
 
-  const rows: Array<[string, React.ReactNode]> = [
+  const rows: Array<[string, React.ReactNode]> = isRoi
+    ? [
+        ['Principal', formatUGX(advance.principal)],
+        ['Access Fee', formatUGX(Number(advance.access_fee || 0))],
+        ['Registration Fee', formatUGX(Number(advance.registration_fee || 0))],
+        ['Total Payable', formatUGX(totalPayable)],
+        ['Recovery Source', 'ROI'],
+        ['ROI Recovery %', `${Number(advance.roi_recovery_percent || 0)}%`],
+        ['Total Recovered from ROI', formatUGX(totalDeducted)],
+        ['Remaining Outstanding', formatUGX(outstanding)],
+        ['Last ROI Recovery', lastRecovery ? format(new Date(lastRecovery.date), 'dd MMM yyyy') : 'None yet'],
+        ['Next Recovery', 'On next successful ROI payout'],
+        ['Monthly Rate', `${Math.round(Number(advance.monthly_rate || 0) * 100)}%`],
+        ['Fee Status', advance.access_fee_status || '—'],
+      ]
+    : [
     ['Principal', formatUGX(advance.principal)],
     ['Access Fee', formatUGX(Number(advance.access_fee || 0))],
     ['Registration Fee', formatUGX(Number(advance.registration_fee || 0))],
@@ -349,12 +373,7 @@ function DisbursementDetailDrawer({ advance, onClose, onCancel }: { advance: Adv
     ['Monthly Rate', `${Math.round(Number(advance.monthly_rate || 0) * 100)}%`],
     ['Cycle Days', `${advance.cycle_days ?? '—'} days`],
     ['Fee Status', advance.access_fee_status || '—'],
-    [
-      'Recovery Source',
-      advance.recovery_source === 'roi'
-        ? `${Number(advance.roi_recovery_percent || 0)}% of each ROI payout`
-        : 'Daily wallet sweep',
-    ],
+    ['Recovery Source', 'Daily wallet sweep'],
   ];
 
   return (
@@ -375,13 +394,19 @@ function DisbursementDetailDrawer({ advance, onClose, onCancel }: { advance: Adv
             {/* Repayment progress */}
             <div className="rounded-lg border p-3 space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Repaid {formatUGX(repaid)}</span>
+                <span className="text-muted-foreground">
+                  {isRoi ? `Recovered from ROI ${formatUGX(repaid)}` : `Repaid ${formatUGX(repaid)}`}
+                </span>
                 <span className="font-semibold">{progress}%</span>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
               </div>
-              <p className="text-[10px] text-muted-foreground">of {formatUGX(totalPayable)} total payable</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isRoi
+                  ? `of ${formatUGX(progressBase)} — advances only on ROI recoveries`
+                  : `of ${formatUGX(totalPayable)} total payable`}
+              </p>
             </div>
 
             {/* Disbursement dates */}
@@ -393,6 +418,7 @@ function DisbursementDetailDrawer({ advance, onClose, onCancel }: { advance: Adv
               <div className="rounded-lg border p-2">
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1"><FileClock className="h-3 w-3" /> Expires</p>
                 <p className="text-xs font-semibold">{format(new Date(advance.expires_at), 'dd MMM yyyy')}</p>
+                {isRoi && <p className="text-[9px] text-muted-foreground">Term only — no daily repayment</p>}
               </div>
             </div>
 
@@ -415,27 +441,41 @@ function DisbursementDetailDrawer({ advance, onClose, onCancel }: { advance: Adv
             {/* Repayment ledger */}
             <div className="space-y-2">
               <p className="text-xs font-bold flex items-center gap-1.5">
-                <Percent className="h-3.5 w-3.5 text-primary" /> Repayment History
+                <Percent className="h-3.5 w-3.5 text-primary" /> {isRoi ? 'ROI Recovery History' : 'Repayment History'}
                 {ledger.length > 0 && <Badge variant="outline" className="text-[10px]">{formatUGX(totalDeducted)} recovered</Badge>}
               </p>
               {isLoading ? (
                 <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
               ) : ledger.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground py-2">No repayment entries recorded yet.</p>
+                <p className="text-[11px] text-muted-foreground py-2">
+                  {isRoi ? 'No ROI recoveries yet. Recovery happens on the next ROI payout.' : 'No repayment entries recorded yet.'}
+                </p>
               ) : (
                 <div className="rounded-md border overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-[10px]">Date</TableHead>
-                        <TableHead className="text-[10px] text-right">Deducted</TableHead>
-                        <TableHead className="text-[10px] text-right">Balance</TableHead>
+                        {isRoi && <TableHead className="text-[10px] text-right">ROI</TableHead>}
+                        {isRoi && <TableHead className="text-[10px] text-right">%</TableHead>}
+                        <TableHead className="text-[10px] text-right">{isRoi ? 'Recovered' : 'Deducted'}</TableHead>
+                        <TableHead className="text-[10px] text-right">{isRoi ? 'Outstanding' : 'Balance'}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {ledger.map((l) => (
                         <TableRow key={l.id}>
                           <TableCell className="text-[11px]">{format(new Date(l.date), 'dd MMM')}</TableCell>
+                          {isRoi && (
+                            <TableCell className="text-[11px] text-right font-mono">
+                              {l.roi_amount != null ? formatUGX(Number(l.roi_amount)) : '—'}
+                            </TableCell>
+                          )}
+                          {isRoi && (
+                            <TableCell className="text-[11px] text-right font-mono">
+                              {l.recovery_percent != null ? `${Number(l.recovery_percent)}%` : '—'}
+                            </TableCell>
+                          )}
                           <TableCell className="text-[11px] text-right font-mono text-emerald-600">{formatUGX(Number(l.amount_deducted || 0))}</TableCell>
                           <TableCell className="text-[11px] text-right font-mono">{formatUGX(Number(l.closing_balance || 0))}</TableCell>
                         </TableRow>
