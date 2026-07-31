@@ -325,12 +325,14 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
           employer_cost: c.result.employerCost,
           rule_version_id: run.rule_version_id,
           rule_status_at_run: run.rule_status_at_run ?? 'provisional',
-          inputs_snapshot: {
-            earnings: c.earnings,
-            otherDeductions: c.otherDeductions,
-            ruleCode: rule.code,
-          },
-          calculation_trace: c.result.trace,
+          inputs_snapshot: JSON.parse(
+            JSON.stringify({
+              earnings: c.earnings,
+              otherDeductions: c.otherDeductions,
+              ruleCode: rule.code,
+            }),
+          ),
+          calculation_trace: JSON.parse(JSON.stringify(c.result.trace)),
           computed_at: computedAt,
         })),
       )
