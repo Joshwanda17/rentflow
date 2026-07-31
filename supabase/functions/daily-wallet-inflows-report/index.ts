@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       .from('general_ledger')
       .select('user_id, amount, category, wallet_bucket, classification')
       .eq('direction', 'cash_in')
-      .eq('scope', 'wallet')
+      .eq('ledger_scope', 'wallet')
       .gte('created_at', startIso)
       .lt('created_at', endIso)
       .neq('classification', 'admin_correction')

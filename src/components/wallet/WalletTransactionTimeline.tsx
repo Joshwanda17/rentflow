@@ -355,6 +355,33 @@ export function WalletTransactionTimeline({
         </div>
       </div>
 
+      {/* All / Cash In / Cash Out filter */}
+      <div className="flex items-center gap-1 mb-3 p-1 rounded-xl bg-muted/60">
+        {([
+          { value: 'all' as TabValue, label: 'All' },
+          { value: 'in' as TabValue, label: 'Cash In' },
+          { value: 'out' as TabValue, label: 'Cash Out' },
+        ]).map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            aria-pressed={activeTab === t.value}
+            onClick={() => {
+              hapticTap();
+              setActiveTab(t.value);
+            }}
+            className={[
+              'flex-1 h-8 rounded-lg text-xs font-semibold transition-colors',
+              activeTab === t.value
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            ].join(' ')}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
 
       {filteredCount === 0 ? (
         <Card className="border-border/50">

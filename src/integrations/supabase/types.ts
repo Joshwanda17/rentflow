@@ -28817,25 +28817,15 @@ export type Database = {
           portfolio_id: string
         }[]
       }
-      credit_agent_event_bonus:
-        | {
-            Args: {
-              p_agent_id: string
-              p_event_type: string
-              p_source_id?: string
-              p_tenant_id?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_agent_id: string
-              p_event_type: string
-              p_source_id?: string
-              p_tenant_id: string
-            }
-            Returns: Json
-          }
+      credit_agent_event_bonus: {
+        Args: {
+          p_agent_id: string
+          p_event_type: string
+          p_source_id?: string
+          p_tenant_id?: string
+        }
+        Returns: Json
+      }
       credit_agent_rent_commission:
         | {
             Args: {

@@ -84,6 +84,15 @@ const EMPTY: WithdrawContext = {
 export const withdrawContextKey = (userId: string | null | undefined) =>
   ['withdraw-context', userId ?? ''] as const;
 
+/** Fallback used when the context RPC fails — never claims "Loading…". */
+const ERRORED: WithdrawContext = {
+  ...EMPTY,
+  gates: {
+    ...EMPTY.gates,
+    blockReason: "We couldn't check your withdrawal limits. Please try again.",
+  },
+};
+
 type Num = number | string | null | undefined;
 const n = (v: Num) => Number(v ?? 0);
 
@@ -192,7 +201,7 @@ export function useWithdrawContext(userIdOverride?: string) {
     return () => releaseChannel(userId);
   }, [userId, qc]);
 
-  const ctx = query.data ?? EMPTY;
+  const ctx = query.data ?? (query.isError ? ERRORED : EMPTY);
 
   const savedMethods = useSavedPayoutMethods();
 
@@ -203,6 +212,7 @@ export function useWithdrawContext(userIdOverride?: string) {
    */
   const checkAmount = (amount: number, opts?: { min?: number }): AmountCheck => {
     if (query.isLoading) return { ok: false, reason: 'Checking limits…' };
+    if (query.isError) return { ok: false, reason: ERRORED.gates.blockReason as string };
     if (!ctx.gates.canSubmit) return { ok: false, reason: ctx.gates.blockReason ?? 'Blocked' };
     const min = opts?.min ?? 500;
     if (!(amount > 0)) return { ok: false, reason: 'Enter an amount' };

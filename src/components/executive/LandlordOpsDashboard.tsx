@@ -287,7 +287,7 @@ function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]
           <DialogTitle className="text-sm">{title} ({current + 1}/{images.length})</DialogTitle>
         </DialogHeader>
         <div className="relative bg-black/90 rounded-lg flex items-center justify-center" style={{ minHeight: '60vh' }}>
-          <StorageImage src={images[current]} alt={title} className="w-full rounded-lg max-h-[80vh] object-contain" />
+          <StorageImage src={images[current]} alt={title} className="w-full rounded-lg max-h-[80vh] object-contain" expandable={false} />
           {images.length > 1 && (
             <>
               <button onClick={prev} aria-label="Previous" className="absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
@@ -307,7 +307,7 @@ function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]
                 onClick={() => setCurrent(i)}
                 className={`shrink-0 h-16 w-16 rounded-md overflow-hidden border-2 transition-colors ${i === current ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100'}`}
               >
-                <StorageImage src={url} alt={`${title} ${i + 1}`} className="w-full h-full object-cover" />
+                <StorageImage src={url} alt={`${title} ${i + 1}`} className="w-full h-full object-cover" expandable={false} />
               </button>
             ))}
           </div>
