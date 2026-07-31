@@ -872,6 +872,22 @@ export function LandlordOpsDashboard() {
     },
   });
 
+  // TRUE server-side count of houses awaiting verification. The list queries
+  // above are capped (client pagination), so their length must never be used
+  // as the backlog figure — it silently plateaus at the cap.
+  const { data: pendingHousesCount = 0 } = useQuery({
+    queryKey: ['exec-house-listings-pending-count'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('house_listings')
+        .select('id', { count: 'exact', head: true })
+        .eq('verified', false)
+        .not('status', 'in', '(rejected,delisted)');
+      return count || 0;
+    },
+  });
+
   // ─── Global Verification Search (across ALL agents/listings, not just the 500 most recent) ───
   const debouncedVerifySearch = useDebouncedValue(verifySearch.trim(), 300);
   const { data: globalSearchListings, isFetching: isGlobalSearching } = useQuery({
