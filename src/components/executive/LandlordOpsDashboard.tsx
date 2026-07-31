@@ -3013,14 +3013,8 @@ export function LandlordOpsDashboard() {
     const scopeListings = serverHouseRows.filter(
       l => houseStatusFilter === 'verified' || !optimisticallyVerifiedIds.has(l.id),
     );
-    let filteredHouses = scopeListings;
-
-    // Quick filter chips
-    if (verifyFilter === 'has_landlord') filteredHouses = filteredHouses.filter(h => !!h.landlords);
-    else if (verifyFilter === 'no_landlord') filteredHouses = filteredHouses.filter(h => !h.landlords);
-    else if (verifyFilter === 'has_images') filteredHouses = filteredHouses.filter(h => h.image_urls && h.image_urls.length > 0);
-    else if (verifyFilter === 'has_gps') filteredHouses = filteredHouses.filter(h => h.latitude && h.longitude);
-    else if (verifyFilter === 'has_lc1') filteredHouses = filteredHouses.filter(h => !!h.lc1_chairperson_name);
+    // Quick filters are applied server-side by ops_search_house_listings.
+    const filteredHouses = scopeListings;
 
     // ── Server-side pagination ──
     // totalFiltered is the DB match count for the active scope/search/date.
