@@ -346,19 +346,8 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         </Card>
       </div>
 
-      {/* Row D — operational tables */}
-      <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
-        <Tabs defaultValue="top-agents">
-          <TabsList className="mb-3">
-            <TabsTrigger value="top-agents">Top Agents</TabsTrigger>
-            <TabsTrigger value="recent-requests">Recent Requests</TabsTrigger>
-            <TabsTrigger value="recent-verifs">Recent Verifications</TabsTrigger>
-          </TabsList>
-          <TabsContent value="top-agents"><TopAgentsPreview onOpen={() => onOpenSection('leaderboard')} /></TabsContent>
-          <TabsContent value="recent-requests"><RecentRequestsPreview onOpen={() => onOpenSection('pipeline')} /></TabsContent>
-          <TabsContent value="recent-verifs"><RecentVerificationsPreview /></TabsContent>
-        </Tabs>
-      </Card>
+      {/* Row D — agent performance for rent collection */}
+      <AgentRentCapacityPanel defaultLimit={25} />
     </div>
   );
 }
