@@ -10649,6 +10649,273 @@ export type Database = {
           },
         ]
       }
+      hr_pay_authorities: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          function_code: string
+          id: string
+          position_id: string
+          reason: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          function_code: string
+          id?: string
+          position_id: string
+          reason: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          function_code?: string
+          id?: string
+          position_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_authorities_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_pay_components: {
+        Row: {
+          active: boolean
+          calc_method: string
+          code: string
+          created_at: string
+          created_by: string | null
+          display_order: number
+          formula: string | null
+          id: string
+          is_statutory: boolean
+          kind: string
+          lst_able: boolean
+          name: string
+          notes: string | null
+          nssf_able: boolean
+          taxable: boolean
+        }
+        Insert: {
+          active?: boolean
+          calc_method?: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          formula?: string | null
+          id?: string
+          is_statutory?: boolean
+          kind: string
+          lst_able?: boolean
+          name: string
+          notes?: string | null
+          nssf_able?: boolean
+          taxable?: boolean
+        }
+        Update: {
+          active?: boolean
+          calc_method?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          formula?: string | null
+          id?: string
+          is_statutory?: boolean
+          kind?: string
+          lst_able?: boolean
+          name?: string
+          notes?: string | null
+          nssf_able?: boolean
+          taxable?: boolean
+        }
+        Relationships: []
+      }
+      hr_pay_grades: {
+        Row: {
+          active: boolean
+          band_max: number
+          band_min: number
+          code: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          band_max: number
+          band_min: number
+          code: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean
+          band_max?: number
+          band_min?: number
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      hr_pay_lst_bands: {
+        Row: {
+          annual_income_from: number
+          annual_income_to: number | null
+          annual_lst_amount: number
+          district: string
+          id: string
+          instalments: number
+          rule_version_id: string
+        }
+        Insert: {
+          annual_income_from: number
+          annual_income_to?: number | null
+          annual_lst_amount: number
+          district: string
+          id?: string
+          instalments?: number
+          rule_version_id: string
+        }
+        Update: {
+          annual_income_from?: number
+          annual_income_to?: number | null
+          annual_lst_amount?: number
+          district?: string
+          id?: string
+          instalments?: number
+          rule_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_lst_bands_rule_version_id_fkey"
+            columns: ["rule_version_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_rule_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_pay_rule_versions: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          id: string
+          jurisdiction: string
+          notes: string | null
+          nssf_employee_rate: number
+          nssf_employer_rate: number
+          nssf_reduces_paye_base: boolean
+          rounding_rule: string
+          source_citation: string
+          surtax_rate: number | null
+          surtax_threshold: number | null
+          verified_at: string | null
+          verified_by_name: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          effective_to?: string | null
+          id?: string
+          jurisdiction?: string
+          notes?: string | null
+          nssf_employee_rate: number
+          nssf_employer_rate: number
+          nssf_reduces_paye_base: boolean
+          rounding_rule?: string
+          source_citation: string
+          surtax_rate?: number | null
+          surtax_threshold?: number | null
+          verified_at?: string | null
+          verified_by_name?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          jurisdiction?: string
+          notes?: string | null
+          nssf_employee_rate?: number
+          nssf_employer_rate?: number
+          nssf_reduces_paye_base?: boolean
+          rounding_rule?: string
+          source_citation?: string
+          surtax_rate?: number | null
+          surtax_threshold?: number | null
+          verified_at?: string | null
+          verified_by_name?: string | null
+        }
+        Relationships: []
+      }
+      hr_pay_tax_bands: {
+        Row: {
+          band_order: number
+          fixed_amount: number
+          id: string
+          lower_bound: number
+          rate: number
+          rule_version_id: string
+          upper_bound: number | null
+        }
+        Insert: {
+          band_order: number
+          fixed_amount?: number
+          id?: string
+          lower_bound: number
+          rate: number
+          rule_version_id: string
+          upper_bound?: number | null
+        }
+        Update: {
+          band_order?: number
+          fixed_amount?: number
+          id?: string
+          lower_bound?: number
+          rate?: number
+          rule_version_id?: string
+          upper_bound?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_tax_bands_rule_version_id_fkey"
+            columns: ["rule_version_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_rule_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_positions: {
         Row: {
           active: boolean
@@ -20945,6 +21212,194 @@ export type Database = {
         }
         Relationships: []
       }
+      service_center_qualification_config: {
+        Row: {
+          activity_window_days: number
+          allow_reapply_after_rejection: boolean
+          created_at: string
+          id: string
+          required_main_agent_tenants: number
+          required_sub_agents: number
+          rule_version: string
+          updated_at: string
+        }
+        Insert: {
+          activity_window_days?: number
+          allow_reapply_after_rejection?: boolean
+          created_at?: string
+          id?: string
+          required_main_agent_tenants?: number
+          required_sub_agents?: number
+          rule_version?: string
+          updated_at?: string
+        }
+        Update: {
+          activity_window_days?: number
+          allow_reapply_after_rejection?: boolean
+          created_at?: string
+          id?: string
+          required_main_agent_tenants?: number
+          required_sub_agents?: number
+          rule_version?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      service_center_qualifications: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          network_active_tenants_at_qualification: number
+          personal_active_tenants_at_qualification: number
+          qualified_at: string
+          qualifying_sub_agents_at_qualification: number
+          rule_version: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          network_active_tenants_at_qualification: number
+          personal_active_tenants_at_qualification: number
+          qualified_at?: string
+          qualifying_sub_agents_at_qualification: number
+          rule_version?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          network_active_tenants_at_qualification?: number
+          personal_active_tenants_at_qualification?: number
+          qualified_at?: string
+          qualifying_sub_agents_at_qualification?: number
+          rule_version?: string
+        }
+        Relationships: []
+      }
+      service_center_request_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          note: string | null
+          reason: string | null
+          request_id: string
+          to_status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          reason?: string | null
+          request_id: string
+          to_status: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          reason?: string | null
+          request_id?: string
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_center_request_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_center_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_center_requests: {
+        Row: {
+          agent_id: string
+          agent_location: string | null
+          agent_name: string
+          agent_phone: string
+          created_at: string
+          decision: string | null
+          decision_reason: string | null
+          district: string | null
+          id: string
+          internal_notes: string | null
+          network_active_tenants_at_submission: number
+          personal_active_tenants_at_submission: number
+          preferred_location: string
+          qualified_at: string | null
+          qualifying_sub_agents_at_submission: number
+          ready_to_operate: boolean
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          rule_version: string
+          status: string
+          submitted_at: string
+          supporting_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          agent_location?: string | null
+          agent_name: string
+          agent_phone: string
+          created_at?: string
+          decision?: string | null
+          decision_reason?: string | null
+          district?: string | null
+          id?: string
+          internal_notes?: string | null
+          network_active_tenants_at_submission?: number
+          personal_active_tenants_at_submission?: number
+          preferred_location: string
+          qualified_at?: string | null
+          qualifying_sub_agents_at_submission?: number
+          ready_to_operate?: boolean
+          reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rule_version?: string
+          status?: string
+          submitted_at?: string
+          supporting_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          agent_location?: string | null
+          agent_name?: string
+          agent_phone?: string
+          created_at?: string
+          decision?: string | null
+          decision_reason?: string | null
+          district?: string | null
+          id?: string
+          internal_notes?: string | null
+          network_active_tenants_at_submission?: number
+          personal_active_tenants_at_submission?: number
+          preferred_location?: string
+          qualified_at?: string | null
+          qualifying_sub_agents_at_submission?: number
+          ready_to_operate?: boolean
+          reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rule_version?: string
+          status?: string
+          submitted_at?: string
+          supporting_note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       service_centre_setups: {
         Row: {
           agent_id: string
@@ -26751,9 +27206,22 @@ export type Database = {
         Args: { _new_parent_id: string; _reason: string; _sub_agent_id: string }
         Returns: Json
       }
+      admin_decide_service_center_request: {
+        Args: {
+          p_decision: string
+          p_internal_note?: string
+          p_reason?: string
+          p_request_id: string
+        }
+        Returns: Json
+      }
       admin_freeze_kyc_account: {
         Args: { p_reason: string; p_user_id: string }
         Returns: undefined
+      }
+      admin_list_service_center_requests: {
+        Args: { p_limit?: number; p_offset?: number; p_status?: string }
+        Returns: Json
       }
       admin_purge_table_refs: {
         Args: { p_parent_pk_values: string[]; p_parent_table: string }
@@ -29363,6 +29831,10 @@ export type Database = {
       get_public_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_referral_progress: { Args: { p_referred_id: string }; Returns: Json }
       get_rent_requests_summary: { Args: never; Returns: Json }
+      get_service_center_qualification: {
+        Args: { p_agent_id?: string }
+        Returns: Json
+      }
       get_shadow_match_rate: {
         Args: { p_hours?: number }
         Returns: {
@@ -29835,6 +30307,23 @@ export type Database = {
       hr_is_executive: { Args: never; Returns: boolean }
       hr_manages: { Args: { _staff_id: string }; Returns: boolean }
       hr_my_staff_id: { Args: never; Returns: string }
+      hr_pay_has_authority: { Args: { _fn: string }; Returns: boolean }
+      hr_pay_is_approver: { Args: never; Returns: boolean }
+      hr_pay_is_preparer: { Args: never; Returns: boolean }
+      hr_pay_is_releaser: { Args: never; Returns: boolean }
+      hr_pay_is_rule_admin: { Args: never; Returns: boolean }
+      hr_pay_is_rule_reader: { Args: never; Returns: boolean }
+      hr_pay_my_positions: { Args: never; Returns: string[] }
+      hr_pay_position_for: { Args: { _fn: string }; Returns: string }
+      hr_pay_separation_ok: {
+        Args: {
+          _approved_by: string
+          _approved_position: string
+          _prepared_by: string
+          _prepared_position: string
+        }
+        Returns: boolean
+      }
       hr_unenrolled_staff_candidates: {
         Args: { _q?: string }
         Returns: {
@@ -31181,6 +31670,19 @@ export type Database = {
       subagent_listing_count: {
         Args: { p_sub_agent_id: string }
         Returns: number
+      }
+      submit_service_center_request: {
+        Args: {
+          p_agent_location: string
+          p_agent_name: string
+          p_agent_phone: string
+          p_district: string
+          p_preferred_location: string
+          p_ready: boolean
+          p_reason: string
+          p_supporting_note?: string
+        }
+        Returns: Json
       }
       submit_withdrawal_request:
         | {
