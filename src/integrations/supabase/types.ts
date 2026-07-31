@@ -14173,6 +14173,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_balance_pivot_candidate: {
+        Row: {
+          balance_sum: number
+          bucket: string
+          last_updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_sum?: number
+          bucket: string
+          last_updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_sum?: number
+          bucket?: string
+          last_updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ledger_entries: {
         Row: {
           account_id: string
@@ -27646,6 +27667,22 @@ export type Database = {
           row_count: number | null
           statuses: string[] | null
           user_ids: string[] | null
+        }
+        Relationships: []
+      }
+      v_pivot_drift: {
+        Row: {
+          advance_delta: number | null
+          cache_advance: number | null
+          cache_float: number | null
+          cache_withdrawable: number | null
+          float_delta: number | null
+          has_pivot_row: boolean | null
+          pivot_advance: number | null
+          pivot_float: number | null
+          pivot_withdrawable: number | null
+          user_id: string | null
+          withdrawable_delta: number | null
         }
         Relationships: []
       }
