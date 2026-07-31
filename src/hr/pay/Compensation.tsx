@@ -16,7 +16,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -72,6 +74,9 @@ function AddRecordDialog({
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const earnings = components.filter((c) => c.kind === 'earning');
+  const deductions = components.filter((c) => c.kind === 'deduction');
 
   const reset = () => {
     setComponentId('');
@@ -139,11 +144,26 @@ function AddRecordDialog({
                 <SelectValue placeholder="Select a component" />
               </SelectTrigger>
               <SelectContent>
-                {components.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name} ({c.code})
-                  </SelectItem>
-                ))}
+                {earnings.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Earnings</SelectLabel>
+                    {earnings.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {deductions.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Deductions</SelectLabel>
+                    {deductions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -252,8 +272,13 @@ export default function Compensation() {
     void load(id);
   };
 
-  const earningComponents = useMemo(
-    () => components.filter((c) => c.active && c.kind === 'earning'),
+  const selectableComponents = useMemo(
+    () =>
+      components.filter(
+        (c) =>
+          c.active &&
+          (c.kind === 'earning' || (c.kind === 'deduction' && !c.is_statutory)),
+      ),
     [components],
   );
 
@@ -326,7 +351,7 @@ export default function Compensation() {
               <p className="text-xs text-muted-foreground">Viewing a salary is recorded.</p>
               <div className="ml-auto">
                 <AddRecordDialog
-                  components={earningComponents}
+                  components={selectableComponents}
                   grades={grades}
                   onSave={async (componentId, gradeId, amount, effectiveFrom, reason) => {
                     await addCompensation(

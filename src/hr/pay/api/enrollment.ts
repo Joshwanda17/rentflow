@@ -24,6 +24,9 @@ export interface EnrollmentRow {
   hasStatutoryProfile: boolean;
   basicAmount: number | null;
   basicEffectiveFrom: string | null;
+  allowancesTotal: number;
+  deductionsTotal: number;
+  grossTotal: number;
 }
 
 type StaffRow = {
@@ -51,6 +54,12 @@ type StatutoryRow = {
 
 type CompRow = { staff_id: string; amount: number | string; effective_from: string };
 
+type OpenCompRow = {
+  staff_id: string;
+  amount: number | string;
+  component: { code: string; kind: string; is_statutory: boolean } | null;
+};
+
 const STAFF_SELECT =
   'id, staff_ref, user_id, assignments:hr_assignments(ended_on, is_primary, department:hr_departments(name), position:hr_positions!position_id(title))';
 
@@ -76,7 +85,7 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
   const staffIds = staff.map((s) => s.id);
   const userIds = staff.map((s) => s.user_id).filter(Boolean);
 
-  const [profiles, statutory, comp] = await Promise.all([
+  const [profiles, statutory, comp, openComp] = await Promise.all([
     supabase.from('profiles').select('id, full_name').in('id', userIds),
     supabase
       .from('hr_pay_statutory_profiles')
@@ -93,6 +102,13 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
         .in('staff_id', staffIds)
         .is('effective_to', null),
     ),
+    supabase
+      .from('hr_pay_compensation')
+      .select(
+        'staff_id, amount, component:hr_pay_components!hr_pay_compensation_component_id_fkey(code, kind, is_statutory)',
+      )
+      .in('staff_id', staffIds)
+      .is('effective_to', null),
   ]);
 
   const nameById = new Map<string, string>(
@@ -108,6 +124,19 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
     ((unwrap(comp) ?? []) as CompRow[]).map((r) => [r.staff_id, r]),
   );
 
+  const allowancesByStaff = new Map<string, number>();
+  const deductionsByStaff = new Map<string, number>();
+  for (const r of (unwrap(openComp) ?? []) as unknown as OpenCompRow[]) {
+    const kind = r.component?.kind;
+    const code = r.component?.code;
+    const amount = Number(r.amount) || 0;
+    if (kind === 'earning' && code !== 'BASIC') {
+      allowancesByStaff.set(r.staff_id, (allowancesByStaff.get(r.staff_id) ?? 0) + amount);
+    } else if (kind === 'deduction' && r.component?.is_statutory === false) {
+      deductionsByStaff.set(r.staff_id, (deductionsByStaff.get(r.staff_id) ?? 0) + amount);
+    }
+  }
+
   return staff
     .map((s) => {
       const assignment =
@@ -116,6 +145,9 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
         null;
       const sp = statutoryByStaff.get(s.id) ?? null;
       const cp = compByStaff.get(s.id) ?? null;
+      const basicAmount = cp ? Number(cp.amount) : null;
+      const allowancesTotal = allowancesByStaff.get(s.id) ?? 0;
+      const deductionsTotal = deductionsByStaff.get(s.id) ?? 0;
       return {
         staffId: s.id,
         staffRef: s.staff_ref ?? '',
@@ -128,8 +160,11 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
         lstApplicable: sp ? sp.lst_applicable !== false : true,
         exemptionBasis: sp?.exemption_basis ?? null,
         hasStatutoryProfile: Boolean(sp),
-        basicAmount: cp ? Number(cp.amount) : null,
+        basicAmount,
         basicEffectiveFrom: cp?.effective_from ?? null,
+        allowancesTotal,
+        deductionsTotal,
+        grossTotal: (basicAmount ?? 0) + allowancesTotal,
       } satisfies EnrollmentRow;
     })
     .sort((a, b) => a.name.localeCompare(b.name));
