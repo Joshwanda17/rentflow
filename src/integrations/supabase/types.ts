@@ -699,8 +699,10 @@ export type Database = {
           pre_cancel_outstanding: number | null
           prepaid_installments_remaining: number
           principal: number
+          recovery_source: string
           registration_fee: number | null
           repayment_frequency: string
+          roi_recovery_percent: number
           status: string
           updated_at: string
         }
@@ -728,8 +730,10 @@ export type Database = {
           pre_cancel_outstanding?: number | null
           prepaid_installments_remaining?: number
           principal?: number
+          recovery_source?: string
           registration_fee?: number | null
           repayment_frequency?: string
+          roi_recovery_percent?: number
           status?: string
           updated_at?: string
         }
@@ -757,8 +761,10 @@ export type Database = {
           pre_cancel_outstanding?: number | null
           prepaid_installments_remaining?: number
           principal?: number
+          recovery_source?: string
           registration_fee?: number | null
           repayment_frequency?: string
+          roi_recovery_percent?: number
           status?: string
           updated_at?: string
         }
@@ -27880,6 +27886,15 @@ export type Database = {
           p_reason?: string
           p_renewed_by: string
           p_source?: string
+        }
+        Returns: Json
+      }
+      apply_roi_advance_recovery: {
+        Args: {
+          p_idempotency_key?: string
+          p_roi_amount: number
+          p_source_id?: string
+          p_user_id: string
         }
         Returns: Json
       }
