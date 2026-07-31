@@ -780,7 +780,7 @@ export default function SubAgentAnalytics() {
         }
       }
 
-      // Add recruiter override earnings (e.g. UGX 3,000 when a sub-agent's
+      // Add recruiter override earnings (e.g. UGX 2,000 when a sub-agent's
       // house listing / landlord / LC1 chairperson is verified).
       (overrideRows || []).forEach(o => {
         if (!o.status || (o.status !== 'credited' && o.status !== 'paid')) return;

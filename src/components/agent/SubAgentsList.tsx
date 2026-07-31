@@ -192,7 +192,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         totalRent += v;
       });
 
-      // Recruiter override bonuses (UGX 3,000 sub-agent house/landlord/LC1
+      // Recruiter override bonuses (UGX 2,000 sub-agent house/landlord/LC1
       // verified, UGX 10,000 register-a-new-agent, etc.) are recorded in
       // recruiter_override_events and map directly to the sub-agent who
       // triggered them. These are the bulk of what a lead agent earns from

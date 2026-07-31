@@ -44,7 +44,7 @@ const pct = (rate: number) => `${Math.round(rate * 100)}%`;
 const DB_EVENT_BONUSES = {
   tenant_placement: 10000,
   service_centre_setup: 25000,
-  recruiter_override_verification: 3000,
+  recruiter_override_verification: 2000,
 } as const;
 
 /** Investment commission an agent earns on funders they bring in. */
