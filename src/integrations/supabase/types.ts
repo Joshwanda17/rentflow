@@ -29241,6 +29241,7 @@ export type Database = {
         Args: never
         Returns: {
           agent_count: number
+          employee_count: number
           inactive_users: number
           landlord_count: number
           manager_count: number
