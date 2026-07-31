@@ -205,3 +205,22 @@ export async function getRegister(runId: string): Promise<RegisterDoc> {
     rows,
   };
 }
+
+export interface PayrollAuthority {
+  preparer: boolean;
+  approver: boolean;
+  releaser: boolean;
+}
+
+export async function myPayrollAuthority(): Promise<PayrollAuthority> {
+  const [prep, appr, rel] = await Promise.all([
+    (supabase.rpc as any)('hr_pay_is_preparer'),
+    (supabase.rpc as any)('hr_pay_is_approver'),
+    (supabase.rpc as any)('hr_pay_is_releaser'),
+  ]);
+  return {
+    preparer: Boolean(unwrap(prep)),
+    approver: Boolean(unwrap(appr)),
+    releaser: Boolean(unwrap(rel)),
+  };
+}
