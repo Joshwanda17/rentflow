@@ -539,7 +539,14 @@ async function sendWithAttachment(
     return { ok: false, status: 0, raw: "Gmail connector creds missing" };
   }
   const boundary = `welile_${crypto.randomUUID().replace(/-/g, "")}`;
+  const altBoundary = `alt_${crypto.randomUUID().replace(/-/g, "")}`;
   const pdfB64 = chunk76(bytesToBase64(pdf));
+  // Base64-encode the HTML part: the generated markup has very long lines
+  // (>998 chars), which is illegal for 7bit and makes Gmail drop the body.
+  const htmlB64 = chunk76(bytesToBase64(new TextEncoder().encode(html)));
+  const textB64 = chunk76(bytesToBase64(new TextEncoder().encode(
+    `${subject}\r\n\r\nYour Welile agent daily report is attached as a PDF. Open this message in an HTML-capable client to view the full summary.`,
+  )));
   const encodedSubject = /[^\x00-\x7F]/.test(subject)
     ? `=?UTF-8?B?${bytesToBase64(new TextEncoder().encode(subject))}?=`
     : subject;
@@ -551,10 +558,21 @@ async function sendWithAttachment(
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     "",
     `--${boundary}`,
-    'Content-Type: text/html; charset="UTF-8"',
-    "Content-Transfer-Encoding: 7bit",
+    `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
     "",
-    html,
+    `--${altBoundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    textB64,
+    "",
+    `--${altBoundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    htmlB64,
+    "",
+    `--${altBoundary}--`,
     "",
     `--${boundary}`,
     "Content-Type: application/pdf",
