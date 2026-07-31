@@ -21,7 +21,7 @@ const REGIONS = [
  *  - mode "existing" → an LC1 already in the system (no bonus, no insert)
  *  - mode "new"      → a brand-new LC1 the agent is registering. On submit the
  *                      parent inserts it with registered_by = agent and triggers
- *                      the UGX 5,000 reward, paid only after Landlord Ops verifies.
+ *                      the UGX 2,000 reward, paid only after Landlord Ops verifies.
  */
 export interface Lc1Selection {
   mode: 'existing' | 'new';
@@ -159,7 +159,7 @@ export function Lc1ChairpersonPicker({
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
             Search the chairperson in the system first. If they're not there, register them and
-            earn <span className="font-semibold text-foreground">UGX 5,000</span> — paid in full
+            earn <span className="font-semibold text-foreground">UGX 2,000</span> — paid in full
             after Landlord Ops verifies the chairperson.
           </p>
           <div className="flex gap-2">
@@ -208,7 +208,7 @@ export function Lc1ChairpersonPicker({
 
           <Button type="button" variant="outline" className="h-9 text-xs w-full" onClick={startNew}>
             <UserPlus className="h-4 w-4 mr-1.5" />
-            Register a new LC1 chairperson (earn UGX 5,000)
+            Register a new LC1 chairperson (earn UGX 2,000)
           </Button>
         </div>
       )}
@@ -245,7 +245,7 @@ export function Lc1ChairpersonPicker({
 
           <div className="p-2 rounded-lg bg-chart-4/10 border border-chart-4/20 text-center">
             <p className="text-xs text-chart-4 font-semibold">
-              💰 UGX 5,000 paid once Landlord Ops verifies (nothing paid upfront)
+              💰 UGX 2,000 paid once Landlord Ops verifies (nothing paid upfront)
             </p>
           </div>
 
