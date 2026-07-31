@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
+import '@/hr/pay/print.css';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,6 +27,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -36,6 +38,12 @@ import {
   setStatutoryProfile,
   type EnrollmentRow,
 } from '@/hr/pay/api/enrollment';
+import { listComponents, type PayComponentRow } from '@/hr/pay/api/config';
+import {
+  addCompensation,
+  listCompensation,
+  type CompensationRow,
+} from '@/hr/pay/api/compensation';
 
 const EMPLOYMENT_TYPES = ['employee', 'consultant', 'casual', 'expatriate', 'director'];
 
@@ -82,6 +90,17 @@ export default function PayrollEnrollment() {
   const [payReason, setPayReason] = useState('');
   const [payError, setPayError] = useState('');
 
+  // Deductions dialog state
+  const [dedRow, setDedRow] = useState<EnrollmentRow | null>(null);
+  const [dedRecords, setDedRecords] = useState<CompensationRow[]>([]);
+  const [dedLoading, setDedLoading] = useState(false);
+  const [components, setComponents] = useState<PayComponentRow[]>([]);
+  const [dedComponentId, setDedComponentId] = useState('');
+  const [dedAmount, setDedAmount] = useState('');
+  const [dedFrom, setDedFrom] = useState(firstOfThisMonth());
+  const [dedReason, setDedReason] = useState('');
+  const [dedError, setDedError] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -97,10 +116,101 @@ export default function PayrollEnrollment() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    void listComponents()
+      .then(setComponents)
+      .catch(() => setComponents([]));
+  }, []);
+
+  const deductionComponents = useMemo(
+    () => components.filter((c) => c.active && c.kind === 'deduction' && !c.is_statutory),
+    [components],
+  );
+
   const counts = useMemo(() => {
     const ready = rows.filter(isReady).length;
     return { total: rows.length, ready, incomplete: rows.length - ready };
   }, [rows]);
+
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (acc, r) => ({
+          basic: acc.basic + (r.basicAmount ?? 0),
+          allowances: acc.allowances + r.allowancesTotal,
+          deductions: acc.deductions + r.deductionsTotal,
+          gross: acc.gross + r.grossTotal,
+          people: acc.people + 1,
+        }),
+        { basic: 0, allowances: 0, deductions: 0, gross: 0, people: 0 },
+      ),
+    [rows],
+  );
+
+  async function openDeductions(row: EnrollmentRow) {
+    setDedRow(row);
+    setDedRecords([]);
+    setDedComponentId('');
+    setDedAmount('');
+    setDedFrom(firstOfThisMonth());
+    setDedReason('');
+    setDedError('');
+    setDedLoading(true);
+    try {
+      const records = await listCompensation(row.staffId);
+      setDedRecords(
+        records.filter((r) => r.effective_to === null && r.component_kind === 'deduction'),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not load deductions');
+    } finally {
+      setDedLoading(false);
+    }
+  }
+
+  async function saveDeduction() {
+    if (!dedRow) return;
+    const amount = Number(dedAmount);
+    if (!dedComponentId) {
+      setDedError('Pick the deduction component.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setDedError('Enter a valid amount.');
+      return;
+    }
+    if (!dedFrom) {
+      setDedError('An effective-from date is required.');
+      return;
+    }
+    if (dedReason.trim().length < 10) {
+      setDedError('The reason must be at least 10 characters.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await addCompensation(
+        dedRow.staffId,
+        dedComponentId,
+        null,
+        amount,
+        dedFrom,
+        dedReason.trim(),
+      );
+      toast.success('Deduction recorded');
+      setDedRow(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function printSheet() {
+    setReveal(true);
+    setTimeout(() => window.print(), 50);
+  }
 
   function openStatutory(row: EnrollmentRow, next: { paye: boolean; nssf: boolean; lst: boolean }) {
     setStatRow(row);
@@ -194,6 +304,12 @@ export default function PayrollEnrollment() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
+      <div className="hidden print:block print:mb-4">
+        <p className="text-sm font-semibold">Welile Technologies (U) Ltd</p>
+        <h2 className="text-lg font-bold">Payroll enrollment sheet</h2>
+        <p className="text-xs">{new Date().toLocaleDateString('en-GB')}</p>
+        <p className="text-xs">Prepared for review. Not a payroll run.</p>
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Payroll enrollment</h1>
@@ -201,15 +317,21 @@ export default function PayrollEnrollment() {
             Every active worker, their basic pay, and which statutory deductions apply.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Switch id="reveal-amounts" checked={reveal} onCheckedChange={setReveal} />
-          <Label htmlFor="reveal-amounts" className="text-sm">
-            Reveal amounts
-          </Label>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Switch id="reveal-amounts" checked={reveal} onCheckedChange={setReveal} />
+            <Label htmlFor="reveal-amounts" className="text-sm">
+              Reveal amounts
+            </Label>
+          </div>
+          <Button variant="outline" size="sm" className="no-print" onClick={printSheet}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print enrollment sheet
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs uppercase text-muted-foreground">
@@ -234,6 +356,16 @@ export default function PayrollEnrollment() {
             {counts.incomplete}
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs uppercase text-muted-foreground">
+              Total monthly gross
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {reveal ? `UGX ${formatAmount(totals.gross)}` : '••••••'}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -253,6 +385,9 @@ export default function PayrollEnrollment() {
                     <TableHead>Position</TableHead>
                     <TableHead>Employment type</TableHead>
                     <TableHead className="text-right">Basic pay</TableHead>
+                    <TableHead className="text-right">Allowances</TableHead>
+                    <TableHead className="text-right">Deductions</TableHead>
+                    <TableHead className="text-right">Gross</TableHead>
                     <TableHead>Effective from</TableHead>
                     <TableHead>PAYE</TableHead>
                     <TableHead>NSSF</TableHead>
@@ -264,7 +399,7 @@ export default function PayrollEnrollment() {
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={12} className="p-6 text-sm text-muted-foreground">
+                      <TableCell colSpan={15} className="p-6 text-sm text-muted-foreground">
                         No active staff members.
                       </TableCell>
                     </TableRow>
@@ -312,22 +447,48 @@ export default function PayrollEnrollment() {
                         </TableCell>
                         <TableCell className="text-right">
                           {row.basicAmount === null ? (
-                            <button
-                              type="button"
-                              onClick={() => openPay(row)}
-                              className="text-xs font-medium text-destructive/70 underline-offset-2 hover:underline"
-                            >
-                              not set
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openPay(row)}
+                                className="text-xs font-medium text-destructive/70 underline-offset-2 hover:underline"
+                              >
+                                not set
+                              </button>
+                              <span className="hidden text-xs print:inline">not set</span>
+                            </>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => openPay(row)}
-                              className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
-                            >
-                              {reveal ? `UGX ${formatAmount(row.basicAmount)}` : '••••••'}
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openPay(row)}
+                                className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
+                              >
+                                {reveal ? `UGX ${formatAmount(row.basicAmount)}` : '••••••'}
+                              </button>
+                              <span className="hidden font-mono text-sm tabular-nums print:inline">
+                                {reveal ? formatAmount(row.basicAmount) : '••••••'}
+                              </span>
+                            </>
                           )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm tabular-nums">
+                          {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => void openDeductions(row)}
+                            className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
+                          >
+                            {reveal ? formatAmount(row.deductionsTotal) : '••••••'}
+                          </button>
+                          <span className="hidden font-mono text-sm tabular-nums print:inline">
+                            {reveal ? formatAmount(row.deductionsTotal) : '••••••'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm tabular-nums">
+                          {reveal ? formatAmount(row.grossTotal) : '••••••'}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {formatDate(row.basicEffectiveFrom)}
@@ -377,11 +538,46 @@ export default function PayrollEnrollment() {
                     ))
                   )}
                 </TableBody>
+                <TableFooter className="sticky bottom-0 border-t-2 bg-muted">
+                  <TableRow className="font-semibold hover:bg-transparent">
+                    <TableCell colSpan={5}>{totals.people} people included</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.basic) : '••••••'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.allowances) : '••••••'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.deductions) : '••••••'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.gross) : '••••••'}
+                    </TableCell>
+                    <TableCell colSpan={6} />
+                  </TableRow>
+                </TableFooter>
               </Table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <div className="hidden print:block print:mt-10">
+        <div className="flex gap-16">
+          <div className="flex-1">
+            <div className="mt-8 border-t border-black" />
+            <p className="text-xs">Prepared by</p>
+            <div className="mt-6 border-t border-black" />
+            <p className="text-xs">Date</p>
+          </div>
+          <div className="flex-1">
+            <div className="mt-8 border-t border-black" />
+            <p className="text-xs">Reviewed by</p>
+            <div className="mt-6 border-t border-black" />
+            <p className="text-xs">Date</p>
+          </div>
+        </div>
+      </div>
 
       <p className="text-xs text-muted-foreground">
         Statutory profiles and compensation are both append-only. Every change keeps the previous
@@ -501,6 +697,108 @@ export default function PayrollEnrollment() {
             <Button onClick={() => void savePay()} disabled={saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dedRow !== null} onOpenChange={(open) => !open && setDedRow(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Deductions{dedRow ? ` — ${dedRow.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {dedLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading deductions…
+              </div>
+            ) : dedRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No open deductions.</p>
+            ) : (
+              <div className="space-y-2">
+                {dedRecords.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between rounded-md border p-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {r.component_name} ({r.component_code})
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        From {formatDate(r.effective_from)}
+                      </p>
+                    </div>
+                    <span className="font-mono tabular-nums">UGX {formatAmount(r.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-semibold">Add deduction</p>
+              <div className="space-y-1.5">
+                <Label>Component</Label>
+                <Select value={dedComponentId} onValueChange={setDedComponentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a deduction" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {deductionComponents.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ded-amount">Amount</Label>
+                <Input
+                  id="ded-amount"
+                  type="number"
+                  min={0}
+                  value={dedAmount}
+                  onChange={(e) => {
+                    setDedAmount(e.target.value);
+                    setDedError('');
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ded-from">Effective from</Label>
+                <Input
+                  id="ded-from"
+                  type="date"
+                  value={dedFrom}
+                  onChange={(e) => setDedFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ded-reason">Reason</Label>
+                <Textarea
+                  id="ded-reason"
+                  rows={3}
+                  value={dedReason}
+                  onChange={(e) => {
+                    setDedReason(e.target.value);
+                    setDedError('');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Required. Minimum 10 characters. To stop a deduction, add a closing record.
+                </p>
+                {dedError ? <p className="text-xs text-destructive">{dedError}</p> : null}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDedRow(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveDeduction()} disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Add deduction
             </Button>
           </DialogFooter>
         </DialogContent>
