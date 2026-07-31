@@ -64,6 +64,7 @@ export default function PortfolioCompletion() {
 
   const [status, setStatus] = useState<Status>('loading');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [formError, setFormError] = useState<string>('');
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [existingSig, setExistingSig] = useState<string | null>(null);
@@ -205,26 +206,31 @@ export default function PortfolioCompletion() {
 
   const submit = async () => {
     if (!portfolio) return;
+    const fail = (msg: string) => {
+      setFormError(msg);
+      toast.error(msg);
+    };
+    setFormError('');
     const nin = nationalId.trim();
     if (!nin || nin.length < 6) {
-      toast.error('Please enter your National ID number.');
+      fail('Please enter your National ID number.');
       return;
     }
     const addr = address.trim();
     if (addr.length < 3) {
-      toast.error('Please enter your residential address.');
+      fail('Please enter your residential address.');
       return;
     }
     const nokName = kinName.trim();
     const nokContact = kinContact.trim();
     if (nokName.length < 3 || nokContact.length < 7) {
-      toast.error('Please enter your next of kin name and phone number.');
+      fail('Please enter your next of kin name and phone number.');
       return;
     }
     let payoutPayload: Record<string, string | null>;
     if (payoutMode === 'bank') {
       if (bankName.trim().length < 2 || bankAccountName.trim().length < 3 || bankAccountNumber.trim().length < 5) {
-        toast.error('Please complete your bank details.');
+        fail('Please complete your bank details.');
         return;
       }
       payoutPayload = {
@@ -236,7 +242,7 @@ export default function PortfolioCompletion() {
       };
     } else {
       if (momoNumber.trim().length < 7 || momoName.trim().length < 3) {
-        toast.error('Please complete your mobile money details.');
+        fail('Please complete your mobile money details.');
         return;
       }
       payoutPayload = {
@@ -250,7 +256,7 @@ export default function PortfolioCompletion() {
     const mmName = (payoutMode === 'momo' ? momoName : mobileMoneyName).trim();
     const signature = useExistingSig && existingSig ? existingSig : sigDataUrl;
     if (!signature) {
-      toast.error('Please add your signature before submitting.');
+      fail('Please add your signature before submitting.');
       return;
     }
 
@@ -271,19 +277,19 @@ export default function PortfolioCompletion() {
       });
       if (error) {
         const msg = await extractFromErrorObject(error, 'Submission failed.');
-        toast.error(msg);
+        fail(msg);
         setStatus('ready');
         return;
       }
       if (data?.error) {
-        toast.error(data.error);
+        fail(data.error);
         setStatus('ready');
         return;
       }
       setStatus('done');
     } catch (e: any) {
       const msg = await extractFromErrorObject(e, 'Submission failed.');
-      toast.error(msg);
+      fail(msg);
       setStatus('ready');
     }
   };
@@ -525,6 +531,9 @@ export default function PortfolioCompletion() {
       {/* Sticky submit */}
       <div className="fixed bottom-0 inset-x-0 border-t bg-background/95 backdrop-blur px-4 sm:px-6 py-3 z-30">
         <div className="max-w-lg mx-auto">
+          {formError && (
+            <p className="mb-2 text-xs font-medium text-destructive text-center">{formError}</p>
+          )}
           <Button
             className="w-full h-11"
             size="lg"
