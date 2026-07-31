@@ -37,7 +37,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
 
 🎁 *Extra Cash Bonuses*
 • Help a tenant apply for rent → *UGX 5,000*
-• List an empty house → *UGX 5,000*
+• List an empty house (paid after verification) → *UGX 2,000*
 • A tenant moves into a house you listed → *UGX 5,000*
 • Landlord on your rent request verified → *UGX 4,000*
 • Sub-agent's house/landlord/LC1 verified → *UGX 1,000*
@@ -301,9 +301,9 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
                       <p className="text-sm font-semibold text-foreground">List an Empty House</p>
-                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 2,000</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">Find and list a vacant house for Welile</p>
+                    <p className="text-sm text-muted-foreground">Find and list a vacant house — paid only after Landlord Ops verifies the listing</p>
                   </div>
                 </div>
 
@@ -563,9 +563,9 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <div className="flex justify-between items-center px-3 py-3">
                         <div>
                           <p className="text-sm font-medium text-foreground">List an empty house</p>
-                          <p className="text-xs text-muted-foreground">Find and list a vacant house for Welile</p>
+                          <p className="text-xs text-muted-foreground">Paid only after Landlord Ops verifies the listing</p>
                         </div>
-                        <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                        <span className="font-bold text-primary whitespace-nowrap">UGX 2,000</span>
                       </div>
                       <div className="flex justify-between items-center px-3 py-3">
                         <div>

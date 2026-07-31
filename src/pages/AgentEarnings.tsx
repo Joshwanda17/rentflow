@@ -41,8 +41,8 @@ const BREAKDOWN_ITEMS: {
   { key: 'subagentCommission', label: 'Sub-Agent Override', description: 'UGX 2,000 from sub-agent collections', icon: Users, colorClass: 'text-violet-600', bgClass: 'bg-violet-500/10 border-violet-500/20' },
   { key: 'registrationBonus', label: 'Registration Bonus', description: 'UGX 10,000 per tenant registered', icon: UserPlus, colorClass: 'text-amber-600', bgClass: 'bg-amber-500/10 border-amber-500/20' },
   { key: 'facilitationBonus', label: 'Facilitation Bonus', description: 'UGX 5,000 upon rent funding', icon: Award, colorClass: 'text-orange-600', bgClass: 'bg-orange-500/10 border-orange-500/20' },
-  { key: 'verificationBonus', label: 'Verification Bonus', description: 'UGX 5,000 for verified house listing', icon: CheckCircle, colorClass: 'text-teal-600', bgClass: 'bg-teal-500/10 border-teal-500/20' },
-  { key: 'listingBonus', label: 'Listing Bonus', description: 'UGX 5,000 for landlord location verification', icon: Home, colorClass: 'text-cyan-600', bgClass: 'bg-cyan-500/10 border-cyan-500/20' },
+  { key: 'verificationBonus', label: 'Verification Bonus', description: 'UGX 2,000 per verified house listing', icon: CheckCircle, colorClass: 'text-teal-600', bgClass: 'bg-teal-500/10 border-teal-500/20' },
+  { key: 'listingBonus', label: 'Listing Bonus', description: 'UGX 2,000 once your listing is verified', icon: Home, colorClass: 'text-cyan-600', bgClass: 'bg-cyan-500/10 border-cyan-500/20' },
   { key: 'approvalBonus', label: 'Approval Bonus', description: 'Bonus on rent request approval', icon: Gift, colorClass: 'text-pink-600', bgClass: 'bg-pink-500/10 border-pink-500/20' },
   { key: 'referralBonus', label: 'Referral Bonus', description: 'UGX 500 per sub-agent recruited', icon: UserPlus, colorClass: 'text-indigo-600', bgClass: 'bg-indigo-500/10 border-indigo-500/20' },
   { key: 'other', label: 'Other Earnings', description: 'Miscellaneous earnings', icon: ArrowDownLeft, colorClass: 'text-muted-foreground', bgClass: 'bg-muted/50 border-border/50' },
@@ -500,7 +500,7 @@ export default function AgentEarnings() {
               <div className="p-2 rounded-lg bg-amber-500/10"><UserPlus className="h-4 w-4 text-amber-600" /></div>
               <div>
                 <p className="font-medium text-foreground">Task Bonuses</p>
-                <p>UGX 10,000 registration · UGX 5,000 listing · UGX 5,000 verification · UGX 5,000 facilitation.</p>
+                <p>UGX 10,000 registration · UGX 2,000 listing verified · UGX 5,000 facilitation. No instant listing rewards.</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
