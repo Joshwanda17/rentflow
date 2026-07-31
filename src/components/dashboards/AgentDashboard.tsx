@@ -63,7 +63,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
-import { WeeklyListingMissionCard } from '@/components/agent/WeeklyListingMissionCard';
+import { ServiceCenterQualificationCard } from '@/components/agent/ServiceCenterQualificationCard';
 import { LastWeekWinnerOverlay } from '@/components/agent/LastWeekWinnerOverlay';
 import { SubAgentInviteLinkDialog } from '@/components/agent/SubAgentInviteLinkDialog';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
