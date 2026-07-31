@@ -538,11 +538,46 @@ export default function PayrollEnrollment() {
                     ))
                   )}
                 </TableBody>
+                <TableFooter className="sticky bottom-0 border-t-2 bg-muted">
+                  <TableRow className="font-semibold hover:bg-transparent">
+                    <TableCell colSpan={5}>{totals.people} people included</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.basic) : '••••••'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.allowances) : '••••••'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.deductions) : '••••••'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.gross) : '••••••'}
+                    </TableCell>
+                    <TableCell colSpan={6} />
+                  </TableRow>
+                </TableFooter>
               </Table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <div className="hidden print:block print:mt-10">
+        <div className="flex gap-16">
+          <div className="flex-1">
+            <div className="mt-8 border-t border-black" />
+            <p className="text-xs">Prepared by</p>
+            <div className="mt-6 border-t border-black" />
+            <p className="text-xs">Date</p>
+          </div>
+          <div className="flex-1">
+            <div className="mt-8 border-t border-black" />
+            <p className="text-xs">Reviewed by</p>
+            <div className="mt-6 border-t border-black" />
+            <p className="text-xs">Date</p>
+          </div>
+        </div>
+      </div>
 
       <p className="text-xs text-muted-foreground">
         Statutory profiles and compensation are both append-only. Every change keeps the previous
