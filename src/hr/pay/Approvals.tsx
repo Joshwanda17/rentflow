@@ -77,7 +77,7 @@ export default function Approvals() {
           <CardContent className="py-8 text-center">
             <p className="text-sm font-semibold">Nothing waiting on you.</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Items appear here when your position holds the authority to act on it.
+              Items appear here when your position holds the authority to act on them.
             </p>
           </CardContent>
         </Card>
