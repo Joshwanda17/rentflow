@@ -27,31 +27,23 @@ interface BonusStage {
 
 /**
  * Per-house bonus status timeline.
- * Stage 1: UGX 1,000 credited instantly when the house is listed.
- * Stage 2: UGX 4,000 released after Landlord Ops verifies the house.
+ * Single stage: UGX 2,000 released ONLY after Landlord Ops verifies the house.
+ * There is no instant listing reward.
  */
-export function HouseBonusTimeline({ listing }: { listing: HouseListing }) {
-  const listedPaid = !!listing.listed_bonus_paid;
-  const listedWhen = formatWhen(listing.listed_bonus_paid_at);
+const LISTING_BONUS = 2000;
 
+export function HouseBonusTimeline({ listing }: { listing: HouseListing }) {
   const verified = !!listing.verified;
   const releasePaid = !!listing.listing_bonus_paid;
   const releaseWhen = formatWhen(listing.listing_bonus_paid_at) ?? formatWhen(listing.verified_at);
 
   const stages: BonusStage[] = [
     {
-      amount: 1000,
-      title: 'Listed bonus credited',
-      hint: 'Paid instantly when you listed this house',
-      done: listedPaid,
-      when: listedWhen,
-    },
-    {
-      amount: 4000,
+      amount: LISTING_BONUS,
       title: 'Verification bonus released',
       hint: verified
         ? 'Released after Landlord Ops verified the house'
-        : 'Releases automatically once Landlord Ops verifies the house',
+        : 'No instant reward — releases once Landlord Ops verifies the house',
       done: releasePaid,
       when: releaseWhen,
     },
@@ -67,7 +59,7 @@ export function HouseBonusTimeline({ listing }: { listing: HouseListing }) {
           Listing bonus
         </p>
         <span className="text-[11px] text-muted-foreground">
-          <span className="font-bold text-success">{formatUGX(earned)}</span> of {formatUGX(5000)}
+          <span className="font-bold text-success">{formatUGX(earned)}</span> of {formatUGX(LISTING_BONUS)}
         </span>
       </div>
 
