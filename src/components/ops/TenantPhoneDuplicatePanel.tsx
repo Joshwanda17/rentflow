@@ -53,7 +53,7 @@ export function TenantPhoneDuplicatePanel() {
   const queryClient = useQueryClient();
   const [showResolved, setShowResolved] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState<boolean>(true);
+  const [panelOpen, setPanelOpen] = useState<boolean>(false);
 
   const { data, isFetching, refetch, error } = useQuery({
     queryKey: ['tenant-phone-duplicate-alerts', showResolved],
