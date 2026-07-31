@@ -34,6 +34,7 @@ import {
   type PayRuleVersionOption,
   type PayRunRow,
 } from '@/hr/pay/api/runs';
+import { calculateRun, getRunDetail, type RunDetail } from '@/hr/pay/api/calculate';
 
 /** Whole-shilling display with thousands separators. */
 function formatNet(value: number | null): string {
@@ -472,13 +473,239 @@ export default function PayRuns() {
   );
 }
 
-/** Placeholder so run links resolve. The real screen comes next. */
+/** Run detail: summary, calculation, payslips and the event timeline. */
 export function PayRunDetailPlaceholder() {
   const { runId } = useParams<{ runId: string }>();
+  const [detail, setDetail] = useState<RunDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [calcError, setCalcError] = useState<string | null>(null);
+  const [calculating, setCalculating] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!runId) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setDetail(await getRunDetail(runId));
+    } catch (err) {
+      setLoadError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [runId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const canCalculate =
+    !!detail && ['draft', 'calculated', 'returned'].includes(detail.status) && !calculating;
+
+  const runCalculation = async () => {
+    if (!runId) return;
+    setCalculating(true);
+    setCalcError(null);
+    try {
+      const res = await calculateRun(runId);
+      toast.success(res.message);
+      await load();
+    } catch (err) {
+      setCalcError((err as Error).message);
+    } finally {
+      setCalculating(false);
+    }
+  };
+
+  const totals = useMemo(() => {
+    const rows = detail?.payslips ?? [];
+    return rows.reduce(
+      (acc, r) => ({
+        gross: acc.gross + r.gross,
+        paye: acc.paye + r.paye,
+        nssf: acc.nssf + r.nssf_employee,
+        lst: acc.lst + r.lst,
+        other: acc.other + r.other_deductions,
+        net: acc.net + r.net,
+      }),
+      { gross: 0, paye: 0, nssf: 0, lst: 0, other: 0, net: 0 },
+    );
+  }, [detail]);
+
+  const provisional = detail?.rule_status_at_run === 'provisional';
+
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-semibold">Run detail</h1>
-      <p className="mt-2 font-mono text-sm text-muted-foreground">{runId}</p>
-    </div>
+    <HRPlaceholderPage
+      heading="Payroll run"
+      subtitle={
+        detail
+          ? `${detail.period_code ?? 'Period'} · ${detail.id.slice(0, 8)} · ${detail.run_type}`
+          : (runId ?? '').slice(0, 8)
+      }
+    >
+      {loading && (
+        <p className="text-sm text-muted-foreground">
+          <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
+          Loading run…
+        </p>
+      )}
+      {loadError && (
+        <p role="alert" className="text-sm font-medium text-destructive">
+          {loadError}
+        </p>
+      )}
+
+      {detail && (
+        <>
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="text-base">
+                  {detail.period_code ?? 'Period'} · {detail.id.slice(0, 8)} · {detail.run_type}
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <StatusCell status={detail.status} />
+                  <RuleStatusBadge value={detail.rule_status_at_run} />
+                </div>
+                {provisional && (
+                  <p className="text-xs text-muted-foreground">
+                    Computed against a rule set that has not been confirmed by a tax advisor.
+                    Tracked for settlement once a verified version is loaded.
+                  </p>
+                )}
+              </div>
+              <div className="text-right">
+                <Button size="sm" onClick={runCalculation} disabled={!canCalculate}>
+                  {calculating && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                  {calculating ? 'Calculating…' : 'Calculate'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {calcError && (
+                <p role="alert" className="mb-3 text-xs font-medium text-destructive">
+                  {calcError}
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div>
+                  <p className="text-[11px] uppercase text-muted-foreground">Employees</p>
+                  <p className="text-lg font-semibold">{detail.payslips.length}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase text-muted-foreground">Total gross</p>
+                  <p className="text-lg font-semibold">{formatNet(detail.total_gross)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase text-muted-foreground">Total net</p>
+                  <p className="text-lg font-semibold">{formatNet(detail.total_net)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase text-muted-foreground">
+                    Total employer cost
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {formatNet(detail.total_employer_cost)}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Cut-off {formatDate(detail.cut_off_date)} · Pay date {formatDate(detail.pay_date)}
+                {detail.rule_version_code ? ` · Rule ${detail.rule_version_code}` : ''}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Payslips</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {detail.payslips.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Not calculated yet.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Staff reference</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="text-right">Gross</TableHead>
+                      <TableHead className="text-right">PAYE</TableHead>
+                      <TableHead className="text-right">NSSF employee</TableHead>
+                      <TableHead className="text-right">LST</TableHead>
+                      <TableHead className="text-right">Other deductions</TableHead>
+                      <TableHead className="text-right">Net</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detail.payslips.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-mono text-xs">
+                          <Link className="underline" to={`/hr/pay/payslips/${p.id}`}>
+                            {p.staff_ref ?? '—'}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Link className="underline" to={`/hr/pay/payslips/${p.id}`}>
+                            {p.staff_name ?? '—'}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-right">{formatNet(p.gross)}</TableCell>
+                        <TableCell className="text-right">{formatNet(p.paye)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatNet(p.nssf_employee)}
+                        </TableCell>
+                        <TableCell className="text-right">{formatNet(p.lst)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatNet(p.other_deductions)}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatNet(p.net)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-semibold">
+                      <TableCell>Total</TableCell>
+                      <TableCell>{detail.payslips.length} employees</TableCell>
+                      <TableCell className="text-right">{formatNet(totals.gross)}</TableCell>
+                      <TableCell className="text-right">{formatNet(totals.paye)}</TableCell>
+                      <TableCell className="text-right">{formatNet(totals.nssf)}</TableCell>
+                      <TableCell className="text-right">{formatNet(totals.lst)}</TableCell>
+                      <TableCell className="text-right">{formatNet(totals.other)}</TableCell>
+                      <TableCell className="text-right">{formatNet(totals.net)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Event timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {detail.events.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No events recorded.</p>
+              ) : (
+                <ol className="space-y-3">
+                  {detail.events.map((e) => (
+                    <li key={e.id} className="border-l-2 border-border pl-3">
+                      <p className="text-sm font-semibold">{e.event_type}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {e.actor_name ?? 'System'}
+                        {e.actor_position_title ? ` · ${e.actor_position_title}` : ''} ·{' '}
+                        {new Date(e.created_at).toLocaleString('en-GB')}
+                      </p>
+                      {e.note && <p className="mt-1 text-xs">{e.note}</p>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </HRPlaceholderPage>
   );
 }
