@@ -51,6 +51,8 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
   const [ratePreset, setRatePreset] = useState('33');
   const [customRate, setCustomRate] = useState('33');
   const [frequency, setFrequency] = useState<RepaymentFrequency>('daily');
+  const [recoverySource, setRecoverySource] = useState<'wallet_daily' | 'roi'>('wallet_daily');
+  const [roiPercent, setRoiPercent] = useState('20');
   const [reason, setReason] = useState('');
   const [confirmAmount, setConfirmAmount] = useState('');
   const [ackRisk, setAckRisk] = useState(false);
@@ -136,12 +138,18 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
     return errs;
   }, [principal]);
 
+  const roiPercentNum = Number(roiPercent);
+  const recoveryValid =
+    recoverySource !== 'roi' ||
+    (Number.isFinite(roiPercentNum) && roiPercentNum > 0 && roiPercentNum <= 100);
+
   const canSubmit =
     !!agent &&
     !checking &&
     blockers.length === 0 &&
     amountErrors.length === 0 &&
     rateValid &&
+    recoveryValid &&
     reason.trim().length >= MIN_REASON &&
     ackRisk &&
     (!overLimit || overrideLimit) &&
@@ -183,6 +191,8 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
         monthlyRate,
         repaymentFrequency: frequency,
         notes: `CFO-initiated advance · ${reason.trim()}`,
+        recoverySource,
+        roiRecoveryPercent: recoverySource === 'roi' ? roiPercentNum : 0,
       });
 
       await supabase.from('audit_logs').insert({
@@ -321,6 +331,38 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className={recoverySource === 'roi' ? '' : 'col-span-2'}>
+              <Label>Recovery source</Label>
+              <Select value={recoverySource} onValueChange={(v) => setRecoverySource(v as 'wallet_daily' | 'roi')}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wallet_daily">Daily wallet sweep (standard)</SelectItem>
+                  <SelectItem value="roi">From customer ROI (percentage)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {recoverySource === 'roi' && (
+              <div>
+                <Label>Recovery % of each ROI</Label>
+                <Input
+                  inputMode="decimal"
+                  value={roiPercent}
+                  onChange={(e) => setRoiPercent(e.target.value.replace(/[^0-9.]/g, ''))}
+                  placeholder="e.g. 20"
+                  className="mt-1"
+                />
+                {!recoveryValid && <p className="text-[11px] text-destructive mt-1">Enter a percentage between 0 and 100.</p>}
+              </div>
+            )}
+            {recoverySource === 'roi' && (
+              <p className="col-span-2 text-[11px] text-muted-foreground">
+                No daily wallet deductions. Each time ROI is paid, {roiPercent || 0}% of that ROI is applied to the
+                outstanding balance and the rest stays in the customer's wallet.
+              </p>
+            )}
           </div>
 
           {principal > 0 && amountErrors.length === 0 && (

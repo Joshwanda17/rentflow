@@ -322,6 +322,19 @@ Deno.serve(async (req) => {
 
           if (walletLedgerErr) throw walletLedgerErr;
 
+          // Customer advance recovery: deduct the configured % of this ROI
+          // toward any active advance set to recover from ROI.
+          try {
+            await supabase.rpc('apply_roi_advance_recovery', {
+              p_user_id: walletRecipientId,
+              p_roi_amount: roiAmount,
+              p_source_id: rr.id,
+              p_idempotency_key: `sup-roi-${rr.id}-${paymentNumber}`,
+            });
+          } catch (recErr) {
+            console.error('[process-supporter-roi] ROI advance recovery failed:', recErr);
+          }
+
           if (managedProxy) {
             // Partner notification — money went to their wallet, agent will deliver.
             await supabase.from('notifications').insert({

@@ -176,6 +176,20 @@ Deno.serve(async (req) => {
         }
 
         // Record the successful automated run for per-individual history.
+        // Customer advance recovery from ROI (only for ROI payouts).
+        if (payout.category_id === 'roi_payout') {
+          try {
+            await adminClient.rpc('apply_roi_advance_recovery', {
+              p_user_id: payout.target_user_id,
+              p_roi_amount: Number(payout.amount),
+              p_source_id: null,
+              p_idempotency_key: `sched-${payout.id}-${now.toISOString().slice(0, 10)}`,
+            });
+          } catch (recErr) {
+            console.error(`[process-scheduled-payouts] ROI advance recovery failed for ${payout.id}:`, recErr);
+          }
+        }
+
         await adminClient.from("scheduled_payout_runs").insert({
           scheduled_payout_id: payout.id,
           target_user_id: payout.target_user_id,
