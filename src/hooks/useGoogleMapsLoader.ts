@@ -22,12 +22,11 @@ async function resolveBrowserKey(): Promise<string | undefined> {
   keyPromise = (async () => {
     let custom: string | undefined;
     try {
-      const { data } = await supabase
-        .from('map_config')
-        .select('browser_api_key')
-        .limit(1)
-        .maybeSingle();
-      const k = data?.browser_api_key?.trim();
+      // Scoped accessor — the map_config table is no longer world-readable
+      // through the Data API; this RPC returns only the browser key and only
+      // to signed-in callers.
+      const { data } = await supabase.rpc('get_maps_browser_key');
+      const k = typeof data === 'string' ? data.trim() : undefined;
       if (k) custom = k;
     } catch {
       // Network/RLS failure — fall back to the managed key.
