@@ -80,7 +80,7 @@ export function ServiceCenterQualificationCard({ agentId }: { agentId: string })
     );
   }
 
-  const status = data.request_status;
+  const status: string = data.request_status;
   const subsLeft = data.remaining_sub_agents;
   const tenantsLeft = data.remaining_personal_tenants;
 
