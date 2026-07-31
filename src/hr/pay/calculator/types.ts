@@ -47,3 +47,9 @@ export interface CalculationResult {
   lines: PayslipLine[];
   trace: string[];
 }
+
+export interface Applicability {
+  payeApplicable: boolean;
+  nssfApplicable: boolean;
+  lstApplicable: boolean;
+}
