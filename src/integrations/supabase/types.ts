@@ -10690,6 +10690,101 @@ export type Database = {
           },
         ]
       }
+      hr_pay_bank_details: {
+        Row: {
+          account_last4: string
+          account_name: string
+          approved_at: string | null
+          approved_by: string | null
+          branch: string | null
+          created_at: string
+          id: string
+          institution: string
+          rail: string
+          reject_reason: string | null
+          requested_at: string
+          requested_by: string
+          staff_id: string
+          status: string
+          superseded_by: string | null
+        }
+        Insert: {
+          account_last4: string
+          account_name: string
+          approved_at?: string | null
+          approved_by?: string | null
+          branch?: string | null
+          created_at?: string
+          id?: string
+          institution: string
+          rail: string
+          reject_reason?: string | null
+          requested_at?: string
+          requested_by?: string
+          staff_id: string
+          status?: string
+          superseded_by?: string | null
+        }
+        Update: {
+          account_last4?: string
+          account_name?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          branch?: string | null
+          created_at?: string
+          id?: string
+          institution?: string
+          rail?: string
+          reject_reason?: string | null
+          requested_at?: string
+          requested_by?: string
+          staff_id?: string
+          status?: string
+          superseded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_bank_details_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_bank_details_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_bank_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_pay_bank_secrets: {
+        Row: {
+          account_number: string
+          bank_detail_id: string
+          created_at: string
+        }
+        Insert: {
+          account_number: string
+          bank_detail_id: string
+          created_at?: string
+        }
+        Update: {
+          account_number?: string
+          bank_detail_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_bank_secrets_bank_detail_id_fkey"
+            columns: ["bank_detail_id"]
+            isOneToOne: true
+            referencedRelation: "hr_pay_bank_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_pay_compensation: {
         Row: {
           amount: number
@@ -10957,6 +11052,47 @@ export type Database = {
           verified_by_name?: string | null
         }
         Relationships: []
+      }
+      hr_pay_statutory_ids: {
+        Row: {
+          created_at: string
+          id: string
+          lst_district: string | null
+          nssf_number: string | null
+          staff_id: string
+          tin: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lst_district?: string | null
+          nssf_number?: string | null
+          staff_id: string
+          tin?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lst_district?: string | null
+          nssf_number?: string | null
+          staff_id?: string
+          tin?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_statutory_ids_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_pay_tax_bands: {
         Row: {
