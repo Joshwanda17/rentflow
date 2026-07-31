@@ -191,6 +191,8 @@ const HRDashboardPage = lazy(() => import('./pages/hr/Dashboard'));
 const CalculatorSelfCheck = lazy(() => import('./hr/pay/calculator/CalculatorSelfCheck'));
 const PayrollConfigPage = lazy(() => import('./hr/pay/PayrollConfig'));
 const PayrollCompensationPage = lazy(() => import('./hr/pay/Compensation'));
+const PayRunsPage = lazy(() => import('./hr/pay/PayRuns'));
+const PayRunDetailPage = lazy(() => import('./hr/pay/PayRuns').then((m) => ({ default: m.PayRunDetailPlaceholder })));
 const HRTasksPage = lazy(() => import('./hr/pages/Tasks'));
 const HRTaskDetailPage = lazy(() => import('./hr/pages/TaskDetail'));
 const HRSignedInRoute = lazy(() => import('./hr/components/HRSignedInRoute'));
@@ -579,6 +581,8 @@ function AppRoutes() {
           <Route path="/hr/pay/calculator-check" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><CalculatorSelfCheck /></RoleGuard>} />
           <Route path="/hr/pay/config" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollConfigPage /></RoleGuard>} />
           <Route path="/hr/pay/compensation" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollCompensationPage /></RoleGuard>} />
+          <Route path="/hr/pay/runs" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayRunsPage /></RoleGuard>} />
+          <Route path="/hr/pay/runs/:runId" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayRunDetailPage /></RoleGuard>} />
           <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRTasksPage /></RoleGuard>} />
           <Route path="/hr/dashboard/staff" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRStaffPage /></RoleGuard>} />
           <Route path="/hr/dashboard/productivity" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRProductivityPage /></RoleGuard>} />
