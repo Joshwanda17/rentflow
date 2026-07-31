@@ -39,6 +39,7 @@ import { template as redirectMonitorAlertTemplate } from './redirect-monitor-ale
 import { template as smartphoneOrderReceiptTemplate } from './smartphone-order-receipt.tsx'
 import { template as portfolioRenewalApologyTemplate } from './portfolio-renewal-apology.tsx'
 import { template as partnerPortfolioInviteTemplate } from './partner-portfolio-invite.tsx'
+import { template as performanceAssessmentReportTemplate } from './performance-assessment-report.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -83,4 +84,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'smartphone-order-receipt': smartphoneOrderReceiptTemplate,
   'portfolio-renewal-apology': portfolioRenewalApologyTemplate,
   'partner-portfolio-invite': partnerPortfolioInviteTemplate,
+  'performance-assessment-report': performanceAssessmentReportTemplate,
 }
