@@ -473,6 +473,13 @@ export function CFOAdvancesManager() {
         onSuccess={() => { refetch(); setPaymentAdvance(null); }}
       />
 
+      <AdvancePaymentSearchDialog
+        open={paymentSearchOpen}
+        onOpenChange={setPaymentSearchOpen}
+        advances={advances}
+        onSelect={(a) => setPaymentAdvance(a)}
+      />
+
       <CancelAdvanceDialog
         advance={cancelAdvance}
         open={!!cancelAdvance}
