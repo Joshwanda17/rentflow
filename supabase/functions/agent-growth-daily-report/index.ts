@@ -564,7 +564,7 @@ async function sendWithAttachment(
     pdfB64,
     "",
     `--${boundary}--`,
-  ].join("\r\n");
+  ].filter(Boolean).join("\r\n");
   const encoded = bytesToBase64(new TextEncoder().encode(raw))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   const res = await fetch(
