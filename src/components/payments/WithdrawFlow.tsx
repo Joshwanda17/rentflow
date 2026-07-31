@@ -279,6 +279,34 @@ export default function WithdrawFlow({
     perfToday.active_count > 0 &&
     (perfPct ?? 0) < 20;
 
+  // The red "Withdrawals temporarily disabled" explainer is only shown for
+  // 20 minutes from the first time the agent hits the gate today. After that
+  // window it stops shouting at them — the gate itself still applies.
+  const PERF_BANNER_MS = 20 * 60 * 1000;
+  const perfBannerKey = user?.id
+    ? `welile-perf-gate-banner-${user.id}-${new Date().toISOString().slice(0, 10)}`
+    : null;
+  const [perfBannerVisible, setPerfBannerVisible] = useState(false);
+  useEffect(() => {
+    if (!isPerfLocked || !perfBannerKey) {
+      setPerfBannerVisible(false);
+      return;
+    }
+    let firstSeen = Number(localStorage.getItem(perfBannerKey) || 0);
+    if (!firstSeen) {
+      firstSeen = Date.now();
+      try { localStorage.setItem(perfBannerKey, String(firstSeen)); } catch { /* private mode */ }
+    }
+    const remaining = firstSeen + PERF_BANNER_MS - Date.now();
+    if (remaining <= 0) {
+      setPerfBannerVisible(false);
+      return;
+    }
+    setPerfBannerVisible(true);
+    const t = setTimeout(() => setPerfBannerVisible(false), remaining);
+    return () => clearTimeout(t);
+  }, [isPerfLocked, perfBannerKey, open]);
+
   /** Force-fetch the strict ledger balance from the server, bypassing
    *  any cached values. Updates `ledgerAvailable` + `ledgerCheckedAt`. */
   const refetchLedger = async () => {
