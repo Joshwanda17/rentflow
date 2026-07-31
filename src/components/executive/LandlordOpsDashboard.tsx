@@ -872,6 +872,22 @@ export function LandlordOpsDashboard() {
     },
   });
 
+  // TRUE server-side count of houses awaiting verification. The list queries
+  // above are capped (client pagination), so their length must never be used
+  // as the backlog figure — it silently plateaus at the cap.
+  const { data: pendingHousesCount = 0 } = useQuery({
+    queryKey: ['exec-house-listings-pending-count'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('house_listings')
+        .select('id', { count: 'exact', head: true })
+        .eq('verified', false)
+        .not('status', 'in', '(rejected,delisted)');
+      return count || 0;
+    },
+  });
+
   // ─── Global Verification Search (across ALL agents/listings, not just the 500 most recent) ───
   const debouncedVerifySearch = useDebouncedValue(verifySearch.trim(), 300);
   const { data: globalSearchListings, isFetching: isGlobalSearching } = useQuery({
@@ -3764,7 +3780,7 @@ export function LandlordOpsDashboard() {
           <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
           <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
           <KPICard title="📱 Landlords" value={smartphoneLandlordsCount} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${totalLandlordsCount}`} />
-          <KPICard title="Bonuses Pending" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
+          <KPICard title="Bonuses Pending" value={`${fmt(pendingHousesCount * 2000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
         </div>
         <VacancyAnalytics listings={rows as any} />
       </div>
@@ -3843,7 +3859,7 @@ export function LandlordOpsDashboard() {
       {/* PROMINENT: Agent-initiated LC1 chairperson verification requests */}
       <Lc1VerificationRequestsPanel onResolved={refetchAll} />
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
-      {(unverifiedListings.length > 0 || unverifiedLandlords.length > 0) && (
+      {(pendingHousesCount > 0 || pendingVerificationCount > 0) && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-muted">
@@ -3859,15 +3875,15 @@ export function LandlordOpsDashboard() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setView('verify')}
-              disabled={unverifiedListings.length === 0}
+              disabled={pendingHousesCount === 0}
               className="rounded-xl border border-border bg-background p-3 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
             >
               <div className="flex items-center gap-1.5">
                 <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Houses</span>
               </div>
-              <p className="text-2xl font-semibold tracking-tight leading-tight mt-1">{unverifiedListings.length}</p>
-              <p className="text-[10px] text-muted-foreground leading-snug">pending · UGX {fmt(unverifiedListings.length * 5000)} bonuses</p>
+              <p className="text-2xl font-semibold tracking-tight leading-tight mt-1">{fmt(pendingHousesCount)}</p>
+              <p className="text-[10px] text-muted-foreground leading-snug">pending · UGX {fmt(pendingHousesCount * 2000)} bonuses</p>
             </button>
             <button
               onClick={() => { setView('landlords'); setLandlordCategory('pending'); }}
@@ -4018,7 +4034,7 @@ export function LandlordOpsDashboard() {
               badge={
                 item.id === 'empty' ? `${emptyLandlordsCount}` :
                 item.id === 'occupied' ? `${occupiedLandlordsCount}` :
-                item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
+                item.id === 'verify' ? (pendingHousesCount > 0 ? `${fmt(pendingHousesCount)}` : undefined) :
                 item.id === 'agents' ? `${agentSummary.length}` : undefined
               } />
           ))}
