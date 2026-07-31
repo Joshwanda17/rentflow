@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipTopupRequest, dispatchTransactionalEmail, resolveManagedProxy } from "../_shared/partnership-emails.ts";
+import { getContributedPrincipal } from "../_shared/contributed-principal.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import { withRetry } from "../_shared/rpcRetry.ts";
 
@@ -396,7 +397,11 @@ Deno.serve(async (req) => {
       const { data: partnerEmailRow } = await supabase
         .from("profiles").select("email, full_name").eq("id", partnerId).maybeSingle();
       if (partnerEmailRow?.email) {
-        const previousValue = Number(portfolio.investment_amount) || 0;
+        const previousValue = await getContributedPrincipal(
+          supabase,
+          portfolio_id,
+          Number(portfolio.investment_amount) || 0,
+        );
         dispatchTransactionalEmail(
           supabaseUrl,
           serviceKey,
