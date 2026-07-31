@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { AgentRentCapacityPanel } from '../AgentRentCapacityPanel';
+
 
 export type OverviewRange = '24h' | '7d' | '1m';
 
@@ -347,8 +347,6 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
         </Card>
       </div>
 
-      {/* Row D — agent performance for rent collection */}
-      <AgentRentCapacityPanel defaultLimit={25} />
     </div>
   );
 }
