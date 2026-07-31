@@ -550,12 +550,17 @@ async function sendWithAttachment(
   const encodedSubject = /[^\x00-\x7F]/.test(subject)
     ? `=?UTF-8?B?${bytesToBase64(new TextEncoder().encode(subject))}?=`
     : subject;
-  const raw = [
+  const headerLines = [
     `To: ${to}`,
-    cc.length ? `Cc: ${cc.join(", ")}` : "",
+    ...(cc.length ? [`Cc: ${cc.join(", ")}`] : []),
     `Subject: ${encodedSubject}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
+  ];
+  // NOTE: do NOT filter out empty strings here — the blank lines below are the
+  // MIME header/body separators. Dropping them collapses the message body.
+  const raw = [
+    ...headerLines,
     "",
     `--${boundary}`,
     `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
@@ -582,7 +587,7 @@ async function sendWithAttachment(
     pdfB64,
     "",
     `--${boundary}--`,
-  ].filter(Boolean).join("\r\n");
+  ].join("\r\n");
   const encoded = bytesToBase64(new TextEncoder().encode(raw))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   const res = await fetch(
