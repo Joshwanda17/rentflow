@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     if (guardBlock) return guardBlock;
 
     const { data: roles } = await adminClient.from('user_roles').select('role').eq('user_id', user.id);
-    const allowedRoles = ['manager', 'cfo', 'coo', 'super_admin'];
+    const allowedRoles = ['cfo', 'coo', 'super_admin'];
     if (!roles?.some(r => allowedRoles.includes(r.role))) {
       return new Response(JSON.stringify({ error: 'Insufficient permissions' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }

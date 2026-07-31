@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     const { data: callerRoles } = await adminClient
       .from("user_roles").select("role").eq("user_id", caller.id)
-      .in("role", ["hr", "super_admin", "cto"]);
+      .in("role", ["hr", "super_admin"]);
 
     if (!callerRoles || callerRoles.length === 0) {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
