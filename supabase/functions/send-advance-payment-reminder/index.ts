@@ -60,10 +60,13 @@ Deno.serve(async (req) => {
     // Pull each agent's active/overdue advance (amounts computed server-side).
     const { data: advances } = await admin
       .from('agent_advances')
-      .select('agent_id, outstanding_balance, arrears_balance, principal, access_fee, cycle_days, status, recovery_source')
+      .select('agent_id, outstanding_balance, arrears_balance, principal, access_fee, cycle_days, status, recovery_source, daily_installment')
       .in('agent_id', agentIds)
       .in('status', ['active', 'overdue'])
-      .neq('recovery_source', 'roi');
+      // ROI advances never get daily repayment reminders — late or missed ROI
+      // payouts are not the agent's action to take. NULL-safe: legacy rows with
+      // no recovery_source are still treated as daily-sweep advances.
+      .or('recovery_source.is.null,recovery_source.neq.roi');
 
     const { data: profs } = await admin
       .from('profiles')
@@ -73,8 +76,15 @@ Deno.serve(async (req) => {
 
     const sent: string[] = [];
     const failed: string[] = [];
+    const skippedRoi: string[] = [];
 
     for (const adv of advances || []) {
+      // Defence in depth: ROI advances (and any advance with no daily
+      // installment obligation) are excluded from repayment reminders.
+      if (String(adv.recovery_source || '').toLowerCase() === 'roi') {
+        skippedRoi.push(adv.agent_id);
+        continue;
+      }
       const prof = profMap.get(adv.agent_id);
       if (!prof?.phone) { failed.push(adv.agent_id); continue; }
       const cycle = Number(adv.cycle_days) || 30;
@@ -106,7 +116,7 @@ Deno.serve(async (req) => {
       payload: { sent_count: sent.length, failed_count: failed.length, requested: agentIds.length },
     }).then(() => {}, () => {});
 
-    return new Response(JSON.stringify({ sent: sent.length, failed: failed.length }), {
+    return new Response(JSON.stringify({ sent: sent.length, failed: failed.length, skipped_roi: skippedRoi.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
