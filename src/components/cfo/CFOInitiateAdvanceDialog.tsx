@@ -333,10 +333,6 @@ export function CFOInitiateAdvanceDialog({ open, onOpenChange, onSuccess }: Prop
             </div>
           </div>
 
-          {principal > 0 && amountErrors.length === 0 && (
-            <></>
-          )}
-
           <div className="grid grid-cols-2 gap-3">
             <div className={recoverySource === 'roi' ? '' : 'col-span-2'}>
               <Label>Recovery source</Label>
