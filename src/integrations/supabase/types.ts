@@ -105,6 +105,9 @@ export type Database = {
           id: string
           interest_accrued: number
           opening_balance: number
+          recovery_percent: number | null
+          recovery_source: string
+          roi_amount: number | null
         }
         Insert: {
           advance_id: string
@@ -116,6 +119,9 @@ export type Database = {
           id?: string
           interest_accrued?: number
           opening_balance?: number
+          recovery_percent?: number | null
+          recovery_source?: string
+          roi_amount?: number | null
         }
         Update: {
           advance_id?: string
@@ -127,6 +133,9 @@ export type Database = {
           id?: string
           interest_accrued?: number
           opening_balance?: number
+          recovery_percent?: number | null
+          recovery_source?: string
+          roi_amount?: number | null
         }
         Relationships: [
           {
