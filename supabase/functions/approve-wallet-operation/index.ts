@@ -394,6 +394,28 @@ Deno.serve(async (req) => {
         }
 
         // ── Advance next_roi_date on ROI payout approval ──
+        // ── CUSTOMER ADVANCE RECOVERY FROM ROI ──
+        // If the recipient has an active advance configured to recover from ROI,
+        // deduct only the configured percentage of this ROI payout and apply it
+        // to the outstanding balance (balanced double-entry, idempotent).
+        if (isRoiWalletPayout && op.direction === 'cash_in') {
+          try {
+            const { data: recovery, error: recoveryErr } = await adminClient.rpc('apply_roi_advance_recovery', {
+              p_user_id: ledgerUserId,
+              p_roi_amount: op.amount,
+              p_source_id: op.source_id || null,
+              p_idempotency_key: roiCycleKey || `op-${op.id}`,
+            });
+            if (recoveryErr) {
+              console.error(`[approve-wallet-op] ROI advance recovery failed for op ${op.id}:`, recoveryErr);
+            } else if ((recovery as any)?.recovered > 0) {
+              console.log(`[approve-wallet-op] Recovered ${(recovery as any).recovered} from ROI for ${ledgerUserId}`);
+            }
+          } catch (recErr) {
+            console.error(`[approve-wallet-op] ROI advance recovery threw for op ${op.id}:`, recErr);
+          }
+        }
+
         if ((op.category === 'roi_payout' || op.category === 'supporter_platform_rewards') && op.source_table === 'investor_portfolios' && op.source_id) {
           try {
             // Get current next_roi_date to advance from it (not from today)
