@@ -229,7 +229,7 @@ export function AgentMenuDrawer({
       icon: Home,
       label: '🏠 Property',
       items: [
-        { icon: Home, label: 'List House', description: 'Earn UGX 5,000', onClick: onListEmptyHouse, accent: 'chart-4', badge: '5K' },
+        { icon: Home, label: 'List House', description: 'UGX 2,000 on verification', onClick: onListEmptyHouse, accent: 'chart-4', badge: '2K' },
         { icon: ClipboardList, label: 'My Listings', description: 'View listed houses', onClick: onViewMyListings, accent: 'teal-500' },
         { icon: Building2, label: 'Manage Property', description: 'For landlords', onClick: onManageProperty, accent: 'orange-500', badge: '2%' },
         { icon: Home, label: 'Managed Props', description: 'Properties & payouts', onClick: onViewManagedProperties, accent: 'teal-500' },
