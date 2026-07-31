@@ -30830,6 +30830,10 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
+      is_service_center_reviewer: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_sub_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_supporter:
         | { Args: never; Returns: boolean }
