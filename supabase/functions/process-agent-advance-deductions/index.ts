@@ -28,7 +28,11 @@ Deno.serve(async (req) => {
     const { data: advances, error: fetchError } = await supabase
       .from('agent_advances')
       .select('*')
-      .in('status', ['active', 'overdue']);
+      .in('status', ['active', 'overdue'])
+      // ROI-recovery advances are never swept or reminded here — they are
+      // repaid exclusively via apply_roi_advance_recovery. NULL-safe so legacy
+      // rows without a recovery_source keep their daily behaviour.
+      .or('recovery_source.is.null,recovery_source.neq.roi');
 
     if (fetchError) throw fetchError;
     if (!advances || advances.length === 0) {
@@ -93,6 +97,12 @@ Deno.serve(async (req) => {
     };
 
     for (const advance of advances) {
+      // Defence in depth: never touch an ROI advance, even if the query filter
+      // above is ever relaxed. No deduction, no arrears, no missed-payment SMS.
+      if (String(advance.recovery_source || '').toLowerCase() === 'roi') {
+        skipped.push(advance.id);
+        continue;
+      }
       const issuedAtEAT = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Africa/Kampala',
         year: 'numeric', month: '2-digit', day: '2-digit',
