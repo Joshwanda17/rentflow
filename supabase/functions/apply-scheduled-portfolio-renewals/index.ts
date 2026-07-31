@@ -61,8 +61,26 @@ Deno.serve(async (req) => {
       .limit(1000);
     if (expErr) throw expErr;
 
+    // And portfolios explicitly parked in the `matured` status — these are the
+    // "pending renewal" rows Partner Ops sees; they must roll automatically.
+    const { data: maturedStatus, error: matErr } = await admin
+      .from("investor_portfolios")
+      .select(
+        `id, portfolio_code, account_name, investor_id, investment_amount,
+         roi_percentage, duration_months, maturity_date, pending_renewal_effective_date,
+         pending_renewal_request_id,
+         investor:profiles!investor_portfolios_investor_id_fkey(email, full_name)`,
+      )
+      .eq("status", "matured")
+      .limit(1000);
+    if (matErr) throw matErr;
+
     const seen = new Set<string>();
-    const due = [...(scheduledDue || []), ...(expiredNoSchedule || [])].filter((r: any) => {
+    const due = [
+      ...(scheduledDue || []),
+      ...(expiredNoSchedule || []),
+      ...(maturedStatus || []),
+    ].filter((r: any) => {
       if (seen.has(r.id)) return false;
       seen.add(r.id);
       return true;
@@ -90,6 +108,7 @@ Deno.serve(async (req) => {
 
     let renewed = 0;
     let emailed = 0;
+    let skipped = 0;
     const errors: Array<{ portfolio_id: string; error: string }> = [];
 
     for (const row of due ?? []) {
@@ -100,9 +119,15 @@ Deno.serve(async (req) => {
             p_portfolio_id: row.id,
             p_renewed_by: systemActor,
             p_reason: "Nightly auto-renewal at scheduled maturity",
+            p_source: "nightly_cron",
+            p_is_auto: true,
           },
         );
         if (renewErr) throw renewErr;
+        if ((res as any)?.skipped) {
+          skipped++;
+          continue;
+        }
         renewed++;
 
         const investor: any = (row as any).investor;
@@ -163,6 +188,7 @@ Deno.serve(async (req) => {
       ok: true,
       due_count: due?.length ?? 0,
       renewed,
+      skipped,
       emailed,
       errors,
     });
