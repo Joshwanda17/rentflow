@@ -23,8 +23,56 @@ interface ApprovalItem {
 export default function Approvals() {
   const [items, setItems] = useState<ApprovalItem[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [authorities, setAuthorities] = useState<
+    Array<{ function_code: string; title: string | null; holders: string[] }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { supabase } = await import('@/hr/api/client');
+      const { data: rows } = await supabase
+        .from('hr_pay_authorities')
+        .select('function_code, position_id, hr_positions(title)')
+        .is('effective_to', null);
+      if (!alive || !rows) return;
+      const positionIds = rows.map((r: any) => r.position_id).filter(Boolean);
+      const { data: assignments } = await supabase
+        .from('hr_assignments')
+        .select('position_id, hr_staff(user_id)')
+        .in('position_id', positionIds)
+        .is('ended_on', null);
+      const userIds = Array.from(
+        new Set((assignments ?? []).map((a: any) => a.hr_staff?.user_id).filter(Boolean)),
+      ) as string[];
+      const nameById: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+        (profiles ?? []).forEach((p: any) => {
+          if (p.full_name) nameById[p.id] = p.full_name;
+        });
+      }
+      if (!alive) return;
+      setAuthorities(
+        rows.map((r: any) => ({
+          function_code: r.function_code,
+          title: r.hr_positions?.title ?? null,
+          holders: (assignments ?? [])
+            .filter((a: any) => a.position_id === r.position_id)
+            .map((a: any) => nameById[a.hr_staff?.user_id] ?? 'Unnamed')
+            .filter(Boolean),
+        })),
+      );
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -79,6 +127,23 @@ export default function Approvals() {
             <p className="mt-1 text-xs text-muted-foreground">
               Items appear here when your position holds the authority to act on them.
             </p>
+            {authorities.length > 0 && (
+              <div className="mx-auto mt-4 max-w-md space-y-1 rounded-md border border-border bg-muted/40 p-3 text-left">
+                <p className="text-xs font-semibold">Who currently holds payroll authority</p>
+                {authorities.map((a) => (
+                  <p key={a.function_code} className="text-xs text-muted-foreground">
+                    <span className="font-medium capitalize">{a.function_code}</span>
+                    {' · '}
+                    {a.title ?? 'Unassigned position'}
+                    {a.holders.length > 0 ? ` — ${a.holders.join(', ')}` : ' — no one assigned'}
+                  </p>
+                ))}
+                <p className="pt-1 text-[11px] text-muted-foreground">
+                  A submitted run only appears for the account holding the position with
+                  approve authority.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
