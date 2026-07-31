@@ -3014,11 +3014,11 @@ export function LandlordOpsDashboard() {
         {/* Thumb-friendly status filter chips */}
         <div className="flex gap-2 flex-wrap items-center">
           {([
-            { value: 'pending' as HouseStatusFilter, label: 'Pending', count: unverifiedListings.length, color: 'amber' },
-            { value: 'verified' as HouseStatusFilter, label: 'Verified', count: verifiedListings.length, color: 'emerald' },
-            { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: hiddenListings.length, color: 'slate' },
-            { value: 'rejected' as HouseStatusFilter, label: 'Rejected', count: rejectedListings.length, color: 'rose' },
-            { value: 'all' as HouseStatusFilter, label: 'All houses', count: rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id)).length, color: 'primary' },
+            { value: 'pending' as HouseStatusFilter, label: 'Pending', count: houseStatusCounts?.pending ?? 0, color: 'amber' },
+            { value: 'verified' as HouseStatusFilter, label: 'Verified', count: houseStatusCounts?.verified ?? 0, color: 'emerald' },
+            { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: houseStatusCounts?.hidden ?? 0, color: 'slate' },
+            { value: 'rejected' as HouseStatusFilter, label: 'Rejected', count: houseStatusCounts?.rejected ?? 0, color: 'rose' },
+            { value: 'all' as HouseStatusFilter, label: 'All houses', count: houseStatusCounts?.all ?? 0, color: 'primary' },
           ]).map(s => {
             const active = houseStatusFilter === s.value;
             const colorMap: Record<string, string> = {
@@ -3036,7 +3036,7 @@ export function LandlordOpsDashboard() {
               >
                 {s.label}
                 <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${active ? 'bg-white/25 text-white' : 'bg-muted text-muted-foreground'}`}>
-                  {s.count}
+                  {s.count.toLocaleString()}
                 </span>
               </button>
             );
