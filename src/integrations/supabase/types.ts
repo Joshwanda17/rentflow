@@ -30206,6 +30206,16 @@ export type Database = {
         }[]
       }
       ops_global_verification_overview: { Args: never; Returns: Json }
+      ops_house_listing_status_counts: {
+        Args: { p_date_from?: string; p_date_to?: string; p_search?: string }
+        Returns: {
+          all_houses: number
+          hidden: number
+          pending: number
+          rejected: number
+          verified: number
+        }[]
+      }
       ops_link_agent_landlord: {
         Args: { p_agent_id: string; p_landlord_id: string; p_reason: string }
         Returns: Json
@@ -30306,6 +30316,21 @@ export type Database = {
           p_resolution: string
         }
         Returns: Json
+      }
+      ops_search_house_listings: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort?: string
+          p_status?: string
+        }
+        Returns: {
+          listing: Json
+          total_count: number
+        }[]
       }
       ops_search_landlords: {
         Args: {

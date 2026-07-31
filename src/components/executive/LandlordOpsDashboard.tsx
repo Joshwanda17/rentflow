@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
@@ -936,6 +936,81 @@ export function LandlordOpsDashboard() {
       const rows = (data ?? []) as any[];
       const maps = await fetchListingProfileMaps(rows);
       return enrichListingsWithProfiles(rows, maps) as ListingWithLandlord[];
+    },
+  });
+
+  // ─── Server-side paginated house search (status + term + date + sort) ───
+  // Replaces the capped client-side slices: the DB resolves the scope and
+  // returns both the page and the TRUE total match count, so operators see
+  // every house, not the latest 500/1000.
+  const verifyDateFromIso = verifyDateFrom ? new Date(verifyDateFrom).toISOString() : null;
+  const verifyDateToIso = verifyDateTo
+    ? new Date(new Date(verifyDateTo).getTime() + 24 * 60 * 60 * 1000 - 1).toISOString()
+    : null;
+  const serverSearchTerm = debouncedVerifySearch.length >= 2 ? debouncedVerifySearch : null;
+
+  const {
+    data: houseSearchPages,
+    isFetching: isHouseSearchFetching,
+    fetchNextPage: fetchMoreHouses,
+    isFetchingNextPage: isFetchingMoreHouses,
+    hasNextPage: hasMoreHousePages,
+  } = useInfiniteQuery({
+    queryKey: ['ops-house-search', houseStatusFilter, serverSearchTerm, verifyDateFromIso, verifyDateToIso, verifySort],
+    enabled: view === 'verify',
+    staleTime: 30_000,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const offset = Number(pageParam) || 0;
+      const { data, error } = await (supabase.rpc as any)('ops_search_house_listings', {
+        p_status: houseStatusFilter,
+        p_search: serverSearchTerm,
+        p_date_from: verifyDateFromIso,
+        p_date_to: verifyDateToIso,
+        p_sort: verifySort,
+        p_limit: VERIFY_PAGE_SIZE,
+        p_offset: offset,
+      });
+      if (error) throw error;
+      const pageRows = (data || []) as any[];
+      return {
+        listings: pageRows.map(r => r.listing as ListingWithLandlord),
+        total: Number(pageRows[0]?.total_count ?? 0),
+        offset,
+      };
+    },
+    getNextPageParam: (last: any) => {
+      const next = last.offset + VERIFY_PAGE_SIZE;
+      return next < last.total ? next : undefined;
+    },
+  });
+
+  const serverHouseRows = useMemo(
+    () => ((houseSearchPages?.pages || []) as any[]).flatMap(p => p.listings as ListingWithLandlord[]),
+    [houseSearchPages],
+  );
+  const serverHouseTotal = Number(((houseSearchPages?.pages || []) as any[])[0]?.total ?? 0);
+
+  // True per-status totals for the chips, honouring the active search/date range.
+  const { data: houseStatusCounts } = useQuery({
+    queryKey: ['ops-house-status-counts', serverSearchTerm, verifyDateFromIso, verifyDateToIso],
+    enabled: view === 'verify',
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('ops_house_listing_status_counts', {
+        p_search: serverSearchTerm,
+        p_date_from: verifyDateFromIso,
+        p_date_to: verifyDateToIso,
+      });
+      if (error) throw error;
+      const r = ((data || []) as any[])[0] || {};
+      return {
+        pending: Number(r.pending || 0),
+        verified: Number(r.verified || 0),
+        hidden: Number(r.hidden || 0),
+        rejected: Number(r.rejected || 0),
+        all: Number(r.all_houses || 0),
+      };
     },
   });
 
@@ -2904,56 +2979,15 @@ export function LandlordOpsDashboard() {
     ];
 
     // Status scope: pending | verified | hidden | rejected | all
-    // When the operator types a search, we widen the source to the global
-    // (server-side) search results so that agents whose listings fall outside
-    // the most-recent 500 are still findable. Status scope still applies.
+    // Scope, search term, date range and sort are all resolved server-side by
+    // ops_search_house_listings, which also returns the true total match count.
+    // Nothing here is capped by a client-side row limit any more.
     const searchActive = debouncedVerifySearch.length >= 2;
     const dateRangeActive = !!(verifyDateFrom || verifyDateTo);
-    const baseSource: ListingWithLandlord[] = (searchActive || dateRangeActive)
-      ? (() => {
-          const seen = new Set<string>();
-          const merged: ListingWithLandlord[] = [];
-          for (const l of [
-            ...(globalSearchListings || []),
-            ...(globalDateRangeListings || []),
-            ...rows,
-          ]) {
-            if (seen.has(l.id)) continue;
-            seen.add(l.id);
-            merged.push(l);
-          }
-          return merged;
-        })()
-      : rows;
-    const scopeListings =
-      houseStatusFilter === 'all'
-        ? baseSource.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id))
-        : houseStatusFilter === 'verified'
-        ? baseSource.filter(l => l.verified && l.status !== 'rejected' && l.status !== 'delisted')
-        : houseStatusFilter === 'hidden'
-        ? baseSource.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted')
-        : houseStatusFilter === 'rejected'
-        ? ((searchActive || dateRangeActive) ? baseSource.filter(l => l.status === 'rejected') : rejectedListings)
-        : ((searchActive || dateRangeActive) ? baseSource.filter(l => !l.verified && l.status !== 'rejected' && l.status !== 'delisted') : unverifiedListings);
+    const scopeListings = serverHouseRows.filter(
+      l => houseStatusFilter === 'verified' || !optimisticallyVerifiedIds.has(l.id),
+    );
     let filteredHouses = scopeListings;
-
-    // Text search across name, phone, location, agent
-    if (verifySearch.trim()) {
-      const q = verifySearch.toLowerCase().trim();
-      filteredHouses = filteredHouses.filter(h =>
-        h.title?.toLowerCase().includes(q) ||
-        h.landlords?.name?.toLowerCase().includes(q) ||
-        h.landlords?.phone?.includes(q) ||
-        h.agent_name?.toLowerCase().includes(q) ||
-        h.agent_phone?.includes(q) ||
-        h.region?.toLowerCase().includes(q) ||
-        h.district?.toLowerCase().includes(q) ||
-        h.village?.toLowerCase().includes(q) ||
-        h.lc1_chairperson_name?.toLowerCase().includes(q) ||
-        h.lc1_chairperson_phone?.includes(q) ||
-        h.address?.toLowerCase().includes(q)
-      );
-    }
 
     // Quick filter chips
     if (verifyFilter === 'has_landlord') filteredHouses = filteredHouses.filter(h => !!h.landlords);
@@ -2962,36 +2996,11 @@ export function LandlordOpsDashboard() {
     else if (verifyFilter === 'has_gps') filteredHouses = filteredHouses.filter(h => h.latitude && h.longitude);
     else if (verifyFilter === 'has_lc1') filteredHouses = filteredHouses.filter(h => !!h.lc1_chairperson_name);
 
-    // Date range filter (created_at)
-    if (verifyDateFrom) {
-      const from = new Date(verifyDateFrom).getTime();
-      filteredHouses = filteredHouses.filter(h => new Date(h.created_at).getTime() >= from);
-    }
-    if (verifyDateTo) {
-      const to = new Date(verifyDateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
-      filteredHouses = filteredHouses.filter(h => new Date(h.created_at).getTime() <= to);
-    }
-
-    // Sort
-    filteredHouses = [...filteredHouses].sort((a, b) => {
-      if (verifySort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      if (verifySort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      if (verifySort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
-      if (verifySort === 'recently_updated') {
-        const bu = (b as any).updated_at || b.created_at;
-        const au = (a as any).updated_at || a.created_at;
-        return new Date(bu).getTime() - new Date(au).getTime();
-      }
-      return 0;
-    });
-
-    // ── Client-side pagination for the queue render ──
-    // The parent query already caps rows; this just prevents mounting 500
-    // heavy cards at once (which was the primary source of the "long load"
-    // and the unresponsive bulk-select toggles).
-    const totalFiltered = filteredHouses.length;
-    const displayedHouses = filteredHouses.slice(0, verifyPage * VERIFY_PAGE_SIZE);
-    const hasMoreHouses = displayedHouses.length < totalFiltered;
+    // ── Server-side pagination ──
+    // totalFiltered is the DB match count for the active scope/search/date.
+    const totalFiltered = serverHouseTotal;
+    const displayedHouses = filteredHouses;
+    const hasMoreHouses = !!hasMoreHousePages;
 
     return (
       <>
@@ -2999,17 +3008,17 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{totalFiltered.toLocaleString()} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
         </div>
 
         {/* Thumb-friendly status filter chips */}
         <div className="flex gap-2 flex-wrap items-center">
           {([
-            { value: 'pending' as HouseStatusFilter, label: 'Pending', count: unverifiedListings.length, color: 'amber' },
-            { value: 'verified' as HouseStatusFilter, label: 'Verified', count: verifiedListings.length, color: 'emerald' },
-            { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: hiddenListings.length, color: 'slate' },
-            { value: 'rejected' as HouseStatusFilter, label: 'Rejected', count: rejectedListings.length, color: 'rose' },
-            { value: 'all' as HouseStatusFilter, label: 'All houses', count: rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id)).length, color: 'primary' },
+            { value: 'pending' as HouseStatusFilter, label: 'Pending', count: houseStatusCounts?.pending ?? 0, color: 'amber' },
+            { value: 'verified' as HouseStatusFilter, label: 'Verified', count: houseStatusCounts?.verified ?? 0, color: 'emerald' },
+            { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: houseStatusCounts?.hidden ?? 0, color: 'slate' },
+            { value: 'rejected' as HouseStatusFilter, label: 'Rejected', count: houseStatusCounts?.rejected ?? 0, color: 'rose' },
+            { value: 'all' as HouseStatusFilter, label: 'All houses', count: houseStatusCounts?.all ?? 0, color: 'primary' },
           ]).map(s => {
             const active = houseStatusFilter === s.value;
             const colorMap: Record<string, string> = {
@@ -3027,7 +3036,7 @@ export function LandlordOpsDashboard() {
               >
                 {s.label}
                 <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${active ? 'bg-white/25 text-white' : 'bg-muted text-muted-foreground'}`}>
-                  {s.count}
+                  {s.count.toLocaleString()}
                 </span>
               </button>
             );
@@ -3061,7 +3070,9 @@ export function LandlordOpsDashboard() {
         </div>
         {debouncedVerifySearch.length >= 2 && (
           <p className="text-[11px] text-muted-foreground -mt-1 pl-1">
-            {isGlobalSearching ? 'Searching all agents & listings…' : `Searching across all listings (not just the latest ${rows.length}).`}
+            {isHouseSearchFetching
+              ? 'Searching all agents & listings…'
+              : `${totalFiltered.toLocaleString()} match${totalFiltered === 1 ? '' : 'es'} across every listing in this scope.`}
           </p>
         )}
 
@@ -3479,12 +3490,13 @@ export function LandlordOpsDashboard() {
                 variant="outline"
                 size="sm"
                 className="h-10 px-4 font-semibold gap-2"
-                onClick={() => setVerifyPage((p) => p + 1)}
+                disabled={isFetchingMoreHouses}
+                onClick={() => { fetchMoreHouses(); }}
               >
-                Load more ({totalFiltered - displayedHouses.length} remaining)
+                {isFetchingMoreHouses ? 'Loading…' : `Load more (${Math.max(totalFiltered - displayedHouses.length, 0).toLocaleString()} remaining)`}
               </Button>
               <p className="text-[10px] text-muted-foreground">
-                Showing {displayedHouses.length} of {totalFiltered}
+                Showing {displayedHouses.length.toLocaleString()} of {totalFiltered.toLocaleString()}
               </p>
             </div>
           )}
@@ -3498,7 +3510,7 @@ export function LandlordOpsDashboard() {
               </Button>
             </div>
           )}
-          {scopeListings.length === 0 && (
+          {scopeListings.length === 0 && !isHouseSearchFetching && (
             <div className="text-center py-12">
               <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
               <p className="font-semibold">{houseStatusFilter === 'all' ? 'No houses found.' : 'No listings in this view.'}</p>
