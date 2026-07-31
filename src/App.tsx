@@ -576,9 +576,9 @@ function AppRoutes() {
           <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'cto']} requiredPermission="cmo"><CMODashboardPage /></RoleGuard>} />
           <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'cto']} requiredPermission="crm"><CRMDashboardPage /></RoleGuard>} />
           <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRDashboardPage /></RoleGuard>} />
-          <Route path="/hr/pay/calculator-check" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><CalculatorSelfCheck /></RoleGuard>} />
-          <Route path="/hr/pay/config" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><PayrollConfigPage /></RoleGuard>} />
-          <Route path="/hr/pay/compensation" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><PayrollCompensationPage /></RoleGuard>} />
+          <Route path="/hr/pay/calculator-check" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><CalculatorSelfCheck /></RoleGuard>} />
+          <Route path="/hr/pay/config" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollConfigPage /></RoleGuard>} />
+          <Route path="/hr/pay/compensation" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollCompensationPage /></RoleGuard>} />
           <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRTasksPage /></RoleGuard>} />
           <Route path="/hr/dashboard/staff" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRStaffPage /></RoleGuard>} />
           <Route path="/hr/dashboard/productivity" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'cto']} requiredPermission="hr"><HRProductivityPage /></RoleGuard>} />
