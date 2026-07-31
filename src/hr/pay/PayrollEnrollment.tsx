@@ -303,6 +303,12 @@ export default function PayrollEnrollment() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
+      <div className="hidden print:block print:mb-4">
+        <p className="text-sm font-semibold">Welile Technologies (U) Ltd</p>
+        <h2 className="text-lg font-bold">Payroll enrollment sheet</h2>
+        <p className="text-xs">{new Date().toLocaleDateString('en-GB')}</p>
+        <p className="text-xs">Prepared for review. Not a payroll run.</p>
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Payroll enrollment</h1>
@@ -310,15 +316,21 @@ export default function PayrollEnrollment() {
             Every active worker, their basic pay, and which statutory deductions apply.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Switch id="reveal-amounts" checked={reveal} onCheckedChange={setReveal} />
-          <Label htmlFor="reveal-amounts" className="text-sm">
-            Reveal amounts
-          </Label>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Switch id="reveal-amounts" checked={reveal} onCheckedChange={setReveal} />
+            <Label htmlFor="reveal-amounts" className="text-sm">
+              Reveal amounts
+            </Label>
+          </div>
+          <Button variant="outline" size="sm" className="no-print" onClick={printSheet}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print enrollment sheet
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs uppercase text-muted-foreground">
@@ -341,6 +353,16 @@ export default function PayrollEnrollment() {
           </CardHeader>
           <CardContent className="text-2xl font-semibold text-amber-600">
             {counts.incomplete}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs uppercase text-muted-foreground">
+              Total monthly gross
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {reveal ? `UGX ${formatAmount(totals.gross)}` : '••••••'}
           </CardContent>
         </Card>
       </div>
