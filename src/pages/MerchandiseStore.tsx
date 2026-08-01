@@ -137,7 +137,15 @@ export default function MerchandiseStore() {
     // welileapp.com/merchandise?item=<id> immediately.
     // Keep a preview-version parameter so WhatsApp does not reuse an older
     // cached card that was generated before item-photo proxying was enabled.
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-merchandise?id=${item.id}&src=${encodeURIComponent(src)}&pv=3`;
+    // The item slug sits in the path so the pasted link reads as a product
+    // instead of a query string.
+    const slug = String(item.item_name || 'item')
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'item';
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-merchandise/${slug}-${item.id}?src=${encodeURIComponent(src)}&pv=4`;
     const text = `Check out ${item.item_name} — ${formatUGX(Number(item.unit_price))} on Welile Merchandise.`;
     return { url, text, full: `${text} ${url}` };
   };
