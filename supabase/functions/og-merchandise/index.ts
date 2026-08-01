@@ -166,8 +166,11 @@ Deno.serve(async (req) => {
   const hasPhoto = Boolean(images[0] || item.image_url);
   // Always point crawlers at our own streaming endpoint: it works for private
   // buckets, guarantees a 1200x630 landscape crop, and falls back internally.
+  const imageVersion = encodeURIComponent(
+    String(images[0] || item.image_url || "").slice(-48),
+  );
   const image = hasPhoto
-    ? `${Deno.env.get("SUPABASE_URL")}/functions/v1/og-merchandise?id=${encodeURIComponent(itemId)}&img=1`
+    ? `${Deno.env.get("SUPABASE_URL")}/functions/v1/og-merchandise?id=${encodeURIComponent(itemId)}&img=1&v=${imageVersion}`
     : FALLBACK_IMAGE;
   const picked = hasPhoto
     ? { width: 1200, height: 630, type: "image/jpeg" as string | undefined }
@@ -209,10 +212,10 @@ ${picked.width ? `  <meta property="og:image:width" content="${picked.width}" />
   <meta name="twitter:image:alt" content="${esc(name)}" />
 
   <link rel="canonical" href="${esc(target)}" />
-  <meta http-equiv="refresh" content="0;url=${esc(target)}" />
 </head>
 <body>
   <p>Redirecting to <a href="${esc(target)}">${esc(name)}</a>...</p>
+  <script>window.location.replace(${JSON.stringify(target)});</script>
 </body>
 </html>`;
 
