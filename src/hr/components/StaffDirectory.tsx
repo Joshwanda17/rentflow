@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Copy, Loader2, Plus, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, ChevronDown, ChevronRight, Copy, Download, Loader2, MoreHorizontal, Plus, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,6 +8,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -66,6 +73,7 @@ function readableError(e: unknown, action: string): string {
 }
 
 export default function StaffDirectory() {
+  const navigate = useNavigate();
   const [staff, setStaff] = useState<Employee[]>([]);
   const [query, setQuery] = useState('');
   const [positions, setPositions] = useState<Position[]>([]);
@@ -204,6 +212,39 @@ export default function StaffDirectory() {
     return base;
   }, [tab, peopleBase, exitedBase, filterNoAssignment, assignments]);
 
+  const exportCsv = useCallback(() => {
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const headers = ['Staff ref', 'Name', 'Position', 'Department', 'Reports to', 'Email', 'Phone'];
+    const lines = [headers.map(esc).join(',')];
+    for (const s of visibleStaff) {
+      const rows = assignments[s.id] ?? [];
+      const primary = rows.find((a) => a.is_primary) ?? rows[0];
+      const reportsTo = s.current_assignment?.manager_employee_id
+        ? positionTitleById[s.current_assignment.manager_employee_id] ?? ''
+        : '';
+      lines.push(
+        [
+          s.staff_number,
+          s.full_name,
+          primary?.position_title ?? '',
+          primary?.department_name ?? '',
+          reportsTo,
+          s.email,
+          s.phone,
+        ].map(esc).join(','),
+      );
+    }
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `staff-directory-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [visibleStaff, assignments, positionTitleById]);
+
 
   return (
     <div className="space-y-4">
@@ -262,6 +303,10 @@ export default function StaffDirectory() {
         <Button size="sm" className="sm:ml-auto" onClick={() => setOpen(true)}>
           <UserPlus className="h-4 w-4 mr-2" />
           Enroll staff member
+        </Button>
+        <Button size="sm" variant="outline" onClick={exportCsv}>
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
         </Button>
       </div>
 
@@ -394,10 +439,31 @@ export default function StaffDirectory() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => setAddFor(s)}>
-                              <Plus className="h-3.5 w-3.5 mr-1" />
-                              Add position
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Row actions">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  disabled={!(s as unknown as { user_id?: string }).user_id}
+                                  onClick={() => {
+                                    const uid = (s as unknown as { user_id?: string }).user_id;
+                                    if (uid) navigate(`/hr/profiles/${uid}`);
+                                  }}
+                                >
+                                  Open profile
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setAddFor(s)}>
+                                  <Plus className="h-3.5 w-3.5 mr-2" />
+                                  Add position
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate('/platform-users')}>
+                                  Manage access
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                         {isOpen && (
