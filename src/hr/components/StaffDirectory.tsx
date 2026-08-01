@@ -371,7 +371,15 @@ export default function StaffDirectory() {
         </CardContent>
       </Card>
 
-      <EnrollDialog open={open} onOpenChange={setOpen} onEnrolled={() => void load()} />
+      <EnrollDialog
+        open={open || enrollCandidate !== null}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) setEnrollCandidate(null);
+        }}
+        onEnrolled={() => void load()}
+        initialCandidate={enrollCandidate ?? undefined}
+      />
 
       <AddAssignmentDialog
         staff={addFor}
