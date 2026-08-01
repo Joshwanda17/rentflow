@@ -69,6 +69,7 @@ export default function StaffDirectory() {
   const [staff, setStaff] = useState<Employee[]>([]);
   const [query, setQuery] = useState('');
   const [positions, setPositions] = useState<Position[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [assignments, setAssignments] = useState<Record<string, ActiveAssignment[]>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addFor, setAddFor] = useState<Employee | null>(null);
@@ -88,13 +89,15 @@ export default function StaffDirectory() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [directory, positionRows, assignmentRows] = await Promise.all([
+      const [directory, positionRows, departmentRows, assignmentRows] = await Promise.all([
         getStaffDirectory(),
         getPositions(),
+        getDepartments(),
         getActiveAssignmentsByStaff(),
       ]);
       setStaff(directory);
       setPositions(positionRows);
+      setDepartments(departmentRows);
       setAssignments(assignmentRows);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load staff');
@@ -186,8 +189,8 @@ export default function StaffDirectory() {
   );
 
   const departmentCount = useMemo(
-    () => new Set(positions.map((p) => p.department_id).filter(Boolean)).size,
-    [positions]
+    () => departments.length,
+    [departments]
   );
 
   const positionCount = useMemo(() => positions.length, [positions]);
