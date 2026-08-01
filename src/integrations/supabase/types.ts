@@ -15679,6 +15679,81 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_public_abuse_events: {
+        Row: {
+          caller_hash: string
+          created_at: string
+          details: Json
+          id: string
+          reason: string
+          tool: string | null
+        }
+        Insert: {
+          caller_hash: string
+          created_at?: string
+          details?: Json
+          id?: string
+          reason: string
+          tool?: string | null
+        }
+        Update: {
+          caller_hash?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          reason?: string
+          tool?: string | null
+        }
+        Relationships: []
+      }
+      mcp_public_rate_limits: {
+        Row: {
+          block_count: number
+          blocked_until: string | null
+          caller_hash: string
+          created_at: string
+          hour_count: number
+          hour_start: string
+          id: string
+          last_seen_at: string
+          last_tool: string | null
+          minute_count: number
+          minute_start: string
+          total_calls: number
+          updated_at: string
+        }
+        Insert: {
+          block_count?: number
+          blocked_until?: string | null
+          caller_hash: string
+          created_at?: string
+          hour_count?: number
+          hour_start?: string
+          id?: string
+          last_seen_at?: string
+          last_tool?: string | null
+          minute_count?: number
+          minute_start?: string
+          total_calls?: number
+          updated_at?: string
+        }
+        Update: {
+          block_count?: number
+          blocked_until?: string | null
+          caller_hash?: string
+          created_at?: string
+          hour_count?: number
+          hour_start?: string
+          id?: string
+          last_seen_at?: string
+          last_tool?: string | null
+          minute_count?: number
+          minute_start?: string
+          total_calls?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       merchandise_catalog: {
         Row: {
           created_at: string
@@ -29110,6 +29185,15 @@ export type Database = {
         Args: { p_agent_id: string; p_amount: number; p_landlord_id: string }
         Returns: Json
       }
+      check_mcp_public_rate_limit: {
+        Args: {
+          p_caller_hash: string
+          p_per_hour?: number
+          p_per_minute?: number
+          p_tool?: string
+        }
+        Returns: Json
+      }
       check_phone_exists: {
         Args: { phone_suffix: string }
         Returns: {
@@ -29163,6 +29247,7 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_otps: { Args: never; Returns: undefined }
+      cleanup_mcp_public_rate_limits: { Args: never; Returns: undefined }
       cleanup_old_system_events: { Args: never; Returns: undefined }
       complete_agent_capability_batch: {
         Args: { _affected: number; _batch_id: number; _error?: string }

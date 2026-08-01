@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks } from "../links";
+import { enforceRateLimit } from "../rateLimit";
 
 // Guided prompts an assistant can suggest to move a prospective user from a
 // read-only question toward creating an account. Kept in sync with the
@@ -79,7 +80,10 @@ export default defineTool({
       .optional(),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: ({ topic, referral_code }) => {
+  handler: async ({ topic, referral_code }) => {
+    const limited = await enforceRateLimit("how_welile_works");
+    if (limited) return limited;
+
     const term = (topic ?? "").trim().toLowerCase();
     const matched = term
       ? FAQS.filter(
