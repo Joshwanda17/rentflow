@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import { captureReferralAttribution, getStoredReferrerId } from '@/lib/referralAttribution';
 
 type ParsedActivationPayload = {
   token: string;
@@ -39,21 +40,22 @@ export default function Join() {
   const navigate = useNavigate();
   const [isRedirecting, setIsRedirecting] = useState(true);
 
-  // Get params from URL first, then fallback to sessionStorage for reliability on mobile
+  // Get params from URL first, then fallback to durable storage. Referral
+  // attribution lives in localStorage + cookie (60-day TTL) so closing the
+  // browser or abandoning a slow load no longer loses the recruiting agent.
   const rawToken = searchParams.get('t') || sessionStorage.getItem('signup_token');
-  const referral = searchParams.get('r') || sessionStorage.getItem('signup_ref');
+  const referral = searchParams.get('r') || searchParams.get('ref') || getStoredReferrerId();
   const supporterRef = searchParams.get('s') || sessionStorage.getItem('signup_supporter_ref');
 
   const activationPayload = useMemo(() => parseActivationPayload(rawToken), [rawToken]);
 
   useEffect(() => {
-    // Store params in sessionStorage for recovery if page reloads (common on mobile)
+    // Persist params for recovery if the page reloads (common on mobile)
     const t = searchParams.get('t');
-    const r = searchParams.get('r');
     const s = searchParams.get('s');
     if (t) sessionStorage.setItem('signup_token', t);
-    if (r) sessionStorage.setItem('signup_ref', r);
     if (s) sessionStorage.setItem('signup_supporter_ref', s);
+    captureReferralAttribution();
 
     // Instant redirect - no delay for faster UX
     if (activationPayload.token) {
@@ -67,7 +69,6 @@ export default function Join() {
       sessionStorage.removeItem('signup_supporter_ref');
       navigate(`/become-supporter?ref=${supporterRef}`, { replace: true });
     } else if (referral) {
-      sessionStorage.removeItem('signup_ref');
       navigate(`/auth?ref=${referral}`, { replace: true });
     } else {
       // No valid params, show welcome page immediately

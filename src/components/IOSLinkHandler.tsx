@@ -1,5 +1,6 @@
 import { useEffect, forwardRef } from 'react';
 import { useIOSCompatibility } from '@/hooks/useIOSCompatibility';
+import { captureReferralAttribution } from '@/lib/referralAttribution';
 
 /**
  * Handles iOS-specific link behaviors including:
@@ -15,16 +16,22 @@ const IOSLinkHandler = forwardRef<HTMLDivElement>(function IOSLinkHandler(_props
   useEffect(() => {
     // Preserve critical signup parameters across page navigations
     const urlParams = new URLSearchParams(window.location.search);
-    const ref = urlParams.get('ref');
-    const role = urlParams.get('role');
-    const become = urlParams.get('become');
     const token = urlParams.get('t');
-    
-    // Store these in sessionStorage for reliability
-    if (ref) sessionStorage.setItem('signup_ref', ref);
-    if (role) sessionStorage.setItem('signup_role', role);
-    if (become) sessionStorage.setItem('signup_become', become);
-    if (token) sessionStorage.setItem('signup_token', token);
+
+    // Recruiting attribution (?ref / ?r / ?become / ?role) goes to durable
+    // storage (localStorage + cookie, 60-day TTL) so it survives the browser
+    // being closed or a slow first load being abandoned. sessionStorage used to
+    // drop it and recruits ended up with no parent agent.
+    captureReferralAttribution();
+
+    // Activation tokens stay session-scoped on purpose (single use).
+    if (token) {
+      try { sessionStorage.setItem('signup_token', token); } catch { /* ignore */ }
+    }
+
+    const onNavigation = () => captureReferralAttribution();
+    window.addEventListener('popstate', onNavigation);
+    return () => window.removeEventListener('popstate', onNavigation);
   }, []);
 
   useEffect(() => {
