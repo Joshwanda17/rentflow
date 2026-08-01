@@ -93,11 +93,15 @@ Deno.serve(async (req) => {
   }
 
   const url = new URL(req.url);
-  // Accept both ?id=<uuid> and the branded path form /merchandise/og/<uuid>
+  // Accept ?id=<uuid>, a bare trailing <uuid>, and the readable slug form
+  // /og-merchandise/<slug>-<uuid> used by newly shared links.
   const pathId = url.pathname.split("/").filter(Boolean).pop() ?? "";
+  const uuidInPath = pathId.match(
+    /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  );
   const itemId =
     url.searchParams.get("id") ||
-    (/^[0-9a-f-]{16,}$/i.test(pathId) ? pathId : null);
+    (uuidInPath ? uuidInPath[1] : /^[0-9a-f-]{16,}$/i.test(pathId) ? pathId : null);
   const source = url.searchParams.get("src");
   // img=1 → stream the item photo itself (used as og:image target).
   const imageMode = url.searchParams.get("img") === "1";
