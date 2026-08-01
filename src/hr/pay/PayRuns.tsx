@@ -957,6 +957,9 @@ export function PayRunDetailPlaceholder() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [calcError, setCalcError] = useState<string | null>(null);
   const [calculating, setCalculating] = useState(false);
+  const [exceptions, setExceptions] = useState<RunException[]>([]);
+  const [exceptionsError, setExceptionsError] = useState<string | null>(null);
+  const [exceptionsLoading, setExceptionsLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!runId) return;
@@ -974,6 +977,39 @@ export function PayRunDetailPlaceholder() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const hasPayslips = (detail?.payslips.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (!runId || !hasPayslips) {
+      setExceptions([]);
+      return;
+    }
+    let alive = true;
+    setExceptionsLoading(true);
+    setExceptionsError(null);
+    void (async () => {
+      try {
+        const rows = await listExceptions(runId);
+        if (alive) setExceptions(rows);
+      } catch (err) {
+        if (alive) setExceptionsError((err as Error).message);
+      } finally {
+        if (alive) setExceptionsLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [runId, hasPayslips]);
+
+  const exceptionGroups = useMemo(() => {
+    const pick = (severity: string) =>
+      exceptions.filter((e) => (e.severity ?? '').toUpperCase() === severity);
+    return { BLOCK: pick('BLOCK'), REVIEW: pick('REVIEW'), INFO: pick('INFO') };
+  }, [exceptions]);
+
+  const blockingCount = exceptionGroups.BLOCK.length;
 
   const canCalculate =
     !!detail && ['draft', 'calculated', 'returned'].includes(detail.status) && !calculating;
@@ -1089,7 +1125,12 @@ export function PayRunDetailPlaceholder() {
                 Cut-off {formatDate(detail.cut_off_date)} · Pay date {formatDate(detail.pay_date)}
                 {detail.rule_version_code ? ` · Rule ${detail.rule_version_code}` : ''}
               </p>
-              <RunActionBar runId={detail.id} status={detail.status} onDone={() => void load()} />
+              <RunActionBar
+                runId={detail.id}
+                status={detail.status}
+                onDone={() => void load()}
+                blockingCount={blockingCount}
+              />
             </CardContent>
           </Card>
 
@@ -1158,6 +1199,81 @@ export function PayRunDetailPlaceholder() {
           </Card>
 
           <PayrollRegister runId={detail.id} />
+
+          {hasPayslips && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Pre-run exceptions</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Checks that run before money moves.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {exceptionsLoading && (
+                  <p className="text-sm text-muted-foreground">
+                    <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
+                    Running checks…
+                  </p>
+                )}
+                {exceptionsError && (
+                  <p role="alert" className="text-sm font-medium text-destructive">
+                    {exceptionsError}
+                  </p>
+                )}
+                {!exceptionsLoading && !exceptionsError && (
+                  <>
+                    <p className="text-sm font-medium">
+                      {blockingCount} blocking, {exceptionGroups.REVIEW.length} to review,{' '}
+                      {exceptionGroups.INFO.length} informational.
+                    </p>
+                    {exceptions.length === 0 ? (
+                      <p className="text-sm font-medium text-green-700">
+                        No exceptions. Every payslip passed the pre-run checks.
+                      </p>
+                    ) : (
+                      (['BLOCK', 'REVIEW', 'INFO'] as const).map((severity) => {
+                        const rows = exceptionGroups[severity];
+                        if (rows.length === 0) return null;
+                        const tone =
+                          severity === 'BLOCK'
+                            ? 'text-destructive'
+                            : severity === 'REVIEW'
+                              ? 'text-amber-600'
+                              : 'text-muted-foreground';
+                        return (
+                          <div key={severity} className="space-y-1">
+                            <p className={`text-xs font-semibold uppercase ${tone}`}>
+                              {severity} · {rows.length}
+                            </p>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Staff ref</TableHead>
+                                  <TableHead>Issue</TableHead>
+                                  <TableHead>Detail</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {rows.map((e, i) => (
+                                  <TableRow key={`${severity}-${i}`} className={tone}>
+                                    <TableCell className="font-mono text-xs">
+                                      {e.staff_ref ?? '—'}
+                                    </TableCell>
+                                    <TableCell>{e.issue}</TableCell>
+                                    <TableCell className="text-xs">{e.detail ?? '—'}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        );
+                      })
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <ReleaseSection runId={detail.id} status={detail.status} />
 
