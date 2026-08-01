@@ -336,6 +336,92 @@ export default function PayrollEnrollment() {
     setTimeout(() => window.print(), 50);
   }
 
+  async function openAllowances(row: EnrollmentRow) {
+    setAllowRow(row);
+    setAllowRecords([]);
+    setAllowComponentId('');
+    setAllowGradeId('');
+    setAllowAmount('');
+    setAllowFrom(periodStart ?? '');
+    setAllowReason('');
+    setAllowError('');
+    setAllowLoading(true);
+    try {
+      const records = await listCompensation(row.staffId);
+      setAllowRecords(
+        records.filter(
+          (r) =>
+            r.effective_to === null &&
+            r.component_kind === 'earning' &&
+            r.component_code !== 'BASIC' &&
+            r.component_code !== 'PRORATA',
+        ),
+      );
+    } catch (error) {
+      setAllowError(rawError(error));
+    } finally {
+      setAllowLoading(false);
+    }
+  }
+
+  async function saveAllowance() {
+    if (!allowRow) return;
+    const amount = Number(allowAmount);
+    if (!allowComponentId) {
+      setAllowError('Pick the earning component.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAllowError('Enter a valid amount.');
+      return;
+    }
+    if (!allowFrom) {
+      setAllowError(periodStart ? 'An effective-from date is required.' : NO_OPEN_PERIOD);
+      return;
+    }
+    if (allowReason.trim().length < 10) {
+      setAllowError('The reason must be at least 10 characters.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await addCompensation(
+        allowRow.staffId,
+        allowComponentId,
+        allowGradeId || null,
+        amount,
+        allowFrom,
+        allowReason.trim(),
+      );
+      toast.success('Earning recorded');
+      await load();
+      setAllowRow(null);
+    } catch (error) {
+      setAllowError(rawError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function openHistory(row: EnrollmentRow) {
+    setHistRow(row);
+    setHistRecords([]);
+    setHistError('');
+    setHistLoading(true);
+    try {
+      setHistRecords(await listStaffCompensation(row.staffId));
+    } catch (error) {
+      setHistError(rawError(error));
+    } finally {
+      setHistLoading(false);
+    }
+  }
+
+  function unusedPrintSheet() {
+    setReveal(true);
+    setTimeout(() => window.print(), 50);
+  }
+
   function openStatutory(row: EnrollmentRow, next: { paye: boolean; nssf: boolean; lst: boolean }) {
     setStatRow(row);
     setStatType(row.employmentType ?? 'employee');
