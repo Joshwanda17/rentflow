@@ -77,6 +77,10 @@ export default function StaffDirectory() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'people' | 'exited' | 'unenrolled'>('people');
   const [departmentFilter, setDepartmentFilter] = useState<string>('__all__');
+  const [unenrolled, setUnenrolled] = useState<UnenrolledStaffCandidate[]>([]);
+  const [unenrolledLoading, setUnenrolledLoading] = useState(false);
+  const [unenrolledError, setUnenrolledError] = useState<string | null>(null);
+  const [enrollCandidate, setEnrollCandidate] = useState<UnenrolledStaffCandidate | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
