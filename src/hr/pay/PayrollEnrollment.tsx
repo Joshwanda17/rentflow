@@ -431,7 +431,6 @@ export default function PayrollEnrollment() {
   }
 
   function openStatutory(row: EnrollmentRow, next: { paye: boolean; nssf: boolean; lst: boolean }) {
-    void next;
     setStatRow(row);
     setStatType(row.employmentType ?? 'employee');
     setStatPaye(next.paye);
