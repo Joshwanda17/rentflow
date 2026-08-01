@@ -296,6 +296,27 @@ export interface PayrollAuthority {
   releaser: boolean;
 }
 
+export interface StatutoryReturnRow {
+  staff_ref: string | null;
+  employee_name: string | null;
+  tin: string | null;
+  nssf_number: string | null;
+  lst_district: string | null;
+  gross: number;
+  paye: number;
+  nssf_employee: number;
+  nssf_employer: number;
+  nssf_total: number;
+  lst: number;
+  missing: string | null;
+}
+
+/** URA / NSSF / LST filing lines for a run, straight from the database. */
+export async function getStatutoryReturn(runId: string): Promise<StatutoryReturnRow[]> {
+  const res = await (supabase.rpc as any)('hr_pay_statutory_return', { _run_id: runId });
+  return (unwrap(res) ?? []) as StatutoryReturnRow[];
+}
+
 export async function myPayrollAuthority(): Promise<PayrollAuthority> {
   const [prep, appr, rel] = await Promise.all([
     (supabase.rpc as any)('hr_pay_is_preparer'),
