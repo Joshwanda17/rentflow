@@ -38,6 +38,7 @@ import {
   listStaffCompensation,
   setBasicPay,
   setStatutoryProfile,
+  setStatutoryIds,
   type EnrollmentRow,
   type GradeOption,
   type StaffCompensationHistoryRow,
