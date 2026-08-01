@@ -1162,6 +1162,218 @@ export default function PayrollEnrollment() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={allowRow !== null} onOpenChange={(open) => !open && setAllowRow(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Allowances and earnings{allowRow ? ` — ${allowRow.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {allowLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading earnings…
+              </div>
+            ) : allowRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No open allowances. Basic pay and part-month pay are recorded on their own screens.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {allowRecords.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between rounded-md border p-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {r.component_name} ({r.component_code})
+                        {r.grade_code ? ` · grade ${r.grade_code}` : ''}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        From {formatDate(r.effective_from)}
+                      </p>
+                    </div>
+                    <span className="font-mono tabular-nums">
+                      {reveal ? `UGX ${formatAmount(r.amount)}` : '••••••'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-semibold">Add earning</p>
+              <div className="space-y-1.5">
+                <Label>Component</Label>
+                <Select value={allowComponentId} onValueChange={setAllowComponentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an earning" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowanceComponents.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Grade</Label>
+                <Select value={allowGradeId} onValueChange={setAllowGradeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optional — no grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {grades.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.code} — {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Optional. Records which pay grade this amount came from.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="allow-amount">Amount</Label>
+                <Input
+                  id="allow-amount"
+                  type="number"
+                  min={0}
+                  value={allowAmount}
+                  onChange={(e) => {
+                    setAllowAmount(e.target.value);
+                    setAllowError('');
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="allow-from">Effective from</Label>
+                <Input
+                  id="allow-from"
+                  type="date"
+                  value={allowFrom}
+                  onChange={(e) => {
+                    setAllowFrom(e.target.value);
+                    setAllowError('');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">{EFFECTIVE_FROM_HELP}</p>
+                {!periodStart ? (
+                  <p className="text-xs font-medium text-destructive">{NO_OPEN_PERIOD}</p>
+                ) : null}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="allow-reason">Reason</Label>
+                <Textarea
+                  id="allow-reason"
+                  rows={3}
+                  value={allowReason}
+                  onChange={(e) => {
+                    setAllowReason(e.target.value);
+                    setAllowError('');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Required. Minimum 10 characters. To stop an allowance, add a closing record.
+                </p>
+                {allowError ? <p className="text-xs text-destructive">{allowError}</p> : null}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAllowRow(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveAllowance()} disabled={saving || !periodStart}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Add earning
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={histRow !== null} onOpenChange={(open) => !open && setHistRow(null)}>
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Compensation history{histRow ? ` — ${histRow.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {histLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading history…
+              </div>
+            ) : histError ? (
+              <p className="text-sm text-destructive">{histError}</p>
+            ) : histRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No compensation records yet.</p>
+            ) : (
+              <div className="max-h-[60vh] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Component</TableHead>
+                      <TableHead>Grade</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Effective from</TableHead>
+                      <TableHead>Effective to</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {histRecords.map((r) => {
+                      const current = r.effectiveTo === null;
+                      return (
+                        <TableRow
+                          key={r.id}
+                          className={current ? undefined : 'text-muted-foreground'}
+                        >
+                          <TableCell className="text-xs">
+                            {r.componentName || r.componentCode}
+                            <span className="ml-1 font-mono text-[11px]">({r.componentCode})</span>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{r.gradeCode ?? '—'}</TableCell>
+                          <TableCell className="text-right font-mono text-sm tabular-nums">
+                            {reveal ? formatAmount(r.amount) : '••••••'}
+                          </TableCell>
+                          <TableCell className="text-xs">{formatDate(r.effectiveFrom)}</TableCell>
+                          <TableCell className="text-xs">{formatDate(r.effectiveTo)}</TableCell>
+                          <TableCell className="max-w-[260px] text-xs" title={r.reason}>
+                            {r.reason || '—'}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {current ? (
+                              <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                                Current
+                              </span>
+                            ) : (
+                              <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                                Superseded
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Compensation is append-only. Every change keeps the previous record with the date it
+              closed. Nothing here can be edited or deleted.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistRow(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
