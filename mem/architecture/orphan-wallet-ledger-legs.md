@@ -1,13 +1,11 @@
 ---
-name: Orphan wallet ledger legs (open investigation)
-description: 9 wallet-scope general_ledger legs with user_id NULL and wallet_bucket NULL, UGX 544,780,988 gross - tracked work item, explicitly excluded from the 2026-08-01 pivot rebuild
+name: Orphan wallet ledger legs — FIN-2026-08-001
+description: CFO-decided outcome for the 9 NULL-user wallet-scope ledger legs; 8 reclassified via append-only register, the UGX 544,205,788 leg isolated under incident FIN-2026-08-001 and deliberately left unchanged
 type: feature
 ---
-**Investigation complete 2026-08-01; remediation still pending CFO sign-off.** Full trace: `docs/investigations/orphan-wallet-ledger-legs.md`.
+Investigated 2026-08-01; CFO decision executed the same day. Full trace: `docs/investigations/orphan-wallet-ledger-legs.md`.
 
-- 9 rows in `general_ledger` with `ledger_scope='wallet'`, `user_id IS NULL`, `wallet_bucket IS NULL`; gross UGX 544,780,988.
-- They route to nothing in `v_user_wallet_strict`, so no wallet balance is affected today — but they are an accounting anomaly.
-- **Two root causes.** (a) 8 legs (UGX 575,200; 2026-07-22 → 2026-07-26) are the company side of manual clawbacks/TID float recoveries — balanced against a real user leg but mis-tagged `ledger_scope='wallet'` instead of `'platform'`. (b) 1 leg `5c3a9455` (UGX 544,205,788, 2026-05-07 05:53) is a single **unbalanced aggregate** leg from the "negative balance wipe (pass 3, incl NULL bucket)" run as raw migration SQL (`source_table='manual_admin_action'`, no `system_events` / `audit_logs` entry).
-- **Reporting impact:** any sum of `general_ledger` by `ledger_scope='wallet'` that does not group by user is inflated by up to UGX 544.78M. Platform-scope reporting is unaffected.
-- Fix only through balanced ledger corrections (`create_ledger_transaction`) — never direct UPDATE. Leg (b) requires CFO sign-off on write-off vs full reversal, after reconstructing the pre-wipe negatives from the 2026-05-07 batch (109 legs, 3 passes).
-- Proposed guardrail (not implemented): reject `ledger_scope='wallet'` inserts with NULL `user_id`.
+- **8 legs (UGX 575,200)** were the company side of balanced manual clawbacks / TID float recoveries mis-tagged `ledger_scope='wallet'`. Corrected as **classification only** — recorded in the append-only register `ledger_scope_reclassifications` (wallet → platform, reason + approver). Ledger rows are immutable; never UPDATE `general_ledger`.
+- **Leg `5c3a9455` (UGX 544,205,788, 2026-05-07)** is an unbalanced orphan journal entry from raw migration SQL. Status: **Historical Migration Anomaly — Under Investigation**, incident **FIN-2026-08-001** in `ledger_anomaly_incidents`, isolated via `ledger_anomaly_isolations`. **Do not write off, do not reverse, do not delete.** Requires forensic reconstruction of the 2026-05-07 batch (109 legs, 3 passes) before any accounting action.
+- **Reporting rule:** financial/operational reporting must read `v_general_ledger_operational` (isolated legs excluded) or `v_general_ledger_effective.effective_ledger_scope` (applies the reclassification) — never raw `general_ledger.ledger_scope` for scope totals.
+- **Guardrails:** `zz_enforce_wallet_scope_requires_user` rejects wallet-scope inserts with NULL `user_id`; the only escape is `begin_ledger_migration(migration_id, operator, reason)` (CFO/Manager/Super Admin, ≥10-char reason, writes `audit_logs` + `system_events`). Group balance stays enforced by `trg_enforce_ledger_group_balance`. NULL `wallet_bucket` is monitored via `v_wallet_legs_missing_bucket`, not blocked (151,759 legitimate rows).
