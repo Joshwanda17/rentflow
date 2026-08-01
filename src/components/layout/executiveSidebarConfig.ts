@@ -263,6 +263,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Overview', icon: LayoutDashboard, id: 'overview', access: HR_ACCESS },
         { label: 'Employee Directory', icon: Users, id: 'employees', access: HR_ACCESS },
+        { label: 'People', icon: Users, id: 'hr-people', route: '/hr/people', access: HR_ACCESS },
         { label: 'Departments', icon: Building2, id: 'departments', access: HR_ACCESS },
         { label: 'System Users', icon: UserCog, id: 'user-management', access: HR_ACCESS },
         { label: 'Leave Management', icon: ClipboardList, id: 'leave', access: HR_ACCESS },
@@ -279,7 +280,6 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       defaultOpen: false,
       items: [
         { label: 'Approvals', icon: Banknote, id: 'hr-pay-approvals', route: '/approvals', access: HR_ACCESS },
-        { label: 'Enrollment', icon: Banknote, id: 'hr-pay-enrollment', route: '/hr/pay/enrollment', access: HR_ACCESS },
         { label: 'Pay runs', icon: Banknote, id: 'hr-pay-runs', route: '/hr/pay/runs', access: HR_ACCESS },
         { label: 'Advances', icon: Banknote, id: 'hr-pay-advances', route: '/hr/pay/advances', access: HR_ACCESS },
         { label: 'Payroll config', icon: Banknote, id: 'hr-pay-config', route: '/hr/pay/config', access: HR_ACCESS },
