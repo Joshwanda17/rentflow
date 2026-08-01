@@ -66,7 +66,9 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending_acceptance' | 'expired' | 'rejected' | 'released'>('verified');
+  // Default to "all" so freshly invited (pending_acceptance) recruits are
+  // visible immediately instead of looking like the invite vanished.
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending_acceptance' | 'expired' | 'rejected' | 'released'>('all');
   const [totalSubAgentEarnings, setTotalSubAgentEarnings] = useState(0);
   const [totalBonusEarnings, setTotalBonusEarnings] = useState(0);
   const [totalRentCommission, setTotalRentCommission] = useState(0);
