@@ -10,6 +10,7 @@ import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTr
 import { validateSignUp, validateFullName } from '@/lib/authValidation';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { getStoredAttributionToken } from '@/lib/campaignAttribution';
+import { captureReferralAttribution, getStoredReferrerId } from '@/lib/referralAttribution';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -39,7 +40,7 @@ export function useAuthForm() {
 
   const [referrerIdState, setReferrerIdState] = useState<string | null>(() => {
     if (referralId) return referralId;
-    return localStorage.getItem('referral_agent_id');
+    return getStoredReferrerId();
   });
 
   const [isSignUp, setIsSignUp] = useState(!!referralId || !!becomeRole || !!preSelectedRole);
@@ -90,8 +91,11 @@ export function useAuthForm() {
   // Store referral/role params & validate role
   useEffect(() => {
     if (referralId) {
-      localStorage.setItem('referral_agent_id', referralId);
+      captureReferralAttribution();
       setReferrerIdState(referralId);
+    } else if (!referrerIdState) {
+      const durable = getStoredReferrerId();
+      if (durable) setReferrerIdState(durable);
     }
     if (signupSourceParam) {
       try { localStorage.setItem(SIGNUP_SOURCE_KEY, signupSourceParam); } catch { /* ignore */ }
@@ -428,8 +432,8 @@ export function useAuthForm() {
       return;
     }
     const authEmail = hasRealEmail ? trimmedEmail : `${fullPhone}@welile.user`;
-    const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
-    console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
+    const storedReferrerId = referrerIdState || getStoredReferrerId();
+    console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', durable:', getStoredReferrerId(), ')');
 
     // Pre-flight duplicate-phone check. The DB trigger `handle_new_user`
     // raises `phone_already_registered`, but GoTrue masks any trigger error
