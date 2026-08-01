@@ -81,6 +81,8 @@ export default function StaffDirectory() {
   const [unenrolledLoading, setUnenrolledLoading] = useState(false);
   const [unenrolledError, setUnenrolledError] = useState<string | null>(null);
   const [enrollCandidate, setEnrollCandidate] = useState<UnenrolledStaffCandidate | null>(null);
+  const [filterNoAssignment, setFilterNoAssignment] = useState(false);
+
 
   const load = useCallback(async () => {
     setLoading(true);
