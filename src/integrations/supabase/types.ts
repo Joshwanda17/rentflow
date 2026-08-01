@@ -10596,6 +10596,88 @@ export type Database = {
           },
         ]
       }
+      hr_contracts: {
+        Row: {
+          contract_type: string
+          counterparty: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          document_id: string | null
+          end_date: string | null
+          id: string
+          notes: string | null
+          notice_period_days: number | null
+          owner_staff_id: string | null
+          renewal_terms: string | null
+          signature_status: string
+          staff_id: string | null
+          start_date: string
+          title: string
+          value_amount: number | null
+        }
+        Insert: {
+          contract_type?: string
+          counterparty?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          document_id?: string | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          notice_period_days?: number | null
+          owner_staff_id?: string | null
+          renewal_terms?: string | null
+          signature_status?: string
+          staff_id?: string | null
+          start_date: string
+          title: string
+          value_amount?: number | null
+        }
+        Update: {
+          contract_type?: string
+          counterparty?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          document_id?: string | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          notice_period_days?: number | null
+          owner_staff_id?: string | null
+          renewal_terms?: string | null
+          signature_status?: string
+          staff_id?: string | null
+          start_date?: string
+          title?: string
+          value_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_contracts_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "hr_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_contracts_owner_staff_id_fkey"
+            columns: ["owner_staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_contracts_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_departments: {
         Row: {
           active: boolean
@@ -10622,6 +10704,103 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      hr_doc_types: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+          requires_expiry: boolean
+          requires_signature: boolean
+          retention_months: number | null
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          requires_expiry?: boolean
+          requires_signature?: boolean
+          retention_months?: number | null
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          requires_expiry?: boolean
+          requires_signature?: boolean
+          retention_months?: number | null
+        }
+        Relationships: []
+      }
+      hr_documents: {
+        Row: {
+          checksum: string | null
+          counterparty: string | null
+          doc_type_id: string
+          id: string
+          staff_id: string | null
+          storage_path: string
+          superseded_by: string | null
+          title: string
+          uploaded_at: string
+          uploaded_by: string | null
+          version: number
+        }
+        Insert: {
+          checksum?: string | null
+          counterparty?: string | null
+          doc_type_id: string
+          id?: string
+          staff_id?: string | null
+          storage_path: string
+          superseded_by?: string | null
+          title: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Update: {
+          checksum?: string | null
+          counterparty?: string | null
+          doc_type_id?: string
+          id?: string
+          staff_id?: string | null
+          storage_path?: string
+          superseded_by?: string | null
+          title?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_doc_type_id_fkey"
+            columns: ["doc_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_doc_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_documents_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_documents_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "hr_documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_metric_definitions: {
         Row: {
@@ -31775,6 +31954,19 @@ export type Database = {
       hr_compute_snapshots: {
         Args: { _period_end: string; _period_start: string }
         Returns: number
+      }
+      hr_contracts_expiring: {
+        Args: { _days?: number }
+        Returns: {
+          band: string
+          contract_id: string
+          contract_type: string
+          days_remaining: number
+          end_date: string
+          party: string
+          signature_status: string
+          title: string
+        }[]
       }
       hr_is_admin: { Args: never; Returns: boolean }
       hr_is_executive: { Args: never; Returns: boolean }
