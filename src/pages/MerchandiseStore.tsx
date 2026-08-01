@@ -20,6 +20,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import SmartphoneOrderStatus from '@/components/merchandise/SmartphoneOrderStatus';
 import { StorageImage } from '@/components/ui/StorageImage';
+import { shortMerchandiseUrl, longMerchandiseUrl } from '@/lib/merchandiseShareLink';
 
 // Merchandise tables aren't in generated types yet.
 const db = supabase as any;
@@ -71,6 +72,7 @@ export default function MerchandiseStore() {
   const [orderingBike, setOrderingBike] = useState(false);
   const [catalogPage, setCatalogPage] = useState(1);
   const [shareItem, setShareItem] = useState<CatalogItem | null>(null);
+  const [shareCodes, setShareCodes] = useState<Record<string, string>>({});
   const { withdrawableBalance } = useAgentBalances(user?.id);
   const availableWallet = Math.max(0, withdrawableBalance);
 
@@ -131,27 +133,31 @@ export default function MerchandiseStore() {
     return item.image_url || null;
   };
 
-  const buildShare = (item: CatalogItem, src = 'app') => {
-    // Share through the public OG preview endpoint so pasted links unfurl with
-    // the item's own photo. Real visitors are redirected to
-    // welileapp.com/merchandise?item=<id> immediately.
-    // Keep a preview-version parameter so WhatsApp does not reuse an older
-    // cached card that was generated before item-photo proxying was enabled.
-    // The item slug sits in the path so the pasted link reads as a product
-    // instead of a query string.
-    const slug = String(item.item_name || 'item')
-      .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 40) || 'item';
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-merchandise/${slug}-${item.id}?src=${encodeURIComponent(src)}&pv=4`;
+  // Short branded share links: a code is allocated once per item per sharer and
+  // reused, so the pasted link reads welileapp-short instead of a function URL.
+  // If the code cannot be allocated we fall back to the long function URL, which
+  // still previews correctly.
+  const ensureShareCode = async (item: CatalogItem): Promise<string | null> => {
+    if (shareCodes[item.id]) return shareCodes[item.id];
+    const { data, error } = await db.rpc('get_merchandise_share_code', {
+      p_catalog_id: item.id,
+    });
+    if (error || !data) return null;
+    const code = String(data);
+    setShareCodes((prev) => ({ ...prev, [item.id]: code }));
+    return code;
+  };
+
+  const buildShare = (item: CatalogItem, src = 'app', code?: string | null) => {
+    const short = shortMerchandiseUrl(code ?? shareCodes[item.id] ?? '', src);
+    const url = short ?? longMerchandiseUrl(item.id, item.item_name, src);
     const text = `Check out ${item.item_name} — ${formatUGX(Number(item.unit_price))} on Welile Merchandise.`;
     return { url, text, full: `${text} ${url}` };
   };
 
   const handleShare = async (item: CatalogItem) => {
-    const { url, text, full } = buildShare(item, 'native');
+    const code = await ensureShareCode(item);
+    const { url, text } = buildShare(item, 'native', code);
     if (typeof navigator !== 'undefined' && (navigator as any).share) {
       try {
         await (navigator as any).share({ title: item.item_name, text, url });
@@ -164,7 +170,8 @@ export default function MerchandiseStore() {
   };
 
   const copyShareLink = async (item: CatalogItem) => {
-    const { full } = buildShare(item, 'copy');
+    const code = await ensureShareCode(item);
+    const { full } = buildShare(item, 'copy', code);
     try {
       await navigator.clipboard.writeText(full);
       toast.success('Link copied');
@@ -174,6 +181,13 @@ export default function MerchandiseStore() {
   };
 
   const totalPages = Math.max(1, Math.ceil(catalog.length / PAGE_SIZE));
+
+  // Allocate the short code as soon as the share sheet opens so every channel
+  // button carries the branded link.
+  useEffect(() => {
+    if (shareItem) void ensureShareCode(shareItem);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareItem]);
   const safePage = Math.min(catalogPage, totalPages);
   const catalogSlice = catalog.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 

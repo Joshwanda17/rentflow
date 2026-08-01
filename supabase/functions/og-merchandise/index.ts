@@ -99,7 +99,15 @@ Deno.serve(async (req) => {
   const uuidInPath = pathId.match(
     /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
   );
-  const itemId =
+  const segments = url.pathname.split("/").filter(Boolean);
+  // Short branded links arrive as ?code=<code> (proxied from
+  // s.welileapp.com/m/<code>) or as /og-merchandise/m/<code>.
+  const shareCode =
+    url.searchParams.get("code") ||
+    (segments.length >= 2 && segments[segments.length - 2] === "m"
+      ? segments[segments.length - 1]
+      : null);
+  let itemId =
     url.searchParams.get("id") ||
     (uuidInPath ? uuidInPath[1] : /^[0-9a-f-]{16,}$/i.test(pathId) ? pathId : null);
   const source = url.searchParams.get("src");
@@ -108,14 +116,23 @@ Deno.serve(async (req) => {
   // verify=1 → preview verification tool: render the same tags but do not
   // record an analytics open, so tests never pollute share stats.
   const verifyMode = url.searchParams.get("verify") === "1";
-  if (!itemId) {
-    return new Response("Missing item id", { status: 400, headers: corsHeaders });
-  }
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
+
+  if (!itemId && shareCode && /^[a-z0-9]{4,16}$/i.test(shareCode)) {
+    const { data: codeRow } = await supabase
+      .from("merchandise_share_codes")
+      .select("catalog_id")
+      .eq("code", shareCode.toLowerCase())
+      .maybeSingle();
+    itemId = codeRow?.catalog_id ?? null;
+  }
+
+  if (!itemId) {
+    return new Response("Missing item id", { status: 400, headers: corsHeaders });
+  }
 
   const { data: item } = await supabase
     .from("merchandise_catalog")
@@ -149,6 +166,7 @@ Deno.serve(async (req) => {
       user_agent: userAgent.slice(0, 500),
       referrer: (req.headers.get("referer") ?? "").slice(0, 500) || null,
       source: source ? source.slice(0, 50) : null,
+      share_code: shareCode ? shareCode.slice(0, 32).toLowerCase() : null,
     });
   } catch (e) {
     if (!verifyMode) console.error("share open tracking failed", e);
