@@ -407,6 +407,52 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
   }
 
   // 5. Supersede existing payslips, find the next calc_seq.
+  // 4b. Live assignment per staff member: started on/before the cut-off and not
+  // ended before the period month began. Prefer is_primary, then latest start.
+  const assignmentRows = (unwrap(
+    await supabase
+      .from('hr_assignments')
+      .select(
+        'staff_id, position_id, department_id, started_on, ended_on, is_primary, position:hr_positions!hr_assignments_position_id_fkey(title, department_id), department:hr_departments!hr_assignments_department_id_fkey(name)',
+      )
+      .in('staff_id', Array.from(byStaff.keys()))
+      .lte('started_on', periodEnd)
+      .or(`ended_on.is.null,ended_on.gte.${periodStart}`),
+  ) ?? []) as Array<Record<string, any>>;
+
+  const assignmentByStaff = new Map<string, Record<string, any>>();
+  for (const row of assignmentRows) {
+    const held = assignmentByStaff.get(row.staff_id as string);
+    if (!held) {
+      assignmentByStaff.set(row.staff_id as string, row);
+      continue;
+    }
+    const better =
+      (Boolean(row.is_primary) && !Boolean(held.is_primary)) ||
+      (Boolean(row.is_primary) === Boolean(held.is_primary) &&
+        String(row.started_on) > String(held.started_on));
+    if (better) assignmentByStaff.set(row.staff_id as string, row);
+  }
+
+  function placement(staffId: string) {
+    const a = assignmentByStaff.get(staffId);
+    if (!a) {
+      return {
+        position_id: null as string | null,
+        department_id: null as string | null,
+        position_title: null as string | null,
+        department_name: null as string | null,
+      };
+    }
+    return {
+      position_id: (a.position_id as string) ?? null,
+      department_id: (a.department_id as string) ?? (a.position?.department_id as string) ?? null,
+      position_title: (a.position?.title as string) ?? null,
+      department_name: (a.department?.name as string) ?? null,
+    };
+  }
+
+  // 5. Supersede existing payslips, find the next calc_seq.
   const existing = (unwrap(
     await supabase
       .from('hr_pay_payslips')
@@ -432,9 +478,13 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
     await supabase
       .from('hr_pay_payslips')
       .insert(
-        computed.map((c) => ({
+        computed.map((c) => {
+          const place = placement(c.staffId);
+          return {
           run_id: runId,
           staff_id: c.staffId,
+          position_id: place.position_id,
+          department_id: place.department_id,
           calc_seq: nextSeq,
           is_current: true,
           gross: c.result.gross,
@@ -461,11 +511,16 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
               nssf_applicable: c.applicability.nssfApplicable,
               lst_applicable: c.applicability.lstApplicable,
               exemption_basis: c.exemptionBasis,
+              position_id: place.position_id,
+              position_title: place.position_title,
+              department_id: place.department_id,
+              department_name: place.department_name,
             }),
           ),
           calculation_trace: JSON.parse(JSON.stringify(c.result.trace)),
           computed_at: computedAt,
-        })),
+          };
+        }),
       )
       .select('id, staff_id'),
   ) ?? []) as Array<{ id: string; staff_id: string }>;
