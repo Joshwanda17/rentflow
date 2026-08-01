@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks, type SignupRole } from "../links";
+import { enforceRateLimit } from "../rateLimit";
 
 // Guided prompts turn a prospective user's read-only question (e.g.
 // "check my rent access", "see agent commissions") into a clear explanation of
@@ -100,7 +101,10 @@ export default defineTool({
       .optional(),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: ({ intent, referral_code }) => {
+  handler: async ({ intent, referral_code }) => {
+    const limited = await enforceRateLimit("explore_welile");
+    if (limited) return limited;
+
     const feature = matchFeature(intent);
 
     if (feature) {

@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks } from "../links";
+import { enforceRateLimit } from "../rateLimit";
 
 // PUBLIC, no-auth tool. Returns an INDICATIVE rent-access ballpark so a
 // prospective tenant can get a real number inside a chat before signing up,
@@ -80,7 +81,10 @@ export default defineTool({
       .optional(),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: ({ rent, duration_days, referral_code }) => {
+  handler: async ({ rent, duration_days, referral_code }) => {
+    const limited = await enforceRateLimit("estimate_rent_access");
+    if (limited) return limited;
+
     const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant",

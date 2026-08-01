@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks } from "../links";
+import { enforceRateLimit } from "../rateLimit";
 
 // PUBLIC, no-auth tool. Gives a prospective Supporter an ILLUSTRATIVE returns
 // range in UGX for a chosen support amount and duration, then hands back the
@@ -67,7 +68,10 @@ export default defineTool({
       .optional(),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: ({ amount, duration_months, referral_code }) => {
+  handler: async ({ amount, duration_months, referral_code }) => {
+    const limited = await enforceRateLimit("estimate_supporter_returns");
+    if (limited) return limited;
+
     const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "supporter",

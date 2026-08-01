@@ -33,6 +33,140 @@ function buildSignupLinks(opts) {
   return { signupUrl, referralUrl, landingUrl };
 }
 
+// src/lib/mcp-public/rateLimit.ts
+import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+var PER_MINUTE = 30;
+var PER_HOUR = 300;
+var HASH_PEPPER = "welile-mcp-public-v1";
+function readEnv(name) {
+  const g = globalThis;
+  return g.Deno?.env?.get?.(name) ?? g.process?.env?.[name];
+}
+var callerStore;
+var lastCaller;
+var installed = false;
+function firstForwardedIp(header) {
+  if (!header) return void 0;
+  const first = header.split(",")[0]?.trim();
+  return first || void 0;
+}
+function callerFromRequest(request, info) {
+  const headers = request.headers;
+  const forwarded = firstForwardedIp(headers.get("x-forwarded-for")) ?? headers.get("cf-connecting-ip") ?? headers.get("x-real-ip") ?? void 0;
+  if (forwarded) return forwarded;
+  const remote = info?.remoteAddr;
+  return remote?.hostname ?? void 0;
+}
+function installCallerCapture() {
+  if (installed) return;
+  installed = true;
+  const g = globalThis;
+  const deno = g.Deno;
+  const originalServe = deno?.serve;
+  if (!deno || typeof originalServe !== "function") return;
+  deno.serve = (...args) => {
+    const wrapped = args.map(
+      (arg) => typeof arg === "function" ? (request, info) => {
+        const caller = callerFromRequest(request, info);
+        lastCaller = caller;
+        const call = () => arg(request, info);
+        return callerStore ? callerStore.run(caller, call) : call();
+      } : arg
+    );
+    return originalServe.apply(deno, wrapped);
+  };
+  void (async () => {
+    try {
+      const mod = await import(
+        /* @vite-ignore */
+        "node:async_hooks"
+      );
+      if (mod.AsyncLocalStorage) callerStore = new mod.AsyncLocalStorage();
+    } catch {
+    }
+  })();
+}
+installCallerCapture();
+function currentCaller() {
+  return callerStore?.getStore() ?? lastCaller;
+}
+async function hashCaller(ip) {
+  try {
+    const bytes = new TextEncoder().encode(`${HASH_PEPPER}:${ip}`);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return void 0;
+  }
+}
+function publishableKey() {
+  const direct = readEnv("SUPABASE_PUBLISHABLE_KEY") ?? readEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
+  if (direct) return direct;
+  const keyset = readEnv("SUPABASE_PUBLISHABLE_KEYS");
+  if (keyset) {
+    try {
+      const parsed = JSON.parse(keyset);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const keys = parsed;
+        const key = [keys.default, ...Object.values(keys)].find(
+          (v) => typeof v === "string" && v.trim().startsWith("sb_publishable_")
+        );
+        if (key) return key.trim();
+      }
+    } catch {
+    }
+  }
+  return readEnv("SUPABASE_ANON_KEY") ?? readEnv("VITE_SUPABASE_ANON_KEY");
+}
+function limiterClient() {
+  const url = readEnv("SUPABASE_URL") ?? readEnv("VITE_SUPABASE_URL");
+  const key = publishableKey();
+  if (!url || !key) return void 0;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+function waitLabel(seconds) {
+  if (seconds >= 90) return `about ${Math.round(seconds / 60)} minutes`;
+  return `about ${Math.max(5, seconds)} seconds`;
+}
+async function enforceRateLimit(tool) {
+  const ip = currentCaller();
+  if (!ip) return null;
+  const hash = await hashCaller(ip);
+  if (!hash) return null;
+  const client = limiterClient();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.rpc("check_mcp_public_rate_limit", {
+      p_caller_hash: hash,
+      p_tool: tool,
+      p_per_minute: PER_MINUTE,
+      p_per_hour: PER_HOUR
+    });
+    if (error) return null;
+    const verdict = data ?? {};
+    if (verdict.allowed !== false) return null;
+    const retry = Math.max(1, Math.round(verdict.retry_after_seconds ?? 60));
+    const blocked = verdict.reason === "temporarily_blocked";
+    const text = blocked ? `Too many requests from this connection, so it is paused for ${waitLabel(retry)}. This limit protects the free public Welile tools from spam. Please try again after that, or create a free account at https://welileapp.com for your own personal access.` : `Rate limit reached \u2014 the free public Welile tools allow ${PER_MINUTE} requests a minute and ${PER_HOUR} an hour per connection. Please try again in ${waitLabel(retry)}, or create a free account at https://welileapp.com for your own personal access.`;
+    return {
+      content: [{ type: "text", text }],
+      isError: true,
+      structuredContent: {
+        error: "rate_limited",
+        reason: verdict.reason ?? "rate_limited",
+        retry_after_seconds: retry,
+        limit_per_minute: PER_MINUTE,
+        limit_per_hour: PER_HOUR,
+        signup_url: "https://welileapp.com"
+      }
+    };
+  } catch {
+    return null;
+  }
+}
+
 // src/lib/mcp-public/tools/how-welile-works.ts
 var GUIDED_PROMPTS = [
   "Check my rent access",
@@ -99,7 +233,9 @@ var how_welile_works_default = defineTool({
     referral_code: z.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: ({ topic, referral_code }) => {
+  handler: async ({ topic, referral_code }) => {
+    const limited = await enforceRateLimit("how_welile_works");
+    if (limited) return limited;
     const term = (topic ?? "").trim().toLowerCase();
     const matched = term ? FAQS.filter(
       (f) => f.q.toLowerCase().includes(term) || f.tags.some((t) => t.includes(term) || term.includes(t))
@@ -195,7 +331,9 @@ var explore_welile_default = defineTool2({
     referral_code: z2.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: ({ intent, referral_code }) => {
+  handler: async ({ intent, referral_code }) => {
+    const limited = await enforceRateLimit("explore_welile");
+    if (limited) return limited;
     const feature = matchFeature(intent);
     if (feature) {
       const { signupUrl: signupUrl2, referralUrl, landingUrl: landingUrl2 } = buildSignupLinks({
@@ -299,7 +437,9 @@ var estimate_rent_access_default = defineTool3({
     referral_code: z3.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: ({ rent, duration_days, referral_code }) => {
+  handler: async ({ rent, duration_days, referral_code }) => {
+    const limited = await enforceRateLimit("estimate_rent_access");
+    if (limited) return limited;
     const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant"
@@ -436,7 +576,9 @@ var estimate_supporter_returns_default = defineTool4({
     referral_code: z4.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: ({ amount, duration_months, referral_code }) => {
+  handler: async ({ amount, duration_months, referral_code }) => {
+    const limited = await enforceRateLimit("estimate_supporter_returns");
+    if (limited) return limited;
     const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "supporter"
@@ -525,20 +667,20 @@ ${linkText}`;
 });
 
 // src/lib/mcp-public/tools/find-available-houses.ts
-import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+import { createClient as createClient2 } from "npm:@supabase/supabase-js@2.89.0";
 import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z5 } from "npm:zod@^4.4.3";
 var DEFAULT_LIMIT = 5;
 var MAX_LIMIT = 10;
-function readEnv(name) {
+function readEnv2(name) {
   const g = globalThis;
   return g.Deno?.env?.get(name) ?? g.process?.env?.[name];
 }
 function anonClient() {
-  const url = readEnv("SUPABASE_URL");
-  const anonKey = readEnv("SUPABASE_PUBLISHABLE_KEY") ?? readEnv("SUPABASE_ANON_KEY");
+  const url = readEnv2("SUPABASE_URL");
+  const anonKey = readEnv2("SUPABASE_PUBLISHABLE_KEY") ?? readEnv2("SUPABASE_ANON_KEY");
   if (!url || !anonKey) throw new Error("Supabase env not configured");
-  return createClient(url, anonKey, {
+  return createClient2(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
@@ -568,6 +710,8 @@ var find_available_houses_default = defineTool5({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ district, area, max_rent, limit, referral_code }) => {
+    const limited = await enforceRateLimit("find_available_houses");
+    if (limited) return limited;
     const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant"

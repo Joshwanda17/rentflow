@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks } from "../links";
+import { enforceRateLimit } from "../rateLimit";
 
 // PUBLIC, no-auth tool. Returns a small, read-only sample of AVAILABLE house
 // listings by district/area for prospective tenants, then hands back the free
@@ -103,6 +104,9 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ district, area, max_rent, limit, referral_code }) => {
+    const limited = await enforceRateLimit("find_available_houses");
+    if (limited) return limited;
+
     const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
       referralCode: referral_code,
       role: "tenant",
