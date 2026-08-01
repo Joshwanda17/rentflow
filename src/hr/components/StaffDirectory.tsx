@@ -286,27 +286,48 @@ export default function StaffDirectory() {
                               )}
                             </button>
                           </TableCell>
-                          <TableCell className="font-mono text-xs">{s.staff_number}</TableCell>
-                          <TableCell className="text-xs">
-                            {s.phone || <span className="text-muted-foreground">—</span>}
+                          <TableCell>
+                            <div className="font-medium">{s.full_name || '—'}</div>
+                            <div className="font-mono text-xs text-muted-foreground">
+                              {s.staff_number || '—'}
+                            </div>
                           </TableCell>
-                          <TableCell className="text-xs break-all">
-                            {s.email || <span className="text-muted-foreground">—</span>}
+                          <TableCell>
+                            <div>{rows.find((a) => a.is_primary)?.role_title || rows[0]?.role_title || '—'}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {rows.find((a) => a.is_primary)?.department_name || rows[0]?.department_name || '—'}
+                              {rows.length > 1 && (
+                                <span className="ml-1">+{rows.length - 1}</span>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {s.full_name || '—'}
-                            {rows.length > 1 && (
-                              <Badge variant="outline" className="ml-2 text-[10px]">
-                                {rows.length} positions
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{s.current_assignment?.role_title || '—'}</TableCell>
-                          <TableCell>{s.current_assignment?.department_name || '—'}</TableCell>
                           <TableCell>
                             {s.current_assignment?.manager_employee_id
                               ? positionTitleById[s.current_assignment.manager_employee_id] ?? '—'
                               : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs break-all">
+                                {s.email || '—'}
+                              </span>
+                              {s.phone ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 shrink-0"
+                                  title="Copy phone"
+                                  onClick={() => {
+                                    void navigator.clipboard.writeText(s.phone);
+                                    toast.success('Phone copied');
+                                  }}
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button size="sm" variant="outline" onClick={() => setAddFor(s)}>
