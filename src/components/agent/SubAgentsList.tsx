@@ -112,20 +112,13 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         return;
       }
 
-      // Restrict to users actually holding the agent role
-      const { data: roleRows } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'agent')
-        .in('user_id', ids);
-      const agentIds = new Set((roleRows || []).map(r => r.user_id));
-      const finalIds = ids.filter(id => agentIds.has(id));
-
-      if (finalIds.length === 0) {
-        setSubAgents([]);
-        setTotalSubAgentEarnings(0);
-        return;
-      }
+      // NOTE: do NOT gate this list on a client-side `user_roles` read.
+      // RLS on user_roles only lets a user see their OWN role rows, so that
+      // query always came back empty for a normal agent and the whole list
+      // collapsed to "no sub-agents" — which is why agents reported their
+      // invited sub-agents disappearing. Anyone linked via agent_subagents or
+      // referrals IS a recruit of this agent, so use those links directly.
+      const finalIds = ids;
 
       // Profiles — fetched via SECURITY DEFINER RPC so the parent agent can
       // resolve their sub-agents' names/phones (profiles RLS blocks direct
@@ -139,10 +132,16 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       // Tenant counts + map each tenant back to the sub-agent who manages them.
       // (subagent_commission earnings store the TENANT id in source_user_id,
       // so we need this map to attribute commission to the right sub-agent.)
-      const { data: rentReqRows } = await supabase
-        .from('rent_requests')
-        .select('agent_id, tenant_id, created_at')
-        .in('agent_id', finalIds);
+      // Chunk the id list: a long `.in()` blows past the request URL limit and
+      // silently returns nothing for agents with many recruits.
+      const rentReqRows: Array<{ agent_id: string; tenant_id: string | null; created_at: string }> = [];
+      for (let i = 0; i < finalIds.length; i += 150) {
+        const { data: chunk } = await supabase
+          .from('rent_requests')
+          .select('agent_id, tenant_id, created_at')
+          .in('agent_id', finalIds.slice(i, i + 150));
+        if (chunk) rentReqRows.push(...(chunk as typeof rentReqRows));
+      }
 
       const tenantsBySub: Record<string, number> = {};
       const lastActiveBySub: Record<string, string> = {};
