@@ -948,6 +948,65 @@ export default function PayrollEnrollment() {
         record with the date it closed.
       </p>
 
+      <Dialog open={idsRow !== null} onOpenChange={(open) => !open && setIdsRow(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Statutory identifiers</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              These appear on filed URA and NSSF returns. They do not affect any payroll figure.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="ids-tin">TIN</Label>
+              <Input
+                id="ids-tin"
+                value={idsTin}
+                onChange={(e) => {
+                  setIdsTin(e.target.value);
+                  setIdsError('');
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ids-nssf">NSSF number</Label>
+              <Input
+                id="ids-nssf"
+                value={idsNssf}
+                onChange={(e) => {
+                  setIdsNssf(e.target.value);
+                  setIdsError('');
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ids-lst">LST district</Label>
+              <Input
+                id="ids-lst"
+                value={idsLst}
+                onChange={(e) => {
+                  setIdsLst(e.target.value);
+                  setIdsError('');
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              All three are optional. A partial record is better than none.
+            </p>
+            {idsError ? <p className="text-xs text-destructive">{idsError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIdsRow(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveIds()} disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={statRow !== null} onOpenChange={(open) => !open && setStatRow(null)}>
         <DialogContent>
           <DialogHeader>
