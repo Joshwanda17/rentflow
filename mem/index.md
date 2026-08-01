@@ -65,3 +65,4 @@
 
 - [Pivot rebuild 2026-08-01](mem://architecture/pivot-rebuild-2026-08-01) — ledger_balance_pivot rebuilt in place from v_user_wallet_strict (30,786→167,769 rows); backup table `ledger_balance_pivot_2026_08_01_backup` retained ≥7 days; job 41 UGX 1,000 threshold locked without separate CFO approval
 - [Orphan wallet ledger legs — FIN-2026-08-001](mem://architecture/orphan-wallet-ledger-legs) — 8 legs reclassified wallet→platform via append-only `ledger_scope_reclassifications`; UGX 544,205,788 leg isolated under incident FIN-2026-08-001 and deliberately unchanged (no write-off/reversal/delete); guardrail rejects wallet-scope inserts with NULL user_id except via `begin_ledger_migration`
+- [Advance repayment frequency](mem://features/agent/advance-repayment-frequency) — Weekly/bi-weekly/monthly advances are collected only on their due day; installments + arrears measured per installment, never per day
