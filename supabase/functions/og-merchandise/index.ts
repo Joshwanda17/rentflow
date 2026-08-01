@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
   // Always point crawlers at our own streaming endpoint: it works for private
   // buckets, guarantees a 1200x630 landscape crop, and falls back internally.
   const image = hasPhoto
-    ? `${url.origin}/functions/v1/og-merchandise?id=${encodeURIComponent(itemId)}&img=1`
+    ? `${Deno.env.get("SUPABASE_URL")}/functions/v1/og-merchandise?id=${encodeURIComponent(itemId)}&img=1`
     : FALLBACK_IMAGE;
   const picked = hasPhoto
     ? { width: 1200, height: 630, type: "image/jpeg" as string | undefined }
