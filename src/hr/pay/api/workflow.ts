@@ -38,6 +38,14 @@ export interface RegisterDoc {
     net: number;
     employer_cost: number;
   }>;
+  enrolled_count: number;
+  omissions_count: number;
+  omissions: Array<{
+    staff_id: string;
+    staff_ref: string | null;
+    staff_name: string | null;
+    reason: string;
+  }>;
 }
 
 async function recordEvent(runId: string, eventType: string, note: string | null): Promise<void> {
@@ -96,7 +104,7 @@ export async function getRegister(runId: string): Promise<RegisterDoc> {
     await supabase
       .from('hr_pay_runs')
       .select(
-        'id, status, rule_status_at_run, prepared_at, prepared_by, prepared_position_id, approved_at, approved_by, approved_position_id, release_armed_at, release_armed_by, hr_pay_periods(code, pay_date), hr_pay_rule_versions(code)',
+        'id, status, rule_status_at_run, prepared_at, prepared_by, prepared_position_id, approved_at, approved_by, approved_position_id, release_armed_at, release_armed_by, hr_pay_periods(code, pay_date, period_month, cut_off_date), hr_pay_rule_versions(code)',
       )
       .eq('id', runId)
       .single(),
@@ -112,11 +120,39 @@ export async function getRegister(runId: string): Promise<RegisterDoc> {
       .eq('is_current', true),
   ) ?? []) as Array<Record<string, any>>;
 
+  // Every active enrolled staff member, so the register can name anyone the run
+  // did not calculate instead of silently omitting them.
+  const allStaff = (unwrap(
+    await supabase.from('hr_staff').select('id, staff_ref, user_id').eq('active', true),
+  ) ?? []) as Array<{ id: string; staff_ref: string | null; user_id: string | null }>;
+
+  const slipStaffRefs = new Set(
+    slips.map((s) => (s.hr_staff?.staff_ref as string | undefined) ?? '').filter(Boolean),
+  );
+  const missingStaff = allStaff.filter((s) => !s.staff_ref || !slipStaffRefs.has(s.staff_ref));
+
+  const periodMonth = (run.hr_pay_periods?.period_month as string | null) ?? null;
+  const cutOff = (run.hr_pay_periods?.cut_off_date as string | null) ?? null;
+
+  let compRows: Array<{ staff_id: string; effective_from: string; effective_to: string | null }> = [];
+  if (missingStaff.length > 0) {
+    compRows = (unwrap(
+      await supabase
+        .from('hr_pay_compensation')
+        .select('staff_id, effective_from, effective_to')
+        .in(
+          'staff_id',
+          missingStaff.map((s) => s.id),
+        ),
+    ) ?? []) as typeof compRows;
+  }
+
   // Names live on profiles, keyed by the staff member's user id.
   const userIds = Array.from(
     new Set(
       [
         ...slips.map((s) => s.hr_staff?.user_id as string | undefined),
+        ...missingStaff.map((s) => s.user_id ?? undefined),
         run.prepared_by as string | undefined,
         run.approved_by as string | undefined,
         run.release_armed_by as string | undefined,
@@ -181,6 +217,38 @@ export async function getRegister(runId: string): Promise<RegisterDoc> {
         (a.staff_name ?? '').localeCompare(b.staff_name ?? ''),
     );
 
+  const formatPayStart = (value: string): string => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const omissions = missingStaff
+    .map((s) => {
+      const rows = compRows.filter((c) => c.staff_id === s.id);
+      const coversPeriod = rows.some(
+        (c) =>
+          (!cutOff || c.effective_from <= cutOff) &&
+          (!c.effective_to || !periodMonth || c.effective_to >= periodMonth),
+      );
+      const future = rows
+        .filter((c) => cutOff && c.effective_from > cutOff)
+        .sort((a, b) => a.effective_from.localeCompare(b.effective_from))[0];
+
+      let reason = 'Not calculated';
+      if (!coversPeriod && rows.length === 0) reason = 'No pay recorded for this period';
+      else if (!coversPeriod && future) reason = `Pay starts ${formatPayStart(future.effective_from)}`;
+      else if (!coversPeriod) reason = 'No pay recorded for this period';
+
+      return {
+        staff_id: s.id,
+        staff_ref: s.staff_ref ?? null,
+        staff_name: s.user_id ? nameById.get(s.user_id) ?? null : null,
+        reason,
+      };
+    })
+    .sort((a, b) => (a.staff_ref ?? '').localeCompare(b.staff_ref ?? ''));
+
   return {
     run_id: run.id as string,
     run_reference: String(run.id).slice(0, 8),
@@ -203,6 +271,9 @@ export async function getRegister(runId: string): Promise<RegisterDoc> {
     released_position_title: (releaseAuthority[0]?.hr_positions?.title as string | null) ?? null,
     released_by_name: run.release_armed_by ? nameById.get(run.release_armed_by) ?? null : null,
     rows,
+    enrolled_count: allStaff.length,
+    omissions_count: omissions.length,
+    omissions,
   };
 }
 
