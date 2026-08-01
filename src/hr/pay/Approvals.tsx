@@ -127,10 +127,16 @@ export default function Approvals() {
       <div className="space-y-3">
         {items.map((item) => {
           const provisional = (item.detail ?? '').includes('PROVISIONAL');
+          const isAdvance = item.item_type === 'advance';
           const body = (
             <CardContent className="space-y-1 py-4">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold">{item.title}</p>
+                {isAdvance && (
+                  <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                    SALARY ADVANCE
+                  </span>
+                )}
                 {provisional && (
                   <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
                     PROVISIONAL
