@@ -206,7 +206,7 @@ export default function McpToolTest() {
       const started = performance.now();
       try {
         primeRuntimeEnv();
-        const mod = await spec.load();
+        const mod = (await spec.load()) as LoadedTool;
         const raw = inputs[spec.name] ?? {};
         const input: Record<string, unknown> = {};
         for (const f of spec.fields) {
@@ -214,7 +214,10 @@ export default function McpToolTest() {
           if (!v) continue;
           input[f.key] = f.kind === 'number' ? Number(v) : v;
         }
-        const result = await mod.default.handler(input, buildCtx());
+        const result = await mod.default.handler(
+          input as never,
+          buildCtx() as never,
+        );
         const ms = Math.round(performance.now() - started);
         const text = result.content?.map((c) => c.text ?? '').join('\n');
         if (result.isError) {
