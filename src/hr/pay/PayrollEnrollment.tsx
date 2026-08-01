@@ -134,6 +134,13 @@ export default function PayrollEnrollment() {
   const [statBasis, setStatBasis] = useState('');
   const [statError, setStatError] = useState('');
 
+  // Statutory identifiers dialog state (identity data only)
+  const [idsRow, setIdsRow] = useState<EnrollmentRow | null>(null);
+  const [idsTin, setIdsTin] = useState('');
+  const [idsNssf, setIdsNssf] = useState('');
+  const [idsLst, setIdsLst] = useState('');
+  const [idsError, setIdsError] = useState('');
+
   // Basic pay dialog state
   const [payRow, setPayRow] = useState<EnrollmentRow | null>(null);
   const [payAmount, setPayAmount] = useState('');
@@ -219,6 +226,11 @@ export default function PayrollEnrollment() {
     const ready = rows.filter(isReady).length;
     return { total: rows.length, ready, incomplete: rows.length - ready };
   }, [rows]);
+
+  const idsComplete = useMemo(
+    () => rows.filter((r) => Boolean(r.tin) && Boolean(r.nssfNumber) && Boolean(r.lstDistrict)).length,
+    [rows],
+  );
 
   const bothApplyCount = useMemo(
     () => rows.filter((r) => bothApply(r, periodCutOff)).length,
@@ -419,6 +431,7 @@ export default function PayrollEnrollment() {
   }
 
   function openStatutory(row: EnrollmentRow, next: { paye: boolean; nssf: boolean; lst: boolean }) {
+    void next;
     setStatRow(row);
     setStatType(row.employmentType ?? 'employee');
     setStatPaye(next.paye);
