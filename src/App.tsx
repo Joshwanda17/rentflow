@@ -586,7 +586,7 @@ function AppRoutes() {
           <Route path="/hr/pay/config" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollConfigPage /></RoleGuard>} />
           <Route path="/hr/pay/compensation" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollCompensationPage /></RoleGuard>} />
           <Route path="/hr/pay/runs" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayRunsPage /></RoleGuard>} />
-          <Route path="/hr/pay/advances" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']} requiredPermission="hr"><PayrollAdvancesPage /></RoleGuard>} />
+          <Route path="/hr/pay/advances" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayrollAdvancesPage /></RoleGuard>} />
           <Route path="/hr/pay/enrollment" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollEnrollmentPage /></RoleGuard>} />
           <Route path="/hr/pay/runs/:runId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayRunDetailPage /></RoleGuard>} />
           <Route path="/hr/pay/payslips/:payslipId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayslipPage /></RoleGuard>} />
