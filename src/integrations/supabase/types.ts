@@ -31857,6 +31857,23 @@ export type Database = {
         }
         Returns: string
       }
+      hr_pay_statutory_return: {
+        Args: { _run_id: string }
+        Returns: {
+          employee_name: string
+          gross: number
+          lst: number
+          lst_district: string
+          missing: string
+          nssf_employee: number
+          nssf_employer: number
+          nssf_number: string
+          nssf_total: number
+          paye: number
+          staff_ref: string
+          tin: string
+        }[]
+      }
       hr_unenrolled_staff_candidates: {
         Args: { _q?: string }
         Returns: {
