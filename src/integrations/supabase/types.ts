@@ -14173,6 +14173,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_balance_pivot_2026_08_01_backup: {
+        Row: {
+          balance_sum: number | null
+          bucket: string | null
+          last_updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          balance_sum?: number | null
+          bucket?: string | null
+          last_updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          balance_sum?: number | null
+          bucket?: string | null
+          last_updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ledger_balance_pivot_candidate: {
         Row: {
           balance_sum: number

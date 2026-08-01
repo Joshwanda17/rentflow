@@ -62,3 +62,6 @@
 
 - [House verification bonus = UGX 2,000](mem://features/agent/house-verification-bonus) — Verified house listing pays the agent exactly UGX 2,000 (`pay_agent_house_verified_bonus`); `credit-listing-bonus` LISTING_BONUS must stay 2000 (was wrongly 5000 on 2026-07-23); no instant listed-reward ever; never backfill past bonuses
 - [Consolidation backlog](mem://architecture/consolidation-backlog) — 11 CTO-report shortcomings (cache-vs-ledger, repair jobs, cron coupling, function sprawl, slow queries, frontend robustness, auth complexity, reporting cost, modularity, domain boundaries, tech debt); MUST be addressed ONE AT A TIME
+
+- [Pivot rebuild 2026-08-01](mem://architecture/pivot-rebuild-2026-08-01) — ledger_balance_pivot rebuilt in place from v_user_wallet_strict (30,786→167,769 rows); backup table `ledger_balance_pivot_2026_08_01_backup` retained ≥7 days; job 41 UGX 1,000 threshold locked without separate CFO approval
+- [Orphan wallet ledger legs](mem://architecture/orphan-wallet-ledger-legs) — OPEN work item: 9 wallet-scope general_ledger legs with user_id/wallet_bucket NULL, UGX 544.8M gross; investigate + fix only via balanced ledger correction
