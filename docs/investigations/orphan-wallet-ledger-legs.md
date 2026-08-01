@@ -60,3 +60,36 @@ supporter facilitation capital) — separate, benign, out of scope here.
 
 A `BEFORE INSERT` check on `general_ledger` rejecting `ledger_scope='wallet'` rows with NULL `user_id`,
 forcing such legs to `platform` scope. Would have prevented all 9.
+---
+
+## CFO decision — 2026-08-01 (executed)
+
+**Pivot migration:** approved for completion (closed).
+
+**Legs 2–9 (8 legs, UGX 575,200) — administrative reclassification only, no financial adjustment.**
+Ledger rows are immutable by design (`prevent_ledger_mutation`), so the correction is recorded in the
+append-only register `public.ledger_scope_reclassifications` (`original_scope='wallet'` →
+`effective_scope='platform'`, reason + approver stored per row). Reporting reads
+`v_general_ledger_effective.effective_ledger_scope`. No reversal, no write-off, amounts untouched.
+
+**Leg 1 `5c3a9455` (UGX 544,205,788) — Historical Migration Anomaly, Under Investigation.**
+Formal incident **FIN-2026-08-001** opened in `public.ledger_anomaly_incidents`
+(`status='under_investigation'`). The leg is registered in `public.ledger_anomaly_isolations` and is
+therefore excluded from `v_general_ledger_operational`. The ledger row itself was **not** modified,
+reversed, written off or deleted. Next action required: forensic reconstruction of the 2026-05-07
+migration batch (109 legs, 3 passes) to recover the intended balancing entry. Only if reconstruction
+proves impossible may Finance decide on an administrative correction.
+
+## Guardrails implemented
+
+1. `zz_enforce_wallet_scope_requires_user` (BEFORE INSERT on `general_ledger`) rejects
+   `ledger_scope='wallet'` with `user_id IS NULL`, unless a named migration window is open.
+2. `begin_ledger_migration(p_migration_id, p_operator, p_reason)` — CFO/Manager/Super Admin only;
+   requires migration identifier, operator and a ≥10-char reason; writes `audit_logs` and a
+   `system_events` row; sets the transaction-local bypass. No migration can create financial records
+   anonymously.
+3. Transaction-group balance is already enforced by the existing deferred constraint trigger
+   `trg_enforce_ledger_group_balance` (cash_in must equal cash_out per group).
+4. **NULL `wallet_bucket` is monitored, not blocked.** 151,759 existing wallet-scope legs carry a NULL
+   bucket (it is derived downstream from `recipient_type`), so a hard reject would halt production.
+   Surfaced via `v_wallet_legs_missing_bucket` for review instead.
