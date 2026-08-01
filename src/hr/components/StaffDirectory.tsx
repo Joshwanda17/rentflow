@@ -105,6 +105,28 @@ export default function StaffDirectory() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (tab !== 'unenrolled') return;
+    let cancelled = false;
+    setUnenrolledLoading(true);
+    setUnenrolledError(null);
+    searchUnenrolledStaff(query)
+      .then((rows) => {
+        if (!cancelled) setUnenrolled(rows);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setUnenrolledError(e instanceof Error ? e.message : 'Failed to load candidates');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setUnenrolledLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, query]);
+
   const positionTitleById = useMemo(
     () => Object.fromEntries(positions.map((p) => [p.id, p.title])) as Record<string, string>,
     [positions],
