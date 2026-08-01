@@ -31,6 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { listComponents, listGrades, type PayComponentRow, type PayGradeRow } from '@/hr/pay/api/config';
+import { supabase } from '@/integrations/supabase/client';
 import {
   addCompensation,
   listCompensation,
@@ -44,11 +45,36 @@ function formatAmount(value: number): string {
   return new Intl.NumberFormat('en-UG', { maximumFractionDigits: 0 }).format(value);
 }
 
-/** First day of next month, as an ISO date string. */
-function firstOfNextMonth(): string {
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  return d.toISOString().slice(0, 10);
+/** Raw database / network error, verbatim. Never a generic phrase. */
+function rawError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === 'object') {
+    const msg = (error as { message?: unknown }).message;
+    if (typeof msg === 'string' && msg) return msg;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
+}
+
+const EFFECTIVE_FROM_HELP =
+  "The month this amount starts. To include someone in a payroll run, this date must be on or before the last day of that run's period.";
+const NO_OPEN_PERIOD = 'Open a pay period first.';
+
+/** First day of the OPEN pay period, resolved from hr_pay_periods.period_month. */
+async function openPeriodFirstDay(): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('hr_pay_periods')
+    .select('period_month')
+    .eq('status', 'open')
+    .order('period_month', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.period_month) return null;
+  return `${String(data.period_month).slice(0, 7)}-01`;
 }
 
 function AddRecordDialog({
@@ -70,10 +96,24 @@ function AddRecordDialog({
   const [componentId, setComponentId] = useState('');
   const [gradeId, setGradeId] = useState('');
   const [amount, setAmount] = useState('');
-  const [effectiveFrom, setEffectiveFrom] = useState(firstOfNextMonth());
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [periodStart, setPeriodStart] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void openPeriodFirstDay().then((first) => {
+      if (cancelled) return;
+      setPeriodStart(first);
+      setEffectiveFrom(first ?? '');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const earnings = components.filter((c) => c.kind === 'earning');
   const deductions = components.filter((c) => c.kind === 'deduction');
@@ -82,7 +122,7 @@ function AddRecordDialog({
     setComponentId('');
     setGradeId('');
     setAmount('');
-    setEffectiveFrom(firstOfNextMonth());
+    setEffectiveFrom('');
     setReason('');
     setError(null);
   };
@@ -98,7 +138,7 @@ function AddRecordDialog({
       return;
     }
     if (!effectiveFrom) {
-      setError('An effective-from date is required.');
+      setError(periodStart ? 'An effective-from date is required.' : NO_OPEN_PERIOD);
       return;
     }
     if (reason.trim().length < 10) {
@@ -112,7 +152,7 @@ function AddRecordDialog({
       setOpen(false);
       reset();
     } catch (err) {
-      setError((err as Error).message);
+      setError(rawError(err));
     } finally {
       setSaving(false);
     }
@@ -197,8 +237,15 @@ function AddRecordDialog({
               id="comp-from"
               type="date"
               value={effectiveFrom}
-              onChange={(e) => setEffectiveFrom(e.target.value)}
+              onChange={(e) => {
+                setEffectiveFrom(e.target.value);
+                setError(null);
+              }}
             />
+            <p className="text-xs text-muted-foreground">{EFFECTIVE_FROM_HELP}</p>
+            {!periodStart ? (
+              <p className="text-xs font-medium text-destructive">{NO_OPEN_PERIOD}</p>
+            ) : null}
           </div>
           <div className="space-y-1">
             <Label htmlFor="comp-reason">Reason</Label>
@@ -218,7 +265,7 @@ function AddRecordDialog({
           )}
         </div>
         <DialogFooter>
-          <Button size="sm" onClick={save} disabled={saving}>
+          <Button size="sm" onClick={save} disabled={saving || !periodStart}>
             {saving && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
             Save record
           </Button>
