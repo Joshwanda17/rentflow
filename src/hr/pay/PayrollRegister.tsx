@@ -148,6 +148,9 @@ export default function PayrollRegister({ runId }: { runId: string }) {
             <p className="text-xs text-muted-foreground">
               Generated {generatedAt.toLocaleString('en-GB')}
             </p>
+            <p className="text-xs font-medium">
+              Staff on this payroll: {doc.rows.length} of {doc.enrolled_count} enrolled
+            </p>
           </div>
           <Button size="sm" variant="outline" className="no-print" onClick={() => window.print()}>
             <Printer className="mr-1 h-3.5 w-3.5" />
@@ -248,6 +251,46 @@ export default function PayrollRegister({ runId }: { runId: string }) {
               </tr>
             </tbody>
           </table>
+        </section>
+
+        <section className="space-y-2">
+          <h3 className="text-sm font-bold uppercase tracking-wide">
+            Enrolled staff not on this payroll
+          </h3>
+          {doc.omissions_count === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              None. Every enrolled staff member appears above.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-amber-800">
+                {doc.omissions_count} of {doc.enrolled_count} enrolled staff are not included in
+                this payroll run. Reasons are shown below.
+              </p>
+              <table className="w-full border border-amber-500 text-xs">
+                <thead>
+                  <tr className="border-b border-amber-500 bg-amber-50 text-left text-amber-900">
+                    <th className="border-r border-amber-500 px-2 py-1 font-semibold">Staff ref</th>
+                    <th className="border-r border-amber-500 px-2 py-1 font-semibold">Name</th>
+                    <th className="px-2 py-1 font-semibold">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {doc.omissions.map((o) => (
+                    <tr key={o.staff_id} className="border-b border-amber-500/60">
+                      <td className="border-r border-amber-500/60 px-2 py-1 font-mono">
+                        {o.staff_ref ?? '—'}
+                      </td>
+                      <td className="border-r border-amber-500/60 px-2 py-1">
+                        {o.staff_name ?? '—'}
+                      </td>
+                      <td className="px-2 py-1">{o.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="grid grid-cols-1 gap-6 pt-2 sm:grid-cols-3">
