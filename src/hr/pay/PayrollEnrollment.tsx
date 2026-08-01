@@ -772,8 +772,15 @@ export default function PayrollEnrollment() {
                 id="basic-from"
                 type="date"
                 value={payFrom}
-                onChange={(e) => setPayFrom(e.target.value)}
+                onChange={(e) => {
+                  setPayFrom(e.target.value);
+                  setPayError('');
+                }}
               />
+              <p className="text-xs text-muted-foreground">{EFFECTIVE_FROM_HELP}</p>
+              {!periodStart ? (
+                <p className="text-xs font-medium text-destructive">{NO_OPEN_PERIOD}</p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="basic-reason">Reason</Label>
@@ -796,7 +803,7 @@ export default function PayrollEnrollment() {
             <Button variant="outline" onClick={() => setPayRow(null)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={() => void savePay()} disabled={saving}>
+            <Button onClick={() => void savePay()} disabled={saving || !periodStart}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Save
             </Button>
@@ -938,8 +945,15 @@ export default function PayrollEnrollment() {
                   id="ded-from"
                   type="date"
                   value={dedFrom}
-                  onChange={(e) => setDedFrom(e.target.value)}
+                  onChange={(e) => {
+                    setDedFrom(e.target.value);
+                    setDedError('');
+                  }}
                 />
+                <p className="text-xs text-muted-foreground">{EFFECTIVE_FROM_HELP}</p>
+                {!periodStart ? (
+                  <p className="text-xs font-medium text-destructive">{NO_OPEN_PERIOD}</p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ded-reason">Reason</Label>
@@ -963,7 +977,7 @@ export default function PayrollEnrollment() {
             <Button variant="outline" onClick={() => setDedRow(null)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={() => void saveDeduction()} disabled={saving}>
+            <Button onClick={() => void saveDeduction()} disabled={saving || !periodStart}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Add deduction
             </Button>
