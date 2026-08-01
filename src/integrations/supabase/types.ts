@@ -11717,6 +11717,45 @@ export type Database = {
           },
         ]
       }
+      hr_pay_schedule: {
+        Row: {
+          auto_calculate: boolean
+          auto_notify: boolean
+          auto_prepare: boolean
+          day_of_month: number
+          enabled: boolean
+          id: string
+          last_run_at: string | null
+          last_run_note: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_calculate?: boolean
+          auto_notify?: boolean
+          auto_prepare?: boolean
+          day_of_month?: number
+          enabled?: boolean
+          id?: string
+          last_run_at?: string | null
+          last_run_note?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_calculate?: boolean
+          auto_notify?: boolean
+          auto_prepare?: boolean
+          day_of_month?: number
+          enabled?: boolean
+          id?: string
+          last_run_at?: string | null
+          last_run_note?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       hr_pay_statutory_ids: {
         Row: {
           created_at: string
