@@ -28419,6 +28419,27 @@ export type Database = {
         Args: { p_sub_agent_id: string }
         Returns: undefined
       }
+      advance_expected_repaid_to_date: {
+        Args: {
+          p_access_fee: number
+          p_cycle_days: number
+          p_frequency: string
+          p_installment_amount?: number
+          p_issued_at: string
+          p_principal: number
+        }
+        Returns: number
+      }
+      advance_installment_amount: {
+        Args: {
+          p_access_fee: number
+          p_cycle_days: number
+          p_frequency: string
+          p_installment_amount?: number
+          p_principal: number
+        }
+        Returns: number
+      }
       advance_period_days: { Args: { _frequency: string }; Returns: number }
       agent_allocate_tenant_payment: {
         Args: {
