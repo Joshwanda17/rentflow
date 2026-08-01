@@ -1,37 +1,23 @@
-# Branded merchandise share links
+# Statutory identifiers on payroll enrollment
 
-## Why the URL currently shows "supabase"
-The share card is served by the `og-merchandise` Supabase Edge Function so that WhatsApp/Facebook/Telegram crawlers receive dynamic Open Graph tags (product title, price, product photo). The function lives at `https://<project-ref>.supabase.co/functions/v1/og-merchandise/...`, so that domain is what users see in the share dialog and in copied links.
+TIN, NSSF number and LST district are filing identity data. They exist in a table that is currently empty and there is no screen to capture them. This adds capture and a completeness signal without touching any payroll figure.
 
-## What we can change in code
-We can replace the raw Supabase URL that is shown/copied with a short, branded `welileapp.com` link. The project already has a `short_links` table and a `/r/:code` resolver, so the cleanest path is to create a dedicated `/m/:code` route for merchandise shares.
+## What changes
 
-### Proposed implementation
-1. Add a new client route `/m/:code` in `src/App.tsx`.
-2. Create a small resolver page `src/pages/ResolveMerchandiseLink.tsx` that:
-   - Looks up the code in `short_links` via `resolve_short_link` (or a merchandise-specific resolver);
-   - Redirects to `/merchandise?item=<id>` inside the app.
-3. Update `buildShare` in `src/pages/MerchandiseStore.tsx` to:
-   - Create a short link via `createShortLink(user!.id, '/merchandise', { item: item.id })`;
-   - Display the resulting `https://welileapp.com/m/<code>` URL in the dialog box and copy action.
-4. Keep the existing `og-merchandise` Supabase URL as the `og:url` target and the image source inside the Edge Function, so the rich product card still works when the link is pasted in WhatsApp/Facebook.
+Exactly two files: `src/hr/pay/api/enrollment.ts` and `src/hr/pay/PayrollEnrollment.tsx`.
 
-## Important trade-off
-The branded `welileapp.com/m/<code>` link is a client-side SPA redirect. When a user copies and pastes that short link into WhatsApp, the WhatsApp crawler will hit `welileapp.com`, receive the React app shell, and will **not** see the dynamic product Open Graph tags. The product image preview will only appear if the shared URL is the Supabase Edge Function URL (the current one).
+### Data layer (`enrollment.ts`)
+- `listEnrollment` gains one extra parallel read of `hr_pay_statutory_ids` (`staff_id, tin, nssf_number, lst_district`) for the same staff ids, mapped per person.
+- `EnrollmentRow` gains `tin`, `nssfNumber`, `lstDistrict` — each `string | null`, null when the person has no row.
+- New export `setStatutoryIds(staffId, tin, nssf, lstDistrict)` calling `supabase.rpc('hr_pay_set_statutory_ids', { _staff_id, _tin, _nssf, _lst_district })`, throwing the error message verbatim. The table is never written directly, matching the existing `setStatutoryProfile` pattern.
 
-Options:
-- **Option A (recommended)**: Show the branded short URL in the dialog/copy action, but keep the social-share buttons and native share sheet using the Supabase OG URL. Users get a clean URL to copy; group chats still get the rich product card.
-- **Option B**: Share only the branded short URL everywhere. The URL is clean, but WhatsApp/Facebook previews will fall back to a generic Welile card instead of the product photo.
-- **Option C**: Get a custom domain attached to the Supabase Edge Function (e.g. `og.welileapp.com` or `api.welileapp.com`) so the OG function can serve from a branded domain. This requires DNS changes and Lovable Cloud/Supabase configuration outside the app code; it cannot be done by editing files alone.
+### Screen (`PayrollEnrollment.tsx`)
+- New column headed "Statutory IDs", placed immediately after the Basis column. The cell shows three small labelled indicators in a row — TIN, NSSF, LST — each a tick when the value is present and a dash in muted red when missing. The values themselves are never rendered in the table, so the printed sheet carries only ticks and dashes.
+- The cell is clickable and opens a dialog headed "Statutory identifiers" with the line: "These appear on filed URA and NSSF returns. They do not affect any payroll figure."
+- Dialog fields: TIN, NSSF number, LST district. All three optional, pre-filled from current values. Saving calls `setStatutoryIds`, then reloads the table through the existing load function.
+- Alongside the existing counts, a new "Statutory IDs complete: N of M" figure, where complete means all three values present. Rendered amber when N is less than M.
 
-## Files to change
-- `src/App.tsx` — add `/m/:code` route.
-- `src/pages/ResolveMerchandiseLink.tsx` — new resolver page.
-- `src/pages/MerchandiseStore.tsx` — update `buildShare` to create and display the short link.
-- Optionally `supabase/functions/og-merchandise/index.ts` — no changes needed for Option A/B, but if Option C is pursued later the function already reads `SITE_URL` from a constant.
-
-## Question before building
-Which option do you want?
-- **A**: clean copied URL + rich previews via Supabase OG URL in share buttons.
-- **B**: clean URL everywhere, but lose the product-photo preview on WhatsApp/Facebook.
-- **C**: investigate setting up a custom domain for the Edge Function (requires DNS and platform support, not just code).
+## Notes
+- No writes to `hr_pay_compensation`, `hr_pay_runs` or `hr_pay_payslips` are added; existing basic-pay and statutory-profile actions on the screen stay as they are.
+- No new files, no packages, nothing under `supabase/functions/` or `src/hr/pay/calculator/`.
+- Current state: the identifiers table holds 0 rows against 26 active staff, so the new count will open at "0 of 26" in amber.
