@@ -118,18 +118,336 @@ var list_my_transactions_default = defineTool3({
   }
 });
 
+// src/lib/mcp/tools/get-my-wallet-statement.ts
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z2 } from "npm:zod@^4.4.3";
+
+// src/lib/mcp/statement.ts
+import { createClient as createClient4 } from "npm:@supabase/supabase-js@2.89.0";
+import {
+  applyCustomerWalletLedgerFilters as applyCustomerWalletLedgerFilters2,
+  isCustomerWalletLedgerEntryVisible as isCustomerWalletLedgerEntryVisible2
+} from "npm:@/lib/customerWalletHistory";
+function supabaseForUser4(ctx) {
+  return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+function ugx(n) {
+  return `UGX ${Math.round(n).toLocaleString("en-US")}`;
+}
+function isoDay(value, endOfDay) {
+  if (!value) return void 0;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error(`Invalid date "${value}" \u2014 use YYYY-MM-DD.`);
+  return endOfDay ? `${value}T23:59:59.999Z` : `${value}T00:00:00.000Z`;
+}
+async function buildStatement(ctx, opts) {
+  const supabase = supabaseForUser4(ctx);
+  const userId = ctx.getUserId();
+  const take = Math.min(Math.max(opts.limit ?? 200, 1), 1e3);
+  const fromTs = isoDay(opts.from, false);
+  const toTs = isoDay(opts.to, true);
+  let query = applyCustomerWalletLedgerFilters2(
+    supabase.from("general_ledger").select("created_at, category, direction, amount, description, wallet_bucket, classification, source_table").eq("user_id", userId).eq("ledger_scope", "wallet")
+  );
+  if (fromTs) query = query.gte("created_at", fromTs);
+  if (toTs) query = query.lte("created_at", toTs);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(take + 1);
+  if (error) throw new Error(error.message);
+  const visible = (data ?? []).filter(isCustomerWalletLedgerEntryVisible2);
+  const truncated = visible.length > take;
+  const rows = visible.slice(0, take).map((r) => ({
+    date: new Date(r.created_at).toISOString().slice(0, 10),
+    category: String(r.category ?? ""),
+    direction: String(r.direction ?? ""),
+    bucket: String(r.wallet_bucket ?? ""),
+    amount: Number(r.amount ?? 0),
+    description: String(r.description ?? "")
+  }));
+  const total_in = rows.filter((r) => r.direction === "cash_in").reduce((s, r) => s + r.amount, 0);
+  const total_out = rows.filter((r) => r.direction === "cash_out").reduce((s, r) => s + r.amount, 0);
+  const { data: available } = await supabase.rpc("get_user_available_balance", { p_user_id: userId });
+  return {
+    currency: "UGX",
+    from: opts.from ?? null,
+    to: opts.to ?? null,
+    rows,
+    total_in,
+    total_out,
+    net_movement: total_in - total_out,
+    closing_withdrawable: Number(available ?? 0),
+    truncated
+  };
+}
+function statementTitle(s) {
+  const range = s.from || s.to ? `${s.from ?? "start"} to ${s.to ?? "today"}` : "all recorded activity";
+  return `Welile wallet statement (${range})`;
+}
+
+// src/lib/mcp/tools/get-my-wallet-statement.ts
+var get_my_wallet_statement_default = defineTool4({
+  name: "get_my_wallet_statement",
+  title: "View my wallet statement",
+  description: "Return the signed-in user's Welile wallet statement for an optional date range: every wallet ledger entry with money-in / money-out totals, net movement and the current withdrawable balance. Amounts are in UGX.",
+  inputSchema: {
+    from: z2.string().describe("Optional start date, YYYY-MM-DD (inclusive).").optional(),
+    to: z2.string().describe("Optional end date, YYYY-MM-DD (inclusive).").optional(),
+    limit: z2.number().int().describe("Maximum number of entries to include. Defaults to 200; capped at 1000.").optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ from, to, limit }, ctx) => {
+    if (!ctx.isAuthenticated()) {
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    }
+    try {
+      const statement = await buildStatement(ctx, { from, to, limit });
+      const header = [
+        statementTitle(statement),
+        `Entries: ${statement.rows.length}${statement.truncated ? " (truncated \u2014 narrow the date range)" : ""}`,
+        `Money in: ${ugx(statement.total_in)} | Money out: ${ugx(statement.total_out)} | Net: ${ugx(statement.net_movement)}`,
+        `Withdrawable balance now: ${ugx(statement.closing_withdrawable)}`,
+        ""
+      ];
+      const lines = statement.rows.map(
+        (r) => `${r.date}  ${r.direction === "cash_in" ? "+" : "-"}${ugx(r.amount)}  ${r.category}` + (r.description ? `  \u2014 ${r.description}` : "")
+      );
+      return {
+        content: [
+          { type: "text", text: [...header, ...lines.length ? lines : ["No activity in this period."]].join("\n") }
+        ],
+        structuredContent: { statement }
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: e.message }], isError: true };
+    }
+  }
+});
+
+// src/lib/mcp/tools/export-my-wallet-statement.ts
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z3 } from "npm:zod@^4.4.3";
+import * as XLSX from "npm:xlsx@0.18.5";
+
+// src/lib/mcp/simplePdf.ts
+var PAGE_W = 595.28;
+var PAGE_H = 841.89;
+var MARGIN = 40;
+var FONT_SIZE = 8.5;
+var LINE_H = 11.5;
+var LINES_PER_PAGE = Math.floor((PAGE_H - MARGIN * 2) / LINE_H);
+function escapeText(text) {
+  return text.replace(/[^\x20-\x7E]/g, " ").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+function chunk(items, size) {
+  const out = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out.length ? out : [[]];
+}
+function textPdf(lines) {
+  const pages = chunk(lines, LINES_PER_PAGE);
+  const objects = [];
+  const add = (body) => {
+    objects.push(body);
+    return objects.length;
+  };
+  const fontNo = add("<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
+  const pagesNo = objects.length + 1;
+  objects.push("");
+  const pageNos = [];
+  pages.forEach((pageLines) => {
+    const ops = pageLines.map((line, i) => {
+      const y = PAGE_H - MARGIN - (i + 1) * LINE_H;
+      return `BT /F1 ${FONT_SIZE} Tf 1 0 0 1 ${MARGIN} ${y.toFixed(2)} Tm (${escapeText(line)}) Tj ET`;
+    }).join("\n");
+    const streamNo = add(`<< /Length ${ops.length} >>
+stream
+${ops}
+endstream`);
+    pageNos.push(
+      add(
+        `<< /Type /Page /Parent ${pagesNo} 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 ${fontNo} 0 R >> >> /Contents ${streamNo} 0 R >>`
+      )
+    );
+  });
+  objects[pagesNo - 1] = `<< /Type /Pages /Count ${pageNos.length} /Kids [${pageNos.map((n) => `${n} 0 R`).join(" ")}] >>`;
+  const catalogNo = add(`<< /Type /Catalog /Pages ${pagesNo} 0 R >>`);
+  let pdf = "%PDF-1.4\n";
+  const offsets = [];
+  objects.forEach((body, i) => {
+    offsets.push(pdf.length);
+    pdf += `${i + 1} 0 obj
+${body}
+endobj
+`;
+  });
+  const xrefStart = pdf.length;
+  pdf += `xref
+0 ${objects.length + 1}
+0000000000 65535 f 
+`;
+  offsets.forEach((off) => {
+    pdf += `${String(off).padStart(10, "0")} 00000 n 
+`;
+  });
+  pdf += `trailer
+<< /Size ${objects.length + 1} /Root ${catalogNo} 0 R >>
+startxref
+${xrefStart}
+%%EOF`;
+  const bytes = new Uint8Array(pdf.length);
+  for (let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 255;
+  return bytes;
+}
+
+// src/lib/mcp/tools/export-my-wallet-statement.ts
+var BUCKET = "wallet-statements";
+var SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
+function pad(value, width) {
+  const text = value.length > width ? `${value.slice(0, width - 1)}\u2026` : value;
+  return text.padEnd(width, " ");
+}
+function padLeft(value, width) {
+  return value.length > width ? value.slice(0, width) : value.padStart(width, " ");
+}
+function pdfBytes(statement) {
+  const lines = [
+    "WELILE RECEIPTS \u2014 WALLET STATEMENT",
+    statementTitle(statement),
+    `Generated: ${(/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ")} UTC`,
+    "",
+    `Money in:    ${ugx(statement.total_in)}`,
+    `Money out:   ${ugx(statement.total_out)}`,
+    `Net movement:${ugx(statement.net_movement)}`,
+    `Withdrawable balance now: ${ugx(statement.closing_withdrawable)}`,
+    "",
+    `${pad("DATE", 12)}${pad("CATEGORY", 26)}${pad("DIRECTION", 11)}${padLeft("AMOUNT (UGX)", 16)}  DESCRIPTION`,
+    "-".repeat(110)
+  ];
+  for (const r of statement.rows) {
+    lines.push(
+      `${pad(r.date, 12)}${pad(r.category, 26)}${pad(r.direction, 11)}${padLeft(Math.round(r.amount).toLocaleString("en-US"), 16)}  ${r.description.slice(0, 42)}`
+    );
+  }
+  if (!statement.rows.length) lines.push("No activity in this period.");
+  lines.push("", "All amounts in UGX. Statement generated by Welile Receipts.");
+  return textPdf(lines);
+}
+function xlsxBytes(statement) {
+  const book = XLSX.utils.book_new();
+  const summary = XLSX.utils.aoa_to_sheet([
+    ["Welile Receipts \u2014 Wallet statement"],
+    ["Period", statementTitle(statement)],
+    ["Generated (UTC)", (/* @__PURE__ */ new Date()).toISOString()],
+    ["Currency", "UGX"],
+    [],
+    ["Money in", statement.total_in],
+    ["Money out", statement.total_out],
+    ["Net movement", statement.net_movement],
+    ["Withdrawable balance now", statement.closing_withdrawable],
+    ["Entries", statement.rows.length]
+  ]);
+  summary["!cols"] = [{ wch: 26 }, { wch: 42 }];
+  XLSX.utils.book_append_sheet(book, summary, "Summary");
+  const sheet = XLSX.utils.json_to_sheet(
+    statement.rows.map((r) => ({
+      Date: r.date,
+      Category: r.category,
+      Direction: r.direction,
+      Bucket: r.bucket,
+      "Amount (UGX)": r.amount,
+      Description: r.description
+    })),
+    { header: ["Date", "Category", "Direction", "Bucket", "Amount (UGX)", "Description"] }
+  );
+  sheet["!cols"] = [{ wch: 12 }, { wch: 26 }, { wch: 11 }, { wch: 14 }, { wch: 16 }, { wch: 48 }];
+  XLSX.utils.book_append_sheet(book, sheet, "Transactions");
+  const out = XLSX.write(book, { type: "array", bookType: "xlsx" });
+  return new Uint8Array(out);
+}
+function csvBytes(statement) {
+  const cell = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const rows = [
+    ["Date", "Category", "Direction", "Bucket", "Amount (UGX)", "Description"].join(","),
+    ...statement.rows.map(
+      (r) => [cell(r.date), cell(r.category), cell(r.direction), cell(r.bucket), r.amount, cell(r.description)].join(",")
+    )
+  ].join("\n");
+  return new TextEncoder().encode(rows);
+}
+var export_my_wallet_statement_default = defineTool5({
+  name: "export_my_wallet_statement",
+  title: "Export my wallet statement",
+  description: "Generate the signed-in user's Welile wallet statement as a PDF, Excel (.xlsx) or CSV file and return a private download link valid for 7 days. Optionally limit it to a date range. Amounts are in UGX.",
+  inputSchema: {
+    format: z3.enum(["pdf", "xlsx", "csv"]).describe("File format to generate. Defaults to pdf.").optional(),
+    from: z3.string().describe("Optional start date, YYYY-MM-DD (inclusive).").optional(),
+    to: z3.string().describe("Optional end date, YYYY-MM-DD (inclusive).").optional(),
+    limit: z3.number().int().describe("Maximum number of entries to include. Defaults to 200; capped at 1000.").optional()
+  },
+  annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
+  handler: async ({ format, from, to, limit }, ctx) => {
+    if (!ctx.isAuthenticated()) {
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    }
+    const fmt = format ?? "pdf";
+    try {
+      const statement = await buildStatement(ctx, { from, to, limit });
+      const file = fmt === "xlsx" ? {
+        bytes: xlsxBytes(statement),
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ext: "xlsx"
+      } : fmt === "csv" ? { bytes: csvBytes(statement), contentType: "text/csv", ext: "csv" } : { bytes: pdfBytes(statement), contentType: "application/pdf", ext: "pdf" };
+      const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+      const path = `${ctx.getUserId()}/wallet-statement-${stamp}.${file.ext}`;
+      const supabase = supabaseForUser4(ctx);
+      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file.bytes, { contentType: file.contentType, upsert: true });
+      if (uploadError) return { content: [{ type: "text", text: uploadError.message }], isError: true };
+      const { data: signed, error: signError } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+      if (signError || !signed?.signedUrl) {
+        return {
+          content: [{ type: "text", text: signError?.message ?? "Could not create a download link." }],
+          isError: true
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${statementTitle(statement)} exported as ${fmt.toUpperCase()} (${statement.rows.length} entries, net ${ugx(statement.net_movement)}).
+Download (private link, expires in 7 days): ${signed.signedUrl}`
+          }
+        ],
+        structuredContent: {
+          format: fmt,
+          download_url: signed.signedUrl,
+          expires_in_seconds: SIGNED_URL_TTL_SECONDS,
+          entries: statement.rows.length,
+          total_in: statement.total_in,
+          total_out: statement.total_out,
+          net_movement: statement.net_movement,
+          closing_withdrawable: statement.closing_withdrawable,
+          truncated: statement.truncated
+        }
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: e.message }], isError: true };
+    }
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "wirntoujqoyjobfhyelc";
 var mcp_default = defineMcp({
   name: "welile-mcp",
   title: "Welile Receipts MCP",
   version: "0.1.0",
-  instructions: "Tools for a signed-in Welile Receipts user. Use `get_my_profile` for account details, `get_my_wallet` for the UGX wallet balance, and `list_my_transactions` for recent wallet activity. All amounts are in UGX and scoped to the authenticated user.",
+  instructions: "Tools for a signed-in Welile Receipts user. Use `get_my_profile` for account details, `get_my_wallet` for the UGX wallet balance, and `list_my_transactions` for recent wallet activity. Use `get_my_wallet_statement` for a full statement over an optional YYYY-MM-DD date range (entries plus money-in / money-out totals, net movement and current withdrawable balance), and `export_my_wallet_statement` to generate that statement as a PDF, Excel (.xlsx) or CSV file and return a private download link valid for 7 days. All amounts are in UGX and scoped to the authenticated user.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
   }),
-  tools: [get_my_profile_default, get_my_wallet_default, list_my_transactions_default]
+  tools: [get_my_profile_default, get_my_wallet_default, list_my_transactions_default, get_my_wallet_statement_default, export_my_wallet_statement_default]
 });
 
 // lovable-mcp-supabase-entry.ts
