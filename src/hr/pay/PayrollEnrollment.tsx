@@ -953,6 +953,10 @@ export default function PayrollEnrollment() {
           <DialogHeader>
             <DialogTitle>Record the basis</DialogTitle>
           </DialogHeader>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record the basis</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Employment type</Label>
