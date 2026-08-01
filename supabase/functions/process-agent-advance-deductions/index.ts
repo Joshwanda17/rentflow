@@ -310,7 +310,12 @@ Deno.serve(async (req) => {
       else if (amountDeducted > 0) deductionStatus = 'partial';
       else deductionStatus = 'none';
 
-      await supabase.from('agent_advance_ledger').insert({
+      // The DB guard (zz_guard_agent_advance_double_charge) locks the advance and
+      // rejects this row when another recovery path already collected the same
+      // installment (stale opening balance) or when the same-day cap is reached.
+      // A rejection MUST abort before the wallet is debited, otherwise the agent
+      // pays twice for one installment.
+      const { error: ledgerRowErr } = await supabase.from('agent_advance_ledger').insert({
         advance_id: advance.id,
         date: today,
         opening_balance: openingBalance,
@@ -319,6 +324,26 @@ Deno.serve(async (req) => {
         closing_balance: closingBalance,
         deduction_status: deductionStatus,
       });
+
+      if (ledgerRowErr) {
+        console.error(
+          `[process-agent-advance-deductions] ledger row rejected for advance ${advance.id} — no wallet debit:`,
+          ledgerRowErr.message,
+        );
+        await supabase.from('system_events').insert({
+          event_type: 'repayment_skipped_insufficient_balance',
+          payload: {
+            source: 'cron_advance_deduction',
+            reason: 'ledger_guard_rejected',
+            guard_error: ledgerRowErr.message,
+            advance_id: advance.id,
+            user_id: advance.agent_id,
+            attempted_amount: amountDeducted,
+          },
+        }).then(() => {}, () => {});
+        skipped.push(advance.id);
+        continue;
+      }
 
       const newStatus = closingBalance <= 0 ? 'completed' : (isOverdue ? 'overdue' : 'active');
       const advAccessFee = Number(advance.access_fee || 0);
