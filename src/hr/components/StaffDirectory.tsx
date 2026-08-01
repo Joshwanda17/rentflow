@@ -73,6 +73,7 @@ function readableError(e: unknown, action: string): string {
 }
 
 export default function StaffDirectory() {
+  const navigate = useNavigate();
   const [staff, setStaff] = useState<Employee[]>([]);
   const [query, setQuery] = useState('');
   const [positions, setPositions] = useState<Position[]>([]);
@@ -210,6 +211,39 @@ export default function StaffDirectory() {
     }
     return base;
   }, [tab, peopleBase, exitedBase, filterNoAssignment, assignments]);
+
+  const exportCsv = useCallback(() => {
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const headers = ['Staff ref', 'Name', 'Position', 'Department', 'Reports to', 'Email', 'Phone'];
+    const lines = [headers.map(esc).join(',')];
+    for (const s of visibleStaff) {
+      const rows = assignments[s.id] ?? [];
+      const primary = rows.find((a) => a.is_primary) ?? rows[0];
+      const reportsTo = s.current_assignment?.manager_employee_id
+        ? positionTitleById[s.current_assignment.manager_employee_id] ?? ''
+        : '';
+      lines.push(
+        [
+          s.staff_number,
+          s.full_name,
+          primary?.position_title ?? '',
+          primary?.department_name ?? '',
+          reportsTo,
+          s.email,
+          s.phone,
+        ].map(esc).join(','),
+      );
+    }
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `staff-directory-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [visibleStaff, assignments, positionTitleById]);
 
 
   return (
