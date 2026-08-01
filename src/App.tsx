@@ -182,6 +182,7 @@ const CTODashboardPage = lazy(() => import('./pages/cto/Dashboard'));
 const CEODashboardPage = lazy(() => import('./pages/ceo/Dashboard'));
 const CMODashboardPage = lazy(() => import('./pages/cmo/Dashboard'));
 const MerchandiseShareAnalyticsPage = lazy(() => import('./pages/admin/MerchandiseShareAnalytics'));
+const MerchandiseSharePreviewCheckPage = lazy(() => import('./pages/admin/MerchandiseSharePreviewCheck'));
 const CRMDashboardPage = lazy(() => import('./pages/crm/Dashboard'));
 const CFODashboardPage = lazy(() => import('./pages/cfo/Dashboard'));
 const InvestorReportPage = lazy(() => import('./pages/cfo/InvestorReportPage'));
@@ -587,6 +588,7 @@ function AppRoutes() {
           <Route path="/coo/dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto']} requiredPermission="coo"><COODashboardPage /></RoleGuard>} />
           <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'cto']} requiredPermission="cmo"><CMODashboardPage /></RoleGuard>} />
           <Route path="/admin/merchandise-share-analytics" element={<RoleGuard allowedRoles={['cmo', 'cfo', 'manager', 'super_admin']}><MerchandiseShareAnalyticsPage /></RoleGuard>} />
+          <Route path="/admin/merchandise-share-preview" element={<RoleGuard allowedRoles={['cmo', 'cfo', 'manager', 'super_admin']}><MerchandiseSharePreviewCheckPage /></RoleGuard>} />
           <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'cto']} requiredPermission="crm"><CRMDashboardPage /></RoleGuard>} />
           <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRDashboardPage /></RoleGuard>} />
           <Route path="/hr/pay/calculator-check" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><CalculatorSelfCheck /></RoleGuard>} />
