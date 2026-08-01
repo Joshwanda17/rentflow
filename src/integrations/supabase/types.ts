@@ -14152,6 +14152,119 @@ export type Database = {
           },
         ]
       }
+      ledger_anomaly_incidents: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          gross_amount: number | null
+          id: string
+          incident_ref: string
+          opened_at: string
+          opened_by: string | null
+          resolution: string | null
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          gross_amount?: number | null
+          id?: string
+          incident_ref: string
+          opened_at?: string
+          opened_by?: string | null
+          resolution?: string | null
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          gross_amount?: number | null
+          id?: string
+          incident_ref?: string
+          opened_at?: string
+          opened_by?: string | null
+          resolution?: string | null
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ledger_anomaly_isolations: {
+        Row: {
+          created_at: string
+          id: string
+          incident_ref: string
+          isolated_at: string
+          isolated_by: string | null
+          ledger_entry_id: string
+          reason: string
+          released_at: string | null
+          released_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          incident_ref: string
+          isolated_at?: string
+          isolated_by?: string | null
+          ledger_entry_id: string
+          reason: string
+          released_at?: string | null
+          released_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          incident_ref?: string
+          isolated_at?: string
+          isolated_by?: string | null
+          ledger_entry_id?: string
+          reason?: string
+          released_at?: string | null
+          released_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_anomaly_isolations_incident_ref_fkey"
+            columns: ["incident_ref"]
+            isOneToOne: false
+            referencedRelation: "ledger_anomaly_incidents"
+            referencedColumns: ["incident_ref"]
+          },
+          {
+            foreignKeyName: "ledger_anomaly_isolations_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: true
+            referencedRelation: "general_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_anomaly_isolations_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_general_ledger_effective"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_anomaly_isolations_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_general_ledger_operational"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ledger_balance_pivot: {
         Row: {
           balance_sum: number
@@ -14385,6 +14498,74 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      ledger_scope_reclassifications: {
+        Row: {
+          approved_by: string
+          approved_by_user_id: string | null
+          created_at: string
+          effective_scope: string
+          id: string
+          incident_ref: string | null
+          ledger_entry_id: string
+          original_scope: string
+          reason: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by: string
+          approved_by_user_id?: string | null
+          created_at?: string
+          effective_scope: string
+          id?: string
+          incident_ref?: string | null
+          ledger_entry_id: string
+          original_scope: string
+          reason: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string
+          approved_by_user_id?: string | null
+          created_at?: string
+          effective_scope?: string
+          id?: string
+          incident_ref?: string | null
+          ledger_entry_id?: string
+          original_scope?: string
+          reason?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_scope_reclassifications_incident_ref_fkey"
+            columns: ["incident_ref"]
+            isOneToOne: false
+            referencedRelation: "ledger_anomaly_incidents"
+            referencedColumns: ["incident_ref"]
+          },
+          {
+            foreignKeyName: "ledger_scope_reclassifications_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: true
+            referencedRelation: "general_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_scope_reclassifications_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_general_ledger_effective"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_scope_reclassifications_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: true
+            referencedRelation: "v_general_ledger_operational"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ledger_transactions: {
         Row: {
@@ -27664,6 +27845,106 @@ export type Database = {
           },
         ]
       }
+      v_general_ledger_effective: {
+        Row: {
+          account: string | null
+          amount: number | null
+          category: string | null
+          classification: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          direction: string | null
+          effective_ledger_scope: string | null
+          id: string | null
+          idempotency_key: string | null
+          is_isolated: boolean | null
+          isolation_incident_ref: string | null
+          ledger_scope: string | null
+          linked_party: string | null
+          matured_at: string | null
+          maturity_condition: string | null
+          maturity_expired: boolean | null
+          maturity_met: boolean | null
+          maturity_subject_id: string | null
+          recipient_type: string | null
+          reference_id: string | null
+          routing_source: string | null
+          running_balance: number | null
+          scope_reclassified: boolean | null
+          solvency_bypass_reason:
+            | Database["public"]["Enums"]["solvency_bypass_reason"]
+            | null
+          source_id: string | null
+          source_table: string | null
+          sub_category: string | null
+          transaction_date: string | null
+          transaction_group_id: string | null
+          user_id: string | null
+          wallet_bucket: string | null
+          wallet_id: string | null
+          withdrawable_after: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_anomaly_isolations_incident_ref_fkey"
+            columns: ["isolation_incident_ref"]
+            isOneToOne: false
+            referencedRelation: "ledger_anomaly_incidents"
+            referencedColumns: ["incident_ref"]
+          },
+        ]
+      }
+      v_general_ledger_operational: {
+        Row: {
+          account: string | null
+          amount: number | null
+          category: string | null
+          classification: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          direction: string | null
+          effective_ledger_scope: string | null
+          id: string | null
+          idempotency_key: string | null
+          is_isolated: boolean | null
+          isolation_incident_ref: string | null
+          ledger_scope: string | null
+          linked_party: string | null
+          matured_at: string | null
+          maturity_condition: string | null
+          maturity_expired: boolean | null
+          maturity_met: boolean | null
+          maturity_subject_id: string | null
+          recipient_type: string | null
+          reference_id: string | null
+          routing_source: string | null
+          running_balance: number | null
+          scope_reclassified: boolean | null
+          solvency_bypass_reason:
+            | Database["public"]["Enums"]["solvency_bypass_reason"]
+            | null
+          source_id: string | null
+          source_table: string | null
+          sub_category: string | null
+          transaction_date: string | null
+          transaction_group_id: string | null
+          user_id: string | null
+          wallet_bucket: string | null
+          wallet_id: string | null
+          withdrawable_after: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_anomaly_isolations_incident_ref_fkey"
+            columns: ["isolation_incident_ref"]
+            isOneToOne: false
+            referencedRelation: "ledger_anomaly_incidents"
+            referencedColumns: ["incident_ref"]
+          },
+        ]
+      }
       v_lc1_phone_duplicates: {
         Row: {
           created_at: string | null
@@ -27917,6 +28198,15 @@ export type Database = {
           total_visible: number | null
           user_id: string | null
           withdrawable: number | null
+        }
+        Relationships: []
+      }
+      v_wallet_legs_missing_bucket: {
+        Row: {
+          day: string | null
+          gross_amount: number | null
+          legs: number | null
+          legs_without_user: number | null
         }
         Relationships: []
       }
@@ -28429,6 +28719,10 @@ export type Database = {
       begin_ledger_maintenance: {
         Args: { p_minutes?: number; p_reason?: string }
         Returns: string
+      }
+      begin_ledger_migration: {
+        Args: { p_migration_id: string; p_operator: string; p_reason: string }
+        Returns: undefined
       }
       begin_wallet_accrual_lock: { Args: never; Returns: undefined }
       block_agent_listing: {
