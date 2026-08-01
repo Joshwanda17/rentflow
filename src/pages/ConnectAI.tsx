@@ -196,6 +196,9 @@ export default function ConnectAI() {
                   It answers only from public information and cannot reach any account, wallet or personal record.
                 </p>
                 <ToolList tools={PUBLIC_TOOLS} />
+                <Button variant="outline" size="sm" onClick={() => navigate('/public-tools')}>
+                  Full tool reference & example prompts
+                </Button>
                 <p className="text-sm text-muted-foreground">
                   Add it exactly like the personal connection above, but with this URL — the sign-in step is skipped.
                 </p>
