@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Printer } from 'lucide-react';
+import { AlertTriangle, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/hr/pay/print.css';
 import { Button } from '@/components/ui/button';
@@ -92,6 +92,19 @@ function joinsNextPeriod(row: EnrollmentRow, openPeriodCutOff: string | null): b
   );
 }
 
+const BOTH_APPLY_WARNING =
+  'Basic pay and part-month pay both apply this period. Only part-month pay will be paid. Set the basic pay effective date to the following month.';
+
+/** Both basic pay and part-month pay land in the open period. */
+function bothApply(row: EnrollmentRow, openPeriodCutOff: string | null): boolean {
+  return (
+    row.partMonthAmount > 0 &&
+    row.basicAmount !== null &&
+    row.basicAmount > 0 &&
+    !joinsNextPeriod(row, openPeriodCutOff)
+  );
+}
+
 export default function PayrollEnrollment() {
   const [rows, setRows] = useState<EnrollmentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,6 +181,11 @@ export default function PayrollEnrollment() {
     const ready = rows.filter(isReady).length;
     return { total: rows.length, ready, incomplete: rows.length - ready };
   }, [rows]);
+
+  const bothApplyCount = useMemo(
+    () => rows.filter((r) => bothApply(r, periodCutOff)).length,
+    [rows, periodCutOff],
+  );
 
   const totals = useMemo(
     () =>
@@ -441,6 +459,16 @@ export default function PayrollEnrollment() {
         </Card>
       </div>
 
+      {bothApplyCount > 0 ? (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            {bothApplyCount} staff have both basic pay and part-month pay in this period. Only
+            part-month pay will be paid for them.
+          </p>
+        </div>
+      ) : null}
+
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -479,7 +507,10 @@ export default function PayrollEnrollment() {
                     </TableRow>
                   ) : (
                     rows.map((row) => (
-                      <TableRow key={row.staffId}>
+                      <TableRow
+                        key={row.staffId}
+                        className={bothApply(row, periodCutOff) ? 'bg-amber-50' : undefined}
+                      >
                         <TableCell className="font-mono text-xs">{row.staffRef || '—'}</TableCell>
                         <TableCell className="font-medium">{row.name}</TableCell>
                         <TableCell>{row.department || '—'}</TableCell>
@@ -631,6 +662,14 @@ export default function PayrollEnrollment() {
                             <p className="mt-1 text-[11px] text-muted-foreground">
                               Joins next period
                             </p>
+                          ) : null}
+                          {bothApply(row, periodCutOff) ? (
+                            <span className="mt-1 inline-flex" title={BOTH_APPLY_WARNING}>
+                              <AlertTriangle
+                                className="h-4 w-4 text-amber-600"
+                                aria-label={BOTH_APPLY_WARNING}
+                              />
+                            </span>
                           ) : null}
                         </TableCell>
                       </TableRow>

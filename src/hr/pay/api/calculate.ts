@@ -337,6 +337,14 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
         lstAble: Boolean(r.hr_pay_components.lst_able),
       }));
 
+    // Part-month pay REPLACES basic salary for the period a person joined or left.
+    // If both are present, drop BASIC before any figure is computed.
+    const prorata = earnings.find((e) => e.code === 'PRORATA' && e.amount > 0);
+    const replacedBasic = Boolean(prorata) && earnings.some((e) => e.code === 'BASIC');
+    const effectiveEarnings = replacedBasic
+      ? earnings.filter((e) => e.code !== 'BASIC')
+      : earnings;
+
     const standingDeductions = rows
       .filter(
         (r) =>
@@ -345,7 +353,7 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
       .reduce((sum, r) => sum + num(r.amount), 0);
 
     // The advance instalment due this run is decided by the database.
-    const grossForAdvance = earnings.reduce((sum, e) => sum + e.amount, 0);
+    const grossForAdvance = effectiveEarnings.reduce((sum, e) => sum + e.amount, 0);
     const advanceRecovery = num(
       unwrap(
         await (supabase.rpc as any)('hr_pay_advance_due', {
@@ -380,10 +388,15 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
       lstApplicable: profile ? profile.lst_applicable !== false : true,
     };
 
-    const result = calculatePayslip(earnings, rule, 0, otherDeductions, applicability);
+    const result = calculatePayslip(effectiveEarnings, rule, 0, otherDeductions, applicability);
+    if (replacedBasic) {
+      result.trace.push(
+        'Basic salary was replaced by part-month pay for this period, so the BASIC component was excluded from this payslip.',
+      );
+    }
     computed.push({
       staffId,
-      earnings,
+      earnings: effectiveEarnings,
       otherDeductions,
       advanceRecovery,
       applicability,
