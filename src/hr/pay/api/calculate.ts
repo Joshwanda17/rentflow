@@ -413,7 +413,7 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
     await supabase
       .from('hr_assignments')
       .select(
-        'staff_id, position_id, department_id, started_on, ended_on, is_primary, hr_positions(title, department_id), hr_departments(name)',
+        'staff_id, position_id, department_id, started_on, ended_on, is_primary, position:hr_positions!hr_assignments_position_id_fkey(title, department_id), department:hr_departments!hr_assignments_department_id_fkey(name)',
       )
       .in('staff_id', Array.from(byStaff.keys()))
       .lte('started_on', periodEnd)
@@ -446,10 +446,9 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
     }
     return {
       position_id: (a.position_id as string) ?? null,
-      department_id:
-        (a.department_id as string) ?? (a.hr_positions?.department_id as string) ?? null,
-      position_title: (a.hr_positions?.title as string) ?? null,
-      department_name: (a.hr_departments?.name as string) ?? null,
+      department_id: (a.department_id as string) ?? (a.position?.department_id as string) ?? null,
+      position_title: (a.position?.title as string) ?? null,
+      department_name: (a.department?.name as string) ?? null,
     };
   }
 
