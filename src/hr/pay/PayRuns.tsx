@@ -1198,8 +1198,6 @@ export function PayRunDetailPlaceholder() {
             </CardContent>
           </Card>
 
-          <PayrollRegister runId={detail.id} />
-
           {hasPayslips && (
             <Card>
               <CardHeader>
@@ -1274,6 +1272,8 @@ export function PayRunDetailPlaceholder() {
               </CardContent>
             </Card>
           )}
+
+          <PayrollRegister runId={detail.id} />
 
           <ReleaseSection runId={detail.id} status={detail.status} />
 
