@@ -207,10 +207,10 @@ export default function PayrollEnrollment() {
     try {
       await addPartMonthPay(pmRow.staffId, amount, periodStart, periodCutOff, pmReason.trim());
       toast.success('Part-month pay recorded');
-      setPmRow(null);
       await load();
+      setPmRow(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save');
+      setPmError(rawError(error));
     } finally {
       setSaving(false);
     }
@@ -231,7 +231,7 @@ export default function PayrollEnrollment() {
         records.filter((r) => r.effective_to === null && r.component_kind === 'deduction'),
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not load deductions');
+      setDedError(rawError(error));
     } finally {
       setDedLoading(false);
     }
@@ -249,7 +249,7 @@ export default function PayrollEnrollment() {
       return;
     }
     if (!dedFrom) {
-      setDedError('An effective-from date is required.');
+      setDedError(periodStart ? 'An effective-from date is required.' : NO_OPEN_PERIOD);
       return;
     }
     if (dedReason.trim().length < 10) {
@@ -267,10 +267,10 @@ export default function PayrollEnrollment() {
         dedReason.trim(),
       );
       toast.success('Deduction recorded');
-      setDedRow(null);
       await load();
+      setDedRow(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save');
+      setDedError(rawError(error));
     } finally {
       setSaving(false);
     }
@@ -309,7 +309,7 @@ export default function PayrollEnrollment() {
         toast.success('All statutory deductions apply');
         await load();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Could not save');
+        toast.error(rawError(error));
       } finally {
         setSaving(false);
       }
@@ -330,10 +330,10 @@ export default function PayrollEnrollment() {
     try {
       await setStatutoryProfile(statRow.staffId, statType, statPaye, statNssf, statLst, allOn ? '' : basis);
       toast.success('Statutory profile recorded');
-      setStatRow(null);
       await load();
+      setStatRow(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save');
+      setStatError(rawError(error));
     } finally {
       setSaving(false);
     }
@@ -354,6 +354,10 @@ export default function PayrollEnrollment() {
       setPayError('Enter a valid amount.');
       return;
     }
+    if (!payFrom) {
+      setPayError(periodStart ? 'An effective-from date is required.' : NO_OPEN_PERIOD);
+      return;
+    }
     if (payReason.trim().length < 10) {
       setPayError('The reason must be at least 10 characters.');
       return;
@@ -362,10 +366,10 @@ export default function PayrollEnrollment() {
     try {
       await setBasicPay(payRow.staffId, amount, payFrom, payReason.trim());
       toast.success('Basic pay recorded');
-      setPayRow(null);
       await load();
+      setPayRow(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save');
+      setPayError(rawError(error));
     } finally {
       setSaving(false);
     }
