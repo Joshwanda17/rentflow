@@ -27,6 +27,14 @@ export interface EnrollmentRow {
   allowancesTotal: number;
   deductionsTotal: number;
   grossTotal: number;
+  partMonthAmount: number;
+}
+
+export interface EnrollmentResult {
+  rows: EnrollmentRow[];
+  openPeriodCode: string | null;
+  openPeriodStart: string | null;
+  openPeriodCutOff: string | null;
 }
 
 type StaffRow = {
@@ -75,12 +83,44 @@ async function basicComponentId(): Promise<string> {
   return row.id;
 }
 
-export async function listEnrollment(): Promise<EnrollmentRow[]> {
+/** The active PRORATA component, or null when it has not been configured. */
+async function prorataComponentId(): Promise<string | null> {
+  const res = await supabase
+    .from('hr_pay_components')
+    .select('id')
+    .eq('code', 'PRORATA')
+    .eq('active', true)
+    .maybeSingle();
+  const row = unwrap(res) as { id: string } | null;
+  return row?.id ?? null;
+}
+
+function firstDayOf(monthValue: string): string {
+  return `${monthValue.slice(0, 7)}-01`;
+}
+
+export async function listEnrollment(): Promise<EnrollmentResult> {
   const staff = (unwrap(
     await supabase.from('hr_staff').select(STAFF_SELECT).eq('active', true),
   ) ?? []) as unknown as StaffRow[];
 
-  if (staff.length === 0) return [];
+  const periodRes = await supabase
+    .from('hr_pay_periods')
+    .select('code, period_month, cut_off_date')
+    .eq('status', 'open')
+    .order('period_month', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const period = unwrap(periodRes) as
+    | { code: string; period_month: string; cut_off_date: string }
+    | null;
+  const openPeriodCode = period?.code ?? null;
+  const openPeriodStart = period ? firstDayOf(period.period_month) : null;
+  const openPeriodCutOff = period?.cut_off_date ?? null;
+
+  if (staff.length === 0) {
+    return { rows: [], openPeriodCode, openPeriodStart, openPeriodCutOff };
+  }
 
   const staffIds = staff.map((s) => s.id);
   const userIds = staff.map((s) => s.user_id).filter(Boolean);
@@ -124,6 +164,29 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
     ((unwrap(comp) ?? []) as CompRow[]).map((r) => [r.staff_id, r]),
   );
 
+  // Part-month (PRORATA) amounts that fall inside the open pay period.
+  const partMonthByStaff = new Map<string, number>();
+  if (openPeriodStart && openPeriodCutOff) {
+    const prorataId = await prorataComponentId();
+    if (prorataId) {
+      const prorataRows = (unwrap(
+        await supabase
+          .from('hr_pay_compensation')
+          .select('staff_id, amount')
+          .eq('component_id', prorataId)
+          .in('staff_id', staffIds)
+          .lte('effective_from', openPeriodCutOff)
+          .or(`effective_to.is.null,effective_to.gte.${openPeriodStart}`),
+      ) ?? []) as { staff_id: string; amount: number | string }[];
+      for (const r of prorataRows) {
+        partMonthByStaff.set(
+          r.staff_id,
+          (partMonthByStaff.get(r.staff_id) ?? 0) + (Number(r.amount) || 0),
+        );
+      }
+    }
+  }
+
   const allowancesByStaff = new Map<string, number>();
   const deductionsByStaff = new Map<string, number>();
   for (const r of (unwrap(openComp) ?? []) as unknown as OpenCompRow[]) {
@@ -137,7 +200,7 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
     }
   }
 
-  return staff
+  const mapped = staff
     .map((s) => {
       const assignment =
         (s.assignments ?? []).find((a) => !a.ended_on && a.is_primary) ??
@@ -148,6 +211,7 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
       const basicAmount = cp ? Number(cp.amount) : null;
       const allowancesTotal = allowancesByStaff.get(s.id) ?? 0;
       const deductionsTotal = deductionsByStaff.get(s.id) ?? 0;
+      const partMonthAmount = partMonthByStaff.get(s.id) ?? 0;
       return {
         staffId: s.id,
         staffRef: s.staff_ref ?? '',
@@ -164,10 +228,13 @@ export async function listEnrollment(): Promise<EnrollmentRow[]> {
         basicEffectiveFrom: cp?.effective_from ?? null,
         allowancesTotal,
         deductionsTotal,
-        grossTotal: (basicAmount ?? 0) + allowancesTotal,
+        partMonthAmount,
+        grossTotal: (basicAmount ?? 0) + allowancesTotal + partMonthAmount,
       } satisfies EnrollmentRow;
     })
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  return { rows: mapped, openPeriodCode, openPeriodStart, openPeriodCutOff };
 }
 
 /**

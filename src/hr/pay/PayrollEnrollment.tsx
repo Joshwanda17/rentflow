@@ -41,6 +41,7 @@ import {
 import { listComponents, type PayComponentRow } from '@/hr/pay/api/config';
 import {
   addCompensation,
+  addPartMonthPay,
   listCompensation,
   type CompensationRow,
 } from '@/hr/pay/api/compensation';
@@ -65,7 +66,17 @@ function firstOfThisMonth(): string {
 }
 
 function isReady(row: EnrollmentRow): boolean {
-  return row.basicAmount !== null && row.hasStatutoryProfile;
+  return (row.basicAmount !== null || row.partMonthAmount > 0) && row.hasStatutoryProfile;
+}
+
+/** Part-month pay for this period, but the salary record only starts later. */
+function joinsNextPeriod(row: EnrollmentRow, openPeriodCutOff: string | null): boolean {
+  return (
+    row.partMonthAmount > 0 &&
+    openPeriodCutOff !== null &&
+    row.basicEffectiveFrom !== null &&
+    row.basicEffectiveFrom > openPeriodCutOff
+  );
 }
 
 export default function PayrollEnrollment() {
@@ -73,6 +84,15 @@ export default function PayrollEnrollment() {
   const [loading, setLoading] = useState(true);
   const [reveal, setReveal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [periodCode, setPeriodCode] = useState<string | null>(null);
+  const [periodStart, setPeriodStart] = useState<string | null>(null);
+  const [periodCutOff, setPeriodCutOff] = useState<string | null>(null);
+
+  // Part-month pay dialog state
+  const [pmRow, setPmRow] = useState<EnrollmentRow | null>(null);
+  const [pmAmount, setPmAmount] = useState('');
+  const [pmReason, setPmReason] = useState('');
+  const [pmError, setPmError] = useState('');
 
   // Statutory dialog state
   const [statRow, setStatRow] = useState<EnrollmentRow | null>(null);
@@ -104,7 +124,11 @@ export default function PayrollEnrollment() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await listEnrollment());
+      const result = await listEnrollment();
+      setRows(result.rows);
+      setPeriodCode(result.openPeriodCode);
+      setPeriodStart(result.openPeriodStart);
+      setPeriodCutOff(result.openPeriodCutOff);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not load enrollment');
     } finally {
@@ -137,15 +161,47 @@ export default function PayrollEnrollment() {
       rows.reduce(
         (acc, r) => ({
           basic: acc.basic + (r.basicAmount ?? 0),
+          partMonth: acc.partMonth + r.partMonthAmount,
           allowances: acc.allowances + r.allowancesTotal,
           deductions: acc.deductions + r.deductionsTotal,
           gross: acc.gross + r.grossTotal,
           people: acc.people + 1,
         }),
-        { basic: 0, allowances: 0, deductions: 0, gross: 0, people: 0 },
+        { basic: 0, partMonth: 0, allowances: 0, deductions: 0, gross: 0, people: 0 },
       ),
     [rows],
   );
+
+  function openPartMonth(row: EnrollmentRow) {
+    setPmRow(row);
+    setPmAmount(row.partMonthAmount > 0 ? String(row.partMonthAmount) : '');
+    setPmReason('');
+    setPmError('');
+  }
+
+  async function savePartMonth() {
+    if (!pmRow || !periodStart || !periodCutOff) return;
+    const amount = Number(pmAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPmError('Enter a valid amount.');
+      return;
+    }
+    if (pmReason.trim().length < 10) {
+      setPmError('The reason must be at least 10 characters.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await addPartMonthPay(pmRow.staffId, amount, periodStart, periodCutOff, pmReason.trim());
+      toast.success('Part-month pay recorded');
+      setPmRow(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function openDeductions(row: EnrollmentRow) {
     setDedRow(row);
@@ -385,6 +441,7 @@ export default function PayrollEnrollment() {
                     <TableHead>Position</TableHead>
                     <TableHead>Employment type</TableHead>
                     <TableHead className="text-right">Basic pay</TableHead>
+                    <TableHead className="text-right">Part-month</TableHead>
                     <TableHead className="text-right">Allowances</TableHead>
                     <TableHead className="text-right">Deductions</TableHead>
                     <TableHead className="text-right">Gross</TableHead>
@@ -399,7 +456,7 @@ export default function PayrollEnrollment() {
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={15} className="p-6 text-sm text-muted-foreground">
+                      <TableCell colSpan={16} className="p-6 text-sm text-muted-foreground">
                         No active staff members.
                       </TableCell>
                     </TableRow>
@@ -472,6 +529,26 @@ export default function PayrollEnrollment() {
                             </>
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => openPartMonth(row)}
+                            className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
+                          >
+                            {row.partMonthAmount === 0
+                              ? '—'
+                              : reveal
+                                ? formatAmount(row.partMonthAmount)
+                                : '••••••'}
+                          </button>
+                          <span className="hidden font-mono text-sm tabular-nums print:inline">
+                            {row.partMonthAmount === 0
+                              ? '—'
+                              : reveal
+                                ? formatAmount(row.partMonthAmount)
+                                : '••••••'}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right font-mono text-sm tabular-nums">
                           {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
                         </TableCell>
@@ -533,6 +610,11 @@ export default function PayrollEnrollment() {
                               Incomplete
                             </span>
                           )}
+                          {joinsNextPeriod(row, periodCutOff) ? (
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              Joins next period
+                            </p>
+                          ) : null}
                         </TableCell>
                       </TableRow>
                     ))
@@ -543,6 +625,9 @@ export default function PayrollEnrollment() {
                     <TableCell colSpan={5}>{totals.people} people included</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       {reveal ? formatAmount(totals.basic) : '••••••'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.partMonth) : '••••••'}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       {reveal ? formatAmount(totals.allowances) : '••••••'}
@@ -695,6 +780,71 @@ export default function PayrollEnrollment() {
               Cancel
             </Button>
             <Button onClick={() => void savePay()} disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pmRow !== null} onOpenChange={(open) => !open && setPmRow(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Part-month pay{pmRow ? ` — ${pmRow.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          {!periodCode || !periodStart || !periodCutOff ? (
+            <p className="text-sm text-muted-foreground">
+              Open a pay period before entering part-month pay.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                For someone who joined or left part way through the period. Paid once, for this
+                period only. Their full salary starts from the month their basic pay record begins.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Period {periodCode} — {formatDate(periodStart)} to {formatDate(periodCutOff)}
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="pm-amount">Amount</Label>
+                <Input
+                  id="pm-amount"
+                  type="number"
+                  min={0}
+                  value={pmAmount}
+                  onChange={(e) => {
+                    setPmAmount(e.target.value);
+                    setPmError('');
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pm-reason">Reason</Label>
+                <Textarea
+                  id="pm-reason"
+                  rows={3}
+                  value={pmReason}
+                  onChange={(e) => {
+                    setPmReason(e.target.value);
+                    setPmError('');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Record how this was calculated, for example: joined 20 July, 10 of 23 working
+                  days.
+                </p>
+                {pmError ? <p className="text-xs text-destructive">{pmError}</p> : null}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPmRow(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void savePartMonth()}
+              disabled={saving || !periodStart || !periodCutOff}
+            >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Save
             </Button>

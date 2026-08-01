@@ -104,3 +104,37 @@ export async function addCompensation(
   const res = await supabase.from('hr_pay_compensation').select(COMP_SELECT).eq('id', newId).single();
   return mapRow(unwrap(res) as unknown as RawCompRow);
 }
+
+/**
+ * A one-off part-month payment (PRORATA), bounded to a single pay period.
+ * The row is created effective from the period start and then closed on the
+ * period cut-off date, so it can never repeat in a later period.
+ */
+export async function addPartMonthPay(
+  staffId: string,
+  amount: number,
+  periodStart: string,
+  periodEnd: string,
+  reason: string,
+): Promise<CompensationRow> {
+  const componentRes = await supabase
+    .from('hr_pay_components')
+    .select('id')
+    .eq('code', 'PRORATA')
+    .eq('active', true)
+    .maybeSingle();
+  const component = unwrap(componentRes) as { id: string } | null;
+  if (!component) {
+    throw new Error('The PRORATA component is missing. Add it on the Payroll config screen.');
+  }
+
+  const created = await addCompensation(staffId, component.id, null, amount, periodStart, reason);
+
+  const closed = await supabase
+    .from('hr_pay_compensation')
+    .update({ effective_to: periodEnd })
+    .eq('id', created.id)
+    .select(COMP_SELECT)
+    .single();
+  return mapRow(unwrap(closed) as unknown as RawCompRow);
+}
