@@ -346,7 +346,7 @@ function AgentRepaymentRow({ r, tone, onRemind, reminding }: {
         <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
           <span className="text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Owed: <b className="text-foreground">{formatUGX(r.outstanding_balance)}</b></span>
           <span className="text-muted-foreground flex items-center gap-1"><Wallet className="h-3 w-3" /> Wallet: <b className={r.withdrawable > 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatUGX(r.withdrawable)}</b></span>
-          <span className="text-muted-foreground flex items-center gap-1"><CalendarClock className="h-3 w-3" /> Daily due: <b className="text-foreground">{formatUGX(r.scheduled_daily)}</b></span>
+          <span className="text-muted-foreground flex items-center gap-1"><CalendarClock className="h-3 w-3" /> Installment due: <b className="text-foreground">{formatUGX(r.scheduled_daily)}</b></span>
           {tone === 'paid'
             ? <span className="text-emerald-600">Paid today: <b>{formatUGX(r.repaid_today)}</b></span>
             : <span className="text-muted-foreground">Last paid: <b className="text-foreground">{r.last_deduction_date ? format(new Date(r.last_deduction_date), 'MMM d') : '—'}</b></span>}
