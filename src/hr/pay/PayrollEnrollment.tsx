@@ -441,6 +441,7 @@ export default function PayrollEnrollment() {
                     <TableHead>Position</TableHead>
                     <TableHead>Employment type</TableHead>
                     <TableHead className="text-right">Basic pay</TableHead>
+                    <TableHead className="text-right">Part-month</TableHead>
                     <TableHead className="text-right">Allowances</TableHead>
                     <TableHead className="text-right">Deductions</TableHead>
                     <TableHead className="text-right">Gross</TableHead>
@@ -455,7 +456,7 @@ export default function PayrollEnrollment() {
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={15} className="p-6 text-sm text-muted-foreground">
+                      <TableCell colSpan={16} className="p-6 text-sm text-muted-foreground">
                         No active staff members.
                       </TableCell>
                     </TableRow>
