@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const itemId = url.searchParams.get("id");
+  const source = url.searchParams.get("src");
   if (!itemId) {
     return new Response("Missing item id", { status: 400, headers: corsHeaders });
   }
@@ -44,6 +45,26 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   const target = `${SITE_URL}/merchandise?item=${encodeURIComponent(itemId)}`;
+
+  // Analytics: record every time a shared merchandise link is opened, and which
+  // item was clicked. Link-preview crawlers are flagged separately from humans.
+  const userAgent = req.headers.get("user-agent") ?? "";
+  const isBot =
+    /bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot|slackbot|telegrambot|linkedinbot|discordbot|preview|embedly|pinterest|vkshare|skypeuripreview|googlebot|bingbot|redditbot/i.test(
+      userAgent,
+    );
+  try {
+    await supabase.from("merchandise_share_opens").insert({
+      catalog_id: itemId,
+      item_name: item?.item_name ?? null,
+      is_bot: isBot,
+      user_agent: userAgent.slice(0, 500),
+      referrer: (req.headers.get("referer") ?? "").slice(0, 500) || null,
+      source: source ? source.slice(0, 50) : null,
+    });
+  } catch (e) {
+    console.error("share open tracking failed", e);
+  }
 
   if (!item) {
     return new Response(null, {

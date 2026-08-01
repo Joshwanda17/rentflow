@@ -16031,6 +16031,39 @@ export type Database = {
         }
         Relationships: []
       }
+      merchandise_share_opens: {
+        Row: {
+          catalog_id: string | null
+          created_at: string
+          id: string
+          is_bot: boolean
+          item_name: string | null
+          referrer: string | null
+          source: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          catalog_id?: string | null
+          created_at?: string
+          id?: string
+          is_bot?: boolean
+          item_name?: string | null
+          referrer?: string | null
+          source?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          catalog_id?: string | null
+          created_at?: string
+          id?: string
+          is_bot?: boolean
+          item_name?: string | null
+          referrer?: string | null
+          source?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       merchant_agent_referrals: {
         Row: {
           bonus_amount: number
