@@ -275,8 +275,9 @@ function ListPropertyCTA({ phone, name, role }: { phone: string; name?: string; 
   );
 }
 
-function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]; open: boolean; onClose: () => void; title: string }) {
-  const [current, setCurrent] = useState(0);
+function ImagePreviewDialog({ images, open, onClose, title, startIndex = 0 }: { images: string[]; open: boolean; onClose: () => void; title: string; startIndex?: number }) {
+  const [current, setCurrent] = useState(startIndex);
+  useEffect(() => { setCurrent(startIndex); }, [startIndex, open]);
   if (!images.length) return null;
   const prev = () => setCurrent(c => (c - 1 + images.length) % images.length);
   const next = () => setCurrent(c => (c + 1) % images.length);
@@ -451,7 +452,7 @@ export function LandlordOpsDashboard() {
   const queryClient = useQueryClient();
   // Optimistically removed from the verification queue (until refetch confirms or rollback restores).
   const [optimisticallyVerifiedIds, setOptimisticallyVerifiedIds] = useState<Set<string>>(new Set());
-  const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
+  const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string; startIndex?: number } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' } | null>(null);
   const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
@@ -4131,7 +4132,7 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
   return (
     <>
       {previewImages && (
-        <ImagePreviewDialog images={previewImages.images} title={previewImages.title} open={!!previewImages} onClose={() => setPreviewImages(null)} />
+        <ImagePreviewDialog images={previewImages.images} title={previewImages.title} startIndex={previewImages.startIndex} open={!!previewImages} onClose={() => setPreviewImages(null)} />
       )}
       {adjustListing && (
         <RentAdjustmentDialog open={!!adjustListing} onOpenChange={(open: boolean) => !open && setAdjustListing(null)} listing={adjustListing} onSuccess={refetchAll} />
