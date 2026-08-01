@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Plus, UserPlus } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Copy, Loader2, Plus, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
