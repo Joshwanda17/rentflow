@@ -3282,10 +3282,15 @@ export function LandlordOpsDashboard() {
                     />
                   </div>
                   {/* Thumbnail */}
-                  <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border">
+                  <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border relative">
                     {house.image_urls?.[0] ? (
                       <button onClick={() => setPreviewImages({ images: house.image_urls!, title: house.title })} className="w-full h-full">
                         <StorageImage src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" />
+                        {house.image_urls.length > 1 && (
+                          <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] font-bold py-0.5">
+                            {house.image_urls.length} photos
+                          </span>
+                        )}
                       </button>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -3313,6 +3318,26 @@ export function LandlordOpsDashboard() {
                     </div>
                   </div>
                 </div>
+                {/* ── All agent-attached photos (full strip, not just the cover) ── */}
+                {Array.isArray(house.image_urls) && house.image_urls.length > 1 && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Agent photos ({house.image_urls.length})
+                    </p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {house.image_urls.map((url, i) => (
+                        <button
+                          key={`${house.id}-img-${i}`}
+                          onClick={() => setPreviewImages({ images: house.image_urls!, title: house.title, startIndex: i })}
+                          className="shrink-0 h-16 w-16 rounded-lg overflow-hidden border border-border bg-muted"
+                          aria-label={`Open photo ${i + 1} of ${house.image_urls!.length}`}
+                        >
+                          <StorageImage src={url} alt={`${house.title} photo ${i + 1}`} className="w-full h-full object-cover" expandable={false} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ── Divider ── */}
