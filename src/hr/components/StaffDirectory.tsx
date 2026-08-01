@@ -77,6 +77,10 @@ export default function StaffDirectory() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'people' | 'exited' | 'unenrolled'>('people');
   const [departmentFilter, setDepartmentFilter] = useState<string>('__all__');
+  const [unenrolled, setUnenrolled] = useState<UnenrolledStaffCandidate[]>([]);
+  const [unenrolledLoading, setUnenrolledLoading] = useState(false);
+  const [unenrolledError, setUnenrolledError] = useState<string | null>(null);
+  const [enrollCandidate, setEnrollCandidate] = useState<UnenrolledStaffCandidate | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +104,28 @@ export default function StaffDirectory() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (tab !== 'unenrolled') return;
+    let cancelled = false;
+    setUnenrolledLoading(true);
+    setUnenrolledError(null);
+    searchUnenrolledStaff(query)
+      .then((rows) => {
+        if (!cancelled) setUnenrolled(rows);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setUnenrolledError(e instanceof Error ? e.message : 'Failed to load candidates');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setUnenrolledLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, query]);
 
   const positionTitleById = useMemo(
     () => Object.fromEntries(positions.map((p) => [p.id, p.title])) as Record<string, string>,
@@ -143,7 +169,9 @@ export default function StaffDirectory() {
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="people">People ({activeCount})</TabsTrigger>
           <TabsTrigger value="exited">Exited ({exitedCount})</TabsTrigger>
-          <TabsTrigger value="unenrolled">Not enrolled (—)</TabsTrigger>
+          <TabsTrigger value="unenrolled">
+            Not enrolled ({unenrolledLoading ? '—' : unenrolled.length})
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -176,7 +204,32 @@ export default function StaffDirectory() {
       <Card>
         <CardContent className="p-0">
           {tab === 'unenrolled' ? (
-            <div className="p-6 text-sm text-muted-foreground">Loading candidates</div>
+            unenrolledLoading ? (
+              <div className="p-6 text-sm text-muted-foreground">Loading</div>
+            ) : unenrolledError ? (
+              <div className="p-6 text-sm text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                {unenrolledError}
+              </div>
+            ) : unenrolled.length === 0 ? (
+              <div className="p-6 text-sm text-muted-foreground">
+                Everyone with staff access is enrolled.
+              </div>
+            ) : (
+              <div className="divide-y">
+                {unenrolled.map((c) => (
+                  <div key={c.user_id} className="flex items-center justify-between p-4">
+                    <div>
+                      <div className="font-medium">{c.display_name}</div>
+                      <div className="text-sm text-muted-foreground">{c.staff_roles}</div>
+                    </div>
+                    <Button size="sm" onClick={() => setEnrollCandidate(c)}>
+                      Enroll
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )
           ) : loading ? (
             <div className="p-4 space-y-2">
               {[0, 1, 2].map((i) => (
@@ -318,7 +371,15 @@ export default function StaffDirectory() {
         </CardContent>
       </Card>
 
-      <EnrollDialog open={open} onOpenChange={setOpen} onEnrolled={() => void load()} />
+      <EnrollDialog
+        open={open || enrollCandidate !== null}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) setEnrollCandidate(null);
+        }}
+        onEnrolled={() => void load()}
+        initialCandidate={enrollCandidate ?? undefined}
+      />
 
       <AddAssignmentDialog
         staff={addFor}
@@ -494,10 +555,12 @@ function EnrollDialog({
   open,
   onOpenChange,
   onEnrolled,
+  initialCandidate,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onEnrolled: () => void;
+  initialCandidate?: UnenrolledStaffCandidate;
 }) {
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState<UnenrolledStaffCandidate[]>([]);
@@ -538,6 +601,13 @@ function EnrollDialog({
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load departments'));
     void loadPositions();
   }, [open, loadPositions]);
+
+  useEffect(() => {
+    if (!open || !initialCandidate) return;
+    setUsers([initialCandidate]);
+    setUserId(initialCandidate.user_id);
+    setSearchError(null);
+  }, [open, initialCandidate]);
 
   useEffect(() => {
     if (!open) return;
