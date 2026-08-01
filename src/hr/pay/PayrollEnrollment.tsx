@@ -496,6 +496,42 @@ export default function PayrollEnrollment() {
     setPayError('');
   }
 
+  function openIds(row: EnrollmentRow) {
+    setIdsRow(row);
+    setIdsTin(row.tin ?? '');
+    setIdsNssf(row.nssfNumber ?? '');
+    setIdsLst(row.lstDistrict ?? '');
+    setIdsError('');
+  }
+
+  async function saveIds() {
+    if (!idsRow) return;
+    setSaving(true);
+    try {
+      await setStatutoryIds(
+        idsRow.staffId,
+        idsTin.trim() || null,
+        idsNssf.trim() || null,
+        idsLst.trim() || null,
+      );
+      toast.success('Statutory identifiers recorded');
+      await load();
+      setIdsRow(null);
+    } catch (error) {
+      setIdsError(rawError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function unusedOpenPay(row: EnrollmentRow) {
+    setPayRow(row);
+    setPayAmount(row.basicAmount !== null ? String(row.basicAmount) : '');
+    setPayFrom(periodStart ?? '');
+    setPayReason('');
+    setPayError('');
+  }
+
   async function savePay() {
     if (!payRow) return;
     const amount = Number(payAmount);
