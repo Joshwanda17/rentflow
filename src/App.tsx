@@ -586,6 +586,7 @@ function AppRoutes() {
           <Route path="/cfo/phantom-drift/:userId" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'cto', 'manager']} requiredPermission="cfo"><PhantomDriftDetailPage /></RoleGuard>} />
           <Route path="/coo/dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto']} requiredPermission="coo"><COODashboardPage /></RoleGuard>} />
           <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'cto']} requiredPermission="cmo"><CMODashboardPage /></RoleGuard>} />
+          <Route path="/admin/merchandise-share-analytics" element={<RoleGuard allowedRoles={['cmo', 'cfo', 'manager', 'super_admin']}><MerchandiseShareAnalyticsPage /></RoleGuard>} />
           <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'cto']} requiredPermission="crm"><CRMDashboardPage /></RoleGuard>} />
           <Route path="/hr/dashboard" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRDashboardPage /></RoleGuard>} />
           <Route path="/hr/pay/calculator-check" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><CalculatorSelfCheck /></RoleGuard>} />
