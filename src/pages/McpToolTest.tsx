@@ -17,13 +17,13 @@ const MCP_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/mcp`;
  * are imported so the exact same handler code can be exercised in the browser.
  */
 function primeRuntimeEnv() {
-  const g = globalThis as typeof globalThis & {
-    process?: { env?: Record<string, string | undefined> };
-  };
-  g.process = g.process ?? { env: {} };
-  g.process.env = g.process.env ?? {};
-  g.process.env.SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-  g.process.env.SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const g = globalThis as unknown as Record<string, unknown>;
+  const existing = g.process as { env?: Record<string, string | undefined> } | undefined;
+  const proc = existing ?? {};
+  proc.env = proc.env ?? {};
+  proc.env.SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  proc.env.SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  g.process = proc;
 }
 
 interface Ctx {
@@ -52,10 +52,14 @@ interface RunState {
 
 type Field = { key: string; label: string; placeholder: string; kind: 'number' | 'text' };
 
+type LoadedTool = {
+  default: { handler: (input: never, ctx: never) => ToolResult | Promise<ToolResult> };
+};
+
 interface ToolSpec {
   name: string;
   title: string;
-  load: () => Promise<{ default: { handler: (input: unknown, ctx: Ctx) => Promise<ToolResult> } }>;
+  load: () => Promise<unknown>;
   fields: Field[];
   /** Assertions run against a successful result. */
   check: (r: ToolResult) => { label: string; ok: boolean }[];
