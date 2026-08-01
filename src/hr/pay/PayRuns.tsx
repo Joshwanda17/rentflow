@@ -951,6 +951,269 @@ export default function PayRuns() {
   );
 }
 
+/**
+ * URA / NSSF / LST filing schedules for an approved run. Read-only: this
+ * section performs no writes of any kind.
+ */
+function StatutoryReturnsSection({
+  runId,
+  status,
+  periodCode,
+}: {
+  runId: string;
+  status: string;
+  periodCode: string | null;
+}) {
+  const visible = ['approved', 'paid', 'locked'].includes(status);
+  const [rows, setRows] = useState<StatutoryReturnRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [printKey, setPrintKey] = useState<string | null>(null);
+  const [generatedAt] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!visible || !runId) return;
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    void (async () => {
+      try {
+        const data = await getStatutoryReturn(runId);
+        if (alive) setRows(data);
+      } catch (err) {
+        if (alive) setError((err as Error).message);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [runId, visible]);
+
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (acc, r) => ({
+          gross: acc.gross + Number(r.gross ?? 0),
+          paye: acc.paye + Number(r.paye ?? 0),
+          nssfEmployee: acc.nssfEmployee + Number(r.nssf_employee ?? 0),
+          nssfEmployer: acc.nssfEmployer + Number(r.nssf_employer ?? 0),
+          nssfTotal: acc.nssfTotal + Number(r.nssf_total ?? 0),
+          lst: acc.lst + Number(r.lst ?? 0),
+        }),
+        { gross: 0, paye: 0, nssfEmployee: 0, nssfEmployer: 0, nssfTotal: 0, lst: 0 },
+      ),
+    [rows],
+  );
+
+  const missingRows = useMemo(
+    () => rows.filter((r) => !!(r.missing ?? '').trim()),
+    [rows],
+  );
+
+  const print = (key: string) => {
+    setPrintKey(key);
+    setTimeout(() => {
+      window.print();
+      setPrintKey(null);
+    }, 50);
+  };
+
+  const DocHeader = ({ title }: { title: string }) => (
+    <div>
+      <p className="text-sm font-bold uppercase tracking-wide">Welile Technologies (U) Ltd</p>
+      <h3 className="text-base font-semibold">{title}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Period {periodCode ?? '—'} · Run <span className="font-mono">{runId.slice(0, 8)}</span>
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Generated {generatedAt.toLocaleString('en-GB')}
+      </p>
+    </div>
+  );
+
+  if (!visible) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Statutory returns</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          For filing with URA and NSSF. Due by the 15th of the month following the pay date.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-8">
+        {printKey && (
+          <style>{`@media print { [data-stat-doc] { display: none !important; } [data-stat-doc="${printKey}"] { display: block !important; } }`}</style>
+        )}
+
+        {loading && (
+          <p className="text-sm text-muted-foreground">
+            <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
+            Loading returns…
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
+
+        {!loading && !error && missingRows.length > 0 && (
+          <div className="rounded-md border border-amber-500 bg-amber-50 p-3 text-xs text-amber-900">
+            <p className="font-semibold">
+              {missingRows.length} employees are missing a statutory identifier. Returns filed with
+              blanks may be rejected.
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {missingRows.map((r, i) => (
+                <li key={`${r.staff_ref ?? 'row'}-${i}`}>
+                  <span className="font-mono">{r.staff_ref ?? '—'}</span> — missing {r.missing}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <>
+            <section data-stat-doc="paye" className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <DocHeader title="PAYE return" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="no-print"
+                  onClick={() => print('paye')}
+                >
+                  Print / Save as PDF
+                </Button>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff ref</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>TIN</TableHead>
+                    <TableHead className="text-right">Gross</TableHead>
+                    <TableHead className="text-right">PAYE</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r, i) => (
+                    <TableRow key={`paye-${r.staff_ref ?? i}-${i}`}>
+                      <TableCell className="font-mono text-xs">{r.staff_ref ?? '—'}</TableCell>
+                      <TableCell>{r.employee_name ?? '—'}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.tin ?? '—'}</TableCell>
+                      <TableCell className="text-right">{formatNet(r.gross)}</TableCell>
+                      <TableCell className="text-right">{formatNet(r.paye)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-semibold">
+                    <TableCell colSpan={3}>Total ({rows.length} employees)</TableCell>
+                    <TableCell className="text-right">{formatNet(totals.gross)}</TableCell>
+                    <TableCell className="text-right">{formatNet(totals.paye)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </section>
+
+            <section data-stat-doc="nssf" className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <DocHeader title="NSSF schedule" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="no-print"
+                  onClick={() => print('nssf')}
+                >
+                  Print / Save as PDF
+                </Button>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff ref</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>NSSF number</TableHead>
+                    <TableHead className="text-right">Gross</TableHead>
+                    <TableHead className="text-right">Employee 5%</TableHead>
+                    <TableHead className="text-right">Employer 10%</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r, i) => (
+                    <TableRow key={`nssf-${r.staff_ref ?? i}-${i}`}>
+                      <TableCell className="font-mono text-xs">{r.staff_ref ?? '—'}</TableCell>
+                      <TableCell>{r.employee_name ?? '—'}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.nssf_number ?? '—'}</TableCell>
+                      <TableCell className="text-right">{formatNet(r.gross)}</TableCell>
+                      <TableCell className="text-right">{formatNet(r.nssf_employee)}</TableCell>
+                      <TableCell className="text-right">{formatNet(r.nssf_employer)}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatNet(r.nssf_total)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-semibold">
+                    <TableCell colSpan={3}>Total ({rows.length} employees)</TableCell>
+                    <TableCell className="text-right">{formatNet(totals.gross)}</TableCell>
+                    <TableCell className="text-right">{formatNet(totals.nssfEmployee)}</TableCell>
+                    <TableCell className="text-right">{formatNet(totals.nssfEmployer)}</TableCell>
+                    <TableCell className="text-right">{formatNet(totals.nssfTotal)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </section>
+
+            <section data-stat-doc="lst" className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <DocHeader title="LST schedule" />
+                <Button size="sm" variant="outline" className="no-print" onClick={() => print('lst')}>
+                  Print / Save as PDF
+                </Button>
+              </div>
+              {totals.lst === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No LST computed. The district schedule has not been loaded — see
+                  PAYROLL_RULES_UG.md.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Staff ref</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>District</TableHead>
+                      <TableHead className="text-right">LST</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((r, i) => (
+                      <TableRow key={`lst-${r.staff_ref ?? i}-${i}`}>
+                        <TableCell className="font-mono text-xs">{r.staff_ref ?? '—'}</TableCell>
+                        <TableCell>{r.employee_name ?? '—'}</TableCell>
+                        <TableCell>{r.lst_district ?? '—'}</TableCell>
+                        <TableCell className="text-right">{formatNet(r.lst)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-semibold">
+                      <TableCell colSpan={3}>Total ({rows.length} employees)</TableCell>
+                      <TableCell className="text-right">{formatNet(totals.lst)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </section>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 /** Run detail: summary, calculation, payslips and the event timeline. */
 export function PayRunDetailPlaceholder() {
   const { runId } = useParams<{ runId: string }>();
