@@ -161,6 +161,19 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Humans never need the meta document: send them straight to the store page.
+  // Only link-preview crawlers (and the verification tool) get the OG HTML.
+  if (!isBot && !verifyMode) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: `${SITE_URL}/merchandise?item=${encodeURIComponent(itemId)}`,
+        "Cache-Control": "no-store",
+        ...corsHeaders,
+      },
+    });
+  }
+
   const images: string[] = Array.isArray(item.image_urls)
     ? item.image_urls.filter((u) => typeof u === "string" && u.trim())
     : [];
@@ -219,7 +232,6 @@ ${picked.width ? `  <meta property="og:image:width" content="${picked.width}" />
 </head>
 <body>
   <p>Redirecting to <a href="${esc(target)}">${esc(name)}</a>...</p>
-  <script>window.location.replace(${JSON.stringify(target)});</script>
 </body>
 </html>`;
 
