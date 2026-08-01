@@ -132,7 +132,10 @@ export default function MerchandiseStore() {
   };
 
   const buildShare = (item: CatalogItem) => {
-    const url = `${window.location.origin}/merchandise?item=${item.id}`;
+    // Share through the public OG preview endpoint so pasted links unfurl with
+    // the item's own photo instead of the generic Welile logo. It redirects
+    // straight to /merchandise?item=<id> for real visitors.
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-merchandise?id=${item.id}`;
     const text = `Check out ${item.item_name} — ${formatUGX(Number(item.unit_price))} on Welile Merchandise.`;
     return { url, text, full: `${text} ${url}` };
   };
