@@ -787,6 +787,71 @@ export default function PayrollEnrollment() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={pmRow !== null} onOpenChange={(open) => !open && setPmRow(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Part-month pay{pmRow ? ` — ${pmRow.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          {!periodCode || !periodStart || !periodCutOff ? (
+            <p className="text-sm text-muted-foreground">
+              Open a pay period before entering part-month pay.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                For someone who joined or left part way through the period. Paid once, for this
+                period only. Their full salary starts from the month their basic pay record begins.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Period {periodCode} — {formatDate(periodStart)} to {formatDate(periodCutOff)}
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="pm-amount">Amount</Label>
+                <Input
+                  id="pm-amount"
+                  type="number"
+                  min={0}
+                  value={pmAmount}
+                  onChange={(e) => {
+                    setPmAmount(e.target.value);
+                    setPmError('');
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pm-reason">Reason</Label>
+                <Textarea
+                  id="pm-reason"
+                  rows={3}
+                  value={pmReason}
+                  onChange={(e) => {
+                    setPmReason(e.target.value);
+                    setPmError('');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Record how this was calculated, for example: joined 20 July, 10 of 23 working
+                  days.
+                </p>
+                {pmError ? <p className="text-xs text-destructive">{pmError}</p> : null}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPmRow(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void savePartMonth()}
+              disabled={saving || !periodStart || !periodCutOff}
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dedRow !== null} onOpenChange={(open) => !open && setDedRow(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
