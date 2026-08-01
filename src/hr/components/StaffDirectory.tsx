@@ -169,7 +169,9 @@ export default function StaffDirectory() {
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="people">People ({activeCount})</TabsTrigger>
           <TabsTrigger value="exited">Exited ({exitedCount})</TabsTrigger>
-          <TabsTrigger value="unenrolled">Not enrolled (—)</TabsTrigger>
+          <TabsTrigger value="unenrolled">
+            Not enrolled ({unenrolledLoading ? '—' : unenrolled.length})
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
