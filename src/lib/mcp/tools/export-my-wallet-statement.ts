@@ -8,7 +8,7 @@ const BUCKET = "wallet-statements";
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 function pad(value: string, width: number): string {
-  const text = value.length > width ? `${value.slice(0, width - 1)}…` : value;
+  const text = value.length > width ? `${value.slice(0, width - 2)}..` : value;
   return text.padEnd(width, " ");
 }
 
@@ -18,7 +18,7 @@ function padLeft(value: string, width: number): string {
 
 function pdfBytes(statement: Statement): Uint8Array {
   const lines: string[] = [
-    "WELILE RECEIPTS — WALLET STATEMENT",
+    "WELILE RECEIPTS - WALLET STATEMENT",
     statementTitle(statement),
     `Generated: ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`,
     "",

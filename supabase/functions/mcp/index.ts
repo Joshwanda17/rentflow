@@ -304,7 +304,7 @@ ${xrefStart}
 var BUCKET = "wallet-statements";
 var SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
 function pad(value, width) {
-  const text = value.length > width ? `${value.slice(0, width - 1)}\u2026` : value;
+  const text = value.length > width ? `${value.slice(0, width - 2)}..` : value;
   return text.padEnd(width, " ");
 }
 function padLeft(value, width) {
@@ -312,7 +312,7 @@ function padLeft(value, width) {
 }
 function pdfBytes(statement) {
   const lines = [
-    "WELILE RECEIPTS \u2014 WALLET STATEMENT",
+    "WELILE RECEIPTS - WALLET STATEMENT",
     statementTitle(statement),
     `Generated: ${(/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ")} UTC`,
     "",
