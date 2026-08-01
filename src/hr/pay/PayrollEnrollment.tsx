@@ -59,11 +59,24 @@ function formatDate(value: string | null): string {
   return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function firstOfThisMonth(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-01`;
+/** Raw database / network error, verbatim. Never a generic phrase. */
+function rawError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === 'object') {
+    const msg = (error as { message?: unknown }).message;
+    if (typeof msg === 'string' && msg) return msg;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
 }
+
+const EFFECTIVE_FROM_HELP =
+  "The month this amount starts. To include someone in a payroll run, this date must be on or before the last day of that run's period.";
+const NO_OPEN_PERIOD = 'Open a pay period first.';
 
 function isReady(row: EnrollmentRow): boolean {
   return (row.basicAmount !== null || row.partMonthAmount > 0) && row.hasStatutoryProfile;
