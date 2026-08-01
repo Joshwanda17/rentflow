@@ -199,6 +199,7 @@ const PayRunsPage = lazy(() => import('./hr/pay/PayRuns'));
 const PayrollEnrollmentPage = lazy(() => import('./hr/pay/PayrollEnrollment'));
 const PayRunDetailPage = lazy(() => import('./hr/pay/PayRuns').then((m) => ({ default: m.PayRunDetailPlaceholder })));
 const PayslipPage = lazy(() => import('./hr/pay/Payslip'));
+const MyPayslipsPage = lazy(() => import('./hr/pay/MyPayslips'));
 const ApprovalsPage = lazy(() => import('./hr/pay/Approvals'));
 const PayrollAdvancesPage = lazy(() => import('./hr/pay/Advances'));
 const HRTasksPage = lazy(() => import('./hr/pages/Tasks'));
@@ -597,7 +598,8 @@ function AppRoutes() {
           <Route path="/hr/pay/advances" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayrollAdvancesPage /></RoleGuard>} />
           <Route path="/hr/pay/enrollment" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollEnrollmentPage /></RoleGuard>} />
           <Route path="/hr/pay/runs/:runId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayRunDetailPage /></RoleGuard>} />
-          <Route path="/hr/pay/payslips/:payslipId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayslipPage /></RoleGuard>} />
+          <Route path="/hr/pay/payslips/:payslipId" element={<RoleGuard allowedRoles={['tenant', 'agent', 'landlord', 'supporter', 'manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin', 'hr']}><PayslipPage /></RoleGuard>} />
+          <Route path="/my-pay" element={<RoleGuard allowedRoles={['tenant', 'agent', 'landlord', 'supporter', 'manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin', 'hr']}><MyPayslipsPage /></RoleGuard>} />
           <Route path="/approvals" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><ApprovalsPage /></RoleGuard>} />
           <Route path="/hr/dashboard/tasks" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRTasksPage /></RoleGuard>} />
           <Route path="/hr/dashboard/staff" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><HRStaffPage /></RoleGuard>} />

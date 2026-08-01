@@ -291,6 +291,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Executive Brief', icon: Gauge, id: 'hr-executive-brief', route: '/hr/dashboard/executive-brief', access: HR_ACCESS },
         { label: 'My Work', icon: LayoutDashboard, id: 'hr-my-work', route: '/hr/dashboard/my-work', access: 'signed-in' },
+        { label: 'My payslips', icon: Banknote, id: 'hr-my-payslips', route: '/my-pay', access: 'signed-in' },
         { label: 'Tasks', icon: ClipboardList, id: 'hr-tasks', route: '/hr/dashboard/tasks', access: HR_ACCESS },
         { label: 'Productivity', icon: TrendingUp, id: 'hr-productivity', route: '/hr/dashboard/productivity', access: HR_ACCESS },
         { label: 'Recruitment', icon: UserCheck, id: 'hr-recruitment', route: '/hr/dashboard/recruitment', access: HR_ACCESS },
