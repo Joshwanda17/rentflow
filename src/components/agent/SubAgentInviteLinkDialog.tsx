@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { useShortLink } from '@/hooks/useShortLink';
 import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
 import { UsersRound, Copy, Check, Share2, Link2 } from 'lucide-react';
@@ -31,11 +31,11 @@ export function SubAgentInviteLinkDialog({ open, onOpenChange }: Props) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  const inviteLink = useMemo(() => {
-    if (!user?.id) return '';
-    const params = new URLSearchParams({ signup: '1', role: 'agent', ref: user.id });
-    return `${getPublicOrigin()}/auth?${params.toString()}`;
-  }, [user?.id]);
+  const { shortUrl: inviteLink } = useShortLink({
+    targetPath: '/auth',
+    targetParams: { ref: user?.id || '', become: 'agent' },
+    enabled: !!user && open,
+  });
 
   const handleCopy = async () => {
     if (!inviteLink) return;
