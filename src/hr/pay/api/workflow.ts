@@ -99,6 +99,19 @@ export async function myApprovals(): Promise<
   return (unwrap(res) ?? []) as any[];
 }
 
+export interface RunException {
+  severity: string;
+  staff_ref: string | null;
+  issue: string;
+  detail: string | null;
+}
+
+/** Pre-run checks for a payroll run, straight from the database. */
+export async function listExceptions(runId: string): Promise<RunException[]> {
+  const res = await (supabase.rpc as any)('hr_pay_exceptions', { _run_id: runId });
+  return (unwrap(res) ?? []) as RunException[];
+}
+
 export async function getRegister(runId: string): Promise<RegisterDoc> {
   const run = unwrap(
     await supabase
