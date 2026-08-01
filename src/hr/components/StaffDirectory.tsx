@@ -595,6 +595,13 @@ function EnrollDialog({
   }, [open, loadPositions]);
 
   useEffect(() => {
+    if (!open || !initialCandidate) return;
+    setUsers([initialCandidate]);
+    setUserId(initialCandidate.user_id);
+    setSearchError(null);
+  }, [open, initialCandidate]);
+
+  useEffect(() => {
     if (!open) return;
     const term = search.trim();
     setSearchError(null);
