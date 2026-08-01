@@ -11422,6 +11422,30 @@ export type Database = {
           },
         ]
       }
+      hr_pay_fingerprints: {
+        Row: {
+          fingerprint: string
+          id: string
+          note: string | null
+          object_count: number
+          taken_at: string
+        }
+        Insert: {
+          fingerprint: string
+          id?: string
+          note?: string | null
+          object_count: number
+          taken_at?: string
+        }
+        Update: {
+          fingerprint?: string
+          id?: string
+          note?: string | null
+          object_count?: number
+          taken_at?: string
+        }
+        Relationships: []
+      }
       hr_pay_grades: {
         Row: {
           active: boolean
@@ -16249,6 +16273,38 @@ export type Database = {
         }
         Relationships: []
       }
+      merchandise_share_codes: {
+        Row: {
+          catalog_id: string
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+        }
+        Insert: {
+          catalog_id: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+        }
+        Update: {
+          catalog_id?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchandise_share_codes_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "merchandise_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       merchandise_share_opens: {
         Row: {
           catalog_id: string | null
@@ -16257,6 +16313,7 @@ export type Database = {
           is_bot: boolean
           item_name: string | null
           referrer: string | null
+          share_code: string | null
           source: string | null
           user_agent: string | null
         }
@@ -16267,6 +16324,7 @@ export type Database = {
           is_bot?: boolean
           item_name?: string | null
           referrer?: string | null
+          share_code?: string | null
           source?: string | null
           user_agent?: string | null
         }
@@ -16277,6 +16335,7 @@ export type Database = {
           is_bot?: boolean
           item_name?: string | null
           referrer?: string | null
+          share_code?: string | null
           source?: string | null
           user_agent?: string | null
         }
@@ -31233,6 +31292,10 @@ export type Database = {
         }[]
       }
       get_maps_browser_key: { Args: never; Returns: string }
+      get_merchandise_share_code: {
+        Args: { p_catalog_id: string }
+        Returns: string
+      }
       get_merchant_float_network_status: { Args: never; Returns: Json }
       get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
       get_my_ai_id_summary: { Args: never; Returns: Json }
@@ -32103,6 +32166,15 @@ export type Database = {
           paye: number
           staff_ref: string
           tin: string
+        }[]
+      }
+      hr_pay_take_fingerprint: {
+        Args: { _note?: string }
+        Returns: {
+          changed_since_last: string
+          fingerprint: string
+          object_count: number
+          taken_at: string
         }[]
       }
       hr_unenrolled_staff_candidates: {
