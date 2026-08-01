@@ -205,8 +205,60 @@ export default function MerchandiseShareAnalytics() {
               <Button variant="outline" size="sm" onClick={() => setPreset(30)}>30d</Button>
               <Button variant="outline" size="sm" onClick={() => setPreset(90)}>90d</Button>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Sharing source</Label>
+              <select
+                value={channelFilter}
+                onChange={(e) => setChannelFilter(e.target.value as 'all' | 'whatsapp' | 'others')}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option value="all">All sources</option>
+                <option value="whatsapp">WhatsApp only</option>
+                <option value="others">Other sources</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Item</Label>
+              <select
+                value={itemFilter}
+                onChange={(e) => setItemFilter(e.target.value)}
+                className="h-9 max-w-[220px] rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option value="all">All items</option>
+                {itemOptions.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+            </div>
           </CardContent>
         </Card>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {([
+            { label: 'WhatsApp', bucket: whatsappSplit.whatsapp },
+            { label: 'Other sources', bucket: whatsappSplit.others },
+          ] as const).map((s) => (
+            <Card key={s.label}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">{s.label}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-6 pb-6">
+                <div>
+                  <p className="text-xs text-muted-foreground">Opens</p>
+                  <p className="text-xl font-bold">{s.bucket.opens.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Clicks</p>
+                  <p className="text-xl font-bold">{s.bucket.clicks.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Previews</p>
+                  <p className="text-xl font-bold text-muted-foreground">{s.bucket.previews.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
         <div className="grid gap-3 sm:grid-cols-4">
           {[
@@ -259,24 +311,30 @@ export default function MerchandiseShareAnalytics() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Item</TableHead>
+                  <TableHead>Item ID</TableHead>
                   <TableHead className="text-right">Clicks</TableHead>
+                  <TableHead className="text-right">WhatsApp clicks</TableHead>
                   <TableHead className="text-right">Previews</TableHead>
+                  <TableHead className="text-right">WhatsApp previews</TableHead>
                   <TableHead className="text-right">Total opens</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {byItem.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
                       No data
                     </TableCell>
                   </TableRow>
                 )}
                 {byItem.map((i) => (
-                  <TableRow key={i.name + i.clicks + i.previews}>
+                  <TableRow key={i.id}>
                     <TableCell className="font-medium">{i.name}</TableCell>
+                    <TableCell className="font-mono text-[11px] text-muted-foreground">{i.id}</TableCell>
                     <TableCell className="text-right">{i.clicks}</TableCell>
+                    <TableCell className="text-right">{i.waClicks}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{i.previews}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{i.waPreviews}</TableCell>
                     <TableCell className="text-right font-semibold">{i.clicks + i.previews}</TableCell>
                   </TableRow>
                 ))}
@@ -287,15 +345,43 @@ export default function MerchandiseShareAnalytics() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Clicks by share channel</CardTitle>
+            <CardTitle className="text-sm">By sharing source</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {byChannel.length === 0 && <p className="text-sm text-muted-foreground">No data</p>}
-            {byChannel.map(([src, count]) => (
-              <Badge key={src} variant="secondary" className="text-xs">
-                {src}: {count}
-              </Badge>
-            ))}
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Source</TableHead>
+                  <TableHead className="text-right">Clicks</TableHead>
+                  <TableHead className="text-right">Previews</TableHead>
+                  <TableHead className="text-right">Items shared</TableHead>
+                  <TableHead className="text-right">Total opens</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {byChannel.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                      No data
+                    </TableCell>
+                  </TableRow>
+                )}
+                {byChannel.map((c) => (
+                  <TableRow key={c.channel}>
+                    <TableCell className="font-medium">
+                      {c.channel}
+                      {c.channel === 'WhatsApp' && (
+                        <Badge variant="secondary" className="ml-2 text-[10px]">primary</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">{c.clicks}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{c.previews}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{c.items}</TableCell>
+                    <TableCell className="text-right font-semibold">{c.clicks + c.previews}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 
@@ -309,8 +395,9 @@ export default function MerchandiseShareAnalytics() {
                 <TableRow>
                   <TableHead>When</TableHead>
                   <TableHead>Item</TableHead>
+                  <TableHead>Item ID</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Channel</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Referrer</TableHead>
                 </TableRow>
               </TableHeader>
@@ -321,12 +408,18 @@ export default function MerchandiseShareAnalytics() {
                       {new Date(r.created_at).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-xs">{r.item_name || '—'}</TableCell>
+                    <TableCell className="font-mono text-[11px] text-muted-foreground">
+                      {r.catalog_id || '—'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={r.is_bot ? 'outline' : 'default'} className="text-[10px]">
                         {r.is_bot ? 'Preview' : 'Click'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs">{r.source || '—'}</TableCell>
+                    <TableCell className="text-xs">
+                      {classifyChannel(r)}
+                      {r.source ? <span className="text-muted-foreground"> ({r.source})</span> : null}
+                    </TableCell>
                     <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground">
                       {r.referrer || '—'}
                     </TableCell>
@@ -334,7 +427,7 @@ export default function MerchandiseShareAnalytics() {
                 ))}
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
                       No share opens recorded in this range
                     </TableCell>
                   </TableRow>
