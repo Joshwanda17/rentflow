@@ -131,17 +131,17 @@ export default function MerchandiseStore() {
     return item.image_url || null;
   };
 
-  const buildShare = (item: CatalogItem) => {
+  const buildShare = (item: CatalogItem, src = 'app') => {
     // Share through the public OG preview endpoint so pasted links unfurl with
     // the item's own photo instead of the generic Welile logo. It redirects
     // straight to /merchandise?item=<id> for real visitors.
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-merchandise?id=${item.id}`;
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-merchandise?id=${item.id}&src=${encodeURIComponent(src)}`;
     const text = `Check out ${item.item_name} — ${formatUGX(Number(item.unit_price))} on Welile Merchandise.`;
     return { url, text, full: `${text} ${url}` };
   };
 
   const handleShare = async (item: CatalogItem) => {
-    const { url, text, full } = buildShare(item);
+    const { url, text, full } = buildShare(item, 'native');
     if (typeof navigator !== 'undefined' && (navigator as any).share) {
       try {
         await (navigator as any).share({ title: item.item_name, text, url });
@@ -154,7 +154,7 @@ export default function MerchandiseStore() {
   };
 
   const copyShareLink = async (item: CatalogItem) => {
-    const { full } = buildShare(item);
+    const { full } = buildShare(item, 'copy');
     try {
       await navigator.clipboard.writeText(full);
       toast.success('Link copied');
