@@ -35,7 +35,14 @@ import {
   type PayRunRow,
 } from '@/hr/pay/api/runs';
 import { calculateRun, getRunDetail, type RunDetail } from '@/hr/pay/api/calculate';
-import { approveRun, lockRun, returnRun, submitRun } from '@/hr/pay/api/workflow';
+import {
+  approveRun,
+  listExceptions,
+  lockRun,
+  returnRun,
+  submitRun,
+  type RunException,
+} from '@/hr/pay/api/workflow';
 import {
   listDisbursements,
   markRunPaid,
@@ -80,7 +87,17 @@ function useRunAuthority() {
   return authority;
 }
 
-function RunActionBar({ runId, status, onDone }: { runId: string; status: string; onDone: () => void }) {
+function RunActionBar({
+  runId,
+  status,
+  onDone,
+  blockingCount = 0,
+}: {
+  runId: string;
+  status: string;
+  onDone: () => void;
+  blockingCount?: number;
+}) {
   const authority = useRunAuthority();
   const [busy, setBusy] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -107,7 +124,8 @@ function RunActionBar({ runId, status, onDone }: { runId: string; status: string
   const showLock = status === 'paid';
   if (!showSubmit && !showReview && !showLock) return null;
 
-  const submitDenied = !authority.preparer;
+  const blocked = blockingCount > 0;
+  const submitDenied = !authority.preparer || blocked;
   const approveDenied = !authority.approver;
   const lockDenied = !authority.releaser;
 
@@ -119,7 +137,9 @@ function RunActionBar({ runId, status, onDone }: { runId: string; status: string
             size="sm"
             disabled={busy || submitDenied}
             title={
-              submitDenied
+              blocked
+                ? 'Resolve the blocking exceptions before submitting.'
+                : submitDenied
                 ? 'Your position does not hold prepare authority for payroll runs.'
                 : 'Send this run to the position holding approve authority.'
             }
