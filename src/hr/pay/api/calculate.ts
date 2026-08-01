@@ -171,7 +171,9 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
   const run = unwrap(
     await supabase
       .from('hr_pay_runs')
-      .select('id, status, rule_version_id, rule_status_at_run, period_id, hr_pay_periods(cut_off_date)')
+      .select(
+        'id, status, rule_version_id, rule_status_at_run, period_id, hr_pay_periods(period_month, cut_off_date)',
+      )
       .eq('id', runId)
       .single(),
   ) as Record<string, any>;
@@ -186,6 +188,12 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
   if (!periodEnd) {
     throw new Error('The pay period has no cut-off date.');
   }
+  const periodMonth: string | null = run.hr_pay_periods?.period_month ?? null;
+  if (!periodMonth) {
+    throw new Error('The pay period has no period month.');
+  }
+  // First day of the period month.
+  const periodStart = `${periodMonth.slice(0, 7)}-01`;
 
   // 2. Rule version + bands.
   const version = unwrap(
@@ -228,16 +236,27 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
     bands,
   };
 
-  // 3. Active compensation as at the period end.
-  const compRows = (unwrap(
+  // 3. Compensation in force during the period window.
+  const compRowsRaw = (unwrap(
     await supabase
       .from('hr_pay_compensation')
       .select(
-        'id, staff_id, amount, effective_from, effective_to, hr_pay_components(code, name, kind, taxable, nssf_able, lst_able, is_statutory)',
+        'id, staff_id, component_id, amount, effective_from, effective_to, hr_pay_components(code, name, kind, taxable, nssf_able, lst_able, is_statutory)',
       )
-      .is('effective_to', null)
-      .lte('effective_from', periodEnd),
+      .lte('effective_from', periodEnd)
+      .or(`effective_to.is.null,effective_to.gte.${periodStart}`),
   ) ?? []) as Array<Record<string, any>>;
+
+  // One row per (staff_id, component_id): the latest effective_from wins.
+  const latestByKey = new Map<string, Record<string, any>>();
+  for (const row of compRowsRaw) {
+    const key = `${row.staff_id}|${row.component_id}`;
+    const held = latestByKey.get(key);
+    if (!held || String(row.effective_from) > String(held.effective_from)) {
+      latestByKey.set(key, row);
+    }
+  }
+  const compRows = Array.from(latestByKey.values());
 
   if (compRows.length === 0) {
     throw new Error('No active compensation records. Enter compensation before calculating.');
@@ -422,6 +441,8 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
               otherDeductions: c.otherDeductions,
               advance_recovery: c.advanceRecovery,
               ruleCode: rule.code,
+              periodStart,
+              periodEnd,
               employment_type: c.employmentType,
               paye_applicable: c.applicability.payeApplicable,
               nssf_applicable: c.applicability.nssfApplicable,
