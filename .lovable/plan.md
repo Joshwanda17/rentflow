@@ -1,71 +1,40 @@
-# Branded short merchandise share links with product-image WhatsApp previews
+# Short branded link for merchandise shares (keeping the WhatsApp image preview)
 
-## Goal
-When an agent taps Share on a merchandise item, WhatsApp shows a short `welileapp.com/m/<code>` URL and still renders the item's photo, title and price.
+## Short answer
 
-## Current state (verified)
-- `src/pages/MerchandiseStore.tsx` builds a share URL that points directly to the `og-merchandise` Supabase Edge Function. This gives a rich preview, but the URL is long and shows the Supabase function domain.
-- `supabase/functions/og-merchandise/index.ts` returns Open Graph HTML for crawlers and 302-redirects humans to `welileapp.com/merchandise?item=<id>`.
-- `src/lib/createShortLink.ts` already produces branded `welileapp.com/r/<code>` links, but those are resolved by the React component `src/pages/ResolveRLink.tsx`. WhatsApp's crawler does not execute JS, so it only sees the static `index.html` and gets a generic Welile preview.
-- Lovable static hosting does not support server-side rewrites or proxies such as `_redirects`, `vercel.json` or per-path edge rules. The frontend host alone cannot return different HTML to crawlers.
+A URL rewrite/proxy on the frontend host would work in principle — but this app's host cannot do it. Lovable hosting for this project serves a static SPA with a single rule in `public/_redirects` (`/* /index.html 200`). That is an SPA fallback, not a reverse proxy: it can only serve local files, it cannot fetch and re-emit the response from the `og-merchandise` function. And the tags must exist in the HTML the crawler receives — WhatsApp does not run JavaScript, so a client-side rewrite or React-side meta injection cannot produce the preview.
 
-## Answer to the question
-A URL rewrite/proxy on the Lovable frontend host is **not enough** to make WhatsApp show a shorter link while keeping the product image. The short URL itself must be a server-side endpoint that returns the product's Open Graph tags. The practical way to do this on your own domain is a thin proxy/worker in front of the Lovable site (for example a Cloudflare Worker) that routes `/m/<code>` to a new merchandise short-code Edge Function.
+So the link stays long unless the request is answered by something that can proxy. The realistic way to get both a short branded URL and the image preview is to put one small proxy in front of a Welile host.
 
-## Proposed implementation
+## Recommended shape
 
-### 1. Database: merchandise short-code table
-Create a dedicated table and resolver RPCs.
+Keep `og-merchandise` as it is (it already streams the item image and clamps the OG tags). Add a thin proxy that fetches it and returns the bytes unchanged under a Welile URL:
 
 ```text
-merchandise_share_codes
-  id uuid pk
-  code text unique
-  item_id uuid -> merchandise_catalog(id)
-  source text
-  created_by uuid -> profiles(id)
-  created_at timestamptz
+WhatsApp  ->  https://s.welileapp.com/m/jw27      (short, branded)
+                     |  Cloudflare Worker (proxy, no redirect)
+                     v
+              og-merchandise?code=jw27            (OG tags + image)
 ```
 
-- Add required `GRANT`s and enable RLS.
-- RPC `create_merchandise_share_code(item_id, source)` returns a new short code (idempotent: reuse existing code for the same user+item+source).
-- RPC `resolve_merchandise_share_code(p_code)` returns the item id; used by the Edge Function.
+Why a subdomain such as `s.welileapp.com` (or `l.welileapp.com`): `welileapp.com` itself resolves to Lovable hosting, so `welileapp.com/m/*` cannot be intercepted without moving the apex DNS behind Cloudflare. A dedicated share host is a one-time DNS record and touches nothing about the live app. The apex path is possible too, but it means proxying the whole site through Cloudflare — bigger change, more risk.
 
-### 2. Edge Function: `og-merchandise-short`
-Create `supabase/functions/og-merchandise-short/index.ts`.
+Crucially the Worker must **proxy** (return the upstream body), not `301` — a redirect makes WhatsApp display the final Supabase URL again, which is exactly the current symptom.
 
-- Accept `GET /og-merchandise-short/<code>` and `?code=`.
-- Resolve the code to an item via `resolve_merchandise_share_code`.
-- Reuse the OG HTML generation from `og-merchandise` (title, price, 1200x630 image stream via `img=1`).
-- Set `og:url` to the branded short URL passed in `X-Forwarded-Path` or a `canonical` query param.
-- Record the open in `merchandise_share_opens`, preserving the original `User-Agent` and `Referer`.
-- For direct human hits, 302 to `https://welileapp.com/merchandise?item=<id>`.
+## Work involved
 
-### 3. Cloudflare Worker proxy (external to Lovable, code kept in repo)
-Add `infrastructure/welile-m-og-worker.js`.
+1. **Short codes.** A `merchandise_share_codes` table (short code, merchandise id, sharing agent, created_at) plus generation on share, so the URL carries `jw27` rather than a UUID. Share analytics keep recording against the code.
+2. **`og-merchandise` accepts a code.** Add code lookup alongside the existing id/slug paths; existing links keep working.
+3. **Cloudflare Worker.** ~20 lines: map `/m/:code` to the function URL, forward the response with its `content-type` and OG HTML intact, set a cache header. Deployed outside this repo (dashboard or wrangler), plus one CNAME for the share host.
+4. **Share UI.** The merchandise share button copies `https://s.welileapp.com/m/<code>`.
 
-- Route: `welileapp.com/m/*`.
-- For every request, forward to `https://<project>.supabase.co/functions/v1/og-merchandise-short/<code>` with:
-  - original `User-Agent`
-  - original `Referer`
-  - `X-Forwarded-Host: welileapp.com`
-  - `X-Forwarded-Path: /m/<code>`
-- Return the Edge Function response unchanged. Crawlers get OG HTML; humans get the 302 to the store.
-- Include deployment instructions: add the Worker route in Cloudflare, ensure the `welileapp.com` DNS is proxied (orange cloud), and configure the route pattern.
+## What you get / trade-offs
 
-### 4. Frontend: update share flow
-Modify `src/pages/MerchandiseStore.tsx`.
+- WhatsApp shows `s.welileapp.com` as the source line and the item photo as the preview.
+- No Supabase string anywhere in the shared text.
+- The Worker is infrastructure outside Lovable — I can write it and the DNS/deploy steps, but the record must be added and the Worker published on your Cloudflare account. Until then links keep working in their current long form.
+- Previews already scraped by WhatsApp stay cached for a while; new links preview immediately.
 
-- On share, call `create_merchandise_share_code(item_id, source)`.
-- Build the share URL as `https://welileapp.com/m/<code>`.
-- Keep the existing Supabase OG URL as a fallback when the worker is not configured.
-- Pass `source` through so analytics still distinguishes native share, copy, etc.
+## If you would rather not add a Worker
 
-### 5. Verification
-- Use the existing `/admin/merchandise-share-preview` page to confirm the short-code endpoint returns the correct title, price and image.
-- Test with the Facebook Sharing Debugger and a real WhatsApp message.
-- Confirm that tapping the link on a phone opens the product in the app.
-
-## Open decisions
-1. Do you have a Cloudflare account (or another edge-worker/proxy provider) to run the `/m/*` route, or should we evaluate a third-party shortener with OG metadata support (e.g., Short.io, Rebrandly) instead?
-2. Should short codes expire after a fixed period, or remain valid indefinitely?
+The only other way to shorten the visible domain is a third-party shortener that preserves upstream OG tags on a custom domain (e.g. Short.io with `s.welileapp.com`). Same DNS work, a subscription instead of a Worker, and the preview depends on that vendor honouring the target's tags.
