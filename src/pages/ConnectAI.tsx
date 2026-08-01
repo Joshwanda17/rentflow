@@ -156,6 +156,9 @@ export default function ConnectAI() {
                   own records — never anyone else's.
                 </p>
                 <ToolList tools={SIGNED_IN_TOOLS} />
+                <Button variant="outline" size="sm" onClick={() => navigate('/mcp-tool-test')}>
+                  Test these tools on my account
+                </Button>
               </CardContent>
             </Card>
 
