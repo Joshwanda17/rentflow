@@ -41,6 +41,7 @@ import {
 import { listComponents, type PayComponentRow } from '@/hr/pay/api/config';
 import {
   addCompensation,
+  addPartMonthPay,
   listCompensation,
   type CompensationRow,
 } from '@/hr/pay/api/compensation';
@@ -65,7 +66,17 @@ function firstOfThisMonth(): string {
 }
 
 function isReady(row: EnrollmentRow): boolean {
-  return row.basicAmount !== null && row.hasStatutoryProfile;
+  return (row.basicAmount !== null || row.partMonthAmount > 0) && row.hasStatutoryProfile;
+}
+
+/** Part-month pay for this period, but the salary record only starts later. */
+function joinsNextPeriod(row: EnrollmentRow, openPeriodCutOff: string | null): boolean {
+  return (
+    row.partMonthAmount > 0 &&
+    openPeriodCutOff !== null &&
+    row.basicEffectiveFrom !== null &&
+    row.basicEffectiveFrom > openPeriodCutOff
+  );
 }
 
 export default function PayrollEnrollment() {
@@ -73,6 +84,15 @@ export default function PayrollEnrollment() {
   const [loading, setLoading] = useState(true);
   const [reveal, setReveal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [periodCode, setPeriodCode] = useState<string | null>(null);
+  const [periodStart, setPeriodStart] = useState<string | null>(null);
+  const [periodCutOff, setPeriodCutOff] = useState<string | null>(null);
+
+  // Part-month pay dialog state
+  const [pmRow, setPmRow] = useState<EnrollmentRow | null>(null);
+  const [pmAmount, setPmAmount] = useState('');
+  const [pmReason, setPmReason] = useState('');
+  const [pmError, setPmError] = useState('');
 
   // Statutory dialog state
   const [statRow, setStatRow] = useState<EnrollmentRow | null>(null);
@@ -104,7 +124,11 @@ export default function PayrollEnrollment() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await listEnrollment());
+      const result = await listEnrollment();
+      setRows(result.rows);
+      setPeriodCode(result.openPeriodCode);
+      setPeriodStart(result.openPeriodStart);
+      setPeriodCutOff(result.openPeriodCutOff);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not load enrollment');
     } finally {
@@ -137,15 +161,47 @@ export default function PayrollEnrollment() {
       rows.reduce(
         (acc, r) => ({
           basic: acc.basic + (r.basicAmount ?? 0),
+          partMonth: acc.partMonth + r.partMonthAmount,
           allowances: acc.allowances + r.allowancesTotal,
           deductions: acc.deductions + r.deductionsTotal,
           gross: acc.gross + r.grossTotal,
           people: acc.people + 1,
         }),
-        { basic: 0, allowances: 0, deductions: 0, gross: 0, people: 0 },
+        { basic: 0, partMonth: 0, allowances: 0, deductions: 0, gross: 0, people: 0 },
       ),
     [rows],
   );
+
+  function openPartMonth(row: EnrollmentRow) {
+    setPmRow(row);
+    setPmAmount(row.partMonthAmount > 0 ? String(row.partMonthAmount) : '');
+    setPmReason('');
+    setPmError('');
+  }
+
+  async function savePartMonth() {
+    if (!pmRow || !periodStart || !periodCutOff) return;
+    const amount = Number(pmAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPmError('Enter a valid amount.');
+      return;
+    }
+    if (pmReason.trim().length < 10) {
+      setPmError('The reason must be at least 10 characters.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await addPartMonthPay(pmRow.staffId, amount, periodStart, periodCutOff, pmReason.trim());
+      toast.success('Part-month pay recorded');
+      setPmRow(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function openDeductions(row: EnrollmentRow) {
     setDedRow(row);
