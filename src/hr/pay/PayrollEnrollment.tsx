@@ -417,11 +417,6 @@ export default function PayrollEnrollment() {
     }
   }
 
-  function unusedPrintSheet() {
-    setReveal(true);
-    setTimeout(() => window.print(), 50);
-  }
-
   function openStatutory(row: EnrollmentRow, next: { paye: boolean; nssf: boolean; lst: boolean }) {
     setStatRow(row);
     setStatType(row.employmentType ?? 'employee');
