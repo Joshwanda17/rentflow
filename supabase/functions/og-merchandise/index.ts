@@ -20,6 +20,50 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+// Brand fallback used when an item has no photo at all.
+const FALLBACK_IMAGE = `${SITE_URL}/welile-logo.png`;
+
+function clamp(s: string, max: number): string {
+  const t = String(s || "").replace(/\s+/g, " ").trim();
+  return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
+}
+
+/**
+ * WhatsApp crops link-preview images to a fixed landscape card and rejects
+ * images it cannot size. Item photos are uploaded at any aspect ratio, so when
+ * the photo lives in our own storage we serve it through the image transform
+ * endpoint at an exact 1200x630 cover crop. That makes the declared
+ * og:image:width/height truthful for every item, whatever the original shape.
+ */
+function normalizeImage(raw: string): { url: string; width?: number; height?: number; type?: string } {
+  const src = String(raw || "").trim();
+  if (!src) return { url: FALLBACK_IMAGE };
+
+  const publicMatch = src.match(/^(https?:\/\/[^/]+)\/storage\/v1\/object\/public\/(.+)$/);
+  if (publicMatch) {
+    const [, origin, objectPath] = publicMatch;
+    const [path] = objectPath.split("?");
+    return {
+      url: `${origin}/storage/v1/render/image/public/${path}?width=1200&height=630&resize=cover&quality=80`,
+      width: 1200,
+      height: 630,
+      type: "image/jpeg",
+    };
+  }
+
+  // External image: we cannot know or control its aspect ratio, so declare no
+  // dimensions and let the crawler measure it instead of publishing a wrong
+  // size (a mismatched width/height makes WhatsApp drop the image entirely).
+  const ext = (src.split("?")[0].split(".").pop() || "").toLowerCase();
+  const type =
+    ext === "png" ? "image/png"
+    : ext === "webp" ? "image/webp"
+    : ext === "gif" ? "image/gif"
+    : ext === "jpg" || ext === "jpeg" ? "image/jpeg"
+    : undefined;
+  return { url: src, type };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -81,12 +125,24 @@ Deno.serve(async (req) => {
     });
   }
 
-  const images: string[] = Array.isArray(item.image_urls) ? item.image_urls : [];
-  const image = images[0] || item.image_url || `${SITE_URL}/og-image.png`;
-  const title = `${item.item_name} — ${formatUGX(Number(item.unit_price))} | Welile Merchandise`;
-  const description =
+  const images: string[] = Array.isArray(item.image_urls)
+    ? item.image_urls.filter((u) => typeof u === "string" && u.trim())
+    : [];
+  const name = clamp(item.item_name || "Welile Merchandise", 70);
+  const priceText = formatUGX(Number(item.unit_price));
+
+  const picked = normalizeImage(images[0] || item.image_url || "");
+  const image = picked.url;
+
+  // Fallback chain so the card is never blank: item title → generic label,
+  // item description → generated sentence. Lengths are clamped to what
+  // WhatsApp/Facebook actually display before truncating mid-word.
+  const title = clamp(`${name} — ${priceText} | Welile Merchandise`, 90);
+  const description = clamp(
     item.description ||
-    `${item.item_name} available on Welile Merchandise for ${formatUGX(Number(item.unit_price))}. Pay from your Welile wallet.`;
+      `${name} available on Welile Merchandise for ${priceText}. Pay from your Welile wallet.`,
+    200,
+  );
 
   const html = `<!DOCTYPE html>
 <html>
@@ -101,21 +157,23 @@ Deno.serve(async (req) => {
   <meta property="og:description" content="${esc(description)}" />
   <meta property="og:image" content="${esc(image)}" />
   <meta property="og:image:secure_url" content="${esc(image)}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="${esc(item.item_name)}" />
+${picked.width ? `  <meta property="og:image:width" content="${picked.width}" />\n  <meta property="og:image:height" content="${picked.height}" />\n` : ""}${picked.type ? `  <meta property="og:image:type" content="${picked.type}" />\n` : ""}  <meta property="og:image:alt" content="${esc(name)}" />
   <meta property="og:site_name" content="Welile" />
+  <meta property="og:locale" content="en_UG" />
+  <meta property="product:price:amount" content="${esc(String(Number(item.unit_price) || 0))}" />
+  <meta property="product:price:currency" content="UGX" />
 
-  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:card" content="${picked.width ? "summary_large_image" : "summary"}" />
   <meta name="twitter:title" content="${esc(title)}" />
   <meta name="twitter:description" content="${esc(description)}" />
   <meta name="twitter:image" content="${esc(image)}" />
+  <meta name="twitter:image:alt" content="${esc(name)}" />
 
   <link rel="canonical" href="${esc(target)}" />
   <meta http-equiv="refresh" content="0;url=${esc(target)}" />
 </head>
 <body>
-  <p>Redirecting to <a href="${esc(target)}">${esc(item.item_name)}</a>...</p>
+  <p>Redirecting to <a href="${esc(target)}">${esc(name)}</a>...</p>
 </body>
 </html>`;
 
