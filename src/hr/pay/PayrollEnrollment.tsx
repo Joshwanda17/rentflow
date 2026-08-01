@@ -119,7 +119,7 @@ export default function PayrollEnrollment() {
   // Basic pay dialog state
   const [payRow, setPayRow] = useState<EnrollmentRow | null>(null);
   const [payAmount, setPayAmount] = useState('');
-  const [payFrom, setPayFrom] = useState(firstOfThisMonth());
+  const [payFrom, setPayFrom] = useState('');
   const [payReason, setPayReason] = useState('');
   const [payError, setPayError] = useState('');
 
@@ -130,7 +130,7 @@ export default function PayrollEnrollment() {
   const [components, setComponents] = useState<PayComponentRow[]>([]);
   const [dedComponentId, setDedComponentId] = useState('');
   const [dedAmount, setDedAmount] = useState('');
-  const [dedFrom, setDedFrom] = useState(firstOfThisMonth());
+  const [dedFrom, setDedFrom] = useState('');
   const [dedReason, setDedReason] = useState('');
   const [dedError, setDedError] = useState('');
 
@@ -221,7 +221,7 @@ export default function PayrollEnrollment() {
     setDedRecords([]);
     setDedComponentId('');
     setDedAmount('');
-    setDedFrom(firstOfThisMonth());
+    setDedFrom(periodStart ?? '');
     setDedReason('');
     setDedError('');
     setDedLoading(true);
@@ -342,7 +342,7 @@ export default function PayrollEnrollment() {
   function openPay(row: EnrollmentRow) {
     setPayRow(row);
     setPayAmount(row.basicAmount !== null ? String(row.basicAmount) : '');
-    setPayFrom(firstOfThisMonth());
+    setPayFrom(periodStart ?? '');
     setPayReason('');
     setPayError('');
   }
