@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, Printer } from 'lucide-react';
+import { AlertTriangle, Check, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/hr/pay/print.css';
 import { Button } from '@/components/ui/button';
