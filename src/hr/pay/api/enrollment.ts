@@ -28,6 +28,9 @@ export interface EnrollmentRow {
   deductionsTotal: number;
   grossTotal: number;
   partMonthAmount: number;
+  tin: string | null;
+  nssfNumber: string | null;
+  lstDistrict: string | null;
 }
 
 export interface EnrollmentResult {
@@ -61,6 +64,13 @@ type StatutoryRow = {
 };
 
 type CompRow = { staff_id: string; amount: number | string; effective_from: string };
+
+type StatutoryIdRow = {
+  staff_id: string;
+  tin: string | null;
+  nssf_number: string | null;
+  lst_district: string | null;
+};
 
 type OpenCompRow = {
   staff_id: string;
@@ -125,7 +135,7 @@ export async function listEnrollment(): Promise<EnrollmentResult> {
   const staffIds = staff.map((s) => s.id);
   const userIds = staff.map((s) => s.user_id).filter(Boolean);
 
-  const [profiles, statutory, comp, openComp] = await Promise.all([
+  const [profiles, statutory, comp, openComp, statIds] = await Promise.all([
     supabase.from('profiles').select('id, full_name').in('id', userIds),
     supabase
       .from('hr_pay_statutory_profiles')
@@ -149,6 +159,10 @@ export async function listEnrollment(): Promise<EnrollmentResult> {
       )
       .in('staff_id', staffIds)
       .is('effective_to', null),
+    supabase
+      .from('hr_pay_statutory_ids')
+      .select('staff_id, tin, nssf_number, lst_district')
+      .in('staff_id', staffIds),
   ]);
 
   const nameById = new Map<string, string>(
@@ -162,6 +176,9 @@ export async function listEnrollment(): Promise<EnrollmentResult> {
   );
   const compByStaff = new Map<string, CompRow>(
     ((unwrap(comp) ?? []) as CompRow[]).map((r) => [r.staff_id, r]),
+  );
+  const statIdsByStaff = new Map<string, StatutoryIdRow>(
+    ((unwrap(statIds) ?? []) as StatutoryIdRow[]).map((r) => [r.staff_id, r]),
   );
 
   // Part-month (PRORATA) amounts that fall inside the open pay period.
@@ -212,6 +229,7 @@ export async function listEnrollment(): Promise<EnrollmentResult> {
       const allowancesTotal = allowancesByStaff.get(s.id) ?? 0;
       const deductionsTotal = deductionsByStaff.get(s.id) ?? 0;
       const partMonthAmount = partMonthByStaff.get(s.id) ?? 0;
+      const ids = statIdsByStaff.get(s.id) ?? null;
       return {
         staffId: s.id,
         staffRef: s.staff_ref ?? '',
@@ -229,6 +247,9 @@ export async function listEnrollment(): Promise<EnrollmentResult> {
         allowancesTotal,
         deductionsTotal,
         partMonthAmount,
+        tin: ids?.tin ?? null,
+        nssfNumber: ids?.nssf_number ?? null,
+        lstDistrict: ids?.lst_district ?? null,
         grossTotal: (basicAmount ?? 0) + allowancesTotal + partMonthAmount,
       } satisfies EnrollmentRow;
     })
@@ -256,6 +277,26 @@ export async function setStatutoryProfile(
     _nssf: nssf,
     _lst: lst,
     _basis: basis,
+  });
+  if (res.error) throw new Error(res.error.message);
+}
+
+/**
+ * Records the filing identifiers (TIN, NSSF number, LST district) through the
+ * database function. `hr_pay_statutory_ids` is never written directly here.
+ * These are identity data only — they affect no payroll figure.
+ */
+export async function setStatutoryIds(
+  staffId: string,
+  tin: string | null,
+  nssf: string | null,
+  lstDistrict: string | null,
+): Promise<void> {
+  const res = await supabase.rpc('hr_pay_set_statutory_ids', {
+    _staff_id: staffId,
+    _tin: tin,
+    _nssf: nssf,
+    _lst_district: lstDistrict,
   });
   if (res.error) throw new Error(res.error.message);
 }
