@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { ToolHandlerResult } from "@lovable.dev/mcp-js";
+import { publicToolResult } from "./response";
 
 /**
  * Abuse protection for the PUBLIC (no-auth) MCP endpoint.
@@ -220,18 +221,21 @@ export async function enforceRateLimit(tool: string): Promise<ToolHandlerResult 
       ? `Too many requests from this connection, so it is paused for ${waitLabel(retry)}. This limit protects the free public Welile tools from spam. Please try again after that, or create a free account at https://welileapp.com for your own personal access.`
       : `Rate limit reached — the free public Welile tools allow ${PER_MINUTE} requests a minute and ${PER_HOUR} an hour per connection. Please try again in ${waitLabel(retry)}, or create a free account at https://welileapp.com for your own personal access.`;
 
-    return {
-      content: [{ type: "text", text }],
-      isError: true,
-      structuredContent: {
-        error: "rate_limited",
-        reason: verdict.reason ?? "rate_limited",
-        retry_after_seconds: retry,
+    return publicToolResult({
+      tool,
+      summary: text,
+      next_steps: ["Create a free Welile account for your own personal access, with no shared limit."],
+      data: {
         limit_per_minute: PER_MINUTE,
         limit_per_hour: PER_HOUR,
-        signup_url: "https://welileapp.com",
       },
-    };
+      error: {
+        code: "rate_limited",
+        message: verdict.reason ?? "rate_limited",
+        retry_after_seconds: retry,
+        details: { limit_per_minute: PER_MINUTE, limit_per_hour: PER_HOUR },
+      },
+    });
   } catch {
     return null; // Never take the public tools down over the limiter.
   }

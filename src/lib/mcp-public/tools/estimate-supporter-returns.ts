@@ -2,6 +2,7 @@ import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks } from "../links";
 import { enforceRateLimit } from "../rateLimit";
+import { publicToolResult, spanRange, pointRange, ugx, type EstimateRange } from "../response";
 
 // PUBLIC, no-auth tool. Gives a prospective Supporter an ILLUSTRATIVE returns
 // range in UGX for a chosen support amount and duration, then hands back the
@@ -47,8 +48,6 @@ function project(amount: number, months: number) {
   };
 }
 
-const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString("en-US")}`;
-
 export default defineTool({
   name: "estimate_supporter_returns",
   title: "Estimate Supporter Returns (illustrative)",
@@ -76,25 +75,20 @@ export default defineTool({
       referralCode: referral_code,
       role: "supporter",
     });
-    const linkText = referralUrl
-      ? `Start here (guided onboarding): ${landingUrl}\nCreate a free Supporter account: ${signupUrl}\nReferral signup link: ${referralUrl}`
-      : `Start here (guided onboarding): ${landingUrl}\nCreate a free Supporter account: ${signupUrl}`;
+    const links = { landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, role: "supporter" };
 
     if (!Number.isFinite(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
-      const text =
-        `Please share a support amount between ${ugx(MIN_AMOUNT)} and ${ugx(MAX_AMOUNT)} for an illustrative estimate.\n\n${linkText}`;
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: {
-          error: "invalid_amount",
-          min_amount: MIN_AMOUNT,
-          max_amount: MAX_AMOUNT,
-          signup_url: signupUrl,
-          landing_url: landingUrl,
-          referral_url: referralUrl,
-          currency: "UGX",
+      return publicToolResult({
+        tool: "estimate_supporter_returns",
+        summary: `Please share a support amount between ${ugx(MIN_AMOUNT)} and ${ugx(MAX_AMOUNT)} for an illustrative estimate.`,
+        next_steps: [`Ask again with an amount in UGX, for example ${ugx(500_000)}.`],
+        links,
+        error: {
+          code: "invalid_amount",
+          message: `Support amount must be between ${MIN_AMOUNT} and ${MAX_AMOUNT} UGX.`,
+          details: { min_amount: MIN_AMOUNT, max_amount: MAX_AMOUNT },
         },
-      };
+      });
     }
 
     const roundedAmount = Math.round(amount);
@@ -103,20 +97,17 @@ export default defineTool({
     if (duration_months != null) {
       const m = Math.round(duration_months);
       if (!Number.isFinite(m) || m < MIN_MONTHS || m > MAX_MONTHS) {
-        const text =
-          `Horizon must be between ${MIN_MONTHS} and ${MAX_MONTHS} months. Try 3, 6, or 12 months.\n\n${linkText}`;
-        return {
-          content: [{ type: "text", text }],
-          structuredContent: {
-            error: "invalid_duration",
-            min_months: MIN_MONTHS,
-            max_months: MAX_MONTHS,
-            signup_url: signupUrl,
-            landing_url: landingUrl,
-            referral_url: referralUrl,
-            currency: "UGX",
+        return publicToolResult({
+          tool: "estimate_supporter_returns",
+          summary: `Horizon must be between ${MIN_MONTHS} and ${MAX_MONTHS} months. Try 3, 6, or 12 months.`,
+          next_steps: ["Ask again with a horizon of 3, 6, or 12 months."],
+          links,
+          error: {
+            code: "invalid_duration",
+            message: `Horizon must be between ${MIN_MONTHS} and ${MAX_MONTHS} months.`,
+            details: { min_months: MIN_MONTHS, max_months: MAX_MONTHS },
           },
-        };
+        });
       }
       months = [m];
     } else {
@@ -132,21 +123,50 @@ export default defineTool({
       )
       .join("\n");
 
-    const text = [
-      `Illustrative Returns for supporting ${ugx(roundedAmount)} (UGX), at 15% monthly platform rewards:`,
-      "",
-      lines,
-      "",
-      "The range spans rewards paid out each month vs. reinvested (compounding). This is an illustration only — not a guarantee. Actual rates and terms are shown in the app after you create a free account.",
-      "",
-      linkText,
-    ].join("\n");
+    // Normalised ranges: Returns (and the resulting balance) as a genuine
+    // low→high span per horizon — low = rewards paid out, high = reinvested.
+    const ranges: EstimateRange[] = [];
+    for (const p of projections) {
+      const period = { unit: "months" as const, value: p.durationMonths };
+      ranges.push(
+        spanRange(`Returns over ${p.durationMonths} month${p.durationMonths === 1 ? "" : "s"}`, "returns", p.simpleEarnings, p.compoundEarnings, "UGX", period, {
+          paid_out: p.simpleEarnings,
+          reinvested: p.compoundEarnings,
+        }),
+        spanRange(`Total value after ${p.durationMonths} month${p.durationMonths === 1 ? "" : "s"}`, "total_value", p.simpleTotal, p.compoundTotal, "UGX", period, {
+          principal: roundedAmount,
+          paid_out_total: p.simpleTotal,
+          reinvested_total: p.compoundTotal,
+        }),
+        pointRange("Monthly reward (first month)", "monthly_reward", p.monthlyReward, "UGX_per_month", period),
+      );
+    }
 
-    return {
-      content: [{ type: "text", text }],
-      structuredContent: {
+    const allReturns = projections.flatMap((p) => [p.simpleEarnings, p.compoundEarnings]);
+
+    return publicToolResult({
+      tool: "estimate_supporter_returns",
+      kind: "estimate",
+      summary: `Illustrative Returns for supporting ${ugx(roundedAmount)}: ${ugx(Math.min(...allReturns))}–${ugx(
+        Math.max(...allReturns),
+      )} depending on horizon and whether Returns are paid out or reinvested.`,
+      body: [lines],
+      assumptions: [
+        `Platform rewards of ${REWARD_RATE * 100}% a month on the supported amount.`,
+        "Low end of each range = Returns paid out monthly; high end = Returns reinvested (compounding).",
+        projections.length > 1
+          ? `No horizon was given, so ${DEFAULT_DURATIONS.join("/")}-month options are compared.`
+          : `Horizon of ${projections[0].durationMonths} month${projections[0].durationMonths === 1 ? "" : "s"} as requested.`,
+        "Principal is assumed to stay in place for the whole horizon, with no withdrawal.",
+      ],
+      estimates: {
+        basis: `${REWARD_RATE * 100}% monthly platform rewards, shown both paid out (simple) and reinvested (compounding).`,
+        confidence: "illustrative",
+        currency: "UGX",
+        ranges,
+      },
+      data: {
         amount: roundedAmount,
-        illustrative: true,
         monthly_reward_rate_pct: REWARD_RATE * 100,
         projections: projections.map((p) => ({
           duration_months: p.durationMonths,
@@ -156,12 +176,16 @@ export default defineTool({
           compound_earnings: p.compoundEarnings,
           compound_total: p.compoundTotal,
         })),
-        role: "supporter",
-        signup_url: signupUrl,
-        landing_url: landingUrl,
-        referral_url: referralUrl,
-        currency: "UGX",
       },
-    };
+      disclaimers: [
+        "This is an illustration only — not a guarantee of Returns.",
+        "Actual rates and terms are shown in the app after you create a free account.",
+        "Supporter withdrawals require a 90-day notice period.",
+      ],
+      next_steps: [
+        "Create a free Supporter account to view current Returns and start supporting tenants.",
+      ],
+      links,
+    });
   },
 });

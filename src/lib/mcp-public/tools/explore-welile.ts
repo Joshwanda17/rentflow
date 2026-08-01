@@ -2,6 +2,7 @@ import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks, type SignupRole } from "../links";
 import { enforceRateLimit } from "../rateLimit";
+import { publicToolResult } from "../response";
 
 // Guided prompts turn a prospective user's read-only question (e.g.
 // "check my rent access", "see agent commissions") into a clear explanation of
@@ -112,28 +113,32 @@ export default defineTool({
         referralCode: referral_code,
         role: feature.role,
       });
-      const linkText = referralUrl
-        ? `Start here (guided onboarding): ${landingUrl}\nSign up: ${signupUrl}\nReferral signup link: ${referralUrl}`
-        : `Start here (guided onboarding): ${landingUrl}\nSign up: ${signupUrl}`;
-      return {
-        content: [
-          {
-            type: "text",
-            text: `${feature.headline}\n\n${feature.explanation}\n\nNext step: ${feature.next_step}\n\n${linkText}`,
-          },
+      return publicToolResult({
+        tool: "explore_welile",
+        kind: "info",
+        summary: feature.headline,
+        body: [feature.explanation],
+        assumptions: [
+          "General explanation of the feature — not a figure calculated for your account.",
+          "All amounts on Welile are in Ugandan Shillings (UGX).",
         ],
-        structuredContent: {
-          intent: feature.intent,
+        data: {
+          matched_intent: feature.intent,
           headline: feature.headline,
           explanation: feature.explanation,
-          next_step: feature.next_step,
-          role: feature.role ?? null,
+          guided_prompts: null,
+        },
+        disclaimers: [
+          "Your personal figures appear only after you create a free account and sign in.",
+        ],
+        next_steps: [feature.next_step],
+        links: {
           landing_url: landingUrl,
           signup_url: signupUrl,
           referral_url: referralUrl,
-          currency: "UGX",
+          role: feature.role ?? null,
         },
-      };
+      });
     }
 
     // No/unknown intent → return the menu of guided prompts, each with its own
@@ -154,9 +159,23 @@ export default defineTool({
       ...prompts.map((p) => `• ${p.prompt}`),
     ].join("\n");
     const { signupUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
-    return {
-      content: [{ type: "text", text: `${menuText}\n\nStart here (guided onboarding): ${landingUrl}\nOr sign up now: ${signupUrl}` }],
-      structuredContent: { guided_prompts: prompts, landing_url: landingUrl, signup_url: signupUrl, currency: "UGX" },
-    };
+    return publicToolResult({
+      tool: "explore_welile",
+      kind: "info",
+      summary: `Welile can help you in ${prompts.length} ways — ask about any of these to get a real ballpark in UGX.`,
+      body: [menuText],
+      assumptions: [
+        "No specific goal was given, so this is the full menu of guided prompts.",
+        "All amounts on Welile are in Ugandan Shillings (UGX).",
+      ],
+      data: {
+        matched_intent: null,
+        headline: null,
+        explanation: null,
+        guided_prompts: prompts,
+      },
+      next_steps: prompts.map((p) => `Ask: "${p.prompt}"`),
+      links: { landing_url: landingUrl, signup_url: signupUrl },
+    });
   },
 });

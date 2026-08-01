@@ -35,6 +35,83 @@ function buildSignupLinks(opts) {
 
 // src/lib/mcp-public/rateLimit.ts
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+
+// src/lib/mcp-public/response.ts
+var PUBLIC_TOOL_SCHEMA_VERSION = "1.0";
+var CURRENCY = "UGX";
+var FALLBACK_LINKS = {
+  landing_url: "https://welileapp.com",
+  signup_url: "https://welileapp.com/auth",
+  referral_url: null,
+  role: null
+};
+function renderText(e, body) {
+  const blocks = [e.summary];
+  const trimmedBody = body.filter((b) => b != null && b !== "");
+  if (trimmedBody.length) blocks.push(trimmedBody.join("\n"));
+  if (e.assumptions.length) {
+    blocks.push(`Assumptions:
+${e.assumptions.map((a) => `\u2022 ${a}`).join("\n")}`);
+  }
+  if (e.disclaimers.length) blocks.push(e.disclaimers.join(" "));
+  if (e.next_steps.length) {
+    blocks.push(`Next step${e.next_steps.length === 1 ? "" : "s"}:
+${e.next_steps.map((s) => `\u2022 ${s}`).join("\n")}`);
+  }
+  const links = [
+    `Start here (guided onboarding): ${e.links.landing_url}`,
+    `Create a free account: ${e.links.signup_url}`,
+    e.links.referral_url ? `Referral signup link: ${e.links.referral_url}` : null
+  ].filter(Boolean);
+  blocks.push(links.join("\n"));
+  return blocks.join("\n\n");
+}
+function publicToolResult(args) {
+  const error = args.error ? {
+    code: args.error.code,
+    message: args.error.message,
+    retry_after_seconds: args.error.retry_after_seconds ?? null,
+    details: args.error.details ?? null
+  } : null;
+  const envelope = {
+    schema_version: PUBLIC_TOOL_SCHEMA_VERSION,
+    tool: args.tool,
+    ok: !error,
+    kind: error ? "error" : args.kind ?? "info",
+    summary: args.summary,
+    assumptions: args.assumptions ?? [],
+    estimates: args.estimates ?? null,
+    data: args.data ?? {},
+    disclaimers: args.disclaimers ?? [],
+    next_steps: args.next_steps ?? [],
+    links: { ...FALLBACK_LINKS, ...args.links ?? {} },
+    currency: CURRENCY,
+    error
+  };
+  const result = {
+    content: [{ type: "text", text: renderText(envelope, args.body ?? []) }],
+    structuredContent: envelope
+  };
+  if (error) result.isError = true;
+  return result;
+}
+var ugx = (n) => n == null || !Number.isFinite(n) ? "UGX \u2014" : `UGX ${Math.round(n).toLocaleString("en-US")}`;
+function pointRange(label, metric, value, unit = CURRENCY, period = null, breakdown = null) {
+  return { label, metric, unit, low: Math.round(value), high: Math.round(value), period, breakdown };
+}
+function spanRange(label, metric, low, high, unit = CURRENCY, period = null, breakdown = null) {
+  return {
+    label,
+    metric,
+    unit,
+    low: Math.round(Math.min(low, high)),
+    high: Math.round(Math.max(low, high)),
+    period,
+    breakdown
+  };
+}
+
+// src/lib/mcp-public/rateLimit.ts
 var PER_MINUTE = 30;
 var PER_HOUR = 300;
 var HASH_PEPPER = "welile-mcp-public-v1";
@@ -150,18 +227,21 @@ async function enforceRateLimit(tool) {
     const retry = Math.max(1, Math.round(verdict.retry_after_seconds ?? 60));
     const blocked = verdict.reason === "temporarily_blocked";
     const text = blocked ? `Too many requests from this connection, so it is paused for ${waitLabel(retry)}. This limit protects the free public Welile tools from spam. Please try again after that, or create a free account at https://welileapp.com for your own personal access.` : `Rate limit reached \u2014 the free public Welile tools allow ${PER_MINUTE} requests a minute and ${PER_HOUR} an hour per connection. Please try again in ${waitLabel(retry)}, or create a free account at https://welileapp.com for your own personal access.`;
-    return {
-      content: [{ type: "text", text }],
-      isError: true,
-      structuredContent: {
-        error: "rate_limited",
-        reason: verdict.reason ?? "rate_limited",
-        retry_after_seconds: retry,
+    return publicToolResult({
+      tool,
+      summary: text,
+      next_steps: ["Create a free Welile account for your own personal access, with no shared limit."],
+      data: {
         limit_per_minute: PER_MINUTE,
-        limit_per_hour: PER_HOUR,
-        signup_url: "https://welileapp.com"
+        limit_per_hour: PER_HOUR
+      },
+      error: {
+        code: "rate_limited",
+        message: verdict.reason ?? "rate_limited",
+        retry_after_seconds: retry,
+        details: { limit_per_minute: PER_MINUTE, limit_per_hour: PER_HOUR }
       }
-    };
+    });
   } catch {
     return null;
   }
@@ -244,28 +324,30 @@ var how_welile_works_default = defineTool({
     const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
     const faqText = faqs.map((f) => `Q: ${f.q}
 A: ${f.a}`).join("\n\n");
-    const promptText = `Try asking:
-${GUIDED_PROMPTS.map((p) => `\u2022 ${p}`).join("\n")}`;
-    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
-Sign up: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
-Sign up: ${signupUrl}`;
-    return {
-      content: [{ type: "text", text: `${faqText}
-
----
-${promptText}
-
-${linkText}` }],
-      structuredContent: {
+    return publicToolResult({
+      tool: "how_welile_works",
+      kind: "info",
+      summary: term ? `How Welile works \u2014 ${faqs.length} answer${faqs.length === 1 ? "" : "s"} about "${term}". All amounts are in UGX.` : "How Welile works: tenants access rent through a flexible Rent Plan, agents serve them in the field, landlords get guaranteed rent, and Supporters earn Returns. All amounts are in UGX.",
+      body: [faqText, "", `Try asking:
+${GUIDED_PROMPTS.map((p) => `\u2022 ${p}`).join("\n")}`],
+      assumptions: [
+        "General product information only \u2014 nothing here is specific to one person's account.",
+        "Every amount on Welile is in Ugandan Shillings (UGX)."
+      ],
+      data: {
+        matched_topic: term || null,
         faqs: faqs.map(({ q, a }) => ({ question: q, answer: a })),
-        guided_prompts: GUIDED_PROMPTS,
-        landing_url: landingUrl,
-        signup_url: signupUrl,
-        referral_url: referralUrl,
-        currency: "UGX"
-      }
-    };
+        guided_prompts: GUIDED_PROMPTS
+      },
+      disclaimers: [
+        "Personal figures (your rent access, wallet, commissions, or Returns) are only visible after you create a free account and sign in."
+      ],
+      next_steps: [
+        "Create a free account to see what you personally qualify for.",
+        "Ask one of the guided prompts above for a specific ballpark."
+      ],
+      links: { landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl }
+    });
   }
 });
 
@@ -340,35 +422,32 @@ var explore_welile_default = defineTool2({
         referralCode: referral_code,
         role: feature.role
       });
-      const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl2}
-Sign up: ${signupUrl2}
-Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl2}
-Sign up: ${signupUrl2}`;
-      return {
-        content: [
-          {
-            type: "text",
-            text: `${feature.headline}
-
-${feature.explanation}
-
-Next step: ${feature.next_step}
-
-${linkText}`
-          }
+      return publicToolResult({
+        tool: "explore_welile",
+        kind: "info",
+        summary: feature.headline,
+        body: [feature.explanation],
+        assumptions: [
+          "General explanation of the feature \u2014 not a figure calculated for your account.",
+          "All amounts on Welile are in Ugandan Shillings (UGX)."
         ],
-        structuredContent: {
-          intent: feature.intent,
+        data: {
+          matched_intent: feature.intent,
           headline: feature.headline,
           explanation: feature.explanation,
-          next_step: feature.next_step,
-          role: feature.role ?? null,
+          guided_prompts: null
+        },
+        disclaimers: [
+          "Your personal figures appear only after you create a free account and sign in."
+        ],
+        next_steps: [feature.next_step],
+        links: {
           landing_url: landingUrl2,
           signup_url: signupUrl2,
           referral_url: referralUrl,
-          currency: "UGX"
+          role: feature.role ?? null
         }
-      };
+      });
     }
     const prompts = FEATURES.map((f) => {
       const { signupUrl: signupUrl2, landingUrl: landingUrl2 } = buildSignupLinks({ referralCode: referral_code, role: f.role });
@@ -386,13 +465,24 @@ ${linkText}`
       ...prompts.map((p) => `\u2022 ${p.prompt}`)
     ].join("\n");
     const { signupUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
-    return {
-      content: [{ type: "text", text: `${menuText}
-
-Start here (guided onboarding): ${landingUrl}
-Or sign up now: ${signupUrl}` }],
-      structuredContent: { guided_prompts: prompts, landing_url: landingUrl, signup_url: signupUrl, currency: "UGX" }
-    };
+    return publicToolResult({
+      tool: "explore_welile",
+      kind: "info",
+      summary: `Welile can help you in ${prompts.length} ways \u2014 ask about any of these to get a real ballpark in UGX.`,
+      body: [menuText],
+      assumptions: [
+        "No specific goal was given, so this is the full menu of guided prompts.",
+        "All amounts on Welile are in Ugandan Shillings (UGX)."
+      ],
+      data: {
+        matched_intent: null,
+        headline: null,
+        explanation: null,
+        guided_prompts: prompts
+      },
+      next_steps: prompts.map((p) => `Ask: "${p.prompt}"`),
+      links: { landing_url: landingUrl, signup_url: signupUrl }
+    });
   }
 });
 
@@ -426,7 +516,6 @@ function computeRentPlan(rent, days) {
     dailyRepayment
   };
 }
-var ugx = (n) => `UGX ${Math.round(n).toLocaleString("en-US")}`;
 var estimate_rent_access_default = defineTool3({
   name: "estimate_rent_access",
   title: "Estimate rent access (indicative)",
@@ -444,47 +533,40 @@ var estimate_rent_access_default = defineTool3({
       referralCode: referral_code,
       role: "tenant"
     });
-    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
-Create a free tenant account: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
-Create a free tenant account: ${signupUrl}`;
+    const links = { landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, role: "tenant" };
+    const DISCLAIMERS = [
+      "This is an indicative ballpark, not an approval or a guarantee.",
+      "Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence)."
+    ];
     if (!Number.isFinite(rent) || rent < MIN_RENT || rent > MAX_RENT) {
-      const text2 = `Please share a monthly rent between ${ugx(MIN_RENT)} and ${ugx(MAX_RENT)} for an indicative estimate.
-
-${linkText}`;
-      return {
-        content: [{ type: "text", text: text2 }],
-        structuredContent: {
-          error: "invalid_rent",
-          min_rent: MIN_RENT,
-          max_rent: MAX_RENT,
-          landing_url: landingUrl,
-          signup_url: signupUrl,
-          referral_url: referralUrl,
-          currency: "UGX"
+      return publicToolResult({
+        tool: "estimate_rent_access",
+        summary: `Please share a monthly rent between ${ugx(MIN_RENT)} and ${ugx(MAX_RENT)} for an indicative estimate.`,
+        next_steps: [`Ask again with a monthly rent in UGX, for example ${ugx(2e5)}.`],
+        links,
+        error: {
+          code: "invalid_rent",
+          message: `Monthly rent must be between ${MIN_RENT} and ${MAX_RENT} UGX.`,
+          details: { min_rent: MIN_RENT, max_rent: MAX_RENT }
         }
-      };
+      });
     }
     const roundedRent = Math.round(rent);
     let durations;
     if (duration_days != null) {
       const d = Math.round(duration_days);
       if (!Number.isFinite(d) || d < MIN_DAYS || d > MAX_DAYS) {
-        const text2 = `Rent Plan length must be between ${MIN_DAYS} and ${MAX_DAYS} days. Try 30, 60, or 90 days.
-
-${linkText}`;
-        return {
-          content: [{ type: "text", text: text2 }],
-          structuredContent: {
-            error: "invalid_duration",
-            min_days: MIN_DAYS,
-            max_days: MAX_DAYS,
-            landing_url: landingUrl,
-            signup_url: signupUrl,
-            referral_url: referralUrl,
-            currency: "UGX"
+        return publicToolResult({
+          tool: "estimate_rent_access",
+          summary: `Rent Plan length must be between ${MIN_DAYS} and ${MAX_DAYS} days. Try 30, 60, or 90 days.`,
+          next_steps: ["Ask again with a plan length of 30, 60, or 90 days."],
+          links,
+          error: {
+            code: "invalid_duration",
+            message: `Plan length must be between ${MIN_DAYS} and ${MAX_DAYS} days.`,
+            details: { min_days: MIN_DAYS, max_days: MAX_DAYS }
           }
-        };
+        });
       }
       durations = [d];
     } else {
@@ -500,20 +582,48 @@ ${linkText}`;
         `    \u2022 Service fee: ${ugx(p.serviceFee)}`
       ].join("\n")
     ).join("\n\n");
-    const text = [
-      `Indicative Rent Plan for a monthly rent of ${ugx(roundedRent)} (UGX):`,
-      "",
-      planBlocks,
-      "",
-      "Line items are illustrative only \u2014 the fee split (service vs access vs agent commission) is shown for transparency and does not change the total. This is not an approval or guarantee. Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence).",
-      "",
-      linkText
-    ].join("\n");
-    return {
-      content: [{ type: "text", text }],
-      structuredContent: {
+    const ranges = [];
+    for (const p of plans) {
+      const period = { unit: "days", value: p.durationDays };
+      ranges.push(
+        pointRange(`${p.durationDays}-day plan total`, "total_repayment", p.totalRepayment, "UGX", period, {
+          principal_rent: p.principalRent,
+          access_fee: p.accessFeeNet,
+          agent_commission: p.agentCommission,
+          service_fee: p.serviceFee,
+          total: p.totalRepayment
+        }),
+        pointRange(`${p.durationDays}-day plan daily payment`, "daily_repayment", p.dailyRepayment, "UGX_per_day", period)
+      );
+    }
+    if (plans.length > 1) {
+      const totals = plans.map((p) => p.totalRepayment);
+      const dailies = plans.map((p) => p.dailyRepayment);
+      ranges.push(
+        spanRange("Total repayment across plans compared", "total_repayment_span", Math.min(...totals), Math.max(...totals)),
+        spanRange("Daily payment across plans compared", "daily_repayment_span", Math.min(...dailies), Math.max(...dailies), "UGX_per_day")
+      );
+    }
+    return publicToolResult({
+      tool: "estimate_rent_access",
+      kind: "estimate",
+      summary: `Indicative Rent Plan for a monthly rent of ${ugx(roundedRent)}: total ${plans.length > 1 ? `${ugx(Math.min(...plans.map((p) => p.totalRepayment)))}\u2013${ugx(Math.max(...plans.map((p) => p.totalRepayment)))}` : ugx(plans[0].totalRepayment)} depending on plan length.`,
+      body: [planBlocks],
+      assumptions: [
+        `Access fee compounds at ${MONTHLY_RATE * 100}% a month over the plan length.`,
+        `Service fee is ${ugx(1e4)} for rent up to ${ugx(2e5)}, otherwise ${ugx(2e4)}.`,
+        `Agent commission shown is ${AGENT_COMMISSION_RATE * 100}% of rent, carved out of the access fee \u2014 it is never added on top, so the total is unchanged.`,
+        plans.length > 1 ? `No plan length was given, so ${DEFAULT_DURATIONS.join("/")}-day options are compared.` : `Plan length of ${plans[0].durationDays} days as requested.`,
+        "Daily payment is the total divided over the plan length, rounded up."
+      ],
+      estimates: {
+        basis: `Welile's canonical Rent Plan formula: rent + access fee (${MONTHLY_RATE * 100}% monthly compound) + service fee, repaid over the plan length.`,
+        confidence: "indicative",
+        currency: "UGX",
+        ranges
+      },
+      data: {
         rent: roundedRent,
-        indicative: true,
         monthly_rate_pct: MONTHLY_RATE * 100,
         plans: plans.map((p) => ({
           duration_days: p.durationDays,
@@ -528,15 +638,18 @@ ${linkText}`;
             service_fee: p.serviceFee,
             total: p.totalRepayment
           }
-        })),
-        breakdown_note: "Line items are illustrative only; the service/access/agent-commission split is for transparency and does not change the total.",
-        role: "tenant",
-        landing_url: landingUrl,
-        signup_url: signupUrl,
-        referral_url: referralUrl,
-        currency: "UGX"
-      }
-    };
+        }))
+      },
+      disclaimers: [
+        "Line items are illustrative only \u2014 the service/access/agent-commission split is shown for transparency and does not change the total.",
+        ...DISCLAIMERS
+      ],
+      next_steps: [
+        "Create a free tenant account to see the Rent Plan you personally qualify for.",
+        "Ask to find available houses in your district to see real rents."
+      ],
+      links
+    });
   }
 });
 
@@ -565,7 +678,6 @@ function project(amount, months) {
     compoundTotal: Math.round(balance)
   };
 }
-var ugx2 = (n) => `UGX ${Math.round(n).toLocaleString("en-US")}`;
 var estimate_supporter_returns_default = defineTool4({
   name: "estimate_supporter_returns",
   title: "Estimate Supporter Returns (illustrative)",
@@ -583,47 +695,36 @@ var estimate_supporter_returns_default = defineTool4({
       referralCode: referral_code,
       role: "supporter"
     });
-    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
-Create a free Supporter account: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
-Create a free Supporter account: ${signupUrl}`;
+    const links = { landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, role: "supporter" };
     if (!Number.isFinite(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
-      const text2 = `Please share a support amount between ${ugx2(MIN_AMOUNT)} and ${ugx2(MAX_AMOUNT)} for an illustrative estimate.
-
-${linkText}`;
-      return {
-        content: [{ type: "text", text: text2 }],
-        structuredContent: {
-          error: "invalid_amount",
-          min_amount: MIN_AMOUNT,
-          max_amount: MAX_AMOUNT,
-          signup_url: signupUrl,
-          landing_url: landingUrl,
-          referral_url: referralUrl,
-          currency: "UGX"
+      return publicToolResult({
+        tool: "estimate_supporter_returns",
+        summary: `Please share a support amount between ${ugx(MIN_AMOUNT)} and ${ugx(MAX_AMOUNT)} for an illustrative estimate.`,
+        next_steps: [`Ask again with an amount in UGX, for example ${ugx(5e5)}.`],
+        links,
+        error: {
+          code: "invalid_amount",
+          message: `Support amount must be between ${MIN_AMOUNT} and ${MAX_AMOUNT} UGX.`,
+          details: { min_amount: MIN_AMOUNT, max_amount: MAX_AMOUNT }
         }
-      };
+      });
     }
     const roundedAmount = Math.round(amount);
     let months;
     if (duration_months != null) {
       const m = Math.round(duration_months);
       if (!Number.isFinite(m) || m < MIN_MONTHS || m > MAX_MONTHS) {
-        const text2 = `Horizon must be between ${MIN_MONTHS} and ${MAX_MONTHS} months. Try 3, 6, or 12 months.
-
-${linkText}`;
-        return {
-          content: [{ type: "text", text: text2 }],
-          structuredContent: {
-            error: "invalid_duration",
-            min_months: MIN_MONTHS,
-            max_months: MAX_MONTHS,
-            signup_url: signupUrl,
-            landing_url: landingUrl,
-            referral_url: referralUrl,
-            currency: "UGX"
+        return publicToolResult({
+          tool: "estimate_supporter_returns",
+          summary: `Horizon must be between ${MIN_MONTHS} and ${MAX_MONTHS} months. Try 3, 6, or 12 months.`,
+          next_steps: ["Ask again with a horizon of 3, 6, or 12 months."],
+          links,
+          error: {
+            code: "invalid_duration",
+            message: `Horizon must be between ${MIN_MONTHS} and ${MAX_MONTHS} months.`,
+            details: { min_months: MIN_MONTHS, max_months: MAX_MONTHS }
           }
-        };
+        });
       }
       months = [m];
     } else {
@@ -631,22 +732,46 @@ ${linkText}`;
     }
     const projections = months.map((m) => project(roundedAmount, m));
     const lines = projections.map(
-      (p) => `\u2022 ${p.durationMonths} month${p.durationMonths === 1 ? "" : "s"}: Returns of ${ugx2(p.simpleEarnings)} (paid out) to ${ugx2(p.compoundEarnings)} (reinvested)`
+      (p) => `\u2022 ${p.durationMonths} month${p.durationMonths === 1 ? "" : "s"}: Returns of ${ugx(p.simpleEarnings)} (paid out) to ${ugx(p.compoundEarnings)} (reinvested)`
     ).join("\n");
-    const text = [
-      `Illustrative Returns for supporting ${ugx2(roundedAmount)} (UGX), at 15% monthly platform rewards:`,
-      "",
-      lines,
-      "",
-      "The range spans rewards paid out each month vs. reinvested (compounding). This is an illustration only \u2014 not a guarantee. Actual rates and terms are shown in the app after you create a free account.",
-      "",
-      linkText
-    ].join("\n");
-    return {
-      content: [{ type: "text", text }],
-      structuredContent: {
+    const ranges = [];
+    for (const p of projections) {
+      const period = { unit: "months", value: p.durationMonths };
+      ranges.push(
+        spanRange(`Returns over ${p.durationMonths} month${p.durationMonths === 1 ? "" : "s"}`, "returns", p.simpleEarnings, p.compoundEarnings, "UGX", period, {
+          paid_out: p.simpleEarnings,
+          reinvested: p.compoundEarnings
+        }),
+        spanRange(`Total value after ${p.durationMonths} month${p.durationMonths === 1 ? "" : "s"}`, "total_value", p.simpleTotal, p.compoundTotal, "UGX", period, {
+          principal: roundedAmount,
+          paid_out_total: p.simpleTotal,
+          reinvested_total: p.compoundTotal
+        }),
+        pointRange("Monthly reward (first month)", "monthly_reward", p.monthlyReward, "UGX_per_month", period)
+      );
+    }
+    const allReturns = projections.flatMap((p) => [p.simpleEarnings, p.compoundEarnings]);
+    return publicToolResult({
+      tool: "estimate_supporter_returns",
+      kind: "estimate",
+      summary: `Illustrative Returns for supporting ${ugx(roundedAmount)}: ${ugx(Math.min(...allReturns))}\u2013${ugx(
+        Math.max(...allReturns)
+      )} depending on horizon and whether Returns are paid out or reinvested.`,
+      body: [lines],
+      assumptions: [
+        `Platform rewards of ${REWARD_RATE * 100}% a month on the supported amount.`,
+        "Low end of each range = Returns paid out monthly; high end = Returns reinvested (compounding).",
+        projections.length > 1 ? `No horizon was given, so ${DEFAULT_DURATIONS2.join("/")}-month options are compared.` : `Horizon of ${projections[0].durationMonths} month${projections[0].durationMonths === 1 ? "" : "s"} as requested.`,
+        "Principal is assumed to stay in place for the whole horizon, with no withdrawal."
+      ],
+      estimates: {
+        basis: `${REWARD_RATE * 100}% monthly platform rewards, shown both paid out (simple) and reinvested (compounding).`,
+        confidence: "illustrative",
+        currency: "UGX",
+        ranges
+      },
+      data: {
         amount: roundedAmount,
-        illustrative: true,
         monthly_reward_rate_pct: REWARD_RATE * 100,
         projections: projections.map((p) => ({
           duration_months: p.durationMonths,
@@ -655,14 +780,18 @@ ${linkText}`;
           simple_total: p.simpleTotal,
           compound_earnings: p.compoundEarnings,
           compound_total: p.compoundTotal
-        })),
-        role: "supporter",
-        signup_url: signupUrl,
-        landing_url: landingUrl,
-        referral_url: referralUrl,
-        currency: "UGX"
-      }
-    };
+        }))
+      },
+      disclaimers: [
+        "This is an illustration only \u2014 not a guarantee of Returns.",
+        "Actual rates and terms are shown in the app after you create a free account.",
+        "Supporter withdrawals require a 90-day notice period."
+      ],
+      next_steps: [
+        "Create a free Supporter account to view current Returns and start supporting tenants."
+      ],
+      links
+    });
   }
 });
 
@@ -684,7 +813,6 @@ function anonClient() {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
-var ugx3 = (n) => n == null ? "UGX \u2014" : `UGX ${Math.round(n).toLocaleString("en-US")}`;
 function amenityList(r) {
   const out = [];
   if (r.has_water) out.push("water");
@@ -716,10 +844,7 @@ var find_available_houses_default = defineTool5({
       referralCode: referral_code,
       role: "tenant"
     });
-    const linkText = referralUrl ? `Start here (guided onboarding): ${landingUrl}
-Create a free tenant account to view details and apply: ${signupUrl}
-Referral signup link: ${referralUrl}` : `Start here (guided onboarding): ${landingUrl}
-Create a free tenant account to view details and apply: ${signupUrl}`;
+    const links = { landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, role: "tenant" };
     const take = Math.min(MAX_LIMIT, Math.max(1, Math.round(limit ?? DEFAULT_LIMIT)));
     let query = anonClient().from("house_listings").select(
       "id,title,house_category,number_of_rooms,monthly_rent,region,district,sub_county,village,has_water,has_electricity,has_security,has_parking,is_furnished,verified,image_urls"
@@ -738,43 +863,46 @@ Create a free tenant account to view details and apply: ${signupUrl}`;
     }
     query = query.order("verified", { ascending: false }).order("created_at", { ascending: false }).limit(take);
     const { data, error } = await query;
+    const filters = {
+      district: districtTerm || null,
+      area: areaTerm || null,
+      max_rent: typeof max_rent === "number" && Number.isFinite(max_rent) ? Math.round(max_rent) : null,
+      limit: take
+    };
+    const filterAssumptions = [
+      "Only listings currently marked available are searched; verified listings are shown first.",
+      districtTerm ? `District filtered to "${districtTerm}".` : "No district filter applied.",
+      areaTerm ? `Area matched against village, sub-county, district, or region for "${areaTerm}".` : "No area filter applied.",
+      filters.max_rent != null ? `Maximum monthly rent of ${ugx(filters.max_rent)}.` : "No maximum rent applied.",
+      `At most ${take} listing${take === 1 ? "" : "s"} returned \u2014 this is a sample, not the full catalogue.`
+    ];
     if (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Sorry, I couldn't fetch listings right now. You can still browse everything after signing up.
-
-${linkText}`
-          }
-        ],
-        isError: true,
-        structuredContent: { error: error.message, landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" }
-      };
+      return publicToolResult({
+        tool: "find_available_houses",
+        summary: "Sorry, I couldn't fetch listings right now. You can still browse everything after signing up.",
+        data: { filters, count: 0, listings: [] },
+        next_steps: ["Create a free tenant account to browse all available houses."],
+        links,
+        error: { code: "listings_unavailable", message: error.message }
+      });
     }
     const rows = data ?? [];
     if (rows.length === 0) {
       const where = districtTerm || areaTerm ? ` in "${districtTerm || areaTerm}"` : "";
-      return {
-        content: [
-          {
-            type: "text",
-            text: `No available listings matched your search${where} right now. New houses are added regularly \u2014 sign up free to save a search and get matched.
-
-${linkText}`
-          }
+      return publicToolResult({
+        tool: "find_available_houses",
+        kind: "listings",
+        summary: `No available listings matched your search${where} right now.`,
+        body: ["New houses are added regularly."],
+        assumptions: filterAssumptions,
+        estimates: null,
+        data: { filters, count: 0, listings: [] },
+        next_steps: [
+          "Try a wider area, a nearby district, or a higher maximum rent.",
+          "Create a free tenant account to save a search and get matched when a house is listed."
         ],
-        structuredContent: {
-          count: 0,
-          listings: [],
-          filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
-          role: "tenant",
-          signup_url: signupUrl,
-          landing_url: landingUrl,
-          referral_url: referralUrl,
-          currency: "UGX"
-        }
-      };
+        links
+      });
     }
     const listings = rows.map((r) => ({
       id: r.id,
@@ -790,7 +918,7 @@ ${linkText}`
     }));
     const lines = listings.map((l) => {
       const bits = [
-        `${ugx3(l.monthly_rent)}/mo`,
+        `${ugx(l.monthly_rent)}/mo`,
         l.rooms ? `${l.rooms} room${l.rooms === 1 ? "" : "s"}` : null,
         l.location,
         l.amenities.length ? l.amenities.join(", ") : null,
@@ -798,28 +926,36 @@ ${linkText}`
       ].filter(Boolean);
       return `\u2022 ${l.title} \u2014 ${bits.join(" \xB7 ")}`;
     }).join("\n");
-    const text = [
-      `${listings.length} available house${listings.length === 1 ? "" : "s"} on Welile (UGX):`,
-      "",
-      lines,
-      "",
-      "Full details, photos, and contact happen inside the app after you create a free account.",
-      "",
-      linkText
-    ].join("\n");
-    return {
-      content: [{ type: "text", text }],
-      structuredContent: {
-        count: listings.length,
-        listings,
-        filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
-        role: "tenant",
-        signup_url: signupUrl,
-        landing_url: landingUrl,
-        referral_url: referralUrl,
-        currency: "UGX"
-      }
-    };
+    const rents = listings.map((l) => l.monthly_rent).filter((r) => typeof r === "number" && Number.isFinite(r));
+    const ranges = rents.length ? [
+      spanRange("Monthly rent across these listings", "monthly_rent", Math.min(...rents), Math.max(...rents), "UGX_per_month", {
+        unit: "months",
+        value: 1
+      })
+    ] : [];
+    return publicToolResult({
+      tool: "find_available_houses",
+      kind: "listings",
+      summary: `${listings.length} available house${listings.length === 1 ? "" : "s"} on Welile${rents.length ? `, from ${ugx(Math.min(...rents))} to ${ugx(Math.max(...rents))} a month` : ""}.`,
+      body: [lines],
+      assumptions: filterAssumptions,
+      estimates: ranges.length ? {
+        basis: "Actual monthly rents recorded on the available listings returned by this search.",
+        confidence: "actual",
+        currency: "UGX",
+        ranges
+      } : null,
+      data: { filters, count: listings.length, listings },
+      disclaimers: [
+        "Only public, non-sensitive fields are shown \u2014 no exact address, GPS, landlord, or contact details.",
+        "Full details, photos, and contact happen inside the app after you create a free account."
+      ],
+      next_steps: [
+        "Create a free tenant account to view details, photos, and apply.",
+        "Ask for an indicative Rent Plan on any of these rents."
+      ],
+      links
+    });
   }
 });
 
