@@ -480,7 +480,12 @@ export function MerchandiseManager() {
       </Section>
 
       {/* Storefront catalog (items agents can buy) */}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button asChild size="sm" variant="outline" className="gap-1.5">
+          <a href="/admin/merchandise-share-preview">
+            <BarChart3 className="h-4 w-4" /> Verify share preview
+          </a>
+        </Button>
         <Button asChild size="sm" variant="outline" className="gap-1.5">
           <a href="/admin/merchandise-share-analytics">
             <BarChart3 className="h-4 w-4" /> Share link analytics
