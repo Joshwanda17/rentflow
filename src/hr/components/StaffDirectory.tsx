@@ -204,7 +204,29 @@ export default function StaffDirectory() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-baseline gap-6 text-sm">
+        <button
+          type="button"
+          onClick={() => setFilterNoAssignment((v) => !v)}
+          className={`leading-tight text-left ${
+            filterNoAssignment ? 'font-semibold underline' : ''
+          } ${noAssignmentCount > 0 ? 'text-warning' : 'text-muted-foreground'}`}
+        >
+          <div className="text-base font-semibold tabular-nums">{noAssignmentCount}</div>
+          <div className="text-xs">No assignment</div>
+        </button>
+        <div className={`leading-tight ${departmentCount === 0 ? 'text-muted-foreground' : ''}`}>
+          <div className="text-base font-semibold tabular-nums">{departmentCount}</div>
+          <div className="text-xs text-muted-foreground">Departments</div>
+        </div>
+        <div className={`leading-tight ${positionCount === 0 ? 'text-muted-foreground' : ''}`}>
+          <div className="text-base font-semibold tabular-nums">{positionCount}</div>
+          <div className="text-xs text-muted-foreground">Positions</div>
+        </div>
+      </div>
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="people">People ({activeCount})</TabsTrigger>
           <TabsTrigger value="exited">Exited ({exitedCount})</TabsTrigger>
