@@ -610,6 +610,11 @@ export default function PayrollEnrollment() {
                               Incomplete
                             </span>
                           )}
+                          {joinsNextPeriod(row, periodCutOff) ? (
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              Joins next period
+                            </p>
+                          ) : null}
                         </TableCell>
                       </TableRow>
                     ))
@@ -620,6 +625,9 @@ export default function PayrollEnrollment() {
                     <TableCell colSpan={5}>{totals.people} people included</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       {reveal ? formatAmount(totals.basic) : '••••••'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {reveal ? formatAmount(totals.partMonth) : '••••••'}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       {reveal ? formatAmount(totals.allowances) : '••••••'}
