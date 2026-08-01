@@ -120,6 +120,7 @@ const BecomeSupporter = lazy(() => import('./pages/BecomeSupporter'));
 const DepositsManagement = lazy(() => import('./pages/DepositsManagement'));
 const Install = lazy(() => import('./pages/Install'));
 const ConnectAI = lazy(() => import('./pages/ConnectAI'));
+const McpToolTest = lazy(() => import('./pages/McpToolTest'));
 const InstallDiagnostics = lazy(() => import('./pages/InstallDiagnostics'));
 const LoginDiagnostics = lazy(() => import('./pages/LoginDiagnostics'));
 const SupportReport = lazy(() => import('./pages/SupportReport'));
@@ -521,6 +522,7 @@ function AppRoutes() {
           <Route path="/deposits-management" element={<DepositsManagement />} />
           <Route path="/install" element={<Install />} />
           <Route path="/connect-ai" element={<ConnectAI />} />
+          <Route path="/mcp-tool-test" element={<McpToolTest />} />
           <Route path="/install-diagnostics" element={<InstallDiagnostics />} />
           <Route path="/login-diagnostics" element={<LoginDiagnostics />} />
           <Route path="/support-report/:token" element={<SupportReport />} />
