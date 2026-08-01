@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import HRPlaceholderPage from './HRPlaceholderPage';
 import StaffDirectory from '../components/StaffDirectory';
 import PayrollEnrollment from '@/hr/pay/PayrollEnrollment';
+import Contracts from '@/hr/contracts/Contracts';
 
 const TABS = [
   { value: 'directory', label: 'Directory' },
@@ -45,12 +46,7 @@ export default function PeoplePage() {
         </TabsContent>
 
         <TabsContent value="contracts">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">Contracts and MOUs</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Not built yet. Contracts, MOUs and expiry alerting arrive here.
-            </p>
-          </div>
+          <Contracts />
         </TabsContent>
 
         <TabsContent value="documents">
