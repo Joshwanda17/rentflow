@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, Printer } from 'lucide-react';
+import { AlertTriangle, Check, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/hr/pay/print.css';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ import {
   listStaffCompensation,
   setBasicPay,
   setStatutoryProfile,
+  setStatutoryIds,
   type EnrollmentRow,
   type GradeOption,
   type StaffCompensationHistoryRow,
@@ -133,6 +134,13 @@ export default function PayrollEnrollment() {
   const [statBasis, setStatBasis] = useState('');
   const [statError, setStatError] = useState('');
 
+  // Statutory identifiers dialog state (identity data only)
+  const [idsRow, setIdsRow] = useState<EnrollmentRow | null>(null);
+  const [idsTin, setIdsTin] = useState('');
+  const [idsNssf, setIdsNssf] = useState('');
+  const [idsLst, setIdsLst] = useState('');
+  const [idsError, setIdsError] = useState('');
+
   // Basic pay dialog state
   const [payRow, setPayRow] = useState<EnrollmentRow | null>(null);
   const [payAmount, setPayAmount] = useState('');
@@ -218,6 +226,11 @@ export default function PayrollEnrollment() {
     const ready = rows.filter(isReady).length;
     return { total: rows.length, ready, incomplete: rows.length - ready };
   }, [rows]);
+
+  const idsComplete = useMemo(
+    () => rows.filter((r) => Boolean(r.tin) && Boolean(r.nssfNumber) && Boolean(r.lstDistrict)).length,
+    [rows],
+  );
 
   const bothApplyCount = useMemo(
     () => rows.filter((r) => bothApply(r, periodCutOff)).length,
@@ -483,6 +496,34 @@ export default function PayrollEnrollment() {
     setPayError('');
   }
 
+  function openIds(row: EnrollmentRow) {
+    setIdsRow(row);
+    setIdsTin(row.tin ?? '');
+    setIdsNssf(row.nssfNumber ?? '');
+    setIdsLst(row.lstDistrict ?? '');
+    setIdsError('');
+  }
+
+  async function saveIds() {
+    if (!idsRow) return;
+    setSaving(true);
+    try {
+      await setStatutoryIds(
+        idsRow.staffId,
+        idsTin.trim() || null,
+        idsNssf.trim() || null,
+        idsLst.trim() || null,
+      );
+      toast.success('Statutory identifiers recorded');
+      await load();
+      setIdsRow(null);
+    } catch (error) {
+      setIdsError(rawError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function savePay() {
     if (!payRow) return;
     const amount = Number(payAmount);
@@ -577,6 +618,16 @@ export default function PayrollEnrollment() {
         </Card>
       </div>
 
+      <p
+        className={
+          idsComplete < counts.total
+            ? 'text-sm font-medium text-amber-600'
+            : 'text-sm font-medium text-muted-foreground'
+        }
+      >
+        Statutory IDs complete: {idsComplete} of {counts.total}
+      </p>
+
       {bothApplyCount > 0 ? (
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -613,13 +664,14 @@ export default function PayrollEnrollment() {
                     <TableHead>NSSF</TableHead>
                     <TableHead>LST</TableHead>
                     <TableHead>Basis</TableHead>
+                    <TableHead>Statutory IDs</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={16} className="p-6 text-sm text-muted-foreground">
+                      <TableCell colSpan={17} className="p-6 text-sm text-muted-foreground">
                         No active staff members.
                       </TableCell>
                     </TableRow>
@@ -775,6 +827,38 @@ export default function PayrollEnrollment() {
                         >
                           {row.exemptionBasis || '—'}
                         </TableCell>
+                        <TableCell
+                          className="cursor-pointer"
+                          onClick={() => openIds(row)}
+                          title="Statutory identifiers"
+                        >
+                          <div className="flex items-center gap-2 text-[11px]">
+                            {(
+                              [
+                                ['TIN', row.tin],
+                                ['NSSF', row.nssfNumber],
+                                ['LST', row.lstDistrict],
+                              ] as const
+                            ).map(([label, value]) => (
+                              <span key={label} className="inline-flex items-center gap-0.5">
+                                <span className="text-muted-foreground">{label}</span>
+                                {value ? (
+                                  <Check
+                                    className="h-3.5 w-3.5 text-emerald-600"
+                                    aria-label={`${label} present`}
+                                  />
+                                ) : (
+                                  <span
+                                    className="text-destructive/70"
+                                    aria-label={`${label} missing`}
+                                  >
+                                    –
+                                  </span>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {isReady(row) ? (
                             <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
@@ -831,7 +915,7 @@ export default function PayrollEnrollment() {
                     <TableCell className="text-right font-mono tabular-nums">
                       {reveal ? formatAmount(totals.gross) : '••••••'}
                     </TableCell>
-                    <TableCell colSpan={6} />
+                    <TableCell colSpan={7} />
                   </TableRow>
                 </TableFooter>
               </Table>
@@ -863,6 +947,65 @@ export default function PayrollEnrollment() {
         Statutory profiles and compensation are both append-only. Every change keeps the previous
         record with the date it closed.
       </p>
+
+      <Dialog open={idsRow !== null} onOpenChange={(open) => !open && setIdsRow(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Statutory identifiers</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              These appear on filed URA and NSSF returns. They do not affect any payroll figure.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="ids-tin">TIN</Label>
+              <Input
+                id="ids-tin"
+                value={idsTin}
+                onChange={(e) => {
+                  setIdsTin(e.target.value);
+                  setIdsError('');
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ids-nssf">NSSF number</Label>
+              <Input
+                id="ids-nssf"
+                value={idsNssf}
+                onChange={(e) => {
+                  setIdsNssf(e.target.value);
+                  setIdsError('');
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ids-lst">LST district</Label>
+              <Input
+                id="ids-lst"
+                value={idsLst}
+                onChange={(e) => {
+                  setIdsLst(e.target.value);
+                  setIdsError('');
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              All three are optional. A partial record is better than none.
+            </p>
+            {idsError ? <p className="text-xs text-destructive">{idsError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIdsRow(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveIds()} disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={statRow !== null} onOpenChange={(open) => !open && setStatRow(null)}>
         <DialogContent>
