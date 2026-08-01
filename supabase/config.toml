@@ -1,6 +1,10 @@
 project_id = "wirntoujqoyjobfhyelc"
 
 [functions]
+  [functions.og-merchandise]
+    verify_jwt = false
+  [functions.og-house]
+    verify_jwt = false
   [functions.api]
     verify_jwt = false
   [functions.submit-diagnostics-report]
