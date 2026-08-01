@@ -47,6 +47,8 @@ export default function MerchandiseShareAnalytics() {
   const past = new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000);
   const [from, setFrom] = useState(isoDay(past));
   const [to, setTo] = useState(isoDay(today));
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'others'>('all');
+  const [itemFilter, setItemFilter] = useState<string>('all');
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['merchandise-share-opens', from, to],
@@ -64,7 +66,42 @@ export default function MerchandiseShareAnalytics() {
     },
   });
 
-  const rows = data ?? [];
+  const allRows = data ?? [];
+
+  const itemOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    allRows.forEach((r) => {
+      const key = r.catalog_id ?? r.item_name ?? 'unknown';
+      if (!map.has(key)) map.set(key, r.item_name || key);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [allRows]);
+
+  const rows = useMemo(
+    () =>
+      allRows.filter((r) => {
+        const channel = classifyChannel(r);
+        if (channelFilter === 'whatsapp' && channel !== 'WhatsApp') return false;
+        if (channelFilter === 'others' && channel === 'WhatsApp') return false;
+        if (itemFilter !== 'all' && (r.catalog_id ?? r.item_name ?? 'unknown') !== itemFilter) return false;
+        return true;
+      }),
+    [allRows, channelFilter, itemFilter],
+  );
+
+  const whatsappSplit = useMemo(() => {
+    const acc = {
+      whatsapp: { opens: 0, clicks: 0, previews: 0 },
+      others: { opens: 0, clicks: 0, previews: 0 },
+    };
+    rows.forEach((r) => {
+      const bucket = classifyChannel(r) === 'WhatsApp' ? acc.whatsapp : acc.others;
+      bucket.opens += 1;
+      if (r.is_bot) bucket.previews += 1;
+      else bucket.clicks += 1;
+    });
+    return acc;
+  }, [rows]);
 
   const totals = useMemo(() => {
     const clicks = rows.filter((r) => !r.is_bot).length;
@@ -74,12 +111,23 @@ export default function MerchandiseShareAnalytics() {
   }, [rows]);
 
   const byItem = useMemo(() => {
-    const map = new Map<string, { name: string; clicks: number; previews: number }>();
+    const map = new Map<
+      string,
+      { id: string; name: string; clicks: number; previews: number; waClicks: number; waPreviews: number }
+    >();
     rows.forEach((r) => {
       const key = r.catalog_id ?? r.item_name ?? 'unknown';
-      const entry = map.get(key) ?? { name: r.item_name || 'Unknown item', clicks: 0, previews: 0 };
-      if (r.is_bot) entry.previews += 1;
-      else entry.clicks += 1;
+      const entry =
+        map.get(key) ??
+        { id: key, name: r.item_name || 'Unknown item', clicks: 0, previews: 0, waClicks: 0, waPreviews: 0 };
+      const isWa = classifyChannel(r) === 'WhatsApp';
+      if (r.is_bot) {
+        entry.previews += 1;
+        if (isWa) entry.waPreviews += 1;
+      } else {
+        entry.clicks += 1;
+        if (isWa) entry.waClicks += 1;
+      }
       map.set(key, entry);
     });
     return Array.from(map.values()).sort((a, b) => b.clicks + b.previews - (a.clicks + a.previews));
@@ -98,12 +146,18 @@ export default function MerchandiseShareAnalytics() {
   }, [rows]);
 
   const byChannel = useMemo(() => {
-    const map = new Map<string, number>();
-    rows.filter((r) => !r.is_bot).forEach((r) => {
-      const key = r.source || 'unknown';
-      map.set(key, (map.get(key) ?? 0) + 1);
+    const map = new Map<string, { channel: string; clicks: number; previews: number; items: Set<string> }>();
+    rows.forEach((r) => {
+      const channel = classifyChannel(r);
+      const entry = map.get(channel) ?? { channel, clicks: 0, previews: 0, items: new Set<string>() };
+      if (r.is_bot) entry.previews += 1;
+      else entry.clicks += 1;
+      entry.items.add(r.catalog_id ?? r.item_name ?? 'unknown');
+      map.set(channel, entry);
     });
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    return Array.from(map.values())
+      .map((e) => ({ channel: e.channel, clicks: e.clicks, previews: e.previews, items: e.items.size }))
+      .sort((a, b) => b.clicks + b.previews - (a.clicks + a.previews));
   }, [rows]);
 
   const setPreset = (days: number) => {
