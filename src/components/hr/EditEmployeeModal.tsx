@@ -67,10 +67,28 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
     if (!newRole) return;
     setSaving(true);
     try {
-      await (supabase.from('user_roles').insert({
-        user_id: employee.user_id,
-        role: newRole,
-      } as any) as any);
+      // Role history is permanent: re-enable an existing (possibly disabled) row,
+      // otherwise insert a fresh one.
+      const { data: existingRole } = await (supabase
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', employee.user_id)
+        .eq('role', newRole as any)
+        .maybeSingle() as any);
+
+      if (existingRole?.id) {
+        const { error: enableError } = await (supabase
+          .from('user_roles')
+          .update({ enabled: true } as any)
+          .eq('id', existingRole.id) as any);
+        if (enableError) throw enableError;
+      } else {
+        const { error: insertError } = await (supabase.from('user_roles').insert({
+          user_id: employee.user_id,
+          role: newRole,
+        } as any) as any);
+        if (insertError) throw insertError;
+      }
 
       await supabase.from('audit_logs').insert({
         user_id: employee.user_id,
@@ -93,7 +111,9 @@ export function EditEmployeeModal({ open, onOpenChange, employee }: Props) {
     if (currentRoles.length <= 1) { toast.error('Cannot remove the last role'); return; }
     setSaving(true);
     try {
-      await (supabase.from('user_roles').delete().eq('user_id', employee.user_id).eq('role', role as any) as any);
+      // Never delete role history — disabling is a full removal at the data layer
+      // because has_role() requires enabled = true.
+      await (supabase.from('user_roles').update({ enabled: false } as any).eq('user_id', employee.user_id).eq('role', role as any) as any);
 
       await supabase.from('audit_logs').insert({
         user_id: employee.user_id,
