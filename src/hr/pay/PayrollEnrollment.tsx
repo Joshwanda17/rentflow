@@ -524,14 +524,6 @@ export default function PayrollEnrollment() {
     }
   }
 
-  function unusedOpenPay(row: EnrollmentRow) {
-    setPayRow(row);
-    setPayAmount(row.basicAmount !== null ? String(row.basicAmount) : '');
-    setPayFrom(periodStart ?? '');
-    setPayReason('');
-    setPayError('');
-  }
-
   async function savePay() {
     if (!payRow) return;
     const amount = Number(payAmount);
