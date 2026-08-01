@@ -1,1 +1,5 @@
+# Pretty, brand-safe merchandise share links.
+# WhatsApp/Facebook crawlers fetch welileapp.com/merchandise/og/<id> and this
+# proxies (200, URL stays on our domain) to the OG preview function.
+/merchandise/og/*  https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-merchandise?id=:splat  200
 /* /index.html 200
