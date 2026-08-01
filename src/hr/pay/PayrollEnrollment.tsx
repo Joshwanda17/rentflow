@@ -798,6 +798,16 @@ export default function PayrollEnrollment() {
                               />
                             </span>
                           ) : null}
+                          <div className="no-print mt-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-1 text-[11px] text-muted-foreground"
+                              onClick={() => void openHistory(row)}
+                            >
+                              History
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
