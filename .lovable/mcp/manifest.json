@@ -70,6 +70,77 @@
           }
         },
         "outputSchema": null
+      },
+      {
+        "name": "get_my_wallet_statement",
+        "title": "View my wallet statement",
+        "description": "Return the signed-in user's Welile wallet statement for an optional date range: every wallet ledger entry with money-in / money-out totals, net movement and the current withdrawable balance. Amounts are in UGX.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "Optional start date, YYYY-MM-DD (inclusive)."
+            },
+            "to": {
+              "type": "string",
+              "description": "Optional end date, YYYY-MM-DD (inclusive)."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "Maximum number of entries to include. Defaults to 200; capped at 1000."
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "export_my_wallet_statement",
+        "title": "Export my wallet statement",
+        "description": "Generate the signed-in user's Welile wallet statement as a PDF, Excel (.xlsx) or CSV file and return a private download link valid for 7 days. Optionally limit it to a date range. Amounts are in UGX.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "pdf",
+                "xlsx",
+                "csv"
+              ],
+              "description": "File format to generate. Defaults to pdf."
+            },
+            "from": {
+              "type": "string",
+              "description": "Optional start date, YYYY-MM-DD (inclusive)."
+            },
+            "to": {
+              "type": "string",
+              "description": "Optional end date, YYYY-MM-DD (inclusive)."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "Maximum number of entries to include. Defaults to 200; capped at 1000."
+            }
+          }
+        },
+        "outputSchema": null
       }
     ]
   }
