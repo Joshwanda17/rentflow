@@ -293,7 +293,7 @@ export default function StaffDirectory() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div>{rows.find((a) => a.is_primary)?.role_title || rows[0]?.role_title || '—'}</div>
+                            <div>{rows.find((a) => a.is_primary)?.position_title || rows[0]?.position_title || '—'}</div>
                             <div className="text-xs text-muted-foreground">
                               {rows.find((a) => a.is_primary)?.department_name || rows[0]?.department_name || '—'}
                               {rows.length > 1 && (
