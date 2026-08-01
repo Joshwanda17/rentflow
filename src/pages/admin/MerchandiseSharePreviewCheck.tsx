@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, XCircle, ExternalLink, Copy } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatUGX } from '@/lib/currency';
+import { formatUGX } from '@/lib/rentCalculations';
 
 type CatalogItem = {
   id: string;
