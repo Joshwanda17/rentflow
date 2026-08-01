@@ -182,6 +182,11 @@ export default function PayrollEnrollment() {
     return { total: rows.length, ready, incomplete: rows.length - ready };
   }, [rows]);
 
+  const bothApplyCount = useMemo(
+    () => rows.filter((r) => bothApply(r, periodCutOff)).length,
+    [rows, periodCutOff],
+  );
+
   const totals = useMemo(
     () =>
       rows.reduce(
