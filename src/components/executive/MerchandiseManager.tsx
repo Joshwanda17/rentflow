@@ -21,7 +21,7 @@ import {
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
   Repeat, CheckCircle2, CircleDollarSign, Store, ShoppingBag, Power,
   Upload, X, ChevronLeft, ChevronRight, ImageIcon,
-  Pencil,
+  Pencil, BarChart3,
 } from 'lucide-react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { optimizeImage } from '@/lib/imageOptimizer';
