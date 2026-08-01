@@ -26,7 +26,11 @@ Deno.serve(async (req) => {
   }
 
   const url = new URL(req.url);
-  const itemId = url.searchParams.get("id");
+  // Accept both ?id=<uuid> and the branded path form /merchandise/og/<uuid>
+  const pathId = url.pathname.split("/").filter(Boolean).pop() ?? "";
+  const itemId =
+    url.searchParams.get("id") ||
+    (/^[0-9a-f-]{16,}$/i.test(pathId) ? pathId : null);
   const source = url.searchParams.get("src");
   if (!itemId) {
     return new Response("Missing item id", { status: 400, headers: corsHeaders });
