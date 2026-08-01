@@ -66,6 +66,7 @@ function readableError(e: unknown, action: string): string {
 
 export default function StaffDirectory() {
   const [staff, setStaff] = useState<Employee[]>([]);
+  const [query, setQuery] = useState('');
   const [positions, setPositions] = useState<Position[]>([]);
   const [assignments, setAssignments] = useState<Record<string, ActiveAssignment[]>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -102,9 +103,25 @@ export default function StaffDirectory() {
     [positions],
   );
 
+  const visibleStaff = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return staff;
+    return staff.filter((s) =>
+      [s.full_name, s.staff_number, s.phone, s.email]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q)),
+    );
+  }, [staff, query]);
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search name, staff ref, phone or email"
+          className="h-9 w-full sm:max-w-xs"
+        />
         <Button size="sm" onClick={() => setOpen(true)}>
           <UserPlus className="h-4 w-4 mr-2" />
           Enroll staff member
@@ -128,6 +145,10 @@ export default function StaffDirectory() {
             <div className="p-6 text-sm text-muted-foreground">
               No one is enrolled in performance tracking yet.
             </div>
+          ) : visibleStaff.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">
+              No staff match that search.
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -135,6 +156,8 @@ export default function StaffDirectory() {
                   <TableRow>
                     <TableHead className="w-8" />
                     <TableHead>Ref</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Position</TableHead>
                     <TableHead>Department</TableHead>
@@ -144,7 +167,7 @@ export default function StaffDirectory() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {staff.map((s) => {
+                  {visibleStaff.map((s) => {
                     const rows = assignments[s.id] ?? [];
                     const isOpen = expanded[s.id] === true;
                     return (
@@ -168,6 +191,12 @@ export default function StaffDirectory() {
                             </button>
                           </TableCell>
                           <TableCell className="font-mono text-xs">{s.staff_number}</TableCell>
+                          <TableCell className="text-xs">
+                            {s.phone || <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-xs break-all">
+                            {s.email || <span className="text-muted-foreground">—</span>}
+                          </TableCell>
                           <TableCell className="font-medium">
                             {s.full_name || '—'}
                             {rows.length > 1 && (
@@ -198,7 +227,7 @@ export default function StaffDirectory() {
                         {isOpen && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableCell />
-                            <TableCell colSpan={7} className="py-3">
+                            <TableCell colSpan={9} className="py-3">
                               {rows.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                   No active positions for this person yet.

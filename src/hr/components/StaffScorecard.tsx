@@ -194,6 +194,7 @@ export default function StaffScorecard({ staffId }: Props) {
   const [thresholds, setThresholds] = useState<Record<string, MetricThreshold>>({});
   const [tasks, setTasks] = useState<Task[]>([]);
   const [trendMetricId, setTrendMetricId] = useState<string>('');
+  const [accountId, setAccountId] = useState<string | null>(null);
 
   const period = periods.find((p) => p.start === periodStart) ?? periods[0];
 
@@ -203,6 +204,7 @@ export default function StaffScorecard({ staffId }: Props) {
       const person = await getEmployee(staffId);
       setStaff(person);
       if (!person) {
+        setAccountId(null);
         setAssignment(null);
         setDefinitions([]);
         setSnapshots([]);
@@ -211,6 +213,14 @@ export default function StaffScorecard({ staffId }: Props) {
       }
 
       const oldest = periods[periods.length - 1];
+      // The enrolled account id comes from the hr_staff row itself, by id.
+      const staffRow = await supabase
+        .from('hr_staff')
+        .select('user_id')
+        .eq('id', staffId)
+        .maybeSingle();
+      setAccountId(((staffRow.data as { user_id?: string } | null)?.user_id) ?? null);
+
       const [assignmentsByStaff, defs, snaps, theirTasks, thresholdRows] = await Promise.all([
         getActiveAssignmentsByStaff(),
         getMetricDefinitions(person.current_assignment?.department_id),
@@ -361,6 +371,61 @@ export default function StaffScorecard({ staffId }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Identity — who this record is, and which account is paid */}
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Staff ref</p>
+              <p className="font-mono text-sm font-medium">{staff.staff_number || DASH}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Full name</p>
+              <p className="text-sm font-medium">{staff.full_name || DASH}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Phone</p>
+              <p className="text-sm font-medium">
+                {staff.phone || <span className="text-muted-foreground">{DASH}</span>}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Email</p>
+              <p className="text-sm font-medium break-all">
+                {staff.email || <span className="text-muted-foreground">{DASH}</span>}
+              </p>
+            </div>
+            <div className="lg:col-span-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Account id</p>
+              <p className="font-mono text-xs font-medium break-all">
+                {accountId || <span className="text-muted-foreground">{DASH}</span>}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Department</p>
+              <p className="text-sm font-medium">
+                {assignment?.department_name || staff.current_assignment?.department_name || DASH}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Position</p>
+              <p className="text-sm font-medium">
+                {assignment?.position_title || staff.current_assignment?.role_title || DASH}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Assignment started
+              </p>
+              <p className="text-sm font-medium">{assignment?.started_on || DASH}</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This staff record is linked to account {accountId || DASH}.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <Card>
         <CardContent className="flex flex-wrap items-start gap-x-8 gap-y-3 p-4">
