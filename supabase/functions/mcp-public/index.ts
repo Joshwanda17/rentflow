@@ -959,13 +959,728 @@ var find_available_houses_default = defineTool5({
   }
 });
 
+// src/lib/mcp-public/tools/check-eligibility.ts
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z6 } from "npm:zod@^4.4.3";
+
+// src/lib/mcp-public/roles.ts
+var ROLE_KEYS = ["tenant", "agent", "landlord", "supporter"];
+var MIN_MONTHLY_RENT = 1e4;
+var MAX_MONTHLY_RENT = 5e6;
+var MIN_SUPPORT_AMOUNT = 2e4;
+var MIN_AGE = 18;
+var AGE_REQUIREMENT = {
+  key: "age_18_plus",
+  label: `At least ${MIN_AGE} years old`,
+  detail: `You must be ${MIN_AGE} or older to hold a Welile account, because a national ID is required.`,
+  verified_in_app: true,
+  check: (d) => d.age == null ? void 0 : d.age >= MIN_AGE
+};
+var NATIONAL_ID_REQUIREMENT = {
+  key: "national_id",
+  label: "A Ugandan national ID",
+  detail: "Your national ID number is captured once and must be unique on Welile \u2014 it is the basis of your verified identity and your Welile Trust Score.",
+  verified_in_app: true,
+  check: (d) => d.has_national_id
+};
+var PHONE_REQUIREMENT = {
+  key: "phone_number",
+  label: "A working phone number",
+  detail: "Welile confirms your phone number by SMS and uses it for payment receipts and one-time codes, so it must be a line you control.",
+  verified_in_app: true,
+  check: (d) => d.has_phone
+};
+var MOBILE_MONEY_REQUIREMENT = {
+  key: "mobile_money",
+  label: "A mobile money account in your own names",
+  detail: "Payments and payouts move by mobile money (MTN or Airtel), so the registered names on the line must match your Welile profile.",
+  verified_in_app: false,
+  check: (d) => d.has_mobile_money
+};
+var BASE_REQUIREMENTS = [
+  AGE_REQUIREMENT,
+  NATIONAL_ID_REQUIREMENT,
+  PHONE_REQUIREMENT,
+  MOBILE_MONEY_REQUIREMENT
+];
+var ROLE_GUIDES = {
+  tenant: {
+    role: "tenant",
+    signup_role: "tenant",
+    headline: "Access rent with a flexible Rent Plan",
+    who_it_is_for: "Someone renting a home in Uganda who can repay in small, regular UGX amounts but cannot raise the full rent on the due date.",
+    requirements: [
+      ...BASE_REQUIREMENTS,
+      {
+        key: "residence_verified",
+        label: "A home an agent can verify",
+        detail: "A Welile agent confirms where you live (and your landlord) on the ground. Rent Plans are only issued for a verified residence.",
+        verified_in_app: true
+      },
+      {
+        key: "rent_in_range",
+        label: `Monthly rent between UGX ${MIN_MONTHLY_RENT.toLocaleString("en-US")} and UGX ${MAX_MONTHLY_RENT.toLocaleString("en-US")}`,
+        detail: "Rent Plans are sized to normal residential rent. Ask for a rent-access estimate to see an indicative daily amount for your rent.",
+        verified_in_app: false,
+        check: (d) => d.monthly_rent == null ? void 0 : d.monthly_rent >= MIN_MONTHLY_RENT && d.monthly_rent <= MAX_MONTHLY_RENT
+      },
+      {
+        key: "income_for_daily_repayment",
+        label: "Regular income for the daily repayment",
+        detail: "You repay a small amount over the plan length, so you need income that arrives regularly \u2014 daily, weekly, or monthly.",
+        verified_in_app: true
+      }
+    ],
+    steps: [
+      {
+        step: 1,
+        title: "Create a free tenant account",
+        what_you_do: "Sign up with your phone number and your real names as they appear on your national ID and mobile money line.",
+        what_to_bring: ["Phone number you control", "Your full legal names"],
+        typical_duration: "About 3 minutes"
+      },
+      {
+        step: 2,
+        title: "Confirm your phone by SMS",
+        what_you_do: "Enter the one-time code sent to your phone so receipts and codes can reach you.",
+        what_to_bring: ["Your phone, in hand"],
+        typical_duration: "Under a minute"
+      },
+      {
+        step: 3,
+        title: "Complete identity verification",
+        what_you_do: "Add your national ID number and a photo of the ID. This starts your Welile Trust Score.",
+        what_to_bring: ["Ugandan national ID"],
+        typical_duration: "About 5 minutes"
+      },
+      {
+        step: 4,
+        title: "Meet an agent and verify your home",
+        what_you_do: "A Welile agent visits your home, records the location, and links your landlord and house on the platform.",
+        what_to_bring: ["Your landlord's name and phone number", "Your rental agreement, if you have one"],
+        typical_duration: "One agent visit, usually within a few days"
+      },
+      {
+        step: 5,
+        title: "Request your Rent Plan",
+        what_you_do: "Your agent posts a rent request for your house. Welile reviews it and, once approved, pays your landlord directly.",
+        what_to_bring: ["Your agreed monthly rent amount"],
+        typical_duration: "Reviewed after the visit; timing varies"
+      },
+      {
+        step: 6,
+        title: "Repay in small amounts and build your score",
+        what_you_do: "Pay your daily or agreed instalment by mobile money or to your agent. Every on-time payment raises your Welile Trust Score and your future access.",
+        what_to_bring: ["Mobile money, or cash for your agent"],
+        typical_duration: "Over the length of your plan"
+      }
+    ],
+    disclaimers: [
+      "Meeting these requirements is not an approval \u2014 your Rent Plan is confirmed in the app after verification."
+    ]
+  },
+  agent: {
+    role: "agent",
+    signup_role: "agent",
+    headline: "Earn commission as a Welile field agent",
+    who_it_is_for: "Someone who knows their community well, can move around it daily, and wants to earn UGX commission by registering tenants, listing houses, and collecting rent.",
+    requirements: [
+      ...BASE_REQUIREMENTS,
+      {
+        key: "smartphone",
+        label: "A smartphone with internet",
+        detail: "All agent work \u2014 registrations, house photos, GPS-stamped visits, and collections \u2014 is recorded in the Welile app in the field.",
+        verified_in_app: false
+      },
+      {
+        key: "local_area",
+        label: "An area you can work daily",
+        detail: "You are assigned around where you live. Agents visit tenants and landlords in person, so you need to be present in that area.",
+        verified_in_app: true,
+        check: (d) => d.district == null ? void 0 : d.district.trim().length > 1
+      },
+      {
+        key: "field_verification",
+        label: "Willingness to be verified and supervised",
+        detail: "Agent work is accountable: visits are location-stamped, and your performance and collections are reviewed by Agent Operations.",
+        verified_in_app: true
+      }
+    ],
+    steps: [
+      {
+        step: 1,
+        title: "Create a free agent account",
+        what_you_do: "Sign up as an agent with your real names (at least two) and the phone number you will work with.",
+        what_to_bring: ["Phone number you control", "Your full legal names"],
+        typical_duration: "About 3 minutes"
+      },
+      {
+        step: 2,
+        title: "Verify your identity",
+        what_you_do: "Add your national ID and confirm your phone by SMS.",
+        what_to_bring: ["Ugandan national ID"],
+        typical_duration: "About 5 minutes"
+      },
+      {
+        step: 3,
+        title: "Get onboarded by Agent Operations",
+        what_you_do: "Complete agent orientation and have your working area confirmed. You are told exactly what each task pays before you start.",
+        what_to_bring: ["Smartphone with internet"],
+        typical_duration: "Usually within a few days of signing up"
+      },
+      {
+        step: 4,
+        title: "List houses and register landlords",
+        what_you_do: "Photograph and list available houses, register the landlord, and have them verified. Verified listings and landlords each earn a bonus in UGX.",
+        what_to_bring: ["Smartphone for photos and GPS", "Landlord's names and phone number"],
+        typical_duration: "Ongoing field work"
+      },
+      {
+        step: 5,
+        title: "Place tenants and post rent requests",
+        what_you_do: "Register verified tenants, place them in houses, and post rent requests for review. You earn a placement bonus when a tenant moves in.",
+        what_to_bring: ["Tenant's national ID details"],
+        typical_duration: "Ongoing field work"
+      },
+      {
+        step: 6,
+        title: "Collect rent and withdraw your commission",
+        what_you_do: "Collect daily repayments from your tenants and record each one in the app. Commission lands in your agent wallet, and you withdraw it to mobile money.",
+        what_to_bring: ["Mobile money line in your own names"],
+        typical_duration: "Commission is credited as you collect"
+      }
+    ],
+    disclaimers: [
+      "Agent earnings depend entirely on the work you do \u2014 nothing is a salary or a guaranteed amount.",
+      "Your exact commission rates, bonuses, and wallet balance are shown in the app once you sign in."
+    ]
+  },
+  landlord: {
+    role: "landlord",
+    signup_role: "landlord",
+    headline: "Guaranteed, on-time rent for your houses",
+    who_it_is_for: "Someone who owns or manages rental houses in Uganda and would rather receive rent on time than chase tenants each month.",
+    requirements: [
+      ...BASE_REQUIREMENTS,
+      {
+        key: "property_to_list",
+        label: "At least one rental house you control",
+        detail: "You must own the house or be the recognised manager of it. An agent verifies the house and your ownership on the ground.",
+        verified_in_app: true,
+        check: (d) => d.houses_to_list == null ? void 0 : d.houses_to_list >= 1
+      },
+      {
+        key: "local_confirmation",
+        label: "Local confirmation of the property",
+        detail: "Welile confirms the house through its agent network, and in many areas through the LC1 chairperson of the area.",
+        verified_in_app: true
+      },
+      {
+        key: "accept_platform_collection",
+        label: "Willingness to let Welile handle collection",
+        detail: "Welile collects from the tenant on your behalf and pays you, so rent arrives on schedule instead of in pieces.",
+        verified_in_app: false
+      }
+    ],
+    steps: [
+      {
+        step: 1,
+        title: "Create a free landlord account",
+        what_you_do: "Sign up as a landlord with your real names and your phone number.",
+        what_to_bring: ["Phone number you control", "Your full legal names"],
+        typical_duration: "About 3 minutes"
+      },
+      {
+        step: 2,
+        title: "Verify your identity",
+        what_you_do: "Add your national ID and confirm your phone by SMS.",
+        what_to_bring: ["Ugandan national ID"],
+        typical_duration: "About 5 minutes"
+      },
+      {
+        step: 3,
+        title: "List your house or houses",
+        what_you_do: "Add each house with its district, area, monthly rent in UGX, and photos. An agent can do this with you.",
+        what_to_bring: ["Photos of the house", "The monthly rent you charge", "District and area"],
+        typical_duration: "About 10 minutes per house"
+      },
+      {
+        step: 4,
+        title: "Have the house verified",
+        what_you_do: "A Welile agent visits and verifies the house and your ownership. Only verified houses can be matched to tenants.",
+        what_to_bring: ["Proof of ownership or management, if asked"],
+        typical_duration: "One agent visit, usually within a few days"
+      },
+      {
+        step: 5,
+        title: "Receive tenants and on-time rent",
+        what_you_do: "Welile matches verified tenants to your house, pays the rent for the plan, and collects from the tenant afterwards. You are paid to your mobile money.",
+        what_to_bring: ["Mobile money line in your own names"],
+        typical_duration: "Rent arrives on the agreed schedule"
+      }
+    ],
+    disclaimers: [
+      "Payment terms for each house are agreed in the app after the house is verified."
+    ]
+  },
+  supporter: {
+    role: "supporter",
+    signup_role: "supporter",
+    headline: "Support tenants and earn Returns",
+    who_it_is_for: "Someone with funds they can commit for a period, who wants those funds to help Ugandan tenants access rent and to earn periodic Returns in UGX.",
+    requirements: [
+      ...BASE_REQUIREMENTS,
+      {
+        key: "minimum_support",
+        label: `At least UGX ${MIN_SUPPORT_AMOUNT.toLocaleString("en-US")} to commit`,
+        detail: `Support is taken in units from UGX ${MIN_SUPPORT_AMOUNT.toLocaleString("en-US")}. You can add more later through a top-up.`,
+        verified_in_app: false,
+        check: (d) => d.support_amount == null ? void 0 : d.support_amount >= MIN_SUPPORT_AMOUNT
+      },
+      {
+        key: "funds_you_can_commit",
+        label: "Funds you can leave in place",
+        detail: "Your support funds real Rent Plans, so it is committed for a period. Withdrawing requires giving notice \u2014 it is not an instant-access savings account.",
+        verified_in_app: false
+      },
+      {
+        key: "understand_notice",
+        label: "Comfort with the notice period",
+        detail: "Exiting requires a notice period, during which Returns stop accruing. The exact notice and terms are shown in the app before you commit.",
+        verified_in_app: false
+      }
+    ],
+    steps: [
+      {
+        step: 1,
+        title: "Create a free Supporter account",
+        what_you_do: "Sign up as a Supporter with your real names and your phone number.",
+        what_to_bring: ["Phone number you control", "Your full legal names"],
+        typical_duration: "About 3 minutes"
+      },
+      {
+        step: 2,
+        title: "Verify your identity",
+        what_you_do: "Add your national ID and confirm your phone by SMS. Verification is required before funds are accepted.",
+        what_to_bring: ["Ugandan national ID"],
+        typical_duration: "About 5 minutes"
+      },
+      {
+        step: 3,
+        title: "Review the current terms",
+        what_you_do: "Read the Supporter terms in the app: the current reward rate, the cycle on which Returns are paid, and the notice period for exiting.",
+        what_to_bring: [],
+        typical_duration: "About 10 minutes"
+      },
+      {
+        step: 4,
+        title: "Deposit your support",
+        what_you_do: "Send your support amount by mobile money and submit the transaction ID, or hand cash to a verified agent and keep the receipt. Finance confirms every deposit.",
+        what_to_bring: [
+          `Mobile money with at least UGX ${MIN_SUPPORT_AMOUNT.toLocaleString("en-US")}`,
+          "The transaction ID of your payment"
+        ],
+        typical_duration: "Confirmed after finance verification"
+      },
+      {
+        step: 5,
+        title: "Track your portfolio and Returns",
+        what_you_do: "Watch your portfolio in the app: Returns accrue on the stated cycle, and you choose to take them out or reinvest them.",
+        what_to_bring: [],
+        typical_duration: "Returns accrue on the stated cycle"
+      }
+    ],
+    disclaimers: [
+      "Returns are not a guarantee \u2014 rates and terms are shown in the app and can change.",
+      "Terminology: Supporter, not lender; Returns, not interest."
+    ]
+  }
+};
+function matchRole(input) {
+  const term = (input ?? "").trim().toLowerCase();
+  if (!term) return null;
+  const exact = ROLE_KEYS.find((r) => r === term);
+  if (exact) return exact;
+  const aliases = {
+    tenant: ["tenant", "renter", "rent", "rent plan", "pay rent", "occupant"],
+    agent: ["agent", "field", "commission", "work", "job", "collector", "sales"],
+    landlord: ["landlord", "landlady", "owner", "house owner", "property", "rentals"],
+    supporter: ["supporter", "support", "invest", "investor", "funder", "returns", "lender"]
+  };
+  for (const role of ROLE_KEYS) {
+    if (aliases[role].some((a) => term.includes(a))) return role;
+  }
+  return null;
+}
+
+// src/lib/mcp-public/tools/check-eligibility.ts
+function evaluate(req, declared) {
+  const verdict = req.check?.(declared);
+  if (verdict === true) return "met";
+  if (verdict === false) return "not_met";
+  return "to_confirm";
+}
+var STATUS_MARK = {
+  met: "\u2713",
+  not_met: "\u2717",
+  to_confirm: "\u2022"
+};
+function rangesFor(role, declared) {
+  const ranges = [];
+  if (role === "tenant") {
+    ranges.push(
+      spanRange("Monthly rent Welile plans cover", "eligible_monthly_rent", MIN_MONTHLY_RENT, MAX_MONTHLY_RENT, "UGX_per_month", {
+        unit: "months",
+        value: 1
+      })
+    );
+    if (declared.monthly_rent != null) {
+      ranges.push(
+        pointRange("Monthly rent you gave", "declared_monthly_rent", declared.monthly_rent, "UGX_per_month", {
+          unit: "months",
+          value: 1
+        })
+      );
+    }
+  }
+  if (role === "supporter") {
+    ranges.push(pointRange("Minimum support amount", "minimum_support_amount", MIN_SUPPORT_AMOUNT));
+    if (declared.support_amount != null) {
+      ranges.push(pointRange("Amount you gave", "declared_support_amount", declared.support_amount));
+    }
+  }
+  return ranges;
+}
+var check_eligibility_default = defineTool6({
+  name: "check_eligibility",
+  title: "Check eligibility for a Welile role",
+  description: "Answer a prospective user's eligibility question \u2014 'can I be a Welile agent?', 'do I qualify for a Rent Plan?', 'can I become a Supporter?', 'can I list my house?' \u2014 by returning the requirement checklist for that role plus the free role-targeted signup link. No sign-in required. Optionally pass what the user has told you (age, has_national_id, has_phone, has_mobile_money, district, monthly_rent in UGX, support_amount in UGX, houses_to_list) and each requirement comes back marked met / not_met / to_confirm. This is a general checklist, NEVER an approval: real eligibility is confirmed in the app after verification. Omit `role` to get the requirements for all four roles. Amounts are UGX.",
+  inputSchema: {
+    role: z6.string().describe(
+      "Role to check: tenant, agent, landlord, or supporter \u2014 or free text like 'I want to collect rent'. Omit to compare all four."
+    ).optional(),
+    age: z6.number().describe("The user's age in years, if they gave it.").optional(),
+    has_national_id: z6.boolean().describe("Whether they hold a Ugandan national ID.").optional(),
+    has_phone: z6.boolean().describe("Whether they have a phone number they control.").optional(),
+    has_mobile_money: z6.boolean().describe("Whether they have a mobile money account registered in their own names.").optional(),
+    district: z6.string().describe("District or area they live/work in, if given.").optional(),
+    monthly_rent: z6.number().describe("Tenant only: their monthly rent in UGX.").optional(),
+    support_amount: z6.number().describe("Supporter only: the amount in UGX they can commit.").optional(),
+    houses_to_list: z6.number().describe("Landlord only: how many rental houses they control.").optional(),
+    referral_code: z6.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (input) => {
+    const limited = await enforceRateLimit("check_eligibility");
+    if (limited) return limited;
+    const { role, referral_code, ...rest } = input;
+    const declared = {
+      age: rest.age,
+      has_national_id: rest.has_national_id,
+      has_phone: rest.has_phone,
+      has_mobile_money: rest.has_mobile_money,
+      district: rest.district,
+      monthly_rent: rest.monthly_rent,
+      support_amount: rest.support_amount,
+      houses_to_list: rest.houses_to_list
+    };
+    const declaredGiven = Object.entries(declared).filter(([, v]) => v != null && v !== "").map(([k]) => k);
+    const matched = matchRole(role);
+    if (!matched) {
+      const roles = ROLE_KEYS.map((key) => {
+        const guide2 = ROLE_GUIDES[key];
+        const { signupUrl: signupUrl3, landingUrl: landingUrl3 } = buildSignupLinks({
+          referralCode: referral_code,
+          role: guide2.signup_role
+        });
+        return {
+          role: key,
+          headline: guide2.headline,
+          who_it_is_for: guide2.who_it_is_for,
+          requirement_count: guide2.requirements.length,
+          key_requirements: guide2.requirements.slice(0, 4).map((r) => r.label),
+          landing_url: landingUrl3,
+          signup_url: signupUrl3
+        };
+      });
+      const { signupUrl: signupUrl2, landingUrl: landingUrl2 } = buildSignupLinks({ referralCode: referral_code });
+      return publicToolResult({
+        tool: "check_eligibility",
+        kind: "info",
+        summary: `Welile has ${roles.length} roles you can join \u2014 everyone needs a Ugandan national ID, a phone number, and mobile money in their own names; the rest depends on the role.`,
+        body: [
+          roles.map((r) => `${r.role.toUpperCase()} \u2014 ${r.headline}
+    ${r.who_it_is_for}`).join("\n\n")
+        ],
+        assumptions: [
+          "No role was given, so the shared requirements and all four roles are listed.",
+          "All amounts on Welile are in Ugandan Shillings (UGX)."
+        ],
+        data: { matched_role: null, roles, declared_fields: declaredGiven },
+        disclaimers: [
+          "This is a general checklist, not an eligibility decision. Eligibility is confirmed in the app after verification."
+        ],
+        next_steps: ROLE_KEYS.map((r) => `Ask: "Am I eligible to be a Welile ${r}?"`),
+        links: { landing_url: landingUrl2, signup_url: signupUrl2 }
+      });
+    }
+    const guide = ROLE_GUIDES[matched];
+    const checklist = guide.requirements.map((req) => {
+      const status = evaluate(req, declared);
+      return {
+        key: req.key,
+        label: req.label,
+        detail: req.detail,
+        status,
+        verified_in_app: req.verified_in_app
+      };
+    });
+    const met = checklist.filter((c) => c.status === "met");
+    const notMet = checklist.filter((c) => c.status === "not_met");
+    const toConfirm = checklist.filter((c) => c.status === "to_confirm");
+    const verdict = notMet.length ? "blocked_for_now" : declaredGiven.length ? "nothing_blocking_so_far" : "requirements_listed";
+    const summary = notMet.length ? `Based on what you've told me, ${notMet.length} requirement${notMet.length === 1 ? "" : "s"} for the Welile ${matched} role ${notMet.length === 1 ? "is" : "are"} not met yet \u2014 the rest can still be confirmed when you sign up.` : declaredGiven.length ? `Nothing in what you've told me blocks you from the Welile ${matched} role \u2014 ${met.length} of ${checklist.length} requirement${checklist.length === 1 ? "" : "s"} already look met, and the rest are confirmed in the app.` : `To join Welile as a ${matched} you need ${checklist.length} things \u2014 all confirmed in the app after you sign up free.`;
+    const body = [
+      `${guide.headline}
+${guide.who_it_is_for}`,
+      checklist.map(
+        (c) => `${STATUS_MARK[c.status]} ${c.label}${c.status === "not_met" ? " \u2014 not met yet" : c.status === "to_confirm" ? " \u2014 to confirm" : ""}
+    ${c.detail}`
+      ).join("\n")
+    ];
+    if (matched === "tenant" && declared.monthly_rent != null) {
+      body.push(
+        `You gave a monthly rent of ${ugx(declared.monthly_rent)}. Ask for a rent-access estimate to see an indicative daily amount for it.`
+      );
+    }
+    if (matched === "supporter" && declared.support_amount != null) {
+      body.push(
+        `You gave a support amount of ${ugx(declared.support_amount)} (minimum ${ugx(MIN_SUPPORT_AMOUNT)}). Ask for a Supporter Returns illustration to see how that could grow.`
+      );
+    }
+    const ranges = rangesFor(matched, declared);
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
+      referralCode: referral_code,
+      role: guide.signup_role
+    });
+    return publicToolResult({
+      tool: "check_eligibility",
+      kind: "info",
+      summary,
+      body,
+      assumptions: [
+        declaredGiven.length ? `Marked against what you told me: ${declaredGiven.join(", ")}. Everything else is left to confirm.` : "Nothing was declared about the user, so every requirement is listed as something to confirm.",
+        "Self-declared facts are taken at face value here \u2014 Welile verifies them in the app.",
+        "All amounts on Welile are in Ugandan Shillings (UGX)."
+      ],
+      estimates: ranges.length ? {
+        basis: "Programme thresholds published for this role, plus any amount the user gave.",
+        confidence: "indicative",
+        currency: "UGX",
+        ranges
+      } : null,
+      data: {
+        matched_role: matched,
+        verdict,
+        headline: guide.headline,
+        who_it_is_for: guide.who_it_is_for,
+        requirements: checklist,
+        counts: { met: met.length, not_met: notMet.length, to_confirm: toConfirm.length },
+        declared_fields: declaredGiven,
+        onboarding_step_count: guide.steps.length
+      },
+      disclaimers: [
+        "This is a general checklist, not an eligibility decision or an approval. Eligibility is confirmed in the app after verification.",
+        ...guide.disclaimers
+      ],
+      next_steps: [
+        notMet.length ? `Sort out: ${notMet.map((c) => c.label.toLowerCase()).join("; ")} \u2014 then sign up free as a ${matched}.` : `Create a free ${matched} account to be verified and confirmed.`,
+        `Ask: "What are the steps to become a Welile ${matched}?" for the full step-by-step onboarding.`
+      ],
+      links: {
+        landing_url: landingUrl,
+        signup_url: signupUrl,
+        referral_url: referralUrl,
+        role: guide.signup_role
+      }
+    });
+  }
+});
+
+// src/lib/mcp-public/tools/onboarding-steps.ts
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z7 } from "npm:zod@^4.4.3";
+var onboarding_steps_default = defineTool7({
+  name: "get_onboarding_steps",
+  title: "Step-by-step Welile onboarding",
+  description: "Return the step-by-step onboarding walkthrough for a Welile role \u2014 'how do I become an agent?', 'what are the steps to get a Rent Plan?', 'how do I start supporting tenants?', 'how do I list my house?'. No sign-in required. Each step says what the user does, what to bring (national ID, photos, mobile money, transaction ID\u2026), and how long it typically takes, plus the free role-targeted signup link. Pass `role` (tenant, agent, landlord, supporter \u2014 or free text) and optionally `step` (1-based) to zoom into one step. Omit `role` to list what each role's onboarding involves. Amounts are UGX; timings are typical, not guaranteed.",
+  inputSchema: {
+    role: z7.string().describe(
+      "Role to onboard: tenant, agent, landlord, or supporter \u2014 or free text like 'I want to earn commission'. Omit to compare all four."
+    ).optional(),
+    step: z7.number().describe("Optional 1-based step number to expand on a single step of that role's onboarding.").optional(),
+    referral_code: z7.string().describe("Optional referral code (the referrer's Welile user id) to build a referral signup link.").optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ role, step, referral_code }) => {
+    const limited = await enforceRateLimit("get_onboarding_steps");
+    if (limited) return limited;
+    const matched = matchRole(role);
+    if (!matched) {
+      const paths = ROLE_KEYS.map((key) => {
+        const guide2 = ROLE_GUIDES[key];
+        const { signupUrl: signupUrl3, landingUrl: landingUrl3 } = buildSignupLinks({
+          referralCode: referral_code,
+          role: guide2.signup_role
+        });
+        return {
+          role: key,
+          headline: guide2.headline,
+          step_count: guide2.steps.length,
+          steps: guide2.steps.map((s) => s.title),
+          landing_url: landingUrl3,
+          signup_url: signupUrl3
+        };
+      });
+      const { signupUrl: signupUrl2, landingUrl: landingUrl2 } = buildSignupLinks({ referralCode: referral_code });
+      return publicToolResult({
+        tool: "get_onboarding_steps",
+        kind: "info",
+        summary: "Every Welile role starts the same way \u2014 sign up free, confirm your phone, verify your national ID \u2014 then the path differs by role.",
+        body: [
+          paths.map((p) => `${p.role.toUpperCase()} (${p.step_count} steps) \u2014 ${p.headline}
+    ${p.steps.join(" \u2192 ")}`).join("\n\n")
+        ],
+        assumptions: [
+          "No role was given, so the outline of all four onboarding paths is shown.",
+          "Step timings are typical, not guaranteed."
+        ],
+        data: { matched_role: null, paths },
+        next_steps: ROLE_KEYS.map((r) => `Ask: "What are the steps to become a Welile ${r}?"`),
+        links: { landing_url: landingUrl2, signup_url: signupUrl2 }
+      });
+    }
+    const guide = ROLE_GUIDES[matched];
+    const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({
+      referralCode: referral_code,
+      role: guide.signup_role
+    });
+    const links = {
+      landing_url: landingUrl,
+      signup_url: signupUrl,
+      referral_url: referralUrl,
+      role: guide.signup_role
+    };
+    if (step != null) {
+      const wanted = Math.round(step);
+      const one = guide.steps.find((s) => s.step === wanted);
+      if (!one) {
+        return publicToolResult({
+          tool: "get_onboarding_steps",
+          summary: `Welile ${matched} onboarding has ${guide.steps.length} steps, so there is no step ${wanted}. Ask for a step between 1 and ${guide.steps.length}.`,
+          data: {
+            matched_role: matched,
+            step_count: guide.steps.length,
+            steps: guide.steps.map((s) => ({ step: s.step, title: s.title }))
+          },
+          next_steps: [`Ask: "Step 1 of becoming a Welile ${matched}"`],
+          links,
+          error: {
+            code: "step_out_of_range",
+            message: `Step must be between 1 and ${guide.steps.length}.`,
+            details: { requested_step: wanted, step_count: guide.steps.length }
+          }
+        });
+      }
+      const nextStep = guide.steps.find((s) => s.step === one.step + 1) ?? null;
+      return publicToolResult({
+        tool: "get_onboarding_steps",
+        kind: "info",
+        summary: `Step ${one.step} of ${guide.steps.length} to become a Welile ${matched}: ${one.title}.`,
+        body: [
+          one.what_you_do,
+          one.what_to_bring.length ? `What to bring:
+${one.what_to_bring.map((b) => `    \u2022 ${b}`).join("\n")}` : "Nothing to bring for this step.",
+          `Typically takes: ${one.typical_duration}.`
+        ],
+        assumptions: [
+          "Step timings are typical, not guaranteed.",
+          "All amounts on Welile are in Ugandan Shillings (UGX)."
+        ],
+        data: {
+          matched_role: matched,
+          step: one,
+          step_count: guide.steps.length,
+          next_step: nextStep ? { step: nextStep.step, title: nextStep.title } : null
+        },
+        disclaimers: guide.disclaimers,
+        next_steps: nextStep ? [`Ask: "Step ${nextStep.step} of becoming a Welile ${matched}" \u2014 ${nextStep.title}.`] : [`Create a free ${matched} account and start at step 1.`],
+        links
+      });
+    }
+    const bring = Array.from(new Set(guide.steps.flatMap((s) => s.what_to_bring)));
+    return publicToolResult({
+      tool: "get_onboarding_steps",
+      kind: "info",
+      summary: `Becoming a Welile ${matched} takes ${guide.steps.length} steps: ${guide.steps.map((s) => s.title.toLowerCase()).join(" \u2192 ")}.`,
+      body: [
+        `${guide.headline}
+${guide.who_it_is_for}`,
+        guide.steps.map(
+          (s) => `Step ${s.step} \u2014 ${s.title}
+    ${s.what_you_do}${s.what_to_bring.length ? `
+    Bring: ${s.what_to_bring.join(", ")}` : ""}
+    Typically: ${s.typical_duration}`
+        ).join("\n\n"),
+        bring.length ? `Have these ready before you start:
+${bring.map((b) => `    \u2022 ${b}`).join("\n")}` : ""
+      ],
+      assumptions: [
+        "Step timings are typical and depend on agent availability in your area \u2014 they are not guaranteed.",
+        "All amounts on Welile are in Ugandan Shillings (UGX)."
+      ],
+      estimates: {
+        basis: "Number of onboarding steps published for this role.",
+        confidence: "actual",
+        currency: "UGX",
+        ranges: [pointRange(`Onboarding steps for a ${matched}`, "onboarding_step_count", guide.steps.length, "count")]
+      },
+      data: {
+        matched_role: matched,
+        headline: guide.headline,
+        who_it_is_for: guide.who_it_is_for,
+        step_count: guide.steps.length,
+        steps: guide.steps,
+        bring_checklist: bring
+      },
+      disclaimers: [
+        "Completing these steps is not an approval \u2014 Welile confirms verification and terms in the app.",
+        ...guide.disclaimers
+      ],
+      next_steps: [
+        `Create a free ${matched} account and complete step 1 now.`,
+        `Ask: "Am I eligible to be a Welile ${matched}?" to check the requirements first.`
+      ],
+      links
+    });
+  }
+});
+
 // src/lib/mcp-public/index.ts
 var mcp_public_default = defineMcp({
   name: "welile-public-mcp",
   title: "Welile Receipts \u2014 Get Started",
   version: "0.1.0",
-  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Use `estimate_rent_access` when a prospective tenant gives a monthly rent (UGX) to return an indicative daily/total repayment ballpark plus the free tenant signup link \u2014 the figure is illustrative only, not an approval. Use `estimate_supporter_returns` when a prospective Supporter gives an amount (UGX) to return an illustrative Returns range (simple to compounding, at 15% monthly platform rewards) plus the free Supporter signup link \u2014 an illustration only, not a guarantee. Use `find_available_houses` to return a small read-only sample of available house listings by district/area (public, non-sensitive fields only) plus the free tenant signup link to view details and apply. Personal figures require signing in, so always offer the relevant signup link. All amounts are in UGX.",
-  tools: [how_welile_works_default, explore_welile_default, estimate_rent_access_default, estimate_supporter_returns_default, find_available_houses_default]
+  instructions: "Public information about Welile Receipts for prospective users \u2014 no account required. Use `how_welile_works` for FAQs and a free signup link. Use `explore_welile` to answer read-only 'what can I do' questions and offer guided prompts such as 'Check my rent access', 'See agent commissions', 'See supporter Returns', 'Get guaranteed rent as a landlord', and 'Check my Welile Trust Score' \u2014 each returns a role-targeted signup link that turns the question into an account. Use `check_eligibility` for any 'can I / do I qualify' question (tenant, agent, landlord, Supporter): it returns that role's requirement checklist and, if the user has told you facts like their age, whether they hold a national ID or mobile money, their district, their monthly rent (UGX), the amount they can support (UGX), or how many houses they control, marks each requirement met / not_met / to_confirm \u2014 it is a checklist, never an approval. Use `get_onboarding_steps` for any 'how do I start / what are the steps' question: it returns the numbered walkthrough for that role with what to do, what to bring, and typical timings, and accepts a `step` number to expand one step. Use `estimate_rent_access` when a prospective tenant gives a monthly rent (UGX) to return an indicative daily/total repayment ballpark plus the free tenant signup link \u2014 the figure is illustrative only, not an approval. Use `estimate_supporter_returns` when a prospective Supporter gives an amount (UGX) to return an illustrative Returns range (simple to compounding, at 15% monthly platform rewards) plus the free Supporter signup link \u2014 an illustration only, not a guarantee. Use `find_available_houses` to return a small read-only sample of available house listings by district/area (public, non-sensitive fields only) plus the free tenant signup link to view details and apply. Personal figures require signing in, so always offer the relevant signup link. Every tool returns the same JSON envelope (summary, assumptions, estimates, data, disclaimers, next_steps, links); always pass on the disclaimers. All amounts are in UGX.",
+  tools: [
+    how_welile_works_default,
+    explore_welile_default,
+    check_eligibility_default,
+    onboarding_steps_default,
+    estimate_rent_access_default,
+    estimate_supporter_returns_default,
+    find_available_houses_default
+  ]
 });
 
 // lovable-mcp-supabase-entry.ts
