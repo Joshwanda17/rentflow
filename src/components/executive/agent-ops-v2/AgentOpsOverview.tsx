@@ -19,6 +19,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { AgentRentCapacityPanel } from '../AgentRentCapacityPanel';
+import { AdvancesSnapshotCard } from './AdvancesSnapshotCard';
 
 
 
@@ -190,6 +191,9 @@ export function AgentOpsOverview({ onOpenSection }: AgentOpsOverviewProps) {
           ))}
         </div>
       </div>
+
+      {/* Agent advances — pending requests, exposure, recovery + direct links */}
+      <AdvancesSnapshotCard range={range} onOpenSection={onOpenSection} />
 
       {/* Row A — network KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
