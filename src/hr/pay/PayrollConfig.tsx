@@ -494,6 +494,8 @@ export default function PayrollConfig() {
           )}
         </CardContent>
       </Card>
+
+      <PayrollScheduleSection />
     </HRPlaceholderPage>
   );
 }
