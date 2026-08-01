@@ -52,6 +52,99 @@ export interface DocTypeRow {
   requires_expiry: boolean;
 }
 
+export interface DocumentRow {
+  id: string;
+  title: string;
+  doc_type_id: string;
+  doc_type_name: string | null;
+  staff_id: string | null;
+  counterparty: string | null;
+  storage_path: string;
+  version: number;
+  uploaded_at: string;
+}
+
+const DOCUMENTS_BUCKET = 'hr-documents';
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Uploads one file to the private `hr-documents` bucket and records it in
+ * `hr_documents`. A superseding version is a new row, never a replacement.
+ */
+export async function uploadDocument(
+  file: File,
+  docTypeId: string,
+  title: string,
+  staffId: string | null,
+  counterparty: string | null,
+): Promise<DocumentRow> {
+  // Size gate runs before any network call.
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    throw new Error(
+      'Files over 10 MB cannot be stored here. Use a link to shared storage instead.',
+    );
+  }
+
+  const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+  const storagePath = `${staffId ?? 'counterparty'}/${Date.now()}-${safeName}`;
+
+  const upload = await supabase.storage
+    .from(DOCUMENTS_BUCKET)
+    .upload(storagePath, file, { contentType: file.type || undefined, upsert: false });
+  if (upload.error) throw new Error(upload.error.message);
+
+  const res = await supabase
+    .from('hr_documents')
+    .insert({
+      staff_id: staffId,
+      counterparty: staffId ? null : counterparty,
+      doc_type_id: docTypeId,
+      title,
+      storage_path: storagePath,
+      version: 1,
+    })
+    .select('id, title, doc_type_id, staff_id, counterparty, storage_path, version, uploaded_at')
+    .single();
+  const row = unwrap(res) as Omit<DocumentRow, 'doc_type_name'>;
+  return { ...row, doc_type_name: null };
+}
+
+/** Documents belonging to one owner, newest first. */
+export async function listDocuments(
+  staffId: string | null,
+  counterparty: string | null,
+): Promise<DocumentRow[]> {
+  let query = supabase
+    .from('hr_documents')
+    .select(
+      'id, title, doc_type_id, staff_id, counterparty, storage_path, version, uploaded_at, doc_type:hr_doc_types!doc_type_id(name)',
+    )
+    .order('uploaded_at', { ascending: false });
+
+  if (staffId) query = query.eq('staff_id', staffId);
+  else if (counterparty) query = query.eq('counterparty', counterparty);
+  else return [];
+
+  const raw = ((unwrap(await query) ?? []) as unknown) as (Omit<DocumentRow, 'doc_type_name'> & {
+    doc_type: { name: string } | null;
+  })[];
+
+  return raw.map(({ doc_type, ...rest }) => ({
+    ...rest,
+    doc_type_name: doc_type?.name ?? null,
+  }));
+}
+
+/** Short-lived signed URL. The bucket is private, so never a public URL. */
+export async function getDocumentUrl(storagePath: string): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from(DOCUMENTS_BUCKET)
+    .createSignedUrl(storagePath, 60);
+  if (error) throw new Error(error.message);
+  if (!data?.signedUrl) throw new Error('Could not sign that document link.');
+  return data.signedUrl;
+}
+
 export interface NewContractFields {
   contractType: string;
   title: string;
