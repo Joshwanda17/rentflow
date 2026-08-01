@@ -691,9 +691,7 @@ function ContractDetailDialog({
               />
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Document upload arrives in the next change.
-            </p>
+            <ContractDocuments contract={contract} onLinked={onSaved} />
 
             <div className="space-y-1 border-t pt-3">
               <Label htmlFor="detail-status">Signature status</Label>
