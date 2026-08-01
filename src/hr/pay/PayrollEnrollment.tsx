@@ -489,7 +489,7 @@ export default function PayrollEnrollment() {
                     <TableHead className="text-right">Part-month</TableHead>
                     <TableHead className="text-right">Allowances</TableHead>
                     <TableHead className="text-right">Deductions</TableHead>
-                    <TableHead className="text-right">Gross</TableHead>
+                    <TableHead className="text-right">Gross on record</TableHead>
                     <TableHead>Effective from</TableHead>
                     <TableHead>PAYE</TableHead>
                     <TableHead>NSSF</TableHead>
