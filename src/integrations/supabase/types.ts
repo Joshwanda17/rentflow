@@ -31837,6 +31837,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      hr_pay_set_statutory_ids: {
+        Args: {
+          _lst_district: string
+          _nssf: string
+          _staff_id: string
+          _tin: string
+        }
+        Returns: string
+      }
       hr_pay_set_statutory_profile: {
         Args: {
           _basis: string
