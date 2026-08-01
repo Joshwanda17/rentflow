@@ -10742,6 +10742,117 @@ export type Database = {
           },
         ]
       }
+      hr_pay_advance_recoveries: {
+        Row: {
+          advance_id: string
+          amount: number
+          created_at: string
+          id: string
+          run_id: string
+        }
+        Insert: {
+          advance_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          run_id: string
+        }
+        Update: {
+          advance_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_advance_recoveries_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_advances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_advance_recoveries_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_pay_advances: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_position_id: string | null
+          created_at: string
+          currency: string
+          decision_note: string | null
+          first_recovery_on: string
+          id: string
+          principal: number
+          purpose: string
+          recovery_mode: string
+          recovery_value: number
+          requested_at: string
+          requested_by: string | null
+          staff_id: string
+          status: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_position_id?: string | null
+          created_at?: string
+          currency?: string
+          decision_note?: string | null
+          first_recovery_on: string
+          id?: string
+          principal: number
+          purpose: string
+          recovery_mode?: string
+          recovery_value: number
+          requested_at?: string
+          requested_by?: string | null
+          staff_id: string
+          status?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_position_id?: string | null
+          created_at?: string
+          currency?: string
+          decision_note?: string | null
+          first_recovery_on?: string
+          id?: string
+          principal?: number
+          purpose?: string
+          recovery_mode?: string
+          recovery_value?: number
+          requested_at?: string
+          requested_by?: string | null
+          staff_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_pay_advances_approved_position_id_fkey"
+            columns: ["approved_position_id"]
+            isOneToOne: false
+            referencedRelation: "hr_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_pay_advances_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "hr_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_pay_authorities: {
         Row: {
           changed_by: string | null
@@ -31525,6 +31636,21 @@ export type Database = {
         }[]
       }
       hr_my_staff_id: { Args: never; Returns: string }
+      hr_pay_advance_due: {
+        Args: { _gross: number; _run_id: string; _staff_id: string }
+        Returns: number
+      }
+      hr_pay_correct_compensation: {
+        Args: {
+          _amount: number
+          _component_id: string
+          _effective_from: string
+          _grade_id?: string
+          _reason: string
+          _staff_id: string
+        }
+        Returns: string
+      }
       hr_pay_cost_by_department: {
         Args: { _period_code?: string }
         Returns: {
