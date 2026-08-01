@@ -715,8 +715,17 @@ export default function PayrollEnrollment() {
                                 : '••••••'}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm tabular-nums">
-                          {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => void openAllowances(row)}
+                            className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
+                          >
+                            {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
+                          </button>
+                          <span className="hidden font-mono text-sm tabular-nums print:inline">
+                            {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <button
