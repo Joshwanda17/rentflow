@@ -618,6 +618,16 @@ export default function PayrollEnrollment() {
         </Card>
       </div>
 
+      <p
+        className={
+          idsComplete < counts.total
+            ? 'text-sm font-medium text-amber-600'
+            : 'text-sm font-medium text-muted-foreground'
+        }
+      >
+        Statutory IDs complete: {idsComplete} of {counts.total}
+      </p>
+
       {bothApplyCount > 0 ? (
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -654,13 +664,14 @@ export default function PayrollEnrollment() {
                     <TableHead>NSSF</TableHead>
                     <TableHead>LST</TableHead>
                     <TableHead>Basis</TableHead>
+                    <TableHead>Statutory IDs</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={16} className="p-6 text-sm text-muted-foreground">
+                      <TableCell colSpan={17} className="p-6 text-sm text-muted-foreground">
                         No active staff members.
                       </TableCell>
                     </TableRow>
@@ -816,6 +827,38 @@ export default function PayrollEnrollment() {
                         >
                           {row.exemptionBasis || '—'}
                         </TableCell>
+                        <TableCell
+                          className="cursor-pointer"
+                          onClick={() => openIds(row)}
+                          title="Statutory identifiers"
+                        >
+                          <div className="flex items-center gap-2 text-[11px]">
+                            {(
+                              [
+                                ['TIN', row.tin],
+                                ['NSSF', row.nssfNumber],
+                                ['LST', row.lstDistrict],
+                              ] as const
+                            ).map(([label, value]) => (
+                              <span key={label} className="inline-flex items-center gap-0.5">
+                                <span className="text-muted-foreground">{label}</span>
+                                {value ? (
+                                  <Check
+                                    className="h-3.5 w-3.5 text-emerald-600"
+                                    aria-label={`${label} present`}
+                                  />
+                                ) : (
+                                  <span
+                                    className="text-destructive/70"
+                                    aria-label={`${label} missing`}
+                                  >
+                                    –
+                                  </span>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {isReady(row) ? (
                             <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
@@ -872,7 +915,7 @@ export default function PayrollEnrollment() {
                     <TableCell className="text-right font-mono tabular-nums">
                       {reveal ? formatAmount(totals.gross) : '••••••'}
                     </TableCell>
-                    <TableCell colSpan={6} />
+                    <TableCell colSpan={7} />
                   </TableRow>
                 </TableFooter>
               </Table>
