@@ -1,10 +1,94 @@
+import "../_shared/smsFooterInterceptor.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { attemptYoolaPrimary } from "../_shared/yoolaPrimary.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+// ── SMS helper — mirrors platform-expense-transfer: Yoola first, then
+// Africa's Talking, with every attempt logged to public.sms_delivery_log.
+function formatPhoneInternational(phone: string): string {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return digits ? `+${digits}` : "";
+}
+function isUgandanPhone(phone: string): boolean {
+  const f = formatPhoneInternational(phone);
+  return f.startsWith("+256") && f.length >= 13;
+}
+async function logSmsDelivery(row: Record<string, unknown>): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(url, key);
+    await admin.from("sms_delivery_log").insert(row);
+  } catch (e) {
+    console.error("[hr-pay-release] sms_delivery_log insert failed:", (e as Error).message);
+  }
+}
+async function sendSMS(
+  phone: string,
+  message: string,
+  meta: { recipientUserId?: string | null; recipientName?: string | null; referenceId?: string | null } = {},
+): Promise<boolean> {
+  if (await attemptYoolaPrimary(phone, message, { source: "hr-pay-release" })) return true;
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  const baseRow = {
+    recipient_phone: formatPhoneInternational(phone) || phone,
+    recipient_user_id: meta.recipientUserId ?? null,
+    recipient_name: meta.recipientName ?? null,
+    message,
+    reference_id: meta.referenceId ?? null,
+    source: "hr-pay-release",
+    provider: "africastalking",
+  };
+  if (!apiKey || !username) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: "Missing Africa's Talking credentials" });
+    return false;
+  }
+  if (!isUgandanPhone(phone)) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: "Invalid/non-Ugandan phone number" });
+    return false;
+  }
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  try {
+    const body = new URLSearchParams({
+      username,
+      to: formatPhoneInternational(phone),
+      message,
+    });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", apiKey, Accept: "application/json" },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    const recipient = (data?.SMSMessageData?.Recipients || [])[0];
+    const success = recipient?.statusCode === 101 || recipient?.statusCode === 100;
+    await logSmsDelivery({
+      ...baseRow,
+      status: success ? "sent" : "failed",
+      provider_message_id: recipient?.messageId ?? null,
+      cost: recipient?.cost ?? null,
+      provider_response: data ?? null,
+      error: success ? null : (recipient?.status ?? data?.SMSMessageData?.Message ?? "Provider rejected message"),
+    });
+    return success;
+  } catch (err) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: (err as Error).message });
+    console.error("[hr-pay-release] SMS error:", err);
+    return false;
+  }
+}
 
 const json = (payload: unknown, status: number) =>
   new Response(JSON.stringify(payload), {
@@ -209,6 +293,33 @@ Deno.serve(async (req) => {
 
       posted++;
       totalPosted += net;
+
+      // k. salary credit SMS — only after a posted disbursement. Never on
+      // failed, skipped or dry run. A failure here never affects the payment.
+      try {
+        const { data: prof } = await adminClient
+          .from('profiles')
+          .select('phone, full_name')
+          .eq('id', employeeUserId)
+          .maybeSingle();
+        const phone = (prof?.phone ?? '').toString().trim();
+        if (phone) {
+          const firstName =
+            (prof?.full_name ?? '').toString().trim().split(/\s+/)[0] || 'Team Member';
+          const smsMsg =
+            `Dear ${firstName}, your salary for ${periodCode} has been processed and credited to your wallet. ` +
+            `Log in to view your balance and payslip. For any questions, contact the Finance Department. ` +
+            `- Welile Finance Department`;
+          const sent = await sendSMS(phone, smsMsg, {
+            recipientUserId: employeeUserId,
+            recipientName: (prof?.full_name ?? null) as string | null,
+            referenceId: refId,
+          });
+          console.log(`[hr-pay-release] salary SMS to ${phone}: ${sent ? 'sent' : 'failed'} ref=${refId}`);
+        }
+      } catch (e) {
+        console.error('[hr-pay-release] salary SMS failed:', (e as Error).message);
+      }
     }
 
     // 9. Summary
