@@ -339,7 +339,7 @@ export default function StaffDirectory() {
                         {isOpen && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableCell />
-                            <TableCell colSpan={8} className="py-3">
+                            <TableCell colSpan={5} className="py-3">
                               {rows.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                   No active positions for this person yet.
