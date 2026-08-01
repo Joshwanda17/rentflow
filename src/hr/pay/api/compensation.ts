@@ -80,13 +80,6 @@ export async function listCompensation(staffId: string): Promise<CompensationRow
   return rows.map(mapRow);
 }
 
-/** The day before an ISO date, used to close the previously open record. */
-function dayBefore(isoDate: string): string {
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
-
 export async function addCompensation(
   staffId: string,
   componentId: string,
@@ -95,28 +88,19 @@ export async function addCompensation(
   effectiveFrom: string,
   reason: string,
 ): Promise<CompensationRow> {
-  // 1. Close the currently open row for this staff member + component.
-  const close = await supabase
-    .from('hr_pay_compensation')
-    .update({ effective_to: dayBefore(effectiveFrom) })
-    .eq('staff_id', staffId)
-    .eq('component_id', componentId)
-    .is('effective_to', null)
-    .select('id');
-  unwrap(close);
+  // A correction is applied by the database, which closes any overlapping record
+  // — including one starting in the same month — and writes the new row.
+  const newId = unwrap(
+    await (supabase.rpc as any)('hr_pay_correct_compensation', {
+      _staff_id: staffId,
+      _component_id: componentId,
+      _amount: amount,
+      _effective_from: effectiveFrom,
+      _reason: reason,
+      _grade_id: gradeId,
+    }),
+  ) as string;
 
-  // 2. Insert the new effective-dated record.
-  const res = await supabase
-    .from('hr_pay_compensation')
-    .insert({
-      staff_id: staffId,
-      component_id: componentId,
-      grade_id: gradeId,
-      amount,
-      effective_from: effectiveFrom,
-      reason,
-    })
-    .select(COMP_SELECT)
-    .single();
+  const res = await supabase.from('hr_pay_compensation').select(COMP_SELECT).eq('id', newId).single();
   return mapRow(unwrap(res) as unknown as RawCompRow);
 }

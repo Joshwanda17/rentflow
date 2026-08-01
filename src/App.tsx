@@ -196,6 +196,7 @@ const PayrollEnrollmentPage = lazy(() => import('./hr/pay/PayrollEnrollment'));
 const PayRunDetailPage = lazy(() => import('./hr/pay/PayRuns').then((m) => ({ default: m.PayRunDetailPlaceholder })));
 const PayslipPage = lazy(() => import('./hr/pay/Payslip'));
 const ApprovalsPage = lazy(() => import('./hr/pay/Approvals'));
+const PayrollAdvancesPage = lazy(() => import('./hr/pay/Advances'));
 const HRTasksPage = lazy(() => import('./hr/pages/Tasks'));
 const HRTaskDetailPage = lazy(() => import('./hr/pages/TaskDetail'));
 const HRSignedInRoute = lazy(() => import('./hr/components/HRSignedInRoute'));
@@ -585,6 +586,7 @@ function AppRoutes() {
           <Route path="/hr/pay/config" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollConfigPage /></RoleGuard>} />
           <Route path="/hr/pay/compensation" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollCompensationPage /></RoleGuard>} />
           <Route path="/hr/pay/runs" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayRunsPage /></RoleGuard>} />
+          <Route path="/hr/pay/advances" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayrollAdvancesPage /></RoleGuard>} />
           <Route path="/hr/pay/enrollment" element={<RoleGuard allowedRoles={['hr', 'super_admin']} requiredPermission="hr"><PayrollEnrollmentPage /></RoleGuard>} />
           <Route path="/hr/pay/runs/:runId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayRunDetailPage /></RoleGuard>} />
           <Route path="/hr/pay/payslips/:payslipId" element={<RoleGuard allowedRoles={['hr', 'super_admin', 'ceo', 'cfo']}><PayslipPage /></RoleGuard>} />
