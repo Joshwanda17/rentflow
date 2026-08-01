@@ -204,7 +204,32 @@ export default function StaffDirectory() {
       <Card>
         <CardContent className="p-0">
           {tab === 'unenrolled' ? (
-            <div className="p-6 text-sm text-muted-foreground">Loading candidates</div>
+            unenrolledLoading ? (
+              <div className="p-6 text-sm text-muted-foreground">Loading</div>
+            ) : unenrolledError ? (
+              <div className="p-6 text-sm text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                {unenrolledError}
+              </div>
+            ) : unenrolled.length === 0 ? (
+              <div className="p-6 text-sm text-muted-foreground">
+                Everyone with staff access is enrolled.
+              </div>
+            ) : (
+              <div className="divide-y">
+                {unenrolled.map((c) => (
+                  <div key={c.user_id} className="flex items-center justify-between p-4">
+                    <div>
+                      <div className="font-medium">{c.display_name}</div>
+                      <div className="text-sm text-muted-foreground">{c.staff_roles}</div>
+                    </div>
+                    <Button size="sm" onClick={() => setEnrollCandidate(c)}>
+                      Enroll
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )
           ) : loading ? (
             <div className="p-4 space-y-2">
               {[0, 1, 2].map((i) => (
