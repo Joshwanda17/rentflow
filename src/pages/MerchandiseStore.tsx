@@ -666,15 +666,23 @@ export default function MerchandiseStore() {
             </DialogTitle>
           </DialogHeader>
           {shareItem && (() => {
-            const { url, text, full } = buildShare(shareItem);
+            const { url } = buildShare(shareItem, 'link');
             const enc = encodeURIComponent;
+            // Each channel carries its own src tag so analytics can attribute opens.
+            const per = (src: string) => buildShare(shareItem, src);
+            const wa = per('whatsapp');
+            const fb = per('facebook');
+            const tw = per('twitter');
+            const tg = per('telegram');
+            const li = per('linkedin');
+            const em = per('email');
             const targets: { label: string; href: string; className: string }[] = [
-              { label: 'WhatsApp', href: `https://wa.me/?text=${enc(full)}`, className: 'bg-emerald-500 hover:bg-emerald-600 text-white' },
-              { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc(text)}`, className: 'bg-blue-600 hover:bg-blue-700 text-white' },
-              { label: 'X (Twitter)', href: `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(url)}`, className: 'bg-black hover:bg-neutral-800 text-white' },
-              { label: 'Telegram', href: `https://t.me/share/url?url=${enc(url)}&text=${enc(text)}`, className: 'bg-sky-500 hover:bg-sky-600 text-white' },
-              { label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}`, className: 'bg-[#0A66C2] hover:bg-[#004182] text-white' },
-              { label: 'Email', href: `mailto:?subject=${enc(shareItem.item_name)}&body=${enc(full)}`, className: 'bg-muted hover:bg-muted/80 text-foreground' },
+              { label: 'WhatsApp', href: `https://wa.me/?text=${enc(wa.full)}`, className: 'bg-emerald-500 hover:bg-emerald-600 text-white' },
+              { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${enc(fb.url)}&quote=${enc(fb.text)}`, className: 'bg-blue-600 hover:bg-blue-700 text-white' },
+              { label: 'X (Twitter)', href: `https://twitter.com/intent/tweet?text=${enc(tw.text)}&url=${enc(tw.url)}`, className: 'bg-black hover:bg-neutral-800 text-white' },
+              { label: 'Telegram', href: `https://t.me/share/url?url=${enc(tg.url)}&text=${enc(tg.text)}`, className: 'bg-sky-500 hover:bg-sky-600 text-white' },
+              { label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(li.url)}`, className: 'bg-[#0A66C2] hover:bg-[#004182] text-white' },
+              { label: 'Email', href: `mailto:?subject=${enc(shareItem.item_name)}&body=${enc(em.full)}`, className: 'bg-muted hover:bg-muted/80 text-foreground' },
             ];
             return (
               <div className="space-y-3">
