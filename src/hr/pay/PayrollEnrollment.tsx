@@ -529,6 +529,26 @@ export default function PayrollEnrollment() {
                             </>
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => openPartMonth(row)}
+                            className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
+                          >
+                            {row.partMonthAmount === 0
+                              ? '—'
+                              : reveal
+                                ? formatAmount(row.partMonthAmount)
+                                : '••••••'}
+                          </button>
+                          <span className="hidden font-mono text-sm tabular-nums print:inline">
+                            {row.partMonthAmount === 0
+                              ? '—'
+                              : reveal
+                                ? formatAmount(row.partMonthAmount)
+                                : '••••••'}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right font-mono text-sm tabular-nums">
                           {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
                         </TableCell>
