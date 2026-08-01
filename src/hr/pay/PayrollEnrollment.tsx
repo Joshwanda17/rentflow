@@ -664,11 +664,12 @@ export default function PayrollEnrollment() {
                             </p>
                           ) : null}
                           {bothApply(row, periodCutOff) ? (
-                            <AlertTriangle
-                              className="mt-1 h-4 w-4 text-amber-600"
-                              title={BOTH_APPLY_WARNING}
-                              aria-label={BOTH_APPLY_WARNING}
-                            />
+                            <span className="mt-1 inline-flex" title={BOTH_APPLY_WARNING}>
+                              <AlertTriangle
+                                className="h-4 w-4 text-amber-600"
+                                aria-label={BOTH_APPLY_WARNING}
+                              />
+                            </span>
                           ) : null}
                         </TableCell>
                       </TableRow>
