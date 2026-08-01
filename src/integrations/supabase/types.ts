@@ -9283,6 +9283,84 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_anomaly_alert_config: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: number
+          min_amount: number
+          notify_emails: string[]
+          notify_phones: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: number
+          min_amount?: number
+          notify_emails?: string[]
+          notify_phones?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: number
+          min_amount?: number
+          notify_emails?: string[]
+          notify_phones?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      finance_anomaly_scans: {
+        Row: {
+          anomaly_count: number
+          created_at: string
+          email_recipients: string[]
+          id: string
+          notified: boolean
+          notify_error: string | null
+          report: Json
+          scanned_at: string
+          severity: string
+          sms_recipients: string[]
+          total_exposure: number
+          trigger_source: string
+          updated_at: string
+        }
+        Insert: {
+          anomaly_count?: number
+          created_at?: string
+          email_recipients?: string[]
+          id?: string
+          notified?: boolean
+          notify_error?: string | null
+          report?: Json
+          scanned_at?: string
+          severity?: string
+          sms_recipients?: string[]
+          total_exposure?: number
+          trigger_source?: string
+          updated_at?: string
+        }
+        Update: {
+          anomaly_count?: number
+          created_at?: string
+          email_recipients?: string[]
+          id?: string
+          notified?: boolean
+          notify_error?: string | null
+          report?: Json
+          scanned_at?: string
+          severity?: string
+          sms_recipients?: string[]
+          total_exposure?: number
+          trigger_source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_agents: {
         Row: {
           agent_id: string
@@ -29331,6 +29409,10 @@ export type Database = {
         }[]
       }
       detect_deposit_match_failures: { Args: never; Returns: Json }
+      detect_finance_anomalies: {
+        Args: { p_min_amount?: number }
+        Returns: Json
+      }
       detect_ledger_group_imbalances: {
         Args: { p_since_hours?: number }
         Returns: number
@@ -32633,6 +32715,10 @@ export type Database = {
         Returns: number
       }
       run_fee_revenue_recognition: { Args: never; Returns: Json }
+      run_finance_anomaly_scan: {
+        Args: { p_trigger_source?: string }
+        Returns: Json
+      }
       run_layer_a_bulk: { Args: { p_dry_run?: boolean }; Returns: Json }
       run_phantom_clamp_pass: {
         Args: { p_dry_run?: boolean }
