@@ -547,10 +547,12 @@ function EnrollDialog({
   open,
   onOpenChange,
   onEnrolled,
+  initialCandidate,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onEnrolled: () => void;
+  initialCandidate?: UnenrolledStaffCandidate;
 }) {
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState<UnenrolledStaffCandidate[]>([]);
