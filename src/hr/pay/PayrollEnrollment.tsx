@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Printer } from 'lucide-react';
+import { AlertTriangle, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/hr/pay/print.css';
 import { Button } from '@/components/ui/button';
@@ -89,6 +89,19 @@ function joinsNextPeriod(row: EnrollmentRow, openPeriodCutOff: string | null): b
     openPeriodCutOff !== null &&
     row.basicEffectiveFrom !== null &&
     row.basicEffectiveFrom > openPeriodCutOff
+  );
+}
+
+const BOTH_APPLY_WARNING =
+  'Basic pay and part-month pay both apply this period. Only part-month pay will be paid. Set the basic pay effective date to the following month.';
+
+/** Both basic pay and part-month pay land in the open period. */
+function bothApply(row: EnrollmentRow, openPeriodCutOff: string | null): boolean {
+  return (
+    row.partMonthAmount > 0 &&
+    row.basicAmount !== null &&
+    row.basicAmount > 0 &&
+    !joinsNextPeriod(row, openPeriodCutOff)
   );
 }
 
