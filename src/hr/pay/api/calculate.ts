@@ -269,11 +269,41 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
     staffId: string;
     earnings: PayComponentInput[];
     otherDeductions: number;
+    advanceRecovery: number;
     applicability: Applicability;
     employmentType: string | null;
     exemptionBasis: string | null;
     result: ReturnType<typeof calculatePayslip>;
   }> = [];
+
+  // Approved advances (used to split the recovered figure per advance below).
+  const advanceRows = (unwrap(
+    await supabase
+      .from('hr_pay_advances')
+      .select('id, staff_id, principal, recovery_mode, recovery_value, first_recovery_on')
+      .eq('status', 'approved'),
+  ) ?? []) as Array<Record<string, any>>;
+
+  const priorRecoveries = (unwrap(
+    await supabase.from('hr_pay_advance_recoveries').select('advance_id, run_id, amount'),
+  ) ?? []) as Array<{ advance_id: string; run_id: string; amount: number | string }>;
+
+  const recoveredElsewhere = new Map<string, number>();
+  for (const r of priorRecoveries) {
+    if (r.run_id === runId) continue;
+    recoveredElsewhere.set(r.advance_id, (recoveredElsewhere.get(r.advance_id) ?? 0) + num(r.amount));
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const advancesByStaff = new Map<string, Array<Record<string, any>>>();
+  for (const a of advanceRows) {
+    const key = a.staff_id as string;
+    const list = advancesByStaff.get(key) ?? [];
+    list.push(a);
+    advancesByStaff.set(key, list);
+  }
+
+  const recoveryAllocations: Array<{ advance_id: string; run_id: string; amount: number }> = [];
 
   for (const [staffId, rows] of byStaff.entries()) {
     const earnings: PayComponentInput[] = rows
@@ -288,12 +318,41 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
         lstAble: Boolean(r.hr_pay_components.lst_able),
       }));
 
-    const otherDeductions = rows
+    const standingDeductions = rows
       .filter(
         (r) =>
           r.hr_pay_components?.kind === 'deduction' && r.hr_pay_components?.is_statutory === false,
       )
       .reduce((sum, r) => sum + num(r.amount), 0);
+
+    // The advance instalment due this run is decided by the database.
+    const grossForAdvance = earnings.reduce((sum, e) => sum + e.amount, 0);
+    const advanceRecovery = num(
+      unwrap(
+        await (supabase.rpc as any)('hr_pay_advance_due', {
+          _staff_id: staffId,
+          _gross: grossForAdvance,
+          _run_id: runId,
+        }),
+      ),
+    );
+    const otherDeductions = standingDeductions + advanceRecovery;
+
+    if (advanceRecovery > 0) {
+      for (const a of advancesByStaff.get(staffId) ?? []) {
+        if ((a.first_recovery_on as string) > today) continue;
+        const remaining = num(a.principal) - (recoveredElsewhere.get(a.id as string) ?? 0);
+        if (remaining <= 0) continue;
+        const instalment =
+          a.recovery_mode === 'fixed'
+            ? num(a.recovery_value)
+            : Math.round((grossForAdvance * num(a.recovery_value)) / 100);
+        const amount = Math.min(instalment, remaining);
+        if (amount > 0) {
+          recoveryAllocations.push({ advance_id: a.id as string, run_id: runId, amount });
+        }
+      }
+    }
 
     const profile = statutoryByStaff.get(staffId) ?? null;
     const applicability: Applicability = {
@@ -307,6 +366,7 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
       staffId,
       earnings,
       otherDeductions,
+      advanceRecovery,
       applicability,
       employmentType: (profile?.employment_type as string | null) ?? null,
       exemptionBasis: (profile?.exemption_basis as string | null) ?? null,
@@ -360,6 +420,7 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
             JSON.stringify({
               earnings: c.earnings,
               otherDeductions: c.otherDeductions,
+              advance_recovery: c.advanceRecovery,
               ruleCode: rule.code,
               employment_type: c.employmentType,
               paye_applicable: c.applicability.payeApplicable,
@@ -393,6 +454,35 @@ export async function calculateRun(runId: string): Promise<{ payslips: number; m
 
   if (lines.length > 0) {
     unwrap(await supabase.from('hr_pay_payslip_lines').insert(lines).select('id'));
+  }
+
+  // 7b. The advance recovery line, always last on the payslip.
+  const advanceLines = computed
+    .filter((c) => c.advanceRecovery > 0)
+    .map((c) => ({
+      payslip_id: payslipIdByStaff[c.staffId],
+      component_code: 'ADVANCE',
+      name: 'Salary advance recovery',
+      kind: 'deduction',
+      quantity: 1,
+      amount: c.advanceRecovery,
+      taxable_at_run: false,
+      display_order: 9000,
+    }));
+
+  if (advanceLines.length > 0) {
+    unwrap(await supabase.from('hr_pay_payslip_lines').insert(advanceLines).select('id'));
+  }
+
+  // 7c. Recoveries are keyed on (advance_id, run_id) so a recalculation
+  // overwrites the previous figure instead of adding to it.
+  if (recoveryAllocations.length > 0) {
+    unwrap(
+      await supabase
+        .from('hr_pay_advance_recoveries')
+        .upsert(recoveryAllocations, { onConflict: 'advance_id,run_id' })
+        .select('id'),
+    );
   }
 
   // 8. Record the event — the trigger moves status and totals.
