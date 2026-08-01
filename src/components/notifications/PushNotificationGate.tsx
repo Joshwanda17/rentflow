@@ -154,6 +154,59 @@ async function refreshSubscriptionIfVapidChanged(userId: string): Promise<void> 
 
 const SNOOZE_KEY = "welile-push-prompt-snooze";
 const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000; // re-ask after 3 days if dismissed
+// Set once a device has successfully subscribed. Persisted per user so a
+// refresh never re-shows the mandatory prompt to someone already enabled.
+const ENABLED_KEY_PREFIX = "welile-push-enabled:";
+
+function enabledKey(userId: string) {
+  return `${ENABLED_KEY_PREFIX}${userId}`;
+}
+
+function isMarkedEnabled(userId: string): boolean {
+  try {
+    return localStorage.getItem(enabledKey(userId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markEnabled(userId: string) {
+  try {
+    localStorage.setItem(enabledKey(userId), "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearEnabled(userId: string) {
+  try {
+    localStorage.removeItem(enabledKey(userId));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * True when this device already has a live push subscription registered to the
+ * signed-in user. Used so a page refresh never re-prompts an enabled user.
+ */
+async function deviceAlreadySubscribed(userId: string): Promise<boolean> {
+  try {
+    if (!isPushSupported()) return false;
+    const registration = await navigator.serviceWorker.getRegistration("/sw.js");
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return false;
+    const { data } = await supabase
+      .from("push_subscriptions")
+      .select("user_id")
+      .eq("endpoint", subscription.endpoint)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return !!data;
+  } catch {
+    return false;
+  }
+}
 
 type Status = "idle" | "subscribing" | "success";
 
@@ -188,6 +241,7 @@ export function PushNotificationGate() {
     // act — enabling is mandatory so rejection/payout/rent alerts reach them.
     if (!isPushSupported()) return;
     if (Notification.permission === "granted") {
+      markEnabled(user.id);
       // Silent self-heal: if the stored PushSubscription was created with an
       // older VAPID key, the server can no longer deliver to it. Rotate it
       // transparently so previously-subscribed devices resume receiving
@@ -197,6 +251,10 @@ export function PushNotificationGate() {
     }
 
     const isDenied = Notification.permission === "denied";
+    // Permission is no longer granted — any previous "enabled" mark is stale.
+    if (isDenied) clearEnabled(user.id);
+    // Already enabled on this device (flag or live subscription) → never nag.
+    if (!isDenied && isMarkedEnabled(user.id)) return;
     // Denied is only snooze-able because the app can't override an OS block.
     if (isDenied && snoozed) return;
 
@@ -204,7 +262,14 @@ export function PushNotificationGate() {
 
     let cancelled = false;
     // Small delay so it doesn't fight other startup UI (e.g. location gate).
-    const t = setTimeout(() => !cancelled && setOpen(true), 5000);
+    const t = setTimeout(async () => {
+      if (cancelled) return;
+      if (await deviceAlreadySubscribed(user.id)) {
+        markEnabled(user.id);
+        return;
+      }
+      if (!cancelled) setOpen(true);
+    }, 5000);
     return () => {
       cancelled = true;
       clearTimeout(t);
@@ -275,6 +340,7 @@ export function PushNotificationGate() {
       if (error) throw error;
 
       setStatus("success");
+      markEnabled(user.id);
       toast.success("Notifications enabled on this device.");
       setTimeout(() => setOpen(false), 1600);
     } catch (err) {
