@@ -59,11 +59,24 @@ function formatDate(value: string | null): string {
   return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function firstOfThisMonth(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-01`;
+/** Raw database / network error, verbatim. Never a generic phrase. */
+function rawError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === 'object') {
+    const msg = (error as { message?: unknown }).message;
+    if (typeof msg === 'string' && msg) return msg;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
 }
+
+const EFFECTIVE_FROM_HELP =
+  "The month this amount starts. To include someone in a payroll run, this date must be on or before the last day of that run's period.";
+const NO_OPEN_PERIOD = 'Open a pay period first.';
 
 function isReady(row: EnrollmentRow): boolean {
   return (row.basicAmount !== null || row.partMonthAmount > 0) && row.hasStatutoryProfile;
@@ -106,7 +119,7 @@ export default function PayrollEnrollment() {
   // Basic pay dialog state
   const [payRow, setPayRow] = useState<EnrollmentRow | null>(null);
   const [payAmount, setPayAmount] = useState('');
-  const [payFrom, setPayFrom] = useState(firstOfThisMonth());
+  const [payFrom, setPayFrom] = useState('');
   const [payReason, setPayReason] = useState('');
   const [payError, setPayError] = useState('');
 
@@ -117,7 +130,7 @@ export default function PayrollEnrollment() {
   const [components, setComponents] = useState<PayComponentRow[]>([]);
   const [dedComponentId, setDedComponentId] = useState('');
   const [dedAmount, setDedAmount] = useState('');
-  const [dedFrom, setDedFrom] = useState(firstOfThisMonth());
+  const [dedFrom, setDedFrom] = useState('');
   const [dedReason, setDedReason] = useState('');
   const [dedError, setDedError] = useState('');
 
@@ -194,10 +207,10 @@ export default function PayrollEnrollment() {
     try {
       await addPartMonthPay(pmRow.staffId, amount, periodStart, periodCutOff, pmReason.trim());
       toast.success('Part-month pay recorded');
-      setPmRow(null);
       await load();
+      setPmRow(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save');
+      setPmError(rawError(error));
     } finally {
       setSaving(false);
     }
@@ -208,7 +221,7 @@ export default function PayrollEnrollment() {
     setDedRecords([]);
     setDedComponentId('');
     setDedAmount('');
-    setDedFrom(firstOfThisMonth());
+    setDedFrom(periodStart ?? '');
     setDedReason('');
     setDedError('');
     setDedLoading(true);
@@ -218,7 +231,7 @@ export default function PayrollEnrollment() {
         records.filter((r) => r.effective_to === null && r.component_kind === 'deduction'),
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not load deductions');
+      setDedError(rawError(error));
     } finally {
       setDedLoading(false);
     }
@@ -236,7 +249,7 @@ export default function PayrollEnrollment() {
       return;
     }
     if (!dedFrom) {
-      setDedError('An effective-from date is required.');
+      setDedError(periodStart ? 'An effective-from date is required.' : NO_OPEN_PERIOD);
       return;
     }
     if (dedReason.trim().length < 10) {
@@ -254,10 +267,10 @@ export default function PayrollEnrollment() {
         dedReason.trim(),
       );
       toast.success('Deduction recorded');
-      setDedRow(null);
       await load();
+      setDedRow(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save');
+      setDedError(rawError(error));
     } finally {
       setSaving(false);
     }
@@ -296,7 +309,7 @@ export default function PayrollEnrollment() {
         toast.success('All statutory deductions apply');
         await load();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Could not save');
+        toast.error(rawError(error));
       } finally {
         setSaving(false);
       }
@@ -317,10 +330,10 @@ export default function PayrollEnrollment() {
     try {
       await setStatutoryProfile(statRow.staffId, statType, statPaye, statNssf, statLst, allOn ? '' : basis);
       toast.success('Statutory profile recorded');
-      setStatRow(null);
       await load();
+      setStatRow(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save');
+      setStatError(rawError(error));
     } finally {
       setSaving(false);
     }
@@ -329,7 +342,7 @@ export default function PayrollEnrollment() {
   function openPay(row: EnrollmentRow) {
     setPayRow(row);
     setPayAmount(row.basicAmount !== null ? String(row.basicAmount) : '');
-    setPayFrom(firstOfThisMonth());
+    setPayFrom(periodStart ?? '');
     setPayReason('');
     setPayError('');
   }
@@ -341,6 +354,10 @@ export default function PayrollEnrollment() {
       setPayError('Enter a valid amount.');
       return;
     }
+    if (!payFrom) {
+      setPayError(periodStart ? 'An effective-from date is required.' : NO_OPEN_PERIOD);
+      return;
+    }
     if (payReason.trim().length < 10) {
       setPayError('The reason must be at least 10 characters.');
       return;
@@ -349,10 +366,10 @@ export default function PayrollEnrollment() {
     try {
       await setBasicPay(payRow.staffId, amount, payFrom, payReason.trim());
       toast.success('Basic pay recorded');
-      setPayRow(null);
       await load();
+      setPayRow(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save');
+      setPayError(rawError(error));
     } finally {
       setSaving(false);
     }
@@ -755,8 +772,15 @@ export default function PayrollEnrollment() {
                 id="basic-from"
                 type="date"
                 value={payFrom}
-                onChange={(e) => setPayFrom(e.target.value)}
+                onChange={(e) => {
+                  setPayFrom(e.target.value);
+                  setPayError('');
+                }}
               />
+              <p className="text-xs text-muted-foreground">{EFFECTIVE_FROM_HELP}</p>
+              {!periodStart ? (
+                <p className="text-xs font-medium text-destructive">{NO_OPEN_PERIOD}</p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="basic-reason">Reason</Label>
@@ -779,7 +803,7 @@ export default function PayrollEnrollment() {
             <Button variant="outline" onClick={() => setPayRow(null)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={() => void savePay()} disabled={saving}>
+            <Button onClick={() => void savePay()} disabled={saving || !periodStart}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Save
             </Button>
@@ -921,8 +945,15 @@ export default function PayrollEnrollment() {
                   id="ded-from"
                   type="date"
                   value={dedFrom}
-                  onChange={(e) => setDedFrom(e.target.value)}
+                  onChange={(e) => {
+                    setDedFrom(e.target.value);
+                    setDedError('');
+                  }}
                 />
+                <p className="text-xs text-muted-foreground">{EFFECTIVE_FROM_HELP}</p>
+                {!periodStart ? (
+                  <p className="text-xs font-medium text-destructive">{NO_OPEN_PERIOD}</p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ded-reason">Reason</Label>
@@ -946,7 +977,7 @@ export default function PayrollEnrollment() {
             <Button variant="outline" onClick={() => setDedRow(null)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={() => void saveDeduction()} disabled={saving}>
+            <Button onClick={() => void saveDeduction()} disabled={saving || !periodStart}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Add deduction
             </Button>
