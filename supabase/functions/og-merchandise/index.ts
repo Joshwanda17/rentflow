@@ -32,6 +32,9 @@ Deno.serve(async (req) => {
     url.searchParams.get("id") ||
     (/^[0-9a-f-]{16,}$/i.test(pathId) ? pathId : null);
   const source = url.searchParams.get("src");
+  // verify=1 → preview verification tool: render the same tags but do not
+  // record an analytics open, so tests never pollute share stats.
+  const verifyMode = url.searchParams.get("verify") === "1";
   if (!itemId) {
     return new Response("Missing item id", { status: 400, headers: corsHeaders });
   }
@@ -58,6 +61,7 @@ Deno.serve(async (req) => {
       userAgent,
     );
   try {
+    if (verifyMode) throw new Error("skip-tracking");
     await supabase.from("merchandise_share_opens").insert({
       catalog_id: itemId,
       item_name: item?.item_name ?? null,
@@ -67,7 +71,7 @@ Deno.serve(async (req) => {
       source: source ? source.slice(0, 50) : null,
     });
   } catch (e) {
-    console.error("share open tracking failed", e);
+    if (!verifyMode) console.error("share open tracking failed", e);
   }
 
   if (!item) {
