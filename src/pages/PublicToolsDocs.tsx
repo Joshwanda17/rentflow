@@ -127,6 +127,98 @@ const TOOLS: ToolDoc[] = [
     returns: 'A headline, plain-language explanation, next step, and a signup link for the matching role.',
   },
   {
+    name: 'check_eligibility',
+    title: 'Check eligibility for a Welile role',
+    description:
+      "Answers 'can I join?' / 'do I qualify?' for the tenant, agent, landlord, and Supporter roles by returning that role's requirement checklist plus the free role-targeted signup link. If the user has already shared facts about themselves, each requirement comes back marked met, not_met, or to_confirm. A general checklist only — never an approval.",
+    params: [
+      {
+        name: 'role',
+        type: 'string',
+        required: false,
+        description:
+          "tenant, agent, landlord, or supporter — or free text like 'I want to collect rent'. Omit to compare all four roles.",
+      },
+      { name: 'age', type: 'number', required: false, description: 'Age in years. Welile requires 18+.' },
+      {
+        name: 'has_national_id',
+        type: 'boolean',
+        required: false,
+        description: 'Whether they hold a Ugandan national ID.',
+      },
+      {
+        name: 'has_phone',
+        type: 'boolean',
+        required: false,
+        description: 'Whether they have a phone number they control (confirmed by SMS).',
+      },
+      {
+        name: 'has_mobile_money',
+        type: 'boolean',
+        required: false,
+        description: 'Whether they have mobile money registered in their own names.',
+      },
+      { name: 'district', type: 'string', required: false, description: 'District or area they live or work in.' },
+      {
+        name: 'monthly_rent',
+        type: 'number',
+        required: false,
+        description: 'Tenant only: monthly rent in UGX. Plans cover 10,000 – 5,000,000.',
+      },
+      {
+        name: 'support_amount',
+        type: 'number',
+        required: false,
+        description: 'Supporter only: amount in UGX they can commit. Minimum 20,000.',
+      },
+      {
+        name: 'houses_to_list',
+        type: 'number',
+        required: false,
+        description: 'Landlord only: how many rental houses they own or manage.',
+      },
+      REFERRAL_PARAM,
+    ],
+    prompts: [
+      'Can I become a Welile agent? I am 24, I have a national ID and mobile money.',
+      'Do I qualify for a Welile Rent Plan if my rent is UGX 180,000?',
+      'What do I need to become a Welile Supporter with UGX 100,000?',
+      'I own 3 rental houses in Mukono — can I list them on Welile?',
+    ],
+    returns:
+      'The role headline, who it is for, and a full requirement checklist with per-requirement status (met / not_met / to_confirm), counts, the relevant UGX thresholds, and the role signup link.',
+  },
+  {
+    name: 'get_onboarding_steps',
+    title: 'Step-by-step Welile onboarding',
+    description:
+      "Returns the numbered onboarding walkthrough for a role — what the user does at each step, what to bring (national ID, house photos, mobile money, transaction ID…), and how long each step typically takes — plus the free role-targeted signup link. Pass a step number to expand a single step.",
+    params: [
+      {
+        name: 'role',
+        type: 'string',
+        required: false,
+        description:
+          "tenant, agent, landlord, or supporter — or free text like 'I want to earn commission'. Omit to outline all four paths.",
+      },
+      {
+        name: 'step',
+        type: 'number',
+        required: false,
+        description: "1-based step number to expand one step of that role's onboarding.",
+      },
+      REFERRAL_PARAM,
+    ],
+    prompts: [
+      'What are the steps to become a Welile agent?',
+      'How do I get a Rent Plan on Welile, step by step?',
+      'Walk me through listing my house on Welile.',
+      'Step 4 of becoming a Welile Supporter — what do I need?',
+    ],
+    returns:
+      'Numbered steps with what you do, a bring-checklist, and typical durations, plus a combined checklist of everything to have ready and the role signup link.',
+  },
+  {
     name: 'estimate_rent_access',
     title: 'Estimate rent access (indicative)',
     description:
