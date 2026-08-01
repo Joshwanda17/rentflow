@@ -255,13 +255,10 @@ export default function StaffDirectory() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8" />
-                    <TableHead>Ref</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Department</TableHead>
+                    <TableHead>Person</TableHead>
+                    <TableHead>Role</TableHead>
                     <TableHead>Reports to</TableHead>
+                    <TableHead>Contact</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
