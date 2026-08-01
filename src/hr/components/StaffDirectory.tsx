@@ -304,6 +304,10 @@ export default function StaffDirectory() {
           <UserPlus className="h-4 w-4 mr-2" />
           Enroll staff member
         </Button>
+        <Button size="sm" variant="outline" onClick={exportCsv}>
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
       </div>
 
       <Card>
@@ -435,10 +439,31 @@ export default function StaffDirectory() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => setAddFor(s)}>
-                              <Plus className="h-3.5 w-3.5 mr-1" />
-                              Add position
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Row actions">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  disabled={!(s as unknown as { user_id?: string }).user_id}
+                                  onClick={() => {
+                                    const uid = (s as unknown as { user_id?: string }).user_id;
+                                    if (uid) navigate(`/hr/profiles/${uid}`);
+                                  }}
+                                >
+                                  Open profile
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setAddFor(s)}>
+                                  <Plus className="h-3.5 w-3.5 mr-2" />
+                                  Add position
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate('/platform-users')}>
+                                  Manage access
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                         {isOpen && (
