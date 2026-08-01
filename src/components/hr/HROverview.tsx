@@ -192,7 +192,7 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
           {quickNavItems.map((nav) => (
             <motion.div key={nav.id} variants={item}>
               <button
-                onClick={() => onNavigate?.(nav.id)}
+                onClick={() => handleNav(nav.id)}
                 className="w-full text-left rounded-xl border border-border/50 bg-card hover:bg-muted/40 p-3.5 transition-all active:scale-[0.97] touch-manipulation group"
               >
                 <div className="flex items-start justify-between mb-2">
