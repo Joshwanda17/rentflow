@@ -81,6 +81,8 @@ export default function StaffDirectory() {
   const [unenrolledLoading, setUnenrolledLoading] = useState(false);
   const [unenrolledError, setUnenrolledError] = useState<string | null>(null);
   const [enrollCandidate, setEnrollCandidate] = useState<UnenrolledStaffCandidate | null>(null);
+  const [filterNoAssignment, setFilterNoAssignment] = useState(false);
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -144,12 +146,10 @@ export default function StaffDirectory() {
   const activeCount = useMemo(() => staff.filter((s) => s.status === 'active').length, [staff]);
   const exitedCount = useMemo(() => staff.filter((s) => s.status !== 'active').length, [staff]);
 
-  const visibleStaff = useMemo(() => {
+  const peopleBase = useMemo(() => {
     const q = query.trim().toLowerCase();
     return staff.filter((s) => {
-      const isActive = s.status === 'active';
-      if (tab === 'people' && !isActive) return false;
-      if (tab === 'exited' && isActive) return false;
+      if (s.status !== 'active') return false;
       if (
         departmentFilter !== '__all__' &&
         (s.current_assignment?.department_name ?? '') !== departmentFilter
@@ -161,11 +161,72 @@ export default function StaffDirectory() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [staff, query, tab, departmentFilter]);
+  }, [staff, query, departmentFilter]);
+
+  const exitedBase = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return staff.filter((s) => {
+      if (s.status === 'active') return false;
+      if (
+        departmentFilter !== '__all__' &&
+        (s.current_assignment?.department_name ?? '') !== departmentFilter
+      ) {
+        return false;
+      }
+      if (!q) return true;
+      return [s.full_name, s.staff_number, s.phone, s.email]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
+  }, [staff, query, departmentFilter]);
+
+  const noAssignmentCount = useMemo(
+    () => peopleBase.filter((s) => !(assignments[s.id]?.length)).length,
+    [peopleBase, assignments]
+  );
+
+  const departmentCount = useMemo(
+    () => new Set(positions.map((p) => p.department_id).filter(Boolean)).size,
+    [positions]
+  );
+
+  const positionCount = useMemo(() => positions.length, [positions]);
+
+  const visibleStaff = useMemo(() => {
+    if (tab === 'unenrolled') return [];
+    const base = tab === 'people' ? peopleBase : exitedBase;
+    if (tab === 'people' && filterNoAssignment) {
+      return base.filter((s) => !(assignments[s.id]?.length));
+    }
+    return base;
+  }, [tab, peopleBase, exitedBase, filterNoAssignment, assignments]);
+
 
   return (
     <div className="space-y-4">
+      <div className="flex items-baseline gap-6 text-sm">
+        <button
+          type="button"
+          onClick={() => setFilterNoAssignment((v) => !v)}
+          className={`leading-tight text-left ${
+            filterNoAssignment ? 'font-semibold underline' : ''
+          } ${noAssignmentCount > 0 ? 'text-warning' : 'text-muted-foreground'}`}
+        >
+          <div className="text-base font-semibold tabular-nums">{noAssignmentCount}</div>
+          <div className="text-xs">No assignment</div>
+        </button>
+        <div className={`leading-tight ${departmentCount === 0 ? 'text-muted-foreground' : ''}`}>
+          <div className="text-base font-semibold tabular-nums">{departmentCount}</div>
+          <div className="text-xs text-muted-foreground">Departments</div>
+        </div>
+        <div className={`leading-tight ${positionCount === 0 ? 'text-muted-foreground' : ''}`}>
+          <div className="text-base font-semibold tabular-nums">{positionCount}</div>
+          <div className="text-xs text-muted-foreground">Positions</div>
+        </div>
+      </div>
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="people">People ({activeCount})</TabsTrigger>
           <TabsTrigger value="exited">Exited ({exitedCount})</TabsTrigger>
