@@ -33,6 +33,54 @@ const REFERRAL_PARAM: Param = {
   description: "The referrer's Welile user id. Adds a referral signup link to the answer.",
 };
 
+// The shared envelope every public tool returns (schema version 1.0). Keep in
+// sync with src/lib/mcp-public/response.ts.
+const RESPONSE_FIELDS: { name: string; type: string; description: string }[] = [
+  { name: 'schema_version', type: 'string', description: 'Envelope version, currently "1.0".' },
+  { name: 'tool', type: 'string', description: 'Name of the tool that produced the answer.' },
+  { name: 'ok', type: 'boolean', description: 'True on success, false when error is set.' },
+  {
+    name: 'kind',
+    type: '"info" | "estimate" | "listings" | "error"',
+    description: 'What sort of answer this is, so a client can render it appropriately.',
+  },
+  { name: 'summary', type: 'string', description: 'One sentence answering the question, safe to quote directly.' },
+  {
+    name: 'assumptions',
+    type: 'string[]',
+    description: 'What the answer assumes — rates used, defaults chosen, and any filters applied.',
+  },
+  {
+    name: 'estimates',
+    type: 'object | null',
+    description:
+      'Normalised figures: basis (the formula or source), confidence ("indicative", "illustrative", or "actual"), currency, and ranges. Null for tools that return no figures.',
+  },
+  {
+    name: 'data',
+    type: 'object',
+    description: 'The tool-specific payload — faqs, plans, projections, listings, filters.',
+  },
+  {
+    name: 'disclaimers',
+    type: 'string[]',
+    description: 'Caveats that must be passed on, e.g. that a figure is not an approval or guarantee.',
+  },
+  { name: 'next_steps', type: 'string[]', description: 'What the user should do next.' },
+  {
+    name: 'links',
+    type: 'object',
+    description: 'landing_url, signup_url, referral_url (or null), and the target role (or null).',
+  },
+  { name: 'currency', type: 'string', description: 'Always "UGX" — Welile deals strictly in Ugandan Shillings.' },
+  {
+    name: 'error',
+    type: 'object | null',
+    description:
+      'Null on success. Otherwise code, message, retry_after_seconds (set when rate limited), and details.',
+  },
+];
+
 const TOOLS: ToolDoc[] = [
   {
     name: 'how_welile_works',
@@ -278,6 +326,44 @@ export default function PublicToolsDocs() {
             ))}
           </ul>
         </nav>
+
+        <Card className="mb-10" id="response-shape">
+          <CardHeader>
+            <CardTitle className="text-base sm:text-lg">One response shape for every tool</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              All {TOOLS.length} tools return the same top-level JSON fields, on success and on failure, so
+              an assistant never has to guess where the answer lives. Only <code className="font-mono">ok</code>{' '}
+              tells you whether it worked.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-2 text-sm">
+              {RESPONSE_FIELDS.map((f) => (
+                <li key={f.name}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="font-mono text-sm">{f.name}</code>
+                    <span className="text-xs text-muted-foreground">{f.type}</span>
+                  </div>
+                  <p className="mt-0.5 text-muted-foreground">{f.description}</p>
+                </li>
+              ))}
+            </ul>
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">Every entry in estimates.ranges</h3>
+              <pre className="overflow-x-auto rounded-lg border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
+{`{
+  "label": "Returns over 6 months",
+  "metric": "returns",
+  "unit": "UGX",              // UGX | UGX_per_day | UGX_per_month | count
+  "low": 450000,              // low and high are always both present;
+  "high": 656530,             // they are equal for a single figure
+  "period": { "unit": "months", "value": 6 },
+  "breakdown": { "paid_out": 450000, "reinvested": 656530 }
+}`}
+              </pre>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="space-y-6">
           {TOOLS.map((tool) => (

@@ -2,6 +2,7 @@ import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks } from "../links";
 import { enforceRateLimit } from "../rateLimit";
+import { publicToolResult, pointRange, spanRange, ugx, type EstimateRange } from "../response";
 
 // PUBLIC, no-auth tool. Returns an INDICATIVE rent-access ballpark so a
 // prospective tenant can get a real number inside a chat before signing up,
@@ -60,8 +61,6 @@ function computeRentPlan(rent: number, days: number) {
   };
 }
 
-const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString("en-US")}`;
-
 export default defineTool({
   name: "estimate_rent_access",
   title: "Estimate rent access (indicative)",
@@ -89,26 +88,25 @@ export default defineTool({
       referralCode: referral_code,
       role: "tenant",
     });
-    const linkText = referralUrl
-      ? `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account: ${signupUrl}\nReferral signup link: ${referralUrl}`
-      : `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account: ${signupUrl}`;
+    const links = { landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, role: "tenant" };
+    const DISCLAIMERS = [
+      "This is an indicative ballpark, not an approval or a guarantee.",
+      "Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence).",
+    ];
 
     // Validate rent.
     if (!Number.isFinite(rent) || rent < MIN_RENT || rent > MAX_RENT) {
-      const text =
-        `Please share a monthly rent between ${ugx(MIN_RENT)} and ${ugx(MAX_RENT)} for an indicative estimate.\n\n${linkText}`;
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: {
-          error: "invalid_rent",
-          min_rent: MIN_RENT,
-          max_rent: MAX_RENT,
-          landing_url: landingUrl,
-          signup_url: signupUrl,
-          referral_url: referralUrl,
-          currency: "UGX",
+      return publicToolResult({
+        tool: "estimate_rent_access",
+        summary: `Please share a monthly rent between ${ugx(MIN_RENT)} and ${ugx(MAX_RENT)} for an indicative estimate.`,
+        next_steps: [`Ask again with a monthly rent in UGX, for example ${ugx(200_000)}.`],
+        links,
+        error: {
+          code: "invalid_rent",
+          message: `Monthly rent must be between ${MIN_RENT} and ${MAX_RENT} UGX.`,
+          details: { min_rent: MIN_RENT, max_rent: MAX_RENT },
         },
-      };
+      });
     }
 
     const roundedRent = Math.round(rent);
@@ -118,20 +116,17 @@ export default defineTool({
     if (duration_days != null) {
       const d = Math.round(duration_days);
       if (!Number.isFinite(d) || d < MIN_DAYS || d > MAX_DAYS) {
-        const text =
-          `Rent Plan length must be between ${MIN_DAYS} and ${MAX_DAYS} days. Try 30, 60, or 90 days.\n\n${linkText}`;
-        return {
-          content: [{ type: "text", text }],
-          structuredContent: {
-            error: "invalid_duration",
-            min_days: MIN_DAYS,
-            max_days: MAX_DAYS,
-            landing_url: landingUrl,
-            signup_url: signupUrl,
-            referral_url: referralUrl,
-            currency: "UGX",
+        return publicToolResult({
+          tool: "estimate_rent_access",
+          summary: `Rent Plan length must be between ${MIN_DAYS} and ${MAX_DAYS} days. Try 30, 60, or 90 days.`,
+          next_steps: ["Ask again with a plan length of 30, 60, or 90 days."],
+          links,
+          error: {
+            code: "invalid_duration",
+            message: `Plan length must be between ${MIN_DAYS} and ${MAX_DAYS} days.`,
+            details: { min_days: MIN_DAYS, max_days: MAX_DAYS },
           },
-        };
+        });
       }
       durations = [d];
     } else {
@@ -152,21 +147,58 @@ export default defineTool({
       )
       .join("\n\n");
 
-    const text = [
-      `Indicative Rent Plan for a monthly rent of ${ugx(roundedRent)} (UGX):`,
-      "",
-      planBlocks,
-      "",
-      "Line items are illustrative only — the fee split (service vs access vs agent commission) is shown for transparency and does not change the total. This is not an approval or guarantee. Your actual Rent Plan is confirmed after you create a free account and complete verification (national ID and residence).",
-      "",
-      linkText,
-    ].join("\n");
+    // Normalised ranges: one total + one daily figure per plan, plus an overall
+    // low→high span across the plans compared so a caller can quote a range
+    // without re-deriving it.
+    const ranges: EstimateRange[] = [];
+    for (const p of plans) {
+      const period = { unit: "days" as const, value: p.durationDays };
+      ranges.push(
+        pointRange(`${p.durationDays}-day plan total`, "total_repayment", p.totalRepayment, "UGX", period, {
+          principal_rent: p.principalRent,
+          access_fee: p.accessFeeNet,
+          agent_commission: p.agentCommission,
+          service_fee: p.serviceFee,
+          total: p.totalRepayment,
+        }),
+        pointRange(`${p.durationDays}-day plan daily payment`, "daily_repayment", p.dailyRepayment, "UGX_per_day", period),
+      );
+    }
+    if (plans.length > 1) {
+      const totals = plans.map((p) => p.totalRepayment);
+      const dailies = plans.map((p) => p.dailyRepayment);
+      ranges.push(
+        spanRange("Total repayment across plans compared", "total_repayment_span", Math.min(...totals), Math.max(...totals)),
+        spanRange("Daily payment across plans compared", "daily_repayment_span", Math.min(...dailies), Math.max(...dailies), "UGX_per_day"),
+      );
+    }
 
-    return {
-      content: [{ type: "text", text }],
-      structuredContent: {
+    return publicToolResult({
+      tool: "estimate_rent_access",
+      kind: "estimate",
+      summary: `Indicative Rent Plan for a monthly rent of ${ugx(roundedRent)}: total ${
+        plans.length > 1
+          ? `${ugx(Math.min(...plans.map((p) => p.totalRepayment)))}–${ugx(Math.max(...plans.map((p) => p.totalRepayment)))}`
+          : ugx(plans[0].totalRepayment)
+      } depending on plan length.`,
+      body: [planBlocks],
+      assumptions: [
+        `Access fee compounds at ${MONTHLY_RATE * 100}% a month over the plan length.`,
+        `Service fee is ${ugx(10_000)} for rent up to ${ugx(200_000)}, otherwise ${ugx(20_000)}.`,
+        `Agent commission shown is ${AGENT_COMMISSION_RATE * 100}% of rent, carved out of the access fee — it is never added on top, so the total is unchanged.`,
+        plans.length > 1
+          ? `No plan length was given, so ${DEFAULT_DURATIONS.join("/")}-day options are compared.`
+          : `Plan length of ${plans[0].durationDays} days as requested.`,
+        "Daily payment is the total divided over the plan length, rounded up.",
+      ],
+      estimates: {
+        basis: `Welile's canonical Rent Plan formula: rent + access fee (${MONTHLY_RATE * 100}% monthly compound) + service fee, repaid over the plan length.`,
+        confidence: "indicative",
+        currency: "UGX",
+        ranges,
+      },
+      data: {
         rent: roundedRent,
-        indicative: true,
         monthly_rate_pct: MONTHLY_RATE * 100,
         plans: plans.map((p) => ({
           duration_days: p.durationDays,
@@ -182,14 +214,16 @@ export default defineTool({
             total: p.totalRepayment,
           },
         })),
-        breakdown_note:
-          "Line items are illustrative only; the service/access/agent-commission split is for transparency and does not change the total.",
-        role: "tenant",
-        landing_url: landingUrl,
-        signup_url: signupUrl,
-        referral_url: referralUrl,
-        currency: "UGX",
       },
-    };
+      disclaimers: [
+        "Line items are illustrative only — the service/access/agent-commission split is shown for transparency and does not change the total.",
+        ...DISCLAIMERS,
+      ],
+      next_steps: [
+        "Create a free tenant account to see the Rent Plan you personally qualify for.",
+        "Ask to find available houses in your district to see real rents.",
+      ],
+      links,
+    });
   },
 });

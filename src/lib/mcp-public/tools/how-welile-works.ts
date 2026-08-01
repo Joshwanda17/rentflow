@@ -2,6 +2,7 @@ import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks } from "../links";
 import { enforceRateLimit } from "../rateLimit";
+import { publicToolResult } from "../response";
 
 // Guided prompts an assistant can suggest to move a prospective user from a
 // read-only question toward creating an account. Kept in sync with the
@@ -97,21 +98,31 @@ export default defineTool({
     const { signupUrl, referralUrl, landingUrl } = buildSignupLinks({ referralCode: referral_code });
 
     const faqText = faqs.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n");
-    const promptText = `Try asking:\n${GUIDED_PROMPTS.map((p) => `• ${p}`).join("\n")}`;
-    const linkText = referralUrl
-      ? `Start here (guided onboarding): ${landingUrl}\nSign up: ${signupUrl}\nReferral signup link: ${referralUrl}`
-      : `Start here (guided onboarding): ${landingUrl}\nSign up: ${signupUrl}`;
 
-    return {
-      content: [{ type: "text", text: `${faqText}\n\n---\n${promptText}\n\n${linkText}` }],
-      structuredContent: {
+    return publicToolResult({
+      tool: "how_welile_works",
+      kind: "info",
+      summary: term
+        ? `How Welile works — ${faqs.length} answer${faqs.length === 1 ? "" : "s"} about "${term}". All amounts are in UGX.`
+        : "How Welile works: tenants access rent through a flexible Rent Plan, agents serve them in the field, landlords get guaranteed rent, and Supporters earn Returns. All amounts are in UGX.",
+      body: [faqText, "", `Try asking:\n${GUIDED_PROMPTS.map((p) => `• ${p}`).join("\n")}`],
+      assumptions: [
+        "General product information only — nothing here is specific to one person's account.",
+        "Every amount on Welile is in Ugandan Shillings (UGX).",
+      ],
+      data: {
+        matched_topic: term || null,
         faqs: faqs.map(({ q, a }) => ({ question: q, answer: a })),
         guided_prompts: GUIDED_PROMPTS,
-        landing_url: landingUrl,
-        signup_url: signupUrl,
-        referral_url: referralUrl,
-        currency: "UGX",
       },
-    };
+      disclaimers: [
+        "Personal figures (your rent access, wallet, commissions, or Returns) are only visible after you create a free account and sign in.",
+      ],
+      next_steps: [
+        "Create a free account to see what you personally qualify for.",
+        "Ask one of the guided prompts above for a specific ballpark.",
+      ],
+      links: { landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl },
+    });
   },
 });

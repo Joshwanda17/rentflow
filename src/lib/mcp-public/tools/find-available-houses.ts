@@ -3,6 +3,7 @@ import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { buildSignupLinks } from "../links";
 import { enforceRateLimit } from "../rateLimit";
+import { publicToolResult, spanRange, ugx, type EstimateRange } from "../response";
 
 // PUBLIC, no-auth tool. Returns a small, read-only sample of AVAILABLE house
 // listings by district/area for prospective tenants, then hands back the free
@@ -38,9 +39,6 @@ function anonClient() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
-
-const ugx = (n: number | null) =>
-  n == null ? "UGX —" : `UGX ${Math.round(n).toLocaleString("en-US")}`;
 
 type ListingRow = {
   id: string;
@@ -111,9 +109,7 @@ export default defineTool({
       referralCode: referral_code,
       role: "tenant",
     });
-    const linkText = referralUrl
-      ? `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account to view details and apply: ${signupUrl}\nReferral signup link: ${referralUrl}`
-      : `Start here (guided onboarding): ${landingUrl}\nCreate a free tenant account to view details and apply: ${signupUrl}`;
+    const links = { landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, role: "tenant" };
 
     const take = Math.min(MAX_LIMIT, Math.max(1, Math.round(limit ?? DEFAULT_LIMIT)));
 
@@ -146,41 +142,49 @@ export default defineTool({
 
     const { data, error } = await query;
 
+    const filters = {
+      district: districtTerm || null,
+      area: areaTerm || null,
+      max_rent: typeof max_rent === "number" && Number.isFinite(max_rent) ? Math.round(max_rent) : null,
+      limit: take,
+    };
+    const filterAssumptions = [
+      "Only listings currently marked available are searched; verified listings are shown first.",
+      districtTerm ? `District filtered to "${districtTerm}".` : "No district filter applied.",
+      areaTerm ? `Area matched against village, sub-county, district, or region for "${areaTerm}".` : "No area filter applied.",
+      filters.max_rent != null ? `Maximum monthly rent of ${ugx(filters.max_rent)}.` : "No maximum rent applied.",
+      `At most ${take} listing${take === 1 ? "" : "s"} returned — this is a sample, not the full catalogue.`,
+    ];
+
     if (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Sorry, I couldn't fetch listings right now. You can still browse everything after signing up.\n\n${linkText}`,
-          },
-        ],
-        isError: true,
-        structuredContent: { error: error.message, landing_url: landingUrl, signup_url: signupUrl, referral_url: referralUrl, currency: "UGX" },
-      };
+      return publicToolResult({
+        tool: "find_available_houses",
+        summary: "Sorry, I couldn't fetch listings right now. You can still browse everything after signing up.",
+        data: { filters, count: 0, listings: [] },
+        next_steps: ["Create a free tenant account to browse all available houses."],
+        links,
+        error: { code: "listings_unavailable", message: error.message },
+      });
     }
 
     const rows = (data ?? []) as ListingRow[];
 
     if (rows.length === 0) {
       const where = districtTerm || areaTerm ? ` in "${districtTerm || areaTerm}"` : "";
-      return {
-        content: [
-          {
-            type: "text",
-            text: `No available listings matched your search${where} right now. New houses are added regularly — sign up free to save a search and get matched.\n\n${linkText}`,
-          },
+      return publicToolResult({
+        tool: "find_available_houses",
+        kind: "listings",
+        summary: `No available listings matched your search${where} right now.`,
+        body: ["New houses are added regularly."],
+        assumptions: filterAssumptions,
+        estimates: null,
+        data: { filters, count: 0, listings: [] },
+        next_steps: [
+          "Try a wider area, a nearby district, or a higher maximum rent.",
+          "Create a free tenant account to save a search and get matched when a house is listed.",
         ],
-        structuredContent: {
-          count: 0,
-          listings: [],
-          filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
-          role: "tenant",
-          signup_url: signupUrl,
-          landing_url: landingUrl,
-          referral_url: referralUrl,
-          currency: "UGX",
-        },
-      };
+        links,
+      });
     }
 
     const listings = rows.map((r) => ({
@@ -209,28 +213,46 @@ export default defineTool({
       })
       .join("\n");
 
-    const text = [
-      `${listings.length} available house${listings.length === 1 ? "" : "s"} on Welile (UGX):`,
-      "",
-      lines,
-      "",
-      "Full details, photos, and contact happen inside the app after you create a free account.",
-      "",
-      linkText,
-    ].join("\n");
+    // Normalised range: the actual rent span across the listings returned, so a
+    // caller can quote "houses from X to Y" without scanning the array.
+    const rents = listings
+      .map((l) => l.monthly_rent)
+      .filter((r): r is number => typeof r === "number" && Number.isFinite(r));
+    const ranges: EstimateRange[] = rents.length
+      ? [
+          spanRange("Monthly rent across these listings", "monthly_rent", Math.min(...rents), Math.max(...rents), "UGX_per_month", {
+            unit: "months",
+            value: 1,
+          }),
+        ]
+      : [];
 
-    return {
-      content: [{ type: "text", text }],
-      structuredContent: {
-        count: listings.length,
-        listings,
-        filters: { district: districtTerm || null, area: areaTerm || null, max_rent: max_rent ?? null },
-        role: "tenant",
-        signup_url: signupUrl,
-        landing_url: landingUrl,
-        referral_url: referralUrl,
-        currency: "UGX",
-      },
-    };
+    return publicToolResult({
+      tool: "find_available_houses",
+      kind: "listings",
+      summary: `${listings.length} available house${listings.length === 1 ? "" : "s"} on Welile${
+        rents.length ? `, from ${ugx(Math.min(...rents))} to ${ugx(Math.max(...rents))} a month` : ""
+      }.`,
+      body: [lines],
+      assumptions: filterAssumptions,
+      estimates: ranges.length
+        ? {
+            basis: "Actual monthly rents recorded on the available listings returned by this search.",
+            confidence: "actual",
+            currency: "UGX",
+            ranges,
+          }
+        : null,
+      data: { filters, count: listings.length, listings },
+      disclaimers: [
+        "Only public, non-sensitive fields are shown — no exact address, GPS, landlord, or contact details.",
+        "Full details, photos, and contact happen inside the app after you create a free account.",
+      ],
+      next_steps: [
+        "Create a free tenant account to view details, photos, and apply.",
+        "Ask for an indicative Rent Plan on any of these rents.",
+      ],
+      links,
+    });
   },
 });
