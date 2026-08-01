@@ -19,6 +19,16 @@ interface HROverviewProps {
 }
 
 export default function HROverview({ onNavigate }: HROverviewProps) {
+  const navigate = useNavigate();
+  const handleNav = (id: string) => {
+    if (id === 'employees') {
+      navigate('/hr/people');
+    } else if (id === 'user-management') {
+      navigate('/platform-users');
+    } else {
+      onNavigate?.(id);
+    }
+  };
   const { data: staffCount = 0 } = useQuery({
     queryKey: ['hr-staff-count'],
     queryFn: async () => {
