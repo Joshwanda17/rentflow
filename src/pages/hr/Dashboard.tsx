@@ -16,8 +16,6 @@ export default function HRDashboard() {
     switch (activeSection) {
       case 'requisitions': return <DirectorRequisitionsPanel />;
       case 'overview': return <HROverview onNavigate={setActiveSection} />;
-      case 'employees': return <HREmployeeDirectory />;
-      case 'user-management': return <HRUserManagement />;
       case 'leave': return <HRLeaveManagement />;
       case 'payroll': return <HRPayroll />;
       case 'disciplinary': return <HRDisciplinary />;
