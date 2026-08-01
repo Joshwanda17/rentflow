@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
   createDepartment,
@@ -74,6 +75,8 @@ export default function StaffDirectory() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<'people' | 'exited' | 'unenrolled'>('people');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('__all__');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,26 +106,68 @@ export default function StaffDirectory() {
     [positions],
   );
 
+  const departmentOptions = useMemo(() => {
+    const names = new Set<string>();
+    staff.forEach((s) => {
+      const name = s.current_assignment?.department_name;
+      if (name) names.add(name);
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [staff]);
+
+  const activeCount = useMemo(() => staff.filter((s) => s.status === 'active').length, [staff]);
+  const exitedCount = useMemo(() => staff.filter((s) => s.status !== 'active').length, [staff]);
+
   const visibleStaff = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return staff;
-    return staff.filter((s) =>
-      [s.full_name, s.staff_number, s.phone, s.email]
+    return staff.filter((s) => {
+      const isActive = s.status === 'active';
+      if (tab === 'people' && !isActive) return false;
+      if (tab === 'exited' && isActive) return false;
+      if (
+        departmentFilter !== '__all__' &&
+        (s.current_assignment?.department_name ?? '') !== departmentFilter
+      ) {
+        return false;
+      }
+      if (!q) return true;
+      return [s.full_name, s.staff_number, s.phone, s.email]
         .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(q)),
-    );
-  }, [staff, query]);
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
+  }, [staff, query, tab, departmentFilter]);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+        <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="people">People ({activeCount})</TabsTrigger>
+          <TabsTrigger value="exited">Exited ({exitedCount})</TabsTrigger>
+          <TabsTrigger value="unenrolled">Not enrolled (—)</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search name, staff ref, phone or email"
           className="h-9 w-full sm:max-w-xs"
         />
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+          <SelectTrigger className="h-9 w-full sm:w-52">
+            <SelectValue placeholder="All departments" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All departments</SelectItem>
+            {departmentOptions.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button size="sm" className="sm:ml-auto" onClick={() => setOpen(true)}>
           <UserPlus className="h-4 w-4 mr-2" />
           Enroll staff member
         </Button>
@@ -130,7 +175,9 @@ export default function StaffDirectory() {
 
       <Card>
         <CardContent className="p-0">
-          {loading ? (
+          {tab === 'unenrolled' ? (
+            <div className="p-6 text-sm text-muted-foreground">Loading candidates</div>
+          ) : loading ? (
             <div className="p-4 space-y-2">
               {[0, 1, 2].map((i) => (
                 <Skeleton key={i} className="h-10 w-full" />
@@ -162,7 +209,6 @@ export default function StaffDirectory() {
                     <TableHead>Position</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Reports to</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -212,11 +258,6 @@ export default function StaffDirectory() {
                               ? positionTitleById[s.current_assignment.manager_employee_id] ?? '—'
                               : '—'}
                           </TableCell>
-                          <TableCell>
-                            <Badge variant={s.status === 'active' ? 'default' : 'secondary'}>
-                              {s.status === 'active' ? 'Active' : 'Exited'}
-                            </Badge>
-                          </TableCell>
                           <TableCell className="text-right">
                             <Button size="sm" variant="outline" onClick={() => setAddFor(s)}>
                               <Plus className="h-3.5 w-3.5 mr-1" />
@@ -227,7 +268,7 @@ export default function StaffDirectory() {
                         {isOpen && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableCell />
-                            <TableCell colSpan={9} className="py-3">
+                            <TableCell colSpan={8} className="py-3">
                               {rows.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                   No active positions for this person yet.
