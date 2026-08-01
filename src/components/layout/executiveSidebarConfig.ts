@@ -265,7 +265,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Employee Directory', icon: Users, id: 'employees', access: HR_ACCESS },
         { label: 'People', icon: Users, id: 'hr-people', route: '/hr/people', access: HR_ACCESS },
         { label: 'Departments', icon: Building2, id: 'departments', access: HR_ACCESS },
-        { label: 'System Users', icon: UserCog, id: 'user-management', access: HR_ACCESS },
+        { label: 'Platform Users', icon: UserCog, id: 'user-management', route: '/platform-users', access: HR_ACCESS },
         { label: 'Leave Management', icon: ClipboardList, id: 'leave', access: HR_ACCESS },
         { label: 'Disciplinary', icon: AlertTriangle, id: 'disciplinary', access: HR_ACCESS },
         { label: 'Audit Trail', icon: FileText, id: 'audit', access: HR_ACCESS },
