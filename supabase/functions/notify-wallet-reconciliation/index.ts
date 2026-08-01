@@ -64,10 +64,13 @@ Deno.serve(async (req) => {
       const firstName = (profile?.full_name || "there").trim().split(/\s+/)[0];
       const withdrawable = Number(wallet?.withdrawable_balance ?? 0);
       const float = Number(wallet?.float_balance ?? 0);
-      const total = withdrawable + float;
 
       const dw = Number(r.delta_withdrawable ?? 0);
       const df = Number(r.delta_float ?? 0);
+
+      // The reconciled (post-correction) figure, so the SMS never quotes a
+      // pre-correction cache value alongside the change it describes.
+      const total = withdrawable + float + dw + df;
 
       let msg: string;
       if (dw === 0 && df === 0) {
