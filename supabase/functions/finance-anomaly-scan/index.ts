@@ -295,9 +295,11 @@ Deno.serve(async (req) => {
     for (const phone of phones) {
       try {
         const ok = await sendSMS(phone, smsBody, {
-          purpose: "finance_anomaly_report",
+          admin,
+          source: "finance-anomaly-scan",
+          reference_id: scanId ?? null,
           idempotencyKey: `finance-anomaly:${scanId ?? stamp}:${phone}`,
-        } as never);
+        });
         smsResults[phone] = ok ? "sent" : "failed";
       } catch (e) {
         smsResults[phone] = `error: ${(e as Error)?.message ?? e}`;
