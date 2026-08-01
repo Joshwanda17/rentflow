@@ -146,12 +146,10 @@ export default function StaffDirectory() {
   const activeCount = useMemo(() => staff.filter((s) => s.status === 'active').length, [staff]);
   const exitedCount = useMemo(() => staff.filter((s) => s.status !== 'active').length, [staff]);
 
-  const visibleStaff = useMemo(() => {
+  const peopleBase = useMemo(() => {
     const q = query.trim().toLowerCase();
     return staff.filter((s) => {
-      const isActive = s.status === 'active';
-      if (tab === 'people' && !isActive) return false;
-      if (tab === 'exited' && isActive) return false;
+      if (s.status !== 'active') return false;
       if (
         departmentFilter !== '__all__' &&
         (s.current_assignment?.department_name ?? '') !== departmentFilter
@@ -163,7 +161,46 @@ export default function StaffDirectory() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [staff, query, tab, departmentFilter]);
+  }, [staff, query, departmentFilter]);
+
+  const exitedBase = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return staff.filter((s) => {
+      if (s.status === 'active') return false;
+      if (
+        departmentFilter !== '__all__' &&
+        (s.current_assignment?.department_name ?? '') !== departmentFilter
+      ) {
+        return false;
+      }
+      if (!q) return true;
+      return [s.full_name, s.staff_number, s.phone, s.email]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
+  }, [staff, query, departmentFilter]);
+
+  const noAssignmentCount = useMemo(
+    () => peopleBase.filter((s) => !(assignments[s.id]?.length)).length,
+    [peopleBase, assignments]
+  );
+
+  const departmentCount = useMemo(
+    () => new Set(positions.map((p) => p.department_id).filter(Boolean)).size,
+    [positions]
+  );
+
+  const positionCount = useMemo(() => positions.length, [positions]);
+
+  const visibleStaff = useMemo(() => {
+    if (tab === 'unenrolled') return [];
+    const base = tab === 'people' ? peopleBase : exitedBase;
+    if (tab === 'people' && filterNoAssignment) {
+      return base.filter((s) => !(assignments[s.id]?.length));
+    }
+    return base;
+  }, [tab, peopleBase, exitedBase, filterNoAssignment, assignments]);
+
 
   return (
     <div className="space-y-4">
