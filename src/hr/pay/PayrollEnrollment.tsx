@@ -34,9 +34,13 @@ import {
 } from '@/components/ui/table';
 import {
   listEnrollment,
+  listGradeOptions,
+  listStaffCompensation,
   setBasicPay,
   setStatutoryProfile,
   type EnrollmentRow,
+  type GradeOption,
+  type StaffCompensationHistoryRow,
 } from '@/hr/pay/api/enrollment';
 import { listComponents, type PayComponentRow } from '@/hr/pay/api/config';
 import {
@@ -147,6 +151,24 @@ export default function PayrollEnrollment() {
   const [dedReason, setDedReason] = useState('');
   const [dedError, setDedError] = useState('');
 
+  // Allowances dialog state
+  const [allowRow, setAllowRow] = useState<EnrollmentRow | null>(null);
+  const [allowRecords, setAllowRecords] = useState<CompensationRow[]>([]);
+  const [allowLoading, setAllowLoading] = useState(false);
+  const [allowComponentId, setAllowComponentId] = useState('');
+  const [allowGradeId, setAllowGradeId] = useState('');
+  const [allowAmount, setAllowAmount] = useState('');
+  const [allowFrom, setAllowFrom] = useState('');
+  const [allowReason, setAllowReason] = useState('');
+  const [allowError, setAllowError] = useState('');
+  const [grades, setGrades] = useState<GradeOption[]>([]);
+
+  // Compensation history dialog state
+  const [histRow, setHistRow] = useState<EnrollmentRow | null>(null);
+  const [histRecords, setHistRecords] = useState<StaffCompensationHistoryRow[]>([]);
+  const [histLoading, setHistLoading] = useState(false);
+  const [histError, setHistError] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -172,8 +194,23 @@ export default function PayrollEnrollment() {
       .catch(() => setComponents([]));
   }, []);
 
+  useEffect(() => {
+    void listGradeOptions()
+      .then(setGrades)
+      .catch(() => setGrades([]));
+  }, []);
+
   const deductionComponents = useMemo(
     () => components.filter((c) => c.active && c.kind === 'deduction' && !c.is_statutory),
+    [components],
+  );
+
+  // Basic pay and part-month pay have their own dialogs, so they never appear here.
+  const allowanceComponents = useMemo(
+    () =>
+      components.filter(
+        (c) => c.active && c.kind === 'earning' && c.code !== 'BASIC' && c.code !== 'PRORATA',
+      ),
     [components],
   );
 
