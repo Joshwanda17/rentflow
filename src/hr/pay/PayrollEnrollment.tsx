@@ -34,9 +34,13 @@ import {
 } from '@/components/ui/table';
 import {
   listEnrollment,
+  listGradeOptions,
+  listStaffCompensation,
   setBasicPay,
   setStatutoryProfile,
   type EnrollmentRow,
+  type GradeOption,
+  type StaffCompensationHistoryRow,
 } from '@/hr/pay/api/enrollment';
 import { listComponents, type PayComponentRow } from '@/hr/pay/api/config';
 import {
@@ -147,6 +151,24 @@ export default function PayrollEnrollment() {
   const [dedReason, setDedReason] = useState('');
   const [dedError, setDedError] = useState('');
 
+  // Allowances dialog state
+  const [allowRow, setAllowRow] = useState<EnrollmentRow | null>(null);
+  const [allowRecords, setAllowRecords] = useState<CompensationRow[]>([]);
+  const [allowLoading, setAllowLoading] = useState(false);
+  const [allowComponentId, setAllowComponentId] = useState('');
+  const [allowGradeId, setAllowGradeId] = useState('');
+  const [allowAmount, setAllowAmount] = useState('');
+  const [allowFrom, setAllowFrom] = useState('');
+  const [allowReason, setAllowReason] = useState('');
+  const [allowError, setAllowError] = useState('');
+  const [grades, setGrades] = useState<GradeOption[]>([]);
+
+  // Compensation history dialog state
+  const [histRow, setHistRow] = useState<EnrollmentRow | null>(null);
+  const [histRecords, setHistRecords] = useState<StaffCompensationHistoryRow[]>([]);
+  const [histLoading, setHistLoading] = useState(false);
+  const [histError, setHistError] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -172,8 +194,23 @@ export default function PayrollEnrollment() {
       .catch(() => setComponents([]));
   }, []);
 
+  useEffect(() => {
+    void listGradeOptions()
+      .then(setGrades)
+      .catch(() => setGrades([]));
+  }, []);
+
   const deductionComponents = useMemo(
     () => components.filter((c) => c.active && c.kind === 'deduction' && !c.is_statutory),
+    [components],
+  );
+
+  // Basic pay and part-month pay have their own dialogs, so they never appear here.
+  const allowanceComponents = useMemo(
+    () =>
+      components.filter(
+        (c) => c.active && c.kind === 'earning' && c.code !== 'BASIC' && c.code !== 'PRORATA',
+      ),
     [components],
   );
 
@@ -297,6 +334,87 @@ export default function PayrollEnrollment() {
   function printSheet() {
     setReveal(true);
     setTimeout(() => window.print(), 50);
+  }
+
+  async function openAllowances(row: EnrollmentRow) {
+    setAllowRow(row);
+    setAllowRecords([]);
+    setAllowComponentId('');
+    setAllowGradeId('');
+    setAllowAmount('');
+    setAllowFrom(periodStart ?? '');
+    setAllowReason('');
+    setAllowError('');
+    setAllowLoading(true);
+    try {
+      const records = await listCompensation(row.staffId);
+      setAllowRecords(
+        records.filter(
+          (r) =>
+            r.effective_to === null &&
+            r.component_kind === 'earning' &&
+            r.component_code !== 'BASIC' &&
+            r.component_code !== 'PRORATA',
+        ),
+      );
+    } catch (error) {
+      setAllowError(rawError(error));
+    } finally {
+      setAllowLoading(false);
+    }
+  }
+
+  async function saveAllowance() {
+    if (!allowRow) return;
+    const amount = Number(allowAmount);
+    if (!allowComponentId) {
+      setAllowError('Pick the earning component.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAllowError('Enter a valid amount.');
+      return;
+    }
+    if (!allowFrom) {
+      setAllowError(periodStart ? 'An effective-from date is required.' : NO_OPEN_PERIOD);
+      return;
+    }
+    if (allowReason.trim().length < 10) {
+      setAllowError('The reason must be at least 10 characters.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await addCompensation(
+        allowRow.staffId,
+        allowComponentId,
+        allowGradeId || null,
+        amount,
+        allowFrom,
+        allowReason.trim(),
+      );
+      toast.success('Earning recorded');
+      await load();
+      setAllowRow(null);
+    } catch (error) {
+      setAllowError(rawError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function openHistory(row: EnrollmentRow) {
+    setHistRow(row);
+    setHistRecords([]);
+    setHistError('');
+    setHistLoading(true);
+    try {
+      setHistRecords(await listStaffCompensation(row.staffId));
+    } catch (error) {
+      setHistError(rawError(error));
+    } finally {
+      setHistLoading(false);
+    }
   }
 
   function openStatutory(row: EnrollmentRow, next: { paye: boolean; nssf: boolean; lst: boolean }) {
@@ -597,8 +715,17 @@ export default function PayrollEnrollment() {
                                 : '••••••'}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm tabular-nums">
-                          {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => void openAllowances(row)}
+                            className="font-mono text-sm tabular-nums underline-offset-2 hover:underline"
+                          >
+                            {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
+                          </button>
+                          <span className="hidden font-mono text-sm tabular-nums print:inline">
+                            {reveal ? formatAmount(row.allowancesTotal) : '••••••'}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <button
@@ -671,6 +798,16 @@ export default function PayrollEnrollment() {
                               />
                             </span>
                           ) : null}
+                          <div className="no-print mt-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-1 text-[11px] text-muted-foreground"
+                              onClick={() => void openHistory(row)}
+                            >
+                              History
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -1021,6 +1158,218 @@ export default function PayrollEnrollment() {
             <Button onClick={() => void saveDeduction()} disabled={saving || !periodStart}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Add deduction
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={allowRow !== null} onOpenChange={(open) => !open && setAllowRow(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Allowances and earnings{allowRow ? ` — ${allowRow.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {allowLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading earnings…
+              </div>
+            ) : allowRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No open allowances. Basic pay and part-month pay are recorded on their own screens.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {allowRecords.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between rounded-md border p-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {r.component_name} ({r.component_code})
+                        {r.grade_code ? ` · grade ${r.grade_code}` : ''}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        From {formatDate(r.effective_from)}
+                      </p>
+                    </div>
+                    <span className="font-mono tabular-nums">
+                      {reveal ? `UGX ${formatAmount(r.amount)}` : '••••••'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-semibold">Add earning</p>
+              <div className="space-y-1.5">
+                <Label>Component</Label>
+                <Select value={allowComponentId} onValueChange={setAllowComponentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an earning" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowanceComponents.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Grade</Label>
+                <Select value={allowGradeId} onValueChange={setAllowGradeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optional — no grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {grades.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.code} — {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Optional. Records which pay grade this amount came from.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="allow-amount">Amount</Label>
+                <Input
+                  id="allow-amount"
+                  type="number"
+                  min={0}
+                  value={allowAmount}
+                  onChange={(e) => {
+                    setAllowAmount(e.target.value);
+                    setAllowError('');
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="allow-from">Effective from</Label>
+                <Input
+                  id="allow-from"
+                  type="date"
+                  value={allowFrom}
+                  onChange={(e) => {
+                    setAllowFrom(e.target.value);
+                    setAllowError('');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">{EFFECTIVE_FROM_HELP}</p>
+                {!periodStart ? (
+                  <p className="text-xs font-medium text-destructive">{NO_OPEN_PERIOD}</p>
+                ) : null}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="allow-reason">Reason</Label>
+                <Textarea
+                  id="allow-reason"
+                  rows={3}
+                  value={allowReason}
+                  onChange={(e) => {
+                    setAllowReason(e.target.value);
+                    setAllowError('');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Required. Minimum 10 characters. To stop an allowance, add a closing record.
+                </p>
+                {allowError ? <p className="text-xs text-destructive">{allowError}</p> : null}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAllowRow(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveAllowance()} disabled={saving || !periodStart}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Add earning
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={histRow !== null} onOpenChange={(open) => !open && setHistRow(null)}>
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Compensation history{histRow ? ` — ${histRow.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {histLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading history…
+              </div>
+            ) : histError ? (
+              <p className="text-sm text-destructive">{histError}</p>
+            ) : histRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No compensation records yet.</p>
+            ) : (
+              <div className="max-h-[60vh] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Component</TableHead>
+                      <TableHead>Grade</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Effective from</TableHead>
+                      <TableHead>Effective to</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {histRecords.map((r) => {
+                      const current = r.effectiveTo === null;
+                      return (
+                        <TableRow
+                          key={r.id}
+                          className={current ? undefined : 'text-muted-foreground'}
+                        >
+                          <TableCell className="text-xs">
+                            {r.componentName || r.componentCode}
+                            <span className="ml-1 font-mono text-[11px]">({r.componentCode})</span>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{r.gradeCode ?? '—'}</TableCell>
+                          <TableCell className="text-right font-mono text-sm tabular-nums">
+                            {reveal ? formatAmount(r.amount) : '••••••'}
+                          </TableCell>
+                          <TableCell className="text-xs">{formatDate(r.effectiveFrom)}</TableCell>
+                          <TableCell className="text-xs">{formatDate(r.effectiveTo)}</TableCell>
+                          <TableCell className="max-w-[260px] text-xs" title={r.reason}>
+                            {r.reason || '—'}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {current ? (
+                              <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                                Current
+                              </span>
+                            ) : (
+                              <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                                Superseded
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Compensation is append-only. Every change keeps the previous record with the date it
+              closed. Nothing here can be edited or deleted.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistRow(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

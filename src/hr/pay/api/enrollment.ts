@@ -270,3 +270,82 @@ export async function setBasicPay(
   const componentId = await basicComponentId();
   await addCompensation(staffId, componentId, null, amount, effectiveFrom, reason);
 }
+
+export interface StaffCompensationHistoryRow {
+  id: string;
+  componentCode: string;
+  componentName: string;
+  componentKind: string;
+  gradeCode: string | null;
+  amount: number;
+  currency: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  reason: string;
+}
+
+type RawHistoryRow = {
+  id: string;
+  amount: number | string;
+  currency: string | null;
+  effective_from: string;
+  effective_to: string | null;
+  reason: string | null;
+  component: { code: string | null; name: string | null; kind: string | null } | null;
+  grade: { code: string | null } | null;
+};
+
+/**
+ * Every compensation record ever written for one person — open, closed and
+ * superseded — with its component and pay grade. Nothing is filtered out: this
+ * is the append-only audit history, ordered by component then newest first.
+ */
+export async function listStaffCompensation(
+  staffId: string,
+): Promise<StaffCompensationHistoryRow[]> {
+  const res = await supabase
+    .from('hr_pay_compensation')
+    .select(
+      'id, amount, currency, effective_from, effective_to, reason, component:hr_pay_components!hr_pay_compensation_component_id_fkey(code, name, kind), grade:hr_pay_grades!hr_pay_compensation_grade_id_fkey(code)',
+    )
+    .eq('staff_id', staffId)
+    .order('effective_from', { ascending: false });
+
+  const rows = (unwrap(res) ?? []) as unknown as RawHistoryRow[];
+  return rows
+    .map((r) => ({
+      id: r.id,
+      componentCode: r.component?.code ?? '',
+      componentName: r.component?.name ?? '',
+      componentKind: r.component?.kind ?? '',
+      gradeCode: r.grade?.code ?? null,
+      amount: Number(r.amount) || 0,
+      currency: r.currency ?? 'UGX',
+      effectiveFrom: r.effective_from,
+      effectiveTo: r.effective_to,
+      reason: r.reason ?? '',
+    }))
+    .sort((a, b) => {
+      const byCode = a.componentCode.localeCompare(b.componentCode);
+      if (byCode !== 0) return byCode;
+      // Newest effective date first inside each component.
+      return b.effectiveFrom.localeCompare(a.effectiveFrom);
+    });
+}
+
+export interface GradeOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+/** Active pay grades, for tagging a compensation record with its grade. */
+export async function listGradeOptions(): Promise<GradeOption[]> {
+  const res = await supabase
+    .from('hr_pay_grades')
+    .select('id, code, name')
+    .eq('active', true)
+    .order('code', { ascending: true });
+  const rows = (unwrap(res) ?? []) as { id: string; code: string | null; name: string | null }[];
+  return rows.map((r) => ({ id: r.id, code: r.code ?? '', name: r.name ?? '' }));
+}
