@@ -1540,6 +1540,12 @@ export function PayRunDetailPlaceholder() {
 
           <PayrollRegister runId={detail.id} />
 
+          <StatutoryReturnsSection
+            runId={detail.id}
+            status={detail.status}
+            periodCode={detail.period_code ?? null}
+          />
+
           <ReleaseSection runId={detail.id} status={detail.status} />
 
           <Card>
