@@ -1,8 +1,6 @@
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import HROverview from '@/components/hr/HROverview';
-import HREmployeeDirectory from '@/components/hr/HREmployeeDirectory';
-import HRUserManagement from '@/components/hr/HRUserManagement';
 import HRLeaveManagement from '@/components/hr/HRLeaveManagement';
 import HRPayroll from '@/components/hr/HRPayroll';
 import HRDisciplinary from '@/components/hr/HRDisciplinary';
@@ -18,8 +16,6 @@ export default function HRDashboard() {
     switch (activeSection) {
       case 'requisitions': return <DirectorRequisitionsPanel />;
       case 'overview': return <HROverview onNavigate={setActiveSection} />;
-      case 'employees': return <HREmployeeDirectory />;
-      case 'user-management': return <HRUserManagement />;
       case 'leave': return <HRLeaveManagement />;
       case 'payroll': return <HRPayroll />;
       case 'disciplinary': return <HRDisciplinary />;
