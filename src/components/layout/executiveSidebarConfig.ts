@@ -49,7 +49,7 @@ export interface SidebarSection {
 
 /** Same gate the /hr/* routes already enforce via RoleGuard. */
 const HR_ACCESS: SidebarItemAccess = {
-  roles: ['hr', 'super_admin', 'cto'],
+  roles: ['hr', 'super_admin'],
   permission: 'hr',
 };
 
