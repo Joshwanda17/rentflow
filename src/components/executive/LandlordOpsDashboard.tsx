@@ -275,8 +275,9 @@ function ListPropertyCTA({ phone, name, role }: { phone: string; name?: string; 
   );
 }
 
-function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]; open: boolean; onClose: () => void; title: string }) {
-  const [current, setCurrent] = useState(0);
+function ImagePreviewDialog({ images, open, onClose, title, startIndex = 0 }: { images: string[]; open: boolean; onClose: () => void; title: string; startIndex?: number }) {
+  const [current, setCurrent] = useState(startIndex);
+  useEffect(() => { setCurrent(startIndex); }, [startIndex, open]);
   if (!images.length) return null;
   const prev = () => setCurrent(c => (c - 1 + images.length) % images.length);
   const next = () => setCurrent(c => (c + 1) % images.length);
@@ -451,7 +452,7 @@ export function LandlordOpsDashboard() {
   const queryClient = useQueryClient();
   // Optimistically removed from the verification queue (until refetch confirms or rollback restores).
   const [optimisticallyVerifiedIds, setOptimisticallyVerifiedIds] = useState<Set<string>>(new Set());
-  const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
+  const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string; startIndex?: number } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' } | null>(null);
   const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
@@ -3282,10 +3283,15 @@ export function LandlordOpsDashboard() {
                     />
                   </div>
                   {/* Thumbnail */}
-                  <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border">
+                  <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border relative">
                     {house.image_urls?.[0] ? (
                       <button onClick={() => setPreviewImages({ images: house.image_urls!, title: house.title })} className="w-full h-full">
                         <StorageImage src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" />
+                        {house.image_urls.length > 1 && (
+                          <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] font-bold py-0.5">
+                            {house.image_urls.length} photos
+                          </span>
+                        )}
                       </button>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -3313,6 +3319,26 @@ export function LandlordOpsDashboard() {
                     </div>
                   </div>
                 </div>
+                {/* ── All agent-attached photos (full strip, not just the cover) ── */}
+                {Array.isArray(house.image_urls) && house.image_urls.length > 1 && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Agent photos ({house.image_urls.length})
+                    </p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {house.image_urls.map((url, i) => (
+                        <button
+                          key={`${house.id}-img-${i}`}
+                          onClick={() => setPreviewImages({ images: house.image_urls!, title: house.title, startIndex: i })}
+                          className="shrink-0 h-16 w-16 rounded-lg overflow-hidden border border-border bg-muted"
+                          aria-label={`Open photo ${i + 1} of ${house.image_urls!.length}`}
+                        >
+                          <StorageImage src={url} alt={`${house.title} photo ${i + 1}`} className="w-full h-full object-cover" expandable={false} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ── Divider ── */}
@@ -4106,7 +4132,7 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
   return (
     <>
       {previewImages && (
-        <ImagePreviewDialog images={previewImages.images} title={previewImages.title} open={!!previewImages} onClose={() => setPreviewImages(null)} />
+        <ImagePreviewDialog images={previewImages.images} title={previewImages.title} startIndex={previewImages.startIndex} open={!!previewImages} onClose={() => setPreviewImages(null)} />
       )}
       {adjustListing && (
         <RentAdjustmentDialog open={!!adjustListing} onOpenChange={(open: boolean) => !open && setAdjustListing(null)} listing={adjustListing} onSuccess={refetchAll} />
