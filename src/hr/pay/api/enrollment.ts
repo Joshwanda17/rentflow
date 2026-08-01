@@ -200,7 +200,7 @@ export async function listEnrollment(): Promise<EnrollmentResult> {
     }
   }
 
-  return staff
+  const mapped = staff
     .map((s) => {
       const assignment =
         (s.assignments ?? []).find((a) => !a.ended_on && a.is_primary) ??
