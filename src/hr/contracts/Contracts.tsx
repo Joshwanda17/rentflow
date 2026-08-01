@@ -37,12 +37,19 @@ import {
 } from '@/components/ui/table';
 import {
   createContract,
+  getDocumentUrl,
   listContracts,
+  listDocTypes,
+  listDocuments,
   listExpiring,
   updateContractStatus,
+  uploadDocument,
   type ContractRow,
+  type DocTypeRow,
+  type DocumentRow,
 } from './api';
 import { getStaffDirectory } from '@/hr/api/people';
+import { supabase } from '@/hr/api/client';
 
 const CONTRACT_TYPES = [
   { value: 'employment', label: 'Employment' },
@@ -423,6 +430,184 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <div className="grid grid-cols-[10rem_1fr] gap-2 py-1 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <span className="break-words">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Documents attached to a contract owner. Nothing here deletes: a newer
+ * version is an extra row, and the contract keeps pointing at the original.
+ */
+function ContractDocuments({
+  contract,
+  onLinked,
+}: {
+  contract: ContractRow;
+  onLinked: () => void;
+}) {
+  const [docs, setDocs] = useState<DocumentRow[]>([]);
+  const [docTypes, setDocTypes] = useState<DocTypeRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [file, setFile] = useState<File | null>(null);
+  const [docTypeId, setDocTypeId] = useState('');
+  const [title, setTitle] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [list, types] = await Promise.all([
+        listDocuments(contract.staff_id, contract.counterparty),
+        listDocTypes(),
+      ]);
+      setDocs(list);
+      setDocTypes(types);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [contract.staff_id, contract.counterparty]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const view = async (storagePath: string) => {
+    try {
+      const url = await getDocumentUrl(storagePath);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+
+  const attach = async () => {
+    if (!file) {
+      setError('Choose a file first.');
+      return;
+    }
+    if (!docTypeId) {
+      setError('Choose a document type.');
+      return;
+    }
+    if (!title.trim()) {
+      setError('Give the document a title.');
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      const row = await uploadDocument(
+        file,
+        docTypeId,
+        title.trim(),
+        contract.staff_id,
+        contract.counterparty,
+      );
+      if (!contract.document_id) {
+        const res = await supabase
+          .from('hr_contracts')
+          .update({ document_id: row.id })
+          .eq('id', contract.id)
+          .select('id')
+          .single();
+        if (res.error) throw new Error(res.error.message);
+        onLinked();
+        toast.success('Document attached to this contract');
+      } else {
+        toast.success('New version stored. The contract still points at the original.');
+      }
+      setFile(null);
+      setTitle('');
+      setDocTypeId('');
+      await refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 border-t pt-3">
+      <p className="text-sm font-medium">Documents</p>
+
+      {loading ? (
+        <p className="text-xs text-muted-foreground">Loading documents…</p>
+      ) : docs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No documents attached yet.</p>
+      ) : (
+        <ul className="space-y-1">
+          {docs.map((d) => (
+            <li
+              key={d.id}
+              className="flex items-center justify-between gap-2 rounded border px-2 py-1.5 text-sm"
+            >
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{d.title}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {(d.doc_type_name ?? 'Document') +
+                    ' · ' +
+                    new Date(d.uploaded_at).toLocaleDateString('en-UG', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  {d.id === contract.document_id ? ' · linked' : ''}
+                </span>
+              </span>
+              <Button size="sm" variant="outline" onClick={() => void view(d.storage_path)}>
+                View
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="space-y-2 rounded border p-2">
+        <Label htmlFor="doc-file" className="text-xs">
+          Attach document
+        </Label>
+        <Input
+          id="doc-file"
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
+        <Select value={docTypeId} onValueChange={setDocTypeId}>
+          <SelectTrigger id="doc-type">
+            <SelectValue placeholder="Document type" />
+          </SelectTrigger>
+          <SelectContent>
+            {docTypes.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          id="doc-title"
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <Button size="sm" onClick={attach} disabled={uploading}>
+          {uploading && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+          Save document
+        </Button>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Documents are never deleted. Upload a new version instead.
+      </p>
+
+      {error && (
+        <p role="alert" className="text-xs font-medium text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
