@@ -271,13 +271,10 @@ export default function WithdrawFlow({
   // to `20` silently locked every active agent (0.x < 20 is always true),
   // which made the Confirm button do nothing on step 4.
   const perfPct = perfToday?.today_pct != null ? perfToday.today_pct * 100 : null;
-  const isPerfLocked =
-    isAgent &&
-    !perfGateBypassed &&
-    !!perfToday &&
-    perfToday.expected_daily > 0 &&
-    perfToday.active_count > 0 &&
-    (perfPct ?? 0) < 20;
+  // 20% daily-collection withdrawal gate REMOVED (2026-08-01) — agents can
+  // withdraw regardless of today's collection performance. Kept as a constant
+  // false so the surrounding plumbing stays intact for a future replacement.
+  const isPerfLocked = false;
 
   /** Force-fetch the strict ledger balance from the server, bypassing
    *  any cached values. Updates `ledgerAvailable` + `ledgerCheckedAt`. */
@@ -589,12 +586,6 @@ export default function WithdrawFlow({
     // Agent performance gate — blocks step 0 and 1 for the "available"
     // (personal wallet) source. Landlord-float payouts use a separate
     // flow and are exempt. Threshold: today_pct < 20% with active tenants.
-    if (
-      source === 'available' &&
-      isPerfLocked
-    ) {
-      return false;
-    }
     switch (currentStep) {
       case 0: return true;
       case 1:
@@ -1026,28 +1017,6 @@ export default function WithdrawFlow({
                 </div>
                 <p className="text-sm text-destructive/90">
                   {withdrawCtx.gates.blockReason ?? 'You cannot submit a withdrawal right now.'}
-                </p>
-              </div>
-            )}
-            {isPerfLocked && (
-              <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-destructive">Withdrawals temporarily disabled</h4>
-                </div>
-                <p className="text-sm text-destructive/90">
-                  Your collection performance today is{' '}
-                  <span className="font-bold">{(perfPct ?? 0).toFixed(1)}%</span>{' '}
-                  ({formatCurrency(perfToday!.paid_today, 'UGX')} collected of{' '}
-                  {formatCurrency(perfToday!.expected_daily, 'UGX')} expected across{' '}
-                  {perfToday!.active_count} active tenant{perfToday!.active_count === 1 ? '' : 's'}).
-                </p>
-                <p className="text-xs text-destructive/80">
-                  Welile requires agents to keep daily collection performance
-                  at or above <span className="font-semibold">20%</span> before
-                  withdrawing from their wallet. Collect from more of today's
-                  tenants (or allocate landlord float on their behalf) and
-                  performance will update automatically. Landlord-float payouts
-                  are not affected by this rule.
                 </p>
               </div>
             )}
