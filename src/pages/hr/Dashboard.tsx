@@ -1,8 +1,6 @@
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import HROverview from '@/components/hr/HROverview';
-import HREmployeeDirectory from '@/components/hr/HREmployeeDirectory';
-import HRUserManagement from '@/components/hr/HRUserManagement';
 import HRLeaveManagement from '@/components/hr/HRLeaveManagement';
 import HRPayroll from '@/components/hr/HRPayroll';
 import HRDisciplinary from '@/components/hr/HRDisciplinary';
