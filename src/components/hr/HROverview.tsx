@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Users, CalendarDays, Banknote, AlertTriangle, UserCog, ClipboardList,
@@ -18,6 +19,16 @@ interface HROverviewProps {
 }
 
 export default function HROverview({ onNavigate }: HROverviewProps) {
+  const navigate = useNavigate();
+  const handleNav = (id: string) => {
+    if (id === 'employees') {
+      navigate('/hr/people');
+    } else if (id === 'user-management') {
+      navigate('/platform-users');
+    } else {
+      onNavigate?.(id);
+    }
+  };
   const { data: staffCount = 0 } = useQuery({
     queryKey: ['hr-staff-count'],
     queryFn: async () => {
@@ -181,7 +192,7 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
           {quickNavItems.map((nav) => (
             <motion.div key={nav.id} variants={item}>
               <button
-                onClick={() => onNavigate?.(nav.id)}
+                onClick={() => handleNav(nav.id)}
                 className="w-full text-left rounded-xl border border-border/50 bg-card hover:bg-muted/40 p-3.5 transition-all active:scale-[0.97] touch-manipulation group"
               >
                 <div className="flex items-start justify-between mb-2">
