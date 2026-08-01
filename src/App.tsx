@@ -181,6 +181,7 @@ const ReinvestmentHistory = lazy(() => import('./pages/ReinvestmentHistory'));
 const CTODashboardPage = lazy(() => import('./pages/cto/Dashboard'));
 const CEODashboardPage = lazy(() => import('./pages/ceo/Dashboard'));
 const CMODashboardPage = lazy(() => import('./pages/cmo/Dashboard'));
+const MerchandiseShareAnalyticsPage = lazy(() => import('./pages/admin/MerchandiseShareAnalytics'));
 const CRMDashboardPage = lazy(() => import('./pages/crm/Dashboard'));
 const CFODashboardPage = lazy(() => import('./pages/cfo/Dashboard'));
 const InvestorReportPage = lazy(() => import('./pages/cfo/InvestorReportPage'));
