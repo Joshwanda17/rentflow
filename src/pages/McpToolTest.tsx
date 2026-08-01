@@ -77,7 +77,8 @@ const TOOLS: ToolSpec[] = [
       const p = (r.structuredContent as { profile?: Record<string, unknown> } | undefined)?.profile;
       return [
         { label: 'returned a profile object', ok: !!p },
-        { label: 'has an id', ok: !!p?.id },
+        { label: 'has a full name', ok: typeof p?.full_name === 'string' && !!p.full_name },
+        { label: 'has a verification flag', ok: typeof p?.verified === 'boolean' },
       ];
     },
   },
