@@ -21,7 +21,7 @@ import {
   Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Warehouse, Receipt,
   Repeat, CheckCircle2, CircleDollarSign, Store, ShoppingBag, Power,
   Upload, X, ChevronLeft, ChevronRight, ImageIcon,
-  Pencil,
+  Pencil, BarChart3,
 } from 'lucide-react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { optimizeImage } from '@/lib/imageOptimizer';
@@ -480,6 +480,14 @@ export function MerchandiseManager() {
       </Section>
 
       {/* Storefront catalog (items agents can buy) */}
+      <div className="flex justify-end">
+        <Button asChild size="sm" variant="outline" className="gap-1.5">
+          <a href="/admin/merchandise-share-analytics">
+            <BarChart3 className="h-4 w-4" /> Share link analytics
+          </a>
+        </Button>
+      </div>
+
       <Section title="Storefront Catalog (what agents can buy)" icon={Store}>
         {loadingCatalog ? (
           <EmptyRow text="Loading catalog…" />
