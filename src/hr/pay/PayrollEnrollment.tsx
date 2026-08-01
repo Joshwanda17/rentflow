@@ -703,6 +703,8 @@ export default function PayrollEnrollment() {
         </CardContent>
       </Card>
 
+      <p className="text-xs text-muted-foreground">Gross on record is everything currently recorded for this person. Where part-month pay applies, it replaces basic salary in the payroll calculation, so the amount paid will be lower than the figure shown here. The payslip is the authority.</p>
+
       <div className="hidden print:block print:mt-10">
         <div className="flex gap-16">
           <div className="flex-1">
