@@ -23,6 +23,25 @@ interface ShareOpenRow {
 
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 
+const CHANNEL_MATCHERS: Array<{ label: string; test: RegExp }> = [
+  { label: 'WhatsApp', test: /whats\s*app|wa\.me|whatsapp/i },
+  { label: 'Facebook', test: /facebook|fb\b|messenger|fbclid/i },
+  { label: 'Telegram', test: /telegram|t\.me/i },
+  { label: 'X / Twitter', test: /twitter|t\.co|(^|[^a-z])x(\.com)?([^a-z]|$)/i },
+  { label: 'Instagram', test: /instagram|ig\b/i },
+  { label: 'TikTok', test: /tiktok/i },
+  { label: 'SMS', test: /sms|text/i },
+  { label: 'Email', test: /mail|gmail|outlook/i },
+];
+
+/** Classify a share open into a sharing channel from its source tag and referrer. */
+function classifyChannel(row: ShareOpenRow): string {
+  const hay = `${row.source ?? ''} ${row.referrer ?? ''}`.trim();
+  if (!hay) return 'Direct / unknown';
+  const hit = CHANNEL_MATCHERS.find((c) => c.test.test(hay));
+  return hit ? hit.label : (row.source || 'Other');
+}
+
 export default function MerchandiseShareAnalytics() {
   const today = new Date();
   const past = new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000);
