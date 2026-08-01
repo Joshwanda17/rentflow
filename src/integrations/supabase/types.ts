@@ -31783,6 +31783,15 @@ export type Database = {
           total_paye: number
         }[]
       }
+      hr_pay_exceptions: {
+        Args: { _run_id: string }
+        Returns: {
+          detail: string
+          issue: string
+          severity: string
+          staff_ref: string
+        }[]
+      }
       hr_pay_has_authority: { Args: { _fn: string }; Returns: boolean }
       hr_pay_is_approver: { Args: never; Returns: boolean }
       hr_pay_is_own_staff: { Args: { _staff_id: string }; Returns: boolean }
