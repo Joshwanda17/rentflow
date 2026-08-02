@@ -111,8 +111,8 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-2.5">
-        {suggestions.slice(0, 3).map(house => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        {suggestions.slice(0, 4).map(house => (
           <Card key={house.id} className="overflow-hidden border-border/60">
             <CardContent className="p-0">
               <div className="flex flex-col gap-2 p-3">
