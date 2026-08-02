@@ -72,3 +72,4 @@
 - [Bucket-aware CFO debit](mem://architecture/bucket-aware-debit) — Float debits validated against float, never create personal debt; bucket-scoped obligations, recovery and error codes
 - [Sub-agent link evidence](mem://constraints/subagent-link-evidence) — Never build agent_subagents from profiles.referrer_id or the default agent role/capabilities; requires real agent activity
 - [Finance anomaly alert recipients](mem://constraints/finance-anomaly-alert-recipients) — finance anomaly SMS/email goes ONLY to joshwanda17@gmail.com + 0704825473; no CFO/CTO role fallback broadcast
+- [Rent fee edit notification](mem://constraints/rent-fee-edit-notification) — Any admin edit to rent_amount/duration_days/access_fee/request_fee/total_repayment/daily_repayment is logged to rent_amount_change_log and alerted by email+SMS via rent-amount-change-notify to finance_anomaly_alert_config recipients; out-of-band SQL corrections must log + notify manually
