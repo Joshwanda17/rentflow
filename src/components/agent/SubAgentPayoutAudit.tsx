@@ -61,6 +61,7 @@ export function SubAgentPayoutAudit() {
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Filters
   const [dateFrom, setDateFrom] = useState('');
@@ -147,12 +148,16 @@ export function SubAgentPayoutAudit() {
 
   const summary = useMemo(() => {
     const total = filteredRows.length;
-    const withdrawable = filteredRows.filter((r) => r.status === 'withdrawable').length;
+    const withdrawable = filteredRows.filter((r) => r.status === 'credited').length;
     const otherScope = filteredRows.filter((r) => r.status === 'other_scope').length;
-    const unmatched = filteredRows.filter((r) => r.status === 'unmatched').length;
+    const pending = filteredRows.filter((r) => r.status === 'pending').length;
+    const failed = filteredRows.filter((r) => r.status === 'failed').length;
+    const unmatched = filteredRows.filter((r) => r.status === 'not_found').length;
     const earned = filteredRows.reduce((s, r) => s + r.amount, 0);
-    const landed = filteredRows.filter((r) => r.status === 'withdrawable').reduce((s, r) => s + r.amount, 0);
-    return { total, withdrawable, otherScope, unmatched, earned, landed };
+    const landed = filteredRows
+      .filter((r) => r.status === 'credited')
+      .reduce((s, r) => s + (r.creditedAmount ?? r.amount), 0);
+    return { total, withdrawable, otherScope, pending, failed, unmatched, earned, landed };
   }, [filteredRows]);
 
   const hasActiveFilters = dateFrom || dateTo || subAgentFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all';
