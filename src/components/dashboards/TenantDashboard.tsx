@@ -937,9 +937,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
                 <RentRequestButton userId={user.id} onSuccess={fetchData} />
               </LockedActionTooltip>
-              <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
             </div>
-            <SuggestedHousesCard userId={user.id} onViewAll={goToAllHouses} />
             {rentRequests.length > 0 && (
               <RentProcessTracker
                 requestStatus={rentRequests[0].status}
@@ -949,14 +947,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 fundRecipientType={(rentRequests[0] as any).fund_recipient_type}
                 fundRecipientName={(rentRequests[0] as any).fund_recipient_name}
                 fundRoutedAt={(rentRequests[0] as any).fund_routed_at}
-              />
-            )}
-            {rentRequests.some(r => ['disbursed', 'completed', 'funded', 'repaying'].includes(r.status)) && (
-              <RepaymentSection
-                userId={user.id}
-                activeRequest={rentRequests.find(r => ['disbursed', 'repaying'].includes(r.status))}
-                repayments={repayments}
-                onRepaymentSuccess={fetchData}
               />
             )}
             {showCalculator && (
