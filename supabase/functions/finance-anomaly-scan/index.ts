@@ -224,25 +224,11 @@ Deno.serve(async (req) => {
 
     // ---- recipients ----
     const emails = ((cfg?.notify_emails as string[] | null) ?? []).filter(Boolean);
-    let phones = ((cfg?.notify_phones as string[] | null) ?? []).filter(Boolean);
-
-    if (!phones.length) {
-      const { data: roleRows } = await admin
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["cfo", "cto"]);
-      const ids = (roleRows ?? []).map((r) => r.user_id as string);
-      if (ids.length) {
-        const { data: profs } = await admin
-          .from("profiles")
-          .select("phone")
-          .in("id", ids)
-          .not("phone", "is", null);
-        phones = Array.from(
-          new Set((profs ?? []).map((p) => String(p.phone)).filter(Boolean)),
-        );
-      }
-    }
+    // Explicit allow-list only. NO role-based fallback broadcast: an empty
+    // notify_phones means "send no SMS", never "SMS every CFO/CTO".
+    const phones = Array.from(
+      new Set(((cfg?.notify_phones as string[] | null) ?? []).filter(Boolean)),
+    );
 
     const subject =
       `Finance anomaly report — ${String(report.severity ?? "clean").toUpperCase()} · ` +

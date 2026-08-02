@@ -71,3 +71,4 @@
 - [mcp-public response envelope](mem://architecture/mcp-public-response-envelope) — All public MCP tools return the same 13-field `publicToolResult` envelope (schema 1.0) with normalised `estimates.ranges` in UGX; `/public-tools` docs mirror it
 - [Bucket-aware CFO debit](mem://architecture/bucket-aware-debit) — Float debits validated against float, never create personal debt; bucket-scoped obligations, recovery and error codes
 - [Sub-agent link evidence](mem://constraints/subagent-link-evidence) — Never build agent_subagents from profiles.referrer_id or the default agent role/capabilities; requires real agent activity
+- [Finance anomaly alert recipients](mem://constraints/finance-anomaly-alert-recipients) — finance anomaly SMS/email goes ONLY to joshwanda17@gmail.com + 0704825473; no CFO/CTO role fallback broadcast
