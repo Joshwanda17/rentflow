@@ -3,6 +3,7 @@
 // summarising them, then stamps notified_at so nothing is sent twice.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendSMS } from "../_shared/sendSmsMultiProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,7 +16,8 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const FROM = "Welile Reports <info@welile.com>";
 const SENDER_DOMAIN = "notify.welile.com";
-const DEFAULT_RECIPIENTS = ["pexpert46@gmail.com"];
+const DEFAULT_RECIPIENTS = ["joshwanda17@gmail.com"];
+const DEFAULT_PHONES = ["+256704825473"];
 
 const fmtUGX = (n: unknown) =>
   `UGX ${Math.round(Number(n) || 0).toLocaleString("en-US")}`;
@@ -34,6 +36,15 @@ interface ChangeRow {
   new_rent_amount: number | null;
   old_total_repayment: number | null;
   new_total_repayment: number | null;
+  old_duration_days: number | null;
+  new_duration_days: number | null;
+  old_access_fee: number | null;
+  new_access_fee: number | null;
+  old_request_fee: number | null;
+  new_request_fee: number | null;
+  old_daily_repayment: number | null;
+  new_daily_repayment: number | null;
+  changed_fields: string[] | null;
   status: string | null;
   changed_by: string | null;
   changed_at: string;
@@ -72,6 +83,19 @@ Deno.serve(async (req) => {
 
   try {
     let recipients = DEFAULT_RECIPIENTS;
+    let phones = DEFAULT_PHONES;
+    try {
+      const { data: cfg } = await admin
+        .from("finance_anomaly_alert_config")
+        .select("notify_emails, notify_phones")
+        .maybeSingle();
+      if (Array.isArray(cfg?.notify_emails) && cfg!.notify_emails.length) {
+        recipients = (cfg!.notify_emails as string[]).filter(Boolean);
+      }
+      if (Array.isArray(cfg?.notify_phones) && cfg!.notify_phones.length) {
+        phones = (cfg!.notify_phones as string[]).filter(Boolean);
+      }
+    } catch (_) { /* fall back to defaults */ }
     try {
       const body = await req.json();
       if (Array.isArray(body?.recipients) && body.recipients.length) {
@@ -82,7 +106,7 @@ Deno.serve(async (req) => {
     const { data, error } = await admin
       .from("rent_amount_change_log")
       .select(
-        "id, rent_request_id, tenant_id, agent_id, old_rent_amount, new_rent_amount, old_total_repayment, new_total_repayment, status, changed_by, changed_at",
+        "id, rent_request_id, tenant_id, agent_id, old_rent_amount, new_rent_amount, old_total_repayment, new_total_repayment, old_duration_days, new_duration_days, old_access_fee, new_access_fee, old_request_fee, new_request_fee, old_daily_repayment, new_daily_repayment, changed_fields, status, changed_by, changed_at",
       )
       .is("notified_at", null)
       .order("changed_at", { ascending: false })
@@ -91,7 +115,7 @@ Deno.serve(async (req) => {
 
     const rows = (data ?? []) as ChangeRow[];
     if (!rows.length) {
-      return new Response(JSON.stringify({ notified: 0, reason: "no new rent amount changes" }), {
+      return new Response(JSON.stringify({ notified: 0, reason: "no new rent fee changes" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -108,7 +132,33 @@ Deno.serve(async (req) => {
       (profiles ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name ?? "—"]),
     );
 
-    const subject = `Rent amount changed — ${rows.length} rent plan${rows.length === 1 ? "" : "s"}`;
+    const FIELD_LABELS: Record<string, string> = {
+      rent_amount: "Rent",
+      duration_days: "Term (days)",
+      access_fee: "Access fee",
+      request_fee: "Request fee",
+      total_repayment: "Total repayment",
+      daily_repayment: "Daily amount",
+    };
+    const changeDetail = (r: ChangeRow): string => {
+      const parts: string[] = [];
+      const fields = r.changed_fields?.length
+        ? r.changed_fields
+        : ["rent_amount", "total_repayment"];
+      for (const f of fields) {
+        const label = FIELD_LABELS[f] ?? f;
+        if (f === "duration_days") {
+          parts.push(`${label}: ${r.old_duration_days ?? "—"} → ${r.new_duration_days ?? "—"}`);
+          continue;
+        }
+        const oldV = (r as unknown as Record<string, unknown>)[`old_${f}`];
+        const newV = (r as unknown as Record<string, unknown>)[`new_${f}`];
+        parts.push(`${label}: ${fmtUGX(oldV)} → ${fmtUGX(newV)}`);
+      }
+      return parts.join(" · ");
+    };
+
+    const subject = `Rent fees changed — ${rows.length} rent plan${rows.length === 1 ? "" : "s"}`;
     const body = rows
       .map((r) => {
         const delta = Number(r.new_rent_amount ?? 0) - Number(r.old_rent_amount ?? 0);
@@ -120,6 +170,7 @@ Deno.serve(async (req) => {
   <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${fmtUGX(r.new_rent_amount)}</td>
   <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:${color}">${delta > 0 ? "+" : ""}${fmtUGX(delta)}</td>
   <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${fmtUGX(r.new_total_repayment)}</td>
+  <td style="padding:6px 10px;border-bottom:1px solid #eee">${esc(changeDetail(r))}</td>
   <td style="padding:6px 10px;border-bottom:1px solid #eee">${esc(r.status)}</td>
   <td style="padding:6px 10px;border-bottom:1px solid #eee">${esc(nameById.get(r.changed_by ?? "") ?? "System")}</td>
   <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap">${esc(new Date(r.changed_at).toISOString().replace("T", " ").slice(0, 16))} UTC</td>
@@ -128,8 +179,8 @@ Deno.serve(async (req) => {
       .join("");
 
     const html = `<div style="font:14px system-ui;color:#111;max-width:900px">
-  <h2 style="margin:0 0 6px;font:700 18px system-ui">Rent amount changed</h2>
-  <p style="margin:0 0 4px;color:#555">Every change to a tenant's rent amount is logged and reported here. Fees, total repayment and the daily amount are recalculated automatically on each change.</p>
+  <h2 style="margin:0 0 6px;font:700 18px system-ui">Rent fees changed</h2>
+  <p style="margin:0 0 4px;color:#555">Every admin change to a tenant's rent amount, term, access fee, request fee, total repayment or daily amount is logged and reported here. Fees, total repayment and the daily amount are recalculated automatically on each change.</p>
   <table style="width:100%;border-collapse:collapse;font:13px system-ui;margin-top:14px">
     <thead><tr style="background:#f6f6f6;text-align:left">
       <th style="padding:6px 10px">Tenant</th>
@@ -138,6 +189,7 @@ Deno.serve(async (req) => {
       <th style="padding:6px 10px;text-align:right">New rent</th>
       <th style="padding:6px 10px;text-align:right">Change</th>
       <th style="padding:6px 10px;text-align:right">New total repayment</th>
+      <th style="padding:6px 10px">Fields changed</th>
       <th style="padding:6px 10px">Status</th>
       <th style="padding:6px 10px">Changed by</th>
       <th style="padding:6px 10px">When</th>
@@ -151,7 +203,7 @@ Deno.serve(async (req) => {
       "",
       ...rows.map(
         (r) =>
-          `${nameById.get(r.tenant_id ?? "") ?? "—"}: ${fmtUGX(r.old_rent_amount)} -> ${fmtUGX(r.new_rent_amount)} (total ${fmtUGX(r.new_total_repayment)}) by ${nameById.get(r.changed_by ?? "") ?? "System"} at ${r.changed_at}`,
+          `${nameById.get(r.tenant_id ?? "") ?? "—"}: ${changeDetail(r)} by ${nameById.get(r.changed_by ?? "") ?? "System"} at ${r.changed_at}`,
       ),
     ].join("\n");
 
@@ -188,6 +240,29 @@ Deno.serve(async (req) => {
       if (enqErr) console.error("[rent-amount-change-notify] enqueue error", to, enqErr);
     }
 
+    const smsBody = [
+      `WELILE: ${rows.length} rent fee edit${rows.length === 1 ? "" : "s"}.`,
+      ...rows.slice(0, 3).map(
+        (r) => `${nameById.get(r.tenant_id ?? "") ?? "tenant"} — ${changeDetail(r)}`,
+      ),
+      rows.length > 3 ? `+${rows.length - 3} more. Check email report.` : "",
+    ].filter(Boolean).join(" | ").slice(0, 480);
+
+    const smsResults: Record<string, string> = {};
+    for (const phone of phones) {
+      try {
+        const ok = await sendSMS(phone, smsBody, {
+          admin,
+          source: "rent-amount-change-notify",
+          reference_id: rows[0].id,
+          idempotencyKey: `rent-fee-change:${rows[0].id}:${phone}`,
+        });
+        smsResults[phone] = ok ? "sent" : "failed";
+      } catch (e) {
+        smsResults[phone] = `error: ${(e as Error)?.message ?? e}`;
+      }
+    }
+
     if (Object.values(results).some((v) => v === "queued")) {
       await admin
         .from("rent_amount_change_log")
@@ -195,7 +270,7 @@ Deno.serve(async (req) => {
         .in("id", rows.map((r) => r.id));
     }
 
-    return new Response(JSON.stringify({ notified: rows.length, email_results: results }), {
+    return new Response(JSON.stringify({ notified: rows.length, email_results: results, sms_results: smsResults }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
