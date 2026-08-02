@@ -14,7 +14,6 @@ import {
   Share2,
   Download,
   Settings,
-  HelpCircle,
   Calculator,
   ChevronRight,
   ScrollText,
