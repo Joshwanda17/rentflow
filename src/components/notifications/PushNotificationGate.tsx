@@ -214,12 +214,8 @@ export function PushNotificationGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
-  // When true, the user MUST enable notifications — the prompt can't be
-  // dismissed. This is the case whenever push is supported and permission is
-  // still grantable ("default"). We only allow snoozing when the browser can't
-  // deliver push at all (unsupported) or the OS-level permission is "denied"
-  // (which we can't override from the app).
-  const [required, setRequired] = useState(false);
+  // The prompt is always dismissible ("Not now") and honours the 7-day snooze.
+  const required = false;
   const checkedRef = useRef(false);
 
   const snoozed = useMemo(() => {
@@ -255,13 +251,11 @@ export function PushNotificationGate() {
     if (isDenied) clearEnabled(user.id);
     // Already enabled on this device (flag or live subscription) → never nag.
     if (!isDenied && isMarkedEnabled(user.id)) return;
-    // Denied is only snooze-able because the app can't override an OS block.
-    if (isDenied && snoozed) return;
-
-    setRequired(!isDenied);
+    // Snooze applies to every path — the prompt is never mandatory.
+    if (snoozed) return;
 
     let cancelled = false;
-    // Small delay so it doesn't fight other startup UI (e.g. location gate).
+    // Delay so it doesn't fight other startup UI (e.g. location gate).
     const t = setTimeout(async () => {
       if (cancelled) return;
       if (await deviceAlreadySubscribed(user.id)) {
@@ -269,7 +263,7 @@ export function PushNotificationGate() {
         return;
       }
       if (!cancelled) setOpen(true);
-    }, 5000);
+    }, 30000);
     return () => {
       cancelled = true;
       clearTimeout(t);
