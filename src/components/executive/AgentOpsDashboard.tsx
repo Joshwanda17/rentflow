@@ -257,9 +257,9 @@ export function AgentOpsDashboard() {
       case 'advances-analytics': return (
         <div className="space-y-6">
           <AdvanceHealthCard />
-          <AdvancesAnalyticsView context="agent_ops" />
           <AgentMonthlyKpis />
           <AgentAdvanceRepaymentMonitor />
+          <AdvancesAnalyticsView context="agent_ops" />
         </div>
       );
       case 'active-advances': return <ActiveAdvancesPanel />;
