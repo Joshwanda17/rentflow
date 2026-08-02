@@ -81,18 +81,13 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const fetchSubAgents = useCallback(async () => {
     if (!user) return;
     try {
-      // Pull from both agent_subagents and referrals/profiles to make sure
-      // every sub-agent the agent registered (legacy + new) shows up.
-      const [{ data: subRows }, { data: refRows }] = await Promise.all([
-        supabase
-          .from('agent_subagents')
-          .select('sub_agent_id, status, created_at')
-          .eq('parent_agent_id', user.id),
-        supabase
-          .from('referrals')
-          .select('referred_id, created_at')
-          .eq('referrer_id', user.id),
-      ]);
+      // A sub-agent is ONLY a user with an `agent_subagents` row whose
+      // parent is this agent. Plain referrals (tenants, landlords, funders the
+      // agent registered) are NOT sub-agents and must never appear here.
+      const { data: subRows } = await supabase
+        .from('agent_subagents')
+        .select('sub_agent_id, status, created_at')
+        .eq('parent_agent_id', user.id);
 
       const map = new Map<
         string,
@@ -101,11 +96,6 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       (subRows || []).forEach(r =>
         map.set(r.sub_agent_id, { status: r.status, created_at: r.created_at }),
       );
-      (refRows || []).forEach(r => {
-        if (!map.has(r.referred_id)) {
-          map.set(r.referred_id, { status: 'verified', created_at: r.created_at });
-        }
-      });
 
       const ids = [...map.keys()];
       if (ids.length === 0) {
@@ -117,9 +107,8 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       // NOTE: do NOT gate this list on a client-side `user_roles` read.
       // RLS on user_roles only lets a user see their OWN role rows, so that
       // query always came back empty for a normal agent and the whole list
-      // collapsed to "no sub-agents" — which is why agents reported their
-      // invited sub-agents disappearing. Anyone linked via agent_subagents or
-      // referrals IS a recruit of this agent, so use those links directly.
+      // collapsed to "no sub-agents". The `agent_subagents` link is the sole
+      // source of truth for sub-agent membership.
       const finalIds = ids;
 
       // Profiles — fetched via SECURITY DEFINER RPC so the parent agent can
@@ -314,16 +303,6 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
           schema: 'public',
           table: 'agent_subagents',
           filter: `parent_agent_id=eq.${user.id}`,
-        },
-        () => fetchSubAgents(),
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'referrals',
-          filter: `referrer_id=eq.${user.id}`,
         },
         () => fetchSubAgents(),
       )
