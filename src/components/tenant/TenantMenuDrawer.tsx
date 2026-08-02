@@ -398,13 +398,6 @@ export function TenantMenuDrawer({
           path: '/install',
           color: 'text-primary'
         },
-        { 
-          icon: HelpCircle, 
-          label: 'Help & Support', 
-          description: 'Get assistance',
-          path: '/settings',
-          color: 'text-muted-foreground'
-        },
       ]
     },
   ];
