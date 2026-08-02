@@ -25,7 +25,6 @@ import { setDeviceTrust } from '@/lib/deviceTrust';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { roleToSlug } from '@/lib/roleRoutes';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 import { captureOAuthRedirectError } from '@/lib/oauthErrorLog';
 import { getStoredAttributionToken, restoreAttributionFromToken } from '@/lib/campaignAttribution';
@@ -181,7 +180,11 @@ export default function Auth() {
         navigate(storedRedirect, { replace: true });
         return;
       }
-      navigate(roleToSlug(authRoles[0]), { replace: true });
+      // Let the central resolver (/dashboard → DashboardRedirect) decide the
+      // persona: forced default → device/server preference → last-used role →
+      // merchant-agent rule → tenant-first fallback. Using authRoles[0] here
+      // depended on unstable database row order.
+      navigate('/dashboard', { replace: true });
     }
   }, [authLoading, user, authRoles, navigate, searchParams]);
 

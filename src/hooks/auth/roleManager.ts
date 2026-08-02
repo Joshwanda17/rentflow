@@ -3,11 +3,23 @@ import { setCachedRoles } from '@/lib/sessionCache';
 import type { AppRole } from './types';
 import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
 
-export const DEFAULT_ROLE: AppRole = 'supporter';
-export const DEFAULT_ROLES: AppRole[] = ['supporter'];
+export const DEFAULT_ROLE: AppRole = 'tenant';
+export const DEFAULT_ROLES: AppRole[] = ['tenant'];
 
 /** Standard roles every user should have */
 const STANDARD_ROLES: AppRole[] = ['supporter', 'agent', 'tenant', 'landlord'];
+
+/**
+ * Deterministic fallback order used when the user has made no explicit choice
+ * (no admin-forced role, no device/server preference, no last-used role and no
+ * intended role). Database row order is not stable, so relying on it made the
+ * post-sign-in landing dashboard arbitrary.
+ */
+const FALLBACK_ROLE_PRIORITY: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
+
+function pickFallbackRole(userRoles: AppRole[]): AppRole {
+  return FALLBACK_ROLE_PRIORITY.find((r) => userRoles.includes(r)) ?? userRoles[0];
+}
 
 /** Fetch roles from DB, always ensuring 'agent' is included. Auto-creates roles if missing. */
 export async function fetchUserRoles(
@@ -112,7 +124,7 @@ export async function fetchUserRoles(
         : (cashoutDefault
         ?? ((lastUsedRole && userRoles.includes(lastUsedRole)) ? lastUsedRole
         : ((intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-        : userRoles[0]))));
+        : pickFallbackRole(userRoles)))));
 
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
