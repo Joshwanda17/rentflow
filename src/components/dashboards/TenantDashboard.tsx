@@ -526,9 +526,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       <TenantMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
-        walletBalance={wallet?.balance ?? 0}
-        onOpenWallet={() => { setMenuOpen(false); setShowWallet(true); }}
         onPayLandlord={() => hasAcceptedTerms ? setShowPayLandlord(true) : setShowAgreementModal(true)}
+
         onPayWelile={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
         onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
         onRentCalculator={() => setShowCalculator(true)}
