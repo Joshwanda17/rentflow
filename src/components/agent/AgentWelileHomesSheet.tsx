@@ -121,15 +121,9 @@ function formatAuditValue(field: string, value: any): string {
 // Derive an enrollment verification / readiness status for the agent's list.
 function getEnrollStatus(s: WHSubscription): EnrollStatus {
   if (s.tenant_verified) {
-    return { label: 'Verified · ready to collect', ready: true, className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600' };
+    return { label: 'Verified', ready: true, className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600' };
   }
-  if (s.tenant_last_active) {
-    return { label: 'Confirmed · ready to collect', ready: true, className: 'border-blue-500/40 bg-blue-500/10 text-blue-600' };
-  }
-  if (s.newly_created) {
-    return { label: 'New account · pending confirmation', ready: false, className: 'border-amber-500/40 bg-amber-500/10 text-amber-600' };
-  }
-  return { label: 'Matched profile · ready to collect', ready: true, className: 'border-muted-foreground/30 bg-muted text-muted-foreground' };
+  return { label: 'Unverified', ready: false, className: 'border-amber-500/40 bg-amber-500/10 text-amber-600' };
 }
 
 interface AgentWelileHomesSheetProps {
