@@ -33886,6 +33886,10 @@ export type Database = {
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
         | { Args: { p_agent_id: string }; Returns: number }
+      welile_home_mark_tenant_verified: {
+        Args: { p_subscription_id: string }
+        Returns: Json
+      }
       welile_home_record_collection: {
         Args: {
           p_amount: number

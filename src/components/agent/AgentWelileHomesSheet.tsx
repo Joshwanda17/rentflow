@@ -121,15 +121,9 @@ function formatAuditValue(field: string, value: any): string {
 // Derive an enrollment verification / readiness status for the agent's list.
 function getEnrollStatus(s: WHSubscription): EnrollStatus {
   if (s.tenant_verified) {
-    return { label: 'Verified · ready to collect', ready: true, className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600' };
+    return { label: 'Verified', ready: true, className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600' };
   }
-  if (s.tenant_last_active) {
-    return { label: 'Confirmed · ready to collect', ready: true, className: 'border-blue-500/40 bg-blue-500/10 text-blue-600' };
-  }
-  if (s.newly_created) {
-    return { label: 'New account · pending confirmation', ready: false, className: 'border-amber-500/40 bg-amber-500/10 text-amber-600' };
-  }
-  return { label: 'Matched profile · ready to collect', ready: true, className: 'border-muted-foreground/30 bg-muted text-muted-foreground' };
+  return { label: 'Unverified', ready: false, className: 'border-amber-500/40 bg-amber-500/10 text-amber-600' };
 }
 
 interface AgentWelileHomesSheetProps {
@@ -147,6 +141,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [allocFor, setAllocFor] = useState<WHSubscription | null>(null);
   const [editFor, setEditFor] = useState<WHSubscription | null>(null);
+  const [verifyFor, setVerifyFor] = useState<WHSubscription | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -236,7 +231,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
             {pendingConfirmation > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                 <Clock className="h-3.5 w-3.5 shrink-0" />
-                {pendingConfirmation} new {pendingConfirmation === 1 ? 'tenant is' : 'tenants are'} pending confirmation. They'll show as ready once they confirm their details.
+                {pendingConfirmation} {pendingConfirmation === 1 ? 'tenant is' : 'tenants are'} unverified. Tap Verify to send them a verification SMS.
               </div>
             )}
 
@@ -282,6 +277,12 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                         </Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
+                        {!s.tenant_verified && (
+                          <Button size="sm" className="gap-1.5 col-span-2"
+                            onClick={() => setVerifyFor(s)}>
+                            <ShieldCheck className="h-3.5 w-3.5" /> Verify
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" className="gap-1.5"
                           onClick={() => setEditFor(s)}>
                           <Pencil className="h-3.5 w-3.5" /> Edit
@@ -302,6 +303,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
       </Sheet>
 
       <EnrollDialog open={enrollOpen} onOpenChange={setEnrollOpen} agentId={user?.id} onDone={load} />
+      <VerifyTenantDialog sub={verifyFor} onClose={() => setVerifyFor(null)} onDone={load} />
       <AllocateDialog sub={allocFor} onClose={() => setAllocFor(null)} onDone={load} />
       <EditDialog sub={editFor} agentId={user?.id} onClose={() => setEditFor(null)} onDone={load} />
     </>
@@ -326,27 +328,11 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // OTP gating for brand-new tenant accounts: their phone must be verified
-  // before the enrollment (and its first monthly due) is scheduled.
-  const [step, setStep] = useState<'form' | 'otp'>('form');
-  const [otpSending, setOtpSending] = useState(false);
-  const [otpVerifying, setOtpVerifying] = useState(false);
-  const [otpValue, setOtpValue] = useState('');
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpDone, setOtpDone] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = setInterval(() => setCooldown((c) => (c <= 1 ? 0 : c - 1)), 1000);
-    return () => clearInterval(t);
-  }, [cooldown]);
 
   const reset = () => {
     setPhone(''); setSearched(false); setTenant(null); setNewName(''); setNewNationalId('');
     setRent(''); setPayoutDay('5');
     setHasPhone(true); setLandlordUsesWallet(false); setLandlordName(''); setLandlordPhone('');
-    setStep('form'); setOtpValue(''); setOtpError(null); setOtpDone(false); setCooldown(0);
   };
 
   const findTenant = async () => {
@@ -362,8 +348,8 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
     } finally { setSearching(false); setSearched(true); }
   };
 
-  // Validate the form, then decide: existing tenants (or already OTP-verified
-  // new tenants) enroll immediately; a fresh tenant must verify their phone first.
+  // Validate the form, then save the enrollment immediately. No SMS is sent
+  // here — verification is a separate, manual step from the tenant list.
   const submit = async () => {
     if (!agentId) return;
     const coreError = validateEnrollmentCore({ rent, payoutDay, hasSmartphone: hasPhone });
@@ -373,41 +359,7 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       if (!phone.trim()) { toast({ title: 'Enter the tenant phone', variant: 'destructive' }); return; }
       if (newName.trim().length < 2) { toast({ title: 'Enter the tenant full name', variant: 'destructive' }); return; }
     }
-    if (tenant || otpDone) { await finalizeEnroll(); return; }
-    await sendOtp();
-  };
-
-  const sendOtp = async () => {
-    setOtpSending(true); setOtpError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('sms-otp', {
-        body: { action: 'send', phone: phone.trim() },
-      });
-      if (error) throw new Error(error.message || 'Could not send the code');
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setOtpValue('');
-      setStep('otp');
-      setCooldown(60);
-    } catch (err: any) {
-      toast({ title: 'Could not send verification code', description: err.message, variant: 'destructive' });
-    } finally { setOtpSending(false); }
-  };
-
-  const verifyOtp = async (code: string) => {
-    setOtpVerifying(true); setOtpError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('sms-otp', {
-        body: { action: 'verify', phone: phone.trim(), otp: code },
-      });
-      if (error) throw new Error('Invalid or expired code');
-      if ((data as any)?.error) throw new Error((data as any).error);
-      if (!(data as any)?.success) throw new Error('Verification failed');
-      setOtpDone(true);
-      await finalizeEnroll();
-    } catch (err: any) {
-      setOtpValue('');
-      setOtpError(err.message || 'Verification failed');
-    } finally { setOtpVerifying(false); }
+    await finalizeEnroll();
   };
 
   const finalizeEnroll = async () => {
@@ -445,15 +397,8 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       if (error) throw error;
       const res = data as any;
       if (!res?.success) throw new Error(res?.error || 'Enrollment failed');
-      // For a freshly created tenant, send a one-time onboarding SMS so they can
-      // confirm their details and know receipts are coming. Fire-and-forget.
-      if (!tenant && tenantId) {
-        supabase.functions.invoke('welile-home-tenant-onboarding-sms', {
-          body: { tenant_id: tenantId, subscription_id: res.subscription_id, monthly_rent: rentNum },
-        }).catch(() => {});
-      }
       toast({
-        title: tenant ? 'Tenant enrolled' : 'Tenant verified & enrolled',
+        title: 'Tenant enrolled successfully. Pending verification.',
         description: `${formatUGX(rentNum)}/mo · you earn ${formatUGX(res.agent_commission_per_month)}/mo`,
       });
       reset();
@@ -461,7 +406,6 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
       onDone();
     } catch (err: any) {
       toast({ title: 'Enrollment failed', description: err.message, variant: 'destructive' });
-      setStep('form');
     } finally { setSubmitting(false); }
   };
 
@@ -472,63 +416,6 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
           <DialogTitle>Enroll tenant in Welile Homes</DialogTitle>
           <DialogDescription>Rent is booked as receivable × 12 months. You earn 2% of every month's rent.</DialogDescription>
         </DialogHeader>
-        {step === 'otp' ? (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-              Verify <span className="font-medium text-foreground">{newName.trim() || 'this tenant'}</span>'s phone
-              before their first rent due is scheduled. We sent a 6-digit code to{' '}
-              <span className="font-medium text-foreground">{phone.trim()}</span>.
-            </div>
-            <div className="flex justify-center">
-              <InputOTP
-                maxLength={6}
-                value={otpValue}
-                disabled={otpVerifying || submitting}
-                onChange={(v) => {
-                  setOtpValue(v);
-                  setOtpError(null);
-                  if (v.length === 6) verifyOtp(v);
-                }}
-              >
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
-            {(otpVerifying || submitting) && (
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {submitting ? 'Enrolling tenant…' : 'Verifying…'}
-              </div>
-            )}
-            {otpError && <p className="text-sm text-destructive text-center">{otpError}</p>}
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => { if (cooldown === 0 && !otpSending) sendOtp(); }}
-                disabled={cooldown > 0 || otpSending || otpVerifying || submitting}
-                className="text-xs text-primary hover:underline disabled:text-muted-foreground disabled:no-underline inline-flex items-center gap-1"
-              >
-                <RefreshCw className="h-3 w-3" />
-                {cooldown > 0 ? `Resend code in ${cooldown}s` : otpSending ? 'Sending…' : 'Resend code'}
-              </button>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full gap-1.5"
-              disabled={otpVerifying || submitting}
-              onClick={() => { setStep('form'); setOtpValue(''); setOtpError(null); }}
-            >
-              <ArrowLeft className="h-4 w-4" /> Back to details
-            </Button>
-          </div>
-        ) : (
         <>
         <div className="space-y-3">
           <div>
@@ -550,7 +437,7 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
             )}
             {searched && !tenant && (
               <p className="mt-1.5 text-xs text-muted-foreground">
-                No registered tenant with that phone — a new account will be created below and their phone verified via SMS.
+                No registered tenant with that phone — a new account will be created below. You can verify their phone afterwards from the tenant list.
               </p>
             )}
           </div>
@@ -596,11 +483,146 @@ function EnrollDialog({ open, onOpenChange, agentId, onDone }: {
             disabled={submitting || (!tenant && !(searched && newName.trim().length >= 2))}
             className="w-full"
           >
-            {(submitting || otpSending) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : (!tenant ? <ShieldCheck className="h-4 w-4 mr-2" /> : null)}
-            {tenant ? 'Enroll tenant' : 'Verify phone & enroll'}
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Enroll tenant
           </Button>
         </DialogFooter>
         </>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------- Verify tenant dialog ----------------
+function VerifyTenantDialog({ sub, onClose, onDone }: {
+  sub: WHSubscription | null; onClose: () => void; onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [otpValue, setOtpValue] = useState('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((c) => (c <= 1 ? 0 : c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
+
+  useEffect(() => {
+    if (sub) { setSent(false); setOtpValue(''); setOtpError(null); setCooldown(0); }
+  }, [sub?.id]);
+
+  const phone = sub?.tenant_phone?.trim() || '';
+
+  const sendOtp = async () => {
+    if (!phone) { toast({ title: 'This tenant has no phone number', variant: 'destructive' }); return; }
+    setSending(true); setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'send', phone },
+      });
+      if (error) throw new Error(error.message || 'Could not send the code');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setSent(true);
+      setOtpValue('');
+      setCooldown(60);
+      toast({ title: 'Verification SMS sent to tenant', description: phone });
+    } catch (err: any) {
+      toast({ title: 'Could not send verification SMS', description: err.message, variant: 'destructive' });
+    } finally { setSending(false); }
+  };
+
+  const verifyOtp = async (code: string) => {
+    if (!sub) return;
+    setVerifying(true); setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'verify', phone, otp: code },
+      });
+      if (error) throw new Error('Invalid or expired code');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      if (!(data as any)?.success) throw new Error('Verification failed');
+
+      const { data: markRes, error: markErr } = await supabase.rpc('welile_home_mark_tenant_verified', {
+        p_subscription_id: sub.id,
+      });
+      if (markErr) throw markErr;
+      if (!(markRes as any)?.success) throw new Error((markRes as any)?.error || 'Could not mark tenant verified');
+
+      toast({ title: 'Tenant verified', description: sub.tenant_name });
+      onClose();
+      onDone();
+    } catch (err: any) {
+      setOtpValue('');
+      setOtpError(err.message || 'Verification failed');
+    } finally { setVerifying(false); }
+  };
+
+  return (
+    <Dialog open={!!sub} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" /> Verify tenant
+          </DialogTitle>
+          <DialogDescription>
+            {sent
+              ? `Enter the 6-digit code sent to ${phone}.`
+              : `Send a verification SMS to ${sub?.tenant_name || 'this tenant'} on ${phone || 'no phone on file'}.`}
+          </DialogDescription>
+        </DialogHeader>
+
+        {sent ? (
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={otpValue}
+                disabled={verifying}
+                onChange={(v) => {
+                  setOtpValue(v);
+                  setOtpError(null);
+                  if (v.length === 6) verifyOtp(v);
+                }}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            {verifying && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Verifying…
+              </div>
+            )}
+            {otpError && <p className="text-sm text-destructive text-center">{otpError}</p>}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => { if (cooldown === 0 && !sending) sendOtp(); }}
+                disabled={cooldown > 0 || sending || verifying}
+                className="text-xs text-primary hover:underline disabled:text-muted-foreground disabled:no-underline inline-flex items-center gap-1"
+              >
+                <RefreshCw className="h-3 w-3" />
+                {cooldown > 0 ? `Resend code in ${cooldown}s` : sending ? 'Sending…' : 'Resend code'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <DialogFooter>
+            <Button className="w-full gap-2" onClick={sendOtp} disabled={sending || !phone}>
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              Send verification SMS
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>
