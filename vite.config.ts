@@ -29,6 +29,10 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
+      // Cap peak memory during the render phase: instead of one enormous
+      // entry chunk (8 MB+) that rollup must hold + minify in memory at once,
+      // split every node_modules dependency into its own vendor chunk.
+      maxParallelFileOps: 2,
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
