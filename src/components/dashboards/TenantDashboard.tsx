@@ -979,14 +979,13 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <div className="animate-fade-in">
                 <RepaymentSection
                   userId={user.id}
-                  activeRequest={rentRequests.find(r => r.status === 'disbursed')}
+                  activeRequest={rentRequests.find(r => ['disbursed', 'repaying'].includes(r.status))}
                   repayments={repayments}
                   onRepaymentSuccess={fetchData}
                 />
               </div>
             )}
             <TenantBusinessAdvancesPanel />
-            <InviteAndEarnCard variant="tenant" />
             <WalletDisclaimer />
           </div>
         }
