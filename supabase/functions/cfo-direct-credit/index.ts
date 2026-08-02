@@ -248,7 +248,7 @@ Deno.serve(async (req) => {
     // flag the matching cfo_debit_obligations row with auto_recover=true
     // so the existing recovery cron settles it from future incoming
     // credits. Credits ignore the flag.
-    const allowOverdraw = op === "debit" && rawAllowOverdraw === true;
+    const requestedAllowOverdraw = op === "debit" && rawAllowOverdraw === true;
 
     // ── Structured solvency-bypass reason ─────────────────────────────────
     // The DB trigger enforce_no_negative_wallet_ledger requires this code on
@@ -295,6 +295,10 @@ Deno.serve(async (req) => {
     const walletBucket = lock
       ? lock.bucket
       : (recipient_type === "operational_wallet" ? "float" : "withdrawable");
+    // Bucket-aware rule: Forced Reversal (personal recoverable debt) is a
+    // WITHDRAWABLE-only concept. A float correction can never overdraw the
+    // float bucket and can never become a personal liability.
+    const allowOverdraw = requestedAllowOverdraw && walletBucket !== "float";
     const routingSource = lock
       ? `cfo_direct_${op}_locked_${wallet_category}`
       : (op === "credit" ? "cfo_direct_credit_explicit_bucket" : "cfo_direct_debit_explicit_bucket");
@@ -499,28 +503,52 @@ Deno.serve(async (req) => {
     // Wallet-transfer debits (peer→peer) already run through their own
     // solvency path in create_ledger_transaction; skip only when we are
     // explicitly overdrawing.
-    if (op === "debit" && !allowOverdraw) {
+    // ── Bucket-aware solvency gate for CFO Debits ─────────────────────────
+    // The yardstick MUST follow the bucket being debited:
+    //   withdrawable → get_user_available_balance (strict personal funds)
+    //   float        → get_user_float_available_balance (company float only)
+    // Float corrections are NEVER validated against withdrawable and NEVER
+    // create a personal recoverable debt.
+    const isFloatDebit = op === "debit" && walletBucket === "float";
+    const solvencyRule = isFloatDebit ? "float_strict" : "withdrawable_strict";
+    const validationMethod = isFloatDebit
+      ? "get_user_float_available_balance"
+      : "get_user_available_balance";
+    let bucketBefore: number | null = null;
+
+    if (op === "debit" && (isFloatDebit || !allowOverdraw)) {
       try {
         const { data: availData, error: availErr } = await adminClient.rpc(
-          "get_user_available_balance",
+          validationMethod,
           { p_user_id: walletUserId },
         );
         if (availErr) {
           console.error(
-            "[cfo-direct-credit] get_user_available_balance failed:",
+            `[cfo-direct-credit] ${validationMethod} failed:`,
             availErr.message,
           );
         } else {
           const available = Number(availData ?? 0);
+          bucketBefore = available;
           if (available < amount) {
             const shortfall = amount - available;
+            const code = isFloatDebit
+              ? "FLOAT_INSUFFICIENT_BALANCE"
+              : "WITHDRAWABLE_INSUFFICIENT_BALANCE";
             return new Response(
               JSON.stringify({
-                error:
-                  `INSUFFICIENT_AVAILABLE_BALANCE: strict available balance is ${available}, ` +
-                  `requested ${amount}, shortfall ${shortfall}. ` +
-                  `Enable Forced Reversal (allow_overdraw) to create a recoverable debt.`,
-                code: "INSUFFICIENT_AVAILABLE_BALANCE",
+                error: isFloatDebit
+                  ? `${code}: strict operational float balance is ${available}, ` +
+                    `requested ${amount}, shortfall ${shortfall}. ` +
+                    `Float corrections cannot exceed the wallet's current float — ` +
+                    `no personal debt may be created for an operational float shortfall.`
+                  : `${code}: strict available balance is ${available}, ` +
+                    `requested ${amount}, shortfall ${shortfall}. ` +
+                    `Enable Forced Reversal (allow_overdraw) to create a recoverable debt.`,
+                code,
+                wallet_bucket: walletBucket,
+                solvency_rule: solvencyRule,
+                validation_method: validationMethod,
                 available_balance: available,
                 requested_amount: amount,
                 shortfall,
@@ -719,15 +747,23 @@ Deno.serve(async (req) => {
           amount,
           reason,
           created_by: user.id,
-          // Forced reversals are explicitly recoverable from future
-          // incoming credits via the existing obligation-recovery cron.
-          auto_recover: allowOverdraw ? true : false,
+          // Bucket-aware: float obligations are OPERATIONAL shortfalls and are
+          // never recoverable from a person's future withdrawable credits.
+          // Only withdrawable forced reversals are auto-recoverable.
+          auto_recover: isFloatDebit ? false : (allowOverdraw ? true : false),
+          wallet_bucket: walletBucket,
+          recovery_source: walletBucket,
           ledger_reference_id: refId,
           ledger_group_id: groupId,
           metadata: {
             wallet_category: walletCat,
             platform_category: platformCat,
             wallet_bucket: walletBucket,
+            recovery_source: walletBucket,
+            solvency_rule: solvencyRule,
+            validation_method: validationMethod,
+            bucket_before: bucketBefore,
+            bucket_after: bucketBefore === null ? null : bucketBefore - amount,
             recipient_type,
             financial_impact: impact,
             category_label: category_label || walletCat,
@@ -766,6 +802,15 @@ Deno.serve(async (req) => {
         reference_id: refId,
         recipient_type,
         routing_version: 'v2',
+        wallet_bucket: walletBucket,
+        recovery_source: op === 'debit' ? walletBucket : null,
+        solvency_rule: op === 'debit' ? solvencyRule : null,
+        validation_method: op === 'debit' ? validationMethod : null,
+        bucket_before: op === 'debit' ? bucketBefore : null,
+        bucket_after: op === 'debit' && bucketBefore !== null ? bucketBefore - amount : null,
+        correction_class: op === 'debit'
+          ? (walletBucket === 'float' ? 'operational_float_correction' : 'personal_recoverable_debit')
+          : null,
         solvency_bypass_reason: solvencyBypassReason,
       },
     });

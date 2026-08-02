@@ -361,6 +361,8 @@ export function DirectCreditTool() {
     available: number;
     requested: number;
     shortfall: number;
+    /** Which wallet bucket was validated — drives bucket-aware messaging. */
+    bucket?: 'withdrawable' | 'float';
   } | null>(null);
   const [overdrawApproved, setOverdrawApproved] = useState(false);
   const [splitFreezing, setSplitFreezing] = useState(false);
@@ -570,26 +572,44 @@ export function DirectCreditTool() {
           // Allows paying any user, any category/sub-category, countless times.
           manual_credit: true,
           // Forced Reversal — set only after CFO explicitly confirms creating
-          // a recoverable debt in the shortfall dialog.
-          allow_overdraw: opts?.allowOverdraw === true,
-          solvency_bypass_reason: opts?.allowOverdraw === true ? 'duplicate_reversal' : undefined,
+          // a recoverable debt in the shortfall dialog. Never sent for Float
+          // (operational) corrections: those can never create personal debt.
+          allow_overdraw: opts?.allowOverdraw === true && effectiveRecipient !== 'operational_wallet',
+          solvency_bypass_reason:
+            opts?.allowOverdraw === true && effectiveRecipient !== 'operational_wallet'
+              ? 'duplicate_reversal'
+              : undefined,
         },
       });
       if (error) {
         const msg = await extractFromErrorObject(error, 'Something went wrong');
-        if (msg.includes('INSUFFICIENT_AVAILABLE_BALANCE')) {
-          const availMatch = msg.match(/strict available balance is (\d+)/);
+        if (
+          msg.includes('INSUFFICIENT_AVAILABLE_BALANCE') ||
+          msg.includes('WITHDRAWABLE_INSUFFICIENT_BALANCE') ||
+          msg.includes('FLOAT_INSUFFICIENT_BALANCE')
+        ) {
+          const availMatch = msg.match(/balance is (\d+)/);
           const reqMatch = msg.match(/requested (\d+)/);
           const shortMatch = msg.match(/shortfall (\d+)/);
           setOverdrawInfo({
             available: availMatch ? Number(availMatch[1]) : 0,
             requested: reqMatch ? Number(reqMatch[1]) : amt,
             shortfall: shortMatch ? Number(shortMatch[1]) : Math.max(0, amt - (availMatch ? Number(availMatch[1]) : 0)),
+            bucket: msg.includes('FLOAT_INSUFFICIENT_BALANCE') ? 'float' : 'withdrawable',
           });
           setOverdrawApproved(false);
-          const silent: any = new Error('INSUFFICIENT_AVAILABLE_BALANCE');
+          const silent: any = new Error('BUCKET_INSUFFICIENT_BALANCE');
           silent.__silent = true;
           throw silent;
+        }
+        if (msg.includes('INVALID_BUCKET_RECOVERY')) {
+          throw new Error(msg.replace(/^.*INVALID_BUCKET_RECOVERY:\s*/, 'Bucket recovery rejected: '));
+        }
+        if (msg.includes('NEGATIVE_FLOAT_BLOCKED')) {
+          throw new Error('NEGATIVE_FLOAT_BLOCKED: the operational float bucket cannot be pushed negative. Allocate more float first.');
+        }
+        if (msg.includes('WITHDRAWABLE_HOLD_ACTIVE')) {
+          throw new Error('WITHDRAWABLE_HOLD_ACTIVE: a pending withdrawal hold is blocking this debit. Clear or settle the hold first.');
         }
         if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
         if (msg.includes('Insufficient permissions')) throw new Error('Your role does not have CFO privileges.');
@@ -714,6 +734,17 @@ export function DirectCreditTool() {
         : recipientType;
     if (!effectiveRecipient) {
       toast({ title: 'Recipient type required', description: 'Choose User or Operational Wallet before splitting.', variant: 'destructive' });
+      return;
+    }
+    // Bucket-aware guard: Freeze + Split Debit is a WITHDRAWABLE-only remedy.
+    // Operational float corrections must never create personal debt.
+    if (effectiveRecipient === 'operational_wallet' || overdrawInfo.bucket === 'float') {
+      toast({
+        title: 'Not available for float corrections',
+        description:
+          'This correction affects operational float only. No personal debt may be created — lower the amount or allocate more float first.',
+        variant: 'destructive',
+      });
       return;
     }
     const categoryLabel = selectedSubCategory
@@ -1360,18 +1391,38 @@ export function DirectCreditTool() {
                 <AlertDialogHeader>
                   <AlertDialogTitle className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-amber-600" />
-                    Insufficient Available Balance
+                    {overdrawInfo?.bucket === 'float'
+                      ? 'Insufficient Operational Float'
+                      : 'Insufficient Available Balance'}
                   </AlertDialogTitle>
                   <AlertDialogDescription asChild>
                     <div className="space-y-3 text-sm">
                       <p>
-                        The user's live ledger balance is not enough to cover this correction.
+                        {overdrawInfo?.bucket === 'float'
+                          ? "This wallet's current operational float is not enough to cover this correction."
+                          : "The user's live ledger balance is not enough to cover this correction."}
                       </p>
                       <div className="rounded-md border border-border bg-muted/50 p-3 space-y-1">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Available (strict)</span><strong>UGX {overdrawInfo?.available.toLocaleString()}</strong></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">{overdrawInfo?.bucket === 'float' ? 'Float balance (strict)' : 'Available (strict)'}</span><strong>UGX {overdrawInfo?.available.toLocaleString()}</strong></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Requested</span><strong>UGX {overdrawInfo?.requested.toLocaleString()}</strong></div>
                         <div className="flex justify-between text-amber-700"><span>Shortfall</span><strong>UGX {overdrawInfo?.shortfall.toLocaleString()}</strong></div>
                       </div>
+                      {overdrawInfo?.bucket === 'float' ? (
+                        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 space-y-2 text-foreground">
+                          <div className="font-semibold text-emerald-800">Operational float only</div>
+                          <p className="text-[13px] leading-relaxed">
+                            This correction affects operational float only. <strong>No personal debt will be
+                            created.</strong> Any remaining operational shortfall will remain against the
+                            company's operational float ledger until additional float is allocated.
+                          </p>
+                          <p className="text-[13px] leading-relaxed">
+                            Lower the amount to at most{' '}
+                            <strong>UGX {overdrawInfo?.available.toLocaleString()}</strong>, or allocate more
+                            float to this wallet first.
+                          </p>
+                        </div>
+                      ) : (
+                      <>
                       <p>
                         Proceeding with <strong>Forced Reversal</strong> will still post the full
                         correction and record the shortfall as a <strong>recoverable debt</strong>
@@ -1401,11 +1452,17 @@ export function DirectCreditTool() {
                           <strong>freeze the account</strong> so future inflows are swept by auto-recovery.
                         </p>
                       </div>
+                      </>
+                      )}
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel disabled={mutation.isPending || splitFreezing}>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel disabled={mutation.isPending || splitFreezing}>
+                    {overdrawInfo?.bucket === 'float' ? 'Close' : 'Cancel'}
+                  </AlertDialogCancel>
+                  {overdrawInfo?.bucket !== 'float' && (
+                  <>
                   <Button
                     type="button"
                     className="bg-red-600 hover:bg-red-700 text-white"
@@ -1428,6 +1485,8 @@ export function DirectCreditTool() {
                     {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Force reversal & create debt
                   </AlertDialogAction>
+                  </>
+                  )}
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
