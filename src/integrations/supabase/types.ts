@@ -3952,6 +3952,48 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_subagent_link_archive: {
+        Row: {
+          archive_reason: string
+          archived_at: string
+          archived_by: string | null
+          created_at: string
+          id: string
+          original_created_at: string
+          original_id: string
+          parent_agent_id: string
+          source: string
+          status: string
+          sub_agent_id: string
+        }
+        Insert: {
+          archive_reason: string
+          archived_at?: string
+          archived_by?: string | null
+          created_at?: string
+          id?: string
+          original_created_at: string
+          original_id: string
+          parent_agent_id: string
+          source: string
+          status: string
+          sub_agent_id: string
+        }
+        Update: {
+          archive_reason?: string
+          archived_at?: string
+          archived_by?: string | null
+          created_at?: string
+          id?: string
+          original_created_at?: string
+          original_id?: string
+          parent_agent_id?: string
+          source?: string
+          status?: string
+          sub_agent_id?: string
+        }
+        Relationships: []
+      }
       agent_subagents: {
         Row: {
           acceptance_token: string | null
