@@ -141,6 +141,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [allocFor, setAllocFor] = useState<WHSubscription | null>(null);
   const [editFor, setEditFor] = useState<WHSubscription | null>(null);
+  const [verifyFor, setVerifyFor] = useState<WHSubscription | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -230,7 +231,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
             {pendingConfirmation > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                 <Clock className="h-3.5 w-3.5 shrink-0" />
-                {pendingConfirmation} new {pendingConfirmation === 1 ? 'tenant is' : 'tenants are'} pending confirmation. They'll show as ready once they confirm their details.
+                {pendingConfirmation} {pendingConfirmation === 1 ? 'tenant is' : 'tenants are'} unverified. Tap Verify to send them a verification SMS.
               </div>
             )}
 
@@ -276,6 +277,12 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
                         </Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
+                        {!s.tenant_verified && (
+                          <Button size="sm" className="gap-1.5 col-span-2"
+                            onClick={() => setVerifyFor(s)}>
+                            <ShieldCheck className="h-3.5 w-3.5" /> Verify
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" className="gap-1.5"
                           onClick={() => setEditFor(s)}>
                           <Pencil className="h-3.5 w-3.5" /> Edit
@@ -296,6 +303,7 @@ export function AgentWelileHomesSheet({ open, onOpenChange }: AgentWelileHomesSh
       </Sheet>
 
       <EnrollDialog open={enrollOpen} onOpenChange={setEnrollOpen} agentId={user?.id} onDone={load} />
+      <VerifyTenantDialog sub={verifyFor} onClose={() => setVerifyFor(null)} onDone={load} />
       <AllocateDialog sub={allocFor} onClose={() => setAllocFor(null)} onDone={load} />
       <EditDialog sub={editFor} agentId={user?.id} onClose={() => setEditFor(null)} onDone={load} />
     </>
