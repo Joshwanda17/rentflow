@@ -69,3 +69,4 @@
 - [Advance repayment frequency](mem://features/agent/advance-repayment-frequency) — Weekly/bi-weekly/monthly advances are collected only on their due day; installments + arrears measured per installment, never per day
 - [Advance double-charge guard](mem://constraints/advance-double-charge-guard) — `zz_guard_agent_advance_double_charge` trigger blocks stale-balance/over-cap advance charges; recovery paths must insert the ledger row and abort on error before debiting the wallet
 - [mcp-public response envelope](mem://architecture/mcp-public-response-envelope) — All public MCP tools return the same 13-field `publicToolResult` envelope (schema 1.0) with normalised `estimates.ranges` in UGX; `/public-tools` docs mirror it
+- [Bucket-aware CFO debit](mem://architecture/bucket-aware-debit) — Float debits validated against float, never create personal debt; bucket-scoped obligations, recovery and error codes
