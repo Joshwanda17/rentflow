@@ -6092,9 +6092,11 @@ export type Database = {
           metadata: Json
           reason: string
           recovered_amount: number
+          recovery_source: string
           status: string
           updated_at: string
           user_id: string
+          wallet_bucket: string
         }
         Insert: {
           amount: number
@@ -6107,9 +6109,11 @@ export type Database = {
           metadata?: Json
           reason: string
           recovered_amount?: number
+          recovery_source?: string
           status?: string
           updated_at?: string
           user_id: string
+          wallet_bucket?: string
         }
         Update: {
           amount?: number
@@ -6122,9 +6126,11 @@ export type Database = {
           metadata?: Json
           reason?: string
           recovered_amount?: number
+          recovery_source?: string
           status?: string
           updated_at?: string
           user_id?: string
+          wallet_bucket?: string
         }
         Relationships: []
       }
@@ -31909,6 +31915,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      get_user_float_available_balance: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       get_user_ids_by_phone: {
         Args: { phone_variants: string[] }
         Returns: {
@@ -33177,6 +33187,14 @@ export type Database = {
         }
         Returns: number
       }
+      recover_cfo_debit_obligation: {
+        Args: {
+          p_amount: number
+          p_obligation_id: string
+          p_source_bucket: string
+        }
+        Returns: Json
+      }
       recover_merchandise_from_wallets: { Args: never; Returns: Json }
       redeem_staff_access_code: { Args: { p_code: string }; Returns: Json }
       refresh_financial_summaries: { Args: never; Returns: undefined }
@@ -33256,6 +33274,22 @@ export type Database = {
       replay_deposit_bridge_event: {
         Args: { p_event_id: string }
         Returns: undefined
+      }
+      report_float_auto_recover_obligations: {
+        Args: never
+        Returns: {
+          amount: number
+          auto_recover: boolean
+          created_at: string
+          obligation_id: string
+          outstanding: number
+          recovered_amount: number
+          recovery_source: string
+          status: string
+          user_id: string
+          user_name: string
+          wallet_bucket: string
+        }[]
       }
       request_agent_unallocation: {
         Args: {
