@@ -31415,6 +31415,29 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_payout_delivery_audit: {
+        Args: { p_limit?: number; p_user_id?: string }
+        Returns: {
+          category: string
+          counterparty_name: string
+          credited_amount: number
+          credited_at: string
+          earned_amount: number
+          failure_reason: string
+          item_key: string
+          kind: string
+          label: string
+          ledger_scope: string
+          ledger_transaction_group_id: string
+          match_method: string
+          occurred_at: string
+          processing_state: string
+          retry_status: string
+          verification_status: string
+          wallet_bucket: string
+          wallet_transaction_id: string
+        }[]
+      }
       get_payout_receipt: { Args: { p_withdrawal_id: string }; Returns: Json }
       get_payout_receipt_by_token: { Args: { p_token: string }; Returns: Json }
       get_pending_wallet_ops: {
@@ -33721,6 +33744,26 @@ export type Database = {
       verify_landlord_registered: {
         Args: { p_landlord_id: string }
         Returns: boolean
+      }
+      verify_ledger_delivery: {
+        Args: { p_items: Json }
+        Returns: {
+          category: string
+          credited_amount: number
+          credited_at: string
+          failure_reason: string
+          item_key: string
+          ledger_idempotency_key: string
+          ledger_scope: string
+          ledger_transaction_group_id: string
+          match_method: string
+          processing_state: string
+          retry_status: string
+          verification_status: string
+          wallet_bucket: string
+          wallet_transaction_id: string
+          wallet_user_id: string
+        }[]
       }
       verify_payout_code_throttled: { Args: { p_code: string }; Returns: Json }
       verify_staff_access_password: {
