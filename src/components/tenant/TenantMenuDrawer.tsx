@@ -14,7 +14,6 @@ import {
   Share2,
   Download,
   Settings,
-  HelpCircle,
   Calculator,
   ChevronRight,
   ScrollText,
@@ -397,13 +396,6 @@ export function TenantMenuDrawer({
           description: 'Invite friends to Welile',
           path: '/install',
           color: 'text-primary'
-        },
-        { 
-          icon: HelpCircle, 
-          label: 'Help & Support', 
-          description: 'Get assistance',
-          path: '/settings',
-          color: 'text-muted-foreground'
         },
       ]
     },
