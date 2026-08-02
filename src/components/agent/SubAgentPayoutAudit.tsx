@@ -264,9 +264,11 @@ export function SubAgentPayoutAudit() {
                   className="w-full h-8 px-2 rounded-md border border-border bg-background text-xs"
                 >
                   <option value="all">All statuses</option>
-                  <option value="withdrawable">Withdrawable</option>
+                  <option value="credited">Credited</option>
                   <option value="other_scope">Wrong scope</option>
-                  <option value="unmatched">No credit</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
+                  <option value="not_found">Not found</option>
                 </select>
               </div>
             </div>
@@ -290,7 +292,14 @@ export function SubAgentPayoutAudit() {
           </div>
         )}
 
-        {loading ? (
+        {loadError ? (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
+            <p className="text-[11px] font-medium text-amber-600 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" /> Ledger verification unavailable
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">{loadError}</p>
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
@@ -310,21 +319,31 @@ export function SubAgentPayoutAudit() {
                 <p className="text-[10px] text-muted-foreground">{summary.total} legs</p>
               </div>
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-2.5">
-                <p className="text-[10px] text-muted-foreground">Landed in withdrawable</p>
+                <p className="text-[10px] text-muted-foreground">Credited to wallet</p>
                 <p className="text-sm font-bold text-emerald-600">{formatUGX(summary.landed)}</p>
-                <p className="text-[10px] text-muted-foreground">{summary.withdrawable} matched</p>
+                <p className="text-[10px] text-muted-foreground">{summary.withdrawable} verified</p>
               </div>
             </div>
-            {(summary.otherScope > 0 || summary.unmatched > 0) && (
+            {(summary.otherScope > 0 || summary.pending > 0 || summary.failed > 0 || summary.unmatched > 0) && (
               <div className="flex flex-wrap gap-2">
                 {summary.otherScope > 0 && (
                   <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">
                     {summary.otherScope} wrong scope
                   </Badge>
                 )}
+                {summary.pending > 0 && (
+                  <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">
+                    {summary.pending} pending
+                  </Badge>
+                )}
+                {summary.failed > 0 && (
+                  <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">
+                    {summary.failed} failed
+                  </Badge>
+                )}
                 {summary.unmatched > 0 && (
                   <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">
-                    {summary.unmatched} no wallet credit
+                    {summary.unmatched} not found
                   </Badge>
                 )}
               </div>
