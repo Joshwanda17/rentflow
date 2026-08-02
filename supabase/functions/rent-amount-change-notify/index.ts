@@ -16,8 +16,10 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const FROM = "Welile Reports <info@welile.com>";
 const SENDER_DOMAIN = "notify.welile.com";
-const DEFAULT_RECIPIENTS = ["joshwanda17@gmail.com"];
-const DEFAULT_PHONES = ["+256704825473"];
+// Rent fee edit alerts go to pexpert46@gmail.com ONLY.
+// Do NOT source recipients from finance_anomaly_alert_config.
+const DEFAULT_RECIPIENTS = ["pexpert46@gmail.com"];
+const DEFAULT_PHONES: string[] = [];
 
 const fmtUGX = (n: unknown) =>
   `UGX ${Math.round(Number(n) || 0).toLocaleString("en-US")}`;
@@ -83,19 +85,7 @@ Deno.serve(async (req) => {
 
   try {
     let recipients = DEFAULT_RECIPIENTS;
-    let phones = DEFAULT_PHONES;
-    try {
-      const { data: cfg } = await admin
-        .from("finance_anomaly_alert_config")
-        .select("notify_emails, notify_phones")
-        .maybeSingle();
-      if (Array.isArray(cfg?.notify_emails) && cfg!.notify_emails.length) {
-        recipients = (cfg!.notify_emails as string[]).filter(Boolean);
-      }
-      if (Array.isArray(cfg?.notify_phones) && cfg!.notify_phones.length) {
-        phones = (cfg!.notify_phones as string[]).filter(Boolean);
-      }
-    } catch (_) { /* fall back to defaults */ }
+    const phones = DEFAULT_PHONES;
     try {
       const body = await req.json();
       if (Array.isArray(body?.recipients) && body.recipients.length) {
