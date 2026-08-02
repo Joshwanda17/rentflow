@@ -29,15 +29,23 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
+      // Cap peak memory during the render phase: instead of one enormous
+      // entry chunk (8 MB+) that rollup must hold + minify in memory at once,
+      // split every node_modules dependency into its own vendor chunk.
+      maxParallelFileOps: 2,
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-tooltip', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-select'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-charts': ['recharts'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-maps': ['leaflet', 'react-leaflet'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) {
+            return 'vendor-react';
+          }
+          if (id.includes('@radix-ui')) return 'vendor-radix';
+          if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
+          if (id.includes('@supabase')) return 'vendor-supabase';
+          if (id.includes('leaflet')) return 'vendor-maps';
+          if (id.includes('framer-motion')) return 'vendor-motion';
+          if (id.includes('@tanstack')) return 'vendor-query';
+          return 'vendor';
         },
       },
     },
