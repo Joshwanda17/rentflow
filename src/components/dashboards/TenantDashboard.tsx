@@ -146,42 +146,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showCalculator, setShowCalculator] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [breadLoaded, setBreadLoaded] = useState(false);
-  const [breadError, setBreadError] = useState(false);
-  const [rentalsLoaded, setRentalsLoaded] = useState<Record<string, boolean>>({});
-  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
-  const heroScrollerRef = useRef<HTMLDivElement | null>(null);
   const rentCarouselRef = useRef<HTMLDivElement | null>(null);
-
-  // Preload + decode rental hero images so horizontal swipe is instant on mobile.
-  useEffect(() => {
-    let cancelled = false;
-    const sources = [rental1, rental2, rental3];
-    const idle = (cb: () => void) =>
-      typeof (window as any).requestIdleCallback === 'function'
-        ? (window as any).requestIdleCallback(cb, { timeout: 1500 })
-        : window.setTimeout(cb, 200);
-    idle(() => {
-      if (cancelled) return;
-      sources.forEach((src) => {
-        const img = new Image();
-        img.decoding = 'async';
-        (img as any).fetchPriority = 'low';
-        img.src = src;
-        const markLoaded = () => {
-          if (cancelled) return;
-          setRentalsLoaded((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
-        };
-        if (typeof img.decode === 'function') {
-          img.decode().then(markLoaded).catch(markLoaded);
-        } else {
-          img.onload = markLoaded;
-          img.onerror = markLoaded;
-        }
-      });
-    });
-    return () => { cancelled = true; };
-  }, []);
   const [depositOpen, setDepositOpen] = useState(false);
   // Global "open deposit" entry: triggered from the mobile bottom-nav Deposit
   // FAB and from `?deposit=1` deep-links so users can reach the deposit flow
