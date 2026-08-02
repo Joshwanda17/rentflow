@@ -344,10 +344,10 @@ export function SubAgentPayoutAudit() {
 }
 
 function StatusBadge({ status }: { status: MatchStatus }) {
-  if (status === 'withdrawable') {
+  if (status === 'credited') {
     return (
       <Badge className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/15 border-0">
-        <CheckCircle2 className="h-3 w-3" /> Withdrawable
+        <CheckCircle2 className="h-3 w-3" /> Credited
       </Badge>
     );
   }
@@ -358,15 +358,36 @@ function StatusBadge({ status }: { status: MatchStatus }) {
       </Badge>
     );
   }
+  if (status === 'pending') {
+    return (
+      <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
+        <Loader2 className="h-3 w-3" /> Pending
+      </Badge>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <Badge variant="outline" className="text-[10px] gap-1 border-destructive/40 text-destructive">
+        <XCircle className="h-3 w-3" /> Failed
+      </Badge>
+    );
+  }
+  if (status === 'unverified') {
+    return (
+      <Badge variant="outline" className="text-[10px] gap-1 border-border text-muted-foreground">
+        <AlertTriangle className="h-3 w-3" /> Unverified
+      </Badge>
+    );
+  }
   return (
     <Badge variant="outline" className="text-[10px] gap-1 border-destructive/40 text-destructive">
-      <XCircle className="h-3 w-3" /> No credit
+      <XCircle className="h-3 w-3" /> Not found
     </Badge>
   );
 }
 
 function AuditRowCard({ row }: { row: AuditRow }) {
-  const leg = row.walletLeg;
+  const credited = row.verificationStatus === 'credited';
   return (
     <div className="rounded-xl border border-border/60 p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
@@ -397,31 +418,54 @@ function AuditRowCard({ row }: { row: AuditRow }) {
         {/* Wallet credit */}
         <div className={cn(
           'flex-1 rounded-lg p-2',
-          leg ? 'bg-emerald-500/5' : 'bg-destructive/5',
+          credited ? 'bg-emerald-500/5' : 'bg-destructive/5',
         )}>
           <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
             <Wallet className="h-2.5 w-2.5" /> Wallet credit
           </p>
-          {leg ? (
+          {credited ? (
             <>
-              <p className="text-sm font-bold">{formatUGX(leg.amount)}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {format(new Date(leg.transaction_date), 'MMM d, yyyy • h:mm a')}
-              </p>
+              <p className="text-sm font-bold">{formatUGX(row.creditedAmount ?? row.amount)}</p>
+              {row.creditedAt && (
+                <p className="text-[10px] text-muted-foreground">
+                  {format(new Date(row.creditedAt), 'MMM d, yyyy • h:mm a')}
+                </p>
+              )}
             </>
           ) : (
-            <p className="text-[11px] text-destructive font-medium mt-0.5">Never reached wallet</p>
+            <p className="text-[11px] text-destructive font-medium mt-0.5">
+              {row.failureReason || 'Not credited'}
+            </p>
           )}
         </div>
       </div>
 
       {/* Ledger metadata */}
-      {leg && (
+      {credited ? (
         <div className="flex flex-wrap gap-1.5">
-          <Badge variant="secondary" className="text-[9px] font-normal">cat: {leg.category}</Badge>
-          <Badge variant="secondary" className="text-[9px] font-normal">scope: {leg.ledger_scope || '—'}</Badge>
-          <Badge variant="secondary" className="text-[9px] font-normal">recipient: {leg.recipient_type || '—'}</Badge>
-          <Badge variant="secondary" className="text-[9px] font-normal">bucket: {resolveBucket(leg)}</Badge>
+          <Badge variant="secondary" className="text-[9px] font-normal">cat: {row.category || '—'}</Badge>
+          <Badge variant="secondary" className="text-[9px] font-normal">scope: {row.ledgerScope || '—'}</Badge>
+          <Badge variant="secondary" className="text-[9px] font-normal">bucket: {row.walletBucket || '—'}</Badge>
+          <Badge variant="secondary" className="text-[9px] font-normal">verified by: {row.matchMethod || '—'}</Badge>
+          {row.walletTransactionId && (
+            <Badge variant="secondary" className="text-[9px] font-normal">
+              txn: {row.walletTransactionId.slice(0, 8)}
+            </Badge>
+          )}
+          {row.transactionGroupId && (
+            <Badge variant="secondary" className="text-[9px] font-normal">
+              group: {row.transactionGroupId.slice(0, 8)}
+            </Badge>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {row.processingState && (
+            <Badge variant="secondary" className="text-[9px] font-normal">state: {row.processingState}</Badge>
+          )}
+          {row.retryStatus && (
+            <Badge variant="secondary" className="text-[9px] font-normal">retry: {row.retryStatus.replace(/_/g, ' ')}</Badge>
+          )}
         </div>
       )}
     </div>
