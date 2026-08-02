@@ -21150,13 +21150,22 @@ export type Database = {
           agent_id: string | null
           changed_at: string
           changed_by: string | null
+          changed_fields: string[] | null
           id: string
+          new_access_fee: number | null
           new_amount_repaid: number | null
+          new_daily_repayment: number | null
+          new_duration_days: number | null
           new_rent_amount: number | null
+          new_request_fee: number | null
           new_total_repayment: number | null
           notified_at: string | null
+          old_access_fee: number | null
           old_amount_repaid: number | null
+          old_daily_repayment: number | null
+          old_duration_days: number | null
           old_rent_amount: number | null
+          old_request_fee: number | null
           old_total_repayment: number | null
           rent_request_id: string
           status: string | null
@@ -21166,13 +21175,22 @@ export type Database = {
           agent_id?: string | null
           changed_at?: string
           changed_by?: string | null
+          changed_fields?: string[] | null
           id?: string
+          new_access_fee?: number | null
           new_amount_repaid?: number | null
+          new_daily_repayment?: number | null
+          new_duration_days?: number | null
           new_rent_amount?: number | null
+          new_request_fee?: number | null
           new_total_repayment?: number | null
           notified_at?: string | null
+          old_access_fee?: number | null
           old_amount_repaid?: number | null
+          old_daily_repayment?: number | null
+          old_duration_days?: number | null
           old_rent_amount?: number | null
+          old_request_fee?: number | null
           old_total_repayment?: number | null
           rent_request_id: string
           status?: string | null
@@ -21182,13 +21200,22 @@ export type Database = {
           agent_id?: string | null
           changed_at?: string
           changed_by?: string | null
+          changed_fields?: string[] | null
           id?: string
+          new_access_fee?: number | null
           new_amount_repaid?: number | null
+          new_daily_repayment?: number | null
+          new_duration_days?: number | null
           new_rent_amount?: number | null
+          new_request_fee?: number | null
           new_total_repayment?: number | null
           notified_at?: string | null
+          old_access_fee?: number | null
           old_amount_repaid?: number | null
+          old_daily_repayment?: number | null
+          old_duration_days?: number | null
           old_rent_amount?: number | null
+          old_request_fee?: number | null
           old_total_repayment?: number | null
           rent_request_id?: string
           status?: string | null
