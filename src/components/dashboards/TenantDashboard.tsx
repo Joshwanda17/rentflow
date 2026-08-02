@@ -59,11 +59,9 @@ import { TrustBoostBanner } from '@/components/ai-id/TrustBoostBanner';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShareBreadDialog, WELILE_BREAD_PRICE } from '@/components/tenant/ShareBreadDialog';
+import { ShareBreadDialog } from '@/components/tenant/ShareBreadDialog';
 import {
   useBreadReceiptPrice,
-  WELILE_BREAD_DISCOUNT_RATE,
-  WELILE_BREAD_MIN_PAYABLE,
   useBreadReceiptHistory,
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
@@ -71,7 +69,6 @@ import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
 import { ClaimRentDiscountDialog } from '@/components/tenant/ClaimRentDiscountDialog';
 import { AddMonthlyRentDialog, getStoredMonthlyRent } from '@/components/tenant/AddMonthlyRentDialog';
 import { RentDiscountCarousel } from '@/components/tenant/RentDiscountCarousel';
-import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
@@ -227,17 +224,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
     const id = window.setInterval(() => setNowTick(Date.now()), 30_000);
     return () => window.clearInterval(id);
   }, []);
-  const breadPriceUpdatedAt = breadPrice.savedAt ?? nowTick;
-  const formatRelativeTime = (ts: number) => {
-    const diffSec = Math.max(0, Math.round((nowTick - ts) / 1000));
-    if (diffSec < 60) return 'just now';
-    const m = Math.floor(diffSec / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`;
-    const d = Math.floor(h / 24);
-    return `${d}d ago`;
-  };
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
