@@ -181,7 +181,11 @@ export default function Auth() {
         navigate(storedRedirect, { replace: true });
         return;
       }
-      navigate(roleToSlug(authRoles[0]), { replace: true });
+      // Let the central resolver (/dashboard → DashboardRedirect) decide the
+      // persona: forced default → device/server preference → last-used role →
+      // merchant-agent rule → tenant-first fallback. Using authRoles[0] here
+      // depended on unstable database row order.
+      navigate('/dashboard', { replace: true });
     }
   }, [authLoading, user, authRoles, navigate, searchParams]);
 
