@@ -20,7 +20,6 @@ import {
   PiggyBank,
   FileText,
   Search,
-  Wallet,
   ArrowUpRight,
   Copy,
   Info,
@@ -44,9 +43,8 @@ interface TenantMenuDrawerProps {
   onRentCalculator: () => void;
   onBrowseHouses?: () => void;
   extraContent?: ReactNode;
-  walletBalance?: number;
-  onOpenWallet?: () => void;
 }
+
 
 interface MenuSection {
   title: string;
@@ -72,9 +70,8 @@ export function TenantMenuDrawer({
   onRentCalculator,
   onBrowseHouses,
   extraContent,
-  walletBalance = 0,
-  onOpenWallet,
 }: TenantMenuDrawerProps) {
+
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState('');
@@ -484,25 +481,6 @@ export function TenantMenuDrawer({
                 </div>
               </div>
 
-              {/* Wallet hero (profile-row equivalent) */}
-              {onOpenWallet && (
-                <button
-                  type="button"
-                  onPointerDown={() => hapticImpact()}
-                  onClick={() => { hapticSuccess(); onOpenWallet(); }}
-                  aria-label={`Open wallet. Available balance ${formatUGX(walletBalance)}`}
-                  className="w-full min-h-[64px] flex items-center gap-3 px-4 py-4 border-b border-border/60 hover:bg-muted/40 active:bg-primary/10 active:scale-[0.985] transition-all duration-100 text-left touch-manipulation select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset"
-                >
-                  <div aria-hidden="true" className="h-12 w-12 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
-                    <Wallet className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[15px] text-foreground leading-tight truncate">My Wallet</p>
-                    <p className="text-[12px] text-muted-foreground leading-tight mt-0.5 truncate">{formatUGX(walletBalance)} available</p>
-                  </div>
-                  <ChevronRight aria-hidden="true" className="h-5 w-5 text-muted-foreground/60 shrink-0" />
-                </button>
-              )}
 
               {extraContent && (
                 <div className="px-4 py-3 border-b border-border/60 space-y-3">
