@@ -153,7 +153,7 @@ async function refreshSubscriptionIfVapidChanged(userId: string): Promise<void> 
  */
 
 const SNOOZE_KEY = "welile-push-prompt-snooze";
-const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000; // re-ask after 3 days if dismissed
+const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000; // re-ask after 7 days if dismissed
 // Set once a device has successfully subscribed. Persisted per user so a
 // refresh never re-shows the mandatory prompt to someone already enabled.
 const ENABLED_KEY_PREFIX = "welile-push-enabled:";
