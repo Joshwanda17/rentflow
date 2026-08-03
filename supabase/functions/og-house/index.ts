@@ -72,30 +72,30 @@ Deno.serve(async (req) => {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>${title}</title>
-  <meta name="description" content="${description}" />
+  <title>${esc(title)}</title>
+  <meta name="description" content="${esc(description)}" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="${houseUrl}" />
-  <meta property="og:title" content="${title}" />
-  <meta property="og:description" content="${description}" />
-  <meta property="og:image" content="${image}" />
+  <meta property="og:url" content="${esc(houseUrl)}" />
+  <meta property="og:title" content="${esc(title)}" />
+  <meta property="og:description" content="${esc(description)}" />
+  <meta property="og:image" content="${esc(image)}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:site_name" content="Welile" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${title}" />
-  <meta name="twitter:description" content="${description}" />
-  <meta name="twitter:image" content="${image}" />
+  <meta name="twitter:title" content="${esc(title)}" />
+  <meta name="twitter:description" content="${esc(description)}" />
+  <meta name="twitter:image" content="${esc(image)}" />
 
   <!-- Redirect to the actual app page -->
-  <meta http-equiv="refresh" content="0;url=${houseUrl}" />
+  <meta http-equiv="refresh" content="0;url=${esc(houseUrl)}" />
 </head>
 <body>
-  <p>Redirecting to <a href="${houseUrl}">${title}</a>...</p>
+  <p>Redirecting to <a href="${esc(houseUrl)}">${esc(title)}</a>...</p>
 </body>
 </html>`;
 
