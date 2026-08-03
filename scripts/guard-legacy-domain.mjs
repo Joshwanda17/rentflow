@@ -12,14 +12,16 @@
  * must name the legacy hosts in order to redirect them away).
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative, extname } from 'node:path';
+import { join, relative, extname, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   CANONICAL_DOMAIN,
   LEGACY_DOMAINS,
   buildLegacyDomainRegex,
 } from './site-domains.mjs';
 
-const REPO_ROOT = new URL('../', import.meta.url).pathname;
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(SCRIPT_DIR, '..');
 
 // Only scan files that actually ship or produce public URLs.
 const SCAN_TARGETS = [

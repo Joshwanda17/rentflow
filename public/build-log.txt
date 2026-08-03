@@ -1,7 +1,7 @@
 
 ==============================================================================
 [build-log] stage=prebuild
-[build-log] started=2026-08-03T15:16:31.725Z
+[build-log] started=2026-08-03T15:43:16.222Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/run-optional.mjs node --import tsx scripts/generate-sitemap.ts
 ==============================================================================
@@ -9,13 +9,13 @@ sitemap.xml written (1056 entries, 1000 houses)
 sitemap-welilereceipts.xml written (1056 entries, base https://[legacy-domain-redacted])
 
 ------------------------------------------------------------------------------
-[build-log] stage=prebuild finished=2026-08-03T15:16:32.543Z duration=0.8s exit=0
+[build-log] stage=prebuild finished=2026-08-03T15:43:16.966Z duration=0.7s exit=0
 [build-log] suspicious lines: 0
 ------------------------------------------------------------------------------
 
 ==============================================================================
 [build-log] stage=build
-[build-log] started=2026-08-03T15:16:32.654Z
+[build-log] started=2026-08-03T15:43:17.053Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/guard-frontend-ledger-writes.mjs && node scripts/guard-deposit-purpose.mjs && node scripts/guard-legacy-domain.mjs && node scripts/guard-canonical-tags.mjs && node scripts/run-with-heap.mjs vite build
 ==============================================================================
@@ -915,16 +915,16 @@ dist/assets/TenantOpsHub-C2L3lkvB.js                                            
 dist/assets/vendor-xlsx-fOJeg6_r.js                                                 428.57 kB │ gzip:   141.63 kB
 dist/assets/AgentOpsDashboard-dJ2kGEuR.js                                           474.59 kB │ gzip:   110.97 kB
 dist/assets/Dashboard-BU_vOa7k.js                                                   847.67 kB │ gzip:   199.29 kB
-✓ built in 1m 5s
+✓ built in 1m 4s
 
 ------------------------------------------------------------------------------
-[build-log] stage=build finished=2026-08-03T15:17:42.076Z duration=69.4s exit=0
+[build-log] stage=build finished=2026-08-03T15:44:24.026Z duration=67.0s exit=0
 [build-log] suspicious lines: 0
 ------------------------------------------------------------------------------
 
 ==============================================================================
 [build-log] stage=postbuild
-[build-log] started=2026-08-03T15:17:42.186Z
+[build-log] started=2026-08-03T15:44:24.132Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/run-optional.mjs node scripts/run-with-heap.mjs node scripts/prerender-houses.mjs
 ==============================================================================
@@ -932,6 +932,6 @@ dist/assets/Dashboard-BU_vOa7k.js                                               
 prerender-houses: incremental — 1000 shells for 1000 listings (rendered 1000, reused 0, pruned 1000 cache + 0 dist)
 
 ------------------------------------------------------------------------------
-[build-log] stage=postbuild finished=2026-08-03T15:17:43.526Z duration=1.3s exit=0
+[build-log] stage=postbuild finished=2026-08-03T15:44:25.315Z duration=1.2s exit=0
 [build-log] suspicious lines: 0
 ------------------------------------------------------------------------------

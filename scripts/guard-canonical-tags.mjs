@@ -17,10 +17,12 @@
  * positive canonical is present and points at the right welileapp.com URL.
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative, extname } from 'node:path';
+import { join, relative, extname, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CANONICAL_ORIGIN } from './site-domains.mjs';
 
-const REPO_ROOT = new URL('../', import.meta.url).pathname;
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(SCRIPT_DIR, '..');
 const BASE = CANONICAL_ORIGIN;
 
 // Indexable public routes -> { file, expected canonical }. Mirrors the
