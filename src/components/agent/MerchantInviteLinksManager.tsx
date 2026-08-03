@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { hapticTap } from '@/lib/haptics';
 import InviteMerchantAgentCard from './InviteMerchantAgentCard';
+import MerchantLoginLinkCard from '@/components/cto/MerchantLoginLinkCard';
 import { Copy, Share2, Plus, Link2, MousePointerClick, Loader2, Trash2, User } from 'lucide-react';
 
 interface InviteLinkRow {
@@ -120,6 +121,8 @@ export function MerchantInviteLinksManager() {
   return (
     <div className="space-y-4">
       <InviteMerchantAgentCard />
+
+      <MerchantLoginLinkCard />
 
       <Card className="p-4 rounded-2xl">
         <div className="flex items-center gap-2 mb-3">
