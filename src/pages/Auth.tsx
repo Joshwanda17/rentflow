@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, ArrowRight, Key, Clock } from 'lucide-react';
 import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
@@ -529,11 +530,57 @@ export default function Auth() {
         )}
 
         {!needsRoleSelection && (
-          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
+          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border border-border/60 bg-card p-5 shadow-lg shadow-black/5 sm:p-6">
+
+            {/* Sign In / Sign Up tabs — bound to the existing isSignUp state so
+                deep links (?signup=1, ?become=…, referral links) still land on
+                the right panel. Hidden during reset flows. */}
+            {!isForgotPassword && !isForgotPhone && !SIGNUP_PAUSED && (
+              <Tabs
+                value={isSignUp ? 'sign-up' : 'sign-in'}
+                onValueChange={(v) => setIsSignUp(v === 'sign-up')}
+                className="mb-5"
+              >
+                <TabsList className="grid w-full grid-cols-2 h-12 rounded-xl p-1">
+                  <TabsTrigger value="sign-in" className="h-10 rounded-lg text-sm font-semibold">Sign In</TabsTrigger>
+                  <TabsTrigger value="sign-up" className="h-10 rounded-lg text-sm font-semibold">Sign Up</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
 
             {/* ===== SIGN IN VIEW ===== */}
             {isLoginView && loginMode === 'password' && (
               <div className="space-y-5">
+                {/* Social sign-in first — matches the card layout */}
+                <OAuthEnvironmentHint />
+                <OAuthErrorCard />
+
+                <div className="flex w-full flex-wrap items-center justify-center gap-4">
+                  <GoogleSignInButton
+                    onClick={wrappedHandleGoogleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isGoogleLoading}
+                    variant="icon"
+                  />
+                  <AppleSignInButton
+                    onClick={() => {
+                      localStorage.setItem('welile_last_login_method', 'apple');
+                      // OAuth sign-ins are always persistent — clear stale ephemeral flag.
+                      setDeviceTrust(true);
+                      handleAppleSignIn();
+                    }}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isAppleLoading}
+                    variant="icon"
+                  />
+                </div>
+
+                <div className="relative flex items-center py-1">
+                  <div className="flex-1 border-t border-border/40" />
+                  <span className="px-3 text-xs text-muted-foreground">or</span>
+                  <div className="flex-1 border-t border-border/40" />
+                </div>
+
                 {/* Phone + Password — primary path (phone-first for African users) */}
                 <form onSubmit={wrappedHandleSubmit} className="space-y-5">
                   <div className="space-y-2">
@@ -640,36 +687,6 @@ export default function Auth() {
                     ) : 'Sign In'}
                   </Button>
                 </form>
-
-                {/* Divider — social sign-in as a secondary option */}
-                <div className="relative flex items-center py-1">
-                  <div className="flex-1 border-t border-border/40" />
-                  <span className="px-3 text-xs text-muted-foreground">or continue with</span>
-                  <div className="flex-1 border-t border-border/40" />
-                </div>
-
-                <OAuthEnvironmentHint />
-                <OAuthErrorCard />
-
-                <div className="flex w-full flex-wrap items-center justify-center gap-4">
-                  <GoogleSignInButton
-                    onClick={wrappedHandleGoogleSignIn}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
-                    isLoading={isGoogleLoading}
-                    variant="icon"
-                  />
-                  <AppleSignInButton
-                    onClick={() => {
-                      localStorage.setItem('welile_last_login_method', 'apple');
-                      // OAuth sign-ins are always persistent — clear stale ephemeral flag.
-                      setDeviceTrust(true);
-                      handleAppleSignIn();
-                    }}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
-                    isLoading={isAppleLoading}
-                    variant="icon"
-                  />
-                </div>
 
                 {failedAttempts >= 2 && (
                   <Button
@@ -1208,45 +1225,56 @@ export default function Auth() {
 
                 <div className="relative flex items-center py-1">
                   <div className="flex-1 border-t border-border/40" />
-                  <span className="px-3 text-xs text-muted-foreground">or sign up with phone</span>
+                  <span className="px-3 text-xs text-muted-foreground">or</span>
                   <div className="flex-1 border-t border-border/40" />
                 </div>
 
-                <form onSubmit={wrappedHandleSubmit} className="space-y-3">
+                <form onSubmit={wrappedHandleSubmit} className="space-y-4">
                   {/* Full Name */}
-                  <div className="relative">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-name" className="px-1">Name</Label>
+                    <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      id="signup-name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Full name (first and last)"
-                      className="pl-10 h-12 text-base rounded-xl"
+                      className="pl-10 h-14 text-base rounded-lg"
                       style={{ fontSize: '16px' }}
                       required
                     />
+                    </div>
                   </div>
 
                   {/* Email (optional — lets users sign up without SMS OTP) */}
-                  <div className="relative">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-email" className="px-1">Email <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                    <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      id="signup-email"
                       type="email"
                       inputMode="email"
                       autoComplete="email"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      placeholder="Email (optional)"
-                      className="pl-10 h-12 text-base rounded-xl"
+                      placeholder="you@example.com"
+                      className="pl-10 h-14 text-base rounded-lg"
                       style={{ fontSize: '16px' }}
                     />
+                    </div>
                   </div>
 
                   {/* Phone */}
-                  <div className="relative flex">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-phone" className="px-1">Phone number</Label>
+                    <div className="relative flex">
                     <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
                     <div className="relative flex-1">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
+                        id="signup-phone"
                         ref={phoneInputRef}
                         type="tel"
                         inputMode="tel"
@@ -1254,10 +1282,11 @@ export default function Auth() {
                         value={phone}
                         onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
                         placeholder="700 123 456"
-                        className={cn("pl-10 h-12 text-base rounded-xl rounded-l-none", isDuplicate && 'border-destructive')}
+                        className={cn("pl-10 h-14 text-base rounded-lg rounded-l-none", isDuplicate && 'border-destructive')}
                         style={{ fontSize: '16px' }}
                         required
                       />
+                    </div>
                     </div>
                   </div>
                   {isDuplicate && (
@@ -1304,37 +1333,48 @@ export default function Auth() {
                   )}
 
                   {/* Password */}
-                  <div className="relative">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-password" className="px-1">Password</Label>
+                    <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      id="signup-password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Password"
-                      className="pl-10 h-12 text-base rounded-xl"
+                      className="pl-10 pr-14 h-14 text-base rounded-lg"
                       style={{ fontSize: '16px' }}
                       required
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
                       {showPassword ? 'Hide' : 'Show'}
                     </button>
+                    </div>
                   </div>
                   <PasswordStrengthIndicator password={password} />
 
                   {/* Confirm Password */}
-                  <div className="relative">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-confirm-password" className="px-1">Confirm password</Label>
+                    <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      id="signup-confirm-password"
                       type={showConfirmPassword ? "text" : "password"}
                       autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm password"
-                      className={cn("pl-10 h-12 text-base rounded-xl", confirmPassword && password !== confirmPassword && 'border-destructive', confirmPassword && password === confirmPassword && 'border-emerald-500')}
+                      className={cn("pl-10 pr-14 h-14 text-base rounded-lg", confirmPassword && password !== confirmPassword && 'border-destructive', confirmPassword && password === confirmPassword && 'border-emerald-500')}
                       style={{ fontSize: '16px' }}
                       required
                     />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
+                      {showConfirmPassword ? 'Hide' : 'Show'}
+                    </button>
+                    </div>
                   </div>
                   {confirmPassword && password !== confirmPassword && (
                     <p className="text-xs text-destructive px-1">Passwords don't match</p>
@@ -1342,7 +1382,7 @@ export default function Auth() {
 
                   <Button
                     type="submit"
-                    className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
+                    className="w-full h-14 text-base rounded-lg font-semibold touch-manipulation active:scale-[0.98]"
                     disabled={
                       isLoading ||
                       isDuplicate ||
