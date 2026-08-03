@@ -29,7 +29,7 @@ interface LedgerEntryDetailDrawerProps {
  * executive/audit roles may see it — never agents. UI-only gate, no effect on
  * ledger data or computation.
  */
-const RUNNING_BALANCE_ROLES: AppRole[] = [
+const RUNNING_BALANCE_ROLES: string[] = [
   'cfo',
   'financial_ops',
   'ceo',
