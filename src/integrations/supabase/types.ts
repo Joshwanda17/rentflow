@@ -21614,6 +21614,48 @@ export type Database = {
           },
         ]
       }
+      rejected_listing_purge_runs: {
+        Row: {
+          bytes_freed: number
+          created_at: string
+          cutoff_days: number
+          errors: Json
+          id: string
+          listings_deleted: number
+          media_files_deleted: number
+          run_at: string
+          skipped: number
+          triggered_by: string
+          updated_at: string
+        }
+        Insert: {
+          bytes_freed?: number
+          created_at?: string
+          cutoff_days?: number
+          errors?: Json
+          id?: string
+          listings_deleted?: number
+          media_files_deleted?: number
+          run_at?: string
+          skipped?: number
+          triggered_by?: string
+          updated_at?: string
+        }
+        Update: {
+          bytes_freed?: number
+          created_at?: string
+          cutoff_days?: number
+          errors?: Json
+          id?: string
+          listings_deleted?: number
+          media_files_deleted?: number
+          run_at?: string
+          skipped?: number
+          triggered_by?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rent_access_share_audit: {
         Row: {
           agent_id: string
@@ -33069,6 +33111,15 @@ export type Database = {
           p_limit?: number
         }
         Returns: Json
+      }
+      list_purgeable_rejected_listings: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: {
+          id: string
+          image_urls: string[]
+          rejected_at: string
+          video_url: string
+        }[]
       }
       lock_campaign_attribution: { Args: { p_token: string }; Returns: Json }
       log_archived_login_attempt: {
