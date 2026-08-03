@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { Fragment, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -125,9 +125,8 @@ export default function HRAudit() {
                   : {};
                 const detailEntries = Object.entries(meta);
                 return (
-                  <>
+                  <Fragment key={log.id}>
                     <TableRow
-                      key={log.id}
                       onClick={() => toggle(log.id)}
                       aria-expanded={isOpen}
                       className="cursor-pointer"
@@ -139,7 +138,7 @@ export default function HRAudit() {
                       <TableCell className="text-xs">{readable(log.table_name)}</TableCell>
                     </TableRow>
                     {isOpen && (
-                      <TableRow key={`${log.id}-details`} className="bg-muted/40 hover:bg-muted/40">
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
                         <TableCell colSpan={5} className="text-xs">
                           {detailEntries.length === 0 ? (
                             <p className="text-muted-foreground">No further details recorded</p>
@@ -156,7 +155,7 @@ export default function HRAudit() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
