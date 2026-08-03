@@ -34454,6 +34454,10 @@ export type Database = {
           phone: string
         }[]
       }
+      sum_storage_object_size: {
+        Args: { p_bucket: string; p_paths: string[] }
+        Returns: number
+      }
       sweep_agent_advance_recovery: { Args: never; Returns: Json }
       sync_house_listing_image_urls: {
         Args: { p_listing: string }
