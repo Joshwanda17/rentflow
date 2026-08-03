@@ -79,7 +79,8 @@ for (const rel of SCAN_TARGETS) {
   const abs = join(REPO_ROOT, rel);
   if (!existsSync(abs)) continue;
   for (const file of walk(abs)) {
-    if (ALLOW_FILES.has(relative(REPO_ROOT, file))) continue;
+    const relPath = relative(REPO_ROOT, file).replace(/\\/g, '/');
+    if (ALLOW_FILES.has(relPath)) continue;
     const src = readFileSync(file, 'utf8');
     src.split('\n').forEach((line, idx) => {
       if (!LEGACY_RE.test(line)) return;
