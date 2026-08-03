@@ -211,13 +211,10 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Reset password to the standard default
-          const tempPwd = `Welile1234!`;
-          const { error: passwordErr } = await adminClient.auth.admin.updateUserById(userId, { password: tempPwd });
-          if (passwordErr) {
-            pushImportError(errors, partner.partner_name, passwordErr, "Could not update the login password for this existing user. Please try again or reset the password manually.");
-            continue;
-          }
+          // Deliberately do NOT touch the password of an account that already
+          // exists: overwriting it with an import-time credential would lock
+          // the real owner out and hand access to whoever ran the import.
+          // Use the dedicated temporary-password tool if a reset is needed.
 
           // Keep the contact email on the profile. Do not force-update Auth email here:
           // old/imported Auth records can already own the address while the profile is
@@ -236,8 +233,8 @@ Deno.serve(async (req) => {
           // "0 Partners" when portfolios were actually added to their account.
           partnersMatched++;
         } else {
-          // Create auth user with standard default password
-          const tempPassword = `Welile1234!`;
+          // Create auth user with a unique, random temporary password
+          const tempPassword = generateTempPassword();
           // Generate email: use the real email when supplied, otherwise a
           // GLOBALLY-UNIQUE placeholder. Placeholders always carry a random
           // suffix so a phone-derived address can never falsely collide with
