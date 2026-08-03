@@ -609,6 +609,8 @@ export default function FindAHouse() {
   const [showFilters, setShowFilters] = useState(false);
   // Search + location bar can be collapsed to give listings more room.
   const [searchBarOpen, setSearchBarOpen] = useState(true);
+  // Master collapse for the entire sticky filter bar.
+  const [filterBarOpen, setFilterBarOpen] = useState(true);
   // Client-side pagination over the filtered set.
   const PAGE_SIZE = 12;
   const [page, setPage] = useState(1);
