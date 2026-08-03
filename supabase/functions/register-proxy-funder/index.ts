@@ -42,11 +42,32 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { full_name, phone, agent_id, notes } = await req.json();
-
-    if (!phone || !agent_id) {
+    // Authenticate the caller — attribution must never come from the request body.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
       return new Response(
-        JSON.stringify({ error: "phone and agent_id are required" }),
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: callerData, error: callerError } = await supabase.auth.getUser(token);
+    const callerId = callerData?.user?.id;
+    if (callerError || !callerId) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired session" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { full_name, phone, notes } = await req.json();
+    // Attribution is always the authenticated caller.
+    const agent_id = callerId;
+
+    if (!phone) {
+      return new Response(
+        JSON.stringify({ error: "phone is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
