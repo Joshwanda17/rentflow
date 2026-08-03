@@ -12,6 +12,15 @@ import { useDeployedCapital } from "@/hooks/useDeployedCapital";
 import { useRoleAccessRequests } from "@/hooks/useRoleAccessRequests";
 import { areAllRolesUnlocked } from "@/hooks/useAppPreferences";
 import ApplyForRoleDialog from "@/components/ApplyForRoleDialog";
+import {
+  FLOATING_NAV_ITEM,
+  FLOATING_NAV_LABEL,
+  FLOATING_NAV_SHELL,
+  FLOATING_NAV_SHELL_STYLE,
+  FloatingNavRow,
+  SlidingIndicator,
+  useSlidingIndicator,
+} from "@/components/ui/floating-nav";
 
 interface BottomRoleSwitcherProps {
   currentRole: AppRole;
@@ -102,6 +111,9 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const activeIndex = PUBLIC_ROLES.findIndex(({ role }) => role === currentRole);
+  const { containerRef, setItemRef, indicatorStyle } = useSlidingIndicator(activeIndex, [currentRole, cols]);
+
   const navContent = (
     <>
       {/* Polite live region — screen readers announce role changes without stealing focus */}
@@ -116,22 +128,24 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
 
       <nav
         aria-label="Switch dashboard role"
-        className="fixed bottom-0 left-0 right-0 z-[100] bg-background/95 backdrop-blur-md border-t border-border/40 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_12px_hsl(var(--foreground)/0.06)]"
+        className={cn(FLOATING_NAV_SHELL, "z-[100] max-w-lg mx-auto")}
+        style={FLOATING_NAV_SHELL_STYLE}
       >
-        <div className={cn("grid max-w-lg mx-auto", cols === 5 ? "grid-cols-5" : "grid-cols-4")}>
-          {PUBLIC_ROLES.map(({ role, label, icon: Icon }) => {
+        <FloatingNavRow containerRef={containerRef}>
+          <SlidingIndicator style={indicatorStyle} />
+          {PUBLIC_ROLES.map(({ role, label, icon: Icon }, index) => {
             const isActive = role === currentRole;
             const gated = isRoleGated(role);
             const pending = gated && hasApplied(role);
             return (
               <button
                 key={role}
+                ref={setItemRef(index)}
                 onClick={() => handleSwitch(role)}
                 aria-label={`${label}${isActive ? ' (current)' : ''}${gated ? ' (locked)' : ''}`}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors touch-manipulation active:scale-95 relative",
-                  "outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:rounded-lg focus-visible:z-10",
+                  FLOATING_NAV_ITEM,
                   isActive
                     ? "text-primary"
                     : gated
@@ -139,13 +153,11 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
                       : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <div
-                  className={cn(
-                    "flex items-center justify-center w-8 h-8 rounded-xl transition-colors relative",
-                    isActive && "bg-primary/10",
-                  )}
-                >
-                  <Icon className={cn("h-5 w-5", isActive && "text-primary")} strokeWidth={isActive ? 2.5 : 2} />
+                <div className="relative flex items-center justify-center">
+                  <Icon
+                    className={cn("h-5 w-5 transition-transform", isActive && "text-primary scale-110")}
+                    strokeWidth={isActive ? 2.5 : 2}
+                  />
                   {gated && (
                     <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-warning/20 flex items-center justify-center">
                       <Lock className="h-2 w-2 text-warning" />
@@ -154,7 +166,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
                 </div>
                 <span
                   className={cn(
-                    "text-[11px] font-semibold tracking-wide leading-none",
+                    FLOATING_NAV_LABEL,
                     isActive && "text-primary",
                     pending && "text-warning",
                   )}
@@ -168,15 +180,13 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
             <button
               onClick={handleStaffNav}
               aria-label="Staff hub"
-              className="flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:rounded-lg focus-visible:z-10"
+              className={cn(FLOATING_NAV_ITEM, "text-muted-foreground hover:text-foreground")}
             >
-              <div className="flex items-center justify-center w-8 h-8 rounded-xl transition-colors">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <span className="text-[11px] font-semibold tracking-wide leading-none">Staff</span>
+              <ShieldCheck className="h-5 w-5" />
+              <span className={FLOATING_NAV_LABEL}>Staff</span>
             </button>
           )}
-        </div>
+        </FloatingNavRow>
       </nav>
 
       <ApplyForRoleDialog

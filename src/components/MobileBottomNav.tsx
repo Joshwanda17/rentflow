@@ -7,6 +7,14 @@ import { hapticTap } from '@/lib/haptics';
 import { roleToSlug } from '@/lib/roleRoutes';
 import WelileAIChatDrawer from '@/components/ai-chat/WelileAIChatDrawer';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
+import {
+  FLOATING_NAV_ITEM,
+  FLOATING_NAV_LABEL,
+  FLOATING_NAV_SHELL,
+  FLOATING_NAV_SHELL_STYLE,
+  SlidingIndicator,
+  useSlidingIndicator,
+} from '@/components/ui/floating-nav';
 
 const GeminiSparkle = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -16,6 +24,11 @@ const GeminiSparkle = ({ size = 20 }: { size?: number }) => (
     />
   </svg>
 );
+
+const NAV_SHELL = cn('md:hidden z-50', FLOATING_NAV_SHELL);
+const NAV_SHELL_STYLE = FLOATING_NAV_SHELL_STYLE;
+const NAV_ITEM = FLOATING_NAV_ITEM;
+const NAV_LABEL = FLOATING_NAV_LABEL;
 
 interface MobileBottomNavProps {
   currentRole: AppRole;
@@ -53,51 +66,15 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
 
   // Manager bottom nav: hub switching when on the manager dashboard
   if (currentRole === 'manager' && currentPath === '/dashboard/manager' && onManagerHubChange) {
-    const managerItems = [
-      { id: 'home' as const, icon: Home, label: 'Home' },
-      { id: 'wallets' as const, icon: Wallet, label: 'Wallets' },
-      { id: 'rent-investments' as const, icon: FileText, label: 'Rent' },
-      { id: 'buffer' as const, icon: Shield, label: 'Buffer' },
-    ];
-
     return (
       <>
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-          <div className="flex items-center justify-around py-1.5 px-1">
-            {managerItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeManagerHub === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => { handleTap(); onManagerHubChange(item.id); }}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] relative touch-manipulation",
-                    isActive ? "text-primary bg-primary/12" : "text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95"
-                  )}
-                >
-                  <div className={cn("relative p-1 rounded-xl transition-all", isActive && "bg-primary/15")}>
-                    <Icon className={cn("h-5 w-5", isActive && "scale-110")} strokeWidth={isActive ? 2.5 : 2} />
-                  </div>
-                  <span className={cn("text-[9px] font-bold tracking-wide", isActive ? "text-primary" : "text-muted-foreground")}>{item.label}</span>
-                  {isActive && <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />}
-                </button>
-              );
-            })}
-            <button onClick={() => { handleTap(); setAiOpen(true); }} className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] text-primary active:scale-95 touch-manipulation">
-              <div className="relative p-1 rounded-xl bg-primary/15"><GeminiSparkle size={20} /></div>
-              <span className="text-[9px] font-bold tracking-wide text-primary">AI</span>
-            </button>
-            <button onClick={() => { handleTap(); setMenuOpen(true); }} className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95 touch-manipulation">
-              <div className="relative p-1.5 rounded-xl">
-                <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md">
-                  <Menu className="h-4 w-4" />
-                </div>
-              </div>
-              <span className="text-[9px] font-bold tracking-wide text-muted-foreground">Menu</span>
-            </button>
-          </div>
-        </nav>
+        <ManagerHubNav
+          activeManagerHub={activeManagerHub}
+          onManagerHubChange={onManagerHubChange}
+          onTap={handleTap}
+          onOpenAi={() => setAiOpen(true)}
+          onOpenMenu={() => setMenuOpen(true)}
+        />
         <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />
         {menuOpen && <MobileManagerMenu onScrollToProductivity={onScrollToProductivity} isOpen={menuOpen} onClose={() => setMenuOpen(false)} />}
       </>
@@ -135,25 +112,37 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
 
   const navItems = getNavItems();
   const isSettingsActive = currentPath === '/settings';
+  // Indicator tracks the nav links first, then the trailing Settings link when
+  // it is the active route (the Deposit / AI / Menu actions never own it).
+  const trailingSettingsIndex = onOpenMenu ? -1 : navItems.length;
+  const activeIndex = navItems.findIndex((i) => i.active);
+  const resolvedActiveIndex = activeIndex >= 0 ? activeIndex : (isSettingsActive ? trailingSettingsIndex : -1);
+  const { containerRef, setItemRef, indicatorStyle } = useSlidingIndicator(resolvedActiveIndex, [
+    navItems.length,
+    showDepositFab,
+    Boolean(onOpenMenu),
+  ]);
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="relative flex items-center justify-around py-1.5 px-1">
-          {navItems.map((item) => {
+      <nav className={NAV_SHELL} style={NAV_SHELL_STYLE}>
+        <div ref={containerRef} className="relative flex items-center px-1.5 py-1.5">
+          <SlidingIndicator style={indicatorStyle} />
+          {navItems.map((item, index) => {
             const Icon = item.icon;
             return (
-              <Link key={item.label + item.href} to={item.href} onClick={handleTap}
+              <Link
+                key={item.label + item.href}
+                to={item.href}
+                onClick={handleTap}
+                ref={setItemRef(index)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-2 px-2 rounded-2xl transition-all min-w-[52px] relative touch-manipulation",
-                  item.active ? "text-primary bg-primary/12 scale-105" : "text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95"
+                  NAV_ITEM,
+                  item.active ? 'text-primary' : 'text-muted-foreground active:text-foreground active:scale-95'
                 )}
               >
-                <div className={cn("relative p-1 rounded-xl transition-all", item.active && "bg-primary/15")}>
-                  <Icon className={cn("h-5 w-5 transition-transform", item.active && "scale-110")} strokeWidth={item.active ? 2.5 : 2} />
-                </div>
-                <span className={cn("text-[9px] font-bold tracking-wide leading-tight", item.active ? "text-primary" : "text-muted-foreground")}>{item.label}</span>
-                {item.active && <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />}
+                <Icon className={cn('h-5 w-5 transition-transform', item.active && 'scale-110')} strokeWidth={item.active ? 2.5 : 2} />
+                <span className={NAV_LABEL}>{item.label}</span>
               </Link>
             );
           })}
@@ -161,46 +150,118 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
             <button
               onClick={handleDepositTap}
               aria-label="Deposit"
-              className="flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-2xl min-w-[64px] text-primary-foreground active:scale-95 touch-manipulation"
+              className="relative z-10 flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 py-1 text-primary active:scale-95 touch-manipulation"
             >
-              <div className="h-12 w-12 -mt-4 rounded-full bg-primary flex items-center justify-center shadow-lg ring-4 ring-card">
-                <ArrowDownToLine className="h-6 w-6" strokeWidth={2.5} />
+              <div className="h-11 w-11 -mt-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg ring-4 ring-card">
+                <ArrowDownToLine className="h-5 w-5" strokeWidth={2.5} />
               </div>
-              <span className="text-[9px] font-bold tracking-wide leading-tight text-primary">Deposit</span>
+              <span className={NAV_LABEL}>Deposit</span>
             </button>
           )}
-          <button onClick={() => { handleTap(); setAiOpen(true); }} className="flex flex-col items-center justify-center gap-0.5 py-2 px-2 rounded-2xl transition-all min-w-[52px] text-primary active:scale-95 touch-manipulation">
-            <div className="relative p-1 rounded-xl bg-primary/15"><GeminiSparkle size={20} /></div>
-            <span className="text-[9px] font-bold tracking-wide leading-tight text-primary">AI</span>
+          <button
+            onClick={() => { handleTap(); setAiOpen(true); }}
+            aria-label="Welile AI"
+            className={cn(NAV_ITEM, 'text-primary active:scale-95')}
+          >
+            <GeminiSparkle size={20} />
+            <span className={NAV_LABEL}>AI</span>
           </button>
           {onOpenMenu ? (
-            <button onClick={() => { handleTap(); onOpenMenu(); }}
-              className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95 touch-manipulation"
+            <button
+              onClick={() => { handleTap(); onOpenMenu(); }}
+              aria-label="Menu"
+              className={cn(NAV_ITEM, 'text-muted-foreground active:text-foreground active:scale-95')}
             >
-              <div className="relative p-1.5 rounded-xl">
-                <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md">
-                  <Menu className="h-4 w-4" />
-                </div>
+              <div className="h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md">
+                <Menu className="h-3.5 w-3.5" />
               </div>
-              <span className="text-[9px] font-bold tracking-wide leading-tight text-muted-foreground">Menu</span>
+              <span className={NAV_LABEL}>Menu</span>
             </button>
           ) : (
-            <Link to="/settings" onClick={handleTap}
+            <Link
+              to="/settings"
+              onClick={handleTap}
+              ref={setItemRef(trailingSettingsIndex)}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] relative touch-manipulation",
-                isSettingsActive ? "text-primary bg-primary/12 scale-105" : "text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95"
+                NAV_ITEM,
+                isSettingsActive ? 'text-primary' : 'text-muted-foreground active:text-foreground active:scale-95'
               )}
             >
-              <div className={cn("relative p-1.5 rounded-xl transition-all", isSettingsActive && "bg-primary/15")}>
-                <Settings className={cn("h-6 w-6 transition-transform", isSettingsActive && "scale-110")} strokeWidth={isSettingsActive ? 2.5 : 2} />
-              </div>
-              <span className={cn("text-[9px] font-bold tracking-wide leading-tight", isSettingsActive ? "text-primary" : "text-muted-foreground")}>Menu</span>
-              {isSettingsActive && <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />}
+              <Settings className={cn('h-5 w-5 transition-transform', isSettingsActive && 'scale-110')} strokeWidth={isSettingsActive ? 2.5 : 2} />
+              <span className={NAV_LABEL}>Menu</span>
             </Link>
           )}
         </div>
       </nav>
       <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />
     </>
+  );
+}
+
+const MANAGER_HUBS = [
+  { id: 'home' as const, icon: Home, label: 'Home' },
+  { id: 'wallets' as const, icon: Wallet, label: 'Wallets' },
+  { id: 'rent-investments' as const, icon: FileText, label: 'Rent' },
+  { id: 'buffer' as const, icon: Shield, label: 'Buffer' },
+];
+
+function ManagerHubNav({
+  activeManagerHub,
+  onManagerHubChange,
+  onTap,
+  onOpenAi,
+  onOpenMenu,
+}: {
+  activeManagerHub?: string;
+  onManagerHubChange: (hub: 'home' | 'wallets' | 'rent-investments' | 'buffer') => void;
+  onTap: () => void;
+  onOpenAi: () => void;
+  onOpenMenu: () => void;
+}) {
+  const activeIndex = MANAGER_HUBS.findIndex((h) => h.id === activeManagerHub);
+  const { containerRef, setItemRef, indicatorStyle } = useSlidingIndicator(activeIndex, [activeManagerHub]);
+
+  return (
+    <nav className={NAV_SHELL} style={NAV_SHELL_STYLE}>
+      <div ref={containerRef} className="relative flex items-center px-1.5 py-1.5">
+        <SlidingIndicator style={indicatorStyle} />
+        {MANAGER_HUBS.map((item, index) => {
+          const Icon = item.icon;
+          const isActive = activeManagerHub === item.id;
+          return (
+            <button
+              key={item.id}
+              ref={setItemRef(index)}
+              onClick={() => { onTap(); onManagerHubChange(item.id); }}
+              className={cn(
+                NAV_ITEM,
+                isActive ? 'text-primary' : 'text-muted-foreground active:text-foreground active:scale-95',
+              )}
+            >
+              <Icon className={cn('h-5 w-5', isActive && 'scale-110')} strokeWidth={isActive ? 2.5 : 2} />
+              <span className={NAV_LABEL}>{item.label}</span>
+            </button>
+          );
+        })}
+        <button
+          onClick={() => { onTap(); onOpenAi(); }}
+          aria-label="Welile AI"
+          className={cn(NAV_ITEM, 'text-primary active:scale-95')}
+        >
+          <GeminiSparkle size={20} />
+          <span className={NAV_LABEL}>AI</span>
+        </button>
+        <button
+          onClick={() => { onTap(); onOpenMenu(); }}
+          aria-label="Menu"
+          className={cn(NAV_ITEM, 'text-muted-foreground active:text-foreground active:scale-95')}
+        >
+          <div className="h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md">
+            <Menu className="h-3.5 w-3.5" />
+          </div>
+          <span className={NAV_LABEL}>Menu</span>
+        </button>
+      </div>
+    </nav>
   );
 }
