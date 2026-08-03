@@ -92,12 +92,26 @@ export function TenantOpsGeoCommandCenter() {
     Outstanding: Math.round(r.outstanding_total),
   }));
 
-  const behaviour = [
-    { name: 'Paid early', value: total.paid_early, fill: 'hsl(var(--primary))' },
-    { name: 'On time', value: total.paid_on_time, fill: 'hsl(142 71% 45%)' },
-    { name: 'Paid late', value: total.paid_late, fill: 'hsl(38 92% 50%)' },
-    { name: 'Overdue', value: total.overdue_count, fill: 'hsl(var(--destructive))' },
+  /**
+   * Today's collection funnel. Rent on this platform is repaid DAILY, so every
+   * active plan with a balance is billable every single day — the funnel below,
+   * not a calendar due-date match, is the correct operational picture.
+   */
+  const funnel = [
+    { name: 'Settled today', value: total.settled_today, fill: 'hsl(142 71% 45%)' },
+    { name: 'Part-paid today', value: total.partial_today, fill: 'hsl(38 92% 50%)' },
+    { name: 'Covered by advance', value: total.covered_by_advance, fill: 'hsl(var(--primary))' },
+    { name: 'Not collected yet', value: total.uncollected_today, fill: 'hsl(var(--destructive))' },
   ].filter((s) => s.value > 0);
+
+  /** Arrears ageing — standard portfolio-at-risk buckets, measured in days behind. */
+  const ageing = [
+    { name: 'On schedule', count: total.par_current },
+    { name: '1–7 days', count: total.par_1_7 },
+    { name: '8–30 days', count: total.par_8_30 },
+    { name: '31–60 days', count: total.par_31_60 },
+    { name: '60+ days', count: total.par_60_plus },
+  ];
 
   const crumbs: { label: string; onClick: () => void }[] = [
     { label: 'All districts', onClick: () => { setPath({}); setAgentId(null); } },
