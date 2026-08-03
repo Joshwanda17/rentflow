@@ -9,12 +9,36 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { applyCustomerWalletLedgerFilters, isCustomerWalletLedgerEntryVisible } from '@/lib/customerWalletHistory';
+import { useAuth } from '@/hooks/useAuth';
+import type { AppRole } from '@/hooks/useAuth';
 
 interface LedgerEntryDetailDrawerProps {
   entryId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Presentation-only override for the internal "Running Balance" row.
+   * Internal finance surfaces (CFO / Financial Ops / audit / reconciliation)
+   * can force it visible; agent-facing surfaces never show it.
+   */
+  showRunningBalance?: boolean;
 }
+
+/**
+ * Running balance is an internal accounting figure. Only internal finance and
+ * executive/audit roles may see it — never agents. UI-only gate, no effect on
+ * ledger data or computation.
+ */
+const RUNNING_BALANCE_ROLES: AppRole[] = [
+  'cfo',
+  'financial_ops',
+  'ceo',
+  'coo',
+  'manager',
+  'super_admin',
+  'admin',
+  'access_admin',
+];
 
 interface FullLedgerEntry {
   id: string;
