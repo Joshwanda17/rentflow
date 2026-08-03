@@ -106,6 +106,13 @@ console.log(
   `[heap] machine=${memoryMb ?? 'unknown'}MB requested=${REQUESTED_HEAP_MB}MB using=${heapMb}MB -> ${command} ${args.join(' ')}`,
 );
 
+if (heapMb < REQUESTED_HEAP_MB) {
+  console.warn(
+    `[heap] NOTE: requested ${REQUESTED_HEAP_MB}MB was clamped to ${heapMb}MB ` +
+      `(75% of ${memoryMb}MB detected). If a build ever OOMs, the ceiling — not BUILD_HEAP_MB — is the limit.`,
+  );
+}
+
 const child = spawn(command, args, {
   stdio: 'inherit',
   env: { ...process.env, NODE_OPTIONS: nodeOptions },
