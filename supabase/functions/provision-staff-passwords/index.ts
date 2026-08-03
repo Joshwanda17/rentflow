@@ -6,7 +6,28 @@ const corsHeaders = {
 };
 
 const STAFF_ROLES = ['manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations'];
-const TEMP_PASSWORD = 'WelileManager';
+
+// Every account gets its OWN cryptographically random temporary password so a
+// single leaked constant can never unlock the whole staff batch.
+function rand(set: string): string {
+  const r = crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
+  return set[Math.floor(r * set.length)];
+}
+
+function generateTempPassword(): string {
+  const upper = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const symbols = '@#$%&*';
+  const all = upper + lower + digits + symbols;
+  const chars = [rand(upper), rand(upper), rand(lower), rand(lower), rand(digits), rand(digits), rand(symbols)];
+  for (let i = 0; i < 6; i++) chars.push(rand(all));
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000) * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return 'Welile-' + chars.join('');
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -64,18 +85,22 @@ Deno.serve(async (req) => {
 
     let provisioned = 0;
     const errors: string[] = [];
+    const credentials: { user_id: string; temp_password: string }[] = [];
 
     for (const userId of uniqueUserIds) {
       try {
-        // Set temp password
+        // Set a unique temp password for this account only
+        const tempPassword = generateTempPassword();
         const { error: updateError } = await adminClient.auth.admin.updateUserById(userId as string, {
-          password: TEMP_PASSWORD,
+          password: tempPassword,
         });
 
         if (updateError) {
           errors.push(`${userId}: ${updateError.message}`);
           continue;
         }
+
+        credentials.push({ user_id: userId as string, temp_password: tempPassword });
 
         // Set must_change_password flag
         await adminClient
@@ -102,6 +127,7 @@ Deno.serve(async (req) => {
       success: true,
       total_staff: uniqueUserIds.length,
       provisioned,
+      credentials,
       errors: errors.length > 0 ? errors : undefined,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 

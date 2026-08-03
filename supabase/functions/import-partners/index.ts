@@ -50,6 +50,29 @@ function isValidEmail(value: string | null): value is string {
   return !!value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+// Each imported partner gets their OWN cryptographically random temporary
+// password. A shared literal would let anyone who knows it sign into every
+// freshly-imported investor account.
+function rand(set: string): string {
+  const r = crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
+  return set[Math.floor(r * set.length)];
+}
+
+function generateTempPassword(): string {
+  const upper = "ABCDEFGHJKMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "@#$%&*";
+  const all = upper + lower + digits + symbols;
+  const chars = [rand(upper), rand(upper), rand(lower), rand(lower), rand(digits), rand(digits), rand(symbols)];
+  for (let i = 0; i < 6; i++) chars.push(rand(all));
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000) * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return "Welile-" + chars.join("");
+}
+
 function pushImportError(
   errors: { partner: string; error: string }[],
   partner: string | null | undefined,
@@ -112,6 +135,7 @@ Deno.serve(async (req) => {
     let partnersCreated = 0;
     let partnersMatched = 0;
     let portfoliosCreated = 0;
+    const credentials: { partner: string; temp_password: string }[] = [];
     let skippedDuplicates = 0;
     const errors: { partner: string; error: string }[] = [];
 
@@ -187,13 +211,10 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Reset password to the standard default
-          const tempPwd = `Welile1234!`;
-          const { error: passwordErr } = await adminClient.auth.admin.updateUserById(userId, { password: tempPwd });
-          if (passwordErr) {
-            pushImportError(errors, partner.partner_name, passwordErr, "Could not update the login password for this existing user. Please try again or reset the password manually.");
-            continue;
-          }
+          // Deliberately do NOT touch the password of an account that already
+          // exists: overwriting it with an import-time credential would lock
+          // the real owner out and hand access to whoever ran the import.
+          // Use the dedicated temporary-password tool if a reset is needed.
 
           // Keep the contact email on the profile. Do not force-update Auth email here:
           // old/imported Auth records can already own the address while the profile is
@@ -212,8 +233,8 @@ Deno.serve(async (req) => {
           // "0 Partners" when portfolios were actually added to their account.
           partnersMatched++;
         } else {
-          // Create auth user with standard default password
-          const tempPassword = `Welile1234!`;
+          // Create auth user with a unique, random temporary password
+          const tempPassword = generateTempPassword();
           // Generate email: use the real email when supplied, otherwise a
           // GLOBALLY-UNIQUE placeholder. Placeholders always carry a random
           // suffix so a phone-derived address can never falsely collide with
@@ -323,6 +344,9 @@ Deno.serve(async (req) => {
             full_name: partner.partner_name.trim(),
             email: realEmail ?? authEmailUsed,
           };
+          // Force a password change on first sign-in so the import-time
+          // temporary credential cannot linger.
+          profileData.must_change_password = true;
           if (hasPhone) profileData.phone = suppliedPhone;
           const { error: profileErr } = await adminClient.from("profiles").upsert(profileData);
           if (profileErr) {
@@ -351,6 +375,7 @@ Deno.serve(async (req) => {
           }
 
           partnersCreated++;
+          credentials.push({ partner: partner.partner_name.trim(), temp_password: tempPassword });
         }
 
         // Create portfolios (with duplicate detection)
@@ -461,6 +486,7 @@ Deno.serve(async (req) => {
       partnersMatched,
       portfoliosCreated,
       skippedDuplicates,
+      credentials,
       errors,
     }), { status: 200, headers: JSON_HEADERS });
 
