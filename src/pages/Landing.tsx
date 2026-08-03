@@ -91,6 +91,11 @@ export default function Landing() {
     try { window.localStorage.setItem(ONBOARDING_KEY, 'true'); } catch { /* ignore */ }
   };
 
+  const goToAuth = () => {
+    markSeen();
+    navigate('/auth');
+  };
+
   const goToTenantDashboard = () => {
     markSeen();
     navigate('/dashboard/tenant');
