@@ -1230,8 +1230,9 @@ html.lite-mode .agent-dashboard-main {
    future mobile FAB. Reference it as `bottom: var(--fab-bottom)` (or the
    Tailwind arbitrary value `bottom-[var(--fab-bottom)]`). */
 :root {
-  --fab-bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
-  --fab-bottom-stacked: calc(72px + env(safe-area-inset-bottom, 0px) + 76px);
+  /* Floating pill nav: 64px bar + 10px bottom inset = 74px of occupied space. */
+  --fab-bottom: calc(74px + env(safe-area-inset-bottom, 0px) + 12px);
+  --fab-bottom-stacked: calc(74px + env(safe-area-inset-bottom, 0px) + 76px);
 }
 @media (min-width: 768px) {
   /* Desktop has no bottom role switcher — anchor FABs to a small inset only. */
