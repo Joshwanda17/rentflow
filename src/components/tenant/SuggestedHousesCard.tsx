@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
-import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn, ArrowRight } from 'lucide-react';
+import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
