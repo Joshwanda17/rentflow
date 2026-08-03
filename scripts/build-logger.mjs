@@ -72,10 +72,20 @@ const latestStream = createWriteStream(latestLog, { flags: mode });
 const captured = [];
 const startedAt = Date.now();
 
+// Automated redaction: legacy domains must never land in a captured log file,
+// because those files live in the scanned source tree (public/build-log.txt)
+// and would trip scripts/guard-legacy-domain.mjs, aborting the next build.
+// Console output is left untouched — only what we persist is redacted.
+const LEGACY_DOMAIN_RE = /welilereceipts-com\.lovable\.app|welilereceipts?\.com|welilereciepts?\.com|welile-receipts\.com/gi;
+export function redactLegacyDomains(text) {
+  return String(text).replace(LEGACY_DOMAIN_RE, '[legacy-domain-redacted]');
+}
+
 function write(line) {
-  captured.push(line);
-  runStream.write(line);
-  latestStream.write(line);
+  const safe = redactLegacyDomains(line);
+  captured.push(safe);
+  runStream.write(safe);
+  latestStream.write(safe);
 }
 
 write(
@@ -131,12 +141,9 @@ function finish(code, signal) {
   const publicDir = path.join(projectRoot, 'public');
   if (existsSync(publicDir)) {
     try {
-      // Redact legacy-domain strings: this copy lives in the scanned source
-      // tree, and raw build output would otherwise trip guard-legacy-domain.mjs.
-      const sanitized = readFileSync(latestLog, 'utf8').replace(
-        /welilereceipts[.-]com|welilereciept\.com|welilereceipts\.com/gi,
-        'welile-legacy-domain',
-      );
+      // Belt-and-braces: log lines are already redacted at write() time, but
+      // re-redact in case an older/partial log file is on disk.
+      const sanitized = redactLegacyDomains(readFileSync(latestLog, 'utf8'));
       writeFileSync(path.join(publicDir, 'build-log.txt'), sanitized);
     } catch { /* ignore */ }
   }
