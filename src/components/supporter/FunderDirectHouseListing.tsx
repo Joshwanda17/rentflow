@@ -788,7 +788,7 @@ export function FunderDirectHouseListing() {
       {/* Results header */}
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-muted-foreground">
-          Showing {filtered.length.toLocaleString()} of {(totalMatch ?? filtered.length).toLocaleString()}
+          Showing {showingStart.toLocaleString()}–{showingEnd.toLocaleString()} of {(totalMatch ?? filtered.length).toLocaleString()}
         </p>
         <button
           type="button"
