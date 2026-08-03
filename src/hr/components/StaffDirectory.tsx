@@ -119,7 +119,6 @@ export default function StaffDirectory() {
   }, [load]);
 
   useEffect(() => {
-    if (tab !== 'unenrolled') return;
     let cancelled = false;
     setUnenrolledLoading(true);
     setUnenrolledError(null);
