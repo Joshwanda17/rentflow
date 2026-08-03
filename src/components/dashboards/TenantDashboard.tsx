@@ -45,7 +45,6 @@ import {
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
 import RentProcessTracker from '@/components/rent/RentProcessTracker';
-import { TenantBusinessAdvancesPanel } from '@/components/tenant/TenantBusinessAdvancesPanel';
 import { BusinessAdvanceStatusHero } from '@/components/tenant/BusinessAdvanceStatusHero';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
@@ -54,8 +53,6 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
 
 import { SuggestedHousesCard } from '@/components/tenant/SuggestedHousesCard';
-import RentHistoryRecordCTA from '@/components/tenant/RentHistoryRecordCTA';
-import { TrustBoostBanner } from '@/components/ai-id/TrustBoostBanner';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -534,10 +531,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onBrowseHouses={() => { openHousesSheet(); }}
         extraContent={
           <div className="space-y-4">
-            <TrustBoostBanner />
             <VerificationChecklist userId={user.id} highlightRole="tenant" compact />
             <SubscriptionStatusCard userId={user.id} />
-            <RentHistoryRecordCTA />
             <div className="space-y-2">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
               <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
@@ -591,7 +586,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 />
               </div>
             )}
-            <TenantBusinessAdvancesPanel />
             <WalletDisclaimer />
           </div>
         }
