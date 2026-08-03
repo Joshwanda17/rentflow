@@ -15,6 +15,8 @@
     "guard:frontend-ledger-writes": "node scripts/guard-frontend-ledger-writes.mjs",
     "guard:deposit-purpose": "node scripts/guard-deposit-purpose.mjs",
     "guard:canonical-tags": "node scripts/guard-canonical-tags.mjs",
+    "guard:schema-types": "node scripts/guard-schema-types.mjs",
+    "schema:accept-types": "node scripts/guard-schema-types.mjs --write",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
