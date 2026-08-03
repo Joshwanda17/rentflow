@@ -49,6 +49,35 @@ export function EmployeeRequisitionQueuePanel() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [amountEdits, setAmountEdits] = useState<Record<string, string>>({});
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [recoveringAll, setRecoveringAll] = useState(false);
+
+  /** Maps a backend credit failure onto a message an operator can act on. */
+  const describeCreditFailure = (detail: {
+    stage?: string | null;
+    upstream_status?: number | null;
+    upstream_function?: string | null;
+    message?: string;
+  } | null, fallback: string) => {
+    const status = detail?.upstream_status ?? null;
+    const stage = detail?.stage ?? null;
+    let headline = 'Unable to credit employee wallet.';
+    if (stage === 'recipient_lookup') headline = 'No employee account matches this requisition email.';
+    else if (stage === 'wallet_lookup') headline = 'The employee has no Welile Wallet yet.';
+    else if (stage === 'validation') headline = 'Wallet credit validation failed.';
+    else if (stage === 'idempotency_lock') headline = 'Duplicate request detected — credit already in progress.';
+    else if (status === 401) headline = 'Authorization between backend functions failed.';
+    else if (status === 403) headline = 'Backend function refused the credit (forbidden).';
+    else if (status === 409) headline = 'Duplicate request detected.';
+    else if (status === 422 || status === 400) headline = 'Wallet credit validation failed.';
+    else if (status === 500) headline = 'Ledger rejected the transaction.';
+    return {
+      headline,
+      description: [
+        detail?.message ?? fallback,
+        detail?.upstream_function ? `Stage: ${detail.upstream_function}${status ? ` (HTTP ${status})` : ''}` : null,
+      ].filter(Boolean).join(' · '),
+    };
+  };
 
   const load = async () => {
     setLoading(true);
@@ -74,13 +103,28 @@ export function EmployeeRequisitionQueuePanel() {
     });
     setBusyId(null);
     if (error || (data as { error?: string })?.error) {
-      toast.error((data as { error?: string })?.error ?? error?.message ?? 'Failed');
+      toast.error('Requisition decision failed', {
+        description: (data as { error?: string })?.error ?? error?.message ?? 'The backend returned an unexpected error.',
+      });
       return;
     }
-    const creditErr = (data as { credit_error?: string | null })?.credit_error;
+    const payload = data as {
+      credit_error?: string | null;
+      credit_detail?: {
+        stage?: string | null;
+        upstream_status?: number | null;
+        upstream_function?: string | null;
+        message?: string;
+      } | null;
+    };
+    const creditErr = payload?.credit_error;
     if (action === 'approve') {
-      if (creditErr) toast.warning(`Approved, but wallet credit failed: ${creditErr}`);
-      else toast.success('Approved — wallet credited');
+      if (creditErr) {
+        const { headline, description } = describeCreditFailure(payload?.credit_detail ?? null, creditErr);
+        toast.error(`Approved — ${headline}`, { description, duration: 10000 });
+      } else {
+        toast.success('Approved — wallet credited');
+      }
     } else {
       toast.success('Requisition rejected');
     }
@@ -103,6 +147,28 @@ export function EmployeeRequisitionQueuePanel() {
           </Button>
         ))}
         <Button size="sm" variant="ghost" className="ml-auto" onClick={load}>Refresh</Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={recoveringAll}
+          onClick={async () => {
+            setRecoveringAll(true);
+            const { data, error } = await supabase.functions.invoke('requisition-credit-retry', {
+              body: { recover_all: true },
+            });
+            setRecoveringAll(false);
+            if (error) {
+              toast.error('Recovery failed', { description: error.message });
+            } else {
+              const r = data as { message?: string; failed?: number };
+              if (r?.failed) toast.warning(r.message ?? 'Recovery finished with failures');
+              else toast.success(r?.message ?? 'Recovery complete');
+            }
+            load();
+          }}
+        >
+          {recoveringAll ? 'Recovering…' : 'Recover failed credits'}
+        </Button>
       </div>
 
       {loading ? (
@@ -184,8 +250,21 @@ export function EmployeeRequisitionQueuePanel() {
                                 body: { source_table: 'employee_requisitions', requisition_id: r.id },
                               });
                               setRetryingId(null);
-                              if (error) toast.error('Wallet credit failed', { description: error.message });
-                              else toast.success((data as { message?: string })?.message || 'Wallet credited');
+                              const res = data as {
+                                ok?: boolean;
+                                message?: string;
+                                stage?: string | null;
+                                upstream_status?: number | null;
+                                upstream_function?: string | null;
+                              } | null;
+                              if (error) {
+                                toast.error('Wallet credit retry failed', { description: error.message });
+                              } else if (res && res.ok === false) {
+                                const { headline, description } = describeCreditFailure(res, res.message ?? 'Retry failed');
+                                toast.error(headline, { description, duration: 10000 });
+                              } else {
+                                toast.success(res?.message || 'Wallet credited');
+                              }
                               load();
                             }}
                           >
