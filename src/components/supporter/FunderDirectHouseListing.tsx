@@ -160,6 +160,7 @@ export function FunderDirectHouseListing() {
 
 
   const PAGE_SIZE = 100;
+  const CARDS_PER_PAGE = 4;
 
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('all');
