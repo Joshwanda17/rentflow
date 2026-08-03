@@ -539,6 +539,50 @@ const STATUS_CLASS: Record<string, string> = {
 function StatusCell({ status }: { status: string }) {
   const cls = STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
   return (
+    <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${cls}`}>
+      {status}
+    </span>
+  );
+}
+
+/** What the holding position must do next at each status. Empty when complete. */
+const NEXT_ACTION: Record<string, string> = {
+  draft: 'Calculate',
+  calculated: 'Submit for approval',
+  returned: 'Submit for approval',
+  in_review: 'Approve or return',
+  approved: 'Release payment',
+  paid: 'Lock',
+};
+
+/**
+ * Days since the last recorded event. Ageing colour is applied only to
+ * in_review and approved — a draft sitting for a week is nobody's delay.
+ */
+function SinceCell({ at, status }: { at: string | null; status: string }) {
+  if (!at) return <span className="text-xs text-muted-foreground">—</span>;
+  const days = Math.floor((Date.now() - new Date(at).getTime()) / 86400000);
+  const aged = status === 'in_review' || status === 'approved';
+  const tone = !aged
+    ? 'text-muted-foreground'
+    : days > 7
+      ? 'text-destructive font-semibold'
+      : days > 3
+        ? 'text-amber-600 font-semibold'
+        : 'text-muted-foreground';
+  return (
+    <span className="text-xs">
+      {formatDate(at)}{' '}
+      <span className={tone}>
+        ({days} {days === 1 ? 'day' : 'days'})
+      </span>
+    </span>
+  );
+}
+
+function StatusCellUnused({ status }: { status: string }) {
+  const cls = STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
+  return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
       {status}
     </span>
