@@ -124,6 +124,8 @@ export function TenantOpsAgent360Panel({ agentId, agentName, onBack }: Props) {
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Stat label="Portfolio value managed" value={formatUGX(n(f.portfolio_value))} />
               <Stat label="Monthly rent expected" value={formatUGX(n(f.rent_expected_monthly))} />
+              <Stat label="Expected today" value={formatUGX(n(f.expected_today))} />
+              <Stat label="Collected today" value={formatUGX(n(f.paid_today))} tone={n(f.paid_today) >= n(f.expected_today) ? 'good' : 'warn'} />
               <Stat label="Collected this month" value={formatUGX(n(f.paid_month))} tone="good" />
               <Stat label="Collection %" value={pct(n(f.collected_to_date), n(f.expected_to_date))} />
               <Stat label="Outstanding balance" value={formatUGX(n(f.outstanding))} tone="warn" />
