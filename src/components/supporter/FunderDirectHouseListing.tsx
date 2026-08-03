@@ -427,6 +427,13 @@ export function FunderDirectHouseListing() {
     setPage(1);
   };
 
+  const goToPage = (nextPage: number) => {
+    hapticTap();
+    const clamped = Math.max(1, Math.min(nextPage, totalPages));
+    setPage(clamped);
+    containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   /**
    * Best-effort funnel tracking. Each step of the funder journey
    * (view repayment terms → select house → lock selection → start funding)
