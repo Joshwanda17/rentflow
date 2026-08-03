@@ -76,6 +76,30 @@ function validatePin(pin: unknown): string | null {
   return cleaned;
 }
 
+function toBase64Url(value: Uint8Array | string): string {
+  const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function createVendorSessionToken(vendorId: string, secret: string): Promise<string> {
+  const payload = toBase64Url(JSON.stringify({
+    vendorId,
+    exp: Math.floor(Date.now() / 1000) + (8 * 60 * 60),
+    nonce: crypto.randomUUID(),
+  }));
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+  return `${payload}.${toBase64Url(new Uint8Array(signature))}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -223,6 +247,7 @@ Deno.serve(async (req) => {
       phone: vendor.phone,
       location: vendor.location
     };
+    const vendorToken = await createVendorSessionToken(vendor.id, supabaseServiceKey);
 
     console.log(`[vendor-login] Vendor ${vendor.name} logged in successfully`);
 
@@ -240,7 +265,7 @@ Deno.serve(async (req) => {
     })();
 
     return new Response(
-      JSON.stringify({ success: true, vendor: vendorInfo }),
+      JSON.stringify({ success: true, vendor: vendorInfo, vendorToken }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
