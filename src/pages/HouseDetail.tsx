@@ -537,7 +537,7 @@ export default function HouseDetail() {
         </div>
 
         {/* ── Content ── */}
-        <main className="max-w-2xl mx-auto px-4 space-y-5 -mt-3 relative z-10">
+        <main className="max-w-2xl mx-auto px-4 space-y-5 mt-[5px] relative z-10">
           {/* Title card — overlaps hero slightly */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
