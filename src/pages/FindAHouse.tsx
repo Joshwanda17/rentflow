@@ -609,6 +609,8 @@ export default function FindAHouse() {
   const [showFilters, setShowFilters] = useState(false);
   // Search + location bar can be collapsed to give listings more room.
   const [searchBarOpen, setSearchBarOpen] = useState(true);
+  // Master collapse for the entire sticky filter bar.
+  const [filterBarOpen, setFilterBarOpen] = useState(true);
   // Client-side pagination over the filtered set.
   const PAGE_SIZE = 12;
   const [page, setPage] = useState(1);
@@ -1035,7 +1037,26 @@ export default function FindAHouse() {
 
         {/* Filters */}
         <div className="sticky top-[53px] z-30 bg-background/95 backdrop-blur-md border-b border-border">
-          <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
+          <div className="max-w-2xl mx-auto px-4 py-2">
+            <button
+              type="button"
+              onClick={() => setFilterBarOpen(o => !o)}
+              aria-expanded={filterBarOpen}
+              className="w-full flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                {filterBarOpen ? 'Hide search & filters' : 'Show search & filters'}
+                {!filterBarOpen && activeFilterCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${filterBarOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {filterBarOpen && (
+              <div className="mt-2 space-y-2">
             <button
               type="button"
               onClick={() => setSearchBarOpen(o => !o)}
@@ -1251,6 +1272,8 @@ export default function FindAHouse() {
                     <SlidersHorizontal className="h-4 w-4" /> Apply filters
                   </button>
                 </div>
+              </div>
+            )}
               </div>
             )}
           </div>
