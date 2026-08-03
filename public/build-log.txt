@@ -1045,3 +1045,38 @@ ROOT SERVES 200 BUT NO DEPLOYED DIAGNOSTICS REPORT — either the last publish n
   ! result     : FAILED Not Found in 242ms
   ! ROOT SERVES 200 BUT NO DEPLOYED DIAGNOSTICS REPORT — either the last publish never uploaded this artifact (deploy stage failed after a green build) or this is the first build carrying the report
 ------------------------------------------------------------------------------
+
+==============================================================================
+[build-log] stage=postbuild
+[build-log] started=2026-08-03T18:20:19.901Z
+[build-log] node=v22.22.0 platform=linux
+[build-log] command=node scripts/run-optional.mjs node scripts/run-with-heap.mjs node scripts/prerender-houses.mjs && node scripts/verify-dist.mjs && node scripts/run-optional.mjs node scripts/publish-diagnostics.mjs
+==============================================================================
+[heap] machine=257729MB requested=4096MB using=4096MB -> /nix/store/31sh8fzcbg4sjahp3zj002j0ca8sfvvr-nodejs-22.22.0/bin/node scripts/prerender-houses.mjs
+prerender-houses: incremental — 1000 shells for 1000 listings (rendered 1000, reused 0, pruned 1000 cache + 0 dist)
+[dist-preflight] verified upload artifact: 1894 files, 52.3 MiB, 1000 house shells, valid sitemaps
+========================================================================
+PUBLISH DIAGNOSTICS REPORT
+========================================================================
+generated at        : 2026-08-03T18:20:21.355Z
+publish request ID  : local-265cbee2-ba9d-4d4c-8f48-43f83128f4c9  (generated (no platform publish ID in env))
+git commit / branch : e1aea137b215f65a6ff29e58a14ce8b8918c39f0 / edit/edt-d0c76147-a7b1-4b71-aa84-399f624f5d89
+node / platform     : v22.22.0 on linux/x64
+
+-- BUILD ARTIFACT ------------------------------------------------------
+dist present        : true
+artifact hash       : 7fa0727e0e300545bb748cd047185a776f0336a00c571a1b78c07d16716f452f
+index.html hash     : 0c7440273a0635ac5ecced0bb6859094698782aa6713f62c751ee11404983856
+files / bytes       : 1888 files / 54844643 bytes
+non-fallback probes : _deploy/artifact-hash.txt, _deploy/publish-id.txt, _deploy/index-html-hash.txt, _deploy/manifest.json, _deploy/probe.txt
+
+-- HOSTING STAGE RESPONSES --------------------------------------------
+(probes skipped)
+-- VERDICT ------------------------------------------------------------
+hosting probes skipped — local artifact fingerprint recorded only
+========================================================================
+
+------------------------------------------------------------------------------
+[build-log] stage=postbuild finished=2026-08-03T18:20:21.667Z duration=1.8s exit=0
+[build-log] suspicious lines: 0
+------------------------------------------------------------------------------
