@@ -112,12 +112,23 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
         {suggestions.slice(0, 4).map(house => (
           <div
             key={house.id}
-            className="rounded-2xl overflow-hidden border border-border bg-card shadow-sm hover:border-primary/40 transition-colors"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/house/${house.short_code || house.id}`)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate(`/house/${house.short_code || house.id}`);
+              }
+            }}
+            aria-label={`View details for ${house.title}`}
+            className="rounded-2xl overflow-hidden border border-border bg-card shadow-sm hover:border-primary/40 hover:shadow-md active:scale-[0.98] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {/* Image */}
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (house.image_urls?.length) {
                   setLightbox({ images: house.image_urls, title: house.title, houseId: house.id });
                 } else {
@@ -150,12 +161,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
             </button>
 
             {/* Title + area */}
-            <button
-              type="button"
-              onClick={() => navigate(`/house/${house.short_code || house.id}`)}
-              aria-label={`View details for ${house.title}`}
-              className="block w-full text-left px-3 pt-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
+            <div className="px-3 pt-3">
               <p className="text-sm font-semibold text-foreground truncate flex items-center gap-1">
                 <DoorOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> {house.title}
               </p>
@@ -163,26 +169,16 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                 <MapPin className="h-3 w-3 shrink-0" />
                 {house.region}{house.district ? `, ${house.district}` : ''}
               </p>
-            </button>
+            </div>
 
             {/* Footer */}
-            <div className="p-3 pt-2 space-y-2">
-              <div className="flex items-end justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground">Daily amount</p>
-                  <p className="text-sm font-bold text-foreground leading-tight truncate">{formatUGX(house.daily_rate)}</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight truncate">
-                    {house.house_category} · {house.number_of_rooms} rooms
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/house/${house.short_code || house.id}`)}
-                  className="shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors"
-                  aria-label={`View ${house.title}`}
-                >
-                  View <ArrowRight className="h-3.5 w-3.5" />
-                </button>
+            <div className="p-3 pt-2">
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground">Daily amount</p>
+                <p className="text-sm font-bold text-foreground leading-tight truncate">{formatUGX(house.daily_rate)}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight truncate">
+                  {house.house_category} · {house.number_of_rooms} rooms
+                </p>
               </div>
             </div>
           </div>
