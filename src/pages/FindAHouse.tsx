@@ -825,6 +825,26 @@ export default function FindAHouse() {
     return result;
   }, [listings, debouncedSearch, minPrice, maxPrice, minRooms, amenities, sortKey, effectiveLat, effectiveLng, selectedDistrict, selectedSubCounty, selectedVillage]);
 
+  // Reset to the first page whenever the result set changes shape.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, minPrice, maxPrice, minRooms, amenities, sortKey, selectedRegion, selectedCategory, selectedDistrict, selectedSubCounty, selectedVillage]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
+
+  const goToPage = useCallback((next: number) => {
+    const target = Math.max(1, next);
+    setPage(target);
+    // Fetch more from the server when the tenant walks past the loaded set.
+    if (target >= totalPages && hasMore) loadMore();
+    document.getElementById('house-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [totalPages, hasMore, loadMore]);
+
   // Distinct location options derived from the loaded listings, cascading from
   // the current region/district/sub-county selection. Only areas that actually
   // have houses are offered, so the dropdowns stay relevant for tenants & funders.
