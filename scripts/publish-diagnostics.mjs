@@ -26,7 +26,12 @@ const dist = path.resolve(repoRoot, 'dist');
 const logDir = path.resolve(repoRoot, 'build-logs');
 const argv = process.argv.slice(2);
 const strict = argv.includes('--strict');
-const skipProbe = argv.includes('--no-probe') || process.env.PUBLISH_DIAGNOSTICS_PROBE === '0';
+// Probes are opt-in: during a real publish the hosting stage may have no egress
+// (or the origin can hang), and a diagnostics fetch must never risk the deploy.
+const skipProbe =
+  argv.includes('--no-probe') ||
+  process.env.PUBLISH_DIAGNOSTICS_PROBE === '0' ||
+  !(argv.includes('--probe') || process.env.PUBLISH_DIAGNOSTICS_PROBE === '1');
 const PROBE_TIMEOUT_MS = Number(process.env.PUBLISH_DIAGNOSTICS_TIMEOUT_MS || 12000);
 
 function publishRequestId() {

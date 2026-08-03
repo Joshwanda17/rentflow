@@ -1,7 +1,7 @@
 
 ==============================================================================
 [build-log] stage=prebuild
-[build-log] started=2026-08-03T18:14:19.124Z
+[build-log] started=2026-08-03T18:18:11.804Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/run-optional.mjs node --import tsx scripts/generate-sitemap.ts
 ==============================================================================
@@ -9,13 +9,13 @@ sitemap.xml written (1056 entries, 1000 houses)
 sitemap-welilereceipts.xml written (1056 entries, base https://[legacy-domain-redacted])
 
 ------------------------------------------------------------------------------
-[build-log] stage=prebuild finished=2026-08-03T18:14:19.819Z duration=0.7s exit=0
+[build-log] stage=prebuild finished=2026-08-03T18:18:12.514Z duration=0.7s exit=0
 [build-log] suspicious lines: 0
 ------------------------------------------------------------------------------
 
 ==============================================================================
 [build-log] stage=build
-[build-log] started=2026-08-03T18:14:19.905Z
+[build-log] started=2026-08-03T18:18:12.605Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/run-guards.mjs && node scripts/run-with-heap.mjs vite build
 ==============================================================================
@@ -31,7 +31,7 @@ sitemap-welilereceipts.xml written (1056 entries, base https://[legacy-domain-re
 [guards] ok deposit purpose (0.3s)
 [guards] -> legacy domain references (guard-legacy-domain.mjs)
 ✅ Legacy-domain guard passed — no [legacy-domain-redacted] / [legacy-domain-redacted] / [legacy-domain-redacted] references in shipping code.
-[guards] ok legacy domain references (0.4s)
+[guards] ok legacy domain references (0.3s)
 [guards] -> canonical tags (guard-canonical-tags.mjs)
 ✅ Canonical-tag guard passed — 19 indexable routes carry correct welileapp.com canonicals.
 [guards] ok canonical tags (0.2s)
@@ -928,16 +928,16 @@ dist/assets/TenantOpsHub-C2L3lkvB.js                                            
 dist/assets/vendor-xlsx-fOJeg6_r.js                                                 428.57 kB │ gzip:   141.63 kB
 dist/assets/AgentOpsDashboard-dJ2kGEuR.js                                           474.59 kB │ gzip:   110.97 kB
 dist/assets/Dashboard-BU_vOa7k.js                                                   847.67 kB │ gzip:   199.29 kB
-✓ built in 57.83s
+✓ built in 57.53s
 
 ------------------------------------------------------------------------------
-[build-log] stage=build finished=2026-08-03T18:15:20.533Z duration=60.6s exit=0
+[build-log] stage=build finished=2026-08-03T18:19:13.261Z duration=60.7s exit=0
 [build-log] suspicious lines: 0
 ------------------------------------------------------------------------------
 
 ==============================================================================
 [build-log] stage=postbuild
-[build-log] started=2026-08-03T18:15:20.613Z
+[build-log] started=2026-08-03T18:19:13.335Z
 [build-log] node=v22.22.0 platform=linux
 [build-log] command=node scripts/run-optional.mjs node scripts/run-with-heap.mjs node scripts/prerender-houses.mjs && node scripts/verify-dist.mjs && node scripts/run-optional.mjs node scripts/publish-diagnostics.mjs
 ==============================================================================
@@ -947,87 +947,87 @@ prerender-houses: incremental — 1000 shells for 1000 listings (rendered 1000, 
 ========================================================================
 PUBLISH DIAGNOSTICS REPORT
 ========================================================================
-generated at        : 2026-08-03T18:15:22.141Z
-publish request ID  : local-162b5224-a4ba-4eb4-9f24-d3e58bc06b89  (generated (no platform publish ID in env))
-git commit / branch : 8c90dc26f83e8c6eb08ae043bbd3f23df3d8a505 / edit/edt-53a03a65-ab19-46df-8c4e-e9dd5f35b2c1
+generated at        : 2026-08-03T18:19:14.701Z
+publish request ID  : local-3308f420-e075-464c-8fb8-aa15cf42ae27  (generated (no platform publish ID in env))
+git commit / branch : 38cc3dc1b551937dd1f109b1025eddfbd5677853 / edit/edt-d0c76147-a7b1-4b71-aa84-399f624f5d89
 node / platform     : v22.22.0 on linux/x64
 
 -- BUILD ARTIFACT ------------------------------------------------------
 dist present        : true
-artifact hash       : 2a91c799056c62b6444635460aeea271bf3f5c82d47d327c2d66bebf3396a40d
+artifact hash       : beb33ef4b0c3eb04d22c3310db8f70b2aed3893b9f6beceab290128e92f35416
 index.html hash     : 0c7440273a0635ac5ecced0bb6859094698782aa6713f62c751ee11404983856
-files / bytes       : 1888 files / 54839124 bytes
+files / bytes       : 1888 files / 54838853 bytes
 non-fallback probes : _deploy/artifact-hash.txt, _deploy/publish-id.txt, _deploy/index-html-hash.txt, _deploy/manifest.json, _deploy/probe.txt
 
 -- HOSTING STAGE RESPONSES --------------------------------------------
 [200] canonical origin
-      url        : https://welileapp.com/?publish-diagnostics=local-162b5224-a4ba-4eb4-9f24-d3e58bc06b89
-      result     : ok OK in 240ms
+      url        : https://welileapp.com/?publish-diagnostics=local-3308f420-e075-464c-8fb8-aa15cf42ae27
+      result     : ok OK in 255ms
       content-type: text/html; charset=utf-8
       cache-control: no-cache, must-revalidate, max-age=0
-      cf-ray     : a2574eadbe62af97-CDG
+      cf-ray     : a257545b5e6df3b3-CDG
       server     : cloudflare
 
 [404] deployed artifact hash (static, no fallback)
       url        : https://welileapp.com/_deploy/artifact-hash.txt
-      result     : FAILED Not Found in 205ms
+      result     : FAILED Not Found in 202ms
       content-type: text/plain; charset=UTF-8
       content-length: 9
-      cf-ray     : a2574eae88cdaf97-CDG
+      cf-ray     : a257545c282ff3b3-CDG
       server     : cloudflare
       body       : Not found
 
 [404] deployed publish ID (static, no fallback)
       url        : https://welileapp.com/_deploy/publish-id.txt
-      result     : FAILED Not Found in 259ms
+      result     : FAILED Not Found in 201ms
       content-type: text/plain; charset=UTF-8
       content-length: 9
-      cf-ray     : a2574eaff8022a5f-CDG
+      cf-ray     : a257545d9c9474cd-CDG
       server     : cloudflare
       body       : Not found
 
 [404] deployed manifest (static, no fallback)
       url        : https://welileapp.com/_deploy/manifest.json
-      result     : FAILED Not Found in 173ms
+      result     : FAILED Not Found in 188ms
       content-type: text/plain; charset=UTF-8
       content-length: 9
-      cf-ray     : a2574eb1694baf97-CDG
+      cf-ray     : a257545eaedef3b3-CDG
       server     : cloudflare
       body       : Not found
 
 [404] negative control (must be 404)
-      url        : https://welileapp.com/_deploy/missing-local-162b5224-a4ba-4eb4-9f24-d3e58bc06b89.txt
-      result     : FAILED Not Found in 231ms
+      url        : https://welileapp.com/_deploy/missing-local-3308f420-e075-464c-8fb8-aa15cf42ae27.txt
+      result     : FAILED Not Found in 171ms
       content-type: text/plain; charset=UTF-8
       content-length: 9
-      cf-ray     : a2574eb27b172a5f-CDG
+      cf-ray     : a257545fdaea74cd-CDG
       server     : cloudflare
       body       : Not found
 
 [404] deployed diagnostics report
       url        : https://welileapp.com/publish-diagnostics.json
-      result     : FAILED Not Found in 174ms
+      result     : FAILED Not Found in 170ms
       content-type: text/plain; charset=UTF-8
       content-length: 9
-      cf-ray     : a2574eb3ffadaf97-CDG
+      cf-ray     : a2575460ece2f3b3-CDG
       server     : cloudflare
       body       : Not found
 
 [404] deployed build log
       url        : https://welileapp.com/build-log.txt
-      result     : FAILED Not Found in 719ms
+      result     : FAILED Not Found in 242ms
       content-type: text/plain; charset=UTF-8
       content-length: 9
-      cf-ray     : a2574eb50eac2a5f-CDG
+      cf-ray     : a2575461f82074cd-CDG
       server     : cloudflare
       body       : Not found
 
 [200] sitemap
       url        : https://welileapp.com/sitemap.xml
-      result     : ok OK in 47ms
+      result     : ok OK in 61ms
       content-type: text/xml; charset=utf-8
       etag       : W/"266fd76682c3f02db8bbbd1f36bb2b1b"
-      cf-ray     : a2574eb98e4caf97-CDG
+      cf-ray     : a25754637b2df3b3-CDG
       server     : cloudflare
 
 -- VERDICT ------------------------------------------------------------
@@ -1035,13 +1035,48 @@ ROOT SERVES 200 BUT NO DEPLOYED DIAGNOSTICS REPORT — either the last publish n
 ========================================================================
 
 ------------------------------------------------------------------------------
-[build-log] stage=postbuild finished=2026-08-03T18:15:24.472Z duration=3.9s exit=0
+[build-log] stage=postbuild finished=2026-08-03T18:19:16.473Z duration=3.1s exit=0
 [build-log] suspicious lines: 7
-  ! result     : FAILED Not Found in 205ms
-  ! result     : FAILED Not Found in 259ms
-  ! result     : FAILED Not Found in 173ms
-  ! result     : FAILED Not Found in 231ms
-  ! result     : FAILED Not Found in 174ms
-  ! result     : FAILED Not Found in 719ms
+  ! result     : FAILED Not Found in 202ms
+  ! result     : FAILED Not Found in 201ms
+  ! result     : FAILED Not Found in 188ms
+  ! result     : FAILED Not Found in 171ms
+  ! result     : FAILED Not Found in 170ms
+  ! result     : FAILED Not Found in 242ms
   ! ROOT SERVES 200 BUT NO DEPLOYED DIAGNOSTICS REPORT — either the last publish never uploaded this artifact (deploy stage failed after a green build) or this is the first build carrying the report
+------------------------------------------------------------------------------
+
+==============================================================================
+[build-log] stage=postbuild
+[build-log] started=2026-08-03T18:20:19.901Z
+[build-log] node=v22.22.0 platform=linux
+[build-log] command=node scripts/run-optional.mjs node scripts/run-with-heap.mjs node scripts/prerender-houses.mjs && node scripts/verify-dist.mjs && node scripts/run-optional.mjs node scripts/publish-diagnostics.mjs
+==============================================================================
+[heap] machine=257729MB requested=4096MB using=4096MB -> /nix/store/31sh8fzcbg4sjahp3zj002j0ca8sfvvr-nodejs-22.22.0/bin/node scripts/prerender-houses.mjs
+prerender-houses: incremental — 1000 shells for 1000 listings (rendered 1000, reused 0, pruned 1000 cache + 0 dist)
+[dist-preflight] verified upload artifact: 1894 files, 52.3 MiB, 1000 house shells, valid sitemaps
+========================================================================
+PUBLISH DIAGNOSTICS REPORT
+========================================================================
+generated at        : 2026-08-03T18:20:21.355Z
+publish request ID  : local-265cbee2-ba9d-4d4c-8f48-43f83128f4c9  (generated (no platform publish ID in env))
+git commit / branch : e1aea137b215f65a6ff29e58a14ce8b8918c39f0 / edit/edt-d0c76147-a7b1-4b71-aa84-399f624f5d89
+node / platform     : v22.22.0 on linux/x64
+
+-- BUILD ARTIFACT ------------------------------------------------------
+dist present        : true
+artifact hash       : 7fa0727e0e300545bb748cd047185a776f0336a00c571a1b78c07d16716f452f
+index.html hash     : 0c7440273a0635ac5ecced0bb6859094698782aa6713f62c751ee11404983856
+files / bytes       : 1888 files / 54844643 bytes
+non-fallback probes : _deploy/artifact-hash.txt, _deploy/publish-id.txt, _deploy/index-html-hash.txt, _deploy/manifest.json, _deploy/probe.txt
+
+-- HOSTING STAGE RESPONSES --------------------------------------------
+(probes skipped)
+-- VERDICT ------------------------------------------------------------
+hosting probes skipped — local artifact fingerprint recorded only
+========================================================================
+
+------------------------------------------------------------------------------
+[build-log] stage=postbuild finished=2026-08-03T18:20:21.667Z duration=1.8s exit=0
+[build-log] suspicious lines: 0
 ------------------------------------------------------------------------------
