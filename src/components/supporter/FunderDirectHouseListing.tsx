@@ -454,25 +454,57 @@ export function FunderDirectHouseListing() {
   const activeFilterChips = [
     region !== 'all' && {
       label: region,
-      onRemove: () => setRegion('all'),
+      onRemove: () => { setRegion('all'); setDraftRegion('all'); },
     },
     category !== 'all' && {
       label: CATEGORIES.find((c) => c.value === category)?.label || category,
-      onRemove: () => setCategory('all'),
+      onRemove: () => { setCategory('all'); setDraftCategory('all'); },
     },
     rooms !== 'all' && {
       label: ROOMS.find((r) => r.value === rooms)?.label || rooms,
-      onRemove: () => setRooms('all'),
+      onRemove: () => { setRooms('all'); setDraftRooms('all'); },
     },
     minMonthlyEarn !== 'all' && {
       label: MIN_MONTHLY_EARN.find((m) => m.value === minMonthlyEarn)?.label || minMonthlyEarn,
-      onRemove: () => setMinMonthlyEarn('all'),
+      onRemove: () => { setMinMonthlyEarn('all'); setDraftMinMonthlyEarn('all'); },
     },
     minAnnualEarn !== 'all' && {
       label: MIN_ANNUAL_EARN.find((m) => m.value === minAnnualEarn)?.label || minAnnualEarn,
-      onRemove: () => setMinAnnualEarn('all'),
+      onRemove: () => { setMinAnnualEarn('all'); setDraftMinAnnualEarn('all'); },
     },
   ].filter(Boolean) as { label: string; onRemove: () => void }[];
+
+  const activeFilterCount = activeFilterChips.length;
+
+  const openFilters = () => {
+    setDraftRegion(region);
+    setDraftCategory(category);
+    setDraftRooms(rooms);
+    setDraftSortBy(sortBy);
+    setDraftMinMonthlyEarn(minMonthlyEarn);
+    setDraftMinAnnualEarn(minAnnualEarn);
+    setFiltersOpen(true);
+  };
+
+  const applyDraftFilters = () => {
+    hapticTap();
+    setRegion(draftRegion);
+    setCategory(draftCategory);
+    setRooms(draftRooms);
+    setSortBy(draftSortBy);
+    setMinMonthlyEarn(draftMinMonthlyEarn);
+    setMinAnnualEarn(draftMinAnnualEarn);
+    setFiltersOpen(false);
+  };
+
+  const clearDraftFilters = () => {
+    setDraftRegion('all');
+    setDraftCategory('all');
+    setDraftRooms('all');
+    setDraftSortBy('newest');
+    setDraftMinMonthlyEarn('all');
+    setDraftMinAnnualEarn('all');
+  };
 
   const selectedHouses = (houses ?? []).filter((h) => selectedIds.includes(h.id));
   const earningsFilterActive = minMonthlyEarn !== 'all' || minAnnualEarn !== 'all';
