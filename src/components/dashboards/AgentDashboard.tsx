@@ -298,27 +298,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, []);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [subAgentLinkOpen, setSubAgentLinkOpen] = useState(false);
-  const [leaderboardPromoOpen, setLeaderboardPromoOpen] = useState(false);
   const { isMerchantAgent: isMerchantAgentEarly } = useIsMerchantAgent();
-
-  // Show the leaderboard promo once per session when an agent lands on their
-  // dashboard (agents only — this component only renders for agents). Snoozed
-  // per session so it doesn't reopen while switching tabs.
-  useEffect(() => {
-    // Merchant Agents (cashout-only) never see the Weekly Listing Mission promo.
-    if (isMerchantAgentEarly) return;
-    const STORAGE_KEY = 'welile-agent-leaderboard-promo-last-shown';
-    const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
-    try {
-      const last = localStorage.getItem(STORAGE_KEY);
-      if (last && Date.now() - Number(last) < FOUR_HOURS_MS) return;
-    } catch { /* ignore */ }
-    const t = setTimeout(() => {
-      setLeaderboardPromoOpen(true);
-      try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* ignore */ }
-    }, 1200);
-    return () => clearTimeout(t);
-  }, [isMerchantAgentEarly]);
+  // Weekly Listing Mission promo dialog removed — campaign expired.
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [walletScrollTarget, setWalletScrollTarget] = useState<'statement' | null>(null);
@@ -1799,14 +1780,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={inviteSubAgentOpen}
         onOpenChange={setInviteSubAgentOpen}
         onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
-      />
-      </LazyModal>
-      <LazyModal when={leaderboardPromoOpen}>
-      <AgentLeaderboardPromoDialog
-        open={leaderboardPromoOpen}
-        onOpenChange={setLeaderboardPromoOpen}
-        onViewLeaderboard={() => navigate('/dashboard/agents/leaderboard')}
-        onInviteSubAgent={handleInviteSubAgent}
       />
       </LazyModal>
       <SubAgentInviteLinkDialog
