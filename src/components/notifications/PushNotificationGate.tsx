@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   VAPID_PUBLIC_KEY,
   arrayBufferToBase64,
+  isInIframe,
   isPushSupported,
   subscriptionUsesCurrentVapidKey,
   urlBase64ToUint8Array,
@@ -152,19 +153,43 @@ async function refreshSubscriptionIfVapidChanged(userId: string): Promise<void> 
  * Mounted once, globally (App.tsx).
  */
 
-const SNOOZE_KEY = "welile-push-prompt-snooze";
-const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000; // re-ask after 7 days if dismissed
 // Set once a device has successfully subscribed. Persisted per user so a
 // refresh never re-shows the mandatory prompt to someone already enabled.
 const ENABLED_KEY_PREFIX = "welile-push-enabled:";
+// Timestamp of the last time this user saw the gate (any dismissal path).
+const PROMPTED_KEY_PREFIX = "welile-push-prompted:";
+// Timestamp of the last time this user explicitly tapped "Not now".
+const SNOOZE_KEY_PREFIX = "welile-push-snooze:";
 
-function enabledKey(userId: string) {
-  return `${ENABLED_KEY_PREFIX}${userId}`;
+const PROMPTED_COOLDOWN_MS = 24 * 60 * 60 * 1000; // do not re-prompt within 24h
+const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000; // re-ask after 7 days if explicitly snoozed
+
+function userKey(prefix: string, userId: string) {
+  return `${prefix}${userId}`;
+}
+
+function getTs(prefix: string, userId: string): number | null {
+  try {
+    const raw = localStorage.getItem(userKey(prefix, userId));
+    if (!raw) return null;
+    const ts = Number(raw);
+    return Number.isFinite(ts) ? ts : null;
+  } catch {
+    return null;
+  }
+}
+
+function setTs(prefix: string, userId: string) {
+  try {
+    localStorage.setItem(userKey(prefix, userId), String(Date.now()));
+  } catch {
+    /* ignore */
+  }
 }
 
 function isMarkedEnabled(userId: string): boolean {
   try {
-    return localStorage.getItem(enabledKey(userId)) === "1";
+    return localStorage.getItem(userKey(ENABLED_KEY_PREFIX, userId)) === "1";
   } catch {
     return false;
   }
@@ -172,7 +197,7 @@ function isMarkedEnabled(userId: string): boolean {
 
 function markEnabled(userId: string) {
   try {
-    localStorage.setItem(enabledKey(userId), "1");
+    localStorage.setItem(userKey(ENABLED_KEY_PREFIX, userId), "1");
   } catch {
     /* ignore */
   }
@@ -180,7 +205,7 @@ function markEnabled(userId: string) {
 
 function clearEnabled(userId: string) {
   try {
-    localStorage.removeItem(enabledKey(userId));
+    localStorage.removeItem(userKey(ENABLED_KEY_PREFIX, userId));
   } catch {
     /* ignore */
   }
@@ -214,28 +239,39 @@ export function PushNotificationGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
-  // The prompt is always dismissible ("Not now") and honours the 7-day snooze.
+  // The prompt is always dismissible ("Not now").
   const required = false;
   const checkedRef = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
-  const snoozed = useMemo(() => {
-    try {
-      const ts = Number(localStorage.getItem(SNOOZE_KEY) || 0);
-      return ts > Date.now() - SNOOZE_MS;
-    } catch {
-      return false;
-    }
+  const isSnoozed = useCallback((userId: string) => {
+    const ts = getTs(SNOOZE_KEY_PREFIX, userId);
+    return ts !== null && ts > Date.now() - SNOOZE_MS;
+  }, []);
+
+  const isPromptedRecently = useCallback((userId: string) => {
+    const ts = getTs(PROMPTED_KEY_PREFIX, userId);
+    return ts !== null && ts > Date.now() - PROMPTED_COOLDOWN_MS;
   }, []);
 
   // Decide whether to show the prompt.
   useEffect(() => {
-    if (!user || checkedRef.current) return;
+    if (!user) return;
+    // Re-evaluate when the signed-in user changes without a page reload.
+    if (lastUserIdRef.current !== user.id) {
+      lastUserIdRef.current = user.id;
+      checkedRef.current = false;
+    }
+    if (checkedRef.current) return;
     checkedRef.current = true;
 
-    // If already granted, nothing to do. If the browser can't do push at all,
-    // don't nag. Otherwise (permission === "default" or "denied") the user must
-    // act — enabling is mandatory so rejection/payout/rent alerts reach them.
+    // Never prompt inside the Lovable preview iframe — browsers refuse the
+    // permission request there and report "denied", which would train users
+    // to think the app is broken.
+    if (isInIframe()) return;
+    // If the browser can't do push at all, don't nag.
     if (!isPushSupported()) return;
+
     if (Notification.permission === "granted") {
       markEnabled(user.id);
       // Silent self-heal: if the stored PushSubscription was created with an
@@ -251,33 +287,48 @@ export function PushNotificationGate() {
     if (isDenied) clearEnabled(user.id);
     // Already enabled on this device (flag or live subscription) → never nag.
     if (!isDenied && isMarkedEnabled(user.id)) return;
-    // Snooze applies to every path — the prompt is never mandatory.
-    if (snoozed) return;
+    // Once denied the only recovery path is browser settings; don't show the
+    // full gate because the native prompt will be blocked.
+    if (isDenied) return;
+    // Respect explicit "Not now" snooze and the broader 24h "already seen" cooldown.
+    if (isSnoozed(user.id) || isPromptedRecently(user.id)) return;
 
     let cancelled = false;
-    // Delay so it doesn't fight other startup UI (e.g. location gate).
+    // Short delay so it doesn't fight other startup UI (e.g. location gate).
     const t = setTimeout(async () => {
       if (cancelled) return;
       if (await deviceAlreadySubscribed(user.id)) {
         markEnabled(user.id);
         return;
       }
-      if (!cancelled) setOpen(true);
-    }, 30000);
+      if (!cancelled) {
+        // Record that this user was shown the gate, even if they later close
+        // the browser without tapping a button. This stops the "every restart"
+        // loop for users who simply dismiss the dialog.
+        setTs(PROMPTED_KEY_PREFIX, user.id);
+        setOpen(true);
+      }
+    }, 5000);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [user, snoozed]);
+  }, [user, isSnoozed, isPromptedRecently]);
+
+  // Keep the "prompted" timestamp fresh while the dialog stays open.
+  useEffect(() => {
+    if (open && user) {
+      setTs(PROMPTED_KEY_PREFIX, user.id);
+    }
+  }, [open, user]);
 
   const handleSnooze = useCallback(() => {
-    try {
-      localStorage.setItem(SNOOZE_KEY, String(Date.now()));
-    } catch {
-      /* ignore */
+    if (user) {
+      setTs(PROMPTED_KEY_PREFIX, user.id);
+      setTs(SNOOZE_KEY_PREFIX, user.id);
     }
     setOpen(false);
-  }, []);
+  }, [user]);
 
   const handleEnable = useCallback(async () => {
     if (!user) return;

@@ -281,6 +281,18 @@
     <priority>0.2</priority>
   </url>
   <url>
+    <loc>https://welilereceipts.com/house/mmr7KS</loc>
+    <lastmod>2026-08-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://welilereceipts.com/house/6MhPZM</loc>
+    <lastmod>2026-08-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://welilereceipts.com/house/yfhQAz</loc>
     <lastmod>2026-08-03</lastmod>
     <changefreq>weekly</changefreq>
@@ -3851,12 +3863,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://welilereceipts.com/house/BPhC8W</loc>
-    <lastmod>2026-08-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://welilereceipts.com/house/EDvNs3</loc>
     <lastmod>2026-08-01</lastmod>
     <changefreq>weekly</changefreq>
@@ -3954,12 +3960,6 @@
   </url>
   <url>
     <loc>https://welilereceipts.com/house/xY3tYG</loc>
-    <lastmod>2026-08-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://welilereceipts.com/house/3sqcAx</loc>
     <lastmod>2026-08-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -4560,12 +4560,6 @@
   </url>
   <url>
     <loc>https://welilereceipts.com/house/c8n53d</loc>
-    <lastmod>2026-07-31</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://welilereceipts.com/house/GGypJr</loc>
     <lastmod>2026-07-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -6276,6 +6270,12 @@
   </url>
   <url>
     <loc>https://welilereceipts.com/house/mpJ8qB</loc>
+    <lastmod>2026-07-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://welilereceipts.com/house/jMUMQ6</loc>
     <lastmod>2026-07-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
