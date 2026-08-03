@@ -75,22 +75,53 @@ Deno.serve(async (req) => {
     const { data: authUser } = await admin.auth.admin.getUserById(profile.id);
 
     if (authUser?.user) {
-      // Set the password the applicant chose + confirm email so they can sign in.
-      const update: Record<string, unknown> = { password, email_confirm: true };
-      if (fullName && !authUser.user.user_metadata?.full_name) {
-        update.user_metadata = { ...(authUser.user.user_metadata || {}), full_name: fullName };
+      // A tracking URL is shareable and must never act as a password-reset link.
+      // Accounts that have already completed this claim flow (or have signed in)
+      // must use the normal account recovery flow instead.
+      if (authUser.user.user_metadata?.business_advance_claimed_at || authUser.user.last_sign_in_at) {
+        return new Response(JSON.stringify({ error: "This account is already active. Please sign in or reset your password." }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
+
+      // Require fresh proof that the caller controls the phone in the shared
+      // tracking link. Consume the verification before changing credentials so
+      // the same OTP cannot be replayed in a second claim request.
+      const phoneKey = phone.replace(/\D/g, "").slice(-9);
+      const verifiedAfter = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: consumedProof, error: proofError } = await admin
+        .from("otp_verifications")
+        .update({ verified: false })
+        .eq("phone", phoneKey)
+        .eq("verified", true)
+        .gte("verified_at", verifiedAfter)
+        .select("phone")
+        .maybeSingle();
+
+      if (proofError || !consumedProof) {
+        return new Response(JSON.stringify({ error: "Verify the SMS code sent to this phone before activating the account." }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Set the password the applicant chose + confirm email so they can sign in.
+      const update: Record<string, unknown> = {
+        password,
+        email_confirm: true,
+        user_metadata: {
+          ...(authUser.user.user_metadata || {}),
+          ...(fullName && !authUser.user.user_metadata?.full_name ? { full_name: fullName } : {}),
+          business_advance_claimed_at: new Date().toISOString(),
+        },
+      };
       const { error: upErr } = await admin.auth.admin.updateUserById(profile.id, update);
       if (upErr) throw upErr;
     } else {
-      // Defensive — profile exists but no auth user (shouldn't normally happen).
-      const { error: cErr } = await admin.auth.admin.createUser({
-        email: virtualEmail,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName || profile.full_name || "", phone },
+      // A profile without its matching auth identity is an integrity issue. Do
+      // not create a different user id and silently disconnect the advance.
+      return new Response(JSON.stringify({ error: "Account setup is unavailable. Please contact Welile support." }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-      if (cErr) throw cErr;
     }
 
     // Keep profile full name in sync if applicant supplied one
