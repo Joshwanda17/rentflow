@@ -142,10 +142,21 @@ Deno.serve(async (req) => {
     const isSystemAutoDebit =
       token === serviceKey && body?.system_auto_debit === true && body?.operation === "debit";
 
+    // ── System requisition credit path (service-role, no human CFO) ───────
+    // requisition-decide / requisition-credit-retry post the approved
+    // requisition credit server-to-server with the service-role key and
+    // `system_requisition_credit: true`. The human authority (CFO / manager /
+    // super_admin) was already verified by the calling function, and the
+    // service-role bearer IS the authority on this hop — same mechanism as
+    // the auto-debit path above, just for a credit.
+    const isSystemRequisitionCredit =
+      token === serviceKey && body?.system_requisition_credit === true && body?.operation !== "debit";
+    const isSystemAuthored = isSystemAutoDebit || isSystemRequisitionCredit;
+
     let user: { id: string };
     let callerRoles: string[];
 
-    if (isSystemAutoDebit) {
+    if (isSystemAuthored) {
       const { data: actor } = await adminClient
         .from("user_roles")
         .select("user_id")
@@ -153,12 +164,12 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (!actor?.user_id) {
-        return new Response(JSON.stringify({ error: "No finance actor available for system auto-debit" }), {
+        return new Response(JSON.stringify({ error: "No finance actor available for system-authored posting" }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       user = { id: actor.user_id };
-      callerRoles = ["system_auto_debit"];
+      callerRoles = [isSystemAutoDebit ? "system_auto_debit" : "system_requisition_credit"];
       // Treasury guard still applies to automated money movement.
       const guardBlock = await checkTreasuryGuard(adminClient, "any", actor.user_id);
       if (guardBlock) return guardBlock;
