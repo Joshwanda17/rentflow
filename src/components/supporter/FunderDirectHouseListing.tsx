@@ -300,6 +300,11 @@ export function FunderDirectHouseListing() {
     };
   }, [fetchMatchCount]);
 
+  // Reset pagination whenever search or filters change so results start from page 1
+  useEffect(() => {
+    setPage(1);
+  }, [search, region, category, rooms, sortBy, minMonthlyEarn, minAnnualEarn]);
+
 
   const filtered = useMemo(() => {
     if (!houses) return [];
