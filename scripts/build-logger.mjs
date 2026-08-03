@@ -141,12 +141,9 @@ function finish(code, signal) {
   const publicDir = path.join(projectRoot, 'public');
   if (existsSync(publicDir)) {
     try {
-      // Redact legacy-domain strings: this copy lives in the scanned source
-      // tree, and raw build output would otherwise trip guard-legacy-domain.mjs.
-      const sanitized = readFileSync(latestLog, 'utf8').replace(
-        /welilereceipts[.-]com|welilereciept\.com|welilereceipts\.com/gi,
-        'welile-legacy-domain',
-      );
+      // Belt-and-braces: log lines are already redacted at write() time, but
+      // re-redact in case an older/partial log file is on disk.
+      const sanitized = redactLegacyDomains(readFileSync(latestLog, 'utf8'));
       writeFileSync(path.join(publicDir, 'build-log.txt'), sanitized);
     } catch { /* ignore */ }
   }
