@@ -486,6 +486,7 @@ Deno.serve(async (req) => {
       partnersMatched,
       portfoliosCreated,
       skippedDuplicates,
+      credentials,
       errors,
     }), { status: 200, headers: JSON_HEADERS });
 
