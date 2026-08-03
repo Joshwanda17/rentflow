@@ -423,6 +423,7 @@ export function FunderDirectHouseListing() {
     setSortBy('newest');
     setMinMonthlyEarn('all');
     setMinAnnualEarn('all');
+    setPage(1);
   };
 
   /**
