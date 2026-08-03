@@ -1,0 +1,55 @@
+name: Production build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build + prerender (8GB heap)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # scripts/run-with-heap.mjs strips any inherited --max-old-space-size and
+      # re-applies this cap, so an ambient NODE_OPTIONS can never shrink the heap.
+      BUILD_HEAP_MB: "8192"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsgo --noEmit
+
+      # npm run build runs prebuild (sitemap), the repo guards, vite build via the
+      # heap wrapper, then postbuild (prerender) also via the heap wrapper.
+      - name: Production build + prerender
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -f dist/index.html || { echo "dist/index.html missing"; exit 1; }
+          echo "dist size: $(du -sh dist | cut -f1)"
+          echo "files: $(find dist -type f | wc -l)"
+
+      - name: Upload build output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+          if-no-files-found: warn
