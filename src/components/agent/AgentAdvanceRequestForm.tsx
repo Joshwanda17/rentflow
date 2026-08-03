@@ -19,6 +19,7 @@ import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersH
 import { Search, X } from 'lucide-react';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { AdvanceTopupRequestPanel, useTopupEligibility } from '@/components/agent/AdvanceTopupRequestPanel';
 
 interface AgentAdvanceRequestFormProps {
   open: boolean;
@@ -44,7 +45,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [reason, setReason] = useState('');
   const [allocOpen, setAllocOpen] = useState(false);
-  const [view, setView] = useState<'menu' | 'history' | 'request'>('menu');
+  const [view, setView] = useState<'menu' | 'history' | 'request' | 'topup'>('menu');
 
   // History filters
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
@@ -130,6 +131,10 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     enabled: !!user?.id && open,
   });
   const isRepeatBorrower = (completedAdvanceCount ?? 0) > 0;
+  // Top-up eligibility — while an advance is running, the agent tops up
+  // instead of taking a brand new advance.
+  const { data: topupEligibility } = useTopupEligibility(user?.id, open);
+  const hasActiveAdvance = !!topupEligibility?.has_active_advance;
   const monthlyRate = isRepeatBorrower ? 0.28 : 0.33;
   const accessFee = calculateAccessFee(principal, cycleDays, monthlyRate);
   const registrationFee = calculateRegistrationFee(principal);
