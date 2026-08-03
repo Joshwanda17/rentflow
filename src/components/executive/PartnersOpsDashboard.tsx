@@ -33,6 +33,7 @@ import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
 import { MaturityRequestsQueue } from './MaturityRequestsQueue';
 import { InvitedPortfoliosPanel } from './InvitedPortfoliosPanel';
 import { PortfolioRenewalsPanel } from './PortfolioRenewalsPanel';
+import { SelfManagedNearingPayouts } from './SelfManagedNearingPayouts';
 
 type Tab = 'portfolios' | 'invited' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'renewals' | 'withdrawals' | 'proxy-agents';
 
@@ -275,6 +276,9 @@ export function PartnersOpsDashboard() {
 
       {/* ═══ C2. NEW PARTNERS SPOTLIGHT + SEARCH ═══ */}
       <NewPartnersPanel />
+
+      {/* ═══ C3. SELF-MANAGED RETURNS DUE (Phase Four visibility) ═══ */}
+      <SelfManagedNearingPayouts />
 
       {/* ═══ D. WITHDRAWAL QUEUE — now inside Withdrawals tab ═══ */}
 

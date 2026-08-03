@@ -7,9 +7,21 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { toast } from 'sonner';
-import { Loader2, Lock, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarClock, Loader2, Lock, MapPin, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 
 const MIN_FUNDING = 50000;
+
+interface EarningsSummary {
+  nextPayoutDate: string | null;
+  expectedThisCycle: number;
+  totalEarned: number;
+  totalPaid: number;
+}
+
+const ordinal = (day: number) => {
+  const suffix = day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th';
+  return `${day}${suffix}`;
+};
 
 interface FundablePlan {
   rent_request_id: string;
@@ -40,6 +52,7 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [fundedIds, setFundedIds] = useState<string[]>([]);
+  const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,8 +72,27 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
 
   const loadFunded = useCallback(async () => {
     const { data } = await supabase.rpc('partner_self_portfolio', { p_partner_id: partnerId });
-    const payload = (data ?? {}) as { lines?: { rent_request_id: string }[] };
+    const payload = (data ?? {}) as {
+      lines?: { rent_request_id: string; status?: string; principal?: number }[];
+      commitments?: { status?: string; next_payout_at?: string | null; monthly_rate?: number }[];
+      totals?: { total_earned?: number; total_paid?: number; active?: number };
+    };
     setFundedIds((payload.lines ?? []).map((l) => l.rent_request_id));
+
+    const activeCommitments = (payload.commitments ?? []).filter((c) => c.status === 'active');
+    const nextPayoutDate = activeCommitments
+      .map((c) => c.next_payout_at)
+      .filter((d): d is string => !!d)
+      .sort()[0] ?? null;
+    const rate = Number(activeCommitments[0]?.monthly_rate ?? 15);
+    const activePrincipal = Number(payload.totals?.active ?? 0);
+
+    setEarnings({
+      nextPayoutDate,
+      expectedThisCycle: Math.round((activePrincipal * rate) / 100),
+      totalEarned: Number(payload.totals?.total_earned ?? 0),
+      totalPaid: Number(payload.totals?.total_paid ?? 0),
+    });
   }, [partnerId]);
 
   useEffect(() => {
@@ -138,6 +170,40 @@ export function SelfPortfolioFundingCard({ partnerId }: { partnerId: string }) {
           </Button>
         </div>
       </Card>
+
+      {earnings && (earnings.nextPayoutDate || earnings.totalEarned > 0) && (
+        <Card className="p-4 rounded-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground">Returns this cycle</p>
+              <p className="text-lg font-black text-foreground">{formatDynamic(earnings.expectedThisCycle)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Paid to date {formatDynamic(earnings.totalPaid)} of {formatDynamic(earnings.totalEarned)} earned
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
+                <CalendarClock className="h-3.5 w-3.5" />
+                <span>Next payout</span>
+              </div>
+              <p className="text-sm font-bold">
+                {earnings.nextPayoutDate
+                  ? new Date(earnings.nextPayoutDate).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : '—'}
+              </p>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            {earnings.nextPayoutDate
+              ? `Returns pay into your withdrawable balance on the ${ordinal(new Date(earnings.nextPayoutDate).getDate())} of each month — your own contribution date.`
+              : 'Returns start once the landlord float is disbursed, then pay monthly on your contribution date.'}
+          </p>
+        </Card>
+      )}
 
       {plans.length === 0 && (
         <Card className="p-6 rounded-2xl text-center">
