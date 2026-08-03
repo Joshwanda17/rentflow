@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import * as XLSX from "xlsx";
+// xlsx is ~430 KB — loaded only when an xlsx export is requested.
+const loadXLSX = () => import("xlsx");
 import { buildStatement, statementTitle, supabaseForUser, ugx, type Statement } from "../statement";
 import { textPdf } from "../simplePdf";
 
@@ -41,7 +42,8 @@ function pdfBytes(statement: Statement): Uint8Array {
   return textPdf(lines);
 }
 
-function xlsxBytes(statement: Statement): Uint8Array {
+async function xlsxBytes(statement: Statement): Promise<Uint8Array> {
+  const XLSX = await loadXLSX();
   const book = XLSX.utils.book_new();
   const summary = XLSX.utils.aoa_to_sheet([
     ["Welile Receipts — Wallet statement"],
@@ -113,7 +115,7 @@ export default defineTool({
       const file =
         fmt === "xlsx"
           ? {
-              bytes: xlsxBytes(statement),
+              bytes: await xlsxBytes(statement),
               contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
               ext: "xlsx",
             }

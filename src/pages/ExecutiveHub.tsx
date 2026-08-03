@@ -1,19 +1,44 @@
+import { Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
-import { CEODashboard } from '@/components/executive/CEODashboard';
-import { CTODashboard } from '@/components/executive/CTODashboard';
-import { CMODashboard } from '@/components/executive/CMODashboard';
-import { AgentOpsDashboard } from '@/components/executive/AgentOpsDashboard';
-import { TenantOpsHub } from '@/components/executive/TenantOpsHub';
-import { LandlordOpsDashboard } from '@/components/executive/LandlordOpsDashboard';
-import { PartnersOpsDashboard } from '@/components/executive/PartnersOpsDashboard';
-import { CRMDashboard } from '@/components/executive/CRMDashboard';
-import { LocationManager } from '@/components/ops/LocationManager';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import NotFound from '@/pages/NotFound';
+
+// Only ONE of these dashboards is ever mounted per visit (the `?tab=` slug),
+// so each is code-split into its own chunk instead of being welded into one
+// multi-MB ExecutiveHub bundle. Behaviour is unchanged — the selected tab
+// still renders exactly the same component.
+const CEODashboard = lazyWithRetry(() =>
+  import('@/components/executive/CEODashboard').then((m) => ({ default: m.CEODashboard })),
+);
+const CTODashboard = lazyWithRetry(() =>
+  import('@/components/executive/CTODashboard').then((m) => ({ default: m.CTODashboard })),
+);
+const CMODashboard = lazyWithRetry(() =>
+  import('@/components/executive/CMODashboard').then((m) => ({ default: m.CMODashboard })),
+);
+const AgentOpsDashboard = lazyWithRetry(() =>
+  import('@/components/executive/AgentOpsDashboard').then((m) => ({ default: m.AgentOpsDashboard })),
+);
+const TenantOpsHub = lazyWithRetry(() =>
+  import('@/components/executive/TenantOpsHub').then((m) => ({ default: m.TenantOpsHub })),
+);
+const LandlordOpsDashboard = lazyWithRetry(() =>
+  import('@/components/executive/LandlordOpsDashboard').then((m) => ({ default: m.LandlordOpsDashboard })),
+);
+const PartnersOpsDashboard = lazyWithRetry(() =>
+  import('@/components/executive/PartnersOpsDashboard').then((m) => ({ default: m.PartnersOpsDashboard })),
+);
+const CRMDashboard = lazyWithRetry(() =>
+  import('@/components/executive/CRMDashboard').then((m) => ({ default: m.CRMDashboard })),
+);
+const LocationManager = lazyWithRetry(() =>
+  import('@/components/ops/LocationManager').then((m) => ({ default: m.LocationManager })),
+);
 
 /**
  * Every tab must declare the `staff_permissions.permitted_dashboard` key that
@@ -37,7 +62,10 @@ const TAB_PERMISSION: Record<string, string> = {
   locations: 'company-ops',
 };
 
-const dashboards: Record<string, { title: string; component: React.FC; missionRole?: string }> = {
+const dashboards: Record<
+  string,
+  { title: string; component: React.ComponentType; missionRole?: string }
+> = {
   ceo: { title: 'CEO Dashboard', component: CEODashboard, missionRole: 'ceo' },
   cto: { title: 'CTO Dashboard', component: CTODashboard, missionRole: 'cto' },
   cmo: { title: 'CMO Dashboard', component: CMODashboard, missionRole: 'cmo' },
@@ -114,7 +142,15 @@ export default function ExecutiveHub() {
       <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div className={`${fullWidth ? 'max-w-none' : 'max-w-7xl'} mx-auto p-4 pb-24`}>
           {current.missionRole && <MissionBanner dashboardRole={current.missionRole} className="mb-4" />}
-          <DashboardComponent />
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            }
+          >
+            <DashboardComponent />
+          </Suspense>
         </div>
       </div>
     </div>

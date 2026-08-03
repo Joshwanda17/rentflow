@@ -20,7 +20,7 @@ import {
   Loader2, HandCoins, Phone, Coins, FileText, Send,
   Contact, Nfc, ScanLine, ShieldCheck, XCircle, KeyRound,
 } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import type { Html5Qrcode as Html5QrcodeType } from 'html5-qrcode';
 import { NfcTransactionResultDialog, type NfcResultPayload } from './NfcTransactionResultDialog';
 
 interface RequestMoneyDialogProps {
@@ -68,7 +68,7 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
   const [tapPin, setTapPin] = useState('');
   const [pendingCard, setPendingCard] = useState<any>(null);
   const nfcAbortRef = useRef<AbortController | null>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<Html5QrcodeType | null>(null);
   const scannerElId = 'tap-qr-reader';
   const tapTimeoutRef = useRef<number | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
@@ -338,6 +338,9 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
       try {
         const el = document.getElementById(scannerElId);
         if (!el) throw new Error('Scanner not ready');
+        // Loaded on demand — keeps the ~330 KB scanner bundle out of the
+        // wallet's initial chunk.
+        const { Html5Qrcode } = await import('html5-qrcode');
         const scanner = new Html5Qrcode(scannerElId);
         scannerRef.current = scanner;
         await scanner.start(

@@ -6,7 +6,6 @@ import { Share2, Download, MapPin, Home, User, TrendingUp, Calendar } from 'luci
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import html2canvas from 'html2canvas';
 
 interface TenantBehaviorData {
   tenantName: string;
@@ -57,6 +56,8 @@ export function TenantBehaviorCard({ open, onOpenChange, data }: TenantBehaviorC
     if (!cardRef.current) return;
     setExporting(true);
     try {
+      // ~200 KB rasteriser — pulled in only when the user exports the card.
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(cardRef.current, {
         scale: 2,
         backgroundColor: '#ffffff',

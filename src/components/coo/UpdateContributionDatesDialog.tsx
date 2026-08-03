@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { addMonths } from 'date-fns';
-import * as XLSX from 'xlsx';
+// xlsx is ~430 KB — loaded on demand so the COO dashboard chunk stays light.
+const loadXLSX = () => import('xlsx');
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +62,8 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
   };
 
   /* ─── Template download ─── */
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await loadXLSX();
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([
       ['Partner Name', 'Investment Amount', 'Contribution Date'],
@@ -80,6 +82,7 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
 
     try {
       const data = await file.arrayBuffer();
+      const XLSX = await loadXLSX();
       const wb = XLSX.read(data, { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json<Record<string, any>>(ws);

@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
-import * as XLSX from 'xlsx';
+// xlsx is ~430 KB — loaded on demand when a file is actually parsed.
+const loadXLSX = () => import('xlsx');
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -112,6 +113,7 @@ export function BulkImportLandlordsDialog({ open, onClose, onImported }: Props) 
     setParsing(true);
     try {
       const buf = await file.arrayBuffer();
+      const XLSX = await loadXLSX();
       const wb = XLSX.read(buf, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });

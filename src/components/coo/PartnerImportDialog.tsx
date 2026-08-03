@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import * as XLSX from 'xlsx';
+// xlsx is ~430 KB — loaded on demand so the COO dashboard chunk stays light.
+const loadXLSX = () => import('xlsx');
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { investBounds, defaultUGXFormatter, isInvestAmountValid } from '@/lib/partnershipInvestment';
@@ -87,7 +88,8 @@ function normalizeHeaders(row: any): any {
 /* ─── Constants ─── */
 const VALID_ROI_MODES = ['monthly_payout', 'monthly_compounding'];
 
-function downloadTemplate() {
+async function downloadTemplate() {
+  const XLSX = await loadXLSX();
   const headers = ['Partner Name', 'Phone', 'Email', 'Investment Amount', 'Contribution Date', 'ROI %', 'Duration (Months)', 'ROI Mode'];
   const samples = [
     ['Ssenkaali Pius', '0700123456', 'pius@example.com', 500000, '2025-03-09', 15, 12, 'monthly_compounding'],
@@ -262,6 +264,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
     setLoading(true);
     try {
       const buffer = await file.arrayBuffer();
+      const XLSX = await loadXLSX();
       const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const jsonRows = XLSX.utils.sheet_to_json(ws);

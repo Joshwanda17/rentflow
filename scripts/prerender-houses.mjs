@@ -14,8 +14,10 @@
  *   each listing write dist/house/<slug>/index.html — a copy of the built
  *   dist/index.html with the sitewide OG / twitter / canonical tags stripped
  *   and replaced by listing-specific ones plus JSON-LD (Accommodation +
- *   BreadcrumbList). We write one file per short_code AND per uuid so both
- *   URL shapes resolve directly to a prerendered shell.
+ *   BreadcrumbList). We write exactly ONE shell per listing, for the
+ *   canonical slug (short_code when present, otherwise uuid) — the same URL
+ *   the sitemap and the canonical tag advertise. Other URL shapes still
+ *   resolve through the SPA fallback.
  *
  *   The SPA still boots normally inside these files — users get the full
  *   React experience, scrapers get real per-listing metadata on first byte.
@@ -347,8 +349,9 @@ async function main() {
   let reused = 0;
   const activeSlugs = [];
   for (const listing of listings) {
-    const slugs = [listing.short_code, listing.id].filter(Boolean);
-    if (!slugs.length) continue;
+    // Canonical slug only — one shell per listing (matches sitemap + canonical).
+    const slug = listing.short_code || listing.id;
+    if (!slug) continue;
     const cacheKey = `${listing.updated_at || ''}`;
     // Primary cache lookup keyed by uuid (stable) — short_code can change but
     // uuid can't, so the cached HTML is bit-identical for both slugs.
@@ -371,20 +374,10 @@ async function main() {
       rendered += 1;
     }
 
-    for (const slug of slugs) {
-      // The cached shell is identical for every slug of this listing, so if
-      // we just rendered it fresh above the cache copy is already correct;
-      // otherwise copy from cache to dist.
-      if (slug === primary && !cacheHit) {
-        writeShell(slug, html);
-      } else if (!copyCachedShell(slug)) {
-        writeShell(slug, html);
-        saveShellToCache(slug, html);
-      }
-      files += 1;
-      activeSlugs.push(slug);
-    }
-    nextEntries[primary] = { key: cacheKey, slugs };
+    writeShell(slug, html);
+    files += 1;
+    activeSlugs.push(slug);
+    nextEntries[primary] = { key: cacheKey, slugs: [slug] };
   }
   const { removedCache, removedDist } = cleanupStaleShells(activeSlugs, prevEntries, nextEntries);
   saveManifest({ version: 1, templateHash, entries: nextEntries });
