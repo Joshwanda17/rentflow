@@ -124,6 +124,8 @@ export function TenantOpsAgent360Panel({ agentId, agentName, onBack }: Props) {
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Stat label="Portfolio value managed" value={formatUGX(n(f.portfolio_value))} />
               <Stat label="Monthly rent expected" value={formatUGX(n(f.rent_expected_monthly))} />
+              <Stat label="Expected today" value={formatUGX(n(f.expected_today))} />
+              <Stat label="Collected today" value={formatUGX(n(f.paid_today))} tone={n(f.paid_today) >= n(f.expected_today) ? 'good' : 'warn'} />
               <Stat label="Collected this month" value={formatUGX(n(f.paid_month))} tone="good" />
               <Stat label="Collection %" value={pct(n(f.collected_to_date), n(f.expected_to_date))} />
               <Stat label="Outstanding balance" value={formatUGX(n(f.outstanding))} tone="warn" />
@@ -171,6 +173,12 @@ export function TenantOpsAgent360Panel({ agentId, agentName, onBack }: Props) {
         </TabsContent>
 
         <TabsContent value="tenants" className="space-y-4 mt-4">
+          {/*
+            Rent on this platform is repaid DAILY, so every active plan with a
+            balance is billable every single day. The funnel below — not a
+            calendar due-date match — is the correct operational picture, and it
+            uses the same definitions as the district / agent list views.
+          */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             <Stat label="Total" value={n(t.total)} />
             <Stat label="Active" value={n(t.active)} tone="good" />
@@ -178,16 +186,35 @@ export function TenantOpsAgent360Panel({ agentId, agentName, onBack }: Props) {
             <Stat label="New this month" value={n(t.new_month)} />
             <Stat label="Expiring leases (30d)" value={n(t.expiring_leases)} tone="warn" />
             <Stat label="Ended leases" value={n(t.ended_leases)} />
-            <Stat label="Due today" value={n(t.due_today)} />
-            <Stat label="Due tomorrow" value={n(t.due_tomorrow)} />
-            <Stat label="Due this week" value={n(t.due_week)} />
-            <Stat label="Due this month" value={n(t.due_month)} />
-            <Stat label="Overdue" value={n(t.overdue)} tone="bad" />
+            <Stat label="Billable today" value={n(t.billable_today)} />
+            <Stat label="Settled today" value={n(t.settled_today)} tone="good" />
+            <Stat label="Part-paid today" value={n(t.partial_today)} tone="warn" />
+            <Stat label="Covered by advance" value={n(t.covered_by_advance)} tone="good" />
+            <Stat label="Not collected yet" value={n(t.uncollected_today)} tone="bad" />
+            <Stat label="Today's collection rate" value={pct(n(f.paid_today), n(f.expected_today))} />
+            <Stat label="Behind schedule" value={n(t.overdue)} tone="bad" />
             <Stat label="In arrears" value={n(t.arrears)} tone="bad" />
             <Stat label="Paid early" value={n(t.paid_early)} tone="good" />
             <Stat label="Paid on time" value={n(t.paid_on_time)} tone="good" />
             <Stat label="Paid late" value={n(t.paid_late)} tone="warn" />
           </div>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Arrears ageing (days behind the daily schedule)</CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                Portfolio at risk. Days behind = arrears ÷ daily installment. Avg {n(t.avg_days_behind).toFixed(1)}d behind.
+              </p>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              <Stat label="On schedule" value={n(t.par_current)} tone="good" />
+              <Stat label="1–7 days" value={n(t.par_1_7)} tone="warn" />
+              <Stat label="8–30 days" value={n(t.par_8_30)} tone="warn" />
+              <Stat label="31–60 days" value={n(t.par_31_60)} tone="bad" />
+              <Stat label="60+ days" value={n(t.par_60_plus)} tone="bad" />
+              <Stat label="At risk 30d+ value" value={formatUGX(n(t.par_amount_30_plus))} tone="bad" />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Tenant list ({tenants.length})</CardTitle></CardHeader>
@@ -196,7 +223,7 @@ export function TenantOpsAgent360Panel({ agentId, agentName, onBack }: Props) {
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50">
                     <tr>
-                      {['Tenant', 'District', 'Rent plan', 'Repaid', 'Outstanding', 'Arrears', 'Next due', 'Schedule', 'Status'].map((h) => (
+                      {['Tenant', 'District', 'Rent plan', 'Repaid', 'Outstanding', 'Arrears', 'Paid today', 'Days behind', 'Schedule', 'Status'].map((h) => (
                         <th key={h} className="text-left px-3 py-2 font-semibold whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -210,7 +237,12 @@ export function TenantOpsAgent360Panel({ agentId, agentName, onBack }: Props) {
                         <td className="px-3 py-2">{formatUGX(n(r.amount_repaid))}</td>
                         <td className="px-3 py-2">{formatUGX(n(r.outstanding))}</td>
                         <td className={`px-3 py-2 ${n(r.arrears) > 0 ? 'text-destructive font-semibold' : ''}`}>{formatUGX(n(r.arrears))}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{r.next_due_date ?? '—'}</td>
+                        <td className={`px-3 py-2 whitespace-nowrap ${n(r.paid_today) > 0 ? 'text-emerald-600' : r.billable_today ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {r.billable_today === false ? '—' : formatUGX(n(r.paid_today))}
+                        </td>
+                        <td className={`px-3 py-2 ${n(r.days_behind) > 7 ? 'text-destructive font-semibold' : n(r.days_behind) > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          {n(r.days_behind) > 0 ? `${n(r.days_behind)}d` : '—'}
+                        </td>
                         <td className="px-3 py-2">
                           {r.schedule_delta_days == null ? '—'
                             : r.schedule_delta_days > 0 ? <span className="text-emerald-600">+{r.schedule_delta_days}d ahead</span>
@@ -221,7 +253,7 @@ export function TenantOpsAgent360Panel({ agentId, agentName, onBack }: Props) {
                       </tr>
                     ))}
                     {pageRows.length === 0 && (
-                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">No tenants on file.</td></tr>
+                      <tr><td colSpan={10} className="px-3 py-6 text-center text-muted-foreground">No tenants on file.</td></tr>
                     )}
                   </tbody>
                 </table>
