@@ -607,6 +607,11 @@ export default function FindAHouse() {
     };
   });
   const [showFilters, setShowFilters] = useState(false);
+  // Search + location bar can be collapsed to give listings more room.
+  const [searchBarOpen, setSearchBarOpen] = useState(true);
+  // Client-side pagination over the filtered set.
+  const PAGE_SIZE = 12;
+  const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(searchText, 250);
   const [showMap, setShowMap] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
