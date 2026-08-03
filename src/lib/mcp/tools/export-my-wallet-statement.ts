@@ -2,7 +2,8 @@ import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 // xlsx is ~430 KB — loaded only when an xlsx export is requested.
 const loadXLSX = () => import("xlsx");
-import { buildStatement, statementTitle, supabaseForUser, ugx, type Statement } from "../statement";
+import { buildStatement, statementTitle, ugx, type Statement } from "../statement";
+import { supabaseForUser } from "../supabase";
 import { textPdf } from "../simplePdf";
 
 const BUCKET = "wallet-statements";
