@@ -91,9 +91,9 @@ export default function Landing() {
     try { window.localStorage.setItem(ONBOARDING_KEY, 'true'); } catch { /* ignore */ }
   };
 
-  const goToAuth = () => {
+  const goToTenantDashboard = () => {
     markSeen();
-    navigate('/auth');
+    navigate('/dashboard/tenant');
   };
 
   const goNext = () => {
@@ -101,7 +101,7 @@ export default function Landing() {
     if (step < totalSlides - 1) {
       setStep(step + 1);
     } else {
-      goToAuth();
+      goToTenantDashboard();
     }
   };
 
