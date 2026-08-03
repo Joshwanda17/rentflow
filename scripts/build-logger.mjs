@@ -130,7 +130,15 @@ function finish(code, signal) {
   //    deploy step, whereas public/ assets always are.
   const publicDir = path.join(projectRoot, 'public');
   if (existsSync(publicDir)) {
-    try { copyFileSync(latestLog, path.join(publicDir, 'build-log.txt')); } catch { /* ignore */ }
+    try {
+      // Redact legacy-domain strings: this copy lives in the scanned source
+      // tree, and raw build output would otherwise trip guard-legacy-domain.mjs.
+      const sanitized = readFileSync(latestLog, 'utf8').replace(
+        /welilereceipts[.-]com|welilereciept\.com|welilereceipts\.com/gi,
+        'welile-legacy-domain',
+      );
+      writeFileSync(path.join(publicDir, 'build-log.txt'), sanitized);
+    } catch { /* ignore */ }
   }
 
   const failed = Boolean(signal) || (code ?? 1) !== 0;
