@@ -683,22 +683,30 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
             <button
               type="button"
-              onClick={() => setView('request')}
+              onClick={() => setView(hasActiveAdvance ? 'topup' : 'request')}
               className="w-full flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/40"
             >
               <div className="rounded-2xl bg-primary/10 p-3 shrink-0">
                 <Send className="h-6 w-6 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-foreground">Request a new advance</p>
+                <p className="text-base font-bold text-foreground">
+                  {hasActiveAdvance ? 'Request a top-up on your advance' : 'Request a new advance'}
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                  Apply for funds and submit your request to the CFO for approval.
+                  {hasActiveAdvance
+                    ? 'Add more funds to your running advance once you have repaid at least 30% — same rate, schedule extended.'
+                    : 'Apply for funds and submit your request to the CFO for approval.'}
                 </p>
                 <p className="text-[11px] font-semibold text-primary mt-1">Submit to CFO →</p>
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
             </button>
           </div>
+        )}
+
+        {view === 'topup' && (
+          <AdvanceTopupRequestPanel onSubmitted={() => setView('menu')} />
         )}
 
         {/* Back to menu */}
