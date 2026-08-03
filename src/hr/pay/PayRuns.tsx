@@ -900,6 +900,8 @@ export default function PayRuns() {
                   <TableHead>Rule version</TableHead>
                   <TableHead>Rule status</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>With</TableHead>
+                  <TableHead>Since</TableHead>
                   <TableHead>Prepared at</TableHead>
                   <TableHead className="text-right">Net total</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -924,6 +926,19 @@ export default function PayRuns() {
                     </TableCell>
                     <TableCell>
                       <StatusCell status={r.status} />
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs font-medium">
+                        {r.status === 'locked' ? 'Complete' : r.holding_position_title ?? '—'}
+                      </span>
+                      {NEXT_ACTION[r.status] && (
+                        <span className="block text-[11px] text-muted-foreground">
+                          {NEXT_ACTION[r.status]}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <SinceCell at={r.last_event_at} status={r.status} />
                     </TableCell>
                     <TableCell>{formatDate(r.prepared_at)}</TableCell>
                     <TableCell className="text-right">{formatNet(r.total_net)}</TableCell>
