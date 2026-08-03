@@ -244,7 +244,10 @@ export function TenantOpsGeoCommandCenter() {
                       <div><p className="text-muted-foreground">Collected</p><p className="font-bold">{formatUGX(r.collected_to_date)}</p></div>
                       <div><p className="text-muted-foreground">Coll. rate</p><p className="font-bold">{d.collectionRate.toFixed(1)}%</p></div>
                       <div><p className="text-muted-foreground">Outstanding</p><p className="font-bold text-amber-600">{formatUGX(r.outstanding_total)}</p></div>
-                      <div><p className="text-muted-foreground">Overdue</p><p className="font-bold text-destructive">{r.overdue_count}</p></div>
+                      <div><p className="text-muted-foreground">Billable today</p><p className="font-bold">{r.billable_today}</p></div>
+                      <div><p className="text-muted-foreground">Not collected</p><p className="font-bold text-destructive">{r.uncollected_today}</p></div>
+                      <div><p className="text-muted-foreground">Today %</p><p className="font-bold">{d.dailyCollectionRate.toFixed(0)}%</p></div>
+                      <div><p className="text-muted-foreground">Behind</p><p className="font-bold text-destructive">{r.overdue_count}</p></div>
                       <div><p className="text-muted-foreground">Occupancy</p><p className="font-bold">{d.occupancyRate.toFixed(0)}%</p></div>
                       <div><p className="text-muted-foreground">Landlords</p><p className="font-bold">{r.landlords_total}</p></div>
                     </CardContent>
