@@ -9334,40 +9334,125 @@ export type Database = {
       finance_anomaly_alert_config: {
         Row: {
           created_at: string
+          email_materiality_ugx: number
           enabled: boolean
+          historical_after_days: number
           id: number
           min_amount: number
           notify_emails: string[]
           notify_phones: string[]
+          sms_materiality_ugx: number
           updated_at: string
         }
         Insert: {
           created_at?: string
+          email_materiality_ugx?: number
           enabled?: boolean
+          historical_after_days?: number
           id?: number
           min_amount?: number
           notify_emails?: string[]
           notify_phones?: string[]
+          sms_materiality_ugx?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
+          email_materiality_ugx?: number
           enabled?: boolean
+          historical_after_days?: number
           id?: number
           min_amount?: number
           notify_emails?: string[]
           notify_phones?: string[]
+          sms_materiality_ugx?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      finance_anomaly_alert_states: {
+        Row: {
+          acknowledge_note: string | null
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          category: string
+          channel: string
+          check_key: string
+          created_at: string
+          exposure: number
+          fingerprint: string | null
+          first_seen_at: string
+          item_count: number
+          label: string
+          last_changed_at: string
+          last_notified_at: string | null
+          last_seen_at: string
+          resolved_at: string | null
+          severity: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledge_note?: string | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          category: string
+          channel?: string
+          check_key: string
+          created_at?: string
+          exposure?: number
+          fingerprint?: string | null
+          first_seen_at?: string
+          item_count?: number
+          label: string
+          last_changed_at?: string
+          last_notified_at?: string | null
+          last_seen_at?: string
+          resolved_at?: string | null
+          severity?: string
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledge_note?: string | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          category?: string
+          channel?: string
+          check_key?: string
+          created_at?: string
+          exposure?: number
+          fingerprint?: string | null
+          first_seen_at?: string
+          item_count?: number
+          label?: string
+          last_changed_at?: string
+          last_notified_at?: string | null
+          last_seen_at?: string
+          resolved_at?: string | null
+          severity?: string
+          state?: string
           updated_at?: string
         }
         Relationships: []
       }
       finance_anomaly_scans: {
         Row: {
+          action_required: boolean
+          alert_fingerprint: string | null
           anomaly_count: number
+          categories: Json
           created_at: string
           email_recipients: string[]
+          financial_count: number
+          financial_exposure: number
+          financial_severity: string
+          fingerprint_repeat: boolean
           id: string
+          notification_reason: string | null
+          notifications_sent: Json
           notified: boolean
+          notify_channel: string
           notify_error: string | null
           report: Json
           scanned_at: string
@@ -9378,11 +9463,21 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          action_required?: boolean
+          alert_fingerprint?: string | null
           anomaly_count?: number
+          categories?: Json
           created_at?: string
           email_recipients?: string[]
+          financial_count?: number
+          financial_exposure?: number
+          financial_severity?: string
+          fingerprint_repeat?: boolean
           id?: string
+          notification_reason?: string | null
+          notifications_sent?: Json
           notified?: boolean
+          notify_channel?: string
           notify_error?: string | null
           report?: Json
           scanned_at?: string
@@ -9393,11 +9488,21 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          action_required?: boolean
+          alert_fingerprint?: string | null
           anomaly_count?: number
+          categories?: Json
           created_at?: string
           email_recipients?: string[]
+          financial_count?: number
+          financial_exposure?: number
+          financial_severity?: string
+          fingerprint_repeat?: boolean
           id?: string
+          notification_reason?: string | null
+          notifications_sent?: Json
           notified?: boolean
+          notify_channel?: string
           notify_error?: string | null
           report?: Json
           scanned_at?: string
@@ -28940,6 +29045,10 @@ export type Database = {
         Args: { p_withdrawal_id: string }
         Returns: Json
       }
+      acknowledge_finance_anomaly_alert: {
+        Args: { p_check_key: string; p_note?: string }
+        Returns: Json
+      }
       admin_assign_subagent_parent: {
         Args: { _new_parent_id: string; _reason: string; _sub_agent_id: string }
         Returns: Json
@@ -30164,6 +30273,11 @@ export type Database = {
           status: string
           verification_id: string
         }[]
+      }
+      finance_alert_rank_severity: { Args: { p_rank: number }; Returns: string }
+      finance_alert_severity_rank: {
+        Args: { p_severity: string }
+        Returns: number
       }
       find_duplicate_phones: {
         Args: never
