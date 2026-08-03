@@ -177,6 +177,7 @@ export function FunderDirectHouseListing() {
   const [draftSortBy, setDraftSortBy] = useState('newest');
   const [draftMinMonthlyEarn, setDraftMinMonthlyEarn] = useState('all');
   const [draftMinAnnualEarn, setDraftMinAnnualEarn] = useState('all');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     mountedRef.current = true;
