@@ -65,9 +65,15 @@ function collectFiles(dir, base = dir, out = []) {
   return out;
 }
 
+// Files that carry the diagnostics themselves are excluded from the artifact
+// hash so the hash stays a pure function of the built application output.
+function isDiagnosticFile(rel) {
+  return rel === 'publish-diagnostics.json' || rel.startsWith('_deploy/');
+}
+
 function artifactFingerprint() {
   if (!existsSync(dist)) return { present: false, files: 0, bytes: 0, hash: null, entryHtmlHash: null };
-  const files = collectFiles(dist).filter((f) => f.rel !== 'publish-diagnostics.json');
+  const files = collectFiles(dist).filter((f) => !isDiagnosticFile(f.rel));
   const manifest = createHash('sha256');
   let bytes = 0;
   for (const file of files) {
