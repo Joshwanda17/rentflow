@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, HandCoins } from 'lucide-react';
 import { CFOInitiateAdvanceDialog } from '@/components/cfo/CFOInitiateAdvanceDialog';
+import { StaffRepayAdvanceDialog } from '@/components/advances/StaffRepayAdvanceDialog';
 import { AdvanceAnalyticsPanel } from '@/components/executive/agent-ops-v2/AdvanceAnalyticsPanel';
 import { AgentAdvancesStatsCard } from '@/components/cfo/AgentAdvancesStatsCard';
 import { AgentAdvancesOutstandingPanel } from '@/components/cfo/AgentAdvancesOutstandingPanel';
@@ -18,6 +19,7 @@ interface Props {
  */
 export function AdvancesAnalyticsView({ context = 'cfo' }: Props) {
   const [issueOpen, setIssueOpen] = useState(false);
+  const [repayOpen, setRepayOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   return (
@@ -31,10 +33,16 @@ export function AdvancesAnalyticsView({ context = 'cfo' }: Props) {
               : 'Advance performance across your agents: requests, approvals, disbursements and outstanding exposure.'}
           </p>
         </div>
-        <Button onClick={() => setIssueOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Issue Advance
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setIssueOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Issue Advance
+          </Button>
+          <Button variant="outline" onClick={() => setRepayOpen(true)} className="gap-2">
+            <HandCoins className="h-4 w-4" />
+            Repay Advance
+          </Button>
+        </div>
       </div>
 
       <div key={refreshKey} className="space-y-6">
@@ -46,6 +54,12 @@ export function AdvancesAnalyticsView({ context = 'cfo' }: Props) {
       <CFOInitiateAdvanceDialog
         open={issueOpen}
         onOpenChange={setIssueOpen}
+        onSuccess={() => setRefreshKey((k) => k + 1)}
+      />
+
+      <StaffRepayAdvanceDialog
+        open={repayOpen}
+        onOpenChange={setRepayOpen}
         onSuccess={() => setRefreshKey((k) => k + 1)}
       />
     </div>
