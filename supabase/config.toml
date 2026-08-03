@@ -21,10 +21,6 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.agent-withdrawal]
     verify_jwt = false
-  [functions.ai-brain]
-    verify_jwt = false
-  [functions.ai-user-experience-report]
-    verify_jwt = false
   [functions.approve-deposit]
     verify_jwt = false
   [functions.approve-loan-application]
@@ -32,10 +28,6 @@ project_id = "wirntoujqoyjobfhyelc"
   [functions.approve-rent-request]
     verify_jwt = false
   [functions.auth-email-hook]
-    verify_jwt = false
-  [functions.automation-engine]
-    verify_jwt = false
-  [functions.batch-sync]
     verify_jwt = false
   [functions.check-repayment-status]
     verify_jwt = false
@@ -49,15 +41,9 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.credit-listing-bonus]
     verify_jwt = false
-  [functions.earning-predictor]
-    verify_jwt = false
-  [functions.fix-supporter-metadata]
-    verify_jwt = false
   [functions.fund-tenant-from-pool]
     verify_jwt = false
   [functions.fund-tenants]
-    verify_jwt = false
-  [functions.loan-reminders]
     verify_jwt = false
   [functions.manager-portfolio-topup]
     verify_jwt = false
