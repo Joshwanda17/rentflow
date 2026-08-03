@@ -239,28 +239,39 @@ export function PushNotificationGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
-  // The prompt is always dismissible ("Not now") and honours the 7-day snooze.
+  // The prompt is always dismissible ("Not now").
   const required = false;
   const checkedRef = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
-  const snoozed = useMemo(() => {
-    try {
-      const ts = Number(localStorage.getItem(SNOOZE_KEY) || 0);
-      return ts > Date.now() - SNOOZE_MS;
-    } catch {
-      return false;
-    }
+  const isSnoozed = useCallback((userId: string) => {
+    const ts = getTs(SNOOZE_KEY_PREFIX, userId);
+    return ts !== null && ts > Date.now() - SNOOZE_MS;
+  }, []);
+
+  const isPromptedRecently = useCallback((userId: string) => {
+    const ts = getTs(PROMPTED_KEY_PREFIX, userId);
+    return ts !== null && ts > Date.now() - PROMPTED_COOLDOWN_MS;
   }, []);
 
   // Decide whether to show the prompt.
   useEffect(() => {
-    if (!user || checkedRef.current) return;
+    if (!user) return;
+    // Re-evaluate when the signed-in user changes without a page reload.
+    if (lastUserIdRef.current !== user.id) {
+      lastUserIdRef.current = user.id;
+      checkedRef.current = false;
+    }
+    if (checkedRef.current) return;
     checkedRef.current = true;
 
-    // If already granted, nothing to do. If the browser can't do push at all,
-    // don't nag. Otherwise (permission === "default" or "denied") the user must
-    // act — enabling is mandatory so rejection/payout/rent alerts reach them.
+    // Never prompt inside the Lovable preview iframe — browsers refuse the
+    // permission request there and report "denied", which would train users
+    // to think the app is broken.
+    if (isInIframe()) return;
+    // If the browser can't do push at all, don't nag.
     if (!isPushSupported()) return;
+
     if (Notification.permission === "granted") {
       markEnabled(user.id);
       // Silent self-heal: if the stored PushSubscription was created with an
@@ -276,33 +287,48 @@ export function PushNotificationGate() {
     if (isDenied) clearEnabled(user.id);
     // Already enabled on this device (flag or live subscription) → never nag.
     if (!isDenied && isMarkedEnabled(user.id)) return;
-    // Snooze applies to every path — the prompt is never mandatory.
-    if (snoozed) return;
+    // Once denied the only recovery path is browser settings; don't show the
+    // full gate because the native prompt will be blocked.
+    if (isDenied) return;
+    // Respect explicit "Not now" snooze and the broader 24h "already seen" cooldown.
+    if (isSnoozed(user.id) || isPromptedRecently(user.id)) return;
 
     let cancelled = false;
-    // Delay so it doesn't fight other startup UI (e.g. location gate).
+    // Short delay so it doesn't fight other startup UI (e.g. location gate).
     const t = setTimeout(async () => {
       if (cancelled) return;
       if (await deviceAlreadySubscribed(user.id)) {
         markEnabled(user.id);
         return;
       }
-      if (!cancelled) setOpen(true);
-    }, 30000);
+      if (!cancelled) {
+        // Record that this user was shown the gate, even if they later close
+        // the browser without tapping a button. This stops the "every restart"
+        // loop for users who simply dismiss the dialog.
+        setTs(PROMPTED_KEY_PREFIX, user.id);
+        setOpen(true);
+      }
+    }, 5000);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [user, snoozed]);
+  }, [user, isSnoozed, isPromptedRecently]);
+
+  // Keep the "prompted" timestamp fresh while the dialog stays open.
+  useEffect(() => {
+    if (open && user) {
+      setTs(PROMPTED_KEY_PREFIX, user.id);
+    }
+  }, [open, user]);
 
   const handleSnooze = useCallback(() => {
-    try {
-      localStorage.setItem(SNOOZE_KEY, String(Date.now()));
-    } catch {
-      /* ignore */
+    if (user) {
+      setTs(PROMPTED_KEY_PREFIX, user.id);
+      setTs(SNOOZE_KEY_PREFIX, user.id);
     }
     setOpen(false);
-  }, []);
+  }, [user]);
 
   const handleEnable = useCallback(async () => {
     if (!user) return;
