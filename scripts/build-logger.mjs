@@ -119,9 +119,18 @@ function finish(code, signal) {
   );
 
   // Ship the log with the build output so it is downloadable after publishing.
+  // 1) dist/build-log.txt — present when this stage ran after vite build.
   const dist = path.join(projectRoot, 'dist');
   if (existsSync(dist)) {
     try { copyFileSync(latestLog, path.join(dist, 'build-log.txt')); } catch { /* ignore */ }
+  }
+  // 2) public/build-log.txt — committed to the repo, so Vite copies it into
+  //    dist/ on the NEXT build. This is the reliable path: files written into
+  //    dist/ after the bundler finishes are not always picked up by the
+  //    deploy step, whereas public/ assets always are.
+  const publicDir = path.join(projectRoot, 'public');
+  if (existsSync(publicDir)) {
+    try { copyFileSync(latestLog, path.join(publicDir, 'build-log.txt')); } catch { /* ignore */ }
   }
 
   const failed = Boolean(signal) || (code ?? 1) !== 0;
