@@ -17,7 +17,7 @@
  * re-printed as a summary so the root cause is visible without opening files.
  */
 import { spawn } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, readdirSync, rmSync, copyFileSync, readFileSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readdirSync, rmSync, copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
