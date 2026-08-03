@@ -1329,14 +1329,38 @@ export default function FindAHouse() {
                   </div>
                   {/* List — hidden on mobile while the map is open (toggle), shown beside map on desktop */}
                   <div className="hidden md:block md:order-1 md:flex-1 min-w-0">
-                    <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
+                    <VirtualHouseList listings={paginated} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
                   </div>
                 </div>
               ) : (
-                <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
+                <VirtualHouseList listings={paginated} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
               )}
-              {/* Infinite-scroll sentinel + status. */}
-              {hasMore && <div ref={loadMoreSentinelRef} className="h-1 w-full" aria-hidden="true" />}
+
+              {/* Pagination */}
+              <nav aria-label="House list pages" className="flex items-center justify-between gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </Button>
+                <span className="text-xs text-muted-foreground font-medium">
+                  Page {currentPage} of {totalPages}
+                  {hasMore ? '+' : ''}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage >= totalPages && !hasMore}
+                  className="gap-1"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
+              </nav>
               {loadingMore && (
                 <LoadMoreProgress
                   loadedCount={filtered.length}
