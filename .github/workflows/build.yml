@@ -66,11 +66,7 @@ jobs:
       - name: Verify build output
         run: |
           set -euxo pipefail
-          if [ ! -f dist/index.html ]; then
-            echo "::error title=Build output missing::dist/index.html was not produced — the bundler stage did not complete."
-            ls -la dist || echo "dist/ does not exist"
-            exit 1
-          fi
+          node scripts/verify-dist.mjs
           echo "dist size: $(du -sh dist | cut -f1)"
           echo "files: $(find dist -type f | wc -l)"
 

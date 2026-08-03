@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
 const GUARDS = [
+  ['guard-schema-types.mjs', 'generated schema types fingerprint'],
   ['guard-frontend-ledger-writes.mjs', 'frontend ledger writes'],
   ['guard-deposit-purpose.mjs', 'deposit purpose'],
   ['guard-legacy-domain.mjs', 'legacy domain references'],
