@@ -96,12 +96,17 @@ export default function Landing() {
     navigate('/auth');
   };
 
+  const goToTenantDashboard = () => {
+    markSeen();
+    navigate('/dashboard/tenant');
+  };
+
   const goNext = () => {
     hapticTap();
     if (step < totalSlides - 1) {
       setStep(step + 1);
     } else {
-      goToAuth();
+      goToTenantDashboard();
     }
   };
 
