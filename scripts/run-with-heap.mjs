@@ -13,10 +13,45 @@
  */
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const HEAP_MB = Number(process.env.BUILD_HEAP_MB || 8192);
+const REQUESTED_HEAP_MB = Number(process.env.BUILD_HEAP_MB || 8192);
+
+/**
+ * Hard ceiling available to this container. Forcing an 8 GB V8 heap inside a
+ * smaller build container is worse than a small heap: V8 happily grows past the
+ * cgroup limit and the kernel OOM-kills the process (SIGKILL), which surfaces
+ * as an opaque "Publishing failed" with no build error. So cap the heap at a
+ * safe fraction of whatever memory this machine actually has.
+ */
+function containerMemoryMb() {
+  const candidates = [];
+  for (const file of ['/sys/fs/cgroup/memory.max', '/sys/fs/cgroup/memory/memory.limit_in_bytes']) {
+    try {
+      const raw = readFileSync(file, 'utf8').trim();
+      if (raw && raw !== 'max') {
+        const bytes = Number(raw);
+        if (Number.isFinite(bytes) && bytes > 0 && bytes < Number.MAX_SAFE_INTEGER) {
+          candidates.push(Math.floor(bytes / 1024 / 1024));
+        }
+      }
+    } catch {
+      // cgroup file unavailable (macOS / Windows / restricted CI) — ignore.
+    }
+  }
+  const total = Math.floor(os.totalmem() / 1024 / 1024);
+  if (Number.isFinite(total) && total > 0) candidates.push(total);
+  return candidates.length ? Math.min(...candidates) : null;
+}
+
+const memoryMb = containerMemoryMb();
+// Leave headroom for the OS, the Rollup native addon and worker threads.
+const safeCeilingMb = memoryMb ? Math.max(1536, Math.floor(memoryMb * 0.75)) : REQUESTED_HEAP_MB;
+const HEAP_MB = Math.min(REQUESTED_HEAP_MB, safeCeilingMb);
+
 const [rawCommand, ...rawArgs] = process.argv.slice(2);
 
 if (!rawCommand) {
@@ -55,11 +90,12 @@ if (rawCommand !== 'node' && rawCommand !== process.execPath) {
 }
 
 const existing = process.env.NODE_OPTIONS ?? '';
-const inherited = /--max-old-space-size=(\d+)/.exec(existing);
-const heapMb = inherited ? Math.max(HEAP_MB, Number(inherited[1])) : HEAP_MB;
+const heapMb = HEAP_MB;
 const nodeOptions = `${existing.replace(/--max-old-space-size=\d+/g, '').trim()} --max-old-space-size=${heapMb}`.trim();
 
-console.log(`[heap] NODE_OPTIONS="${nodeOptions}" -> ${command} ${args.join(' ')}`);
+console.log(
+  `[heap] machine=${memoryMb ?? 'unknown'}MB requested=${REQUESTED_HEAP_MB}MB using=${heapMb}MB -> ${command} ${args.join(' ')}`,
+);
 
 const child = spawn(command, args, {
   stdio: 'inherit',
