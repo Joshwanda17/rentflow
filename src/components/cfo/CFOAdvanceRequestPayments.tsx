@@ -814,7 +814,14 @@ export function CFOAdvanceRequestPayments({ onViewDisbursed }: { onViewDisbursed
                         <User className="h-5 w-5 text-emerald-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate">{profile?.full_name || 'Agent'}</p>
+                        <p className="text-sm font-bold truncate flex items-center gap-1.5">
+                          <span className="truncate">{profile?.full_name || 'Agent'}</span>
+                          {(req.request_kind ?? 'new') === 'topup' && (
+                            <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 h-4 uppercase tracking-wider bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950/30 dark:text-violet-400">
+                              Top-up +{Number(req.extend_days ?? 0)}d
+                            </Badge>
+                          )}
+                        </p>
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
                           <Badge
                             variant="outline"
