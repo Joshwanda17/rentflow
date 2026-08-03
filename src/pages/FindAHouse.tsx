@@ -10,7 +10,7 @@ import { LoadMoreProgress } from '@/components/tenant/LoadMoreProgress';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
+  ChevronLeft, ChevronRight, ChevronDown, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
   SlidersHorizontal, X, Droplets, Zap, Car, Sofa, Loader2, ArrowRight,
   ArrowUpDown, BedDouble,
   Map as MapIcon, List as ListIcon, Route, Footprints, ArrowLeft
