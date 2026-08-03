@@ -1,4 +1,5 @@
 import { SYSTEM_CONTEXT_MD } from "./doc.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,6 +8,7 @@ const corsHeaders = {
 };
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
+const SYSTEM_CONTEXT_RECIPIENT = "joshwanda17@gmail.com";
 
 function b64(bytes: Uint8Array): string {
   let s = "";
@@ -20,16 +22,46 @@ function b64(bytes: Uint8Array): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.replace(/^Bearer\s+/i, "") ?? "";
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    const { data: authData, error: authError } = await admin.auth.getUser(token);
+    if (authError || !authData.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: roles, error: roleError } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", authData.user.id)
+      .eq("enabled", true)
+      .in("role", ["manager", "cto", "super_admin"]);
+    if (roleError || !roles?.length) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const GOOGLE_MAIL_API_KEY = Deno.env.get("GOOGLE_MAIL_API_KEY");
     if (!LOVABLE_API_KEY || !GOOGLE_MAIL_API_KEY) {
       throw new Error("Gmail connector secrets are not configured");
     }
-    let to = "joshwanda17@gmail.com";
-    try {
-      const body = await req.json();
-      if (typeof body?.to === "string" && body.to.includes("@")) to = body.to;
-    } catch (_) { /* no body */ }
+    const to = SYSTEM_CONTEXT_RECIPIENT;
 
     const attachment = b64(new TextEncoder().encode(SYSTEM_CONTEXT_MD));
     const boundary = "WELILE_SYSCTX_BOUNDARY";

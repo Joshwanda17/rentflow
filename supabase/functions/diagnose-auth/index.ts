@@ -19,28 +19,33 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Auth: verify caller is manager/cto/super_admin via JWT, or skip auth for internal calls
+    // Auth: this endpoint exposes authentication/profile diagnostics and must
+    // never fall through without a verified admin-tier user.
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "") ?? "";
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (token) {
-      // Validate the JWT and check role
-      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (!authError && authData?.user) {
-        const { data: roleData } = await supabaseAdmin
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", authData.user.id)
-          .eq("enabled", true)
-          .in("role", ["manager", "cto", "super_admin"]);
-        if (!roleData?.length) {
-          return new Response(JSON.stringify({ error: "Forbidden - requires manager/cto/super_admin role" }), {
-            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      }
-      // If getUser fails, it may be a service-role JWT — allow through since verify_jwt=false
-      // and the Supabase gateway already validated the apikey
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", authData.user.id)
+      .eq("enabled", true)
+      .in("role", ["manager", "cto", "super_admin"]);
+    if (roleError || !roleData?.length) {
+      return new Response(JSON.stringify({ error: "Forbidden - requires manager/cto/super_admin role" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Targeted lookup: if the caller passes specific userIds, return the exact
