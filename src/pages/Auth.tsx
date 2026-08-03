@@ -530,11 +530,57 @@ export default function Auth() {
         )}
 
         {!needsRoleSelection && (
-          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
+          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400 rounded-2xl border border-border/60 bg-card p-5 shadow-lg shadow-black/5 sm:p-6">
+
+            {/* Sign In / Sign Up tabs — bound to the existing isSignUp state so
+                deep links (?signup=1, ?become=…, referral links) still land on
+                the right panel. Hidden during reset flows. */}
+            {!isForgotPassword && !isForgotPhone && !SIGNUP_PAUSED && (
+              <Tabs
+                value={isSignUp ? 'sign-up' : 'sign-in'}
+                onValueChange={(v) => setIsSignUp(v === 'sign-up')}
+                className="mb-5"
+              >
+                <TabsList className="grid w-full grid-cols-2 h-12 rounded-xl p-1">
+                  <TabsTrigger value="sign-in" className="h-10 rounded-lg text-sm font-semibold">Sign In</TabsTrigger>
+                  <TabsTrigger value="sign-up" className="h-10 rounded-lg text-sm font-semibold">Sign Up</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
 
             {/* ===== SIGN IN VIEW ===== */}
             {isLoginView && loginMode === 'password' && (
               <div className="space-y-5">
+                {/* Social sign-in first — matches the card layout */}
+                <OAuthEnvironmentHint />
+                <OAuthErrorCard />
+
+                <div className="flex w-full flex-wrap items-center justify-center gap-4">
+                  <GoogleSignInButton
+                    onClick={wrappedHandleGoogleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isGoogleLoading}
+                    variant="icon"
+                  />
+                  <AppleSignInButton
+                    onClick={() => {
+                      localStorage.setItem('welile_last_login_method', 'apple');
+                      // OAuth sign-ins are always persistent — clear stale ephemeral flag.
+                      setDeviceTrust(true);
+                      handleAppleSignIn();
+                    }}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isAppleLoading}
+                    variant="icon"
+                  />
+                </div>
+
+                <div className="relative flex items-center py-1">
+                  <div className="flex-1 border-t border-border/40" />
+                  <span className="px-3 text-xs text-muted-foreground">or</span>
+                  <div className="flex-1 border-t border-border/40" />
+                </div>
+
                 {/* Phone + Password — primary path (phone-first for African users) */}
                 <form onSubmit={wrappedHandleSubmit} className="space-y-5">
                   <div className="space-y-2">
