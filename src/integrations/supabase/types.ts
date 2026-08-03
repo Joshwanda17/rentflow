@@ -29182,6 +29182,7 @@ export type Database = {
           hold_expires_at: string | null
           house_category: string | null
           house_image_urls: string[] | null
+          landlord_name: string | null
           number_of_payments: number | null
           posted_at: string | null
           projected_end_date: string | null
@@ -29189,6 +29190,8 @@ export type Database = {
           rent_request_id: string | null
           repayment_cadence: string | null
           request_city: string | null
+          tenant_avatar_url: string | null
+          tenant_first_name: string | null
           total_repayment: number | null
         }
         Relationships: []
