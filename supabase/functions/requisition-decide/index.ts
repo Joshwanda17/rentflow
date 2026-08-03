@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
 
     // On approval, credit the requester's wallet (idempotent + ledger-backed).
     let creditError: string | null = null;
+    let creditDetail: Record<string, unknown> | null = null;
     let walletCredit: unknown = null;
     if (body.action === 'approve') {
       const { data: profile } = await admin
@@ -83,6 +84,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (!profile?.id) {
         creditError = 'No user profile matches ' + updated.employee_email;
+        creditDetail = { stage: 'recipient_lookup', message: creditError };
         await admin.from('employee_requisitions').update({ wallet_credit_status: 'failed' }).eq('id', body.id);
       } else {
         const result = await creditRequisitionWallet({
@@ -102,7 +104,17 @@ Deno.serve(async (req) => {
           deviceInfo: req.headers.get('user-agent'),
         });
         walletCredit = result;
-        if (!result.ok) creditError = result.error ?? result.message;
+        if (!result.ok) {
+          creditError = result.error ?? result.message;
+          creditDetail = {
+            stage: result.stage ?? 'wallet_credit',
+            message: result.message,
+            upstream_function: result.upstream_function ?? null,
+            upstream_status: result.upstream_status ?? null,
+            attempt_count: result.attempt_count ?? null,
+            idempotency_reference: result.idempotency_reference ?? null,
+          };
+        }
         else if (!result.already_credited) {
           await admin.from('employee_requisitions').update({ status: 'paid' }).eq('id', body.id);
         }
@@ -135,7 +147,7 @@ Deno.serve(async (req) => {
       });
     } catch (_) { /* non-fatal */ }
 
-    return json({ ok: true, credit_error: creditError, wallet_credit: walletCredit }, 200);
+    return json({ ok: true, credit_error: creditError, credit_detail: creditDetail, wallet_credit: walletCredit }, 200);
   } catch (e) {
     console.error('decide error', e);
     return json({ error: String((e as Error).message ?? e) }, 500);
