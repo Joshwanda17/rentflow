@@ -152,7 +152,6 @@ const RentPosterDialog = lazy(() => import('@/components/agent/RentPosterDialog'
 const RegFormActionDialog = lazy(() => import('@/components/agent/RegFormActionDialog'));
 const AgentDepositDialog = lazy(() => import('@/components/agent/AgentDepositDialog').then(m => ({ default: m.AgentDepositDialog })));
 const RegisterSubAgentDialog = lazy(() => import('@/components/agent/RegisterSubAgentDialog').then(m => ({ default: m.RegisterSubAgentDialog })));
-const AgentLeaderboardPromoDialog = lazy(() => import('@/components/agent/AgentLeaderboardPromoDialog').then(m => ({ default: m.AgentLeaderboardPromoDialog })));
 const AgentRentRequestDialog = lazy(() => import('@/components/agent/AgentRentRequestDialog'));
 const BusinessAdvanceRequestDialog = lazy(() => import('@/components/agent/BusinessAdvanceRequestDialog'));
 const CommissionCelebrationModal = lazy(() => import('@/components/agent/CommissionCelebrationModal').then(m => ({ default: m.CommissionCelebrationModal })));
