@@ -33,6 +33,10 @@ export default function BusinessAdvanceTrack() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpBusy, setOtpBusy] = useState(false);
   const [accountReady, setAccountReady] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(true);
   const [authedUserId, setAuthedUserId] = useState<string | null>(null);
@@ -128,6 +132,7 @@ export default function BusinessAdvanceTrack() {
   );
 
   const handleClaim = async () => {
+    if (!otpVerified) return toast.error('Verify the SMS code first');
     if (password.length < 8) return toast.error('Password must be at least 8 characters');
     if (password !== confirmPassword) return toast.error('Passwords do not match');
     setClaiming(true);
@@ -148,6 +153,42 @@ export default function BusinessAdvanceTrack() {
       toast.error(e?.message || 'Could not set up account');
     } finally {
       setClaiming(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    setOtpBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'send', phone },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setOtpSent(true);
+      setOtpVerified(false);
+      toast.success('Verification code sent by SMS');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Could not send verification code');
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!/^\d{6}$/.test(otp)) return toast.error('Enter the 6-digit SMS code');
+    setOtpBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'verify', phone, otp },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Verification failed');
+      setOtpVerified(true);
+      toast.success('Phone verified');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Could not verify the code');
+    } finally {
+      setOtpBusy(false);
     }
   };
 
@@ -423,8 +464,32 @@ export default function BusinessAdvanceTrack() {
                     <h3 className="font-bold text-sm">Set up your account</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Your agent has already pre-registered you using <strong>{phone}</strong>. Just choose a password to access your dashboard, track approval, and manage repayments.
+                    Your agent has pre-registered you using <strong>{phone}</strong>. Verify this phone, then choose a password to access your dashboard.
                   </p>
+
+                  <div className="space-y-2 rounded-md border p-3">
+                    <Label className="text-xs flex items-center gap-1"><Shield className="h-3 w-3" />Phone verification</Label>
+                    {!otpSent ? (
+                      <Button type="button" variant="outline" className="w-full" onClick={handleSendOtp} disabled={otpBusy}>
+                        {otpBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Send SMS code
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          value={otp}
+                          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          placeholder="6-digit code"
+                          disabled={otpVerified}
+                        />
+                        <Button type="button" variant={otpVerified ? 'secondary' : 'outline'} onClick={handleVerifyOtp} disabled={otpBusy || otpVerified}>
+                          {otpVerified ? 'Verified' : 'Verify'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">Your full name (optional)</Label>
@@ -439,7 +504,7 @@ export default function BusinessAdvanceTrack() {
                     <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter password" autoComplete="new-password" />
                   </div>
 
-                  <Button className="w-full h-11 gap-2" onClick={handleClaim} disabled={claiming}>
+                  <Button className="w-full h-11 gap-2" onClick={handleClaim} disabled={claiming || !otpVerified}>
                     {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                     Activate my account
                   </Button>
