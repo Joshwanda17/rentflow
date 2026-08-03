@@ -17,6 +17,28 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // The callback URL configured with the telecom provider includes the same
+    // unguessable token as `?token=...`. Reject direct/spoofed POSTs before
+    // trusting the submitted phone number or reading financial information.
+    const expectedToken = Deno.env.get('USSD_CALLBACK_SECRET')
+    const suppliedToken = new URL(req.url).searchParams.get('token') ?? ''
+    if (!expectedToken || suppliedToken.length !== expectedToken.length) {
+      return new Response('END Unauthorized request.', {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+      })
+    }
+    const expectedBytes = new TextEncoder().encode(expectedToken)
+    const suppliedBytes = new TextEncoder().encode(suppliedToken)
+    let mismatch = 0
+    for (let i = 0; i < expectedBytes.length; i += 1) mismatch |= expectedBytes[i] ^ suppliedBytes[i]
+    if (mismatch !== 0) {
+      return new Response('END Unauthorized request.', {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+      })
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const serviceClient = createClient(supabaseUrl, serviceKey)
